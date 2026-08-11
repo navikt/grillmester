@@ -1,0 +1,18 @@
+{
+  "name": "grillmester",
+  "owner": {
+    "name": "Team eSyfo"
+  },
+  "metadata": {
+    "description": "Copilot workflows maintained by Team eSyfo.",
+    "version": "0.1.0-poc.1"
+  },
+  "plugins": [
+    {
+      "name": "grillmester",
+      "description": "Clarify, implement, verify and independently review one bounded software change.",
+      "version": "0.1.0-poc.1",
+      "source": "."
+    }
+  ]
+}
