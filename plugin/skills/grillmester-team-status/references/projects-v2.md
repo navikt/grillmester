@@ -1,81 +1,62 @@
-# GitHub Projects v2 — teknisk tilgang
+# GitHub Projects v2 — kapabilitetsstyrt tilgang
 
 Oppskrifter for å lese en eksplisitt bekreftet GitHub Projects v2-tavle og,
 etter særskilt godkjenning, endre en konkret verdi. Felter, opsjoner og ID-er er
 prosjektspesifikke: hent dem ved kjøring. Ikke bruk eksemplene til å oppdage
 eller anta teamets prosjekt.
 
-## GitHub MCP `projects`-toolset (foretrukket)
+## Godkjent GitHub-/Projects-integrasjon
 
-Tre verktøy:
+Bruk den semantiske GitHub-/Projects-integrasjonen som faktisk er tilgjengelig
+og godkjent i runtime. Et vanlig MCP-oppsett kan for eksempel tilby:
 
 - `projects_list` — lister prosjekter for en owner
 - `projects_get` — henter ett prosjekt, inkludert felter og items
 - `projects_write` — oppretter/oppdaterer items med feltverdier; bruk bare
   etter vist diff og eksplisitt godkjenning
 
-To forutsetninger som ofte mangler:
+Tilgjengelighet og autorisasjon må verifiseres ved kjøring. To forutsetninger
+som ofte mangler:
 
 1. Toolset-et må eksplisitt aktiveres i serveroppsettet (typisk `--toolsets=projects` eller tilsvarende toolset-konfig)
 2. Tokenet må ha project-scope
 
-Verktøyene **skjules automatisk** uten riktig scope. Ser du ikke `projects_*`-verktøyene, er det altså aktivering eller scope som mangler — gå til feilsøkingstabellen nederst, eller fall tilbake til `gh`.
+Verktøyene kan skjules uten riktig aktivering eller scope. Fravær av et
+verktøy er ikke tillatelse til å bytte til shell, `gh`, rå GraphQL, `curl` eller
+en annen nettverksvei. Ikke be brukeren kjøre slike kommandoer på vegne av
+Doctor Who.
 
-## `gh`-fallback
+## Når integrasjonen mangler
 
-```bash
-gh project view <nummer> --owner <org> --format json
-gh project item-list <nummer> --owner <org> --format json --limit 200
-gh project field-list <nummer> --owner <org> --format json
+Be brukeren lime inn eller eksportere det minste nødvendige, med tidspunkt:
+
+- bekreftet owner, project number og prosjekttittel
+- relevante feltdefinisjoner, opsjoner og iterasjoner
+- alle items som inngår i rapportens avtalte scope
+- feltverdier og item-lenker som påstandene skal spores til
+
+Returner deretter:
+
+```text
+Status: NEEDS_INPUT
+Mangler: <Projects-kilde eller kapabilitet>
+Hvorfor: <hvilken påstand eller handling som ikke kan verifiseres>
+Fortsett med: <eksakt eksportert eller innlimt utdrag>
 ```
 
-`item-list` returnerer flate feltverdier per item og er som regel nok til rapportene. Default-limiten er 30 items — bruk `--limit 100` (eller paginer) ved store tavler. `field-list` gir feltdefinisjoner med opsjons-ID-er (trengs før skriving).
+Analyser et innlimt eller eksportert øyeblikksbilde som et eksplisitt avgrenset
+kildegrunnlag. Oppgi tidspunktet, og ikke presenter det som live status. Hvis
+en godkjent skriveintegrasjon mangler, kan Doctor Who bare vise det konkrete
+endringsutkastet; brukeren må enten gjøre endringen i GitHub-grensesnittet eller
+gjøre integrasjonen tilgjengelig før arbeidet kan fortsette.
 
-`gh project`-kommandoene krever også project-scope. Kommandoen under endrer
-GitHub CLI-autorisasjonen og skal ikke kjøres automatisk; forklar behovet og be
-brukeren godkjenne eller utføre den:
+## API-semantikk som integrasjonen må bevare
 
-```bash
-gh auth refresh -s project
-```
+Feltverdier kan ha forskjellige typer, blant annet tekst, single-select og
+iterasjon. Bevar typen og ikke flat ut bort feltidentitet eller item-lenker når
+evidensen hentes eller eksporteres.
 
-## GraphQL-fallgruver
-
-Trenger du `gh api graphql` (f.eks. for iterasjonskonfigurasjon), gjelder dette:
-
-**Feltverdier er GraphQL-unions** (`ProjectV2ItemFieldTextValue` / `...SingleSelectValue` / `...IterationValue`) — hent dem med inline fragments og flat ut klientside etterpå:
-
-```graphql
-query($owner: String!, $number: Int!) {
-  organization(login: $owner) {
-    projectV2(number: $number) {
-      items(first: 100) {
-        nodes {
-          content { ... on Issue { number title repository { nameWithOwner } } }
-          fieldValues(first: 20) {
-            nodes {
-              ... on ProjectV2ItemFieldTextValue {
-                text
-                field { ... on ProjectV2FieldCommon { name } }
-              }
-              ... on ProjectV2ItemFieldSingleSelectValue {
-                name
-                field { ... on ProjectV2FieldCommon { name } }
-              }
-              ... on ProjectV2ItemFieldIterationValue {
-                title startDate duration
-                field { ... on ProjectV2FieldCommon { name } }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-- **Oppdatering av single-select/iterasjon krever opsjon-ID/iterasjons-ID**, ikke navnet på verdien. Hent feltmetadata først (`field-list` eller `projects_get`) og slå opp ID-en.
+- **Oppdatering av single-select/iterasjon krever opsjon-ID/iterasjons-ID**, ikke navnet på verdien. Hent feltmetadata først gjennom den godkjente integrasjonen og slå opp ID-en.
 - **Tømming av felt** har egen mutation: `clearProjectV2ItemFieldValue`. Du kan ikke sette verdien til null.
 - **Lukkede iterasjoner** ligger i feltets `configuration.completedIterations`, separat fra de aktive i `configuration.iterations` — sjekk begge når du leter etter en forrige iterasjon.
 - **Feltdefinisjoner kan IKKE endres via API.** Det finnes ingen mutations for å legge til eller endre single-select-opsjoner. Foreslå teksten — et menneske legger den inn i prosjektinnstillingene.
@@ -86,7 +67,8 @@ query($owner: String!, $number: Int!) {
 |---|---|---|
 | `projects_*`-verktøyene finnes ikke | Toolset ikke aktivert | At `projects` står i `--toolsets`/toolset-konfigen for GitHub MCP-serveren |
 | Verktøyene mangler selv om toolset er aktivert | Token uten project-scope | Token-scopene; PAT/App-token med project-scope. I Actions: default `GITHUB_TOKEN` når aldri Projects-API-et |
-| `gh project` gir auth-/rettighetsfeil | `gh`-token uten project-scope | Kontroller aktiv konto og scope; be om godkjenning før eventuell `gh auth refresh -s project` |
 | Prosjektet finnes ikke / tom respons | Org-prosjekt utilgjengelig for tokenet | At owner/nummer stemmer, at brukeren ser tavla i nettleseren, og at tokenet er autorisert for org-en (SSO) |
 
-Hjelper ingenting av dette: be brukeren lime inn det relevante fra tavla, og bygg rapporten fra det.
+Ikke endre runtime-, MCP- eller tokenkonfigurasjon som en del av statusarbeidet.
+Hvis den godkjente integrasjonen fortsatt ikke gir tilgang, bruk
+`NEEDS_INPUT`-flyten over.

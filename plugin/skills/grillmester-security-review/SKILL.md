@@ -47,11 +47,20 @@ reference](references/threat-model.md) and perform its DFD-first STRIDE review.
 ## Produce evidence
 
 Discover the repository's security tools and required gates. When the active
-agent can execute commands, run only safe, authorized checks relevant to the
-change and report the command, result, and exit code. A read-only reviewer
-validates supplied evidence instead; when a material claim lacks fresh
-evidence, return `MISSING_EVIDENCE` and name the smallest relevant command for
-the orchestrator to run.
+agent is Doctor Who, or otherwise lacks explicit command-execution capability,
+use repository evidence, approved web/MCP sources, and supplied CI or test
+artifacts only. Never invoke or prescribe shell, `gh`, raw HTTP, or another
+network command. When a material claim lacks evidence, ask for the smallest
+pasted or exported artifact and return `Status: NEEDS_INPUT`, naming the claim
+that remains unverified.
+
+In a separate developer or security-reviewer workflow, an agent whose own
+contract explicitly grants command execution may run only safe, authorized
+checks relevant to the change and report the command, result, and exit code. A
+non-product reviewer that expects fresh evidence but cannot execute may return
+`MISSING_EVIDENCE` and hand the evidence request to an explicitly authorized
+orchestrator. This paragraph does not grant Doctor Who shell access and must
+not be used to route commands through the user.
 
 Never install tools, contact external systems, rotate credentials, or mutate
 deployed state merely to complete a review. Return findings ordered by

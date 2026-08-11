@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "plugin/**"
   workflow_dispatch:
 
 concurrency:
@@ -34,6 +36,9 @@ jobs:
 
       - name: Validate plugin package
         run: python3 scripts/validate.py
+
+      - name: Validate zero-cost evaluation contract
+        run: python3 scripts/validate_evals.py
 
       - name: Run Python tests
         run: python3 -m unittest discover -s tests -v
@@ -69,9 +74,9 @@ jobs:
         run: npm install --global @github/copilot@1.0.79
 
       - name: Smoke-test immutable marketplace installation
-        run: python3 scripts/smoke_plugin_install.py
-        env:
-          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 scripts/smoke_plugin_install.py
+          --expect-release-sha "${{ steps.source.outputs.sha }}"
 
   publish:
     needs: validate
@@ -88,6 +93,7 @@ jobs:
         with:
           ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Generate immutable release catalog
         run: >-
@@ -97,11 +103,16 @@ jobs:
 
       - name: Publish catalog-only commit atomically
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
 
           remote_tip="$(git ls-remote --heads origin "refs/heads/${MARKETPLACE_BRANCH}")"
           base_sha=""
@@ -111,6 +122,29 @@ jobs:
               "refs/heads/${MARKETPLACE_BRANCH}:refs/remotes/origin/${MARKETPLACE_BRANCH}"
             base_sha="$(git rev-parse "refs/remotes/origin/${MARKETPLACE_BRANCH}")"
             parent_args=(-p "${base_sha}")
+
+            previous_catalog="$(git show "${base_sha}:.github/plugin/marketplace.json")"
+            previous_version="$(jq -er '.plugins[0].version' <<<"${previous_catalog}")"
+            previous_source_sha="$(jq -er '.plugins[0].source.sha' <<<"${previous_catalog}")"
+            current_version="$(jq -er '.version' plugin/plugin.json)"
+
+            if [[ "${current_version}" == "${previous_version}" ]]; then
+              if [[ "${SOURCE_SHA}" == "${previous_source_sha}" ]]; then
+                echo "Marketplace already publishes ${current_version} at ${SOURCE_SHA}."
+                exit 0
+              fi
+              echo "Refusing to reuse marketplace version ${current_version} for ${SOURCE_SHA}; previous source is ${previous_source_sha}." >&2
+              exit 1
+            fi
+
+            while read -r catalog_commit; do
+              [[ -z "${catalog_commit}" ]] && continue
+              published_version="$(git show "${catalog_commit}:.github/plugin/marketplace.json" | jq -er '.plugins[0].version')"
+              if [[ "${published_version}" == "${current_version}" ]]; then
+                echo "Refusing to reuse previously published marketplace version ${current_version}." >&2
+                exit 1
+              fi
+            done < <(git rev-list --skip=1 "${base_sha}")
           fi
 
           index_file="$(mktemp)"

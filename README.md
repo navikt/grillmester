@@ -1,96 +1,79 @@
 # Grillmester 🔥
 
-Grillmester er en Copilot-plugin for å forme, gjennomføre og kontrollere
-programvare- og produktarbeid. Den pakker det agentoppsettet Team eSyfo har
-pilotert i `syfo-budstikka`, sammen med de portable design- og
-produktarbeidsflytene fra Hovmester.
+<p align="center">
+  <img src="docs/assets/grillmester-hero.jpg" alt="En retro robotgrillmester ved en kullgrill i et norsk landskap" width="100%">
+</p>
 
-Dette er en full-port POC: pluginmekanismen er bevist, mens innholdet nå
-paritetskontrolleres og klienttestes før første stabile release.
+> **Grill antakelsene før de havner i produksjon.**
 
-## Velg riktig inngang
+Grillmester er et agentteam for GitHub Copilot. Det hjelper Nav-team med å
+avklare viktige oppgaver, ta synlige valg og levere med verifiserbar evidens —
+uten å kopiere agentfiler mellom repoer.
 
-| Agent | Bruk den når |
-| --- | --- |
-| `grillmester` | Oppgaven er viktig eller uklar og trenger avklaring, speccing, domenemodellering, arkitekturvalg eller ADR før en avgrenset implementasjon og evidensbasert review. |
-| `barista` | Oppgaven allerede er godt nok spesifisert eller er enkel nok for en lett, direkte solo-flyt med implementasjon og verifikasjon. |
-| `designer` | Designarbeidet trenger utforsking, Aksel, Figma eller en designprototype. |
-| `doctor-who` | Produktarbeidet gjelder mål, status, prioritering, discovery, workshops, teamhelse eller Nav-arkitektur. |
+Pakken består av **7 agenter og 44 progressivt lastede skills**. Den er en
+kurert **POC**, basert på oppsettet Team eSyfo har pilotert i
+`syfo-budstikka`. Copilot CLI er den verifiserte referanseklienten;
+Copilot app og cloud agent har egne ende-til-ende-gater før stabil release.
 
-De interne agentene er `kokk` (implementasjon), `grill-inspektor`
-(uavhengig review), `researcher` (kildestøttet research) og `konditor`
-(frontendprototype for Designer). De er ikke egne brukerinnganger.
+## Kom i gang
 
-Agentene pinner reviewede modeller. Før utrulling må organisasjonspolicyen
-tillate disse modellene; en manglende modell er en eksplisitt preflight-feil,
-ikke en grunn til å la klienten velge en tilfeldig erstatning.
-
-Navnene fra det piloterte oppsettet er beholdt i denne porten. Eventuelle
-navneendringer vurderes etter at atferdspariteten er bevist, slik at navne- og
-funksjonsendringer ikke blandes sammen.
-
-## Én plugin, progressivt innhold
-
-Hele pakken installeres samlet. Det finnes ingen frontend-/backend-collections;
-Copilot ser korte skillbeskrivelser og laster selve arbeidsflyten og tilhørende
-referanser først når de trengs.
-
-| Område | Skills |
-| --- | --- |
-| Avklaring og plan | `grilling`, `grill-me`, `grill-with-docs`, `domain-modeling`, `wayfinder`, `to-spec`, `to-issues`, `handoff` |
-| Implementasjon og kvalitet | `review`, `pull-request`, `security-review`, `architecture-review`, `prototype`, `diagnosing-bugs`, `tdd`, `integration-tests`, `e2e-tests`, `improve-codebase-architecture`, `create-a-skill` |
-| NAV/backend | `api-design`, `auth-overview`, `kafka-topic`, `kotlin-ktor`, `kotlin-spring`, `lumi-survey`, `nais-manifest`, `nav-troubleshoot`, `observability-setup`, `postgresql-review` |
-| Design | `accessibility-review`, `aksel-design`, `figma-workflow`, `design-prototype` |
-| Produkt | `dulting`, `nav-architecture-review`, `okr`, `produktledelse`, `team-status`, `workshop-design` |
-| Samarbeid og tekst | `issue-management`, `triage`, `readme-update`, `klarsprak` |
-
-Tabellen bruker de kjente kortnavnene. De 43 kanoniske runtime-ID-ene har
-prefikset `grillmester-`, for eksempel `grillmester-security-review`. Det
-hindrer at en personlig eller repo-lokal skill med samme kortnavn stille
-skygger den reviewede pluginvarianten.
-
-Den maskinlesbare innholdslåsen i
-[`policy/content-lock.json`](policy/content-lock.json) er pakkens reviewede BOM:
-eksakt agent- og skillroster, operative agentkontrakter og pinnede
-kilderevisjoner. Den distribueres ikke til consumer-repoer og er ikke en
-synkmekanisme.
-
-## Utvikling og lokal test
-
-Den native Copilot-pluginen ligger i `plugin/`. Monter en checkout direkte:
+Når en reviewet RC-tag er publisert, tar installasjonen i Copilot CLI under ett
+minutt:
 
 ```bash
-copilot --plugin-dir /absolute/path/to/grillmester/plugin \
-  --agent=grillmester:grillmester
-```
-
-Klienten kan vise plugin-komponenter med kvalifiserte navn som
-`grillmester:grillmester`. Den lokale mounten er den tryggeste testen mens
-branchen er under utvikling; den krever ingen installasjon og skal kjøres i et
-tomt, disponibelt testrepo.
-
-Repoet er også sin egen marketplace. Etter at en publisert revisjon finnes:
-
-```bash
-copilot plugin marketplace add navikt/grillmester#<reviewed-release-tag>
+copilot plugin marketplace add navikt/grillmester#REVIEWED_RELEASE_TAG
 copilot plugin install grillmester@grillmester
+copilot --agent=grillmester:grillmester
 ```
 
-Utviklingskatalogen bruker `source: "plugin"`. En releasekatalog skal i stedet
-peke til det fryste plugininnholdet med `plugins[].source.sha` og `path:
-"plugin"`. Det er denne katalogpinnen — ikke en commit-SHA brukt som Git-ref —
-som gir eksakt og reproduserbar installasjon.
+Bruk kandidat-taggen fra repoets
+[Releases](https://github.com/navikt/grillmester/releases). Taggen pinner en
+marketplace-katalog som igjen pinner plugininnholdet til en eksakt commit-SHA.
+Ikke erstatt den med `main` hvis resultatet skal være reproduserbart.
 
-Etter en validert endring på `main` genererer publiseringsflyten en katalog-only
-commit på `marketplace`-branchen. Katalogen peker tilbake på eksakt validert
-innholds-SHA; den kopierer eller transformerer ikke pluginpayloaden. Branchen er
-en kandidatkanal. En stabil release-tag opprettes på den valgte katalogcommiten,
-og consumer-repoer pinner denne taggen i stedet for den flytende branchen.
+Prøv for eksempel:
 
-## Repoaktivert installasjon
+> Kartlegg hva som må avklares før vi endrer denne flyten. Skill mellom fakta,
+> antakelser og reelle beslutninger. Ikke implementer før retningen er
+> godkjent.
 
-Et consumer-repo kan anbefale og aktivere den interne marketplacen med
-`.github/copilot/settings.json`:
+Velg agent med `/agent` i en interaktiv sesjon; klienten viser normalt det
+kvalifiserte navnet `grillmester:<agent>`. En personlig eller repo-lokal agent
+med samme ID kan derimot skygge pluginagenten helt. Fjern eller gi den lokale
+kopien nytt navn — kvalifisering er ikke en sikker omgåelse.
+
+## Fire innganger, ett lag
+
+| Agent | Velg den når |
+| --- | --- |
+| **Grillmester** 🔥 | Oppgaven er viktig eller uklar og trenger speccing, domenemodellering, arkitekturvalg eller ADR før en avgrenset implementasjon og uavhengig review. |
+| **Barista** ☕ | Oppgaven er enkel eller allerede godt spesifisert og kan løses i en lett, solo-first flyt. |
+| **Designer** 🎨 | Du trenger designutforsking, Aksel- og Figma-arbeid eller en tydelig designleveranse. Designer implementerer ikke kode. |
+| **Doctor Who** 🕰️ | Du jobber med mål, prioritering, discovery, workshops, teamhelse, produktfag eller Nav-spesifikke arkitekturvalg. |
+
+`Kokk` implementerer avgrensede slices, `Grill-inspektor` reviewer uavhengig,
+og `Researcher` løser ett avgrenset, kildebelagt Wayfinder-research-ticket uten
+writes. De tre er interne subagenter og er ikke manuelt valgbare.
+
+De 44 skillene dekker blant annet grilling, domenemodellering, ADR,
+sikkerhetsreview, TDD, integrasjonstester, NAV/NAIS, Kotlin, PostgreSQL,
+observability, Aksel, Figma og produktarbeid. Runtime-ID-ene har prefikset
+`grillmester-`; selve innholdet og referansene lastes først når de trengs.
+
+Full Figma-lesing og -leveranse krever at klienten har en godkjent Figma MCP.
+Uten den skal Designer degradere tydelig til konsept, Visual Companion eller et
+Figma-klart utkast — aldri late som en Figma-endring er utført.
+
+POC-sikkerhetsnote: Designer og Doctor Who arver foreløpig alle tilgjengelige
+built-ins og konfigurerte MCP-verktøy fra klienten. Alle writes har
+preview-/godkjenningsgate i agentkontrakten, men dette er ikke en teknisk
+allowlist. Stabil release er blokkert til en eksplisitt, kryssklient allowlist
+er godkjent og app-testet.
+
+## Aktiver Grillmester for et teamrepo
+
+Personlig CLI-installasjon er fin for utprøving. For et teamrepo er den
+anbefalte kontrakten én reviewet fil: `.github/copilot/settings.json`.
 
 ```json
 {
@@ -99,7 +82,7 @@ Et consumer-repo kan anbefale og aktivere den interne marketplacen med
       "source": {
         "source": "github",
         "repo": "navikt/grillmester",
-        "ref": "<reviewed-release-tag>"
+        "ref": "REVIEWED_RELEASE_TAG"
       }
     }
   },
@@ -109,83 +92,124 @@ Et consumer-repo kan anbefale og aktivere den interne marketplacen med
 }
 ```
 
-Release-taggen identifiserer den reviewede marketplace-katalogen; katalogen
-pinner igjen eksakt plugin-SHA. Oppgradering skjer som en vanlig, reviewet
-dependency-endring av `ref`, ikke ved at Grillmester kopierer filer inn i
-consumer-repoet.
+Copilot CLI og Copilot cloud agent leser de samme pluginfeltene. Aktivering fra
+repoet gjelder bare der: pluginen blir ikke slått på i andre prosjekter.
+Enterprise-policyen må samtidig tillate marketplacen og modellene agentene
+bruker.
 
-Copilot CLI og Copilot cloud agent leser repo-innstillingen og bruker pluginen i
-det aktuelle repoet. Den lokale CLI-installasjonen ligger utenfor worktreeet;
-cloud-agenten løser pluginen i sitt isolerte miljø. Copilot app støtter plugins
-og custom agents, men testes som en egen primærflate i denne POC-en i stedet for
-at vi antar samme aktiveringsflyt. VS Code behandler repo-innstillingen som en
-workspace-anbefaling og kan kreve et eksplisitt trust-/installsteg. Bruk en ren
-VS Code-profil ved testing, slik at en tidligere CLI-installasjon ikke gir falsk
-positiv.
+Oppgradering er en vanlig PR som endrer `ref` til en nyere reviewet tag.
+Rollback er den samme endringen tilbake til forrige tag. Dermed er både
+endringen og gjenopprettingen synlig i Git-historikken, mens hver katalog
+fortsatt peker på byte-eksakt plugininnhold via en 40-tegns SHA.
 
-Som diagnostisk lokal kontroll i VS Code:
+Kontroller installasjonen med:
 
-```json
-{
-  "chat.plugins.enabled": true,
-  "chat.pluginLocations": {
-    "/absolute/path/to/grillmester/plugin": true
-  }
-}
+```bash
+copilot plugin list
+copilot --agent=grillmester:barista
 ```
 
-Hvis lokal plugin virker, men recommendation-flyten ikke gjør det, ligger
-feilen i marketplace-, settings- eller enterprise-policy-laget, ikke i
-pluginformatet.
+## Instructions følger ikke med — med vilje
 
-## Hvorfor native Copilot-format
+Pluginen distribuerer felles **metode** gjennom agenter og skills. Den
+distribuerer ikke `.github/copilot-instructions.md`, `AGENTS.md` eller
+path-scoped `.github/instructions/*.instructions.md`.
 
-Pakken bruker `plugin/plugin.json` uten Agent Plugins 1.0-`$schema`. Agent
-Plugins 1.0 er en åpen, leverandørnøytral standard, men det portable 1.0-gulvet
-dekker skills og MCP — ikke custom agents. Grillmester er agent-first, så den
-native Copilot-manifestsemantikken er nødvendig i denne versjonen. Skillene er
-likevel strukturert for progressiv lasting med `SKILL.md` og lokale
-`references/`, `scripts/` og assets.
+Det gir ett distribusjonsløp for Grillmester og lar path-scoped regler beholde
+den presisjonen bare consumer-repoet har. Til gjengjeld må hvert repo eie sitt
+faktiske lokale delta:
 
-## Eksperimentell OpenCode-støtte
+- korrekte build-, test- og kjørekommandoer
+- kanoniske domeneord og språk for varige artefakter, inkludert ADR-er
+- data- og sikkerhetsklassifisering, autentisering og lokale trust boundaries
+- regler og invariants som bare gjelder bestemte mapper eller filtyper
 
-OpenCode leser ikke Copilot-marketplacen, `plugin.json` eller custom agents.
-GitHub CLI kan derimot installere de samme standardiserte skillmappene direkte
-til OpenCodes user-scope uten kopier i consumer-repoet:
+Felles språk- og sikkerhetsgulv ligger i de aktive Grillmester-agentene og
+reviewskillene:
+norske domeneord bevares, tekniske identifikatorer forblir engelske, og
+sensitive data, autorisasjon og trust boundaries behandles eksplisitt. Lokale
+instructions skal beskrive repoets sannhet, ikke være en kopi av hele
+Grillmester-manualen.
+
+Dette gulvet er ikke automatisk aktivt i default Copilot, innebygd code review
+eller andre AI-verktøy. Hvis en regel må gjelde på disse flatene, må consumeren
+eie den som én tynn, stående kontrakt — helst `AGENTS.md` for kryssverktøyregler,
+og path-scoped instructions bare når en regel faktisk må aktiveres av filsti.
+Instructions og agentprompter er kontekst, ikke en teknisk sikkerhetsgrense;
+obligatoriske kontroller håndheves fortsatt med CI, rulesets og CODEOWNERS.
+
+Konsekvensen av manglende lokal kontekst er også tilsiktet: agentene skal
+inspisere repoet, spørre eller stoppe med et tydelig kontekstbehov — ikke finne
+på kommandoer, språkpraksis eller sikkerhetsregler. Repo-lokale agenter og
+skills med samme ID har dessuten presedens over plugininnhold; unngå slike navn
+med mindre overstyringen er bevisst.
+
+Kjør `/grillmester-doctor` for en manuell, read-only kontroll av aktivering,
+instruksjonskilder, lokale policygap og navnekollisjoner. Doctor skriver eller
+synker aldri filer; et eventuelt forslag implementeres først i en separat,
+eksplisitt godkjent oppgave. Start uten å opprette nye instruction-filer;
+Doctor anbefaler bare et lokalt delta når repo-evidens og deterministiske gates
+ikke er tilstrekkelige.
+
+## Klientstøtte
+
+| Klient | Status i POC-en |
+| --- | --- |
+| **Copilot CLI** | Primær referanse: lokal mount, installasjon, oppgradering, rollback og avinstallering er smoke-testet. |
+| **Copilot app** | Primær pilotflate: installasjon i Settings → Plugins, agentvalg og kvalifisert delegering verifiseres manuelt før stabil release. |
+| **Copilot cloud agent** | Repoaktivering via `.github/copilot/settings.json`, marketplace-policy og agentdiscovery må bestå en egen ende-til-ende-gate. |
+| **VS Code** | Sekundær kompatibilitetskontroll, ikke styrende distribusjonsflate. |
+| **OpenCode** | Eksperimentell skills-only-støtte. Copilot-agentene og marketplacen følger ikke med. |
+
+### Gate fra RC til stabil release
+
+- Installer den eksakte, immutable RC-ref-en og bekreft modelloppløsning i
+  Copilot CLI og app.
+- Bekreft at de fire offentlige agentene er valgbare, mens Kokk,
+  Grill-inspektor og Researcher bare kan delegeres med gyldige briefs.
+- La Kokk gjøre én avgrenset, ufarlig write i et disponibelt fixture-repo; kjør
+  Inspector, Researcher og `/grillmester-doctor` read-only. Ingen test skal
+  endre et reelt consumer-repo.
+- Avvis én foreslått write og bekreft at agenten stopper uten sideeffekt.
+- Gjenta mot samme publiserte RC i repoaktivert cloud agent med NAVs faktiske
+  enterprise-policy. Promoter først den godkjente katalogcommiten til stabil
+  release etter at alle gatene er grønne.
+
+En enkelt reviewet skill kan prøves i OpenCode user-scope:
 
 ```bash
 gh skill install navikt/grillmester grillmester-dulting \
-  --agent opencode --scope user --pin <reviewed-release-tag>
+  --agent opencode --scope user --pin REVIEWED_SOURCE_SHA
 ```
 
-Dette tar med hele skill-treet, inkludert progressive referanser, scripts og
-assets. Det gir ikke Grillmester-, Barista-, Designer- eller Doctor Who-agenten.
-Project-scope anbefales ikke på maskiner som også bruker Copilot-pluginen,
-fordi `.agents/skills` da kan skygge pluginens skill med samme ID.
+Bruk source-SHA-en som kandidatens marketplace-katalog peker på; katalog-taggen
+inneholder bare katalogen, ikke skillfilene. Dette er ikke et løfte om at alle
+44 skills er fullt portabilitetsauditert. OpenCode får heller ikke
+Grillmester-agentenes felles språk- og sikkerhetsgulv; stående obligatoriske
+regler må derfor ligge i consumerens `AGENTS.md`.
 
-`gh skill --all` er foreløpig kun en smoke-test. OpenCode ignorerer Copilot-
-feltene som gjør `grill-me`, `grill-with-docs` og `handoff` manuelt styrte, og
-alle skills må portabilitetsauditeres for klientspesifikke agent- og
-verktøyantakelser før hele pakken kan kalles OpenCode-kompatibel.
+## Utvikle pluginen lokalt
 
-## Repo-spesifikke regler
+Utviklere kan mounte en checkout uten å endre sin vanlige installasjon:
 
-Pluginen distribuerer agenter og skills, ikke `copilot-instructions.md`,
-`AGENTS.md` eller path-scoped instructions. Consumer-repoet eier lokale fakta
-som bygg- og testkommandoer, domeneord, artefaktspråk, datakategorier,
-autentisering og path-spesifikke invariants.
+```bash
+git clone git@github.com:navikt/grillmester.git
+cd /path/to/a/disposable-test-repo
+copilot --plugin-dir /path/to/grillmester/plugin \
+  --agent=grillmester:grillmester
+```
 
-Portable språk-, sikkerhets- og reviewmetoder ligger i agentene og skillene.
-Lokale instructions skal bare uttrykke consumerens faktiske delta. En senere
-Setup-skill kan hjelpe med å oppdage og foreslå et tynt adapterlag, og Doctor
-kan validere det, men plugininstallasjon og -oppgradering skal aldri
-synkronisere eller overskrive consumer-filer.
+Bruk et disponibelt testrepo. Releasekatalogen genereres fra
+`plugin/plugin.json`, og CI verifiserer katalogpinning, innholdslås, agent- og
+skillroster, progressive lenker, evalkontrakt og hele
+install–oppgradering–rollback–avinstallering-livsløpet.
 
-## Verifisering
+Kjør den lokale hovedgaten med:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
 python3 scripts/validate.py
+python3 scripts/validate_evals.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/grillmester-design-prototype/scripts/server.js
 node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
@@ -193,27 +217,7 @@ node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
 ```
 
-Generator-sjekken håndhever én metadatafasit for plugin og marketplace.
-Python-validatoren og enhetstestene kontrollerer manifestformat, eksakt roster
-og agentkontrakt, frontmatter, progressive lenker, alternative manifestbaner,
-symlinks, proveniens og sensitive eksempeldata. Node-testene håndhever
-sikkerhetsgrensen rundt Visual Companion. Smoke-testen installerer den lokale
-marketplacen i et disponibelt, isolert Copilot-hjem og verifiserer at alle åtte
-agenter og 43 skills faktisk blir pakket. Før release skal pakken også bestå:
-
-1. agent- og skilldiscovery med en lokal `--plugin-dir`-mount,
-2. installasjon fra en katalog som pinner eksakt plugin-SHA,
-3. repo-deklarativ installasjon og reell oppgave i Copilot cloud agent,
-4. plugin- og custom-agentdiscovery i Copilot app, inkludert kvalifisert
-   delegering til `grillmester:kokk`, `grillmester:grill-inspektor`,
-   `grillmester:researcher` og `grillmester:konditor`,
-5. installasjon og en ufarlig ende-til-endeoppgave i én pilotapp,
-6. OpenCode user-scope skill-smoke og separat portabilitetsrapport,
-7. ren VS Code-profil som en sekundær kompatibilitetskontroll.
-
-## Eierskap
-
 Grillmester utvikles av Team eSyfo i Nav og er tilgjengelig under
-[MIT-lisensen](LICENSE). Kildegrunnlag og tredjepartsmerknader er dokumentert i
+[MIT-lisensen](LICENSE). Kildegrunnlag og tredjepartsmerknader finnes i
 [PROVENANCE.md](PROVENANCE.md) og
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -165,7 +165,7 @@ Required before you declare done:
 
 **Then ask: what would have prevented this bug?** If the answer involves an
 architectural change (no good test seam, entangled callers, hidden coupling),
-carry the finding forward via `/grillmester-grilling`. Use `/grillmester-architecture-review` for
+carry the finding forward via `/grillmester-grilling`. Use `/grillmester-nav-architecture-review` for
 NAV-specific consequences. When lasting concepts or decisions ought to be
 documented, recommend the repository's documented route when one exists and
 wait for the user's choice before `/grillmester-domain-modeling` writes. Give the
@@ -196,4 +196,4 @@ restarting workloads or changing managed resources requires explicit approval.
 - `/grillmester-grilling` — stress-test the design when the bug exposes a design gap;
   recommend the documented route when needed
 - `/grillmester-auth-overview` — Azure AD / TokenX / ID-porten / Maskinporten / Texas (the mechanisms behind auth diagnosis)
-- `/grillmester-architecture-review` — review NAV consequences of architectural changes that would have prevented the bug
+- `/grillmester-nav-architecture-review` — review NAV consequences of architectural changes that would have prevented the bug

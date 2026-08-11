@@ -10,10 +10,11 @@ and skill, its source path, its reviewed disposition, and the exact source
 revision.
 
 Agent IDs preserve their reviewed source names. Runtime skill IDs are prefixed
-with `grillmester-` to prevent project- or user-level skills from silently
-shadowing the plugin payload. The source names below remain unprefixed so the
-import boundary can be audited directly; the content lock records the canonical
-runtime IDs and their original `sourcePath` values.
+with `grillmester-` to reduce accidental collisions. A project- or user-level
+component with the same exact ID still wins and can silently shadow the plugin
+payload; qualification is not a bypass. The source names below remain
+unprefixed so the import boundary can be audited directly; the content lock
+records the canonical runtime IDs and their original `sourcePath` values.
 
 ## Pilot baseline
 
@@ -53,7 +54,12 @@ Source: `navikt/hovmester` at
 
 Imported agents:
 
-- `designer`, `doctor-who`, `konditor`
+- `designer`, `doctor-who`
+
+Hovmester's internal `konditor` agent and Designer's delegated source-code
+prototype phase are intentionally excluded. Grillmester's Designer ends at
+visual exploration, Figma, and an optional development Issue; implementation
+starts only through a separate user-initiated Barista or Grillmester workflow.
 
 Imported skills:
 
@@ -64,10 +70,10 @@ Imported skills:
   the pilot's behavior-oriented `prototype` retains its original ID.
 
 The portable adaptation keeps the design, Aksel, Figma, product, workshop,
-team-status, architecture, and prototype workflows. It removes ambient
+team-status, architecture, and visual-prototype workflows. It removes ambient
 repository synchronization, fixed Team eSyfo repositories or project boards,
-template placeholders, and automatic external writes. Figma, GitHub, demo,
-delivery, and delegated implementation side effects require an explicit
+template placeholders, and automatic external writes. Figma, GitHub, and
+delivery side effects require an explicit
 preview and approval.
 
 ## Consumer-owned material
@@ -81,6 +87,23 @@ with each consumer.
 Hovmester collections, sync workflows, generated mirrors, repository forms,
 and consumer templates are distribution or repository infrastructure and are
 not part of the plugin payload.
+
+`grillmester-doctor` consolidates the reviewed ownership boundary from the
+pinned Budstikka and Hovmester instruction sources into a read-only audit. It
+does not copy their repository facts, create consumer files, or establish a
+continuing synchronization relationship.
+
+## Visual identity
+
+`docs/assets/grillmester-hero.jpg` and `docs/assets/grillmester-avatar.png` are
+original artwork generated for this repository with OpenAI image generation
+and selected by the maintainers. No source image or third-party character asset
+was used.
+
+Reviewed SHA-256 digests:
+
+- `grillmester-hero.jpg`: `4699ba58533d68d088e5767aaad10390991f43810aeb6fb5799e665c750daffb`
+- `grillmester-avatar.png`: `25fedb436679b5dcd5b7d79741ea61d93e73f9ad6577a8ed85d6ce499fe2122b`
 
 ## Third-party lineage
 

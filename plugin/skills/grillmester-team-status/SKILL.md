@@ -41,12 +41,22 @@ merk begrensningen i rapporten.
 
 For GitHub Projects:
 
-1. Få owner og project number fra en bekreftet lenke eller teamkilde.
-2. Hent felt, opsjoner og items dynamisk.
-3. Finn teamets forklaring av kolonner og felter. Ikke utled «aktiv»,
+1. Sjekk om en godkjent semantisk GitHub-/Projects-integrasjon faktisk er
+   tilgjengelig i runtime. Bruk aldri `gh`, shell, rå HTTP eller andre
+   nettverkskommandoer som fallback i denne produktflyten.
+2. Få owner og project number fra en bekreftet lenke eller teamkilde.
+3. Hent felt, opsjoner og items dynamisk gjennom integrasjonen.
+4. Finn teamets forklaring av kolonner og felter. Ikke utled «aktiv»,
    «ferdig», mål, periode, størrelse eller prioritet bare fra feltnavnet.
-4. Bruk [projects-v2.md](./references/projects-v2.md) for tekniske
+5. Bruk [projects-v2.md](./references/projects-v2.md) for tekniske
    leseoppskrifter når relevant.
+
+Hvis nødvendig Projects-evidens ikke kan leses med tilgjengelige, godkjente
+verktøy, be om et datert eksportert eller innlimt utdrag og stopp med
+`Status: NEEDS_INPUT`. Navngi evidensen som mangler; ikke foreslå en
+shellkommando. Et manglende skriveverktøy kan heller ikke omgås: behold
+endringsutkastet i samtalen og be om integrasjonen eller manuell utførelse i
+GitHub-grensesnittet.
 
 Issue-maler kan brukes til å foreslå et prosjekt som brukeren kan bekrefte, men
 de definerer ikke automatisk teamets tavle eller hele rapportscopet.

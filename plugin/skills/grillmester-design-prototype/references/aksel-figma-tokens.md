@@ -83,5 +83,6 @@ Bruk komponentene `Heading`/`Detail` der det passer. For ren tekst i layout, mat
   const v = await figma.variables.importVariableByKeyAsync(KEY); // key fra search_design_system
   frame.setBoundVariable('itemSpacing', v);      // eller fills via setBoundVariableForPaint
   ```
-  Bruk dette når skissen skal være helt token-tro (f.eks. før kode-overlevering / Fase 5).
+  Bruk dette når skissen skal være helt token-tro, for eksempel før
+  overlevering til utvikling.
 - **Ved tvil:** `get_variable_defs` på en eksisterende Aksel-komponent i samme fil viser hvilke `--ax-*` den faktisk bruker — kopier de tokenene.

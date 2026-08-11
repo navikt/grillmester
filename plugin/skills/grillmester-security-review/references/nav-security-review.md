@@ -142,8 +142,15 @@ component owns each control before reporting a gap.
   scanning, dependency review, container scanning, infrastructure validation,
   and workflow analysis support the review but do not replace design and
   authorization checks.
-- Record exact commands, relevant output, exit codes, tool versions when
-  material, and the analyzed revision or diff boundary.
+- In a Doctor Who or other product/read-only workflow, record source,
+  timestamp, analyzed revision or diff boundary, and the scope of any pasted or
+  exported artifact. If material evidence is unavailable, return
+  `Status: NEEDS_INPUT`; never invoke or prescribe shell, `gh`, raw HTTP, or
+  another network command.
+- In a separate developer workflow where the active agent's own contract
+  explicitly grants command execution, record exact authorized commands,
+  relevant output, exit codes, tool versions when material, and the analyzed
+  revision or diff boundary.
 - Distinguish absence of a detected problem from proof of safety. State which
   paths, environments, and runtime behavior were not examined.
 

@@ -7,9 +7,12 @@ license: MIT
 
 Review-prosess for universell utforming (UU) i Nav-flater. Universell utforming av ikt er lovpålagt for offentlig sektor gjennom **Likestillings- og diskrimineringsloven §17** og **Forskrift om universell utforming av ikt-løsninger**, med **WCAG 2.1 nivå A og AA** som forskriftskravet per i dag. **WCAG 2.2 AA** er fremoverlent praksis der relevant (nye suksesskriterier som 2.4.11 Focus Not Obscured er enkle å etterleve med Aksel). Verifiser alltid gjeldende krav mot **Tilsynet for universell utforming av ikt** (uutilsynet.no), som kan revidere løsningene våre og gi pålegg.
 
-## Avgrensning mot `accessibility.instructions.md`
+## Avgrensning mot consumer-eid policy
 
-Denne skillen er for review-arbeid og større UI-flyter; instructions auto-injiseres under koding med korte minimumsregler. Skillen utdyper med konkrete sjekkpunkter, testoppskrifter og Nav-spesifikke heuristikker.
+Denne skillen er for review-arbeid og større UI-flyter. Ikke anta at pluginen
+har installert path-spesifikke instructions. Følg consumerens gjeldende policy
+når den finnes; bruk denne skillen for konkrete sjekkpunkter, testoppskrifter
+og Nav-spesifikke heuristikker.
 
 Når du koder nytt: følg repoets lokale føringer. Når du skal gjennomgå en diff,
 flate eller ekstern leveranse før produksjon: bruk denne skillen. Review er

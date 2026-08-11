@@ -76,8 +76,19 @@ scope by inventing technical detail.
 Present the exact issues and mutations first. Obtain explicit human
 authorization for that bounded set of external writes.
 
-Prefer the available semantic GitHub tools. When using `gh`, use its native
-issue operations, including:
+For Doctor Who, and for any runtime without explicit command-execution
+capability, use only an available, approved semantic GitHub integration. Never
+fall back to `gh`, shell, raw HTTP, or ask the user to run a command on the
+agent's behalf. If read evidence is unavailable, request the smallest pasted or
+exported issue/project excerpt and return `Status: NEEDS_INPUT`. If a write tool
+is unavailable, keep the reviewed mutation as a draft and return
+`Status: NEEDS_INPUT`, naming the required integration or the exact manual
+GitHub UI action.
+
+The following generic developer workflow does **not** apply to Doctor Who. An
+implementation agent whose own contract explicitly grants command execution
+may, when repository policy permits it, use native `gh` issue operations such
+as:
 
 - `gh issue edit PARENT --add-sub-issue CHILD`
 - `gh issue edit ISSUE --add-blocked-by BLOCKER`

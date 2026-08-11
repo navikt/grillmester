@@ -491,16 +491,6 @@ set.name = "<Modulnavn>";
 
 Hvis du ikke har en VC-fasit (gikk rett til Figma), bruk samme sjekkliste mot det avtalte konseptet.
 
-## Figma→kode-handoff (Fase 5)
-
-Når en Figma-skisse skal bli klikkbar kode (Fase 5), leser konditor designet med disse verktøyene — ikke gjett fra screenshot alene:
-
-- **`get_design_context(nodeId, fileKey)`** — primærkilden. Gir referansekode + struktur for en node/seleksjon, som tilpasses til prosjektets stack (`@navikt/ds-react`).
-- **`get_variable_defs(nodeId, fileKey)`** — Figma-variabler/tokens brukt i seleksjonen → map til Aksel design-tokens i kode for tro gjengivelse av farger/spacing.
-- **`get_metadata(nodeId, fileKey)`** — sparsom XML (id/navn/type/posisjon/størrelse) for å forstå hierarkiet før koding.
-
-**Code Connect (`get_code_connect_map`) — status i Nav:** Verifisert empirisk at Aksel **ikke** publiserer Code Connect-mappinger i dag (`get_code_connect_map` på Aksel-noder returnerer `{}`). Når/hvis Aksel-teamet publiserer det org-bredt (via Code Connect CLI i aksel-repoet), gir dette node→`@navikt/ds-react`-komponent + props automatisk — da bør Fase 5 slå opp mappingen i stedet for å mappe manuelt. Inntil da er [`aksel-figma-katalog.md`](./aksel-figma-katalog.md) den manuelle broen. `add_code_connect_map` skriver kun til egne filer (propagerer ikke til delt bibliotek), så det løser ikke org-bred mapping.
-
 ## Lever
 
 Returner alltid Figma-URL til designeren:

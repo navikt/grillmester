@@ -32,6 +32,22 @@ glossary or ADR candidates without editing files. Explain why documented work
 would help and wait for the user's choice. Once authorised, capture resolved
 terms and qualifying decisions inline as described below.
 
+## ADR ownership
+
+This skill is the single owner of the ADR eligibility gate and ADR drafting.
+Architecture-review skills return findings and **decision candidates**; they do
+not decide that an ADR is warranted and they do not draft one. A candidate or
+handoff from another skill is not durable-write authorization.
+
+When the user explicitly chooses the documented route, discover the
+repository's established ADR language, location, numbering, status model, and
+format. Then apply the eligibility gate below. If the candidate does not meet
+all three criteria, explain why and keep the result in the conversation or the
+more appropriate existing document. If it qualifies, draft one decision using
+the repository's format, or [ADR-FORMAT.md](./ADR-FORMAT.md) only when no local
+format exists. Show the target and draft before any write not already clearly
+authorized by the user's chosen workflow.
+
 ## File structure
 
 Most repos have a single context:
@@ -115,3 +131,8 @@ Only offer to create an ADR when all three are true:
 
 If any of the three is missing, skip the ADR. Use the format in
 [ADR-FORMAT.md](./ADR-FORMAT.md).
+
+For a decision candidate returned by `/grillmester-architecture-review` or
+`/grillmester-nav-architecture-review`, first explain why it does or does not
+pass this gate. Draft or record it only after the user has explicitly chosen
+the ADR route; review output alone never makes that choice.

@@ -23,6 +23,9 @@ jobs:
       - name: Validate plugin package
         run: python3 scripts/validate.py
 
+      - name: Validate zero-cost evaluation contract
+        run: python3 scripts/validate_evals.py
+
       - name: Run validator tests
         run: python3 -m unittest discover -s tests -v
 

@@ -13,10 +13,10 @@ og lever som Figma-skisse med ekte Aksel-komponenter.
 
 Analyse, lesing av eksisterende Figma-kontekst og lokal visualisering er
 read-only for konsumentrepoet. Visual Companion skriver bare til en privat,
-midlertidig sesjonsmappe utenfor repoet. Før skillen oppretter eller endrer en Figma-fil, oppretter
-en Issue, delegerer kildekodeendringer, publiserer en demo eller gjør en annen
-ekstern write, skal den vise en kort preview og få et eksplisitt ja til den
-avgrensede handlingen. Godkjenning av én handling dekker ikke senere writes.
+midlertidig sesjonsmappe utenfor repoet. Før skillen oppretter eller endrer en
+Figma-fil, oppretter en Issue eller gjør en annen ekstern write, skal den vise
+en kort preview og få et eksplisitt ja til den avgrensede handlingen.
+Godkjenning av én handling dekker ikke senere writes.
 
 Ikke opprett branch eller commit, og ikke push, opprett pull request eller
 deploy automatisk.
@@ -182,21 +182,6 @@ Finnes den ikke? → Bygg custom, men med Aksel-tokens.
 
 Se `references/figma-prototype.md` for fullstendige regler og eksempler.
 
-## Valgfritt: Kodeprototype (opt-in)
-
-Fra skisse til **ekte, klikkbar kode** med `@navikt/ds-react` og mockdata — kjørbar lokalt og i demo. Tilbys etter et Visual Companion- og/eller Figma-resultat når retningen er valgt.
-
-Designer-agenten skriver **aldri** kode selv. Vis avgrenset lokal write-preview,
-spør «Skal jeg få bygget dette som en klikkbar prototype med mockdata?» og
-deleger først etter eksplisitt ja til **konditor** med disse rammene:
-- Ekte Aksel-komponenter + alle tilstander (normal/lasting/feil/tom/ferdig)
-- **Kun mockdata** (fixtures/MSW) — ingen ekte API-er, PII, secrets eller accessPolicy
-- Ingen automatisk branch, commit, push, pull request eller deploy
-- Kjørbar lokalt og merket «prototype – ikke for prod»; utviklere tar over for ekte data og UU-live-review før prod
-
-Etter bygging: del lokal kjøreinstruksjon og evidens. Tilby Issue så utviklerne
-kan ta prototypen videre, men opprett den bare etter et nytt eksplisitt ja.
-
 ## Iterasjon
 
 Vis resultat → designer gir feedback → juster → gjenta til fornøyd.
@@ -226,8 +211,7 @@ Vis resultat → designer gir feedback → juster → gjenta til fornøyd.
 - Del lenker raskt; for eksisterende flater først etter verifisert nåtilstand/før/etter
 
 ### 🚫 Aldri
-- Skriv kode i prosjektets kildekode (deleger til konditor)
-- Bruk ekte data i kodeprototypen; den skal bare bruke mockdata
+- Skriv kode i prosjektets kildekode eller deleger kodeimplementering
 - Opprett branch, commit, push, pull request eller deploy automatisk
 - Gjør Figma-, GitHub- eller andre eksterne writes uten eksplisitt godkjenning
 - Installer pakker eller endre `.gitignore`, lockfiler eller andre repo-filer som del av lokal preview

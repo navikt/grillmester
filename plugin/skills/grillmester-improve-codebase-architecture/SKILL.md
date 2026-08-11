@@ -12,7 +12,7 @@ Uncover architectural friction in this repository and propose **deepening opport
 candidate inline with two genuinely different alternatives and interrogate the
 choice with `/grillmester-grilling`. When lasting concepts or decisions ought to be
 documented, recommend the documented route and wait for the user's choice. Use
-`/grillmester-architecture-review` for NAV review and `/grillmester-domain-modeling` after the
+`/grillmester-nav-architecture-review` for NAV review and `/grillmester-domain-modeling` after the
 documented route has been chosen.
 
 The skill is **informed by** domain language and settled decisions when the
@@ -90,7 +90,7 @@ as decisions fall into place:
 - **Does the user reject the candidate for a load-bearing reason?** Consider an
   ADR only when the decision is hard to reverse, surprising without context and
   the result of a real trade-off. Skip transient ("not worth it right now") and
-  self-evident reasons. Use `/grillmester-architecture-review` if NAV-specific consequences
+  self-evident reasons. Use `/grillmester-nav-architecture-review` if NAV-specific consequences
   need assessing, and `/grillmester-domain-modeling` for the ADR itself.
 - **Want to explore alternative interfaces for the deepened module?** Design two genuinely different alternatives sequentially, inline, before comparing them. Use subagents only for compact, read-only divergent exploration, never for parallel writing.
 

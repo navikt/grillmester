@@ -1,80 +1,91 @@
 ---
 name: grillmester-architecture-review
-description: Review a proposed architecture change against NAV platform, security, privacy, operability, and team-boundary constraints. Use for new services, cross-team integrations, storage or event seams, authentication or accessPolicy changes, personal-data processing, platform migrations, or deviations from established NAV patterns.
+description: Review consequential architecture proposals using repository evidence, system boundaries, quality attributes, operational constraints, alternatives, migration, and reversibility. Use for platform-independent architecture review; use grillmester-nav-architecture-review when the decision turns on NAV or NAIS platform, integration, identity, deployment, or governance constraints.
 license: MIT
 ---
 
-# Review NAV Architecture
+# Review architecture
 
-Review the proposal; do not author the decision. `/grillmester-domain-modeling` owns the ADR
-gate and any resulting ADR. This skill contributes NAV-specific evidence,
-risks, questions, and advice.
+Review the proposal; do not author the decision. This skill produces findings
+and decision candidates. `/grillmester-domain-modeling` alone decides whether a
+candidate qualifies for an ADR and drafts or records it after the user
+explicitly chooses that route.
 
-Use `/grillmester-security-review` for a concrete code, configuration, or threat review.
-Use this skill when the review must connect architecture, security/privacy,
-platform operations, and team boundaries around a proposed design.
+Use this skill when the important reasoning is portable across organizations,
+platforms, and technology stacks. If the recommendation depends on NAV or NAIS
+platform capabilities, NAV identity or access controls, NAV integration and
+team-governance conventions, or NAV deployment constraints, use
+`/grillmester-nav-architecture-review` for that specialized review instead.
+
+Use `/grillmester-security-review` for a concrete code, configuration, privacy,
+or threat review. An architecture review may identify the need for that deeper
+review without pretending to replace it.
 
 ## Establish the review surface
 
-Read the proposal, relevant code and contracts, repository instructions, and
-only the domain documents needed for the affected seam. Derive the actual
-stack and constraints from the target repository; do not assume a language,
-framework, storage technology, or application shape.
+Read the proposal, relevant code and contracts, repository instructions,
+existing decisions, and only the domain documentation needed for the affected
+seam. Derive the actual stack and constraints from evidence; do not assume a
+language, framework, storage technology, deployment platform, or application
+shape.
 
 Identify:
 
-- the decision or change being reviewed;
-- the owning team and affected producers, consumers, and platform surfaces;
-- data categories and caller identities crossing the seam;
-- rollout, compatibility, and operational constraints.
+- the proposed change, desired outcome, and decision owner;
+- affected system boundaries, owners, producers, consumers, and operators;
+- data, identities, dependencies, and failure modes crossing each boundary;
+- quality attributes and constraints that can distinguish good options;
+- rollout, compatibility, operational, cost, and organizational constraints.
 
-If a fact is missing from the repository, report it as an open question rather
-than inventing it.
+Separate repository facts, current authoritative external constraints,
+inference, and missing context. Report missing facts as open questions rather
+than inventing them. Verify time-sensitive external behavior before relying on
+it.
 
-## Review through three lenses
+## Review the applicable concerns
 
-Cover every applicable lens:
+Review every concern that could materially change the recommendation:
 
-1. **Architecture** — boundaries and ownership, contracts, coupling, viable
-   alternatives, affected teams, and use of established platform capabilities.
-2. **Security and privacy** — data classification, purpose and retention,
-   authentication, authorization, `accessPolicy`, PII handling, auditability,
-   and whether specialist privacy or security assessment is needed.
-3. **Platform and operations** — NAIS dependencies, capacity, observability,
-   delivery, rollback, migration, failure handling, and decommissioning.
+1. **Boundaries and ownership** — responsibility, contracts, coupling,
+   dependency direction, change coordination, and decision ownership.
+2. **Quality attributes and trade-offs** — security, privacy, reliability,
+   performance, scalability, maintainability, operability, and cost, expressed
+   as concrete scenarios or constraints rather than generic virtues.
+3. **Evolution and operations** — compatibility, delivery, observability,
+   failure handling, migration, rollback, reversibility, and decommissioning.
 
-For a new service, new data or auth path, cross-team contract, storage/event
-seam, or migration, load
-[the conditional NAV review checklist](references/review-checklist.md). Apply
-only the relevant branches; it is not an ADR template or a form to fill in.
+For a new service, cross-boundary integration, storage or event seam,
+authentication or authorization change, platform migration, or difficult-to-
+reverse choice, load [the conditional architecture review
+checklist](references/review-checklist.md). Apply only relevant branches; it is
+neither a form nor an ADR template.
 
-When current platform or regulatory behavior affects the recommendation,
-verify it against the repository's pinned guidance or current authoritative
-NAV documentation.
+## Compare real alternatives
 
-## Seek advice without transferring ownership
+Compare genuine alternatives against the evidenced decision criteria. Include
+the current design only when keeping it is a credible option. Do not manufacture
+a fixed number of alternatives, force a "do nothing" option, or declare a
+winner when the evidence does not support one.
 
-Identify teams that own or consume the affected contract and the advice needed
-from them. NAV architecture advice informs the owning team's decision; it is
-not an approval substitute. Do not claim consultation occurred unless evidence
-shows it did.
-
-Compare genuine alternatives when a choice exists. Do not manufacture a fixed
-number of options or force "do nothing" into every review.
+Identify the people or teams whose knowledge is needed, while keeping decision
+ownership explicit. Do not claim consultation occurred without evidence, and
+do not contact anyone or share material without the user's authorization.
 
 ## Return a review, not an ADR
 
 Return:
 
-- **Scope and evidence**
-- **Findings**, ordered by consequence, each with evidence, impact, and a
-  concrete recommendation
-- **Open questions**
-- **Overall recommendation**
-- **Decision evidence**, including reversibility, context a future reader would
-  otherwise miss, and genuine alternatives or trade-offs
+- **Scope and evidence** — facts, sources, assumptions, and decision criteria;
+- **Findings** — ordered by consequence, each with evidence, impact, and a
+  concrete recommendation;
+- **Alternatives and trade-offs** — only where a real choice exists;
+- **Open questions** — including who can answer them;
+- **Overall recommendation** — with confidence and residual risk;
+- **Decision candidates** — hard-to-reverse choices whose rationale a future
+  reader may otherwise lose.
 
-Do not decide ADR eligibility or create or edit an ADR in this skill. If the
-user wants a durable decision considered, hand the evidence to
-`/grillmester-domain-modeling`, which owns the gate and applies the repository's one
-operative ADR format.
+Do not decide ADR eligibility, draft an ADR, edit decision records, or imply
+that the review made the team's decision. For each decision candidate, explain
+why durable documentation may help and ask whether the user wants to route it
+to `/grillmester-domain-modeling`. Make that handoff only after the user
+explicitly chooses it.

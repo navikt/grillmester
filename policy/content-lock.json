@@ -30,7 +30,7 @@
       "user-invocable": true,
       "disable-model-invocation": true,
       "tools": null,
-      "toolPolicy": "ambient-external"
+      "toolPolicy": "ambient-all-poc"
     },
     "doctor-who": {
       "source": "hovmester",
@@ -40,7 +40,7 @@
       "user-invocable": true,
       "disable-model-invocation": true,
       "tools": null,
-      "toolPolicy": "ambient-external"
+      "toolPolicy": "ambient-all-poc"
     },
     "grill-inspektor": {
       "source": "pilot",
@@ -49,7 +49,7 @@
       "model": "claude-opus-5",
       "user-invocable": false,
       "disable-model-invocation": false,
-      "tools": ["view", "grep", "glob", "skill"]
+      "tools": ["read", "search", "skill"]
     },
     "grillmester": {
       "source": "pilot",
@@ -68,16 +68,6 @@
       "user-invocable": false,
       "disable-model-invocation": false,
       "tools": ["read", "search", "edit", "execute", "skill"]
-    },
-    "konditor": {
-      "source": "hovmester",
-      "sourcePath": ".github/agents/konditor.agent.md",
-      "disposition": "adapted",
-      "model": "claude-opus-5",
-      "user-invocable": false,
-      "disable-model-invocation": false,
-      "tools": null,
-      "toolPolicy": "ambient-external"
     },
     "researcher": {
       "source": "pilot",
@@ -98,6 +88,7 @@
     "grillmester-create-a-skill": {"source": "pilot", "sourcePath": ".github/skills/create-a-skill", "disposition": "adapted"},
     "grillmester-design-prototype": {"source": "hovmester", "sourcePath": ".github/skills/prototype", "disposition": "adapted"},
     "grillmester-diagnosing-bugs": {"source": "pilot", "sourcePath": ".github/skills/diagnosing-bugs", "disposition": "adapted"},
+    "grillmester-doctor": {"source": ["pilot", "hovmester"], "sourcePath": ".github/copilot-instructions.md", "disposition": "consolidated", "disable-model-invocation": true},
     "grillmester-domain-modeling": {"source": "pilot", "sourcePath": ".github/skills/domain-modeling", "disposition": "adapted"},
     "grillmester-dulting": {"source": "hovmester", "sourcePath": ".github/skills/dulting", "disposition": "adapted"},
     "grillmester-e2e-tests": {"source": "pilot", "sourcePath": ".github/skills/e2e-tests", "disposition": "adapted"},
