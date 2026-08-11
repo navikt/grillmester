@@ -7,7 +7,7 @@ når risiko eller repository-policy krever det.
 
 ## Status
 
-Dette er en eksperimentell POC med de endelige komponentnavnene. Den tester en
+Dette er en eksperimentell POC med foreløpige arbeidsnavn. Den tester en
 liten, men reell verdikjede:
 
 1. `grillmester` avklarer, planlegger og orkestrerer.
@@ -22,13 +22,20 @@ POC-en er verifisert med GitHub Copilot CLI 1.0.79-9: native pluginformat,
 marketplace med `source: "."`, discovery av alle tre agenter,
 plugin-kvalifisert Grillmester-kjøring, installasjon av tre skills og progressiv
 lasting av review-skillen. En remote branch-ref i consumerens
-`.github/copilot/settings.json` auto-installerer og aktiverer pluginen.
+`.github/copilot/settings.json` auto-installerer og aktiverer pluginen. Dette er
+også verifisert manuelt fra et separat, isolert consumer-repo.
 
-Full commit-SHA i samme `ref` virker **ikke** i denne klientversjonen. CLI-en
-forsøker `git clone --branch <SHA>` og feiler fordi commit-SHA-en ikke er en
-remote branch eller tag. Stabil distribusjon er blokkert til klienten håndterer
-SHA korrekt, eller en immutabel tag/release-bane er bevist. Delegasjon mellom
-agentene, rollback, VS Code og Copilot cloud gjenstår også før stabil release.
+Eksakt commit-pinning er verifisert separat med marketplace-katalogens
+`plugins[].source.sha`: klienten installerte innhold fra den angitte
+40-tegns-SHA-en selv om marketplace-branchen hadde nyere innhold. En tidligere
+kontroll brukte commit-SHA som marketplace-repoets `ref`; denne klienten
+forsøkte da å klone SHA-en som en navngitt Git-ref. Det testet et annet lag og
+sa ingenting om katalogens dokumenterte `source.sha`-mekanisme. POC-katalogen
+beholder `source: "."` mens branchen er i utvikling. Før release skal katalogen
+peke eksplisitt på det fryste plugininnholdet.
+
+Delegasjon mellom agentene, rollback, VS Code og Copilot cloud gjenstår før
+stabil release.
 
 ## Installer POC-en
 
@@ -49,6 +56,52 @@ Under utvikling kan en lokal checkout monteres uten installasjon:
 ```bash
 copilot --plugin-dir . --agent=grillmester:grillmester
 ```
+
+### Test i VS Code
+
+Bruk en separat Git-workspace og en ren VS Code-profil, slik at en tidligere
+CLI-installasjon ikke gir falsk positiv. Legg denne POC-konfigurasjonen i
+`.github/copilot/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "grillmester": {
+      "source": {
+        "source": "github",
+        "repo": "navikt/grillmester",
+        "ref": "agent/plugin-poc"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "grillmester@grillmester": true
+  }
+}
+```
+
+Bekreft at `chat.plugins.enabled` er aktivert, åpne Chat og send den første
+meldingen. VS Code skal anbefale pluginen. Finn den eventuelt i Extensions med
+filteret `@agentPlugins @recommended`, godkjenn marketplace-trust og aktiver
+pluginen. Bekreft deretter at den offentlige `grillmester`-agenten kan velges,
+at de tre `grillmester-*`-skillene finnes, og at en ufarlig samtale ikke endrer
+workspaceet. Noter VS Code- og Copilot-extension-versjon, nødvendige trust-steg
+og om pluginen fortsatt er tilgjengelig etter restart.
+
+Hvis recommendation-flyten feiler, bruk en lokal checkout som diagnostisk
+kontroll i workspace-innstillingene:
+
+```json
+{
+  "chat.plugins.enabled": true,
+  "chat.pluginLocations": {
+    "/absolute/path/to/grillmester": true
+  }
+}
+```
+
+Hvis den lokale pluginen virker, men recommendation ikke gjør det, ligger
+problemet i marketplace-, settings- eller policy-laget, ikke i pluginformatet.
 
 POC-en bruker det native Copilot-formatet i `plugin.json`. Den bruker med vilje
 ikke Agent Plugins 1.0-manifestet, fordi den åpne 1.0-standarden foreløpig bare
