@@ -7,16 +7,20 @@ når risiko eller repository-policy krever det.
 
 ## Status
 
-Dette er en eksperimentell POC med foreløpige arbeidsnavn. Den tester en
-liten, men reell verdikjede:
+Dette er en eksperimentell POC av den eksisterende Grillmester-flyten. Den
+tester en liten, men reell verdikjede:
 
 1. `grillmester` avklarer, planlegger og orkestrerer.
 2. `grillmester-implementer` implementerer én komplett vertikal slice.
 3. `grillmester-reviewer` vurderer diff, krav og evidens uavhengig.
 4. Skills for grilling, self-review og sikkerhetsreview lastes progressivt.
 
-Setup/Doctor, solo-utvikler, design, produktarbeid og flere teknologipakker er
-bevisst utsatt til denne flyten er verifisert i målklientene.
+Grillmester er inngangen når oppgaven krever avklaring, speccing,
+arkitekturvalg eller ADR og eventuelt uavhengig review. Barista er den separate,
+direkte flyten for ferdigspeccede og enkle oppgaver; den er ikke en erstatning
+for Grillmester. Selve Barista-agenten, Setup/Doctor, Designer, Dr Who og flere
+teknologipakker er bevisst utsatt til denne flyten er verifisert i
+målklientene.
 
 POC-en er verifisert med GitHub Copilot CLI 1.0.79-9: native pluginformat,
 marketplace med `source: "."`, discovery av alle tre agenter,
