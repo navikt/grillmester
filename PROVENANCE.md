@@ -1,18 +1,94 @@
 # Provenance
 
-This repository owns the operative Grillmester plugin content. The sources below are recorded for attribution and review history; they are not runtime dependencies and do not create a synchronization relationship.
+This repository owns the operative Grillmester plugin content. The sources
+below record attribution and the reviewed import boundary. They are not
+runtime dependencies and do not create a synchronization relationship.
 
-| Local content | Reviewed source | Adaptation |
-| --- | --- | --- |
-| `agents/grillmester.agent.md` | `navikt/syfo-budstikka@dd0976ea69d92b6796ee09829ea4e08edc313e14`, `.github/agents/grillmester.agent.md` | Kept the end-to-end phase loop, risk model and one-writer boundary; removed consumer-specific routing and reduced the first slice to three namespaced agents and three skills. |
-| `agents/grillmester-implementer.agent.md` | `navikt/syfo-budstikka@dd0976ea69d92b6796ee09829ea4e08edc313e14`, `.github/agents/kokk.agent.md` | Renamed the internal writer, completed the typed brief and side-effect contract, and retained the no-delivery boundary. |
-| `agents/grillmester-reviewer.agent.md` | `navikt/syfo-budstikka@dd0976ea69d92b6796ee09829ea4e08edc313e14`, `.github/agents/grill-inspektor.agent.md` | Renamed the read-only reviewer, made Grillmester the explicit evidence producer, and routed security red signals through the portable security skill. |
-| `skills/grillmester-grilling/SKILL.md` | `navikt/syfo-budstikka@dd0976ea69d92b6796ee09829ea4e08edc313e14`, `.github/skills/grilling/SKILL.md`; originally adapted from `mattpocock/skills@2ab958093e83e0ec752e6c1c5932da465bf23e0c` | Namespaced and tightened around fact discovery, one decision at a time, recommendations, consequences, and explicit shared understanding. |
-| `skills/grillmester-review/SKILL.md` | `navikt/syfo-budstikka@dd0976ea69d92b6796ee09829ea4e08edc313e14`, `.github/skills/review/SKILL.md` | Extracted the portable six-axis diff review and removed Budstikka, Ktor, Gradle, local documentation, and delivery assumptions. |
-| `skills/grillmester-security-review/` | `navikt/syfo-budstikka@dd0976ea69d92b6796ee09829ea4e08edc313e14`, `.github/skills/security-review/` | Reworked into a stack-neutral security workflow with conditionally disclosed NAV and NAIS guidance; removed service state, paths, package names, and unsupported universal policy claims. |
+The authoritative component-by-component bill of materials is
+[`policy/content-lock.json`](policy/content-lock.json). It records every agent
+and skill, its source path, its reviewed disposition, and the exact source
+revision.
 
-The Budstikka source records `navikt/hovmester@48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2` as lineage for its reusable agent contracts. Grillmester preserves that history without treating Hovmester as an upstream distribution channel.
+Agent IDs preserve their reviewed source names. Runtime skill IDs are prefixed
+with `grillmester-` to prevent project- or user-level skills from silently
+shadowing the plugin payload. The source names below remain unprefixed so the
+import boundary can be audited directly; the content lock records the canonical
+runtime IDs and their original `sourcePath` values.
 
-Material adapted from `mattpocock/skills` remains subject to its MIT license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## Pilot baseline
 
-When imported material changes, update this file in the same change with the exact source path and full reviewed revision. Advancing a revision means reviewing the concrete upstream diff; changing only the recorded pin is insufficient.
+Source: `navikt/syfo-budstikka` at
+`1fd62c10dc9608a0f34b600a5cec19648167a15d`.
+
+The agent and skill trees are byte-identical on that repository's separately
+reviewed `origin/main` revision
+`763d19a569bee4908b8f6dc827629f69f1e2fcaa`.
+
+Imported agents:
+
+- `grillmester`, `barista`, `kokk`, `grill-inspektor`, `researcher`
+
+Imported skills:
+
+- `api-design`, `architecture-review`, `auth-overview`, `create-a-skill`,
+  `diagnosing-bugs`, `domain-modeling`, `e2e-tests`, `grill-me`,
+  `grill-with-docs`, `grilling`, `handoff`,
+  `improve-codebase-architecture`, `integration-tests`, `issue-management`,
+  `kafka-topic`, `klarsprak`, `kotlin-ktor`, `nais-manifest`,
+  `nav-troubleshoot`, `observability-setup`, `postgresql-review`, `prototype`,
+  `pull-request`, `readme-update`, `review`, `security-review`, `tdd`,
+  `to-issues`, `to-spec`, `triage`, `wayfinder`
+
+The portable adaptation preserves the pilot's role split, risk routing,
+one-writer boundary, specification and ADR workflows, deterministic evidence,
+independent review, and progressive skill resources. It removes only
+Budstikka-specific package names, file paths, build commands, runtime facts,
+data classifications, repository instructions, issue routing, and deployment
+assumptions. Cross-component calls are plugin-qualified where required.
+
+## Hovmester additions
+
+Source: `navikt/hovmester` at
+`48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2`.
+
+Imported agents:
+
+- `designer`, `doctor-who`, `konditor`
+
+Imported skills:
+
+- `accessibility-review`, `aksel-design`, `figma-workflow`,
+  `nav-architecture-review`, `okr`, `produktledelse`, `team-status`,
+  `workshop-design`, `dulting`, `kotlin-spring`, `lumi-survey`
+- Hovmester's visual `prototype` workflow is imported as `design-prototype`;
+  the pilot's behavior-oriented `prototype` retains its original ID.
+
+The portable adaptation keeps the design, Aksel, Figma, product, workshop,
+team-status, architecture, and prototype workflows. It removes ambient
+repository synchronization, fixed Team eSyfo repositories or project boards,
+template placeholders, and automatic external writes. Figma, GitHub, demo,
+delivery, and delegated implementation side effects require an explicit
+preview and approval.
+
+## Consumer-owned material
+
+Budstikka's `copilot-instructions.md` and path-scoped language, security, and
+GitHub Actions instructions are deliberately not plugin components. Their
+portable methods are represented in agents and skills; repository identity,
+commands, language mappings, security facts, and path-specific invariants stay
+with each consumer.
+
+Hovmester collections, sync workflows, generated mirrors, repository forms,
+and consumer templates are distribution or repository infrastructure and are
+not part of the plugin payload.
+
+## Third-party lineage
+
+Several pilot skills were originally copied or adapted from
+`mattpocock/skills` at
+`2ab958093e83e0ec752e6c1c5932da465bf23e0c`. They remain subject to that
+project's MIT license; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+When imported material changes, update the content lock and this document in
+the same change. Advancing a source revision means reviewing the concrete
+upstream diff; changing only the recorded pin is insufficient.

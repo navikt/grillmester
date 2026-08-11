@@ -4,15 +4,15 @@
     "name": "Team eSyfo"
   },
   "metadata": {
-    "description": "Copilot workflows maintained by Team eSyfo.",
-    "version": "0.1.0-poc.1"
+    "description": "A Copilot agent team for clarified software delivery, design, and product work with progressive NAV skills.",
+    "version": "0.2.0-poc.1"
   },
   "plugins": [
     {
       "name": "grillmester",
-      "description": "Clarify, implement, verify and independently review one bounded software change.",
-      "version": "0.1.0-poc.1",
-      "source": "."
+      "description": "A Copilot agent team for clarified software delivery, design, and product work with progressive NAV skills.",
+      "version": "0.2.0-poc.1",
+      "source": "plugin"
     }
   ]
 }

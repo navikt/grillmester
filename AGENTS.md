@@ -14,18 +14,28 @@ small, deterministic, and independent of any single consumer repository.
 - Do not add a second file-sync lifecycle, managed consumer manifest, install
   hook, MCP server, or executable hook without an explicit architecture
   decision.
-- Namespace public component IDs with `grillmester` and remove references to
-  legacy Hovmester IDs.
+- Preserve the reviewed pilot agent IDs. Canonical runtime skill IDs use the
+  `grillmester-` prefix so project- or user-level skills cannot silently shadow
+  plugin skills. Preserve the original source ID in provenance and human-facing
+  headings. Use plugin-qualified `grillmester:<id>` references for agents where
+  a client needs disambiguation, and remove references to obsolete Hovmester
+  runtime IDs.
 
 ## Verification
 
 Run before publishing a change:
 
 ```bash
+python3 scripts/generate_marketplace.py --mode development --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
+node --check plugin/skills/grillmester-design-prototype/scripts/server.js
+node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
+node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
+python3 scripts/smoke_plugin_install.py
 ```
 
-For client behavior, mount the plugin with `copilot --plugin-dir .` in an
-isolated `COPILOT_HOME`. Never use a consumer repository as a write target for
+The install smoke test must use a disposable, isolated Copilot home. For live
+client behavior, mount the plugin with `copilot --plugin-dir plugin` in an
+empty test repository. Never use a consumer repository as a write target for
 a smoke test.

@@ -11,51 +11,72 @@ from typing import Any
 
 
 PLUGIN_NAME = "grillmester"
+PLUGIN_REPOSITORY = "navikt/grillmester"
+SKILL_PREFIX = f"{PLUGIN_NAME}-"
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
+FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+SOURCE_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 COMPONENT_ID = re.compile(r"`(grillmester(?:-[a-z0-9-]+)?)`")
-QUALIFIED_COMPONENT_ID = re.compile(r"`grillmester:(grillmester(?:-[a-z0-9-]+)?)`")
+QUALIFIED_COMPONENT_ID = re.compile(r"`grillmester:([a-z][a-z0-9-]+)`")
 REALISTIC_NATIONAL_ID = re.compile(r"(?<!\d)\d{11}(?!\d)")
-LEGACY_IDS = re.compile(
-    r"\b(?:hovmester|kokk|barista|souschef|konditor|grill-inspektor)\b",
+FORBIDDEN_RUNTIME_IDS = re.compile(
+    r"\b(?:hovmester|souschef|inspektor-claude|inspektor-gpt)\b",
     re.IGNORECASE,
 )
+FORBIDDEN_CONSUMER_MARKERS = {
+    "Budstikka identity": re.compile(
+        r"\b(?:syfo-budstikka|no\.nav\.budstikka|BUDSTIKKA_[A-Z0-9_]*)\b",
+        re.IGNORECASE,
+    ),
+    "fixed Team eSyfo routing": re.compile(
+        r"\b(?:team-esyfo|navikt/157)\b", re.IGNORECASE
+    ),
+    "consumer instruction path": re.compile(
+        r"(?:\.github/(?:copilot-instructions\.md|instructions/)|docs/agents/)"
+    ),
+    "legacy synchronization": re.compile(r"(?:\brepo-sync\b|\$\{TEAM_REPO\})"),
+    "developer-local absolute path": re.compile(r"/Users/[^/\s]+/"),
+}
+FORBIDDEN_SCAFFOLD_MARKERS = re.compile(
+    r"(?:\[TODO:|Structuring This Skill|Replace with the first main section)"
+)
 MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-
-AGENT_CONTRACTS = {
-    "grillmester": {
-        "model": "gpt-5.6-sol",
-        "user-invocable": True,
-        "disable-model-invocation": True,
-        "tools": {"read", "search", "execute", "agent", "skill", "web", "ask_user"},
-    },
-    "grillmester-implementer": {
-        "model": "gpt-5.6-terra",
-        "user-invocable": False,
-        "disable-model-invocation": False,
-        "tools": {"read", "search", "edit", "execute", "skill"},
-    },
-    "grillmester-reviewer": {
-        "model": "claude-opus-5",
-        "user-invocable": False,
-        "disable-model-invocation": False,
-        "tools": {"read", "search", "skill"},
-    },
+AGENT_FRONTMATTER_KEYS = {
+    "name",
+    "description",
+    "model",
+    "user-invocable",
+    "disable-model-invocation",
+    "infer",
+    "tools",
 }
-
-SKILL_CONTRACTS = {
-    "grillmester-grilling": {
-        "user-invocable": False,
-        "disable-model-invocation": False,
-    },
-    "grillmester-review": {
-        "user-invocable": True,
-        "disable-model-invocation": False,
-    },
-    "grillmester-security-review": {
-        "user-invocable": True,
-        "disable-model-invocation": False,
-    },
+SKILL_FRONTMATTER_KEYS = {
+    "name",
+    "description",
+    "license",
+    "user-invocable",
+    "disable-model-invocation",
 }
+LANGUAGE_FLOOR = (
+    "Respond in the user's language. Keep technical and mechanical identifiers in "
+    "English, preserve canonical Norwegian domain terms, and never translate stable "
+    "APIs, schemas, protocol values, or identifiers. Follow the repository's "
+    "established language for durable artifacts, including ADRs; if no convention "
+    "can be established and the choice matters, ask before writing."
+)
+SECURITY_FLOOR = (
+    "Never expose secrets or personal/sensitive data in output, logs, fixtures, "
+    "URLs, or errors. Never weaken authentication, authorization, input validation, "
+    "least privilege, or trust-boundary controls."
+)
+RESEARCHER_EXTERNAL_FALLBACK = (
+    "Before external research, inspect the tools actually available in this "
+    "runtime. If no approved external retrieval tool is available, do not use shell "
+    "commands, invent sources, or claim external coverage. Restrict the pass to "
+    "repository sources and return `NEEDS_CONTEXT` with the missing source or "
+    "capability, recommending rerouting to Copilot CLI/app or a repository-approved "
+    "MCP when the question depends on external facts."
+)
 
 
 class FrontmatterError(ValueError):
@@ -75,6 +96,83 @@ def load_json(path: Path, errors: list[str]) -> dict[str, Any]:
         errors.append(f"expected a JSON object in {path}")
         return {}
     return value
+
+
+def load_content_lock(
+    root: Path, errors: list[str]
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    path = root / "policy/content-lock.json"
+    lock = load_json(path, errors)
+    if not lock:
+        return {}, {}
+    if lock.get("schemaVersion") != 1:
+        errors.append("content lock schemaVersion must be 1")
+    sources = lock.get("sources")
+    if not isinstance(sources, dict) or not sources:
+        errors.append("content lock must record at least one source revision")
+        sources = {}
+    else:
+        for source_id, source in sources.items():
+            if not SOURCE_ID.fullmatch(source_id) or not isinstance(source, dict):
+                errors.append(f"content lock source {source_id!r} is invalid")
+                continue
+            repository = source.get("repository")
+            revision = source.get("revision")
+            if not isinstance(repository, str) or "/" not in repository:
+                errors.append(f"content lock source {source_id} needs owner/repository")
+            if not isinstance(revision, str) or not FULL_SHA.fullmatch(revision):
+                errors.append(f"content lock source {source_id} needs a full commit SHA")
+            payload_revision = source.get("payloadVerifiedRevision")
+            if payload_revision is not None and (
+                not isinstance(payload_revision, str)
+                or not FULL_SHA.fullmatch(payload_revision)
+            ):
+                errors.append(
+                    f"content lock source {source_id} payloadVerifiedRevision must be a full commit SHA"
+                )
+
+    agents = lock.get("agents")
+    skills = lock.get("skills")
+    if not isinstance(agents, dict) or not agents:
+        errors.append("content lock must contain agent contracts")
+        agents = {}
+    if not isinstance(skills, dict) or not skills:
+        errors.append("content lock must contain skill contracts")
+        skills = {}
+
+    for kind, contracts in (("agent", agents), ("skill", skills)):
+        for component_id, contract in contracts.items():
+            if not isinstance(contract, dict):
+                errors.append(f"content lock {kind} {component_id} must be an object")
+                continue
+            if contract.get("disposition") not in {"ported", "adapted", "consolidated"}:
+                errors.append(
+                    f"content lock {kind} {component_id} needs a reviewed disposition"
+                )
+            if not contract.get("source"):
+                errors.append(f"content lock {kind} {component_id} needs a source")
+            else:
+                referenced_sources = contract["source"]
+                if isinstance(referenced_sources, str):
+                    referenced_sources = [referenced_sources]
+                if not isinstance(referenced_sources, list) or not referenced_sources:
+                    errors.append(
+                        f"content lock {kind} {component_id} source must name one or more sources"
+                    )
+                else:
+                    for source_id in referenced_sources:
+                        if source_id not in sources:
+                            errors.append(
+                                f"content lock {kind} {component_id} references unknown source {source_id!r}"
+                            )
+            source_path = contract.get("sourcePath")
+            if not isinstance(source_path, str) or not source_path.strip():
+                errors.append(f"content lock {kind} {component_id} needs a sourcePath")
+            elif Path(source_path).is_absolute() or ".." in Path(source_path).parts:
+                errors.append(
+                    f"content lock {kind} {component_id} sourcePath must be repository-relative"
+                )
+    return agents, skills
 
 
 def parse_scalar(value: str) -> Any:
@@ -128,7 +226,7 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, Any], str]:
 
 
 def validate_manifests(root: Path, errors: list[str]) -> str | None:
-    plugin_path = root / "plugin.json"
+    plugin_path = root / "plugin/plugin.json"
     marketplace_path = root / ".github/plugin/marketplace.json"
     plugin = load_json(plugin_path, errors)
     marketplace = load_json(marketplace_path, errors)
@@ -168,14 +266,41 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
             errors.append(f"marketplace plugin name must be {PLUGIN_NAME!r}")
         if entry.get("version") != version:
             errors.append("marketplace plugin version must equal plugin.json version")
-        if entry.get("source") != ".":
-            errors.append('marketplace plugin source must be "."')
+        source = entry.get("source")
+        if source == "plugin":
+            pass
+        elif isinstance(source, dict):
+            expected_keys = {"source", "repo", "path", "sha"}
+            if set(source) != expected_keys:
+                errors.append(
+                    "release marketplace source must contain only source, repo, path, and sha"
+                )
+            if source.get("source") != "github":
+                errors.append('release marketplace source type must be "github"')
+            if source.get("repo") != PLUGIN_REPOSITORY:
+                errors.append(
+                    f"release marketplace repo must be {PLUGIN_REPOSITORY!r}"
+                )
+            if source.get("path") != "plugin":
+                errors.append('release marketplace plugin path must be "plugin"')
+            sha = source.get("sha")
+            if not isinstance(sha, str) or not FULL_SHA.fullmatch(sha):
+                errors.append(
+                    "release marketplace source sha must be a lowercase full commit SHA"
+                )
+        else:
+            errors.append(
+                'marketplace plugin source must be the development path "plugin" '
+                "or an immutable GitHub release source"
+            )
         if not entry.get("description"):
             errors.append("marketplace plugin needs a description")
     return version
 
 
-def validate_agents(root: Path, errors: list[str]) -> set[str]:
+def validate_agents(
+    root: Path, contracts: dict[str, dict[str, Any]], errors: list[str]
+) -> set[str]:
     agents_dir = root / "agents"
     found: dict[str, Path] = {}
     if not agents_dir.is_dir():
@@ -198,27 +323,57 @@ def validate_agents(root: Path, errors: list[str]) -> set[str]:
             errors.append(f"{path}: description is required")
         if not body:
             errors.append(f"{path}: agent body is empty")
+        normalized_body = " ".join(body.split())
+        if LANGUAGE_FLOOR not in normalized_body:
+            errors.append(f"{path}: shared language floor is missing or has drifted")
+        if SECURITY_FLOOR not in normalized_body:
+            errors.append(f"{path}: shared security floor is missing or has drifted")
+        if (
+            agent_id == "researcher"
+            and RESEARCHER_EXTERNAL_FALLBACK not in normalized_body
+        ):
+            errors.append(
+                f"{path}: external-research capability fallback is missing or has drifted"
+            )
 
-        expected = AGENT_CONTRACTS.get(agent_id)
+        unknown_keys = set(frontmatter) - AGENT_FRONTMATTER_KEYS
+        if unknown_keys:
+            errors.append(f"{path}: unsupported frontmatter keys: {sorted(unknown_keys)}")
+
+        expected = contracts.get(agent_id)
         if expected is None:
             errors.append(f"unexpected agent {agent_id}; update the reviewed agent contract first")
             continue
-        for key in ("model", "user-invocable", "disable-model-invocation"):
+        for key in ("model", "user-invocable", "disable-model-invocation", "infer"):
+            if key not in expected:
+                continue
             if frontmatter.get(key) != expected[key]:
                 errors.append(f"{path}: {key} must be {expected[key]!r}")
+        expected_tools = expected.get("tools")
         tools = frontmatter.get("tools")
-        if not isinstance(tools, list) or set(tools) != expected["tools"]:
-            errors.append(f"{path}: tools must be exactly {sorted(expected['tools'])}")
+        if expected_tools is None:
+            if expected.get("toolPolicy") != "ambient-external":
+                errors.append(
+                    f"content lock agent {agent_id} needs tools or an ambient-external rationale"
+                )
+            if "tools" in frontmatter:
+                errors.append(f"{path}: tools must remain omitted for ambient external tools")
+        elif not isinstance(expected_tools, list) or not expected_tools:
+            errors.append(f"content lock agent {agent_id} tools must be null or non-empty")
+        elif not isinstance(tools, list) or set(tools) != set(expected_tools):
+            errors.append(f"{path}: tools must be exactly {sorted(expected_tools)}")
 
-    missing = set(AGENT_CONTRACTS) - set(found)
+    missing = set(contracts) - set(found)
     for agent_id in sorted(missing):
         errors.append(f"missing required agent: {agent_id}")
     return set(found)
 
 
-def validate_skill_links(path: Path, body: str, errors: list[str]) -> None:
-    skill_root = path.parent.resolve()
-    for target in MARKDOWN_LINK.findall(body):
+def validate_skill_links(
+    path: Path, text: str, skill_root: Path, errors: list[str]
+) -> None:
+    skill_root = skill_root.resolve()
+    for target in MARKDOWN_LINK.findall(text):
         target = target.strip().split("#", 1)[0]
         if not target or target.startswith(("http://", "https://", "mailto:")):
             continue
@@ -232,7 +387,9 @@ def validate_skill_links(path: Path, body: str, errors: list[str]) -> None:
             errors.append(f"{path}: linked file does not exist: {target}")
 
 
-def validate_skills(root: Path, errors: list[str]) -> set[str]:
+def validate_skills(
+    root: Path, contracts: dict[str, dict[str, Any]], errors: list[str]
+) -> set[str]:
     skills_dir = root / "skills"
     found: dict[str, Path] = {}
     if not skills_dir.is_dir():
@@ -253,20 +410,42 @@ def validate_skills(root: Path, errors: list[str]) -> set[str]:
         if skill_id in found:
             errors.append(f"duplicate skill ID {skill_id}: {path} and {found[skill_id]}")
         found[skill_id] = path
+        if not isinstance(skill_id, str) or not skill_id.startswith(SKILL_PREFIX):
+            errors.append(
+                f"{path}: plugin skill IDs must use the {SKILL_PREFIX!r} namespace"
+            )
         if not frontmatter.get("description"):
             errors.append(f"{path}: description is required")
+        if frontmatter.get("license") != "MIT":
+            errors.append(f"{path}: license must be 'MIT'")
         if not body:
             errors.append(f"{path}: skill body is empty")
-        expected = SKILL_CONTRACTS.get(skill_id)
+        unknown_keys = set(frontmatter) - SKILL_FRONTMATTER_KEYS
+        if unknown_keys:
+            errors.append(f"{path}: unsupported frontmatter keys: {sorted(unknown_keys)}")
+        expected = contracts.get(skill_id)
         if expected is None:
             errors.append(f"unexpected skill {skill_id}; update the reviewed skill contract first")
         else:
-            for key, expected_value in expected.items():
+            for key in ("user-invocable", "disable-model-invocation"):
+                if key not in expected:
+                    continue
+                expected_value = expected[key]
                 if frontmatter.get(key) != expected_value:
                     errors.append(f"{path}: {key} must be {expected_value!r}")
-        validate_skill_links(path, body, errors)
+        skill_root = path.parent
+        validate_skill_links(path, body, skill_root, errors)
+        for resource in sorted(skill_root.rglob("*.md")):
+            if resource == path:
+                continue
+            validate_skill_links(
+                resource,
+                resource.read_text(encoding="utf-8"),
+                skill_root,
+                errors,
+            )
 
-    missing = set(SKILL_CONTRACTS) - set(found)
+    missing = set(contracts) - set(found)
     for skill_id in sorted(missing):
         errors.append(f"missing required skill: {skill_id}")
     return set(found)
@@ -281,14 +460,42 @@ def runtime_markdown(root: Path) -> list[Path]:
 
 
 def validate_content(
-    root: Path, agent_ids: set[str], skill_ids: set[str], errors: list[str]
+    root: Path,
+    plugin_root: Path,
+    agent_ids: set[str],
+    skill_ids: set[str],
+    errors: list[str],
 ) -> None:
     known_ids = agent_ids | skill_ids
-    for path in runtime_markdown(root):
+    legacy_skill_ids = {
+        skill_id.removeprefix(SKILL_PREFIX)
+        for skill_id in skill_ids
+        if skill_id.startswith(SKILL_PREFIX)
+    }
+    for path in runtime_markdown(plugin_root):
         text = path.read_text(encoding="utf-8")
-        legacy = LEGACY_IDS.search(text)
-        if legacy:
-            errors.append(f"{path}: legacy runtime ID is not allowed: {legacy.group(0)}")
+        forbidden = FORBIDDEN_RUNTIME_IDS.search(text)
+        if forbidden:
+            errors.append(f"{path}: obsolete runtime ID is not allowed: {forbidden.group(0)}")
+        for label, pattern in FORBIDDEN_CONSUMER_MARKERS.items():
+            match = pattern.search(text)
+            if match:
+                errors.append(
+                    f"{path}: {label} is not portable plugin content: {match.group(0)}"
+                )
+        scaffold = FORBIDDEN_SCAFFOLD_MARKERS.search(text)
+        if scaffold:
+            errors.append(
+                f"{path}: unfinished skill scaffold is not allowed: {scaffold.group(0)}"
+            )
+        for legacy_skill_id in sorted(legacy_skill_ids, key=len, reverse=True):
+            raw_invocation = re.search(
+                rf"(?<![:/\w-])/{re.escape(legacy_skill_id)}\b", text
+            )
+            if raw_invocation:
+                errors.append(
+                    f"{path}: raw skill invocation must use /{SKILL_PREFIX}{legacy_skill_id}"
+                )
         for component_id in COMPONENT_ID.findall(text):
             if component_id not in known_ids and component_id != PLUGIN_NAME:
                 errors.append(f"{path}: dangling Grillmester component reference: {component_id}")
@@ -309,9 +516,19 @@ def validate_content(
 
 def validate_layout(root: Path, errors: list[str]) -> None:
     forbidden = [
+        root / "agents",
+        root / "skills",
+        root / "instructions",
+        root / "collections",
         root / ".github/agents",
         root / ".github/skills",
+        root / ".github/instructions",
         root / ".plugin/plugin.json",
+        root / ".plugin/marketplace.json",
+        root / ".github/plugin/plugin.json",
+        root / "plugin/.plugin/plugin.json",
+        root / "plugin/.github/plugin/marketplace.json",
+        root / "plugin/marketplace.json",
         root / "marketplace.json",
         root / "dist",
     ]
@@ -319,15 +536,23 @@ def validate_layout(root: Path, errors: list[str]) -> None:
         if path.exists():
             errors.append(f"forbidden alternate or generated path: {path}")
 
+    plugin_root = root / "plugin"
+    if plugin_root.is_dir():
+        for path in sorted(plugin_root.rglob("*")):
+            if path.is_symlink():
+                errors.append(f"plugin package must not contain symlinks: {path}")
+
 
 def validate_repo(root: Path) -> list[str]:
     root = root.resolve()
+    plugin_root = root / "plugin"
     errors: list[str] = []
     validate_layout(root, errors)
     validate_manifests(root, errors)
-    agent_ids = validate_agents(root, errors)
-    skill_ids = validate_skills(root, errors)
-    validate_content(root, agent_ids, skill_ids, errors)
+    agent_contracts, skill_contracts = load_content_lock(root, errors)
+    agent_ids = validate_agents(plugin_root, agent_contracts, errors)
+    skill_ids = validate_skills(plugin_root, skill_contracts, errors)
+    validate_content(root, plugin_root, agent_ids, skill_ids, errors)
     return errors
 
 

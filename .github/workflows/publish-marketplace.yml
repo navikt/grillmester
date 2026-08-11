@@ -1,0 +1,128 @@
+name: Publish marketplace catalog
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: publish-grillmester-marketplace
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      source-sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - name: Check out source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event_name == 'push' && github.sha || 'main' }}
+
+      - name: Record immutable source revision
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Check generated development catalog
+        run: python3 scripts/generate_marketplace.py --mode development --check
+
+      - name: Validate plugin package
+        run: python3 scripts/validate.py
+
+      - name: Run Python tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Validate Visual Companion scripts
+        run: |
+          node --check plugin/skills/grillmester-design-prototype/scripts/server.js
+          node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
+          node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
+
+      - name: Generate immutable release catalog
+        run: >-
+          python3 scripts/generate_marketplace.py
+          --mode release
+          --sha "${{ steps.source.outputs.sha }}"
+
+      - name: Check immutable release catalog
+        run: >-
+          python3 scripts/generate_marketplace.py
+          --mode release
+          --sha "${{ steps.source.outputs.sha }}"
+          --check
+
+      - name: Validate immutable release catalog
+        run: python3 scripts/validate.py
+
+      - name: Install pinned GitHub Copilot CLI
+        run: npm install --global @github/copilot@1.0.79
+
+      - name: Smoke-test immutable marketplace installation
+        run: python3 scripts/smoke_plugin_install.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      MARKETPLACE_BRANCH: marketplace
+      SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
+    steps:
+      - name: Check out validated source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Generate immutable release catalog
+        run: >-
+          python3 scripts/generate_marketplace.py
+          --mode release
+          --sha "${SOURCE_SHA}"
+
+      - name: Publish catalog-only commit atomically
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          remote_tip="$(git ls-remote --heads origin "refs/heads/${MARKETPLACE_BRANCH}")"
+          base_sha=""
+          parent_args=()
+          if [[ -n "${remote_tip}" ]]; then
+            git fetch --no-tags origin \
+              "refs/heads/${MARKETPLACE_BRANCH}:refs/remotes/origin/${MARKETPLACE_BRANCH}"
+            base_sha="$(git rev-parse "refs/remotes/origin/${MARKETPLACE_BRANCH}")"
+            parent_args=(-p "${base_sha}")
+          fi
+
+          index_file="$(mktemp)"
+          rm -f "${index_file}"
+          trap 'rm -f "${index_file}"' EXIT
+
+          GIT_INDEX_FILE="${index_file}" git read-tree --empty
+          GIT_INDEX_FILE="${index_file}" git add -- .github/plugin/marketplace.json
+          tree_sha="$(GIT_INDEX_FILE="${index_file}" git write-tree)"
+          commit_sha="$(git commit-tree "${tree_sha}" "${parent_args[@]}" \
+            -m "chore: publish marketplace for ${SOURCE_SHA}")"
+
+          git push origin --atomic \
+            --force-with-lease="refs/heads/${MARKETPLACE_BRANCH}:${base_sha}" \
+            "${commit_sha}:refs/heads/${MARKETPLACE_BRANCH}"
