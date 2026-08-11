@@ -18,11 +18,17 @@ liten, men reell verdikjede:
 Setup/Doctor, solo-utvikler, design, produktarbeid og flere teknologipakker er
 bevisst utsatt til denne flyten er verifisert i målklientene.
 
-Den lokale POC-en er verifisert med GitHub Copilot CLI 1.0.79-9: native
-pluginformat, marketplace med `source: "."`, discovery av alle tre agenter,
+POC-en er verifisert med GitHub Copilot CLI 1.0.79-9: native pluginformat,
+marketplace med `source: "."`, discovery av alle tre agenter,
 plugin-kvalifisert Grillmester-kjøring, installasjon av tre skills og progressiv
-lasting av review-skillen. Delegasjon mellom agentene, remote SHA-pinning,
-rollback, VS Code og Copilot cloud gjenstår før en stabil release.
+lasting av review-skillen. En remote branch-ref i consumerens
+`.github/copilot/settings.json` auto-installerer og aktiverer pluginen.
+
+Full commit-SHA i samme `ref` virker **ikke** i denne klientversjonen. CLI-en
+forsøker `git clone --branch <SHA>` og feiler fordi commit-SHA-en ikke er en
+remote branch eller tag. Stabil distribusjon er blokkert til klienten håndterer
+SHA korrekt, eller en immutabel tag/release-bane er bevist. Delegasjon mellom
+agentene, rollback, VS Code og Copilot cloud gjenstår også før stabil release.
 
 ## Installer POC-en
 
