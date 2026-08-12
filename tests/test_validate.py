@@ -73,7 +73,7 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("tools must be exactly")
 
-    def test_stable_version_rejects_ambient_all_tool_policy(self) -> None:
+    def test_stable_version_accepts_reviewed_explicit_tool_policies(self) -> None:
         plugin = self.load_json("plugin/plugin.json")
         plugin["version"] = "0.2.0"
         self.write_json("plugin/plugin.json", plugin)
@@ -81,7 +81,51 @@ class PackageValidationTest(unittest.TestCase):
         marketplace["metadata"]["version"] = "0.2.0"
         marketplace["plugins"][0]["version"] = "0.2.0"
         self.write_json(".github/plugin/marketplace.json", marketplace)
-        self.assert_error("stable package cannot leave all runtime tools ambient")
+        self.assertEqual([], self.errors())
+
+    def test_designer_role_boundary_rejects_joint_tool_widening(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        lock["agents"]["designer"]["tools"].append("agent")
+        self.write_json("policy/content-lock.json", lock)
+        path = self.root / "plugin/agents/designer.agent.md"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "  - ask_user\n", "  - ask_user\n  - agent\n", 1
+            ),
+            encoding="utf-8",
+        )
+        self.assert_error("designer violates the reviewed role tool boundary")
+
+    def test_doctor_who_role_boundary_rejects_execute(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        lock["agents"]["doctor-who"]["tools"].append("execute")
+        self.write_json("policy/content-lock.json", lock)
+        path = self.root / "plugin/agents/doctor-who.agent.md"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "  - edit\n", "  - edit\n  - execute\n", 1
+            ),
+            encoding="utf-8",
+        )
+        self.assert_error("doctor-who violates the reviewed role tool boundary")
+
+    def test_sensitive_roles_have_no_server_wildcards(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        for agent_id in ("designer", "doctor-who"):
+            with self.subTest(agent=agent_id):
+                tools = lock["agents"][agent_id]["tools"]
+                self.assertFalse(any(tool.endswith("/*") for tool in tools))
+                self.assertNotIn("agent", tools)
+
+        designer_tools = lock["agents"]["designer"]["tools"]
+        self.assertNotIn("playwright/browser_evaluate", designer_tools)
+        self.assertNotIn("playwright/browser_run_code_unsafe", designer_tools)
+        self.assertNotIn(
+            "com.microsoft/playwright-mcp/browser_evaluate", designer_tools
+        )
+        self.assertNotIn(
+            "com.microsoft/playwright-mcp/browser_run_code_unsafe", designer_tools
+        )
 
     def test_shared_agent_floor_drift_is_rejected(self) -> None:
         path = self.root / "plugin/agents/researcher.agent.md"
@@ -350,6 +394,18 @@ class PackageValidationTest(unittest.TestCase):
         self.write_json("policy/content-lock.json", lock)
         self.assert_error("needs a full commit SHA")
 
+    def test_third_party_source_requires_notice_at_reviewed_revision(self) -> None:
+        path = self.root / "plugin/THIRD_PARTY_NOTICES.md"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "44c9b2d6e889982ac18c27d05a19fefe335194e1", "missing-review-pin"
+            ),
+            encoding="utf-8",
+        )
+        self.assert_error(
+            "third-party source superpowers must ship repository and revision"
+        )
+
     def test_component_source_must_be_declared(self) -> None:
         lock = self.load_json("policy/content-lock.json")
         lock["skills"]["grillmester-review"]["source"] = "unknown"
@@ -361,6 +417,14 @@ class PackageValidationTest(unittest.TestCase):
         lock["skills"]["grillmester-review"]["sourcePath"] = "../review"
         self.write_json("policy/content-lock.json", lock)
         self.assert_error("sourcePath must be repository-relative")
+
+    def test_component_lineage_must_name_a_reviewed_source(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        lock["skills"]["grillmester-design-prototype"]["lineage"][0][
+            "source"
+        ] = "unknown"
+        self.write_json("policy/content-lock.json", lock)
+        self.assert_error("lineage references unknown source")
 
     def test_alternate_manifest_location_is_rejected(self) -> None:
         alternate = self.root / ".plugin/plugin.json"

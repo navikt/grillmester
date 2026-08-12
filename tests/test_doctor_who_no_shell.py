@@ -10,6 +10,16 @@ def read(relative_path: str) -> str:
 
 
 class DoctorWhoNoShellContractTests(unittest.TestCase):
+    def test_agent_frontmatter_has_no_execute_or_delegation(self) -> None:
+        agent = read("plugin/agents/doctor-who.agent.md")
+        frontmatter = agent.split("---", 2)[1]
+
+        self.assertNotIn("  - execute\n", frontmatter)
+        self.assertNotIn("  - agent\n", frontmatter)
+        self.assertIn("  - edit\n", frontmatter)
+        self.assertIn("github/projects_write", frontmatter)
+        self.assertIn("github/issue_write", frontmatter)
+
     def test_projects_reference_has_no_cli_fallback(self) -> None:
         reference = read(
             "plugin/skills/grillmester-team-status/references/projects-v2.md"

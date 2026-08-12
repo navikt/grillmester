@@ -64,11 +64,29 @@ Full Figma-lesing og -leveranse krever at klienten har en godkjent Figma MCP.
 Uten den skal Designer degradere tydelig til konsept, Visual Companion eller et
 Figma-klart utkast — aldri late som en Figma-endring er utført.
 
-POC-sikkerhetsnote: Designer og Doctor Who arver foreløpig alle tilgjengelige
-built-ins og konfigurerte MCP-verktøy fra klienten. Alle writes har
-preview-/godkjenningsgate i agentkontrakten, men dette er ikke en teknisk
-allowlist. Stabil release er blokkert til en eksplisitt, kryssklient allowlist
-er godkjent og app-testet.
+Designer og Doctor Who har eksplisitte, kryssklient verktøylister. Ingen av dem
+kan delegere til en annen agent. Doctor Who har heller ikke shell/execute;
+rollen kan lese relevante repo-, issue-, PR- og prosjektkilder og, etter
+preview og eksplisitt godkjenning, skrive produktartefakter, issues og
+Projects-felter. Designer har bare navngitte Figma-verktøy, et lite
+Playwright-sett uten evaluate/run-code, NAVs Aksel-oppslag og GitHub
+Issue-lesing/-skriving.
+
+Det gjenstår en bevisst POC-risiko: Copilots innebygde `edit` og `execute` kan
+ikke teknisk avgrenses per sti eller kommando i agent-frontmatter. Designer har
+derfor disse to brede kapabilitetene, men agentkontrakten tillater dem kun for
+den bundlede Visual Companion-serveren og dens eksakte private
+`screen_dir`-tempsti fra startup-JSON; de gir ikke tillatelse til produktkode,
+Git, pakkeinstallasjon eller vilkårlige prosesser.
+Tilsvarende kan GitHubs `issue_write` og `projects_write` utføre flere
+operasjoner innen sitt domene. Preview-/godkjenningsgatene begrenser intensjon,
+men er ikke en sandbox. Den publiserte RC-en må derfor app-testes med både
+godkjent og avvist write før stabil release.
+
+Allowlisten installerer ikke en MCP-server og gir ikke OAuth-scopes. Figma og
+GitHub Projects virker derfor bare når klienten faktisk eksponerer de navngitte
+verktøyene med riktige tilganger. Hvis en kapabilitet mangler, skal agenten
+stoppe med `NEEDS_INPUT` eller tilby en eksplisitt avgrenset fallback.
 
 ## Aktiver Grillmester for et teamrepo
 
@@ -171,6 +189,10 @@ ikke er tilstrekkelige.
   Inspector, Researcher og `/grillmester-doctor` read-only. Ingen test skal
   endre et reelt consumer-repo.
 - Avvis én foreslått write og bekreft at agenten stopper uten sideeffekt.
+- Kontroller at Designer og Doctor Who ikke kan delegere, at Doctor Who ikke
+  får shell/execute, og at Designer ikke får Playwright evaluate/run-code eller
+  server-wildcards. Bekreft samtidig at de navngitte Figma-, Issue- og
+  Projects-verktøyene faktisk resolver i både CLI og app.
 - Gjenta mot samme publiserte RC i repoaktivert cloud agent med NAVs faktiske
   enterprise-policy. Promoter først den godkjente katalogcommiten til stabil
   release etter at alle gatene er grønne.

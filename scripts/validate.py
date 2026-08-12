@@ -61,6 +61,112 @@ SKILL_FRONTMATTER_KEYS = {
     "user-invocable",
     "disable-model-invocation",
 }
+
+
+def mcp_tools(prefixes: tuple[str, ...], names: tuple[str, ...]) -> set[str]:
+    return {f"{prefix}/{name}" for prefix in prefixes for name in names}
+
+
+GITHUB_PREFIXES = ("github", "github-mcp-server", "io.github.navikt/github-mcp")
+FIGMA_PREFIXES = ("figma", "com.figma/figma-mcp")
+PLAYWRIGHT_PREFIXES = ("playwright", "com.microsoft/playwright-mcp")
+AKSEL_PREFIXES = ("io.github.navikt/aksel-mcp",)
+
+DESIGNER_TOOLS = {
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "skill",
+    "web",
+    "ask_user",
+} | mcp_tools(
+    GITHUB_PREFIXES,
+    (
+        "get_me",
+        "list_issues",
+        "issue_read",
+        "search_issues",
+        "list_label",
+        "issue_write",
+    ),
+) | mcp_tools(
+    AKSEL_PREFIXES,
+    (
+        "aksel_find_docs",
+        "aksel_get_doc",
+        "aksel_get_component_info",
+        "aksel_get_token_details",
+        "aksel_find_icons",
+    ),
+) | mcp_tools(
+    FIGMA_PREFIXES,
+    (
+        "whoami",
+        "get_metadata",
+        "get_screenshot",
+        "get_design_context",
+        "get_variable_defs",
+        "get_libraries",
+        "search_design_system",
+        "create_new_file",
+        "use_figma",
+        "generate_figma_design",
+    ),
+) | mcp_tools(
+    PLAYWRIGHT_PREFIXES,
+    (
+        "browser_navigate",
+        "browser_snapshot",
+        "browser_take_screenshot",
+        "browser_resize",
+        "browser_wait_for",
+        "browser_console_messages",
+        "browser_click",
+    ),
+)
+
+DOCTOR_WHO_TOOLS = {
+    "read",
+    "search",
+    "edit",
+    "skill",
+    "web",
+    "ask_user",
+} | mcp_tools(
+    GITHUB_PREFIXES,
+    (
+        "get_me",
+        "get_file_contents",
+        "search_code",
+        "search_repositories",
+        "list_branches",
+        "list_commits",
+        "get_commit",
+        "get_latest_release",
+        "list_releases",
+        "list_issues",
+        "issue_read",
+        "search_issues",
+        "issue_write",
+        "list_pull_requests",
+        "pull_request_read",
+        "search_pull_requests",
+        "projects_get",
+        "projects_list",
+        "projects_write",
+    ),
+)
+
+# NAV's registry historically advertised create_issue while the current GitHub
+# MCP surface uses issue_write. Both are the same reviewed external-write class.
+DESIGNER_TOOLS.add("io.github.navikt/github-mcp/create_issue")
+DOCTOR_WHO_TOOLS.add("io.github.navikt/github-mcp/create_issue")
+
+ROLE_TOOL_CONTRACTS = {
+    "designer": DESIGNER_TOOLS,
+    "doctor-who": DOCTOR_WHO_TOOLS,
+}
 LANGUAGE_FLOOR = (
     "Respond in the user's language. Keep technical and mechanical identifiers in "
     "English, preserve canonical Norwegian domain terms, and never translate stable "
@@ -154,11 +260,15 @@ def load_json(path: Path, errors: list[str]) -> dict[str, Any]:
 
 def load_content_lock(
     root: Path, errors: list[str]
-) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+) -> tuple[
+    dict[str, dict[str, Any]],
+    dict[str, dict[str, Any]],
+    dict[str, dict[str, Any]],
+]:
     path = root / "policy/content-lock.json"
     lock = load_json(path, errors)
     if not lock:
-        return {}, {}
+        return {}, {}, {}
     if lock.get("schemaVersion") != 1:
         errors.append("content lock schemaVersion must be 1")
     sources = lock.get("sources")
@@ -226,7 +336,63 @@ def load_content_lock(
                 errors.append(
                     f"content lock {kind} {component_id} sourcePath must be repository-relative"
                 )
-    return agents, skills
+            lineage = contract.get("lineage", [])
+            if not isinstance(lineage, list):
+                errors.append(f"content lock {kind} {component_id} lineage must be a list")
+            else:
+                for item in lineage:
+                    if not isinstance(item, dict) or set(item) != {"source", "sourcePath"}:
+                        errors.append(
+                            f"content lock {kind} {component_id} lineage entries must contain source and sourcePath"
+                        )
+                        continue
+                    lineage_source = item.get("source")
+                    lineage_path = item.get("sourcePath")
+                    if lineage_source not in sources:
+                        errors.append(
+                            f"content lock {kind} {component_id} lineage references unknown source {lineage_source!r}"
+                        )
+                    if (
+                        not isinstance(lineage_path, str)
+                        or not lineage_path.strip()
+                        or Path(lineage_path).is_absolute()
+                        or ".." in Path(lineage_path).parts
+                    ):
+                        errors.append(
+                            f"content lock {kind} {component_id} lineage sourcePath must be repository-relative"
+                        )
+    return sources, agents, skills
+
+
+def validate_attribution(
+    root: Path, sources: dict[str, dict[str, Any]], errors: list[str]
+) -> None:
+    provenance = (root / "PROVENANCE.md").read_text(encoding="utf-8")
+    notices = (root / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+    payload_notices = (root / "plugin/THIRD_PARTY_NOTICES.md").read_text(
+        encoding="utf-8"
+    )
+    for source_id, source in sources.items():
+        repository = source.get("repository")
+        revision = source.get("revision")
+        if not isinstance(repository, str) or not isinstance(revision, str):
+            continue
+        if repository not in provenance or revision not in provenance:
+            errors.append(
+                f"content lock source {source_id} must record repository and revision in PROVENANCE.md"
+            )
+        if not repository.startswith("navikt/") and (
+            repository not in notices or revision not in notices
+        ):
+            errors.append(
+                f"third-party source {source_id} must record repository and revision in THIRD_PARTY_NOTICES.md"
+            )
+        if not repository.startswith("navikt/") and (
+            repository not in payload_notices or revision not in payload_notices
+        ):
+            errors.append(
+                f"third-party source {source_id} must ship repository and revision in plugin/THIRD_PARTY_NOTICES.md"
+            )
 
 
 def parse_scalar(value: str) -> Any:
@@ -451,17 +617,25 @@ def validate_agents(
                 errors.append(f"{path}: {key} must be {expected[key]!r}")
         expected_tools = expected.get("tools")
         tools = frontmatter.get("tools")
-        if expected_tools is None:
-            if expected.get("toolPolicy") != "ambient-all-poc":
-                errors.append(
-                    f"content lock agent {agent_id} needs tools or an ambient-all-poc rationale"
-                )
-            if "tools" in frontmatter:
-                errors.append(f"{path}: tools must remain omitted for ambient external tools")
-        elif not isinstance(expected_tools, list) or not expected_tools:
-            errors.append(f"content lock agent {agent_id} tools must be null or non-empty")
-        elif not isinstance(tools, list) or set(tools) != set(expected_tools):
+        if not isinstance(expected_tools, list) or not expected_tools:
+            errors.append(f"content lock agent {agent_id} tools must be a non-empty list")
+        elif len(expected_tools) != len(set(expected_tools)):
+            errors.append(f"content lock agent {agent_id} tools must not contain duplicates")
+        elif not isinstance(tools, list) or len(tools) != len(set(tools)):
+            errors.append(f"{path}: tools must be a duplicate-free list")
+        elif set(tools) != set(expected_tools):
             errors.append(f"{path}: tools must be exactly {sorted(expected_tools)}")
+
+        role_tools = ROLE_TOOL_CONTRACTS.get(agent_id)
+        if role_tools is not None:
+            if expected.get("toolPolicy") != "explicit-cross-client":
+                errors.append(
+                    f"content lock agent {agent_id} must use explicit-cross-client tool policy"
+                )
+            if not isinstance(expected_tools, list) or set(expected_tools) != role_tools:
+                errors.append(
+                    f"content lock agent {agent_id} violates the reviewed role tool boundary"
+                )
 
     missing = set(contracts) - set(found)
     for agent_id in sorted(missing):
@@ -688,14 +862,9 @@ def validate_repo(root: Path) -> list[str]:
     errors: list[str] = []
     validate_layout(root, errors)
     validate_assets(root, errors)
-    version = validate_manifests(root, errors)
-    agent_contracts, skill_contracts = load_content_lock(root, errors)
-    if version and "-poc." not in version:
-        for agent_id, contract in agent_contracts.items():
-            if contract.get("toolPolicy") == "ambient-all-poc":
-                errors.append(
-                    f"stable package cannot leave all runtime tools ambient for agent {agent_id}"
-                )
+    validate_manifests(root, errors)
+    sources, agent_contracts, skill_contracts = load_content_lock(root, errors)
+    validate_attribution(root, sources, errors)
     agent_ids = validate_agents(plugin_root, agent_contracts, errors)
     skill_ids = validate_skills(plugin_root, skill_contracts, errors)
     validate_content(root, plugin_root, agent_ids, skill_ids, errors)

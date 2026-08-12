@@ -2,10 +2,13 @@
   "use strict";
 
   const channel = "grillmester-visual-companion";
+  const screen = window.__grillmesterVisualCompanionScreen;
   const selected = new Map();
   const indicator = document.getElementById("indicator");
   const indicatorText = document.getElementById("indicator-text");
   const choices = Array.from(document.querySelectorAll(".option, .card"));
+  let persistenceStatus = "idle";
+  let pendingEvent = null;
 
   choices.forEach((element, index) => {
     element.dataset.vcChoiceId = `choice-${index + 1}`;
@@ -29,11 +32,14 @@
   }
 
   function postSelection(type, choice) {
+    if (!/^[a-f0-9]{32}$/.test(screen || "")) return;
+    persistenceStatus = "saving";
+    pendingEvent = { type, choice };
     parent.postMessage(
       {
         channel,
         version: 1,
-        event: { type, choice },
+        event: { type, choice, screen },
       },
       "*",
     );
@@ -48,8 +54,16 @@
     }
     indicator.classList.add("visible");
     const names = Array.from(selected.values());
-    indicatorText.textContent =
+    const selection =
       names.length === 1 ? `Valgt: ${names[0]}` : `${names.length} valgt`;
+    const status = persistenceStatus === "saving"
+      ? " · lagrer …"
+      : persistenceStatus === "saved"
+        ? " · lagret"
+        : persistenceStatus === "failed"
+          ? " · ikke lagret — si valget i chatten"
+          : "";
+    indicatorText.textContent = selection + status;
   }
 
   function toggleSelect(element) {
@@ -113,16 +127,23 @@
   });
 
   window.addEventListener("message", (message) => {
-    if (
-      message.source !== parent ||
-      !message.data ||
-      message.data.channel !== channel ||
-      message.data.version !== 1 ||
-      message.data.command !== "refreshing"
-    ) {
+    if (message.source !== parent || !message.data) return;
+    if (message.data.channel !== channel || message.data.version !== 1) return;
+    if (message.data.command === "refreshing") {
+      const toast = document.getElementById("refresh-indicator");
+      toast?.classList.add("visible");
       return;
     }
-    const toast = document.getElementById("refresh-indicator");
-    toast?.classList.add("visible");
+    if (
+      message.data.command !== "selection-status" ||
+      message.data.screen !== screen ||
+      !pendingEvent ||
+      message.data.type !== pendingEvent.type ||
+      message.data.choice !== pendingEvent.choice ||
+      (message.data.status !== "saved" && message.data.status !== "failed")
+    ) return;
+    persistenceStatus = message.data.status;
+    pendingEvent = null;
+    updateIndicator();
   });
 })();

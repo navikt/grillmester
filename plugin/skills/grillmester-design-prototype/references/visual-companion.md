@@ -97,6 +97,7 @@ Returnerer JSON med:
 - `state_dir` — privat tempmappe; les `events.jsonl` herfra
 - `session_id` — eksakt ID for eventuell opprydding etter krasj
 - `pid` — prosess-ID for normal stopp
+- `idle_timeout_ms` — inaktivitetsgrensen; standard er fire timer
 
 Serveren endrer aldri `.gitignore`, lockfiler, `node_modules` eller andre filer i
 konsumentrepoet. Bruk bare syntetiske data og redigerte skjermbilder uten PII,
@@ -107,6 +108,9 @@ Gi designeren URL raskt etter oppstart; for eksisterende flater først etter ver
 ## Løkken
 
 1. **Skriv HTML-fragment** til en ny fil i `screen_dir`
+   - Bekreft først at token-URL-ens `/health` svarer. En gammel fane kan vise
+     forrige skjerm selv om serveren har stoppet; etter 15 sekunder viser den
+     derfor en tydelig pausemelding i stedet for å late som økten er aktiv.
    - Bruk semantiske filnavn: `konsept-a.html`, `layout-v2.html`
    - Aldri gjenbruk filnavn — serveren viser nyeste fil
    - Skriv content fragments, IKKE fulle HTML-dokumenter
@@ -121,7 +125,9 @@ Gi designeren URL raskt etter oppstart; for eksisterende flater først etter ver
    - Les `$STATE_DIR/events.jsonl` for klikk-data (JSON-linjer)
    - `choice-1`, `choice-2`, … følger alternativrekkefølgen i siste fragment;
      synlig tekst lagres aldri
-   - Kombiner med designerens tekstrespons
+   - En ny skjerm nullstiller eventloggen, slik at valgene aldri blandes mellom
+     to spørsmål
+   - Designerens tekstrespons er fasit; bruk klikk som strukturert støtteevidens
 
 4. **Iterer eller gå videre:**
    - Ny versjon? Skriv ny fil (f.eks. `layout-v2.html`)
@@ -139,6 +145,12 @@ Gi designeren URL raskt etter oppstart; for eksisterende flater først etter ver
 Skriv bare innholdet — serveren wrapper det i Aksel-temat automatisk.
 
 ### Valgalternativer (A/B/C)
+
+Start med tre retninger som er strukturelt forskjellige i layout,
+informasjonshierarki eller primærhandling. Ulik farge eller ordlyd alene teller
+ikke som en egen retning. Hold datasett, viewport og innholdstetthet
+representativt og sammenliknbart på tvers. Bruk syntetiske data. Vis det
+navngitte designspørsmålet på skjermen.
 
 ```html
 <h2>Hvilken tilnærming passer best?</h2>
@@ -270,22 +282,25 @@ Bruk `--ax-space-*` tokens for all spacing i HTML-fragmenter:
 ## Events-format
 
 ```jsonl
-{"type":"click","choice":"choice-1","timestamp":1706000101}
-{"type":"click","choice":"choice-2","timestamp":1706000108}
+{"type":"click","choice":"choice-1","screen":"0123456789abcdef0123456789abcdef","timestamp":1706000101}
+{"type":"click","choice":"choice-2","screen":"0123456789abcdef0123456789abcdef","timestamp":1706000108}
 ```
 
 ID-en følger DOM-rekkefølgen til `.option`/`.card`. Eventloggen lagrer aldri synlig
 tekst eller brukerdata, valideres mot et lukket schema og har en hard størrelses-/
-antallsgrense. Kombiner siste event med designerens eksplisitte tekstrespons; ikke
-bruk klikkmønster som personprofilering.
+antallsgrense. `screen` er en ugjennomsiktig versjons-ID for gjeldende fragment;
+serveren nullstiller loggen ved skjermbytte og avviser forsinkede hendelser med en
+eldre ID. Kombiner siste event med designerens eksplisitte tekstrespons; ikke bruk
+klikkmønster som personprofilering eller som godkjenning av en write.
 
 ## Stoppe serveren
 
-Serveren stopper automatisk etter 30 minutter uten aktivitet, eller:
-
-```bash
-kill <pid>  # pid fra startup-JSON
-```
+Serveren stopper automatisk etter fire timer uten ny skjerm eller brukerhendelse.
+En åpen nettleserfane holder ikke alene prosessen levende. For en bevisst kortere
+eller lengre økt kan oppstarten bruke `--idle-timeout-minutes <1-480>`.
+Serveren kan også stoppes eksplisitt ved å avslutte den eksakte
+non-blocking/async-sesjonen som startet den. Ikke send et signal til en PID hentet
+fra gammel metadata; en prosess-ID kan ha blitt gjenbrukt av en annen prosess.
 
 Normal stopp fjerner bare den aktive, markerte temp-sesjonen. Etter krasj eller
 strømbrudd kan den eksakte restsesjonen ryddes slik:

@@ -25,7 +25,8 @@ const MAX_CSS_BYTES = 8 * 1024 * 1024;
 const MAX_EVENT_BODY_BYTES = 1024;
 const MAX_EVENT_FILE_BYTES = 64 * 1024;
 const MAX_EVENTS = 100;
-const TIMEOUT_MS = 30 * 60 * 1000;
+const DEFAULT_IDLE_TIMEOUT_MINUTES = 4 * 60;
+const MAX_IDLE_TIMEOUT_MINUTES = 8 * 60;
 const SESSION_ID_PATTERN = /^[a-f0-9]{24}$/;
 const SESSION_MARKER = ".visual-companion-session.json";
 const PROJECT_MARKER = ".visual-companion-project.json";
@@ -60,6 +61,7 @@ function assertKnownArgs() {
     "--port",
     "--host",
     "--cleanup",
+    "--idle-timeout-minutes",
   ]);
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -230,6 +232,19 @@ const requestedPort = Number(getArg("port", "0"));
 if (!Number.isInteger(requestedPort) || requestedPort < 0 || requestedPort > 65535) {
   failCli("--port must be an integer from 0 through 65535.");
 }
+const idleTimeoutMinutes = Number(
+  getArg("idle-timeout-minutes", String(DEFAULT_IDLE_TIMEOUT_MINUTES)),
+);
+if (
+  !Number.isInteger(idleTimeoutMinutes) ||
+  idleTimeoutMinutes < 1 ||
+  idleTimeoutMinutes > MAX_IDLE_TIMEOUT_MINUTES
+) {
+  failCli(
+    `--idle-timeout-minutes must be an integer from 1 through ${MAX_IDLE_TIMEOUT_MINUTES}.`,
+  );
+}
+const idleTimeoutMs = idleTimeoutMinutes * 60 * 1000;
 
 const tempRoot = fs.realpathSync(os.tmpdir());
 const runtimeRootPath = path.join(
@@ -472,14 +487,21 @@ function newestContent() {
   );
   for (const candidate of candidates) {
     try {
+      const content = readRegularFile(
+        candidate.path,
+        contentDir,
+        MAX_CONTENT_BYTES,
+      );
       return {
         filename: candidate.filename,
-        version: `${candidate.filename}:${candidate.mtimeMs}:${candidate.size}`,
-        content: readRegularFile(
-          candidate.path,
-          contentDir,
-          MAX_CONTENT_BYTES,
-        ),
+        screen: crypto
+          .createHash("sha256")
+          .update(candidate.filename)
+          .update("\0")
+          .update(content)
+          .digest("hex")
+          .slice(0, 32),
+        content,
       };
     } catch {
       // A concurrent writer may have replaced the file; try the next safe one.
@@ -488,7 +510,7 @@ function newestContent() {
   return null;
 }
 
-function wrapInFrame(content, filename, nonce) {
+function wrapInFrame(content, filename, screen, nonce) {
   const safeFilename = escapeHtml(filename || "untitled");
   const safeContent = stripActivePreviewMarkup(content);
   const akselStyle = akselCss
@@ -505,7 +527,9 @@ function wrapInFrame(content, filename, nonce) {
     .replace(/\{\{AKSEL_STYLE\}\}/g, () => akselStyle)
     .replace(
       /\{\{HELPER_SCRIPT\}\}/g,
-      () => `<script nonce="${nonce}">\n${helperJs}\n</script>`,
+      () =>
+        `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};</script>` +
+        `<script nonce="${nonce}">\n${helperJs}\n</script>`,
     )
     .replace(/\{\{CONTENT\}\}/g, () => cssWarning + safeContent);
 }
@@ -523,18 +547,53 @@ function renderShellPage(nonce, accessToken, title) {
   <style nonce="${nonce}">
     html, body { width: 100%; height: 100%; margin: 0; background: #f7f7f7; }
     iframe { display: block; width: 100%; height: 100%; border: 0; }
+    #vc-paused {
+      position: fixed; inset: 0; z-index: 2; display: none;
+      place-items: center; padding: 2rem; background: rgba(247,247,247,.96);
+      color: #27262b; font: 1rem/1.5 system-ui, sans-serif; text-align: center;
+    }
+    #vc-paused.visible { display: grid; }
+    #vc-paused strong { display: block; margin-bottom: .5rem; font-size: 1.25rem; }
+    #vc-status {
+      position: fixed; right: 1rem; bottom: 1rem; z-index: 3;
+      border: 1px solid #b7b1a9; border-radius: 999px; padding: .35rem .7rem;
+      background: rgba(255,255,255,.94); color: #27262b;
+      font: 600 .8rem/1.2 system-ui, sans-serif;
+    }
   </style>
 </head>
 <body>
   <iframe id="vc-preview" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Designskisse" src="${escapeHtml(previewPath)}"></iframe>
+  <div id="vc-paused" role="status" aria-live="polite">
+    <div><strong>Forhåndsvisningen er satt på pause</strong>Gå tilbake til chatten. Agenten kan starte en ny lokal økt hvis dere vil fortsette.</div>
+  </div>
+  <div id="vc-status" role="status" aria-live="polite">Kobler til …</div>
   <script nonce="${nonce}">
     (() => {
       "use strict";
       const channel = "grillmester-visual-companion";
       const frame = document.getElementById("vc-preview");
+      const paused = document.getElementById("vc-paused");
+      const status = document.getElementById("vc-status");
       const versionUrl = ${serializeForInlineScript(versionPath)};
       const eventsUrl = ${serializeForInlineScript(eventsPath)};
       let lastVersion = null;
+      let lastSuccessfulPoll = Date.now();
+
+      function markConnected() {
+        lastSuccessfulPoll = Date.now();
+        paused.classList.remove("visible");
+        status.textContent = "Tilkoblet";
+      }
+
+      function markDisconnected() {
+        if (Date.now() - lastSuccessfulPoll >= 15_000) {
+          paused.classList.add("visible");
+          status.textContent = "Pauset";
+        } else {
+          status.textContent = "Kobler til …";
+        }
+      }
 
       function hasExactKeys(value, keys) {
         if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -547,24 +606,41 @@ function renderShellPage(nonce, accessToken, title) {
         return hasExactKeys(data, ["channel", "version", "event"]) &&
           data.channel === channel &&
           data.version === 1 &&
-          hasExactKeys(data.event, ["type", "choice"]) &&
+          hasExactKeys(data.event, ["type", "choice", "screen"]) &&
           (data.event.type === "click" || data.event.type === "deselect") &&
-          /^choice-[1-9][0-9]{0,3}$/.test(data.event.choice);
+          /^choice-[1-9][0-9]{0,3}$/.test(data.event.choice) &&
+          /^[a-f0-9]{32}$/.test(data.event.screen);
       }
 
       window.addEventListener("message", (message) => {
         if (message.source !== frame.contentWindow || !validSelectionMessage(message.data)) return;
+        const event = message.data.event;
+        const reportSelectionStatus = (status) => frame.contentWindow.postMessage({
+          channel,
+          version: 1,
+          command: "selection-status",
+          screen: event.screen,
+          type: event.type,
+          choice: event.choice,
+          status,
+        }, "*");
         fetch(eventsUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(message.data.event),
+          body: JSON.stringify(event),
           credentials: "same-origin",
-        }).catch(() => {});
+        }).then((response) => {
+          reportSelectionStatus(response.ok ? "saved" : "failed");
+        }).catch(() => reportSelectionStatus("failed"));
       });
 
       setInterval(() => {
         fetch(versionUrl, { credentials: "same-origin", cache: "no-store" })
-          .then((response) => response.ok ? response.text() : "")
+          .then((response) => {
+            if (!response.ok) throw new Error("preview unavailable");
+            markConnected();
+            return response.text();
+          })
           .then((version) => {
             if (lastVersion === null) {
               lastVersion = version;
@@ -578,7 +654,7 @@ function renderShellPage(nonce, accessToken, title) {
               }, 400);
             }
           })
-          .catch(() => {});
+          .catch(markDisconnected);
       }, 2000);
     })();
   </script>
@@ -639,6 +715,23 @@ let authority = null;
 let eventCount = 0;
 let lastActivity = Date.now();
 let activeSessionRemoved = false;
+let activeScreen = null;
+
+function activateScreen(newest) {
+  const nextScreen = newest ? newest.screen : "";
+  if (activeScreen === nextScreen) return;
+  activeScreen = nextScreen;
+  eventCount = 0;
+  const eventPath = path.join(stateDir, "events.jsonl");
+  if (fs.existsSync(eventPath)) {
+    const stat = fs.lstatSync(eventPath);
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      throw new Error("Refusing unsafe event state while activating a screen.");
+    }
+    fs.unlinkSync(eventPath);
+  }
+  lastActivity = Date.now();
+}
 
 function validToken(candidate) {
   if (typeof candidate !== "string") return false;
@@ -653,12 +746,15 @@ function validEvent(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const keys = Object.keys(value).sort();
   return (
-    keys.length === 2 &&
+    keys.length === 3 &&
     keys[0] === "choice" &&
-    keys[1] === "type" &&
+    keys[1] === "screen" &&
+    keys[2] === "type" &&
     (value.type === "click" || value.type === "deselect") &&
     typeof value.choice === "string" &&
-    /^choice-[1-9][0-9]{0,3}$/.test(value.choice)
+    /^choice-[1-9][0-9]{0,3}$/.test(value.choice) &&
+    typeof value.screen === "string" &&
+    /^[a-f0-9]{32}$/.test(value.screen)
   );
 }
 
@@ -668,6 +764,7 @@ function appendEvent(event) {
   const line = `${JSON.stringify({
     type: event.type,
     choice: event.choice,
+    screen: event.screen,
     timestamp: Date.now(),
   })}\n`;
   const noFollow = fs.constants.O_NOFOLLOW || 0;
@@ -724,6 +821,11 @@ function readEventBody(req, res) {
       res.end('{"error":"invalid event"}');
       return;
     }
+    if (event.screen !== activeScreen) {
+      res.writeHead(409, { "Content-Type": "application/json; charset=utf-8" });
+      res.end('{"error":"event belongs to a stale screen"}');
+      return;
+    }
     if (!appendEvent(event)) {
       res.writeHead(429, { "Content-Type": "application/json; charset=utf-8" });
       res.end('{"error":"event limit reached"}');
@@ -768,6 +870,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  let newest;
+  try {
+    newest = newestContent();
+    activateScreen(newest);
+  } catch {
+    res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Preview state is unavailable.");
+    return;
+  }
+
   if (requestUrl.pathname === "/events") {
     if (req.method !== "POST") {
       res.setHeader("Allow", "POST");
@@ -802,11 +914,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const newest = newestContent();
   if (requestUrl.pathname === "/version") {
-    lastActivity = Date.now();
     res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end(newest ? newest.version : "");
+    res.end(newest ? newest.screen : "");
     return;
   }
 
@@ -832,7 +942,14 @@ const server = http.createServer((req, res) => {
             <p class="subtitle">Agenten skriver en skisse. Siden oppdateres automatisk.</p>
           </div>
         </div>`;
-    res.end(wrapInFrame(content, newest?.filename || "waiting", nonce));
+    res.end(
+      wrapInFrame(
+        content,
+        newest?.filename || "waiting",
+        newest?.screen || "00000000000000000000000000000000",
+        nonce,
+      ),
+    );
     return;
   }
 
@@ -863,7 +980,7 @@ function shutdown(reason) {
 }
 
 setInterval(() => {
-  if (Date.now() - lastActivity > TIMEOUT_MS) shutdown("inactivity");
+  if (Date.now() - lastActivity > idleTimeoutMs) shutdown("inactivity");
 }, 60_000).unref();
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
@@ -891,6 +1008,7 @@ server.listen(requestedPort, normalizeHost(host), () => {
     screen_dir: contentDir,
     state_dir: stateDir,
     session_id: sessionId,
+    idle_timeout_ms: idleTimeoutMs,
   };
   writePrivateJson(path.join(stateDir, "server-info.json"), info);
   console.log(JSON.stringify(info));

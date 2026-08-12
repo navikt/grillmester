@@ -74,7 +74,33 @@ team-status, architecture, and visual-prototype workflows. It removes ambient
 repository synchronization, fixed Team eSyfo repositories or project boards,
 template placeholders, and automatic external writes. Figma, GitHub, and
 delivery side effects require an explicit
-preview and approval.
+preview and approval. Designer and Doctor Who use explicit cross-client tool
+allowlists rather than inheriting every configured tool. The allowlists name
+Copilot's canonical MCP prefixes, the corresponding CLI server names and NAV's
+registered GitHub/Aksel server names, without server wildcards. Neither role
+can delegate; Doctor Who cannot execute shell commands, and Designer's built-in
+edit/execute capability is contractually limited to the bundled Visual
+Companion server and the exact private `screen_dir` path returned by its active
+startup JSON.
+
+### Visual Companion lineage
+
+Hovmester's Visual Companion was derived from the brainstorming workflow in
+`obra/superpowers`. The exact historical upstream revision used by Hovmester was
+not recorded, so this repository does not invent one. The implementation and
+license boundary were reviewed against `obra/superpowers` at
+`44c9b2d6e889982ac18c27d05a19fefe335194e1`, specifically the
+`skills/brainstorming` skill and its Visual Companion resources.
+
+Grillmester keeps its independently hardened server: loopback-only networking,
+session tokens, strict Host/Origin checks, a sandboxed opaque iframe, CSP without
+external network access, private OS-temp state, bounded opaque events and
+marker-bound cleanup. From the reviewed upstream it adopts the useful lifecycle
+and interaction ideas—just-in-time visual use, readiness checks, paused-state
+feedback, per-screen event isolation and an idle timeout that polling cannot keep
+alive—without copying remote binds, repository state, generic file serving,
+external assets or raw event text. See the full MIT notice in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Consumer-owned material
 
@@ -111,6 +137,14 @@ Several pilot skills were originally copied or adapted from
 `mattpocock/skills` at
 `2ab958093e83e0ec752e6c1c5932da465bf23e0c`. They remain subject to that
 project's MIT license; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The UI prototype guidance was also compared with current `mattpocock/skills` at
+`84fdeffd12f2ee307994d1eb6feb48173b6e0502`. Its relevant
+`skills/engineering/prototype/UI.md` is byte-identical to the already reviewed
+revision above. Grillmester therefore
+keeps the existing source pin while applying the reviewed principles of one
+named design question, structurally distinct alternatives, comparable synthetic
+data and an explicit record of the winner, rationale and borrowed elements.
 
 When imported material changes, update the content lock and this document in
 the same change. Advancing a source revision means reviewing the concrete

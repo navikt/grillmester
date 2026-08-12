@@ -159,15 +159,20 @@ function mode(target) {
   return fs.statSync(target).mode & 0o777;
 }
 
-function postEvent(startupUrl, value) {
+async function postEvent(startupUrl, value) {
   const url = endpoint(startupUrl, "/events");
+  let body = value;
+  if (value && typeof value === "object" && !Array.isArray(value) && !("screen" in value)) {
+    const version = await fetch(endpoint(startupUrl, "/version"));
+    body = { ...value, screen: await version.text() };
+  }
   return fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Origin: url.origin,
     },
-    body: typeof value === "string" ? value : JSON.stringify(value),
+    body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
 
@@ -205,6 +210,22 @@ test("a non-loopback bind host is rejected before startup", async () => {
   assert.notEqual(result.code, 0);
   assert.match(`${result.stdout}\n${result.stderr}`, /refusing non-local bind/i);
   assert.deepEqual(fs.readdirSync(projectDir), []);
+});
+
+test("idle timeout is explicit, bounded, and reported at startup", async () => {
+  const projectDir = makeProject();
+
+  const invalid = await runCli(projectDir, ["--idle-timeout-minutes", "0"]);
+  assert.notEqual(invalid.code, 0);
+  assert.match(`${invalid.stdout}\n${invalid.stderr}`, /integer from 1 through 480/i);
+  assert.deepEqual(fs.readdirSync(projectDir), []);
+
+  const running = await startServer(projectDir, ["--idle-timeout-minutes", "1"]);
+  try {
+    assert.equal(running.info.idle_timeout_ms, 60_000);
+  } finally {
+    await stopServer(running);
+  }
 });
 
 test("a symlinked project directory is rejected before runtime access", async () => {
@@ -261,6 +282,16 @@ test("agent HTML is isolated in a sandbox with a no-external-network CSP", async
     );
     assert.match(shell, /<iframe[^>]+sandbox="allow-scripts"/);
     assert.doesNotMatch(shell, /allow-same-origin/);
+    assert.match(shell, /id="vc-paused"/);
+    assert.match(shell, /id="vc-status"/);
+    assert.match(shell, /Kobler til …/);
+    assert.match(shell, /status\.textContent = "Tilkoblet"/);
+    assert.match(shell, /Forhåndsvisningen er satt på pause/);
+    assert.match(shell, /command: "selection-status"/);
+    assert.match(shell, /choice: event\.choice/);
+    assert.match(shell, /type: event\.type/);
+    assert.match(shell, /response\.ok \? "saved" : "failed"/);
+    assert.doesNotMatch(shell, /\.catch\(\(\) => \{\}\)/);
 
     const previewResponse = await fetch(
       endpoint(running.info.url, "/preview"),
@@ -277,6 +308,49 @@ test("agent HTML is isolated in a sandbox with a no-external-network CSP", async
     assert.doesNotMatch(preview, /fetch\("https:\/\/example\.com\/leak"\)/);
     assert.doesNotMatch(preview, /https:\/\/example\.com\/pixel/);
     assert.match(preview, /parent\.postMessage/);
+    assert.match(preview, /ikke lagret — si valget i chatten/);
+  } finally {
+    await stopServer(running);
+  }
+});
+
+test("a new screen clears prior opaque selection events", async () => {
+  const projectDir = makeProject();
+  const running = await startServer(projectDir);
+  try {
+    const firstPath = path.join(running.info.screen_dir, "concept-a.html");
+    fs.writeFileSync(firstPath, '<div class="option"><h3>A</h3></div>');
+    const firstVersionResponse = await fetch(endpoint(running.info.url, "/version"));
+    const firstScreen = await firstVersionResponse.text();
+    assert.equal(
+      (await postEvent(running.info.url, { type: "click", choice: "choice-1" })).status,
+      200,
+    );
+
+    const eventPath = path.join(running.info.state_dir, "events.jsonl");
+    assert.match(fs.readFileSync(eventPath, "utf8"), /"choice":"choice-1"/);
+
+    const secondPath = path.join(running.info.screen_dir, "concept-b.html");
+    fs.writeFileSync(secondPath, '<div class="option"><h3>B</h3></div>');
+    const newer = new Date(Date.now() + 2_000);
+    fs.utimesSync(secondPath, newer, newer);
+    await fetch(endpoint(running.info.url, "/version"));
+    assert.equal(fs.existsSync(eventPath), false);
+
+    const stale = await postEvent(running.info.url, {
+      type: "click",
+      choice: "choice-1",
+      screen: firstScreen,
+    });
+    assert.equal(stale.status, 409);
+
+    assert.equal(
+      (await postEvent(running.info.url, { type: "click", choice: "choice-2" })).status,
+      200,
+    );
+    const currentEvents = fs.readFileSync(eventPath, "utf8");
+    assert.doesNotMatch(currentEvents, /"choice":"choice-1"/);
+    assert.match(currentEvents, /"choice":"choice-2"/);
   } finally {
     await stopServer(running);
   }
@@ -319,6 +393,12 @@ test("selection state is private, schema-bound, opaque, and capped", async () =>
   const projectDir = makeProject();
   const running = await startServer(projectDir);
   try {
+    fs.writeFileSync(
+      path.join(running.info.screen_dir, "selection-test.html"),
+      '<div class="option"><h3>A</h3></div>',
+    );
+    await fetch(endpoint(running.info.url, "/version"));
+
     assert.equal(mode(running.info.screen_dir), 0o700);
     assert.equal(mode(running.info.state_dir), 0o700);
     assert.equal(mode(path.dirname(running.info.state_dir)), 0o700);
@@ -335,6 +415,7 @@ test("selection state is private, schema-bound, opaque, and capped", async () =>
     const firstEvent = JSON.parse(fs.readFileSync(eventPath, "utf8").trim());
     assert.deepEqual(Object.keys(firstEvent).sort(), [
       "choice",
+      "screen",
       "timestamp",
       "type",
     ]);

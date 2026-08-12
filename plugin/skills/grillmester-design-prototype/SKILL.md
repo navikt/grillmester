@@ -40,6 +40,13 @@ Visual Companion er best for **tidlig utforsking** — når retningen er uklar o
 ## Fase 1: Visuell utforsking (Visual Companion)
 
 Interaktivt nettleserverktøy for å utforske designkonsepter med Aksel-styling.
+Start med ett navngitt designspørsmål som prototypen skal besvare. Hvis dere
+ikke kan si hva dere skal lære eller velge, fortsett avklaringen i chatten før
+dere lager varianter.
+
+Når nettlesersporet er valgt, les
+[Visual Companion-referansen](references/visual-companion.md) før oppstart. Ikke
+last den lange referansen i en ren chat- eller Figma-flyt.
 
 ### Forutsetninger
 
@@ -57,6 +64,8 @@ Interaktivt nettleserverktøy for å utforske designkonsepter med Aksel-styling.
    # Run from this skill's bundled directory:
    node scripts/server.js --project-dir <consumer-repo>
    ```
+   Standard inaktivitetstid er fire timer. Bruk bare
+   `--idle-timeout-minutes <1-480>` når økten faktisk trenger en annen grense.
 3. Les startup-JSON fra stdout — den inneholder `url`, `screen_dir`, `state_dir`,
    `session_id` og `pid`. URL-en inneholder en tilfeldig sesjonstoken; del den
    bare med designeren som deltar i den lokale økten.
@@ -77,8 +86,10 @@ For eksisterende løsning er dette en gate før første visuelle forslag, også 
 
 ### Tilby visual companion
 
-Spør designeren én gang om nettleservisning når innholdet er visuelt.
-Hvis nei — jobb kun med tekst og Figma.
+Tilby nettleservisning just-in-time: først når et konkret designspørsmål faktisk
+blir lettere å besvare visuelt, ikke som et generelt oppstartsspørsmål. Spør én
+gang. Hvis designeren allerede ba om en nettleserprototype, start uten å spørre
+på nytt; hvis svaret er nei, jobb videre med tekst og Figma uten nye tilbud.
 
 ### Bestemme per spørsmål: nettleser eller chat?
 
@@ -110,9 +121,14 @@ Radius: `--ax-radius-4`, `--ax-radius-8`, `--ax-radius-12`.
 Se `references/visual-companion.md` for alle CSS-klasser og eksempler.
 
 **Regler:**
+- Bekreft at token-URL-ens `/health` svarer før du omtaler økten som aktiv eller
+  skriver neste skjerm. Hvis ikke, start en ny økt og del den nye komplette URL-en.
 - Semantiske filnavn: `konsept-a.html`, `layout-v2.html`
 - Aldri gjenbruk filnavn
-- 2–4 alternativer per skjerm
+- Tre strukturelt forskjellige alternativer er standard; bruk 2–4 når
+  problemrommet tilsier det. Ulik copy eller farge alene er ikke en ny retning.
+- Bruk samme representative, syntetiske datasett, viewport og omtrent samme
+  innholdstetthet i variantene, slik at sammenlikningen blir rettferdig.
 - Forklar spørsmålet på siden: «Hvilken tilnærming passer best?»
 - Skaler fidelitet etter spørsmålet — wireframe for layout, detaljer for detaljer
 - **Norske tegn (æ/ø/å) direkte som UTF-8** — aldri `\u00f8`-escapes; serveren skriver
@@ -122,9 +138,11 @@ Se `references/visual-companion.md` for alle CSS-klasser og eksempler.
 
 Etter at designeren har sett skjermen:
 1. Les `$STATE_DIR/events.jsonl` for klikk-data. Hendelser inneholder bare
-   `type`, en automatisk tildelt ID (`choice-1`, `choice-2`, …) og timestamp;
-   koble ID-en til rekkefølgen på alternativene i siste HTML-fragment.
-2. Kombiner med designerens tekstrespons
+   `type`, en automatisk tildelt ID (`choice-1`, `choice-2`, …), en ugjennomsiktig
+   `screen`-ID og timestamp; koble ID-en til rekkefølgen på alternativene i
+   HTML-fragmentet med samme `screen`-ID. En ny skjerm nullstiller eventloggen,
+   og serveren avviser forsinkede hendelser fra eldre skjermer.
+2. Bruk designerens tekstrespons som fasit og klikkdata som støtteevidens.
 3. Iterer eller gå videre
 
 ### Variant-utforskning
@@ -132,7 +150,8 @@ Etter at designeren har sett skjermen:
 1. Lag 2–3 varianter som valgalternativer på skjermen
 2. Spør: «Hvilken variant foretrekker du?» med beskrivende navn
 3. Iterer på valgt variant
-4. Når konseptet er valgt — gå til Fase 2
+4. Fang valgt variant, hvorfor den vant og eventuelle deler som skal lånes fra
+   andre varianter. Når konseptet er valgt — gå til Fase 2.
 
 ### Situasjoner brukeren møter
 
@@ -140,47 +159,28 @@ Vis ulike situasjoner som separate mockups eller sekvens: normal, venter (lastin
 
 ## Fase 2: Figma-leveranse
 
-Når konseptet er valgt, bygg en Figma-skisse av den valgte varianten.
+Når konseptet er valgt og Figma MCP finnes, les
+[Figma-prototypereferansen](references/figma-prototype.md). Ikke last den lange
+referansen under ren chat- eller nettleserutforsking. Bruk
+[komponentkatalogen](references/aksel-figma-katalog.json) som fasit for kjente
+Aksel-komponenter og [tokenreferansen](references/aksel-figma-tokens.md) for
+layouten rundt dem.
 
-### Krav
+1. Finn riktig plan og filkontekst read-only.
+2. Vis leveranse-preview og få eksplisitt godkjenning før filoppretting eller
+   redigering.
+3. Søk Aksel først. Bruk en eksisterende komponent når den finnes; bygg custom
+   bare når biblioteket faktisk mangler mønsteret.
+4. Bruk katalogdata direkte for kjente komponenter. Kjør preflight bare for det
+   katalogen ikke dekker, og logg varianter, default, tekstnoder og fonter.
+5. Bygg inkrementelt, én seksjon per kall, med eksakte navn fra katalog eller
+   preflight.
+6. Sammenlign skjermbilde mot valgt Visual Companion-retning, fiks avvik og del
+   oppdatert lenke ved milepæler.
 
-Figma MCP-verktøy tilgjengelig.
-
-### Flyt
-
-1. `whoami` → finn planKey
-2. Vis preview og få eksplisitt godkjenning → opprett fil, del URL når relevant kontekstgate er passert
-3. `search_design_system` → finn relevante Aksel-komponenter
-4. `use_figma` **preflight** → importer + logg varianter, default-variant, tekst-node-navn og fonter (se referanse)
-5. `use_figma` → bygg skissen **inkrementelt, én seksjon per kall** med eksakte variant-navn og node-navn fra preflight
-6. **`get_screenshot`** → parity-gate: sammenlign mot Visual Companion-fasiten (se referanse for sjekkliste)
-7. Fiks eventuelle problemer, del oppdatert lenke ved milepæler
-
-**Sjekk katalogen først — den er fasiten.** Alle 45 aktive Aksel-komponenter har key, akser, defaults, tekst-noder og feller ferdig uttrukket i `references/aksel-figma-katalog.json` (maskinlesbar kilde) og `.md` (lesbar). For layouten rundt komponentene (luft, farger, kanter, typografi) bruk `references/aksel-figma-tokens.md`. Drift-validert — hopp over preflight for det katalogen dekker. Detaljer i `references/figma-prototype.md`.
-
-Komponenten (ikke hele siden) er enheten du bygger — men for **eksisterende flater** gir du kontekst via **bakgrunn + redigerbar overlay**: skjermbilde av den ekte siden med et injisert tomt felt, og den redigerbare komponent-instansen plassert oppi (se `references/figma-prototype.md`). Aldri håndkod en tilnærming av modulen inn i skjermbildet — det gir drift; den ekte komponenten er eneste fasit. Lever tilstander som **én variant-komponent** (`Tilstand`-akse), ikke løse statiske rammer, og slå sammen nesten-like tilstander.
-
-### Komponent-gate
-
-Før du bygger i Figma, søk Aksel-biblioteket:
-
-```
-search_design_system(query: "<komponentnavn>", fileKey: "<key>")
-```
-
-Finnes komponenten? → Bruk den.
-Finnes den ikke? → Bygg custom, men med Aksel-tokens.
-
-### Komponent-instansiering
-
-- **Preflight først**: importer + logg varianter, default og tekst-noder i ETT kall
-- **Bygg inkrementelt**: ett `use_figma`-kall per seksjon (atomisk — én feil ruller tilbake hele kallet)
-- **`defaultVariant` er ofte feil**: GlobalAlert/LocalAlert=Error, Tag=Neutral, Checkbox=unchecked. Antall barn (RadioGroup/Accordion/Tabs) er også en variant-akse — velg bevisst
-- **Tekst** via `findOne`/`findAllWithCriteria` med eksakt name (ikke `setProperties()` for tekst); les font med `loadFontAsync(node.fontName)` — Aksel = `Source Sans 3`
-- **Komposisjon**: søknadssteg→`FormProgress`; bygg `Table` fra `Table cell`; skjul Slot-placeholdere; `layoutSizingHorizontal="FILL"` kun etter append; farger via `search_design_system` — aldri gjett RGB
-- **Leveranse**: samle tilstander i én variant-komponent (`Tilstand`-akse) via `combineAsVariants` — Figma- og Figma Make-vennlig. For sidekontekst: skjermbilde-bakgrunn + redigerbar overlay (aldri håndkodet modul i bildet). Se `references/figma-prototype.md`
-
-Se `references/figma-prototype.md` for fullstendige regler og eksempler.
+Lever redigerbare komponenter og samle tilstander i én variant-komponent. For
+eksisterende flater: bruk ekte skjermbilde som bakgrunn og en redigerbar overlay;
+aldri presenter en håndkodet rekonstruksjon som nåtilstand.
 
 ## Iterasjon
 
@@ -189,8 +189,10 @@ Vis resultat → designer gir feedback → juster → gjenta til fornøyd.
 ## UU, opprydding og degradation
 
 - Sjekk kontrast og semantikk i designet. Full WCAG: `/grillmester-accessibility-review` ved overlevering.
-- Stopp serveren med `kill <pid>` etter leveranse. Normal stopp og inaktivitet
-  fjerner bare den aktive, markerte temp-sesjonen automatisk.
+- Stopp den eksakte non-blocking/async-sesjonen som startet serveren etter
+  leveranse. Ikke signaliser en PID fra gammel metadata; prosess-ID-er kan
+  gjenbrukes. Normal stopp og inaktivitet fjerner bare den aktive, markerte
+  temp-sesjonen automatisk.
 - Etter krasj/strømbrudd: bruk startup-JSON-ens ID og kjør
   `node scripts/server.js --project-dir <consumer-repo> --cleanup <session_id>`.
   Serveren verifiserer markøren og fjerner bare denne sesjonen. Den støtter ikke
