@@ -212,6 +212,58 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
         self.assertFalse(tested)
         self.assertIn("SKIP enable/disable", output.getvalue())
 
+    def test_remote_install_uses_exact_catalog_ref_and_cleans_up(self) -> None:
+        sha = "0123456789abcdef0123456789abcdef01234567"
+        copilot_home = Path("/tmp/copilot-home")
+        installed = (
+            copilot_home
+            / "installed-plugins"
+            / SMOKE.MARKETPLACE_NAME
+            / SMOKE.PLUGIN_NAME
+        )
+        with mock.patch.object(
+            SMOKE,
+            "run",
+            side_effect=["", "", f"{SMOKE.PLUGIN_SPEC}\n", ""],
+        ) as run, mock.patch.object(
+            SMOKE, "verify_installed_package", return_value=(7, 44)
+        ) as verify, mock.patch.object(
+            SMOKE, "enabled_setting", return_value=True
+        ), mock.patch.object(SMOKE, "verify_uninstalled") as uninstalled:
+            result = SMOKE.remote_install_smoke(
+                copilot="copilot",
+                env={"CI": "true"},
+                cwd=Path("/tmp/work"),
+                copilot_home=copilot_home,
+                marketplace_ref=f"navikt/grillmester#{sha}",
+                source_plugin=Path("/tmp/source/plugin"),
+            )
+
+        self.assertEqual((7, 44), result)
+        self.assertEqual(
+            [
+                "copilot",
+                "plugin",
+                "marketplace",
+                "add",
+                f"navikt/grillmester#{sha}",
+            ],
+            run.call_args_list[0].args[0],
+        )
+        verify.assert_called_once_with(Path("/tmp/source/plugin"), installed)
+        uninstalled.assert_called_once_with(copilot_home, installed)
+
+    def test_remote_install_rejects_a_moving_ref(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "full catalog SHA"):
+            SMOKE.remote_install_smoke(
+                copilot="copilot",
+                env={},
+                cwd=Path("/tmp"),
+                copilot_home=Path("/tmp/home"),
+                marketplace_ref="navikt/grillmester#main",
+                source_plugin=Path("/tmp/plugin"),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

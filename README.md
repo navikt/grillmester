@@ -17,19 +17,47 @@ Copilot app og cloud agent har egne ende-til-ende-gater før stabil release.
 
 ## Kom i gang
 
-Når en reviewet RC-tag er publisert, tar installasjonen i Copilot CLI under ett
-minutt:
+Velg først en reviewet kandidat fra
+[Releases](https://github.com/navikt/grillmester/releases). En release-tag har
+formen `v<plugin-versjon>`, peker på den reviewede marketplace-katalogen og
+pinner derfra plugininnholdet til en eksakt commit-SHA. Bruk denne taggen i CLI
+og eventuell repoaktivering; ikke erstatt den med `main` når resultatet skal
+være reproduserbart.
+
+### Copilot app
+
+1. [Legg til Grillmester-markedsplassen](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Fmarketplace%2Fadd%3Fsource%3Dnavikt%252Fgrillmester)
+2. [Installer Grillmester](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester%2540grillmester)
+
+Lenkene bruker GitHubs offisielle
+[`ghapp://`-pluginflyt](https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/github-copilot-app/open-with-deep-links#open-plugin-flows).
+De åpner **Settings → Plugins** med riktig verdi ferdig utfylt; ingenting legges
+til eller installeres før du bekrefter i appen. Denne installasjonen er
+personlig i Copilot app og endrer ingen repo-filer.
+
+GitHub dokumenterer bare `OWNER/REPO` eller en Git-URL som marketplace-kilde i
+App-lenken — ikke CLIs `OWNER/REPO#ref`-form. Lenken over følger derfor repoets
+default branch og er en enkel App-POC, ikke evidens for en immutable RC. Før
+stabil release må App-gaten enten bevise og registrere eksakt katalog- og
+source-SHA, eller eksplisitt avgrense App fra den reproduserbare releaseveien.
+
+### Copilot CLI
+
+Den eksakte personlige installasjonsflyten er:
 
 ```bash
 copilot plugin marketplace add navikt/grillmester#REVIEWED_RELEASE_TAG
 copilot plugin install grillmester@grillmester
+copilot plugin list
 copilot --agent=grillmester:grillmester
 ```
 
-Bruk kandidat-taggen fra repoets
-[Releases](https://github.com/navikt/grillmester/releases). Taggen pinner en
-marketplace-katalog som igjen pinner plugininnholdet til en eksakt commit-SHA.
-Ikke erstatt den med `main` hvis resultatet skal være reproduserbart.
+Den dokumenterte
+[`owner/repo#ref`-formen](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference#copilot-plugins-marketplace-subcommands)
+gjør at CLI registrerer den reviewede release-taggen, ikke en flytende branch.
+Installasjonen ligger i brukerens Copilot-home og er tilgjengelig i alle repoer
+på maskinen. Den aktiverer ikke Copilot cloud agent i et repo; bruk
+repoaktivering nedenfor når teamet og cloud agent skal få samme versjon.
 
 Prøv for eksempel:
 
@@ -88,10 +116,21 @@ GitHub Projects virker derfor bare når klienten faktisk eksponerer de navngitte
 verktøyene med riktige tilganger. Hvis en kapabilitet mangler, skal agenten
 stoppe med `NEEDS_INPUT` eller tilby en eksplisitt avgrenset fallback.
 
-## Aktiver Grillmester for et teamrepo
+## Velg riktig aktiveringsnivå
 
-Personlig CLI-installasjon er fin for utprøving. For et teamrepo er den
-anbefalte kontrakten én reviewet fil: `.github/copilot/settings.json`.
+Installasjon og aktivering er ikke det samme på alle flater:
+
+| Behov | Eier og plassering | Gjelder for | Viktig avgrensning |
+| --- | --- | --- | --- |
+| Prøve i Copilot app | Brukeren, **Settings → Plugins** eller lenkene ovenfor | Brukerens Copilot app | Skriver ikke repo-settings; den dokumenterte deep-link-kilden er ikke release-pinnet og beviser heller ikke cloud-aktivering. |
+| Prøve i Copilot CLI | Brukeren, installasjonskommandoene eller `~/.copilot/settings.json` | Alle CLI-repoer for brukeren | Personlig aktivering; andre utviklere og cloud agent får den ikke automatisk. |
+| Aktivere i ett teamrepo | Repoet, `.github/copilot/settings.json` | Copilot CLI og cloud agent i dette repoet | Commit reviewes som kode; pluginen forblir deaktivert i andre repoer. |
+| Styre for virksomheten | Enterprise-admin, managed settings | Klientene GitHubs managed-settings-matrise angir | Kan tillate, kreve eller blokkere marketplace/plugin; dette er policy, ikke en consumer-fil. |
+
+Copilot CLI støtter den samme deklarative pluginblokken i personlig
+`~/.copilot/settings.json` og i repoets `.github/copilot/settings.json`. Lagre
+den personlig for global CLI-aktivering, eller commit den i repoet når teamet og
+cloud agent skal bruke samme release:
 
 ```json
 {
@@ -110,15 +149,37 @@ anbefalte kontrakten én reviewet fil: `.github/copilot/settings.json`.
 }
 ```
 
-Copilot CLI og Copilot cloud agent leser de samme pluginfeltene. Aktivering fra
-repoet gjelder bare der: pluginen blir ikke slått på i andre prosjekter.
-Enterprise-policyen må samtidig tillate marketplacen og modellene agentene
-bruker.
+GitHubs
+[konfigurasjonsreferanse](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference#repository-settings-githubcopilotsettingsjson)
+dokumenterer at repoets to pluginfelt leses av både Copilot CLI og cloud agent,
+og at en kun repoaktivert plugin forblir deaktivert globalt. Enterprise-policyen
+må samtidig tillate marketplacen og modellene agentene bruker.
+
+Enterprise-adminer bruker de samme `extraKnownMarketplaces`- og
+`enabledPlugins`-nøklene i managed settings. De kan i tillegg bruke
+`strictKnownMarketplaces`; en tom liste betyr full marketplace-lockdown. Se
+[enterprise managed settings](https://docs.github.com/en/copilot/reference/enterprise-administrators/enterprise-managed-settings).
+En bruker- eller repoendring kan ikke omgå en slik blokkering.
 
 Oppgradering er en vanlig PR som endrer `ref` til en nyere reviewet tag.
 Rollback er den samme endringen tilbake til forrige tag. Dermed er både
 endringen og gjenopprettingen synlig i Git-historikken, mens hver katalog
 fortsatt peker på byte-eksakt plugininnhold via en 40-tegns SHA.
+
+Repoer som fortsatt mottar agenter fra Hovmester må ikke bare legge til denne
+filen: repo-lokale agent-ID-er kan skygge pluginen, og en aktiv sync kan legge
+dem tilbake. Følg den baseline- og rollback-bundne
+[consumer-pilot-runbooken](docs/consumer-pilot-runbook.md) for første migrering.
+
+En personlig CLI-installasjon bytter immutable tag ved å binde marketplacen på
+nytt. Bruk samme flyt med forrige tag for rollback:
+
+```bash
+copilot plugin uninstall grillmester@grillmester
+copilot plugin marketplace remove grillmester
+copilot plugin marketplace add navikt/grillmester#NEW_REVIEWED_RELEASE_TAG
+copilot plugin install grillmester@grillmester
+```
 
 Kontroller installasjonen med:
 
@@ -174,7 +235,7 @@ ikke er tilstrekkelige.
 | Klient | Status i POC-en |
 | --- | --- |
 | **Copilot CLI** | Primær referanse: lokal mount, installasjon, oppgradering, rollback og avinstallering er smoke-testet. |
-| **Copilot app** | Primær pilotflate: installasjon i Settings → Plugins, agentvalg og kvalifisert delegering verifiseres manuelt før stabil release. |
+| **Copilot app** | Primær pilotflate: den dokumenterte deep-link-UX-en finnes, men release-pinning, agentvalg og kvalifisert delegering må verifiseres manuelt før stabil release. |
 | **Copilot cloud agent** | Repoaktivering via `.github/copilot/settings.json`, marketplace-policy og agentdiscovery må bestå en egen ende-til-ende-gate. |
 | **VS Code** | Sekundær kompatibilitetskontroll, ikke styrende distribusjonsflate. |
 | **OpenCode** | Eksperimentell skills-only-støtte. Copilot-agentene og marketplacen følger ikke med. |
@@ -182,7 +243,10 @@ ikke er tilstrekkelige.
 ### Gate fra RC til stabil release
 
 - Installer den eksakte, immutable RC-ref-en og bekreft modelloppløsning i
-  Copilot CLI og app.
+  Copilot CLI.
+- Kjør App-flyten og registrer hvilken katalog-ref og source-SHA den faktisk
+  resolver. Hvis App ikke kan bindes til og bevises mot samme RC, består den
+  ikke releasegaten selv om den upinnede onboarding-lenken virker.
 - Bekreft at de fire offentlige agentene er valgbare, mens Kokk,
   Grill-inspektor og Researcher bare kan delegeres med gyldige briefs.
 - La Kokk gjøre én avgrenset, ufarlig write i et disponibelt fixture-repo; kjør
@@ -194,8 +258,12 @@ ikke er tilstrekkelige.
   server-wildcards. Bekreft samtidig at de navngitte Figma-, Issue- og
   Projects-verktøyene faktisk resolver i både CLI og app.
 - Gjenta mot samme publiserte RC i repoaktivert cloud agent med NAVs faktiske
-  enterprise-policy. Promoter først den godkjente katalogcommiten til stabil
-  release etter at alle gatene er grønne.
+  enterprise-policy. Når alle gatene er grønne, publiser en ny stabil
+  manifestversjon og katalog. Plugininnholdet skal være byte-identisk med RC-en
+  bortsett fra `plugin.json.version`; RC-taggen flyttes aldri.
+
+Den eksakte RC-/stable-prosedyren, repository controls og incident rollback er
+beskrevet i [release-runbooken](docs/release-runbook.md).
 
 En enkelt reviewet skill kan prøves i OpenCode user-scope:
 

@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - "plugin/**"
-  workflow_dispatch:
 
 concurrency:
   group: publish-grillmester-marketplace
@@ -20,12 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
+      catalog-base64: ${{ steps.publication.outputs.catalog_base64 }}
+      catalog-sha256: ${{ steps.publication.outputs.catalog_sha256 }}
+      catalog-version: ${{ steps.publication.outputs.catalog_version }}
       source-sha: ${{ steps.source.outputs.sha }}
     steps:
       - name: Check out source revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.event_name == 'push' && github.sha || 'main' }}
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
       - name: Record immutable source revision
         id: source
@@ -70,6 +73,18 @@ jobs:
       - name: Validate immutable release catalog
         run: python3 scripts/validate.py
 
+      - name: Seal validated catalog for publication
+        id: publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          catalog=".github/plugin/marketplace.json"
+          {
+            echo "catalog_base64=$(base64 -w0 "${catalog}")"
+            echo "catalog_sha256=$(sha256sum "${catalog}" | cut -d' ' -f1)"
+            echo "catalog_version=$(jq -er '.plugins[0].version' "${catalog}")"
+          } >> "${GITHUB_OUTPUT}"
+
       - name: Install pinned GitHub Copilot CLI
         run: npm install --global @github/copilot@1.0.79
 
@@ -85,22 +100,12 @@ jobs:
     permissions:
       contents: write
     env:
+      CATALOG_BASE64: ${{ needs.validate.outputs.catalog-base64 }}
+      CATALOG_SHA256: ${{ needs.validate.outputs.catalog-sha256 }}
+      CATALOG_VERSION: ${{ needs.validate.outputs.catalog-version }}
       MARKETPLACE_BRANCH: marketplace
       SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
     steps:
-      - name: Check out validated source revision
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ env.SOURCE_SHA }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Generate immutable release catalog
-        run: >-
-          python3 scripts/generate_marketplace.py
-          --mode release
-          --sha "${SOURCE_SHA}"
-
       - name: Publish catalog-only commit atomically
         shell: bash
         env:
@@ -109,9 +114,26 @@ jobs:
         run: |
           set -euo pipefail
 
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${CATALOG_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${CATALOG_VERSION}" =~ ^[0-9A-Za-z.-]+$ ]]
+          catalog=".github/plugin/marketplace.json"
+          mkdir -p "$(dirname "${catalog}")"
+          printf '%s' "${CATALOG_BASE64}" | base64 --decode > "${catalog}"
+          [[ "$(sha256sum "${catalog}" | cut -d' ' -f1)" == "${CATALOG_SHA256}" ]]
+          [[ "$(jq -er '.plugins | length' "${catalog}")" == "1" ]]
+          [[ "$(jq -er '.plugins[0].name' "${catalog}")" == "grillmester" ]]
+          [[ "$(jq -er '.plugins[0].version' "${catalog}")" == "${CATALOG_VERSION}" ]]
+          [[ "$(jq -er '.metadata.version' "${catalog}")" == "${CATALOG_VERSION}" ]]
+          [[ "$(jq -er '.plugins[0].source.source' "${catalog}")" == "github" ]]
+          [[ "$(jq -er '.plugins[0].source.repo' "${catalog}")" == "navikt/grillmester" ]]
+          [[ "$(jq -er '.plugins[0].source.path' "${catalog}")" == "plugin" ]]
+          [[ "$(jq -er '.plugins[0].source.sha' "${catalog}")" == "${SOURCE_SHA}" ]]
+
+          git init --quiet
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin \
+          git remote add origin \
             "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
 
           remote_tip="$(git ls-remote --heads origin "refs/heads/${MARKETPLACE_BRANCH}")"
@@ -126,7 +148,7 @@ jobs:
             previous_catalog="$(git show "${base_sha}:.github/plugin/marketplace.json")"
             previous_version="$(jq -er '.plugins[0].version' <<<"${previous_catalog}")"
             previous_source_sha="$(jq -er '.plugins[0].source.sha' <<<"${previous_catalog}")"
-            current_version="$(jq -er '.version' plugin/plugin.json)"
+            current_version="${CATALOG_VERSION}"
 
             if [[ "${current_version}" == "${previous_version}" ]]; then
               if [[ "${SOURCE_SHA}" == "${previous_source_sha}" ]]; then
@@ -157,6 +179,7 @@ jobs:
           commit_sha="$(git commit-tree "${tree_sha}" "${parent_args[@]}" \
             -m "chore: publish marketplace for ${SOURCE_SHA}")"
 
+          # The new commit has the fetched tip as its parent. A concurrent
+          # update therefore fails as non-fast-forward without any force mode.
           git push origin --atomic \
-            --force-with-lease="refs/heads/${MARKETPLACE_BRANCH}:${base_sha}" \
             "${commit_sha}:refs/heads/${MARKETPLACE_BRANCH}"

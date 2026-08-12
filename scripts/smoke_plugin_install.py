@@ -126,8 +126,8 @@ def load_json_object(path: Path, *, allow_comments: bool = False) -> dict[str, A
     return value
 
 
-def marketplace_source(root: Path) -> str | dict[str, Any]:
-    catalog = load_json_object(root / ".github/plugin/marketplace.json")
+def marketplace_source_from_catalog(catalog_path: Path) -> str | dict[str, Any]:
+    catalog = load_json_object(catalog_path)
     plugins = catalog.get("plugins")
     if not isinstance(plugins, list) or len(plugins) != 1:
         raise RuntimeError("marketplace catalog must contain exactly one plugin")
@@ -138,6 +138,10 @@ def marketplace_source(root: Path) -> str | dict[str, Any]:
     if not isinstance(source, (str, dict)):
         raise RuntimeError("marketplace plugin source has an invalid type")
     return source
+
+
+def marketplace_source(root: Path) -> str | dict[str, Any]:
+    return marketplace_source_from_catalog(root / ".github/plugin/marketplace.json")
 
 
 def plugin_version(plugin: Path) -> str:
@@ -398,11 +402,70 @@ def verify_uninstalled(copilot_home: Path, installed: Path) -> None:
         raise RuntimeError("uninstall left Grillmester in enabledPlugins")
 
 
+def remote_install_smoke(
+    *,
+    copilot: str,
+    env: dict[str, str],
+    cwd: Path,
+    copilot_home: Path,
+    marketplace_ref: str,
+    source_plugin: Path,
+) -> tuple[int, int]:
+    """Install from a real remote catalog ref, verify bytes, then uninstall."""
+
+    if not marketplace_ref.startswith(f"{PLUGIN_REPOSITORY}#"):
+        raise RuntimeError(
+            f"remote marketplace ref must start with {PLUGIN_REPOSITORY}#"
+        )
+    immutable_ref = marketplace_ref.removeprefix(f"{PLUGIN_REPOSITORY}#")
+    if FULL_SHA.fullmatch(immutable_ref) is None:
+        raise RuntimeError("pre-promotion remote smoke requires a full catalog SHA")
+
+    run(
+        [copilot, "plugin", "marketplace", "add", marketplace_ref],
+        env,
+        cwd,
+    )
+    run([copilot, "plugin", "install", PLUGIN_SPEC], env, cwd)
+    installed = copilot_home / "installed-plugins" / MARKETPLACE_NAME / PLUGIN_NAME
+    agent_count, skill_count = verify_installed_package(source_plugin, installed)
+    if enabled_setting(copilot_home) is not True:
+        raise RuntimeError("remote installation did not enable Grillmester")
+    listing = run([copilot, "plugin", "list"], env, cwd)
+    if PLUGIN_SPEC not in listing:
+        raise RuntimeError("plugin list does not report the remote installation")
+
+    run([copilot, "plugin", "uninstall", PLUGIN_SPEC], env, cwd)
+    verify_uninstalled(copilot_home, installed)
+    return agent_count, skill_count
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--expect-release-sha",
         help="require the marketplace to pin this exact GitHub commit",
+    )
+    parser.add_argument(
+        "--catalog",
+        type=Path,
+        help="catalog file to inspect instead of the checkout's development catalog",
+    )
+    parser.add_argument(
+        "--source-plugin",
+        type=Path,
+        help="plugin payload to compare with the installed package",
+    )
+    parser.add_argument(
+        "--source-sha",
+        help="source checkout SHA when --source-plugin is outside this checkout",
+    )
+    parser.add_argument(
+        "--remote-marketplace-ref",
+        help=(
+            "install from navikt/grillmester#<catalog-SHA> in an isolated home "
+            "instead of staging a local marketplace"
+        ),
     )
     return parser.parse_args(argv)
 
@@ -421,17 +484,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     root = Path(__file__).resolve().parents[1]
-    source_plugin = root / "plugin"
-    checkout_sha = run(
-        ["git", "rev-parse", "HEAD"],
-        os.environ.copy(),
-        root,
+    source_plugin = args.source_plugin or root / "plugin"
+    catalog_path = args.catalog or root / ".github/plugin/marketplace.json"
+    checkout_sha = args.source_sha or run(
+        ["git", "rev-parse", "HEAD"], os.environ.copy(), root
     ).strip()
+    if FULL_SHA.fullmatch(checkout_sha) is None:
+        print("--source-sha must be a lowercase 40-character SHA", file=sys.stderr)
+        return 2
     release_sha = validate_catalog_source(
-        marketplace_source(root),
+        marketplace_source_from_catalog(catalog_path),
         expected_release_sha=args.expect_release_sha,
         checkout_sha=checkout_sha,
     )
+    if args.remote_marketplace_ref is not None and release_sha is None:
+        raise RuntimeError("remote marketplace smoke requires a release catalog")
 
     with tempfile.TemporaryDirectory(prefix="grillmester-plugin-smoke-") as temp:
         temp_root = Path(temp)
@@ -464,6 +531,22 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         version_output = run([copilot, "--version"], env, command_cwd).strip()
         version = version_output.splitlines()[0]
+        if args.remote_marketplace_ref is not None:
+            agent_count, skill_count = remote_install_smoke(
+                copilot=copilot,
+                env=env,
+                cwd=command_cwd,
+                copilot_home=copilot_home,
+                marketplace_ref=args.remote_marketplace_ref,
+                source_plugin=source_plugin,
+            )
+            print(
+                f"Verified remote catalog {args.remote_marketplace_ref} -> "
+                f"{release_sha}: {agent_count} agents, {skill_count} skills, "
+                f"byte-exact install and uninstall using {version}"
+            )
+            return 0
+
         staged_marketplace = temp_root / "marketplace"
         (
             previous_plugin,
