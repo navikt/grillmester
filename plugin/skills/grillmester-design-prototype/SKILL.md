@@ -58,7 +58,9 @@ last den lange referansen i en ren chat- eller Figma-flyt.
 
 1. Ikke installer avhengigheter automatisk. Hvis Aksel CSS mangler og korrekt
    stil er nødvendig, vis eksakt kommando og forventede filendringer for repoets
-   faktiske pakkebehandler, og kjør bare etter eksplisitt godkjenning.
+   faktiske pakkebehandler. Be brukeren eller en separat autorisert
+   utviklerflyt kjøre den etter eksplisitt godkjenning; Designer skal aldri
+   installere pakken selv. Fortsett ellers med fallback-stilene.
 2. Etter at designeren har takket ja til nettleservisning, start serveren:
    ```bash
    # Run from this skill's bundled directory:

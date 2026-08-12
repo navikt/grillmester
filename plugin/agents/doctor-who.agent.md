@@ -43,6 +43,8 @@ tools:
   - github-mcp-server/issue_read
   - github-mcp-server/search_issues
   - github-mcp-server/issue_write
+  - github-mcp-server/get_pull_request
+  - github-mcp-server/get_pull_request_files
   - github-mcp-server/list_pull_requests
   - github-mcp-server/pull_request_read
   - github-mcp-server/search_pull_requests

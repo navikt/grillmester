@@ -115,6 +115,7 @@ class PackageValidationTest(unittest.TestCase):
             with self.subTest(agent=agent_id):
                 tools = lock["agents"][agent_id]["tools"]
                 self.assertFalse(any(tool.endswith("/*") for tool in tools))
+                self.assertNotIn("*", tools)
                 self.assertNotIn("agent", tools)
 
         designer_tools = lock["agents"]["designer"]["tools"]
@@ -126,6 +127,19 @@ class PackageValidationTest(unittest.TestCase):
         self.assertNotIn(
             "com.microsoft/playwright-mcp/browser_run_code_unsafe", designer_tools
         )
+
+    def test_sensitive_roles_reject_global_tool_wildcard(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        lock["agents"]["designer"]["tools"].append("*")
+        self.write_json("policy/content-lock.json", lock)
+        path = self.root / "plugin/agents/designer.agent.md"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "  - ask_user\n", "  - ask_user\n  - '*'\n", 1
+            ),
+            encoding="utf-8",
+        )
+        self.assert_error("tools must not contain wildcards")
 
     def test_shared_agent_floor_drift_is_rejected(self) -> None:
         path = self.root / "plugin/agents/researcher.agent.md"

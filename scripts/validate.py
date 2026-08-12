@@ -150,7 +150,6 @@ DOCTOR_WHO_TOOLS = {
         "search_issues",
         "issue_write",
         "list_pull_requests",
-        "pull_request_read",
         "search_pull_requests",
         "projects_get",
         "projects_list",
@@ -162,6 +161,18 @@ DOCTOR_WHO_TOOLS = {
 # MCP surface uses issue_write. Both are the same reviewed external-write class.
 DESIGNER_TOOLS.add("io.github.navikt/github-mcp/create_issue")
 DOCTOR_WHO_TOOLS.add("io.github.navikt/github-mcp/create_issue")
+# Support the Copilot CLI's documented split default and the current upstream
+# consolidated PR-read surface used by short/NAV server IDs. Keep both reviewed
+# read shapes explicit; unknown IDs are ignored rather than expanding authority.
+DOCTOR_WHO_TOOLS.update(
+    {
+        "github/pull_request_read",
+        "github-mcp-server/get_pull_request",
+        "github-mcp-server/get_pull_request_files",
+        "github-mcp-server/pull_request_read",
+        "io.github.navikt/github-mcp/pull_request_read",
+    }
+)
 
 ROLE_TOOL_CONTRACTS = {
     "designer": DESIGNER_TOOLS,
@@ -621,6 +632,10 @@ def validate_agents(
             errors.append(f"content lock agent {agent_id} tools must be a non-empty list")
         elif len(expected_tools) != len(set(expected_tools)):
             errors.append(f"content lock agent {agent_id} tools must not contain duplicates")
+        elif any(tool == "*" or tool.endswith("/*") for tool in expected_tools):
+            errors.append(
+                f"content lock agent {agent_id} tools must not contain wildcards"
+            )
         elif not isinstance(tools, list) or len(tools) != len(set(tools)):
             errors.append(f"{path}: tools must be a duplicate-free list")
         elif set(tools) != set(expected_tools):
