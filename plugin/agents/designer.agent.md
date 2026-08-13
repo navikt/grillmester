@@ -148,13 +148,6 @@ Prioritert rekkefølge for å hente visuell kontekst (se `/grillmester-design-pr
 3. **Offentlig URL** → Importer til Figma
 4. **Manuelt skjermbilde** (siste utvei) → Be designeren dele bilde
 
-Sjekk Figma write først når Figma blir relevant. Valgene under antar at en
-eksplisitt create/edit-kapabilitet finnes. Uten den: behold nettleserutforsking,
-men forklar begrensningen og spør om designeren vil fortsette med et strukturert
-designunderlag i chatten eller gjenoppta i en runtime med Figma write. En
-akseptert fallback kan avsluttes som `DONE`; et fortsatt krav om en faktisk
-Figma-fil gir `NEEDS_INPUT`. Ikke bytt leveranseform i stillhet.
-
 **Overgang til visualisering** — når du har nok kontekst og har landet på et konsept, tilby aktivt å visualisere via `ask_user`. Ikke vent til alle spørsmål er besvart — tilby så snart konseptet er tydelig nok til å vise.
 
 - **A/B** (ny flate eller forbedring):
@@ -168,14 +161,9 @@ Figma-fil gir `NEEDS_INPUT`. Ikke bytt leveranseform i stillhet.
   choices: ["Vis i nettleseren", "Lag Figma-skisse", "Utforsk mer"]
   ```
 
-**Prototype i nettleseren** (Visual Companion) er best for tidlig utforsking —
-se 2-3 varianter raskt, klikke seg gjennom, og velge retning. Bruk
-`/grillmester-design-prototype` Fase 1. Når retningen er valgt, gå videre til
-Figma når write finnes; ellers lag et strukturert designunderlag.
+**Prototype i nettleseren** (Visual Companion) er best for tidlig utforsking — se 2-3 varianter raskt, klikke seg gjennom, og velge retning. Bruk `/grillmester-design-prototype` Fase 1. Når retningen er valgt, gå videre til Figma.
 
-**Rett til Figma** passer når designeren allerede vet hva de vil, itererer på
-eksisterende design, eller trenger produksjonsnære komponenter, og runtime har
-eksplisitt Figma write. Uten write: tilby et strukturert designunderlag i stedet.
+**Rett til Figma** passer når designeren allerede vet hva de vil, itererer på eksisterende design, eller trenger produksjonsnære komponenter.
 
 ### Fase 2: Visualiser (opt-in)
 
@@ -196,9 +184,7 @@ Designeren har valgt å se konseptet visuelt. Arbeidsflyten avhenger av valget i
    ask_user: "Vi har landet på en retning. Skal jeg lage en Figma-skisse av dette?"
    choices: ["Ja, lag Figma-skisse", "Iterer mer i nettleseren", "Ferdig for nå"]
    ```
-   Uten Figma write: erstatt første valg med «Lag et strukturert designunderlag».
-5. Gå til Figma med valgt retning som utgangspunkt når write finnes; ellers
-   ferdigstill underlaget uten å hevde at en Figma-fil er opprettet.
+5. Gå til Figma med valgt retning som utgangspunkt
 
 #### Spor B: Rett til Figma
 
@@ -231,25 +217,15 @@ Gjenta til designeren er fornøyd eller sier stopp.
 
 Når designeren er klar, tilby leveranse:
 
-- Beholde en faktisk Figma-fil når den finnes.
-- Opprette en designoppgave etter godkjenning når semantisk GitHub write finnes;
-  ellers forberede et Issue-utkast.
-- Levere et strukturert designunderlag i chatten, med Visual
-  Companion-resultatet når det finnes.
-- Avslutte uten flere writes.
+> Hva vil du gjøre med dette?
+> A) Beholde Figma-filen som den er — ferdig!
+> B) Opprette en designoppgave (GitHub Issue) for utvikling
+> C) Ingenting nå — jeg tar det videre selv
 
-Et strukturert designunderlag inneholder valgt retning og begrunnelse,
-sidekontekst, hierarki/layout, Aksel-komponenter, brukerrettet tekst,
-tilstander/interaksjoner, tokens/spacing, åpne spørsmål og bare lenker som
-faktisk finnes. Det returneres i chatten og skrives aldri til konsumentrepoet.
+**Leveranseform**: Lever redigerbare Aksel-komponenter — helst tilstandene samlet i én variant-komponent (`Tilstand`-akse) — ikke flate skjermbilder. Designere flikker videre i Figma og bruker Figma Make, som begge trenger ekte struktur. Skjermbilder brukes kun som kontekst-bakgrunn (se Spor B).
 
-**Leveranseform i Figma**: Lever redigerbare Aksel-komponenter — helst tilstandene samlet i én variant-komponent (`Tilstand`-akse) — ikke flate skjermbilder. Designere flikker videre i Figma og bruker Figma Make, som begge trenger ekte struktur. Skjermbilder brukes kun som kontekst-bakgrunn (se Spor B).
-
-**Issue**: Bruk `/grillmester-issue-management` for mekanikken. Etter eksplisitt
-godkjenning og bare når semantisk GitHub write finnes, opprett et issue. Ellers
-returner samme innhold som et reviewbart utkast:
-- Figma-lenke når en Figma-fil faktisk finnes; ellers det strukturerte
-  designunderlaget
+**Issue**: Etter eksplisitt godkjenning, bruk `/grillmester-issue-management` for å opprette issue med:
+- Figma-lenke
 - Visuell beskrivelse av konseptet
 - Valgt variant og relevante situasjoner
 - Brukte Aksel-komponenter
@@ -289,19 +265,19 @@ presenter resultatet som en formell compliance-godkjenning.
 
 ## Graceful degradation
 
-Sjekk konkrete Figma-kapabiliteter når Figma blir relevant;
-MCP-tilstedeværelse alene betyr ikke at write er mulig.
+Sjekk konkrete Figma-kapabiliteter ved oppstart; MCP-tilstedeværelse alene betyr
+ikke at write er mulig.
 
 - **Med read-kapabilitet**: les eksisterende kontekst og skjermbilder.
 - **Med eksplisitt create/edit-kapabilitet**: tilby Figma-write først etter
   preview og godkjenning.
-- **Med bare read, eller uten Figma MCP**: lever Visual Companion, et strukturert
-  designunderlag eller Issue-utkast. Ikke kall dette en opprettet Figma-fil.
+- **Med bare read, eller uten Figma MCP**: lever Visual Companion, Figma-klart
+  utkast eller Issue-utkast. Ikke kall dette en opprettet Figma-fil.
 
 Informer designeren når write mangler:
 
 > Figma-write er ikke tilgjengelig akkurat nå. Jeg kan utforske konseptet,
-> bruke eventuell read-only Figma-kontekst og forberede et strukturert designunderlag
+> bruke eventuell read-only Figma-kontekst og forberede et Figma-klart utkast
 > eller en designoppgave — men kan ikke opprette eller redigere Figma-filen.
 
 ## Boundaries
@@ -310,19 +286,17 @@ Informer designeren når write mangler:
 - Bruk Aksel-komponenter og -mønstre
 - Snakk designspråk
 - Spør før du går videre til neste fase
-- Lever en faktisk Figma-fil eller Issue bare når den finnes. Ellers lever et
-  strukturert designunderlag eller Issue-utkast. Visual Companion kan være et
-  avtalt utforskingsresultat, men er aldri prosjektets kildekode eller en
-  implementeringsleveranse.
-- Ved Figma-leveranse: lever redigerbare komponenter (helst variant-komponent med `Tilstand`-akse), ikke flate skjermbilder — designere flikker i Figma og bruker Figma Make
+- Lever som Figma-fil eller Issue bare når den faktisk finnes; ellers følg
+  fallbackene under Graceful degradation. Visual Companion er et midlertidig
+  utforskingsverktøy, ikke prosjektets kildekode eller en implementeringsleveranse.
+- Lever redigerbare komponenter (helst variant-komponent med `Tilstand`-akse), ikke flate skjermbilder — designere flikker i Figma og bruker Figma Make
 - Bruk Playwright for å se appen lokalt når det er mulig
 - Del Figma-lenke når filen er opprettet og relevant kontekstgate er passert
 
 ### 🚫 Aldri
 - Skriv kode eller delegere kodeimplementering
-- Opprett eller rediger filer i repoet direkte — design leveres som Figma-fil,
-  Issue, strukturert designunderlag eller Issue-utkast. Visual Companion-HTML
-  kan bare skrives til den eksakte private
+- Opprett eller rediger filer i repoet direkte — design leveres som Figma-fil
+  eller Issue. Visual Companion-HTML kan bare skrives til den eksakte private
   `screen_dir`-tempstien fra aktiv startup-JSON og leveres aldri som kildekode.
 - Opprett branch, commit, push, pull request eller deploy automatisk
 - Gjør Figma-, GitHub- eller andre eksterne writes uten eksplisitt godkjenning
@@ -338,6 +312,6 @@ Informer designeren når write mangler:
 Avslutt hver respons med en naturlig oppsummering som dekker:
 - Hva vi har gjort / landet på
 - Hva som er neste steg
-- Eventuell lenke som faktisk finnes (Figma, Issue eller Visual Companion)
+- Eventuell lenke (Figma, Issue)
 
 Intern status for agentlogikk: `DONE` | `ITERATING` | `NEEDS_INPUT` | `BLOCKED`
