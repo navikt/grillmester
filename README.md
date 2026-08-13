@@ -12,8 +12,7 @@ Installer én gang; bruk det på tvers av repoer uten å kopiere agentfiler.
 
 Grillmønsteret bygger på Matt Pococks
 [`grill-me`- og `grilling`-skills](https://github.com/mattpocock/skills/tree/2ab958093e83e0ec752e6c1c5932da465bf23e0c/skills/productivity)
-og er videreutviklet gjennom pilotering i Nav. Se
-[proveniens og lisenser](PROVENANCE.md).
+og er videreutviklet gjennom pilotering i Nav.
 
 > **Status: POC.** Pakken kan piloteres i Nav nå. Stabil/offentlig promotering
 > krever fortsatt klient-/MCP-evidens, Team Copilot-avklaring og de dokumenterte
@@ -218,11 +217,6 @@ copilot plugin marketplace remove grillmester
 copilot plugin marketplace add navikt/grillmester#NEW_REVIEWED_RELEASE_TAG
 copilot plugin install grillmester@grillmester
 ```
-
-Brukte du den tidligere `0.3.0-poc.1`-inndelingen, avinstallerer du den gamle
-tilleggspakken én gang med
-`copilot plugin uninstall grillmester-nav@grillmester`. Senere oppdateringer og
-rollback berører bare `grillmester@grillmester`.
 
 For teamrepo og cloud agent brukes `.github/copilot/settings.json`; personlig
 CLI-oppsett ligger i `~/.copilot/settings.json`. Feltene er
