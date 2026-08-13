@@ -43,10 +43,15 @@ Imported skills:
 
 The portable adaptation preserves the pilot's role split, risk routing,
 one-writer boundary, specification and ADR workflows, deterministic evidence,
-independent review, and progressive skill resources. It removes only
+independent review, and progressive skill resources. It removes
 Budstikka-specific package names, file paths, build commands, runtime facts,
 data classifications, repository instructions, issue routing, and deployment
-assumptions. Cross-component calls are plugin-qualified where required.
+assumptions. It also adds reviewed portable language, security,
+prompt-injection, and missing-capability floors; gives Kokk bounded read-only
+primary-source retrieval; and gives Grill-inspektor read-only local inspection
+through `execute`. Cross-component calls are plugin-qualified where required.
+These are deliberate adaptations, not a claim of byte-identical agent
+behavior.
 
 ## Hovmester additions
 
