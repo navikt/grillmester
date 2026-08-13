@@ -62,10 +62,7 @@ tool calls, godkjent write og avvist write før stabil release.
 GitHub dokumenterer at Copilot app kan installere plugins via **Settings →
 Plugins**, og at CLI-konfigurerte skills/MCP-er kan bli tilgjengelige i appen.
 Det er ikke i seg selv evidens for samme runtimeadferd; klientene testes
-separat. Under POC-smoken var den ikke-interaktive kommandoen
-`copilot plugins list` deaktivert i App-konteksten, mens agent- og
-skill-discovery fungerte. Det behandles som en klientbegrensning, ikke som
-negativ pluginevidens.
+separat.
 
 Custom-marketplace auto-update i Copilot CLI er en bruker-eid opt-in. Et repo
 eller en managed policy kan registrere og aktivere pluginen, men GitHub sier
@@ -87,10 +84,7 @@ krever en immutable release-tag i stedet.
 1. Installer den eksakte, immutable RC-ref-en og bekreft modelloppløsning i
    Copilot CLI.
 2. Bekreft at den ene pluginen gir nøyaktig 7 agenter og 44 skills uten
-   agent-/skillkollisjoner eller døde referanser. Den nåværende pakken har 40
-   modell-innkallbare skills; kjør derfor nære positive og negative
-   routingprompter for særlig `to-spec`, `to-issues` og `wayfinder`, og
-   registrer feilvalg før stabil promotering.
+   agent-/skillkollisjoner eller døde referanser.
 3. Bekreft at de fire offentlige agentene er valgbare, mens Kokk,
    Grill-inspektør og Researcher bare delegeres med gyldige briefs.
 4. La Kokk gjøre én ufarlig write i en disponibel fixture. La

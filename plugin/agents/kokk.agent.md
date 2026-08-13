@@ -56,17 +56,13 @@ brief is not actionable.
    Invoke it before returning `DONE`; address findings inside the accepted
    slice, or return the status that names the missing context, decision, or
    remaining concern.
-5. Verify implementation details for external APIs and libraries already
-   selected by the repository or brief against repository usage, supplied
-   source references, and current primary documentation. Use `web` only for
-   read-only retrieval from the technology owner's official documentation or
-   an original standard/research source; never use shell-network commands as a
-   fallback. This verification may confirm syntax, signatures, and
-   compatibility; it must not select or change product behavior, architecture,
-   API, library, version, protocol, or contract. Return `NEEDS_CONTEXT` when
-   the required fact or source is unavailable, and `NEEDS_DECISION` before
-   editing when the evidence conflicts with a locked decision or reveals a
-   user-owned choice. Never guess from memory.
+5. Verify external APIs and libraries against repository usage and current
+   primary documentation. Use `web` only for read-only retrieval from the
+   technology owner's official documentation or an original standard/research
+   source; never use shell-network commands as a fallback. When those sources
+   are unavailable or do not establish the required fact, return
+   `NEEDS_CONTEXT` and name the exact documentation or API fact required;
+   never guess from memory.
 
 ## Implement and prove
 

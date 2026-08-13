@@ -36,10 +36,7 @@ deploy automatisk.
 - Designeren allerede vet hva de vil og trenger Figma-komponenter
 - Komponentbygging og produksjonsnære leveranser
 
-Visual Companion er best for **tidlig utforsking** — når retningen er uklar og
-du vil se 2-3 konsepter raskt. Når retningen er valgt, gå til Figma bare når
-create/edit finnes og writen godkjennes; ellers ferdigstill et Figma-klart
-utkast.
+Visual Companion er best for **tidlig utforsking** — når retningen er uklar og du vil se 2-3 konsepter raskt. Når retningen er valgt, gå rett til Figma.
 
 ## Fase 1: Visuell utforsking (Visual Companion)
 
@@ -177,11 +174,6 @@ referansen under ren chat- eller nettleserutforsking. Bruk
 oppdagelsessnapshot og [tokenreferansen](references/aksel-figma-tokens.md) for
 layouten rundt dem. Det aktive Figma-biblioteket er autoritativt.
 
-Uten eksplisitt create/edit-kapabilitet skal du ikke fortsette med
-write-stegene under. Ferdigstill i stedet Visual Companion-resultatet, et
-Figma-klart utkast eller et Issue-utkast og si tydelig at ingen Figma-fil ble
-opprettet eller endret.
-
 1. Finn riktig plan og filkontekst read-only.
 2. Vis leveranse-preview og få eksplisitt godkjenning før filoppretting eller
    redigering.
@@ -218,17 +210,15 @@ Vis resultat → designer gir feedback → juster → gjenta til fornøyd.
 - Med bare Figma read → bruk konteksten, men lever Visual Companion,
   Figma-klart utkast eller Issue-utkast; ikke hev at en fil ble skrevet.
 - Uten Figma MCP → beskriv konseptet, lever som Issue-utkast.
-- Uten Node.js → Chat + kapabilitetsgyldig Figma- eller Figma-klart spor (hopp
-  over Visual Companion).
-- I cloud/remote uten tilgjengelig loopback-URL → Chat + kapabilitetsgyldig
-  Figma- eller Figma-klart spor.
+- Uten Node.js → Chat + Figma direkte (hopp over Visual Companion).
+- I cloud/remote uten tilgjengelig loopback-URL → Chat + Figma direkte.
 - Uten Playwright → manuelt skjermbilde fra designer.
 
 ## Boundaries
 
 ### ✅ Alltid
 - Bruk Aksel-komponenter og -tokens
-- Returner relevant URL eller Figma-lenke bare når resultatet faktisk finnes
+- Returner URL / Figma-lenke for resultater
 - Bruk handlingsspråk — aldri verktøynavn
 - Spør designer før større endringer
 - Del lenker raskt; for eksisterende flater først etter verifisert nåtilstand/før/etter

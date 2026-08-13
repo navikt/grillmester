@@ -203,13 +203,9 @@ settings er den autoritative grensen for hva brukere og repoer kan aktivere.
 Enterprise kan registrere marketplacen og deklarativt aktivere pluginen på
 støttede klientflater. GitHub tillater derimot ikke managed settings å slå på
 CLIs session-start auto-update for en egendefinert marketplace. For en
-Nav-dekkende utrulling må Team Copilot derfor enten rulle en reviewet ref
-sentralt, distribuere den bruker-eide opt-in-en gjennom en godkjent bootstrap,
-eller katalogføre Grillmester i en innebygd marketplace med dokumentert
-standardoppdatering. GitHubs innebygde `awesome-copilot`-marketplace har en
-[prosess for eksterne plugins](https://github.com/github/awesome-copilot/blob/main/CONTRIBUTING.md#external-plugins)
-og er det mest friksjonsfrie langsiktige sporet når POC-en er klar for den
-review- og releasekadensen.
+Nav-dekkende utrulling må Team Copilot derfor avklare om en reviewet ref rulles
+sentralt, eller om den bruker-eide opt-in-en distribueres gjennom en godkjent
+bootstrap.
 
 ## Oppdatere og rulle tilbake
 
