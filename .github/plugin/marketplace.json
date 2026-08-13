@@ -1,0 +1,34 @@
+{
+  "name": "grillmester",
+  "owner": {
+    "name": "Team eSyfo"
+  },
+  "metadata": {
+    "description": "A Copilot agent team for clarified software delivery, design, and product work, with optional NAV specialist skills.",
+    "version": "0.3.0-poc.1"
+  },
+  "plugins": [
+    {
+      "name": "grillmester",
+      "description": "A Copilot agent team for clarified software delivery, design, and product work with portable progressive skills.",
+      "version": "0.3.0-poc.1",
+      "source": {
+        "source": "github",
+        "repo": "navikt/grillmester",
+        "path": "plugin",
+        "sha": "c3ecf4a1f0fb2c1993d31f53f3f0df70e57ee3ce"
+      }
+    },
+    {
+      "name": "grillmester-nav",
+      "description": "Optional NAV specialist skills for Grillmester: NAIS, identity, Kafka, Postgres, observability, Kotlin backends, APIs, and Lumi.",
+      "version": "0.3.0-poc.1",
+      "source": {
+        "source": "github",
+        "repo": "navikt/grillmester",
+        "path": "plugin-nav",
+        "sha": "c3ecf4a1f0fb2c1993d31f53f3f0df70e57ee3ce"
+      }
+    }
+  ]
+}
