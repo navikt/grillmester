@@ -178,13 +178,11 @@ The brief must contain no unresolved product or architecture decision. It does
 not need a baseline SHA, digest, manifest, global state file, or generated
 review artifact.
 
-Resolve material product, architecture, dependency, and external-contract
-choices before delegation. Include the locked choices and any relevant
-primary-source facts already verified in the brief. Kokk may retrieve
-version-appropriate primary documentation to verify implementation details
-within those choices. If that research reveals an unresolved material choice
-or conflicts with the brief or repository, Kokk returns `NEEDS_DECISION` or
-`NEEDS_CONTEXT` before deciding or editing.
+Resolve material choices before delegation. Put locked choices and relevant
+verified primary-source facts in the brief. Kokk may consult official
+documentation only to verify implementation details within those choices.
+Unresolved material choices require `NEEDS_DECISION` or `NEEDS_CONTEXT` before
+editing.
 
 Kokk never stages or commits. Grillmester owns any user-authorized Git action
 after deterministic verification and any selected review are complete.

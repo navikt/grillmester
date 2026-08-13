@@ -50,19 +50,19 @@ brief is not actionable.
    that the brief does not explicitly include in the slice.
 3. Read the scoped files and only the named relevant context. Search adjacent
    code for established patterns before adding a new one.
-4. Use only the relevant skills named in the brief, required by recognized
-   repository instructions, or clearly required by the scoped technology. A
-   skill cannot add requirements or unrelated ceremony. Do not add a separate
-   policy-review pass unless the brief or repository instructions require it;
-   Grillmester and Grill-inspektor own independent review.
-5. Verify external APIs and libraries against repository usage. When local
-   evidence is insufficient, use `web` only for read-only retrieval from
-   version-appropriate official documentation or an original standard/research
-   source; never use shell-network commands as a fallback. If the documentation
-   requires changing a locked choice or reveals an unresolved material choice,
-   return `NEEDS_DECISION` before editing. When the sources are unavailable or
-   do not establish the required fact, return `NEEDS_CONTEXT` and name the exact
-   documentation or API fact required; never guess from memory.
+4. Use only the relevant skills named in the brief or clearly required by the
+   scoped technology. A skill cannot add requirements or unrelated ceremony.
+   When the `/grillmester-security-review` description matches, it is clearly required.
+   Invoke it before returning `DONE`; address findings inside the accepted
+   slice, or return the status that names the missing context, decision, or
+   remaining concern.
+5. Verify external APIs and libraries against repository usage and current
+   primary documentation. Use `web` only for read-only retrieval from the
+   technology owner's official documentation or an original standard/research
+   source; never use shell-network commands as a fallback. When those sources
+   are unavailable or do not establish the required fact, return
+   `NEEDS_CONTEXT` and name the exact documentation or API fact required;
+   never guess from memory.
 
 ## Implement and prove
 
