@@ -73,7 +73,7 @@ Bruk en temperaturmåling bare når teamet selv ønsker en bredere samtale enn
 en vanlig retro gir. Velg fire til åtte dimensjoner fra teamets nåværende mål
 og arbeidssituasjon. Eksempler kan være verdiskaping, leveranseflyt, læring,
 støtte, tydelighet og bærekraftig arbeidsbelastning. Eksemplene er
-samtalestartere, ikke en sentral modell eller et fast NAV-spørsmålssett.
+samtalestartere, ikke en sentral modell eller et fast Nav-spørsmålssett.
 
 La deltakerne svare anonymt og individuelt før samtalen. Teamet kan velge en
 enkel lav/middels/høy markering og retning siden forrige samtale, men formatet
@@ -102,7 +102,7 @@ strukturen verktøynøytralt:
 ## Del 3: Tolkning av helsesjekk-bot-resultater
 
 `navikt/helsesjekk-bot` er en open-source Slack-bot som ifølge prosjektets
-README er tilgjengelig for NAV-ansatte og spør ukentlig med anonyme
+README er tilgjengelig for Nav-ansatte og spør ukentlig med anonyme
 individsvar. Det er en tilgjengelig capability, ikke et utsagn om at alle team
 bruker den. Verifiser gjeldende kilde før du beskriver botens nåværende
 atferd.

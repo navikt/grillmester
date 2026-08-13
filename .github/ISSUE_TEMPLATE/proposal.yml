@@ -25,8 +25,7 @@ body:
       options:
         - Agent eller agentkontrakt
         - Skill eller progressiv referanse
-        - Standardpakken
-        - NAV-tillegget
+        - Grillmester-pluginen
         - Consumer-eid AGENTS.md eller instruction
         - Deterministisk CI/ruleset
         - Distribusjon, release eller dokumentasjon
@@ -37,7 +36,7 @@ body:
     id: portability
     attributes:
       label: Portabilitet og overlapp
-      description: Hva er NAV-felles, hva er repo-/teamspesifikt, og overlapper dette navikt/copilot eller andre løsninger?
+      description: Hva er Nav-felles, hva er repo-/teamspesifikt, og overlapper dette navikt/copilot eller andre løsninger?
   - type: textarea
     id: safety
     attributes:

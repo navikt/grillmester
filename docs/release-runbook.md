@@ -4,9 +4,8 @@ Grillmester has an immutable, two-step release identity:
 
 1. `v<manifest-semver>` points to a **catalog-only commit** reachable from the
    `marketplace` branch.
-2. Its exact, ordered package roster is `grillmester` from `plugin` followed by
-   `grillmester-nav` from `plugin-nav`. Both entries use the same version and
-   `source.sha`, which points to the exact source commit reachable from `main`.
+2. Its only package is `grillmester` from `plugin`. The catalog's `source.sha`
+   points to the exact source commit reachable from `main`.
 
 The tag identifies the catalog, not the source tree. GitHub's source archive
 for the release therefore contains only `.github/plugin/marketplace.json`.
@@ -17,9 +16,9 @@ Never move, replace, delete, or force-update a release tag.
 
 Three workflows have deliberately separate jobs:
 
-- **Publish marketplace catalog** runs after `plugin/**`, `plugin-nav/**`, or
-  `package-manifest.json` changes land on `main`. A read-only job validates and
-  seals the generated two-package catalog before any third-party smoke tooling
+- **Publish marketplace catalog** runs after plugin or release-contract
+  changes land on `main`. A read-only job validates and seals the generated
+  one-package catalog before any third-party smoke tooling
   runs. A one-step write job revalidates the sealed bytes, creates a
   catalog-only child of the current `marketplace` tip, and performs a normal
   fast-forward push. It has no manual-dispatch entry point.
@@ -28,10 +27,12 @@ Three workflows have deliberately separate jobs:
   release.
 - **Publish reviewed release request** is the only release publisher. It runs
   when a reviewed `.github/release-request.json` change lands on `main`,
-  validates the complete chain and installs from the actual remote catalog
-  SHA, then waits at the protected `grillmester-release` environment. Its only
-  write-capable job contains one fixed inline publication step with no
-  checkout, action, package install, or repository-script execution.
+  validates the complete chain and stages the exact catalog bytes and
+  source-pinned payload in an isolated local smoke, then waits at the protected
+  `grillmester-release` environment. Its only write-capable job contains one
+  fixed inline publication step with no checkout, action, package install, or
+  repository-script execution. After publication, a read-only job verifies the
+  tag target and installs from the actual remote `v<version>` ref.
 
 The release-request PR, protected `main`, rulesets, and environment approval
 are process and accidental-misdispatch controls. A normal repository
@@ -69,10 +70,9 @@ publication cannot race the catalog publisher.
 
 ## Release a candidate
 
-1. Set both `plugin/plugin.json.version` and
-   `plugin-nav/plugin.json.version` to the same strict prerelease SemVer, for
-   example `0.3.0-poc.2`. Build metadata is not accepted. Never release one
-   package at a different version or source revision from the other.
+1. Set `plugin/plugin.json.version` to a strict prerelease SemVer, for example
+   `0.3.0-poc.2`. Build metadata is not accepted, and a version must never be
+   reused for different payload bytes.
 2. Merge that source change normally. Wait for **Publish marketplace catalog**
    and resolve the exact catalog-only commit containing the version:
 
@@ -105,26 +105,31 @@ publication cannot race the catalog publisher.
    the request to current `origin/main`, checks that the catalog is reachable
    from `marketplace`, requires the complete merged push range to change only
    the request file, checks that `source.sha` is reachable from `main`,
-   requires an exact catalog-only tree, and regenerates the ordered two-entry
-   catalog byte-for-byte from `package-manifest.json` and both package
-   manifests at that source. It then installs and verifies both packages from
-   `navikt/grillmester#<catalog-SHA>` before seeking environment approval.
+   requires an exact catalog-only tree, and regenerates the one-entry catalog
+   byte-for-byte from the release contract and plugin manifest at that source.
+   It then stages and verifies those exact catalog bytes and the source-pinned
+   Grillmester payload locally before seeking environment approval. A raw
+   catalog SHA is not passed to Copilot as a marketplace ref; the CLI accepts a
+   branch or tag there.
 6. The environment reviewer compares the request, run summary, catalog SHA,
    source SHA, and derived `v<manifest-semver>` tag before approving.
 
 The write step fetches and revalidates the refs again immediately before it
 mutates GitHub. It creates an annotated tag at the catalog commit and a GitHub
-prerelease with `--verify-tag` and `latest=false`.
+prerelease with `--verify-tag` and `latest=false`. The following read-only
+`remote-smoke` job peels the published tag back to the expected catalog commit,
+installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/44-skill
+payload, and uninstalls it. A failed post-publication smoke stops promotion and
+requires a new corrective version; tags are never moved.
 
 ## Promote a reviewed candidate to stable
 
 Stable is a new version, source commit, catalog commit, tag, and GitHub Release;
-it is never a second label on the RC catalog. Create a source commit whose two
-package manifests use the same stable version, such as `0.3.0`. Apart from the
-exact `version` value in `plugin/plugin.json` and
-`plugin-nav/plugin.json`, both package payloads and both manifest formats must
-be byte-identical to the named candidate. `package-manifest.json` must also be
-byte-identical. Let the catalog publisher create the new stable-versioned
+it is never a second label on the RC catalog. Create a source commit whose
+plugin manifest uses the stable version, such as `0.3.0`. Apart from the exact
+`version` value in `plugin/plugin.json`, the package payload and manifest format
+must be byte-identical to the named candidate. The release contract must also
+be byte-identical. Let the catalog publisher create the new stable-versioned
 catalog.
 
 Optionally run the read-only validator with `channel=stable`, the new catalog
@@ -140,8 +145,8 @@ SHA, and the reviewed prerelease tag. Then merge a separate request-file PR:
 }
 ```
 
-The publisher peels the named RC tag, verifies its prerelease, requires both
-versions to share `major.minor.patch`, verifies both catalog/source chains, and
+The publisher peels the named RC tag, verifies its prerelease, requires the RC
+and stable versions to share `major.minor.patch`, verifies both catalog/source chains, and
 allows no payload change beyond the manifest version. It then creates the new
 stable tag and release. Never retag the RC catalog.
 
@@ -164,9 +169,8 @@ retry without changing or reusing immutable release content.
 Do not rewrite a bad release. Stop adoption and:
 
 1. Revert each managed consumer's marketplace `ref` to the last reviewed tag.
-2. For a personal install, uninstall the affected `grillmester` and/or
-   `grillmester-nav` package, add/update the marketplace at the previous tag,
-   and install the desired package set again.
+2. For a personal install, uninstall `grillmester`, add/update the marketplace
+   at the previous tag, and install `grillmester` again.
 3. Publish a new version containing the correction. Catalog version reuse is
    rejected, including reuse of an older historical version.
 

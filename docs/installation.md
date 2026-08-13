@@ -6,56 +6,38 @@ enterprise-policy. De tre nivåene løser ulike behov.
 ## Før du begynner
 
 - Installer en versjon av GitHub Copilot CLI som støtter plugins.
-- Velg en reviewet tag fra
-  [Grillmester Releases](https://github.com/navikt/grillmester/releases).
-- Aktiver lokal sandbox i CLI før NAV-arbeid. Se
-  [runtime-sikkerhetspolicyen](runtime-safety.md).
+- Bruk `marketplace`-branchen for POC, eller velg en reviewet tag fra
+  [Grillmester Releases](https://github.com/navikt/grillmester/releases) når
+  en kandidat er publisert.
 
 En release-tag har formen `v<plugin-versjon>`. Taggen peker på en reviewet,
-catalog-only commit; hver pakkeoppføring i katalogen peker videre på samme
-eksakte source-SHA og riktig undermappe. Bruk taggen, ikke `main`, når
+catalog-only commit; pakkeoppføringen i katalogen peker videre på eksakt
+source-SHA og riktig undermappe. Bruk taggen, ikke `main`, når
 installasjonen skal være reproduserbar.
 
-## Velg innhold
+## Innhold
 
-| Pakke | Innhold |
-| --- | --- |
-| `grillmester@grillmester` | Fire offentlige agenter, tre interne roller og 34 kuraterte metode-, design-, produkt- og leveranseskills, inkludert Aksel, UU og NAV-arkitektur. |
-| `grillmester-nav@grillmester` | 10 valgfrie backend-, plattform- og integrasjonsskills. Ingen duplikat av agentteamet. |
-
-Start alltid med standardpakken. Installer NAV-pakken i tillegg når du ønsker
-«full»; den er ikke et selvstendig agentprodukt.
+`grillmester@grillmester` er hele produktet: fire offentlige agenter, tre
+interne roller og 44 kuraterte skills for metode, design, produktarbeid,
+levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
 ## Personlig installasjon i Copilot CLI
 
-Bytt ut `REVIEWED_RELEASE_TAG` med taggen du har reviewet:
+Installer den nåværende POC-en:
 
 ```bash
-copilot plugin marketplace add navikt/grillmester#REVIEWED_RELEASE_TAG
+copilot plugin marketplace add navikt/grillmester#marketplace
 copilot plugin install grillmester@grillmester
 copilot plugin list
 ```
 
-Installer NAV-tillegget ved behov:
+`marketplace` er en flytende POC-kanal. For reproduserbar installasjon bruker
+du samme kommando med en reviewet `v<versjon>`-tagg i stedet.
 
-```bash
-copilot plugin install grillmester-nav@grillmester
-```
-
-Start en ny sesjon og velg en agent:
-
-```bash
-copilot --experimental --sandbox --agent=grillmester:grillmester
-```
-
-Eller åpne `/agent` i en interaktiv sesjon. Installasjonen ligger i brukerens
-Copilot-home og er tilgjengelig i alle repoer på maskinen. Den skriver ikke
-agent- eller skillfiler inn i repoene.
-
-Lokal sandbox er fortsatt eksperimentell i Copilot CLI. `--experimental` gjør
-sandboxkommandoene tilgjengelige, mens `--sandbox` slår den på fra start. Du
-kan også bruke `/settings experimental on`, deretter `/sandbox enable`, og
-åpne policyvisningen med `/sandbox` uten argument.
+Start Copilot slik du vanligvis gjør i Nav, åpne `/agent`, og velg
+`grillmester:grillmester`. Installasjonen ligger i brukerens Copilot-home og er
+tilgjengelig i alle repoer på maskinen. Den skriver ikke agent- eller
+skillfiler inn i repoene.
 
 En personlig installasjon aktiverer ikke automatisk pluginen for andre
 utviklere eller Copilot cloud agent. Bruk repoaktivering når teamet skal dele
@@ -64,8 +46,7 @@ samme versjon.
 ## Copilot app
 
 1. [Legg til Grillmester-markedsplassen](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Fmarketplace%2Fadd%3Fsource%3Dnavikt%252Fgrillmester)
-2. [Installer standardpakken](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester%2540grillmester)
-3. [Installer NAV-tillegget](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester-nav%2540grillmester) hvis du ønsker full pakke.
+2. [Installer Grillmester](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester%2540grillmester)
 
 GitHubs
 [plugin-deep-links](https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/github-copilot-app/open-with-deep-links#open-plugin-flows)
@@ -113,13 +94,11 @@ skal bruke samme reviewede versjon:
     }
   },
   "enabledPlugins": {
-    "grillmester@grillmester": true,
-    "grillmester-nav@grillmester": true
+    "grillmester@grillmester": true
   }
 }
 ```
 
-Fjern `grillmester-nav@grillmester` hvis repoet bare skal ha standardpakken.
 GitHubs
 [konfigurasjonsreferanse](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference#repository-settings-githubcopilotsettingsjson)
 dokumenterer at pluginfeltene leses av Copilot CLI og cloud agent. Repoet får
@@ -152,27 +131,33 @@ en tom liste betyr full marketplace-lockdown. Se
 [enterprise managed settings](https://docs.github.com/en/copilot/reference/enterprise-administrators/enterprise-managed-settings).
 
 En bruker- eller repoendring kan ikke omgå en enterprise-blokkering. Managed
-settings kan også kreve sandboxing og blokkere permissive «YOLO»-valg.
+settings er den autoritative grensen for hva brukere og repoer kan aktivere.
 
 ## Oppdatere og rulle tilbake
 
 ### Personlig installasjon
 
-Bind marketplacen til den nye reviewede taggen og installer pakkene på nytt:
+Bind marketplacen til den nye reviewede taggen og installer pluginen på nytt:
 
 ```bash
-copilot plugin uninstall grillmester-nav@grillmester
 copilot plugin uninstall grillmester@grillmester
 copilot plugin marketplace remove grillmester
 copilot plugin marketplace add navikt/grillmester#NEW_REVIEWED_RELEASE_TAG
 copilot plugin install grillmester@grillmester
-copilot plugin install grillmester-nav@grillmester
 copilot plugin list
 ```
 
-Hopp over NAV-linjene hvis du bare bruker standardpakken. Rollback er samme
-flyt med forrige reviewede tag. Start en ny Copilot-sesjon etterpå; en pågående
-sesjon glemmer ikke nødvendigvis allerede lastet innhold.
+Rollback er samme flyt med forrige reviewede tag. Start en ny Copilot-sesjon
+etterpå; en pågående sesjon glemmer ikke nødvendigvis allerede lastet innhold.
+
+Brukte du den tidligere `0.3.0-poc.1`-inndelingen, avinstallerer du den gamle
+tilleggspakken én gang:
+
+```bash
+copilot plugin uninstall grillmester-nav@grillmester
+```
+
+Senere oppdateringer og rollback berører bare `grillmester@grillmester`.
 
 ### Teamrepo
 
@@ -188,23 +173,14 @@ en lokal checkout i en disponibel testrepo:
 ```bash
 git clone git@github.com:navikt/grillmester.git /tmp/grillmester-poc
 cd /path/to/a/disposable-test-repo
-copilot --experimental --sandbox \
-  --plugin-dir /tmp/grillmester-poc/plugin \
-  --agent=grillmester:grillmester
 ```
+
+Start Copilot slik du vanligvis gjør i Nav, last den lokale mappen
+`/tmp/grillmester-poc/plugin` med klientens dokumenterte `--plugin-dir`-flyt,
+og velg Grillmester med `/agent`.
 
 Denne flyten er eksplisitt og midlertidig for prosessen du starter. Den er ikke
-en global installasjon og er ikke immutable release-evidens. Last begge lokale
-pakker slik hvis du trenger NAV-tillegget:
-
-```bash
-copilot --experimental --sandbox \
-  --plugin-dir /tmp/grillmester-poc/plugin \
-  --plugin-dir /tmp/grillmester-poc/plugin-nav \
-  --agent=grillmester:grillmester
-```
-
-GitHub dokumenterer at `--plugin-dir` kan gjentas. Bruk
+en global installasjon og er ikke immutable release-evidens. Bruk
 `COPILOT_PLUGIN_DIR_ONLY=true` i en isolert smoke når andre personlige plugins
 ikke skal påvirke resultatet.
 
@@ -228,5 +204,5 @@ agentenes felles kontrakt. Stående regler må fortsatt ligge i consumerens
 
 - [Velg riktig agent og skillfamilie](agents-and-skills.md)
 - [Forstå repoets ansvar for instructions og templates](repository-context.md)
-- [Sett opp sandbox og vurder klientstøtte](trust-and-client-support.md)
+- [Forstå tools, tillit og klientstøtte](trust-and-client-support.md)
 - [Kjør en kontrollert consumer-pilot](consumer-pilot-runbook.md)

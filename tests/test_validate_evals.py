@@ -129,8 +129,8 @@ class EvalContractValidationTest(unittest.TestCase):
         self.write_corpus(corpus)
         self.assert_error("references absent skill grillmester-ghost")
 
-    def test_eval_roster_includes_optional_nav_add_on_skills(self) -> None:
-        nav_skill = self.root / "plugin-nav/skills/grillmester-nav-troubleshoot"
+    def test_eval_roster_includes_nav_specialist_skills_in_main_plugin(self) -> None:
+        nav_skill = self.root / "plugin/skills/grillmester-nav-troubleshoot"
         shutil.rmtree(nav_skill)
         self.assert_error("references absent skill grillmester-nav-troubleshoot")
 

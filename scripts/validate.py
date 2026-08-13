@@ -12,11 +12,8 @@ from typing import Any
 
 
 PLUGIN_NAME = "grillmester"
-PACKAGE_NAMES = ("grillmester", "grillmester-nav")
-PACKAGE_PATHS = {
-    "grillmester": "plugin",
-    "grillmester-nav": "plugin-nav",
-}
+PACKAGE_NAMES = ("grillmester",)
+PACKAGE_PATHS = {"grillmester": "plugin"}
 PLUGIN_REPOSITORY = "navikt/grillmester"
 SKILL_PREFIX = f"{PLUGIN_NAME}-"
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
@@ -26,16 +23,6 @@ COMPONENT_ID = re.compile(r"`(grillmester(?:-[a-z0-9-]+)?)`")
 PROSE_COMPONENT_ID = re.compile(r"(?<![/:\w-])(grillmester-[a-z0-9-]+)\b")
 SLASH_COMPONENT_ID = re.compile(r"/((?:grillmester)-[a-z0-9-]+)\b")
 QUALIFIED_COMPONENT_ID = re.compile(r"`grillmester:([a-z][a-z0-9-]+)`")
-OPTIONAL_CROSS_PACKAGE = re.compile(
-    r"\b(?:optional(?:ly)?|valgfri\w*|when\b.{0,120}\binstalled\b|"
-    r"if\b.{0,120}\binstalled\b|når\b.{0,120}\binstallert\b|"
-    r"hvis\b.{0,120}\binstallert\b)",
-    re.IGNORECASE | re.DOTALL,
-)
-STANDALONE_FALLBACK = re.compile(
-    r"\b(?:without|uten|self-contained|selvstendig|NEEDS_CONTEXT)\b",
-    re.IGNORECASE,
-)
 REALISTIC_NATIONAL_ID = re.compile(r"(?<!\d)\d{11}(?!\d)")
 FIGMA_COMPONENT_KEY = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
 FIGMA_KEY_FILES = {"aksel-figma-katalog.md", "aksel-figma-katalog.json"}
@@ -259,7 +246,7 @@ def load_content_lock(
                 )
             if kind == "agent" and package != "grillmester":
                 errors.append(
-                    f"content lock agent {component_id} must stay in the standard package"
+                    f"content lock agent {component_id} must stay in the Grillmester package"
                 )
             if not isinstance(lineage, list):
                 errors.append(f"content lock {kind} {component_id} lineage must be a list")
@@ -380,12 +367,11 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
     if package_manifest.get("schemaVersion") != 1:
         errors.append("package-manifest.json schemaVersion must be 1")
     package_definitions = package_manifest.get("packages")
-    if not isinstance(package_definitions, list) or len(package_definitions) != 2:
-        errors.append("package-manifest.json must contain exactly two packages")
+    if not isinstance(package_definitions, list) or len(package_definitions) != 1:
+        errors.append("package-manifest.json must contain exactly one package")
         return None
     expected_definitions = [
-        {"name": "grillmester", "path": "plugin", "agents": 7, "skills": 34},
-        {"name": "grillmester-nav", "path": "plugin-nav", "agents": 0, "skills": 10},
+        {"name": "grillmester", "path": "plugin", "agents": 7, "skills": 44},
     ]
     if package_definitions != expected_definitions:
         errors.append("package-manifest.json package roster or counts have drifted")
@@ -429,8 +415,6 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
             errors.append(f"{PACKAGE_PATHS[name]}/plugin.json must point to skills/")
         if name == "grillmester" and plugin.get("agents") != "agents/":
             errors.append("plugin/plugin.json must point to agents/")
-        if name == "grillmester-nav" and "agents" in plugin:
-            errors.append("plugin-nav must remain a skills-only add-on")
         for key in ("description", "author", "repository", "license"):
             if not plugin.get(key):
                 errors.append(f"{PACKAGE_PATHS[name]}/plugin.json is missing {key}")
@@ -449,10 +433,10 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
     if not isinstance(metadata, dict) or metadata.get("version") != version:
         errors.append("marketplace metadata version must equal plugin.json version")
     plugins = marketplace.get("plugins")
-    if not isinstance(plugins, list) or len(plugins) != 2 or any(
+    if not isinstance(plugins, list) or len(plugins) != 1 or any(
         not isinstance(entry, dict) for entry in plugins
     ):
-        errors.append("marketplace must contain exactly two plugin entries")
+        errors.append("marketplace must contain exactly one plugin entry")
     else:
         if [entry.get("name") for entry in plugins] != list(PACKAGE_NAMES):
             errors.append("marketplace plugin names or order have drifted")
@@ -494,7 +478,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
             if not entry.get("description"):
                 errors.append(f"marketplace {name} needs a description")
         if len(release_shas) > 1:
-            errors.append("release marketplace packages must pin one source SHA")
+            errors.append("release marketplace must pin one source SHA")
     return version
 
 
@@ -760,11 +744,8 @@ def validate_content(
     agent_ids: set[str],
     skill_ids: set[str],
     errors: list[str],
-    *,
-    all_skill_ids: set[str] | None = None,
 ) -> None:
     known_ids = agent_ids | skill_ids
-    all_known_ids = agent_ids | (all_skill_ids or skill_ids)
     legacy_skill_ids = {
         skill_id.removeprefix(SKILL_PREFIX)
         for skill_id in skill_ids
@@ -800,47 +781,22 @@ def validate_content(
                 )
         for component_id in COMPONENT_ID.findall(text):
             if component_id not in known_ids and component_id != PLUGIN_NAME:
-                if component_id in all_known_ids:
-                    if re.search(rf"/{re.escape(component_id)}\b", text):
-                        errors.append(
-                            f"{path}: package-local closure violation: /{component_id} is in another plugin package"
-                        )
-                else:
-                    errors.append(f"{path}: dangling Grillmester component reference: {component_id}")
+                errors.append(f"{path}: dangling Grillmester component reference: {component_id}")
         for component_id in SLASH_COMPONENT_ID.findall(text):
             if component_id not in known_ids:
-                if component_id in all_known_ids:
-                    errors.append(
-                        f"{path}: package-local closure violation: /{component_id} is in another plugin package"
-                    )
-                else:
-                    errors.append(
-                        f"{path}: dangling Grillmester slash-command reference: {component_id}"
-                    )
+                errors.append(
+                    f"{path}: dangling Grillmester slash-command reference: {component_id}"
+                )
         for match in PROSE_COMPONENT_ID.finditer(text):
             component_id = match.group(1)
             if component_id in known_ids:
                 continue
-            if component_id not in all_known_ids:
-                if (
-                    component_id not in PACKAGE_NAMES
-                    and component_id not in formatted_component_ids
-                ):
-                    errors.append(
-                        f"{path}: dangling Grillmester prose component reference: {component_id}"
-                    )
-                continue
-            paragraph = markdown_paragraph(text, match.start())
-            if not OPTIONAL_CROSS_PACKAGE.search(paragraph):
-                errors.append(
-                    f"{path}: cross-package reference {component_id} must be a conditional optional route"
-                )
-                continue
-            if plugin_root.name == PACKAGE_PATHS["grillmester-nav"] and not (
-                STANDALONE_FALLBACK.search(paragraph)
+            if (
+                component_id not in PACKAGE_NAMES
+                and component_id not in formatted_component_ids
             ):
                 errors.append(
-                    f"{path}: add-on cross-package reference {component_id} needs a standalone fallback"
+                    f"{path}: dangling Grillmester prose component reference: {component_id}"
                 )
         for component_id in QUALIFIED_COMPONENT_ID.findall(text):
             if component_id not in known_ids:
@@ -899,25 +855,14 @@ def validate_layout(root: Path, errors: list[str]) -> None:
 
 
 def validate_package_rosters(
-    root: Path,
     agent_ids: set[str],
-    standard_skill_ids: set[str],
-    nav_skill_ids: set[str],
+    skill_ids: set[str],
     errors: list[str],
 ) -> None:
     if len(agent_ids) != 7:
-        errors.append(f"standard package must contain 7 agents, found {len(agent_ids)}")
-    if len(standard_skill_ids) != 34:
-        errors.append(
-            f"standard package must contain 34 skills, found {len(standard_skill_ids)}"
-        )
-    if len(nav_skill_ids) != 10:
-        errors.append(f"NAV add-on must contain 10 skills, found {len(nav_skill_ids)}")
-    overlap = standard_skill_ids & nav_skill_ids
-    if overlap:
-        errors.append(f"skill IDs must have one canonical package: {sorted(overlap)}")
-    if (root / "plugin-nav/agents").exists():
-        errors.append("NAV add-on must not contain an agents directory")
+        errors.append(f"plugin must contain 7 agents, found {len(agent_ids)}")
+    if len(skill_ids) != 44:
+        errors.append(f"plugin must contain 44 skills, found {len(skill_ids)}")
 
 
 def validate_assets(root: Path, errors: list[str]) -> None:
@@ -945,7 +890,6 @@ def validate_assets(root: Path, errors: list[str]) -> None:
 def validate_repo(root: Path) -> list[str]:
     root = root.resolve()
     plugin_root = root / "plugin"
-    nav_plugin_root = root / "plugin-nav"
     errors: list[str] = []
     validate_layout(root, errors)
     validate_assets(root, errors)
@@ -953,31 +897,16 @@ def validate_repo(root: Path) -> list[str]:
     sources, agent_contracts, skill_contracts = load_content_lock(root, errors)
     validate_attribution(root, sources, errors)
     agent_ids = validate_agents(plugin_root, agent_contracts, errors)
-    standard_skill_ids = validate_skills(
+    skill_ids = validate_skills(
         plugin_root, skill_contracts, errors, package_name="grillmester"
     )
-    nav_skill_ids = validate_skills(
-        nav_plugin_root, skill_contracts, errors, package_name="grillmester-nav"
-    )
-    all_skill_ids = standard_skill_ids | nav_skill_ids
-    validate_package_rosters(
-        root, agent_ids, standard_skill_ids, nav_skill_ids, errors
-    )
+    validate_package_rosters(agent_ids, skill_ids, errors)
     validate_content(
         root,
         plugin_root,
         agent_ids,
-        standard_skill_ids,
+        skill_ids,
         errors,
-        all_skill_ids=all_skill_ids,
-    )
-    validate_content(
-        root,
-        nav_plugin_root,
-        set(),
-        nav_skill_ids,
-        errors,
-        all_skill_ids=all_skill_ids,
     )
     return errors
 

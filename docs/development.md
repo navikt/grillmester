@@ -8,12 +8,12 @@ i et repo med pågående arbeid som du ikke vil risikere å endre.
 ```bash
 git clone git@github.com:navikt/grillmester.git
 cd /path/to/a/disposable-test-repo
-copilot --experimental --sandbox --plugin-dir /path/to/grillmester/plugin \
-  --agent=grillmester:grillmester
 ```
 
-En lokal mount gjelder bare prosessen du starter. Den endrer ikke den vanlige
-personlige installasjonen.
+Start Copilot slik du vanligvis gjør i Nav, last
+`/path/to/grillmester/plugin` med klientens dokumenterte `--plugin-dir`-flyt,
+og velg agent med `/agent`. En lokal mount gjelder bare prosessen du starter.
+Den endrer ikke den vanlige personlige installasjonen.
 
 ## Verifikasjon
 
@@ -34,17 +34,8 @@ node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
 ```
 
-NAV-tillegget har en egen pluginmappe. Verifiser også denne eksplisitt gjennom
-generator, validator og install-smoke. En grønn standardpakke beviser ikke at
-tillegget er fritt for døde referanser.
-
-Begge kan lastes i samme lokale sesjon fordi `--plugin-dir` kan gjentas:
-
-```bash
-copilot --experimental --sandbox --plugin-dir /path/to/grillmester/plugin \
-  --plugin-dir /path/to/grillmester/plugin-nav \
-  --agent=grillmester:grillmester
-```
+Smoken skal bekrefte hele pluginen: 7 agenter, 44 skills og byte-eksakt
+installasjon, oppgradering, rollback og avinstallering.
 
 ## Dokumentasjonskontrakt
 
@@ -53,7 +44,7 @@ Når du endrer agenter, skills eller pakkeinndeling:
 - oppdater [agent- og skillkartet](agents-and-skills.md)
 - hold [installasjonskommandoene](installation.md) copy/paste-klare
 - oppdater klient-/releasegater dersom capability-grensen endres
-- behold Team eSyfo som vedlikeholder **for NAV**, ikke som produktscope
+- behold Team eSyfo som vedlikeholder **for Nav**, ikke som produktscope
 - oppdater [PROVENANCE](../PROVENANCE.md) og tredjepartsmerknader ved
   kilde-/assetendringer
 

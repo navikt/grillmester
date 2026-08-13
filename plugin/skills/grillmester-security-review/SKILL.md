@@ -14,8 +14,8 @@ trust boundaries, entry points, privileged operations, external flows, and
 plausible failure impact. Mark missing facts as unknown instead of filling them
 from a generic checklist.
 
-If the target runs in NAV or NAIS, handles NAV data or identities, or uses NAV
-authentication, audit, or network controls, load [the NAV security review
+If the target runs in Nav or NAIS, handles Nav data or identities, or uses Nav
+authentication, audit, or network controls, load [the Nav security review
 reference](references/nav-security-review.md). Apply it only where repository
 and current authoritative evidence show that it fits.
 

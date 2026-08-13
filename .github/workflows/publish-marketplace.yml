@@ -7,7 +7,6 @@ on:
     paths:
       - "package-manifest.json"
       - "plugin/**"
-      - "plugin-nav/**"
 
 concurrency:
   group: publish-grillmester-marketplace
@@ -129,19 +128,13 @@ jobs:
             '
               .name == "grillmester" and
               .metadata.version == $version and
-              (.plugins | length) == 2 and
-              [.plugins[].name] == ["grillmester", "grillmester-nav"] and
-              [.plugins[].version] == [$version, $version] and
+              (.plugins | length) == 1 and
+              [.plugins[].name] == ["grillmester"] and
+              [.plugins[].version] == [$version] and
               .plugins[0].source == {
                 source: "github",
                 repo: "navikt/grillmester",
                 path: "plugin",
-                sha: $source_sha
-              } and
-              .plugins[1].source == {
-                source: "github",
-                repo: "navikt/grillmester",
-                path: "plugin-nav",
                 sha: $source_sha
               }
             ' "${catalog}" >/dev/null

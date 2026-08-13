@@ -1,7 +1,7 @@
-# NAV security and privacy review
+# Nav security and privacy review
 
-Use this reference only when the target repository or task establishes a NAV
-or NAIS context. Treat repository documentation and current authoritative NAV
+Use this reference only when the target repository or task establishes a Nav
+or NAIS context. Treat repository documentation and current authoritative Nav
 and NAIS guidance as the source of truth. Platform controls and organizational
 terminology change; verify consequential claims instead of applying this
 document as a universal policy.
@@ -35,7 +35,7 @@ document as a universal policy.
 - Prefer correlation identifiers and non-sensitive structured fields. Confirm
   that correlation values cannot themselves identify a person or grant access.
 - Determine audit-logging requirements from the user journey, data category,
-  applicable NAV guidance, and maintained consumer policy. Audit access to or
+  applicable Nav guidance, and maintained consumer policy. Audit access to or
   changes of protected data when required; do not assume that every background
   lookup belongs in an audit log.
 - Keep audit events separate from ordinary logs when the approved platform
@@ -51,7 +51,7 @@ document as a universal policy.
 
 - Derive the identity mechanism from the caller and audience. Verify current
   issuer, audience, signature, lifetime, and client constraints against the
-  repository's chosen NAV authentication pattern.
+  repository's chosen Nav authentication pattern.
 - Treat possession of a valid token as authentication, not sufficient
   authorization. Check role, organization, case or resource ownership, purpose,
   protected-address handling, and employee restrictions where applicable.
@@ -62,7 +62,7 @@ document as a universal policy.
   or both.
 - Do not use call or consumer correlation headers as authorization evidence.
 
-## Conditional NAV API and browser signals
+## Conditional Nav API and browser signals
 
 Apply these checks only when the actual API, gateway, client, or browser
 architecture uses the named mechanism. Verify the current contract and which
@@ -108,7 +108,7 @@ component owns each control before reporting a gap.
 - Name the owning and consuming teams, purpose, data categories, contract,
   authentication, failure behavior, and deletion or retention responsibility.
 - Check whether the integration changes processing purpose, crosses an
-  organizational or trust boundary, or sends data outside NAV-controlled
+  organizational or trust boundary, or sends data outside Nav-controlled
   infrastructure. Route unanswered governance or agreement questions to the
   responsible roles.
 - Require bounded timeouts and retries, idempotency where side effects can
@@ -123,7 +123,7 @@ component owns each control before reporting a gap.
   external recipients, or technology changes materially. The responsible data
   controller decides the process with privacy-office advice; the agent should
   surface evidence and uncertainty, not declare legal sufficiency.
-- Confirm current audit requirements with maintained NAV guidance and relevant
+- Confirm current audit requirements with maintained Nav guidance and relevant
   audit-logging owners when protected data is displayed, changed, exported,
   deleted, or access is permitted or denied.
 - Escalate suspected credential exposure, unauthorized access, or
@@ -154,7 +154,7 @@ component owns each control before reporting a gap.
 - Distinguish absence of a detected problem from proof of safety. State which
   paths, environments, and runtime behavior were not examined.
 
-Authoritative starting points include [NAV security
+Authoritative starting points include [Nav security
 guidance](https://sikkerhet.nav.no/) and [NAIS
 documentation](https://docs.nais.io/). Follow the repository's pinned or
 maintained references when they are more specific.

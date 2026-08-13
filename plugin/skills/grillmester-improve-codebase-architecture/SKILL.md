@@ -93,7 +93,7 @@ as decisions fall into place:
   the result of a real trade-off. Skip transient ("not worth it right now") and
   self-evident reasons. Use `/grillmester-architecture-review` for consequential
   architecture questions; use the bundled `/grillmester-nav-architecture-review`
-  when NAV-specific consequences need assessing. Use
+  when Nav-specific consequences need assessing. Use
   `/grillmester-domain-modeling` for the ADR itself.
 - **Want to explore alternative interfaces for the deepened module?** Design two genuinely different alternatives sequentially, inline, before comparing them. Use subagents only for compact, read-only divergent exploration, never for parallel writing.
 

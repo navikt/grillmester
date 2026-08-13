@@ -43,7 +43,7 @@ Useful shapes include:
 Pause when the prototype exposes a new product, architecture, security, or
 scope decision. Use `/grillmester-architecture-review` for architecture
 boundaries; use the bundled `/grillmester-nav-architecture-review` when the
-decision depends on NAV or NAIS. Use `/grillmester-domain-modeling` only when the
+decision depends on Nav or NAIS. Use `/grillmester-domain-modeling` only when the
 repository's durable-documentation gate qualifies the decision and the user
 selects that route.
 

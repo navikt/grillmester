@@ -352,7 +352,6 @@ def validate_repo(root: Path) -> list[str]:
     agent_ids = current_component_ids(sorted((root / "plugin/agents").glob("*.agent.md")))
     skill_ids = current_component_ids(
         sorted((root / "plugin/skills").glob("*/SKILL.md"))
-        + sorted((root / "plugin-nav/skills").glob("*/SKILL.md"))
     )
     schema = load_json_object(root / "evals/schema.v1.json", errors)
     schema_is_valid = False

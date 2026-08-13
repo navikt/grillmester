@@ -82,9 +82,6 @@ class PackageValidationTest(unittest.TestCase):
         for entry in marketplace["plugins"]:
             entry["version"] = "0.2.0"
         self.write_json(".github/plugin/marketplace.json", marketplace)
-        nav = self.load_json("plugin-nav/plugin.json")
-        nav["version"] = "0.2.0"
-        self.write_json("plugin-nav/plugin.json", nav)
         self.assertEqual([], self.errors())
 
     def test_runtime_all_agent_rejects_an_explicit_tool_list(self) -> None:
@@ -463,31 +460,22 @@ class PackageValidationTest(unittest.TestCase):
             "third-party source superpowers must ship repository and revision"
         )
 
-    def test_each_skill_has_one_canonical_package(self) -> None:
-        source = self.root / "plugin-nav/skills/grillmester-lumi-survey"
-        target = self.root / "plugin/skills/grillmester-lumi-survey"
-        if target.exists():
-            shutil.rmtree(target)
-        shutil.copytree(source, target)
-        self.assert_error("content lock assigns grillmester-lumi-survey")
+    def test_content_lock_assigns_every_skill_to_the_single_plugin(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        locked = set(lock["skills"])
+        installed = {
+            path.parent.name
+            for path in (self.root / "plugin/skills").glob("*/SKILL.md")
+        }
+        self.assertEqual(44, len(locked))
+        self.assertEqual(locked, installed)
 
-    def test_standard_package_rejects_required_slash_route_to_add_on(self) -> None:
-        path = self.root / "plugin/skills/grillmester-review/SKILL.md"
-        path.write_text(
-            path.read_text(encoding="utf-8")
-            + "\nUse `/grillmester-lumi-survey` before completing.\n",
-            encoding="utf-8",
+    def test_nav_specialist_skill_is_part_of_the_single_plugin(self) -> None:
+        path = self.root / "plugin/skills/grillmester-lumi-survey/SKILL.md"
+        self.assertTrue(path.is_file())
+        self.assertFalse(
+            any(path.is_file() for path in (self.root / "plugin-nav").rglob("*"))
         )
-        self.assert_error("package-local closure violation")
-
-    def test_add_on_rejects_unconditional_route_to_standard(self) -> None:
-        path = self.root / "plugin-nav/skills/grillmester-lumi-survey/SKILL.md"
-        path.write_text(
-            path.read_text(encoding="utf-8")
-            + "\nUse `grillmester-review` before completing.\n",
-            encoding="utf-8",
-        )
-        self.assert_error("must be a conditional optional route")
 
     def test_bare_dangling_component_reference_is_rejected(self) -> None:
         path = self.root / "plugin/skills/grillmester-review/SKILL.md"
@@ -498,24 +486,9 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("dangling Grillmester prose component reference")
 
-    def test_add_on_cross_route_requires_standalone_fallback(self) -> None:
-        path = self.root / "plugin-nav/skills/grillmester-lumi-survey/SKILL.md"
-        path.write_text(
-            path.read_text(encoding="utf-8")
-            + "\nWhen the standard package is installed, optionally use "
-            "`grillmester-review`.\n",
-            encoding="utf-8",
-        )
-        self.assert_error("needs a standalone fallback")
-
-    def test_add_on_is_skills_only(self) -> None:
-        agents = self.root / "plugin-nav/agents"
-        agents.mkdir()
-        self.assert_error("NAV add-on must not contain an agents directory")
-
     def test_package_counts_are_locked(self) -> None:
         manifest = self.load_json("package-manifest.json")
-        manifest["packages"][0]["skills"] = 44
+        manifest["packages"][0]["skills"] = 43
         self.write_json("package-manifest.json", manifest)
         self.assert_error("package roster or counts have drifted")
 

@@ -1,10 +1,9 @@
 # Provenance
 
-This repository owns the operative Grillmester package content: the standard
-agent team under `plugin/` and the optional, skills-only NAV add-on under
-`plugin-nav/`. The sources below record attribution and the reviewed import
-boundary. They are not runtime dependencies and do not create a synchronization
-relationship.
+This repository owns the operative Grillmester package content under
+`plugin/`: seven agents and 44 skills. The sources below record attribution
+and the reviewed import boundary. They are not runtime dependencies and do not
+create a synchronization relationship.
 
 The authoritative component-by-component bill of materials is
 [`policy/content-lock.json`](policy/content-lock.json). It records every agent
@@ -60,9 +59,9 @@ automation. Audun, as contributing maintainer, explicitly approved reuse and
 public POC distribution of those paths in Grillmester on 2026-08-13. This is a
 recorded POC authorization, not a substitute for final organizational rights
 and brand review. Before stable promotion, the repository owner must record
-the relevant NAV rights-holder approval or replace material whose terms cannot
+the relevant Nav rights-holder approval or replace material whose terms cannot
 be established. The public agent name and characterization “Doctor Who” also
-requires a NAV legal/brand decision or a rename before stable promotion.
+requires a Nav legal/brand decision or a rename before stable promotion.
 
 Imported agents:
 
@@ -93,7 +92,7 @@ contracts remain narrower: neither Designer nor Doctor Who delegates; Doctor
 Who does not use shell commands, and Designer's edit/execute use is limited to the
 bundled Visual Companion server and the exact private `screen_dir` path returned
 by its active startup JSON. Technical containment and approval remain client-
-and enterprise-owned; see `docs/runtime-safety.md`.
+and enterprise-owned.
 
 ### Visual Companion lineage
 
@@ -135,7 +134,7 @@ with each consumer.
 
 Hovmester collections, sync workflows, generated mirrors, repository forms,
 and consumer templates are distribution or repository infrastructure and are
-not part of either plugin payload. The issue and PR templates in this source
+not part of the plugin payload. The issue and PR templates in this source
 repository govern contributions to `navikt/grillmester`; they are not shipped
 to consumers.
 

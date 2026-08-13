@@ -21,10 +21,8 @@ repository evidence establishes them.
 
 If the symptom is a runtime/platform problem in production, use the platform's
 approved diagnostic tooling to establish the failing boundary, then return here
-for the reproduction and fix discipline. When the optional
-`grillmester-nav-troubleshoot` skill is installed and the app runs on NAIS, it
-can supply NAV-specific diagnostic trees; this skill remains complete without
-that add-on.
+for the reproduction and fix discipline. When the app runs on NAIS,
+`grillmester-nav-troubleshoot` can supply Nav-specific diagnostic trees.
 
 ## Phase 1 — Build a feedback loop
 
@@ -130,7 +128,7 @@ Tool preference:
 
 **Tag every debug log** with a unique prefix, e.g. `log.info("[DEBUG-a4f2] ...")`. Cleanup at the end becomes a single grep. Untagged logs survive; tagged logs die.
 
-**PII boundary (NAV):** never log national identity numbers, tokens, names or special categories of personal data — not even in temporary debug logs. Log IDs/correlation (`Nav-Call-Id`, `callId`), not personal data.
+**PII boundary (Nav):** never log national identity numbers, tokens, names or special categories of personal data — not even in temporary debug logs. Log IDs/correlation (`Nav-Call-Id`, `callId`), not personal data.
 
 **Perf branch.** For performance regressions, logs are usually the wrong tool.
 Establish a baseline with the profiler, metrics, benchmark or query-plan tooling
@@ -188,16 +186,16 @@ read-only until the boundary is known, and then return to phases 5–6 here.
 Always propose the least invasive fix first. Production configuration changes,
 workload restarts and managed-resource changes require explicit approval.
 
-The optional `grillmester-nav-troubleshoot` add-on gives deeper NAIS trees for
-pod startup, NAV identity, Kafka, Cloud SQL and observability. If it is absent,
-name the missing platform capability or owner documentation instead of
-inventing NAV behavior.
+`grillmester-nav-troubleshoot` gives deeper NAIS trees for pod startup, Nav
+identity, Kafka, Cloud SQL and observability. If required live platform evidence
+is unavailable, name the missing capability or owner documentation instead of
+inventing Nav behavior.
 
 ## Related skills
 
 - `/grillmester-grilling` — stress-test the design when the bug exposes a design gap;
   recommend the documented route when needed
-- `grillmester-auth-overview` (optional NAV add-on) — Azure AD / TokenX /
+- `grillmester-auth-overview` — Azure AD / TokenX /
   ID-porten / Maskinporten / Texas when those mechanisms are involved
 - `/grillmester-architecture-review` — review architectural changes that would
   have prevented the bug

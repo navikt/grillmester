@@ -6,11 +6,16 @@
 
 > **Grill antakelsene før de havner i produksjon.**
 
-Grillmester er et agentteam for GitHub Copilot som hjelper NAV-team fra uklar
+Grillmester er et agentteam for GitHub Copilot som hjelper Nav-team fra uklar
 oppgave til avklart retning, liten implementasjon og verifiserbar levering.
 Installer én gang; bruk det på tvers av repoer uten å kopiere agentfiler.
 
-> **Status: POC.** Pakken kan piloteres i NAV nå. Stabil/offentlig promotering
+Grillmønsteret bygger på Matt Pococks
+[`grill-me`- og `grilling`-skills](https://github.com/mattpocock/skills/tree/2ab958093e83e0ec752e6c1c5932da465bf23e0c/skills/productivity)
+og er videreutviklet gjennom pilotering i Nav. Se
+[proveniens og lisenser](PROVENANCE.md).
+
+> **Status: POC.** Pakken kan piloteres i Nav nå. Stabil/offentlig promotering
 > krever fortsatt klient-/MCP-evidens, Team Copilot-avklaring og de dokumenterte
 > rettighets-/branding-gatene.
 
@@ -28,23 +33,25 @@ på et par minutter, velg Barista. Hvis ikke, velg Grillmester.
 
 ## Installer på under ett minutt
 
-### Copilot CLI — reviewet og pinnet
-
-Velg en kandidat fra [Releases](https://github.com/navikt/grillmester/releases)
-og bruk taggen i stedet for `REVIEWED_RELEASE_TAG`:
+### Copilot CLI — POC nå
 
 ```bash
-copilot plugin marketplace add navikt/grillmester#REVIEWED_RELEASE_TAG
+copilot plugin marketplace add navikt/grillmester#marketplace
 copilot plugin install grillmester@grillmester
 copilot plugin list
-copilot --experimental --sandbox --agent=grillmester:grillmester
 ```
 
 Dette installerer pluginen for Copilot-brukeren på maskinen og gjør den
-tilgjengelig i alle repoer. Taggen pinner en reviewet katalog som igjen pinner
-eksakt plugin-SHA. Hvis det ennå ikke finnes en release, bruk
-[lokal POC-flyt](docs/installation.md#lokal-poc-og-utvikling) — ikke bytt ut
-taggen med `main` og kall det reproduserbart.
+tilgjengelig i alle repoer. `marketplace` er en flytende POC-kanal: katalogen
+kan avanseres, men hver publisert katalog peker på en eksakt plugin-SHA.
+
+Start Copilot slik du vanligvis gjør i Nav, åpne `/agent`, og velg
+`grillmester:grillmester`.
+
+Når en reviewet kandidat finnes under
+[Releases](https://github.com/navikt/grillmester/releases), erstatter du
+`marketplace` med den eksakte `v<versjon>`-taggen for en reproduserbar
+installasjon. Se [installasjon og aktivering](docs/installation.md).
 
 ### Copilot app — to bekreftelser
 
@@ -104,7 +111,7 @@ Designer implementerer ikke produktkode.
 ### Doctor Who 🕰️
 
 Bruk ved mål, prioritering, discovery, workshop, teamhelse, produktfag eller
-NAV-arkitektur. Prøv:
+Nav-arkitektur. Prøv:
 
 > Hva bør vi lære før vi prioriterer dette initiativet?
 
@@ -130,42 +137,33 @@ uklarhet krever det; Barista hopper ikke gjennom en tung prosess for en enkel
 endring. Skills lastes progressivt når oppgaven matcher, så hele fagbiblioteket
 trenger ikke ligge i kontekst samtidig.
 
-## Velg pakke
+## Én plugin
 
-Marketplace-katalogen har to komponerbare pakker:
+`grillmester@grillmester` inneholder hele agentteamet: 7 roller og 44
+kuraterte skills for avklaring, implementasjon, review, design, produktarbeid
+og relevante Nav-teknologier. Det finnes ingen separat fagpakke å velge eller
+holde oppdatert.
 
-| Installer | Innhold | Passer når |
-| --- | --- | --- |
-| `grillmester@grillmester` | Agentteamet (7 roller) og 34 kuraterte skills for metode, design, produktarbeid og levering — inkludert Aksel, UU og NAV-arkitektur. | Anbefalt start, også når repoet allerede bruker `navikt/copilot`. |
-| `grillmester-nav@grillmester` | 10 valgfrie backend-, plattform- og integrasjonsskills som auth, Kafka, Kotlin, Nais, observability, PostgreSQL og Lumi. | Teamet vil ha NAV-fagpakken i tillegg. |
-
-«Full» betyr å installere begge; NAV-pakken er et tillegg til standardpakken,
-ikke et selvstendig agentprodukt eller en tredje kopi av agentene:
-
-```bash
-copilot plugin install grillmester@grillmester
-copilot plugin install grillmester-nav@grillmester
-```
-
-Lumi er en ordinær NAV-capability i NAV-pakken, ikke en preview. Alle skills har
-`grillmester-`-prefiks for å unngå eksakte navnekollisjoner og gjøre opphav
-synlig.
+Lumi er en ordinær capability i pakken. Alle skills har `grillmester-`-prefiks
+for å redusere utilsiktede navnekollisjoner og gjøre opphav synlig. En lokal
+eller personlig komponent med samme eksakte ID kan fortsatt skygge
+plugin-komponenten.
 
 ## Samspill med `navikt/copilot`
 
-Grillmester erstatter ikke NAVs øvrige Copilot-oppsett. `navikt/copilot` er i
+Grillmester erstatter ikke Navs øvrige Copilot-oppsett. `navikt/copilot` er i
 dag en bred plattform med agents, skills, instructions, MCP Registry,
 `nav-pilot`-collections/sync og onboarding som kan anbefale repo-tilpasninger.
-Installer Grillmesters standardpakke for agentteamet og den kuraterte
-arbeidsflyten. Installer NAV-tillegget bare når du også vil ha Grillmesters
-backend-, plattform- og integrasjonsspesialiseringer.
+Grillmester bidrar med ett sammenhengende agentteam og et kuratert sett med 44
+skills. Noen fagområder overlapper med `navikt/copilot`;
+prefikset gjør opphavet synlig, og `/grillmester-doctor` kan avdekke semantisk
+overlapp før et team bestemmer hva repoet skal bruke.
 
 Repo-lokale komponenter fra `nav-pilot` kan ha høyere presedens enn en plugin,
 og to semantisk like skills kan konkurrere selv uten samme ID. Kjør
-`/grillmester-doctor` før
-co-installering. Før stabil NAV-bred lansering skal Team Copilot og Grillmester-
-eierne avtale katalog/onboarding, MCP Registry-ID-er og eierskap; POC-en er
-fortsatt en separat, eksplisitt installasjon.
+`/grillmester-doctor` før co-installering. Før stabil lansering bredt i Nav skal
+Team Copilot og Grillmester-eierne avtale katalog/onboarding, MCP Registry-ID-er
+og eierskap; POC-en er fortsatt en separat, eksplisitt installasjon.
 
 Pluginen synker ikke instructions, PR-maler eller issue-maler. Repoet eier
 fortsatt:
@@ -180,33 +178,19 @@ Copilot CLI følger eksisterende PR-template ved `/pr create`, og Copilots
 issueflyt kan mappe et utkast til repoets issue forms/templates. Se
 [repo-eid kontekst og templates](docs/repository-context.md).
 
-## Tillit, tools og sandbox
+## Tillit og tools
 
 Agentinstruksjoner styrer arbeidsmåte; de er ikke en sikkerhetsgrense. De fire
 offentlige agentene arver hele toolflaten som klienten tilbyr, slik de piloterte
 Hovmester-/Budstikka-agentene gjør. De tre interne rollene har små eksplisitte
-toolsett. NAVs MCP Registry, klienten, brukerens godkjenninger og enterprise-
+toolsett. Navs MCP Registry, klienten, brukerens godkjenninger og enterprise-
 policy avgjør hva som faktisk kan kjøres.
 
-For NAV-bruk er sandbox et krav. I Copilot CLI:
-
-```text
-/settings experimental on
-/sandbox enable
-/sandbox
-```
-
-Sandbox er fortsatt en eksperimentell CLI-funksjon. Start helst sesjonen med
-`copilot --experimental --sandbox ...`; i en allerede startet sesjon må du
-først slå på eksperimentelle funksjoner som vist over. Bekreft `sandbox
-enabled` i statuslinjen. Kjør deretter `/sandbox` uten argument for å åpne
-policyvisningen og kontroller den effektive policyen.
-NAV-profilen skal ha `sandbox.allowBypass=false`, deaktivert allow-all/bypass og
-aktive, eksplisitte godkjenninger. Sandbox kan ellers fortsatt tillate nettverk,
-Git/`gh`, writes i arbeidsrepoet og eksterne MCP-sideeffekter. Pluginen kan ikke
-slå på eller håndheve dette for deg. Følg
-[runtime-sikkerhetspolicyen](docs/runtime-safety.md) og se
-[klient- og releasegatene](docs/trust-and-client-support.md).
+Grillmester konfigurerer ikke runtime-isolasjon; i Nav eies dette av det
+sentralt forvaltede [`cplt`-oppsettet](https://github.com/navikt/cplt) og
+eventuell repo-policy. Se
+[tillit, tools og klientstøtte](docs/trust-and-client-support.md) for skillet
+mellom arbeidsmåte og teknisk håndheving.
 
 ## Hvis noe ikke dukker opp
 
@@ -218,8 +202,6 @@ slå på eller håndheve dette for deg. Følg
 4. Kjør `/grillmester-doctor` for en read-only kontroll av aktivering,
    instructions og navnekollisjoner.
 
-Mangler du en backend-, plattform- eller integrasjonsskill, sjekk at
-`grillmester-nav@grillmester` er installert.
 Mangler Designer Figma-verktøy, skal den tilby konsept/Visual Companion eller
 et Figma-klart utkast — aldri late som en Figma-write skjedde.
 
@@ -231,13 +213,16 @@ et offentlig issue; bruk [private vulnerability reporting](SECURITY.md).
 ### Oppdater eller rull tilbake personlig installasjon
 
 ```bash
-copilot plugin uninstall grillmester-nav@grillmester  # hvis installert
 copilot plugin uninstall grillmester@grillmester
 copilot plugin marketplace remove grillmester
 copilot plugin marketplace add navikt/grillmester#NEW_REVIEWED_RELEASE_TAG
 copilot plugin install grillmester@grillmester
-copilot plugin install grillmester-nav@grillmester    # hvis ønsket
 ```
+
+Brukte du den tidligere `0.3.0-poc.1`-inndelingen, avinstallerer du den gamle
+tilleggspakken én gang med
+`copilot plugin uninstall grillmester-nav@grillmester`. Senere oppdateringer og
+rollback berører bare `grillmester@grillmester`.
 
 For teamrepo og cloud agent brukes `.github/copilot/settings.json`; personlig
 CLI-oppsett ligger i `~/.copilot/settings.json`. Feltene er
@@ -250,14 +235,13 @@ CLI-oppsett ligger i `~/.copilot/settings.json`. Feltene er
 - [Installere, aktivere, oppdatere og rulle tilbake](docs/installation.md)
 - [Agenter, interne roller og skillfamilier](docs/agents-and-skills.md)
 - [Repo-eid kontekst, instructions og templates](docs/repository-context.md)
-- [Påkrevd runtime-sikkerhet og sandbox](docs/runtime-safety.md)
-- [Klientstøtte og releasegater](docs/trust-and-client-support.md)
+- [Tillit, tools, klientstøtte og releasegater](docs/trust-and-client-support.md)
 - [Migrere en eksisterende Hovmester-consumer](docs/consumer-pilot-runbook.md)
 - [Publisere immutable releases](docs/release-runbook.md)
 - [Utvikle og verifisere pluginen](docs/development.md)
 - [Rapportere sårbarheter privat](SECURITY.md)
 
-Grillmester vedlikeholdes av Team eSyfo **for NAV**, etter en lengre pilot i
+Grillmester vedlikeholdes av Team eSyfo **for Nav**, etter en lengre pilot i
 `syfo-budstikka`. Prosjektet er en kurert POC frem til klient- og releasegatene
 er dokumentert grønne. Det er tilgjengelig under [MIT-lisensen](LICENSE);
 kildegrunnlag og bildeproveniens finnes i [PROVENANCE.md](PROVENANCE.md) og

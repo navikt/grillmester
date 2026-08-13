@@ -2,10 +2,9 @@
 
 <!-- Hva forbedrer denne PR-en, for hvem, og hvorfor? -->
 
-## Omfang og pakke
+## Omfang og plugin
 
-- [ ] Standardpakken `grillmester`
-- [ ] NAV-tillegget `grillmester-nav`
+- [ ] Grillmester-pluginen
 - [ ] Distribusjon/release
 - [ ] Dokumentasjon/governance
 
@@ -15,8 +14,8 @@
 - [ ] Endringer i tools, modeller, writes eller approval-grenser er eksplisitt beskrevet.
 - [ ] `policy/content-lock.json`, provenance og tredjepartsnotiser er oppdatert når nødvendig.
 - [ ] Consumer-/teamspesifikke fakta er fjernet eller dokumentert som bevisst lokal evidens.
-- [ ] Standardpakken fungerer alene; standard + NAV-tillegget fungerer sammen;
-      NAV-tillegget består sin strukturelle install-/uninstall-smoke.
+- [ ] Pluginen valideres som nøyaktig 7 agenter og 44 skills uten døde
+      kryssreferanser.
 
 ## Verifikasjon
 
@@ -30,7 +29,7 @@
 
 ## Manuell RC-evidens
 
-<!-- Ved runtimeendringer: klient, release/source-SHA, sandboxpolicy, resolved modell/tools, godkjent/avvist write og observerte sideeffekter. Skriv «ikke relevant» med grunn. -->
+<!-- Ved runtimeendringer: klient, release/source-SHA, resolved modell/tools, godkjent/avvist write og observerte sideeffekter. Skriv «ikke relevant» med grunn. -->
 
 ## Release og rollback
 

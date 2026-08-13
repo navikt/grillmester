@@ -29,7 +29,7 @@ body:
     attributes:
       label: Grillmester-versjon eller source-SHA
       description: Oppgi release-tag og gjerne source-SHA. Ikke skriv bare «latest».
-      placeholder: v0.3.0-poc.1 / 40-tegns SHA
+      placeholder: vX.Y.Z / 40-tegns SHA
     validations:
       required: true
   - type: input

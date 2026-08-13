@@ -1,9 +1,8 @@
 # Repository contract
 
-This repository owns the portable Grillmester Copilot packages: the standard
-agent team in `plugin/` and the optional, skills-only NAV add-on in
-`plugin-nav/`. Keep both deterministic and independent of any single consumer
-repository.
+This repository owns the portable Grillmester Copilot plugin in `plugin/`:
+seven agents and 44 skills. Keep it deterministic and independent of any
+single consumer repository.
 
 ## Content boundaries
 
@@ -41,8 +40,7 @@ python3 scripts/smoke_plugin_install.py
 ```
 
 The install smoke test must use a disposable, isolated Copilot home. For live
-client behavior, mount the standard package with `copilot --experimental
---sandbox --plugin-dir plugin` and optionally add `--plugin-dir plugin-nav`, in
-an empty test repository. Confirm the sandbox status and effective policy;
-an empty repository is not a sandbox substitute.
+client behavior, use Nav's normal `cplt` setup in an empty, disposable test
+repository, pass Copilot's `--plugin-dir plugin` through according to the
+current `cplt` documentation, and select the agent with `/agent`.
 Never use a consumer repository as a write target for a smoke test.

@@ -20,6 +20,19 @@ SPEC.loader.exec_module(SMOKE)
 
 
 class PluginLifecycleSmokeTest(unittest.TestCase):
+    def test_release_semver_is_strict_and_linear(self) -> None:
+        for version in ("0.3.0-poc.2", "1.2.3", "1.2.3-rc.0"):
+            with self.subTest(version=version):
+                self.assertTrue(SMOKE.is_strict_semver(version))
+        for version in (
+            "01.2.3",
+            "1.2.3+rebuilt",
+            "1.2.3-rc.01",
+            "0.0.0-0." + "--." * 2_000,
+        ):
+            with self.subTest(version=version):
+                self.assertFalse(SMOKE.is_strict_semver(version))
+
     def test_isolated_environment_drops_ambient_credentials(self) -> None:
         root = Path("/tmp/grillmester-smoke-env")
         env = SMOKE.isolated_cli_environment(
@@ -61,6 +74,18 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                     {"name": package.name, "version": "1.2.3"},
                 )
                 (plugin / "payload.txt").write_text("current\n", encoding="utf-8")
+                (plugin / "LICENSE").write_text("fixture license\n", encoding="utf-8")
+                (plugin / "THIRD_PARTY_NOTICES.md").write_text(
+                    "fixture notices\n", encoding="utf-8"
+                )
+                skill_ids = [
+                    *(f"fixture-skill-{index}" for index in range(34)),
+                    *SMOKE.LEGACY_ADD_ON_SKILLS,
+                ]
+                for skill_id in skill_ids:
+                    skill = plugin / "skills" / skill_id / "SKILL.md"
+                    skill.parent.mkdir(parents=True)
+                    skill.write_text(f"---\nname: {skill_id}\n---\n", encoding="utf-8")
             SMOKE.write_json_object(
                 root / ".github/plugin/marketplace.json",
                 {
@@ -79,14 +104,21 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             staged = Path(temp) / "staged"
 
             previous_plugins, previous_catalog, current_catalog = (
-                SMOKE.prepare_upgrade_marketplace(root, root, staged)
+                SMOKE.prepare_upgrade_marketplace(
+                    root / ".github/plugin/marketplace.json", root, staged
+                )
             )
 
-            for package, previous_entry, current_entry in zip(
-                SMOKE.PACKAGES,
-                previous_catalog["plugins"],
-                current_catalog["plugins"],
-                strict=True,
+            self.assertEqual(
+                [package.name for package in SMOKE.PREVIOUS_PACKAGES],
+                [entry["name"] for entry in previous_catalog["plugins"]],
+            )
+            self.assertEqual(
+                [SMOKE.PLUGIN_NAME],
+                [entry["name"] for entry in current_catalog["plugins"]],
+            )
+            for package, previous_entry in zip(
+                SMOKE.PREVIOUS_PACKAGES, previous_catalog["plugins"], strict=True
             ):
                 previous_plugin = previous_plugins[package.name]
                 self.assertEqual(
@@ -95,13 +127,24 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 )
                 self.assertEqual(f"previous-{package.path}", previous_entry["source"])
                 self.assertEqual(SMOKE.PREVIOUS_VERSION, previous_entry["version"])
-                self.assertEqual(package.path, current_entry["source"])
-                self.assertEqual("1.2.3", current_entry["version"])
-                self.assertTrue((previous_plugin / SMOKE.UPGRADE_SENTINEL).is_file())
                 self.assertEqual(
-                    SMOKE.tree_manifest(root / package.path),
-                    SMOKE.tree_manifest(staged / package.path),
+                    package.skills,
+                    len(list((previous_plugin / "skills").glob("*/SKILL.md"))),
                 )
+            self.assertTrue(
+                (previous_plugins[SMOKE.PLUGIN_NAME] / SMOKE.UPGRADE_SENTINEL).is_file()
+            )
+            self.assertEqual("plugin", current_catalog["plugins"][0]["source"])
+            self.assertEqual("1.2.3", current_catalog["plugins"][0]["version"])
+            self.assertEqual(
+                SMOKE.tree_manifest(root / "plugin"),
+                SMOKE.tree_manifest(staged / "plugin"),
+            )
+            core_skills = previous_plugins[SMOKE.LEGACY_CORE.name] / "skills"
+            add_on_skills = previous_plugins[SMOKE.LEGACY_ADD_ON.name] / "skills"
+            for skill_id in SMOKE.LEGACY_ADD_ON_SKILLS:
+                self.assertFalse((core_skills / skill_id).exists())
+                self.assertTrue((add_on_skills / skill_id / "SKILL.md").is_file())
 
     def test_catalog_activation_uses_public_marketplace_update_command(self) -> None:
         catalog = {
@@ -175,7 +218,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 checkout_sha=checkout_sha,
             )
 
-    def test_release_sources_reject_cross_package_path_or_sha_drift(self) -> None:
+    def test_release_source_rejects_noncanonical_plugin_path(self) -> None:
         sha = "0123456789abcdef0123456789abcdef01234567"
         sources = {
             package.name: {
@@ -186,12 +229,9 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             }
             for package in SMOKE.PACKAGES
         }
-        sources["grillmester-nav"] = {
-            **sources["grillmester-nav"],
-            "path": "plugin",
-        }
+        sources["grillmester"] = {**sources["grillmester"], "path": "."}
 
-        with self.assertRaisesRegex(RuntimeError, "pinned shapes"):
+        with self.assertRaisesRegex(RuntimeError, "pinned source shape"):
             SMOKE.validate_catalog_sources(
                 sources,
                 expected_release_sha=sha,
@@ -238,8 +278,8 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
         self.assertFalse(tested)
         self.assertIn("SKIP enable/disable", output.getvalue())
 
-    def test_remote_install_uses_exact_catalog_ref_and_cleans_up(self) -> None:
-        sha = "0123456789abcdef0123456789abcdef01234567"
+    def test_remote_install_uses_reviewed_release_tag_and_cleans_up(self) -> None:
+        tag = "v1.2.3"
         copilot_home = Path("/tmp/copilot-home")
         installed = copilot_home / "installed-plugins" / SMOKE.MARKETPLACE_NAME
         with mock.patch.object(
@@ -248,15 +288,13 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             side_effect=[
                 "",
                 "",
-                "",
                 "\n".join(package.qualified_name for package in SMOKE.PACKAGES),
-                "",
                 "",
             ],
         ) as run, mock.patch.object(
             SMOKE,
             "verify_installed_package",
-            side_effect=[(7, 34), (0, 10)],
+            return_value=(7, 44),
         ) as verify, mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled") as uninstalled:
@@ -265,7 +303,8 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 env={"CI": "true"},
                 cwd=Path("/tmp/work"),
                 copilot_home=copilot_home,
-                marketplace_ref=f"navikt/grillmester#{sha}",
+                marketplace_ref=f"navikt/grillmester#{tag}",
+                expected_tag=tag,
                 source_root=Path("/tmp/source"),
             )
 
@@ -276,41 +315,36 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 "plugin",
                 "marketplace",
                 "add",
-                f"navikt/grillmester#{sha}",
+                f"navikt/grillmester#{tag}",
             ],
             run.call_args_list[0].args[0],
         )
-        self.assertEqual(2, verify.call_count)
-        self.assertEqual(2, uninstalled.call_count)
-        verify.assert_any_call(
+        self.assertEqual(1, verify.call_count)
+        self.assertEqual(1, uninstalled.call_count)
+        verify.assert_called_once_with(
             Path("/tmp/source/plugin"), installed / "grillmester", SMOKE.PACKAGES[0]
         )
-        verify.assert_any_call(
-            Path("/tmp/source/plugin-nav"),
-            installed / "grillmester-nav",
-            SMOKE.PACKAGES[1],
-        )
-        uninstalled.assert_any_call(
-            copilot_home,
-            installed / "grillmester-nav",
-            SMOKE.PACKAGES[1],
-        )
-        uninstalled.assert_any_call(
+        uninstalled.assert_called_once_with(
             copilot_home,
             installed / "grillmester",
             SMOKE.PACKAGES[0],
         )
 
-    def test_remote_install_rejects_a_moving_ref(self) -> None:
-        with self.assertRaisesRegex(RuntimeError, "full catalog SHA"):
-            SMOKE.remote_install_smoke(
-                copilot="copilot",
-                env={},
-                cwd=Path("/tmp"),
-                copilot_home=Path("/tmp/home"),
-                marketplace_ref="navikt/grillmester#main",
-                source_root=Path("/tmp"),
-            )
+    def test_remote_install_rejects_raw_sha_and_moving_main_ref(self) -> None:
+        raw_sha = "0123456789abcdef0123456789abcdef01234567"
+        for ref in (raw_sha, "main"):
+            with self.subTest(ref=ref), self.assertRaisesRegex(
+                RuntimeError, "reviewed release tag v1.2.3"
+            ):
+                SMOKE.remote_install_smoke(
+                    copilot="copilot",
+                    env={},
+                    cwd=Path("/tmp"),
+                    copilot_home=Path("/tmp/home"),
+                    marketplace_ref=f"navikt/grillmester#{ref}",
+                    expected_tag="v1.2.3",
+                    source_root=Path("/tmp"),
+                )
 
 
 if __name__ == "__main__":

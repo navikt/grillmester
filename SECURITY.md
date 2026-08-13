@@ -1,6 +1,6 @@
 # Sikkerhet
 
-Ikke rapporter sårbarheter, tokens, personopplysninger eller sensitiv NAV-
+Ikke rapporter sårbarheter, tokens, personopplysninger eller sensitiv Nav-
 diagnostikk i en offentlig issue.
 
 Bruk GitHubs
@@ -15,6 +15,6 @@ kan opprettes som et vanlig forslag.
 
 ## Avgrensning
 
-Agentprompter og skills er atferdskontrakter, ikke teknisk sandbox eller
-autorisasjon. Se [runtime-sikkerhet](docs/runtime-safety.md) for påkrevd
-sandbox-, approval- og credential-policy ved NAV-bruk.
+Agentprompter og skills er atferdskontrakter, ikke teknisk autorisasjon.
+Runtime-isolasjon, credentials og organisasjonspolicy forvaltes utenfor
+pluginen av Navs sentrale plattform og den aktuelle consumeren.

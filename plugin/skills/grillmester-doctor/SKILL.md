@@ -60,7 +60,7 @@ sessions:
   approval boundaries;
 - the shared language, sensitive-data, secret-handling, and untrusted-content
   floors embedded in the agents;
-- portable task workflows and NAV expertise already provided by skills;
+- portable task workflows and Nav expertise already provided by skills;
 - generic technology guidance that can be derived from the repository and
   verified primary documentation.
 
