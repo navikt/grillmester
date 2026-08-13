@@ -1,0 +1,52 @@
+name: Forslag
+description: Foreslå en agent-, skill-, distribusjons- eller dokumentasjonsforbedring.
+title: "[Forslag]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem eller behov
+      description: Hvem møter problemet, på hvilken Copilot-flate, og hvorfor er det viktig?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Ønsket utfall
+      description: Beskriv observerbar effekt, ikke bare foreslått implementasjon.
+    validations:
+      required: true
+  - type: dropdown
+    id: primitive
+    attributes:
+      label: Mest sannsynlig hjem
+      options:
+        - Agent eller agentkontrakt
+        - Skill eller progressiv referanse
+        - Standardpakken
+        - NAV-tillegget
+        - Consumer-eid AGENTS.md eller instruction
+        - Deterministisk CI/ruleset
+        - Distribusjon, release eller dokumentasjon
+        - Usikkert
+    validations:
+      required: true
+  - type: textarea
+    id: portability
+    attributes:
+      label: Portabilitet og overlapp
+      description: Hva er NAV-felles, hva er repo-/teamspesifikt, og overlapper dette navikt/copilot eller andre løsninger?
+  - type: textarea
+    id: safety
+    attributes:
+      label: Tool-, data- og sikkerhetskonsekvenser
+      description: Beskriv nye reads/writes, scopes, eksterne integrasjoner, data eller approval-grenser.
+  - type: textarea
+    id: proof
+    attributes:
+      label: Akseptansekriterier og evidens
+      description: Hvordan kan endringen testes i CLI, app og eventuelt cloud uten produksjonsdata?
+    validations:
+      required: true

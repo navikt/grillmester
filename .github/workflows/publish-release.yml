@@ -1,0 +1,599 @@
+name: Publish reviewed release request
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/release-request.json"
+
+concurrency:
+  group: publish-grillmester-marketplace
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      before-sha: ${{ steps.contract.outputs.before_sha }}
+      catalog-sha: ${{ steps.contract.outputs.catalog_sha }}
+      channel: ${{ steps.contract.outputs.channel }}
+      main-sha: ${{ steps.contract.outputs.main_sha }}
+      notes-base64: ${{ steps.contract.outputs.notes_base64 }}
+      notes-sha256: ${{ steps.contract.outputs.notes_sha256 }}
+      rc-catalog-sha: ${{ steps.contract.outputs.rc_catalog_sha }}
+      rc-source-sha: ${{ steps.contract.outputs.rc_source_sha }}
+      rc-tag: ${{ steps.contract.outputs.rc_tag }}
+      request-id: ${{ steps.contract.outputs.request_id }}
+      source-sha: ${{ steps.contract.outputs.source_sha }}
+      tag: ${{ steps.contract.outputs.tag }}
+    steps:
+      - name: Check out reviewed request and trusted tooling
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate request and immutable chain
+        id: contract
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          MAIN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          request=".github/release-request.json"
+          [[ "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ && \
+             "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]] || {
+            echo "The release request needs a nonzero push before SHA." >&2
+            exit 1
+          }
+          jq -e '
+            type == "object" and
+            (keys | sort) == ["catalogSha", "channel", "rcTag", "requestId", "schemaVersion"] and
+            .schemaVersion == 1 and
+            (.requestId | type == "string" and test("^[a-z0-9][a-z0-9._-]{0,63}$")) and
+            (.channel == "rc" or .channel == "stable") and
+            (.catalogSha | type == "string" and test("^[0-9a-f]{40}$")) and
+            (.rcTag | type == "string") and
+            (if .channel == "rc" then .rcTag == ""
+             else (.rcTag | test("^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-[0-9A-Za-z.-]+$"))
+             end)
+          ' "${request}" >/dev/null
+          channel="$(jq -er '.channel' "${request}")"
+          catalog_sha="$(jq -er '.catalogSha' "${request}")"
+          rc_tag="$(jq -er '.rcTag' "${request}")"
+          request_id="$(jq -er '.requestId' "${request}")"
+
+          git fetch --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main" \
+            "refs/heads/marketplace:refs/remotes/origin/marketplace"
+          [[ "${MAIN_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
+            echo "Release request is not current origin/main." >&2
+            exit 1
+          }
+          git cat-file -e "${BEFORE_SHA}^{commit}"
+          git merge-base --is-ancestor "${BEFORE_SHA}" "${MAIN_SHA}" || {
+            echo "The push before SHA must be an ancestor of current main." >&2
+            exit 1
+          }
+          [[ "$(git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}")" == ".github/release-request.json" ]] || {
+            echo "The complete push must change only .github/release-request.json." >&2
+            exit 1
+          }
+          git cat-file -e "${catalog_sha}^{commit}"
+          git merge-base --is-ancestor \
+            "${catalog_sha}" refs/remotes/origin/marketplace || {
+            echo "Requested catalog is not reachable from origin/marketplace." >&2
+            exit 1
+          }
+
+          catalog_repo="${RUNNER_TEMP}/catalog"
+          source_repo="${RUNNER_TEMP}/source"
+          git worktree add --detach "${catalog_repo}" "${catalog_sha}"
+          catalog="${catalog_repo}/.github/plugin/marketplace.json"
+          source_sha="$(jq -er '
+            .metadata.version as $version |
+            .plugins[0].source.sha as $sha |
+            if
+              (.plugins | length) == 2 and
+              [.plugins[].name] == ["grillmester", "grillmester-nav"] and
+              [.plugins[].version] == [$version, $version] and
+              .plugins[0].source == {
+                source: "github", repo: "navikt/grillmester",
+                path: "plugin", sha: $sha
+              } and
+              .plugins[1].source == {
+                source: "github", repo: "navikt/grillmester",
+                path: "plugin-nav", sha: $sha
+              }
+            then $sha
+            else error("catalog must contain the exact two-package release roster")
+            end
+          ' "${catalog}")"
+          [[ "${source_sha}" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "${source_sha}^{commit}"
+          git merge-base --is-ancestor \
+            "${source_sha}" refs/remotes/origin/main || {
+            echo "Requested source is not reachable from origin/main." >&2
+            exit 1
+          }
+          git worktree add --detach "${source_repo}" "${source_sha}"
+
+          contract_args=(
+            validate
+            --catalog "${catalog}"
+            --channel "${channel}"
+            --catalog-repo "${catalog_repo}"
+            --catalog-sha "${catalog_sha}"
+            --source-repo "${source_repo}"
+          )
+          rc_catalog_sha=""
+          rc_source_sha=""
+          if [[ "${channel}" == "stable" ]]; then
+            git fetch --no-tags origin "refs/tags/${rc_tag}:refs/tags/${rc_tag}"
+            rc_catalog_sha="$(git rev-parse "refs/tags/${rc_tag}^{}")"
+            git merge-base --is-ancestor \
+              "${rc_catalog_sha}" refs/remotes/origin/marketplace
+            rc_catalog_repo="${RUNNER_TEMP}/rc-catalog"
+            git worktree add --detach "${rc_catalog_repo}" "${rc_catalog_sha}"
+            rc_catalog="${rc_catalog_repo}/.github/plugin/marketplace.json"
+            rc_values="${RUNNER_TEMP}/rc-values"
+            python3 scripts/release_contract.py inspect \
+              --catalog "${rc_catalog}" --channel rc \
+              --github-output "${rc_values}"
+            [[ "${rc_tag}" == "$(sed -n 's/^tag=//p' "${rc_values}")" ]]
+            rc_source_sha="$(sed -n 's/^source_sha=//p' "${rc_values}")"
+            git cat-file -e "${rc_source_sha}^{commit}"
+            git merge-base --is-ancestor \
+              "${rc_source_sha}" refs/remotes/origin/main
+            rc_source_repo="${RUNNER_TEMP}/rc-source"
+            git worktree add --detach "${rc_source_repo}" "${rc_source_sha}"
+            rc_release="$(curl --fail-with-body --silent --show-error \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${rc_tag}")"
+            [[ "$(jq -r '.tag_name' <<<"${rc_release}")" == "${rc_tag}" ]]
+            [[ "$(jq -r '.draft' <<<"${rc_release}")" == "false" ]]
+            [[ "$(jq -r '.prerelease' <<<"${rc_release}")" == "true" ]]
+            contract_args+=(
+              --rc-tag "${rc_tag}"
+              --rc-catalog "${rc_catalog}"
+              --rc-catalog-repo "${rc_catalog_repo}"
+              --rc-catalog-sha "${rc_catalog_sha}"
+              --rc-source-repo "${rc_source_repo}"
+            )
+          fi
+          python3 scripts/release_contract.py "${contract_args[@]}"
+
+          values="${RUNNER_TEMP}/values"
+          python3 scripts/release_contract.py inspect \
+            --catalog "${catalog}" --channel "${channel}" \
+            --github-output "${values}"
+          tag="$(sed -n 's/^tag=//p' "${values}")"
+          [[ "${source_sha}" == "$(sed -n 's/^source_sha=//p' "${values}")" ]]
+
+          notes="${RUNNER_TEMP}/release-notes.md"
+          notes_args=(
+            notes --channel "${channel}" --tag "${tag}"
+            --catalog-sha "${catalog_sha}" --source-sha "${source_sha}"
+            --output "${notes}"
+          )
+          [[ -z "${rc_tag}" ]] || notes_args+=(--rc-tag "${rc_tag}")
+          python3 scripts/release_contract.py "${notes_args[@]}"
+
+          {
+            echo "before_sha=${BEFORE_SHA}"
+            echo "catalog_sha=${catalog_sha}"
+            echo "channel=${channel}"
+            echo "main_sha=${MAIN_SHA}"
+            echo "notes_base64=$(base64 -w0 "${notes}")"
+            echo "notes_sha256=$(sha256sum "${notes}" | cut -d' ' -f1)"
+            echo "rc_catalog_sha=${rc_catalog_sha}"
+            echo "rc_source_sha=${rc_source_sha}"
+            echo "rc_tag=${rc_tag}"
+            echo "request_id=${request_id}"
+            echo "source_sha=${source_sha}"
+            echo "tag=${tag}"
+          } >> "${GITHUB_OUTPUT}"
+          {
+            echo "CATALOG_PATH=${catalog}"
+            echo "SOURCE_ROOT=${source_repo}"
+            echo "SOURCE_SHA=${source_sha}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Install pinned GitHub Copilot CLI
+        run: npm install --global @github/copilot@1.0.79
+
+      - name: Smoke-test actual remote catalog commit
+        env:
+          CATALOG_SHA: ${{ steps.contract.outputs.catalog_sha }}
+        run: >-
+          python3 scripts/smoke_plugin_install.py
+          --catalog "${CATALOG_PATH}"
+          --source-root "${SOURCE_ROOT}"
+          --source-sha "${SOURCE_SHA}"
+          --expect-release-sha "${SOURCE_SHA}"
+          --remote-marketplace-ref "navikt/grillmester#${CATALOG_SHA}"
+
+  release:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: grillmester-release
+    permissions:
+      contents: write
+    env:
+      BEFORE_SHA: ${{ needs.validate.outputs.before-sha }}
+      CATALOG_SHA: ${{ needs.validate.outputs.catalog-sha }}
+      CHANNEL: ${{ needs.validate.outputs.channel }}
+      MAIN_SHA: ${{ needs.validate.outputs.main-sha }}
+      NOTES_BASE64: ${{ needs.validate.outputs.notes-base64 }}
+      NOTES_SHA256: ${{ needs.validate.outputs.notes-sha256 }}
+      RC_CATALOG_SHA: ${{ needs.validate.outputs.rc-catalog-sha }}
+      RC_SOURCE_SHA: ${{ needs.validate.outputs.rc-source-sha }}
+      RC_TAG: ${{ needs.validate.outputs.rc-tag }}
+      REQUEST_ID: ${{ needs.validate.outputs.request-id }}
+      SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
+      TAG: ${{ needs.validate.outputs.tag }}
+    steps:
+      - name: Publish exact reviewed release idempotently
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          [[ "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ && \
+             "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]
+          [[ "${MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${NOTES_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${REQUEST_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]]
+          [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
+          [[ "${CHANNEL}" == "rc" || "${CHANNEL}" == "stable" ]]
+          notes="${RUNNER_TEMP}/release-notes.md"
+          printf '%s' "${NOTES_BASE64}" | base64 --decode > "${notes}"
+          [[ "$(sha256sum "${notes}" | cut -d' ' -f1)" == "${NOTES_SHA256}" ]]
+
+          git init --quiet
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
+          git fetch --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main" \
+            "refs/heads/marketplace:refs/remotes/origin/marketplace"
+          [[ "${MAIN_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
+            echo "origin/main moved after validation; a new request is required." >&2
+            exit 1
+          }
+          git cat-file -e "${BEFORE_SHA}^{commit}"
+          git merge-base --is-ancestor "${BEFORE_SHA}" "${MAIN_SHA}"
+          [[ "$(git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}")" == \
+             ".github/release-request.json" ]]
+
+          request="$(git show "${MAIN_SHA}:.github/release-request.json")"
+          [[ "$(jq -r '.schemaVersion' <<<"${request}")" == "1" ]]
+          [[ "$(jq -r '.channel' <<<"${request}")" == "${CHANNEL}" ]]
+          [[ "$(jq -r '.catalogSha' <<<"${request}")" == "${CATALOG_SHA}" ]]
+          [[ "$(jq -r '.rcTag' <<<"${request}")" == "${RC_TAG}" ]]
+          [[ "$(jq -r '.requestId' <<<"${request}")" == "${REQUEST_ID}" ]]
+
+          git cat-file -e "${CATALOG_SHA}^{commit}"
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git merge-base --is-ancestor \
+            "${CATALOG_SHA}" refs/remotes/origin/marketplace
+          git merge-base --is-ancestor "${SOURCE_SHA}" refs/remotes/origin/main
+          expected_tree="100644 blob $(git rev-parse "${CATALOG_SHA}:.github/plugin/marketplace.json")"
+          actual_tree="$(git ls-tree -r "${CATALOG_SHA}")"
+          [[ "${actual_tree}" == "${expected_tree}"$'\t'.github/plugin/marketplace.json ]]
+          catalog_file="${RUNNER_TEMP}/marketplace.json"
+          git show "${CATALOG_SHA}:.github/plugin/marketplace.json" > "${catalog_file}"
+          catalog="$(<"${catalog_file}")"
+          version="$(jq -er '.metadata.version' <<<"${catalog}")"
+          [[ "${TAG}" == "v${version}" ]]
+          if [[ "${CHANNEL}" == "rc" ]]; then
+            [[ "${version}" == *-* ]]
+          else
+            [[ "${version}" != *-* ]]
+          fi
+          jq -e \
+            --arg version "${version}" \
+            --arg source_sha "${SOURCE_SHA}" \
+            '
+              .name == "grillmester" and
+              .metadata.version == $version and
+              (.plugins | length) == 2 and
+              [.plugins[].name] == ["grillmester", "grillmester-nav"] and
+              [.plugins[].version] == [$version, $version] and
+              .plugins[0].source == {
+                source: "github",
+                repo: "navikt/grillmester",
+                path: "plugin",
+                sha: $source_sha
+              } and
+              .plugins[1].source == {
+                source: "github",
+                repo: "navikt/grillmester",
+                path: "plugin-nav",
+                sha: $source_sha
+              }
+            ' "${catalog_file}" >/dev/null
+
+          package_manifest_file="${RUNNER_TEMP}/package-manifest.json"
+          standard_manifest_file="${RUNNER_TEMP}/grillmester-plugin.json"
+          nav_manifest_file="${RUNNER_TEMP}/grillmester-nav-plugin.json"
+          git show "${SOURCE_SHA}:package-manifest.json" > "${package_manifest_file}"
+          git show "${SOURCE_SHA}:plugin/plugin.json" > "${standard_manifest_file}"
+          git show "${SOURCE_SHA}:plugin-nav/plugin.json" > "${nav_manifest_file}"
+          jq -e '
+            .schemaVersion == 1 and
+            (keys | sort) == ["marketplace", "packages", "schemaVersion"] and
+            (.marketplace | keys | sort) == ["description", "name", "owner"] and
+            .marketplace.name == "grillmester" and
+            .marketplace.owner == "Team eSyfo" and
+            (.marketplace.description | type == "string" and length > 0) and
+            .packages == [
+              {name: "grillmester", path: "plugin", agents: 7, skills: 34},
+              {name: "grillmester-nav", path: "plugin-nav", agents: 0, skills: 10}
+            ]
+          ' "${package_manifest_file}" >/dev/null
+          jq -e \
+            --arg version "${version}" \
+            --arg owner "$(jq -er '.marketplace.owner' "${package_manifest_file}")" \
+            '
+              (keys | sort) == [
+                "agents", "author", "description", "license", "name",
+                "repository", "skills", "version"
+              ] and
+              (.author | keys) == ["name"] and
+              .name == "grillmester" and
+              .version == $version and
+              (.description | type == "string" and length > 0) and
+              .author.name == $owner and
+              .repository == "https://github.com/navikt/grillmester" and
+              .agents == "agents/" and .skills == "skills/"
+            ' "${standard_manifest_file}" >/dev/null
+          jq -e \
+            --arg version "${version}" \
+            --arg owner "$(jq -er '.marketplace.owner' "${package_manifest_file}")" \
+            '
+              (keys | sort) == [
+                "author", "description", "license", "name", "repository",
+                "skills", "version"
+              ] and
+              (.author | keys) == ["name"] and
+              .name == "grillmester-nav" and
+              .version == $version and
+              (.description | type == "string" and length > 0) and
+              .author.name == $owner and
+              .repository == "https://github.com/navikt/grillmester" and
+              (has("agents") | not) and .skills == "skills/"
+            ' "${nav_manifest_file}" >/dev/null
+
+          # Recreate the generator's complete release catalog without running
+          # repository code under the write token, then require exact bytes.
+          regenerated_catalog="${RUNNER_TEMP}/regenerated-marketplace.json"
+          jq -n \
+            --arg marketplace_name "$(jq -er '.marketplace.name' "${package_manifest_file}")" \
+            --arg owner "$(jq -er '.marketplace.owner' "${package_manifest_file}")" \
+            --arg marketplace_description "$(jq -er '.marketplace.description' "${package_manifest_file}")" \
+            --arg standard_name "$(jq -er '.name' "${standard_manifest_file}")" \
+            --arg standard_description "$(jq -er '.description' "${standard_manifest_file}")" \
+            --arg nav_name "$(jq -er '.name' "${nav_manifest_file}")" \
+            --arg nav_description "$(jq -er '.description' "${nav_manifest_file}")" \
+            --arg version "${version}" \
+            --arg source_sha "${SOURCE_SHA}" \
+            '{
+              name: $marketplace_name,
+              owner: {name: $owner},
+              metadata: {
+                description: $marketplace_description,
+                version: $version
+              },
+              plugins: [{
+                name: $standard_name,
+                description: $standard_description,
+                version: $version,
+                source: {
+                  source: "github",
+                  repo: "navikt/grillmester",
+                  path: "plugin",
+                  sha: $source_sha
+                }
+              }, {
+                name: $nav_name,
+                description: $nav_description,
+                version: $version,
+                source: {
+                  source: "github",
+                  repo: "navikt/grillmester",
+                  path: "plugin-nav",
+                  sha: $source_sha
+                }
+              }]
+            }' > "${regenerated_catalog}"
+          cmp -s "${regenerated_catalog}" "${catalog_file}"
+
+          if [[ "${CHANNEL}" == "stable" ]]; then
+            [[ "${RC_TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
+            [[ "${RC_CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            [[ "${RC_SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            git fetch --no-tags origin "refs/tags/${RC_TAG}:refs/tags/${RC_TAG}"
+            [[ "$(git rev-parse "refs/tags/${RC_TAG}^{}")" == "${RC_CATALOG_SHA}" ]]
+            git merge-base --is-ancestor \
+              "${RC_CATALOG_SHA}" refs/remotes/origin/marketplace
+            expected_rc_tree="100644 blob $(git rev-parse "${RC_CATALOG_SHA}:.github/plugin/marketplace.json")"
+            actual_rc_tree="$(git ls-tree -r "${RC_CATALOG_SHA}")"
+            [[ "${actual_rc_tree}" == "${expected_rc_tree}"$'\t'.github/plugin/marketplace.json ]]
+            rc_catalog_file="${RUNNER_TEMP}/rc-marketplace.json"
+            git show "${RC_CATALOG_SHA}:.github/plugin/marketplace.json" > "${rc_catalog_file}"
+            rc_catalog_version="$(jq -er '.metadata.version' "${rc_catalog_file}")"
+            [[ "v${rc_catalog_version}" == "${RC_TAG}" ]]
+            jq -e \
+              --arg version "${rc_catalog_version}" \
+              --arg source_sha "${RC_SOURCE_SHA}" \
+              '
+                .name == "grillmester" and
+                .metadata.version == $version and
+                (.plugins | length) == 2 and
+                [.plugins[].name] == ["grillmester", "grillmester-nav"] and
+                [.plugins[].version] == [$version, $version] and
+                .plugins[0].source == {
+                  source: "github",
+                  repo: "navikt/grillmester",
+                  path: "plugin",
+                  sha: $source_sha
+                } and
+                .plugins[1].source == {
+                  source: "github",
+                  repo: "navikt/grillmester",
+                  path: "plugin-nav",
+                  sha: $source_sha
+                }
+              ' "${rc_catalog_file}" >/dev/null
+            git merge-base --is-ancestor \
+              "${RC_SOURCE_SHA}" refs/remotes/origin/main
+            rc_package_manifest_file="${RUNNER_TEMP}/rc-package-manifest.json"
+            rc_standard_manifest_file="${RUNNER_TEMP}/rc-grillmester-plugin.json"
+            rc_nav_manifest_file="${RUNNER_TEMP}/rc-grillmester-nav-plugin.json"
+            git show "${RC_SOURCE_SHA}:package-manifest.json" > "${rc_package_manifest_file}"
+            git show "${RC_SOURCE_SHA}:plugin/plugin.json" > "${rc_standard_manifest_file}"
+            git show "${RC_SOURCE_SHA}:plugin-nav/plugin.json" > "${rc_nav_manifest_file}"
+            cmp -s "${package_manifest_file}" "${rc_package_manifest_file}"
+            rc_version="$(jq -er '.version' "${rc_standard_manifest_file}")"
+            [[ "v${rc_version}" == "${RC_TAG}" ]]
+            [[ "$(jq -er '.version' "${rc_nav_manifest_file}")" == "${rc_version}" ]]
+            [[ "$(jq -er '.name' "${rc_standard_manifest_file}")" == "grillmester" ]]
+            [[ "$(jq -er '.name' "${rc_nav_manifest_file}")" == "grillmester-nav" ]]
+            [[ "$(jq -er '.repository' "${rc_standard_manifest_file}")" == "https://github.com/navikt/grillmester" ]]
+            [[ "$(jq -er '.repository' "${rc_nav_manifest_file}")" == "https://github.com/navikt/grillmester" ]]
+            [[ "${rc_version%%-*}" == "${version}" && "${rc_version}" == *-* ]]
+            [[ "$(jq -cS 'del(.version)' "${standard_manifest_file}")" == \
+               "$(jq -cS 'del(.version)' "${rc_standard_manifest_file}")" ]]
+            [[ "$(jq -cS 'del(.version)' "${nav_manifest_file}")" == \
+               "$(jq -cS 'del(.version)' "${rc_nav_manifest_file}")" ]]
+            [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
+              -- plugin plugin-nav \
+              ':(exclude)plugin/plugin.json' \
+              ':(exclude)plugin-nav/plugin.json')" ]]
+
+            # Preserve the stronger byte contract too: replacing each stable
+            # version value must reproduce both reviewed RC manifests.
+            stable_version_pattern="${version//./\\.}"
+            [[ "$(grep -Ec "\"version\"[[:space:]]*:[[:space:]]*\"${stable_version_pattern}\"" \
+              "${standard_manifest_file}")" == "1" ]]
+            [[ "$(grep -Ec "\"version\"[[:space:]]*:[[:space:]]*\"${stable_version_pattern}\"" \
+              "${nav_manifest_file}")" == "1" ]]
+            normalized_standard_manifest="${RUNNER_TEMP}/normalized-grillmester-plugin.json"
+            normalized_nav_manifest="${RUNNER_TEMP}/normalized-grillmester-nav-plugin.json"
+            sed -E \
+              "0,/(\"version\"[[:space:]]*:[[:space:]]*)\"${stable_version_pattern}\"/s//\\1\"${rc_version}\"/" \
+              "${standard_manifest_file}" > "${normalized_standard_manifest}"
+            sed -E \
+              "0,/(\"version\"[[:space:]]*:[[:space:]]*)\"${stable_version_pattern}\"/s//\\1\"${rc_version}\"/" \
+              "${nav_manifest_file}" > "${normalized_nav_manifest}"
+            cmp -s "${normalized_standard_manifest}" "${rc_standard_manifest_file}"
+            cmp -s "${normalized_nav_manifest}" "${rc_nav_manifest_file}"
+
+            regenerated_rc_catalog="${RUNNER_TEMP}/regenerated-rc-marketplace.json"
+            jq -n \
+              --arg marketplace_name "$(jq -er '.marketplace.name' "${rc_package_manifest_file}")" \
+              --arg owner "$(jq -er '.marketplace.owner' "${rc_package_manifest_file}")" \
+              --arg marketplace_description "$(jq -er '.marketplace.description' "${rc_package_manifest_file}")" \
+              --arg standard_name "$(jq -er '.name' "${rc_standard_manifest_file}")" \
+              --arg standard_description "$(jq -er '.description' "${rc_standard_manifest_file}")" \
+              --arg nav_name "$(jq -er '.name' "${rc_nav_manifest_file}")" \
+              --arg nav_description "$(jq -er '.description' "${rc_nav_manifest_file}")" \
+              --arg version "${rc_version}" \
+              --arg source_sha "${RC_SOURCE_SHA}" \
+              '{
+                name: $marketplace_name,
+                owner: {name: $owner},
+                metadata: {
+                  description: $marketplace_description,
+                  version: $version
+                },
+                plugins: [{
+                  name: $standard_name,
+                  description: $standard_description,
+                  version: $version,
+                  source: {
+                    source: "github",
+                    repo: "navikt/grillmester",
+                    path: "plugin",
+                    sha: $source_sha
+                  }
+                }, {
+                  name: $nav_name,
+                  description: $nav_description,
+                  version: $version,
+                  source: {
+                    source: "github",
+                    repo: "navikt/grillmester",
+                    path: "plugin-nav",
+                    sha: $source_sha
+                  }
+                }]
+              }' > "${regenerated_rc_catalog}"
+            cmp -s "${regenerated_rc_catalog}" "${rc_catalog_file}"
+            rc_release="$(gh api "repos/${REPOSITORY}/releases/tags/${RC_TAG}")"
+            [[ "$(jq -r '.tag_name' <<<"${rc_release}")" == "${RC_TAG}" ]]
+            [[ "$(jq -r '.draft' <<<"${rc_release}")" == "false" ]]
+            [[ "$(jq -r '.prerelease' <<<"${rc_release}")" == "true" ]]
+          else
+            [[ -z "${RC_TAG}" && -z "${RC_CATALOG_SHA}" && -z "${RC_SOURCE_SHA}" ]]
+          fi
+
+          verify_remote_tag() {
+            local target
+            git fetch --no-tags origin \
+              "refs/tags/${TAG}:refs/tags/${TAG}" >/dev/null 2>&1 || return 1
+            target="$(git rev-parse "refs/tags/${TAG}^{}")"
+            [[ "${target}" == "${CATALOG_SHA}" ]] || {
+              echo "Refusing to move ${TAG}; it identifies another catalog." >&2
+              exit 1
+            }
+          }
+          if ! verify_remote_tag; then
+            git tag -a "${TAG}" "${CATALOG_SHA}" \
+              -m "Grillmester ${TAG}: catalog ${CATALOG_SHA}, source ${SOURCE_SHA}"
+            if ! git push origin "refs/tags/${TAG}"; then
+              git tag -d "${TAG}"
+              verify_remote_tag || {
+                echo "Concurrent tag creation produced another target." >&2
+                exit 1
+              }
+            fi
+          fi
+
+          if release="$(gh api "repos/${REPOSITORY}/releases/tags/${TAG}" 2>/dev/null)"; then
+            [[ "$(jq -r '.tag_name' <<<"${release}")" == "${TAG}" ]]
+            [[ "$(jq -r '.draft' <<<"${release}")" == "false" ]]
+            [[ "$(jq -r '.name' <<<"${release}")" == "Grillmester ${TAG}" ]]
+            expected_prerelease="false"
+            [[ "${CHANNEL}" == "rc" ]] && expected_prerelease="true"
+            [[ "$(jq -r '.prerelease' <<<"${release}")" == "${expected_prerelease}" ]]
+            [[ "$(jq -r '.body' <<<"${release}")" == "$(<"${notes}")" ]]
+            echo "Release ${TAG} already exists exactly; no-op."
+            exit 0
+          fi
+          release_args=(
+            release create "${TAG}" --verify-tag
+            --title "Grillmester ${TAG}" --notes-file "${notes}"
+          )
+          if [[ "${CHANNEL}" == "rc" ]]; then
+            release_args+=(--prerelease --latest=false)
+          else
+            release_args+=(--latest)
+          fi
+          gh "${release_args[@]}"

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Rapporter en sårbarhet privat
+    url: https://github.com/navikt/grillmester/security/advisories/new
+    about: Ikke legg sikkerhetssårbarheter, secrets eller sensitive data i en offentlig issue.
+  - name: GitHub Copilot-dokumentasjon
+    url: https://docs.github.com/en/copilot
+    about: Sjekk klient- og plugin-dokumentasjonen for generelle Copilot-spørsmål.

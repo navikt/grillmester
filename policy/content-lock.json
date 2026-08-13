@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "sources": {
+    "pilot": {
+      "repository": "navikt/syfo-budstikka",
+      "revision": "1fd62c10dc9608a0f34b600a5cec19648167a15d",
+      "payloadVerifiedRevision": "763d19a569bee4908b8f6dc827629f69f1e2fcaa",
+      "note": "Imported pilot baseline; the agents and skills trees are byte-identical at payloadVerifiedRevision."
+    },
+    "hovmester": {
+      "repository": "navikt/hovmester",
+      "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
+    },
+    "superpowers": {
+      "repository": "obra/superpowers",
+      "revision": "44c9b2d6e889982ac18c27d05a19fefe335194e1",
+      "note": "Reviewed Visual Companion lineage under skills/brainstorming; the original Hovmester import revision is unknown."
+    }
+  },
+  "agents": {
+    "barista": {
+      "source": "pilot",
+      "sourcePath": ".github/agents/barista.agent.md",
+      "disposition": "adapted",
+      "model": "gpt-5.6-terra",
+      "user-invocable": true,
+      "disable-model-invocation": true,
+      "toolPolicy": "runtime-all"
+    },
+    "designer": {
+      "source": "hovmester",
+      "sourcePath": ".github/agents/designer.agent.md",
+      "disposition": "adapted",
+      "model": "claude-opus-5",
+      "user-invocable": true,
+      "disable-model-invocation": true,
+      "toolPolicy": "runtime-all"
+    },
+    "doctor-who": {
+      "source": "hovmester",
+      "sourcePath": ".github/agents/doctor-who.agent.md",
+      "disposition": "adapted",
+      "model": "claude-opus-5",
+      "user-invocable": true,
+      "disable-model-invocation": true,
+      "toolPolicy": "runtime-all"
+    },
+    "grill-inspektor": {
+      "source": "pilot",
+      "sourcePath": ".github/agents/grill-inspektor.agent.md",
+      "disposition": "adapted",
+      "model": "claude-opus-5",
+      "user-invocable": false,
+      "disable-model-invocation": false,
+      "tools": ["read", "search", "execute", "skill"]
+    },
+    "grillmester": {
+      "source": "pilot",
+      "sourcePath": ".github/agents/grillmester.agent.md",
+      "disposition": "adapted",
+      "model": "gpt-5.6-sol",
+      "user-invocable": true,
+      "disable-model-invocation": true,
+      "toolPolicy": "runtime-all"
+    },
+    "kokk": {
+      "source": "pilot",
+      "sourcePath": ".github/agents/kokk.agent.md",
+      "disposition": "adapted",
+      "model": "gpt-5.6-terra",
+      "user-invocable": false,
+      "disable-model-invocation": false,
+      "tools": ["read", "search", "edit", "execute", "skill", "web"]
+    },
+    "researcher": {
+      "source": "pilot",
+      "sourcePath": ".github/agents/researcher.agent.md",
+      "disposition": "adapted",
+      "model": "gpt-5.6-terra",
+      "user-invocable": false,
+      "disable-model-invocation": false,
+      "tools": ["read", "search", "web"]
+    }
+  },
+  "skills": {
+    "grillmester-accessibility-review": {"source": "hovmester", "sourcePath": ".github/skills/accessibility-review", "disposition": "adapted"},
+    "grillmester-aksel-design": {"source": "hovmester", "sourcePath": ".github/skills/aksel-design", "disposition": "adapted"},
+    "grillmester-api-design": {"source": "pilot", "sourcePath": ".github/skills/api-design", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-architecture-review": {"source": "pilot", "sourcePath": ".github/skills/architecture-review", "disposition": "adapted"},
+    "grillmester-auth-overview": {"source": "pilot", "sourcePath": ".github/skills/auth-overview", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-create-a-skill": {"source": "pilot", "sourcePath": ".github/skills/create-a-skill", "disposition": "adapted"},
+    "grillmester-design-prototype": {
+      "source": "hovmester",
+      "sourcePath": ".github/skills/prototype",
+      "lineage": [
+        {"source": "superpowers", "sourcePath": "skills/brainstorming"}
+      ],
+      "disposition": "adapted"
+    },
+    "grillmester-diagnosing-bugs": {"source": "pilot", "sourcePath": ".github/skills/diagnosing-bugs", "disposition": "adapted"},
+    "grillmester-doctor": {"source": ["pilot", "hovmester"], "sourcePath": ".github/copilot-instructions.md", "disposition": "consolidated", "disable-model-invocation": true},
+    "grillmester-domain-modeling": {"source": "pilot", "sourcePath": ".github/skills/domain-modeling", "disposition": "adapted"},
+    "grillmester-dulting": {"source": "hovmester", "sourcePath": ".github/skills/dulting", "disposition": "adapted"},
+    "grillmester-e2e-tests": {"source": "pilot", "sourcePath": ".github/skills/e2e-tests", "disposition": "adapted"},
+    "grillmester-figma-workflow": {"source": "hovmester", "sourcePath": ".github/skills/figma-workflow", "disposition": "adapted"},
+    "grillmester-grill-me": {"source": "pilot", "sourcePath": ".github/skills/grill-me", "disposition": "adapted", "disable-model-invocation": true},
+    "grillmester-grill-with-docs": {"source": "pilot", "sourcePath": ".github/skills/grill-with-docs", "disposition": "adapted", "disable-model-invocation": true},
+    "grillmester-grilling": {"source": "pilot", "sourcePath": ".github/skills/grilling", "disposition": "adapted"},
+    "grillmester-handoff": {"source": "pilot", "sourcePath": ".github/skills/handoff", "disposition": "adapted", "disable-model-invocation": true},
+    "grillmester-improve-codebase-architecture": {"source": "pilot", "sourcePath": ".github/skills/improve-codebase-architecture", "disposition": "adapted"},
+    "grillmester-integration-tests": {"source": "pilot", "sourcePath": ".github/skills/integration-tests", "disposition": "adapted"},
+    "grillmester-issue-management": {"source": "pilot", "sourcePath": ".github/skills/issue-management", "disposition": "adapted"},
+    "grillmester-kafka-topic": {"source": "pilot", "sourcePath": ".github/skills/kafka-topic", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-klarsprak": {"source": "pilot", "sourcePath": ".github/skills/klarsprak", "disposition": "adapted"},
+    "grillmester-kotlin-ktor": {"source": "pilot", "sourcePath": ".github/skills/kotlin-ktor", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-kotlin-spring": {"source": "hovmester", "sourcePath": ".github/skills/kotlin-spring", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-lumi-survey": {"source": "hovmester", "sourcePath": ".github/skills/lumi-survey", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-nais-manifest": {"source": "pilot", "sourcePath": ".github/skills/nais-manifest", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-nav-architecture-review": {"source": "hovmester", "sourcePath": ".github/skills/nav-architecture-review", "disposition": "adapted"},
+    "grillmester-nav-troubleshoot": {"source": "pilot", "sourcePath": ".github/skills/nav-troubleshoot", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-observability-setup": {"source": "pilot", "sourcePath": ".github/skills/observability-setup", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-okr": {"source": "hovmester", "sourcePath": ".github/skills/okr", "disposition": "adapted"},
+    "grillmester-postgresql-review": {"source": "pilot", "sourcePath": ".github/skills/postgresql-review", "disposition": "adapted", "package": "grillmester-nav"},
+    "grillmester-produktledelse": {"source": "hovmester", "sourcePath": ".github/skills/produktledelse", "disposition": "adapted"},
+    "grillmester-prototype": {"source": "pilot", "sourcePath": ".github/skills/prototype", "disposition": "adapted"},
+    "grillmester-pull-request": {"source": "pilot", "sourcePath": ".github/skills/pull-request", "disposition": "adapted"},
+    "grillmester-readme-update": {"source": "pilot", "sourcePath": ".github/skills/readme-update", "disposition": "adapted"},
+    "grillmester-review": {"source": "pilot", "sourcePath": ".github/skills/review", "disposition": "adapted"},
+    "grillmester-security-review": {"source": "pilot", "sourcePath": ".github/skills/security-review", "disposition": "adapted"},
+    "grillmester-tdd": {"source": "pilot", "sourcePath": ".github/skills/tdd", "disposition": "adapted"},
+    "grillmester-team-status": {"source": "hovmester", "sourcePath": ".github/skills/team-status", "disposition": "adapted"},
+    "grillmester-to-issues": {"source": "pilot", "sourcePath": ".github/skills/to-issues", "disposition": "adapted"},
+    "grillmester-to-spec": {"source": "pilot", "sourcePath": ".github/skills/to-spec", "disposition": "adapted"},
+    "grillmester-triage": {"source": "pilot", "sourcePath": ".github/skills/triage", "disposition": "adapted"},
+    "grillmester-wayfinder": {"source": "pilot", "sourcePath": ".github/skills/wayfinder", "disposition": "adapted"},
+    "grillmester-workshop-design": {"source": "hovmester", "sourcePath": ".github/skills/workshop-design", "disposition": "adapted"}
+  }
+}

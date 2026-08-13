@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "marketplace": {
+    "name": "grillmester",
+    "description": "A Copilot agent team for clarified software delivery, design, and product work, with optional NAV specialist skills.",
+    "owner": "Team eSyfo"
+  },
+  "packages": [
+    {
+      "name": "grillmester",
+      "path": "plugin",
+      "agents": 7,
+      "skills": 34
+    },
+    {
+      "name": "grillmester-nav",
+      "path": "plugin-nav",
+      "agents": 0,
+      "skills": 10
+    }
+  ]
+}

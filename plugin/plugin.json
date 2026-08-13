@@ -1,0 +1,12 @@
+{
+  "name": "grillmester",
+  "version": "0.3.0-poc.1",
+  "description": "A Copilot agent team for clarified software delivery, design, and product work with portable progressive skills.",
+  "author": {
+    "name": "Team eSyfo"
+  },
+  "repository": "https://github.com/navikt/grillmester",
+  "license": "MIT",
+  "agents": "agents/",
+  "skills": "skills/"
+}
