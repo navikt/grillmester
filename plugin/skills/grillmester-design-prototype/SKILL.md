@@ -1,14 +1,14 @@
 ---
 name: grillmester-design-prototype
-description: "Utforsk designkonsepter visuelt med Aksel-tema i nettleser, og lever Figma-klart eller som Figma-skisse når write finnes. Brukes via /grillmester-design-prototype når et konsept skal visualiseres."
+description: "Utforsk designkonsepter visuelt med Aksel-tema i nettleser, og lever et strukturert designunderlag eller en Figma-skisse når write finnes. Brukes via /grillmester-design-prototype når et konsept skal visualiseres."
 license: MIT
 ---
 
 # Prototype — fra konsept til synlig skisse
 
 Utforsk designkonsepter interaktivt i nettleseren, iterer med designeren, og
-lever Figma-klart — eller som Figma-skisse med ekte Aksel-komponenter når
-runtime tilbyr godkjent write.
+lever et strukturert designunderlag — eller en Figma-skisse med ekte
+Aksel-komponenter når runtime tilbyr godkjent write.
 
 ## Gate for writes og eksterne sideeffekter
 
@@ -36,7 +36,9 @@ deploy automatisk.
 - Designeren allerede vet hva de vil og trenger Figma-komponenter
 - Komponentbygging og produksjonsnære leveranser
 
-Visual Companion er best for **tidlig utforsking** — når retningen er uklar og du vil se 2-3 konsepter raskt. Når retningen er valgt, gå rett til Figma.
+Visual Companion er best for **tidlig utforsking** — når retningen er uklar og
+du vil se 2-3 konsepter raskt. Når retningen er valgt, gå til Figma når write
+finnes; ellers ferdigstill et strukturert designunderlag.
 
 ## Fase 1: Visuell utforsking (Visual Companion)
 
@@ -163,7 +165,7 @@ Etter at designeren har sett skjermen:
 
 Vis ulike situasjoner som separate mockups eller sekvens: normal, venter (lasting), feil, tom tilstand, og ferdig/bekreftelse.
 
-## Fase 2: Figma-leveranse
+## Fase 2: Figma-leveranse når write finnes
 
 Når konseptet er valgt, sjekk Figma read og write som separate kapabiliteter.
 Figma MCP-tilstedeværelse alene er ikke en write-garanti. Hvis en eksplisitt
@@ -207,18 +209,22 @@ Vis resultat → designer gir feedback → juster → gjenta til fornøyd.
   Serveren verifiserer markøren og fjerner bare denne sesjonen. Den støtter ikke
   `--cleanup-all`. For flere kjente restsesjoner: vis eksakte ID-er/stier, få
   eksplisitt godkjenning, og rydd én ID om gangen.
-- Med bare Figma read → bruk konteksten, men lever Visual Companion,
-  Figma-klart utkast eller Issue-utkast; ikke hev at en fil ble skrevet.
-- Uten Figma MCP → beskriv konseptet, lever som Issue-utkast.
-- Uten Node.js → Chat + Figma direkte (hopp over Visual Companion).
-- I cloud/remote uten tilgjengelig loopback-URL → Chat + Figma direkte.
+- Med bare Figma read → bruk konteksten, men lever Visual Companion, et
+  strukturert designunderlag eller Issue-utkast; ikke hev at en fil ble skrevet.
+- Uten Figma MCP → beskriv konseptet og lever et strukturert designunderlag eller
+  Issue-utkast.
+- Uten Node.js → Chat + Figma direkte når write finnes; ellers Chat +
+  strukturert designunderlag.
+- I cloud/remote uten tilgjengelig loopback-URL → Chat + Figma direkte når
+  write finnes; ellers Chat + strukturert designunderlag.
 - Uten Playwright → manuelt skjermbilde fra designer.
 
 ## Boundaries
 
 ### ✅ Alltid
 - Bruk Aksel-komponenter og -tokens
-- Returner URL / Figma-lenke for resultater
+- Returner bare URL/Figma-lenke som faktisk finnes; ellers returner det
+  strukturerte designunderlaget
 - Bruk handlingsspråk — aldri verktøynavn
 - Spør designer før større endringer
 - Del lenker raskt; for eksisterende flater først etter verifisert nåtilstand/før/etter

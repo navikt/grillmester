@@ -127,12 +127,29 @@ class PackageValidationTest(unittest.TestCase):
         path.write_text(text[:start] + text[end:], encoding="utf-8")
         self.assert_error("tools must be a duplicate-free list")
 
-    def test_kokk_keeps_read_only_primary_source_research(self) -> None:
+    def test_kokk_keeps_bounded_primary_source_research(self) -> None:
         path = self.root / "plugin/agents/kokk.agent.md"
         text = path.read_text(encoding="utf-8")
         self.assertIn("  - web\n", text.split("---", 2)[1])
-        self.assertIn("current\n   primary documentation", text)
+        self.assertIn("When local\n   evidence is insufficient", text)
+        self.assertIn("version-appropriate official documentation", text)
+        self.assertIn("return `NEEDS_DECISION` before editing", text)
         self.assertIn("never use shell-network commands as a fallback", text)
+        self.assertNotIn(
+            "When the `/grillmester-security-review` description matches",
+            text,
+        )
+
+    def test_designer_degraded_delivery_is_truthful(self) -> None:
+        agent = (self.root / "plugin/agents/designer.agent.md").read_text(
+            encoding="utf-8"
+        )
+        skill = (
+            self.root / "plugin/skills/grillmester-design-prototype/SKILL.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("et strukturert designunderlag", agent)
+        self.assertIn("Figma-fil eller Issue bare når den finnes", agent)
+        self.assertIn("URL/Figma-lenke som faktisk finnes", skill)
 
     def test_designer_runtime_all_rejects_a_partial_tool_matrix(self) -> None:
         path = self.root / "plugin/agents/designer.agent.md"
