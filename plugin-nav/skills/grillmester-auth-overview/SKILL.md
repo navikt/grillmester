@@ -15,8 +15,10 @@ sidecars, claim names, endpoint variables, token caches, and access policies
 already exist.
 
 Do not infer the language, framework, package, config format, manifest path, or
-auth library. Do not use a consumer repository's agent instructions as a source
-of runtime facts. If the repository has no auth implementation, establish the
+auth library. Treat recognized consumer instructions as declared context and
+rationale, then verify effective and volatile auth facts against code,
+manifests, tests, runtime configuration and current primary documentation.
+Stop and surface a conflict instead of silently choosing one source. If the repository has no auth implementation, establish the
 caller, required identity context, downstream audience, and deployment
 environment with the user before selecting one.
 

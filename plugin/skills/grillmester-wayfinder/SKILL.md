@@ -28,7 +28,14 @@ The map is a single issue on this repo's issue tracker, labelled `wayfinder:map`
 
 The map is an **index**, not a store. It lists the decisions made and points at the tickets that hold their detail; a decision lives in exactly one place — its ticket — so the map never restates it, only gists it and links.
 
-**Where the map, its child tickets, blocking, and frontier queries physically live is tracker-specific.** Read the repository's issue-tracker adapter before tracker use and follow its write-authorization boundary. If no adapter defines the required operations and exact label mappings, stop before writing and ask for a decision; never invent a parallel local tracker or approximate missing labels.
+**Where the map, its child tickets, blocking, and frontier queries physically
+live is tracker-specific.** Establish that context from consumer-owned
+instructions, issue templates, contributor documentation, and read-only
+tracker metadata. A dedicated adapter file is optional. If the live tracker
+does not expose a required operation or an exact label or authorization
+boundary remains unresolved, keep the map as a reviewed draft and ask for the
+smallest decision needed before writing. Never invent a parallel local tracker
+or approximate missing labels.
 
 ### The map body
 
@@ -74,8 +81,8 @@ Each ticket carries a `wayfinder:<type>` label — one of `research`, `prototype
 A session **claims** a ticket by assigning it to the dev driving the map,
 **first**, before any work, so collaborators and recovery sessions can see
 that it is active. That assignee _is_ the claim: an open, unassigned ticket is
-unclaimed. The tracker adapter may narrow concurrency where assignment cannot
-provide an exclusive session lock.
+unclaimed. Consumer policy or verified tracker behavior may narrow concurrency
+where assignment cannot provide an exclusive session lock.
 
 A claim has no automatic timeout. If a session cannot finish its ticket,
 propose releasing the claim before ending and unassign only after explicit
@@ -83,7 +90,15 @@ authorization. Another session treats an assignment as active unless the
 assignee or user confirms it is abandoned; it may then propose the same
 authorized, verified release before selecting the ticket.
 
-Blocking uses the tracker's **native** dependency relationship — essential because it renders the frontier _visually_ in the tracker's own UI, so the human sees what's takeable without opening the map. Only a tracker that lacks native blocking falls back to a body convention. A ticket is **unblocked** when every ticket blocking it is closed; the **frontier** is the open, unblocked, unclaimed children — the edge of the known.
+Blocking uses the tracker's **native** dependency relationship — essential
+because it renders the frontier _visually_ in the tracker's own UI, so the
+human sees what's takeable without opening the map. Do not emulate a missing
+native relationship with body text, checklists or labels: those are not an
+atomic, queryable dependency graph. If the current tracker integration cannot
+read and write child/dependency relationships, keep the complete map as a
+reviewed draft and return `NEEDS_CONTEXT` with the missing capability. A ticket
+is **unblocked** when every ticket blocking it is closed; the **frontier** is
+the open, unblocked, unclaimed children — the edge of the known.
 
 The answer isn't part of the body — it's recorded on resolution (see [Work through the map](#work-through-the-map)). Assets created while resolving a ticket are linked from the issue, not pasted in.
 
@@ -135,7 +150,7 @@ User invokes with a loose idea.
 3. Present the proposed map, tickets, labels, blocking edges, project effects,
    and initial research-ticket claims. Obtain explicit authorization for that
    exact set of tracker writes, including project changes caused automatically
-   by native sub-issue workflows documented in the adapter.
+   by verified native sub-issue workflows.
 4. **Create the map** (label `wayfinder:map`): Destination and Notes filled in, Decisions-so-far empty, the fog sketched into **Not yet specified**.
 5. **Create the tickets you can specify now** as child issues of the map — then wire blocking edges in a **second pass** (issues need ids before they can reference each other). Wiring sorts them into the frontier and the blocked; everything you can't yet specify stays in the fog — the **Not yet specified** section.
 6. **Fire the research subagents.** Assign each `research` ticket to the authenticated user and verify the claim before work; if that assignment was not in the authorized set from step 3, ask first. Then invoke one `grillmester:researcher` per claimed ticket through the agent task tool and investigate them in parallel. Each returns a sourced note ending in a result status. Branch on it: close a ticket only on `ANSWERED` evidence; on `PARTIAL` or `NOT_FOUND`, keep it open and propose an authorized claim release or follow-up; on `NEEDS_CONTEXT`, supply the named fact or source, or explicitly reroute the ticket to a surface with approved external retrieval, then re-fire that Researcher. For each answered ticket, present its exact resolution-comment, close, and map-index mutations; perform and verify those tracker writes only after explicit authorization.
@@ -146,13 +161,14 @@ User invokes with a loose idea.
 User invokes with a map (URL or number). A ticket is **optional** — without one, you pick the next decision, not the user.
 
 1. Load the **map** — the low-res view, not every ticket body.
-2. Choose the ticket. If the user named one, use it. Otherwise take the first frontier ticket in order. Obtain authorization to **claim it**, then follow the adapter's immediate pre-claim and post-claim checks before any work. Never work through a conflicting or ambiguous claim.
+2. Choose the ticket. If the user named one, use it. Otherwise take the first frontier ticket in order. Obtain authorization to **claim it**, then follow the consumer's verified immediate pre-claim and post-claim checks before any work. Never work through a conflicting or ambiguous claim.
 3. Resolve it — **zoom as needed**: fetch the full body of any related or closed ticket on demand; invoke the skills the `## Notes` block names. If in doubt, use `/grillmester-grilling`; use `/grillmester-domain-modeling` only through its durable-documentation gate.
 4. Present the resolution and the exact tracker mutations required. After authorization, post the answer as a **resolution comment**, **close** the issue, and **append a context pointer** to the map's Decisions-so-far.
 5. Propose newly-surfaced tickets and map changes before writing them. After authorization, create then wire new tickets; graduate any fog the answer has made specifiable, clearing each graduated patch from **Not yet specified** so it lives only as its new ticket. If the answer reveals a ticket — this one or another — sits beyond the destination, **rule it out of scope** rather than resolving it on the route. If the decision invalidates other tickets, preserve the audit trail: propose a resolution comment that names the superseding decision, then close them after authorization. Never delete a map ticket.
 
-The tracker adapter owns the pilot's concurrency boundary. Do not assume that
-native assignment or issue-body writes provide an exclusive session lock.
+Consumer policy and verified tracker behavior own the concurrency boundary. Do
+not assume that native assignment or issue-body writes provide an exclusive
+session lock.
 
 Before declaring the route clear, audit every child into exactly one category:
 resolved and indexed; out of scope with a linked rationale; or invalidated with

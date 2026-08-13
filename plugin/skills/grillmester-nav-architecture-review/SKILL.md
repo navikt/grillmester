@@ -102,11 +102,15 @@ dokumentasjon, spør brukeren om den skal rutes videre, og bruk
 ## Relaterte skills
 
 - `/grillmester-architecture-review` for plattformuavhengige arkitekturspørsmål
-- `/grillmester-nais-manifest` for konkret manifeststruktur og NAIS-ressurser
-- `/grillmester-auth-overview` for verifisering av aktuelle autentiseringsmønstre
 - `/grillmester-security-review` for dypere sikkerhets- og personvernreview
-- `/grillmester-observability-setup` for målinger, logger, tracing og varsling
-- `/grillmester-nav-troubleshoot` for driftsdiagnose
+
+Når den valgfrie NAV-fagpakken fra samme marketplace er installert, kan reviewen også
+anbefale `grillmester-nais-manifest` for konkret manifestarbeid,
+`grillmester-auth-overview` for identitetsmekanismer,
+`grillmester-observability-setup` for telemetri og varsling, eller
+`grillmester-nav-troubleshoot` for driftsdiagnose. De er fordypninger, ikke
+forutsetninger; fullfør denne reviewen og rapporter manglende evidens dersom
+add-on-pakken ikke er installert.
 
 ## Grenser
 

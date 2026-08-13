@@ -83,15 +83,17 @@ agentens refleksjon erstatter ikke faglig godkjenning.
 
 ## Kompetanseutvikling
 
-Ved selvevaluering, bruk
-[kompetansehjulet](./references/kompetansehjul.md) som intervjuguide: én
-kompetanse om gangen, konkrete eksempler før et nivå foreslås, og brukeren
-setter selv nivået. Ressurstips finnes i
-[ressurser.md](./references/ressurser.md).
+Bruk kompetanserefleksjon som en åpen samtale, ikke som en poengmodell eller
+HR-vurdering. Be brukeren beskrive rolle, mål og kontekst, velg ett eller to
+utviklingsområder sammen, og forankre neste steg i konkrete arbeidssituasjoner.
+Brukeren eier vurderingen og bestemmer om noe skal lagres eller deles.
 
-Kompetansehjulet kan ha en nyere versjon. Oppgi hvilken versjon referansen
-beskriver, og verifiser mot en autoritativ kilde hvis vurderingen skal brukes
-formelt.
+Behandle ikke navn, personidentifiserende eksempler, medarbeiderdata eller
+andre fortrolige opplysninger. Hold refleksjonen i samtalen med mindre brukeren
+har godkjent et konkret målsted. Ikke anbefal deling med leder eller kolleger;
+det er brukerens beslutning. Ikke presenter utfallet som en formell vurdering.
+Kurerte, ikke-autoritative ressurstips finnes i
+[ressurser.md](./references/ressurser.md).
 
 ## Interne rammeverk
 

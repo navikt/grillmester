@@ -79,67 +79,75 @@ class PackageValidationTest(unittest.TestCase):
         self.write_json("plugin/plugin.json", plugin)
         marketplace = self.load_json(".github/plugin/marketplace.json")
         marketplace["metadata"]["version"] = "0.2.0"
-        marketplace["plugins"][0]["version"] = "0.2.0"
+        for entry in marketplace["plugins"]:
+            entry["version"] = "0.2.0"
         self.write_json(".github/plugin/marketplace.json", marketplace)
+        nav = self.load_json("plugin-nav/plugin.json")
+        nav["version"] = "0.2.0"
+        self.write_json("plugin-nav/plugin.json", nav)
         self.assertEqual([], self.errors())
 
-    def test_designer_role_boundary_rejects_joint_tool_widening(self) -> None:
-        lock = self.load_json("policy/content-lock.json")
-        lock["agents"]["designer"]["tools"].append("agent")
-        self.write_json("policy/content-lock.json", lock)
-        path = self.root / "plugin/agents/designer.agent.md"
+    def test_runtime_all_agent_rejects_an_explicit_tool_list(self) -> None:
+        path = self.root / "plugin/agents/grillmester.agent.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
-                "  - ask_user\n", "  - ask_user\n  - agent\n", 1
+                "disable-model-invocation: true\n",
+                "disable-model-invocation: true\ntools:\n  - read\n",
+                1,
             ),
             encoding="utf-8",
         )
-        self.assert_error("designer violates the reviewed role tool boundary")
+        self.assert_error("runtime-all policy must omit tools")
 
-    def test_doctor_who_role_boundary_rejects_execute(self) -> None:
-        lock = self.load_json("policy/content-lock.json")
-        lock["agents"]["doctor-who"]["tools"].append("execute")
-        self.write_json("policy/content-lock.json", lock)
-        path = self.root / "plugin/agents/doctor-who.agent.md"
+    def test_runtime_all_agent_rejects_redundant_deferred_tool_loading(self) -> None:
+        path = self.root / "plugin/agents/grillmester.agent.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
-                "  - edit\n", "  - edit\n  - execute\n", 1
+                "disable-model-invocation: true\n",
+                "disable-model-invocation: true\ndeferred-tool-loading: true\n",
+                1,
             ),
             encoding="utf-8",
         )
-        self.assert_error("doctor-who violates the reviewed role tool boundary")
+        self.assert_error("runtime-all agents already use tool search")
 
-    def test_sensitive_roles_have_no_server_wildcards(self) -> None:
+    def test_all_public_agents_use_the_runtime_toolset(self) -> None:
         lock = self.load_json("policy/content-lock.json")
-        for agent_id in ("designer", "doctor-who"):
+        for agent_id in ("grillmester", "barista", "designer", "doctor-who"):
             with self.subTest(agent=agent_id):
-                tools = lock["agents"][agent_id]["tools"]
-                self.assertFalse(any(tool.endswith("/*") for tool in tools))
-                self.assertNotIn("*", tools)
-                self.assertNotIn("agent", tools)
+                self.assertEqual("runtime-all", lock["agents"][agent_id]["toolPolicy"])
+                self.assertNotIn("tools", lock["agents"][agent_id])
+                frontmatter = (
+                    self.root / f"plugin/agents/{agent_id}.agent.md"
+                ).read_text(encoding="utf-8").split("---", 2)[1]
+                self.assertNotIn("tools:", frontmatter)
 
-        designer_tools = lock["agents"]["designer"]["tools"]
-        self.assertNotIn("playwright/browser_evaluate", designer_tools)
-        self.assertNotIn("playwright/browser_run_code_unsafe", designer_tools)
-        self.assertNotIn(
-            "com.microsoft/playwright-mcp/browser_evaluate", designer_tools
-        )
-        self.assertNotIn(
-            "com.microsoft/playwright-mcp/browser_run_code_unsafe", designer_tools
-        )
+    def test_explicit_agent_rejects_a_missing_tool_list(self) -> None:
+        path = self.root / "plugin/agents/grill-inspektor.agent.md"
+        text = path.read_text(encoding="utf-8")
+        start = text.index("tools:\n")
+        end = text.index("---\n", start)
+        path.write_text(text[:start] + text[end:], encoding="utf-8")
+        self.assert_error("tools must be a duplicate-free list")
 
-    def test_sensitive_roles_reject_global_tool_wildcard(self) -> None:
-        lock = self.load_json("policy/content-lock.json")
-        lock["agents"]["designer"]["tools"].append("*")
-        self.write_json("policy/content-lock.json", lock)
+    def test_kokk_keeps_read_only_primary_source_research(self) -> None:
+        path = self.root / "plugin/agents/kokk.agent.md"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("  - web\n", text.split("---", 2)[1])
+        self.assertIn("current\n   primary documentation", text)
+        self.assertIn("never use shell-network commands as a fallback", text)
+
+    def test_designer_runtime_all_rejects_a_partial_tool_matrix(self) -> None:
         path = self.root / "plugin/agents/designer.agent.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
-                "  - ask_user\n", "  - ask_user\n  - '*'\n", 1
+                "disable-model-invocation: true\n",
+                "disable-model-invocation: true\ntools:\n  - read\n",
+                1,
             ),
             encoding="utf-8",
         )
-        self.assert_error("tools must not contain wildcards")
+        self.assert_error("runtime-all policy must omit tools")
 
     def test_shared_agent_floor_drift_is_rejected(self) -> None:
         path = self.root / "plugin/agents/researcher.agent.md"
@@ -307,16 +315,17 @@ class PackageValidationTest(unittest.TestCase):
         manifest = self.load_json(".github/plugin/marketplace.json")
         manifest["plugins"][0]["source"] = "."
         self.write_json(".github/plugin/marketplace.json", manifest)
-        self.assert_error("marketplace plugin source must be the development path")
+        self.assert_error("marketplace grillmester source must be 'plugin'")
 
     def test_immutable_release_marketplace_source_is_valid(self) -> None:
         manifest = self.load_json(".github/plugin/marketplace.json")
-        manifest["plugins"][0]["source"] = {
-            "source": "github",
-            "repo": "navikt/grillmester",
-            "path": "plugin",
-            "sha": "a" * 40,
-        }
+        for entry in manifest["plugins"]:
+            entry["source"] = {
+                "source": "github",
+                "repo": "navikt/grillmester",
+                "path": VALIDATE.PACKAGE_PATHS[entry["name"]],
+                "sha": "a" * 40,
+            }
         self.write_json(".github/plugin/marketplace.json", manifest)
         self.assertEqual([], self.errors())
 
@@ -402,6 +411,40 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("looks like a national ID")
 
+    def test_copyable_figma_keys_are_not_mistaken_for_national_ids(self) -> None:
+        catalog_path = self.root / (
+            "plugin/skills/grillmester-design-prototype/references/"
+            "aksel-figma-katalog.json"
+        )
+        raw_catalog = catalog_path.read_text(encoding="utf-8")
+        self.assertNotIn("\\u003", raw_catalog)
+        catalog = json.loads(raw_catalog)
+        keys = []
+        for component in catalog["komponenter"]:
+            component_keys = component.get("keys", {})
+            keys.extend(
+                component_keys.values()
+                if isinstance(component_keys, dict)
+                else component_keys
+            )
+            keys.extend(
+                value
+                for key, value in component.items()
+                if key.startswith("key") and key != "keys"
+            )
+        self.assertTrue(all(len(key) == 40 for key in keys))
+        self.assertTrue(
+            all(VALIDATE.FIGMA_COMPONENT_KEY.fullmatch(key) for key in keys)
+        )
+        self.assertEqual([], self.errors())
+
+        shaped_value = "12345" + "678901"
+        catalog_path.write_text(
+            raw_catalog + f'\n{{"unsafeExample":"{shaped_value}"}}\n',
+            encoding="utf-8",
+        )
+        self.assert_error("looks like a national ID")
+
     def test_source_revision_must_be_a_full_sha(self) -> None:
         lock = self.load_json("policy/content-lock.json")
         lock["sources"]["pilot"]["revision"] = "main"
@@ -419,6 +462,62 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error(
             "third-party source superpowers must ship repository and revision"
         )
+
+    def test_each_skill_has_one_canonical_package(self) -> None:
+        source = self.root / "plugin-nav/skills/grillmester-lumi-survey"
+        target = self.root / "plugin/skills/grillmester-lumi-survey"
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.copytree(source, target)
+        self.assert_error("content lock assigns grillmester-lumi-survey")
+
+    def test_standard_package_rejects_required_slash_route_to_add_on(self) -> None:
+        path = self.root / "plugin/skills/grillmester-review/SKILL.md"
+        path.write_text(
+            path.read_text(encoding="utf-8")
+            + "\nUse `/grillmester-lumi-survey` before completing.\n",
+            encoding="utf-8",
+        )
+        self.assert_error("package-local closure violation")
+
+    def test_add_on_rejects_unconditional_route_to_standard(self) -> None:
+        path = self.root / "plugin-nav/skills/grillmester-lumi-survey/SKILL.md"
+        path.write_text(
+            path.read_text(encoding="utf-8")
+            + "\nUse `grillmester-review` before completing.\n",
+            encoding="utf-8",
+        )
+        self.assert_error("must be a conditional optional route")
+
+    def test_bare_dangling_component_reference_is_rejected(self) -> None:
+        path = self.root / "plugin/skills/grillmester-review/SKILL.md"
+        path.write_text(
+            path.read_text(encoding="utf-8")
+            + "\nContinue with grillmester-nonexistent after review.\n",
+            encoding="utf-8",
+        )
+        self.assert_error("dangling Grillmester prose component reference")
+
+    def test_add_on_cross_route_requires_standalone_fallback(self) -> None:
+        path = self.root / "plugin-nav/skills/grillmester-lumi-survey/SKILL.md"
+        path.write_text(
+            path.read_text(encoding="utf-8")
+            + "\nWhen the standard package is installed, optionally use "
+            "`grillmester-review`.\n",
+            encoding="utf-8",
+        )
+        self.assert_error("needs a standalone fallback")
+
+    def test_add_on_is_skills_only(self) -> None:
+        agents = self.root / "plugin-nav/agents"
+        agents.mkdir()
+        self.assert_error("NAV add-on must not contain an agents directory")
+
+    def test_package_counts_are_locked(self) -> None:
+        manifest = self.load_json("package-manifest.json")
+        manifest["packages"][0]["skills"] = 44
+        self.write_json("package-manifest.json", manifest)
+        self.assert_error("package roster or counts have drifted")
 
     def test_component_source_must_be_declared(self) -> None:
         lock = self.load_json("policy/content-lock.json")

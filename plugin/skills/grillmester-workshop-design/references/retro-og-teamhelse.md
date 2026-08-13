@@ -1,6 +1,9 @@
 # Retro og teamhelse
 
-Tre verktøy som henger sammen: retroen er motoren for forbedring, Spotify Health Check er en dypere temperaturmåling noen ganger i året, og helsesjekk-boten gir et ukentlig anonymt signal. Funn fra de to siste blir input til den første.
+Tre flater som henger sammen: retroen er motoren for forbedring, teamets egen
+temperaturmåling kan åpne en bredere samtale ved behov, og helsesjekk-boten kan
+gi et ukentlig anonymt signal. Funn fra de to siste kan bli input til den
+første, men aldri et sentralt måltall.
 
 ## Del 1: Retro
 
@@ -64,59 +67,73 @@ Fem faser (Derby/Larsen, jf. Retromat): **sett scenen → samle data → generer
 | Takk og anerkjennelse: hver person trekker frem noe en kollega gjorde | Konflikt/friksjon, etter stor leveranse |
 | Ett ord ut | Lav energi |
 
-## Del 2: Spotify Health Check
+## Del 2: Teamets egen temperaturmåling
 
-Selvvurderingsmodell med 11 indikatorer. Teamet vurderer hver indikator med **trafikklys** (grønn/gul/rød) og **trendpil** (↑ → ↓) — trenden er ofte viktigere enn fargen.
+Bruk en temperaturmåling bare når teamet selv ønsker en bredere samtale enn
+en vanlig retro gir. Velg fire til åtte dimensjoner fra teamets nåværende mål
+og arbeidssituasjon. Eksempler kan være verdiskaping, leveranseflyt, læring,
+støtte, tydelighet og bærekraftig arbeidsbelastning. Eksemplene er
+samtalestartere, ikke en sentral modell eller et fast NAV-spørsmålssett.
 
-| Indikator | Spørsmålet bak |
-|---|---|
-| Leverer verdi | Leverer vi noe brukerne faktisk får nytte av? |
-| Lett å release | Er det enkelt og trygt å sette i produksjon? |
-| Gøy | Er det gøy å gå på jobb? |
-| Kodehelse | Er vi stolte av kodebasen? |
-| Læring | Lærer vi nye ting hele tiden? |
-| Oppdrag | Vet vi hvorfor vi er her, og brenner vi for det? |
-| Brikker eller spillere | Styrer vi vår egen skjebne, eller blir vi flyttet på? |
-| Fart | Får vi ting gjort raskt, uten å vente på hverandre? |
-| Egnet prosess | Passer måten vi jobber på til oss? |
-| Støtte | Får vi hjelpen vi trenger når vi ber om den? |
-| Lagfølelse | Er vi et lag, eller en samling individer? |
+La deltakerne svare anonymt og individuelt før samtalen. Teamet kan velge en
+enkel lav/middels/høy markering og retning siden forrige samtale, men formatet
+er lokalt og skal ikke sammenlignes mellom team. Snakk om hva observasjonene
+kan bety, hva som mangler av kontekst, og om ett eller to temaer bør tas videre
+til retroen.
 
-Per indikator brukes et **«strålende vs. elendig»-kort** som samtalestøtte: en kort beskrivelse av hvordan strålende ser ut og hvordan elendig ser ut. Teamet snakker seg frem til hvor de er — kortet kalibrerer samtalen, fasiten finnes ikke.
-
-🚫 **VIKTIG: dette er selvvurdering for samtale i teamet — ALDRI et rapporteringsverktøy oppover.** I det øyeblikket fargene blir måltall til ledelsen, begynner teamene å pynte på dem, og ærligheten dør. Hvis noen ber om å «samle inn health check-resultatene», si fra om dette eksplisitt.
+Dette er refleksjon for teamet, aldri rangering, personalvurdering eller
+rapportering oppover. Ikke be om navn, individuelle svar eller fritekst som kan
+identifisere personer. Bruk bare syntetiske eller uttrykkelig godkjente
+aggregerte data, og ikke persister eller publiser resultatet uten et eget
+godkjent mål.
 
 ### Samarbeidsflate som tekst
 
-Tilpass til verktøyet teamet har bekreftet. Hvis verktøyet er ukjent, lever
+Tilpass til et verktøy teamet har bekreftet. Hvis verktøyet er ukjent, lever
 strukturen verktøynøytralt:
 
-- Én rad per indikator: kortet («strålende vs. elendig»-teksten) til venstre
-- Tre stemmesoner per rad: grønn / gul / rød — hver deltaker plasserer én lapp, stille, før diskusjon
-- Trendfelt per rad: ↑ → ↓ etter diskusjonen
-- Område «Mønstre»: hva går igjen på tvers av indikatorene?
-- Område «Til retro/tiltak»: indikatorer som fortjener oppfølging, med eier
-- Parkeringsplass
+- Én rad per lokalt valgt dimensjon, med teamets eget kontrollspørsmål
+- Anonym sone for individuell vurdering før diskusjon
+- Valgfritt felt for retning siden forrige samtale
+- Område for observert mønster, manglende kontekst og alternative forklaringer
+- Område for temaer teamet vil ta videre til retro
+- Parkeringsplass for temaer som krever en annen trygg arena
 
 ## Del 3: Tolkning av helsesjekk-bot-resultater
 
-Nav-bred Slack-bot (open source, navikt/helsesjekk-bot) som måler teamhelse **ukentlig og anonymt**.
+`navikt/helsesjekk-bot` er en open-source Slack-bot som ifølge prosjektets
+README er tilgjengelig for NAV-ansatte og spør ukentlig med anonyme
+individsvar. Det er en tilgjengelig capability, ikke et utsagn om at alle team
+bruker den. Verifiser gjeldende kilde før du beskriver botens nåværende
+atferd.
 
-### Resultatformat
+### Observert eksempel på resultatformat
 
-- Kategorier med indikatorer: **«Teamhelse»** (stress, stemningen i teamet) og **«Fart & flyt»** (fremdrift, prioritering og tidsbruk)
-- Skala **1–5** per indikator, med **ukestrend i parentes** (f.eks. «3,8 (−0,4)») og fargemarkering grønn/gul/rød
-- **Totalscore** for teamet
+- Historiske eksempler har hatt kategorier som **«Teamhelse»** og **«Fart &
+  flyt»**, skala/trend og fargemarkering.
+- Ikke krev disse navnene, skalaen, fargene eller en totalscore. Tolk formatet
+  brukeren faktisk limer inn, og spør når et felt er uklart.
 
-**Dashbordet er internt og ligger bak innlogging — forsøk ALDRI å hente det.** Be brukeren lime inn resultatet som tekst, og tolk det de limer inn.
+**Dashbordet er internt og ligger bak innlogging — forsøk ALDRI å hente det.**
+Be bare om syntetiske eller uttrykkelig godkjente aggregerte resultater. Ikke
+be om eller behandle navn, individuelle svar, fritekst eller eksempler som kan
+identifisere en person. Følg klientens og NAVs datapolicy. Tolk utdraget i
+samtalen, men ikke persister eller publiser det uten et særskilt godkjent mål.
+Hvis trygg aggregering eller tillatt bruk er uklar, stopp og bruk en tom
+workshopstruktur i stedet.
 
-### Tolkningsregler
+### Tolkningsspørsmål
 
-| Signal | Respons |
+Resultatet er et samtalesignal, ikke en diagnose eller en sentral Nav-terskel.
+Responsrate, teamets egen baseline, hendelser i perioden og flere målepunkter er
+nødvendig kontekst. Avtal lokalt hva som skal utløse oppfølging; ikke importer
+faste terskler fra denne referansen.
+
+| Signal | Spørsmål og mulig respons |
 |---|---|
-| Fall **> 1,0** i én indikator fra forrige uke | Foreslå indikatoren som tema for neste retro |
-| Vedvarende gult/rødt i **3+ uker** | Foreslå å ta det opp i en teamsamtale — ikke vent på retroen |
-| Utslag i én enkeltuke | Observer, ikke overreager — én dårlig uke er støy, ikke trend |
-| Lav prioritering/tidsbruk **og** høyt stress samtidig | Se kategoriene i sammenheng: for mye parallelt arbeid? |
+| Tydelig fall fra teamets egen baseline | Spør hva som endret seg og om teamet vil ta temaet i retro eller tidligere |
+| Vedvarende uønsket nivå over flere målinger | Avklar med teamet om en egen samtale bør skje før neste planlagte retro |
+| Utslag i én enkeltuke | Sjekk responsrate og hendelser; observer uten å diagnostisere en trend |
+| Lav prioritering/tidsbruk og høyt stress samtidig | Se signalene i sammenheng og undersøk blant annet parallelt arbeid – ikke anta årsaken |
 
 Når et funn skal videre til retro: bruk fasemodellen i del 1 og velg aktiviteter merket for situasjonen funnet peker på (f.eks. høyt stress over tid → «lav energi»- eller «konflikt/friksjon»-aktiviteter). Helsesjekken sier *at* noe skurrer — retroen finner ut *hvorfor* og fester tiltak med eier.

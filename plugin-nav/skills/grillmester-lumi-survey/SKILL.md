@@ -40,8 +40,16 @@ consumer or authoritative owner documentation.
 
 Load [the survey-design reference](references/survey-design.md) when selecting
 the survey shape, questions, branching, context, storage behavior, or events.
-Use `grillmester-klarsprak`, `grillmester-aksel-design`, and `grillmester-accessibility-review` where the change
-touches user text, layout, focus, validation, or interaction.
+When the standard `grillmester` package is also installed, optionally use
+`grillmester-klarsprak`, `grillmester-aksel-design`, and
+`grillmester-accessibility-review` where the change touches user text, layout,
+focus, validation, or interaction. Without that package, keep this skill
+self-contained: check the text for plain, task-oriented language; derive
+components and tokens from the consumer's installed Aksel version and current
+primary documentation; and verify keyboard flow, focus, labels, errors,
+contrast, zoom and screen-reader semantics. Mark `NEEDS_CONTEXT` instead of
+guessing when the applicable Aksel or accessibility contract cannot be
+verified.
 
 Use the exact configuration types, component exports, presets, props, styles,
 and import order supported by the resolved package. Do not assume names from

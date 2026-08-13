@@ -58,9 +58,10 @@ the baseline through the repository's approved process.
 
 ## Coordinate a breaking change
 
-1. Discover permitted consumers from Nais `accessPolicy.inbound` and actual
-   consumers from traffic, telemetry, code search, and published usage. Use
-   both; they can differ.
+1. Discover service-to-service consumers represented by Nais
+   `accessPolicy.inbound`, ingress/external exposure and authentication
+   separately, and actual consumers from traffic, telemetry, code search, and
+   published usage. Use all applicable sources; they can differ.
 2. Notify each owning team directly and agree on a transition window.
 3. Use the versioning mechanism already established by the repository. For a
    new HTTP version, keep both contracts available during migration when
@@ -77,8 +78,11 @@ repository's ADR process after the user accepts the recommendation.
 ## Apply NAV boundaries
 
 - Keep Nais `accessPolicy.inbound` explicit for internal callers and match it
-  with the callers' outbound policy. An empty inbound policy denies callers;
-  do not use wildcards without a deliberate security review.
+  with the callers' outbound policy. It governs service-discovery traffic and
+  token grants; it does **not** restrict traffic arriving through an ingress.
+  Analyze ingress exposure, edge authentication and application authorization
+  separately. An empty inbound policy denies the covered internal callers; do
+  not use wildcards without a deliberate security review.
 - Validate the token mechanism selected by the repository. For APIs carrying
   user context, validate issuer, audience, signature, expiry, and the relevant
   identity claims. Check `acr` when the operation requires a high login level.

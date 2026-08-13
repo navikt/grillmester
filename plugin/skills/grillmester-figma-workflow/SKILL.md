@@ -8,6 +8,12 @@ license: MIT
 
 Bruk denne skillen når du har en Figma-lenke eller Figma-referanse og skal implementere designet i Nav-frontend med `@navikt/ds-react`.
 
+Når den valgte agenten har en design-only-grense, som
+`grillmester:designer`, skal skillen bare hente designkontekst, kontrollere
+Aksel-mappingen og levere en konkret implementeringsbrief. Ikke skriv eller
+endre produktkode i den sesjonen. Brukeren må starte en separat Barista- eller
+Grillmester-flyt for steg 5–6.
+
 Lesing av Figma-kontekst er standardflyten. Hvis Figma-verktøy ikke er
 tilgjengelig, fall tilbake til brief, skjermbilder og eksisterende kode og merk
 begrensningen. Oppretting, redigering eller publisering i Figma, Code Connect
@@ -46,6 +52,10 @@ Oversett Figma-strukturen til Aksel-komponenter og tokens (se mapping-tabellene 
 ### 5. Implementer
 
 Bygg med Aksel-primitives. Aldri generisk HTML for elementer Aksel dekker.
+
+Dette steget krever en engineering-agent med implementasjonsmandat. I en
+design-only-sesjon leveres i stedet filscope, komponentmapping,
+akseptansekriterier og visuell verifikasjonsplan som handoff.
 
 ### 6. Visuell verifisering
 

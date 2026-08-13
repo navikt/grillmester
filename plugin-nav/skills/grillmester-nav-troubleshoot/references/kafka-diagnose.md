@@ -79,4 +79,7 @@ Obtain explicit approval.
 - Database failure: [database-diagnose.md](./database-diagnose.md)
 - Auth on downstream calls: [auth-diagnose.md](./auth-diagnose.md)
 - Consumer design: grillmester-kafka-topic
-- Regression reproduction: grillmester-diagnosing-bugs
+- When the standard `grillmester` package is installed, optionally route
+  regression reproduction to `grillmester-diagnosing-bugs`. Without it,
+  report the smallest reproducible input, observable failure and proposed
+  regression boundary; use `NEEDS_CONTEXT` if any cannot be verified.

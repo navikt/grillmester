@@ -1,6 +1,6 @@
 ---
 name: grillmester-diagnosing-bugs
-description: "Builds a tight reproduction loop, minimizes the symptom, tests ranked hypotheses, and locks the fix down with regression evidence. Use when something throws, fails, hangs, flakes, regresses in performance, or only fails at runtime; for a symptom isolated to deployed NAIS, begin with grillmester-nav-troubleshoot."
+description: "Builds a tight reproduction loop, minimizes the symptom, tests ranked hypotheses, and locks the fix down with regression evidence. Use when something throws, fails, hangs, flakes, regresses in performance, or only fails at runtime."
 license: MIT
 ---
 
@@ -19,7 +19,12 @@ focused command, application boot command and available fixtures. Do not assume
 Gradle, Kotest, Ktor, Node, pytest, containers, Kafka or a database until
 repository evidence establishes them.
 
-Is the symptom a **runtime/platform problem** (the app runs, but fails in production) — start in the symptom table at the bottom and follow the diagnostic tree in `/grillmester-nav-troubleshoot` (which owns the trees), then come back here for the fix discipline.
+If the symptom is a runtime/platform problem in production, use the platform's
+approved diagnostic tooling to establish the failing boundary, then return here
+for the reproduction and fix discipline. When the optional
+`grillmester-nav-troubleshoot` skill is installed and the app runs on NAIS, it
+can supply NAV-specific diagnostic trees; this skill remains complete without
+that add-on.
 
 ## Phase 1 — Build a feedback loop
 
@@ -130,7 +135,8 @@ Tool preference:
 **Perf branch.** For performance regressions, logs are usually the wrong tool.
 Establish a baseline with the profiler, metrics, benchmark or query-plan tooling
 already supported by the stack, then bisect. Measure first, fix afterwards. On
-NAIS, `/grillmester-nav-troubleshoot` owns platform-observability diagnosis.
+a managed platform, use its approved observability tooling to establish the
+boundary before changing application code.
 
 ## Phase 5 — Fix + regression test
 
@@ -165,35 +171,33 @@ Required before you declare done:
 
 **Then ask: what would have prevented this bug?** If the answer involves an
 architectural change (no good test seam, entangled callers, hidden coupling),
-carry the finding forward via `/grillmester-grilling`. Use `/grillmester-nav-architecture-review` for
-NAV-specific consequences. When lasting concepts or decisions ought to be
+carry the finding forward via `/grillmester-grilling`. Use
+`/grillmester-architecture-review` for consequential architecture questions.
+When lasting concepts or decisions ought to be
 documented, recommend the repository's documented route when one exists and
 wait for the user's choice before `/grillmester-domain-modeling` writes. Give the
 recommendation **after** the fix is in, not before — you know more now than when
 you started.
 
-## Symptom overview — runtime/platform
+## Runtime/platform symptoms
 
-If the app fails in **production** (not in test), start in the right diagnostic tree, and come back here for the fix discipline (phases 5–6).
+For a production-only failure, identify the layer before changing code:
+deployment/startup, identity or authorization, messaging, database, or
+observability. Use only repository-approved platform tools, keep the pass
+read-only until the boundary is known, and then return to phases 5–6 here.
+Always propose the least invasive fix first. Production configuration changes,
+workload restarts and managed-resource changes require explicit approval.
 
-The diagnostic trees are owned by `/grillmester-nav-troubleshoot` (not duplicated here). Follow the tree there, and come back here for the fix discipline (phases 5–6).
-
-| Symptom | Tree in `/grillmester-nav-troubleshoot` |
-|---------|-----------|
-| Pod does not start / crashes / OOMKilled / ImagePullBackOff | `references/pod-diagnose.md` |
-| 401 Unauthorized / 403 Forbidden (TokenX / Azure AD / Texas) | `references/auth-diagnose.md` |
-| Kafka consumer lag / messages not processed | `references/kafka-diagnose.md` |
-| DB connection errors / HikariCP pool exhaustion / Flyway errors | `references/database-diagnose.md` |
-| Error rate/latency/restarts where the signals diverge | `references/observability-diagnose.md` |
-
-The diagnostic trees are NAV-platform-specific and apply only when repository
-and environment evidence establishes NAIS. Always propose the **least invasive
-fix first**; escalate only when needed. Changing production configuration,
-restarting workloads or changing managed resources requires explicit approval.
+The optional `grillmester-nav-troubleshoot` add-on gives deeper NAIS trees for
+pod startup, NAV identity, Kafka, Cloud SQL and observability. If it is absent,
+name the missing platform capability or owner documentation instead of
+inventing NAV behavior.
 
 ## Related skills
 
 - `/grillmester-grilling` — stress-test the design when the bug exposes a design gap;
   recommend the documented route when needed
-- `/grillmester-auth-overview` — Azure AD / TokenX / ID-porten / Maskinporten / Texas (the mechanisms behind auth diagnosis)
-- `/grillmester-nav-architecture-review` — review NAV consequences of architectural changes that would have prevented the bug
+- `grillmester-auth-overview` (optional NAV add-on) — Azure AD / TokenX /
+  ID-porten / Maskinporten / Texas when those mechanisms are involved
+- `/grillmester-architecture-review` — review architectural changes that would
+  have prevented the bug

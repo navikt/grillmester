@@ -1,0 +1,74 @@
+name: Feilrapport
+description: Rapporter feil i en Grillmester-agent, skill, installasjon eller release.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Takk! Ikke lim inn secrets, personopplysninger eller usladdet diagnostikk.
+        Sikkerhetssårbarheter rapporteres med private vulnerability reporting.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Flate
+      options:
+        - Copilot CLI
+        - Copilot app
+        - Copilot cloud agent
+        - Plugininstallasjon eller oppdatering
+        - Agent
+        - Skill
+        - OpenCode skills-only
+        - Dokumentasjon eller annet
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Grillmester-versjon eller source-SHA
+      description: Oppgi release-tag og gjerne source-SHA. Ikke skriv bare «latest».
+      placeholder: v0.3.0-poc.1 / 40-tegns SHA
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Klient og versjon
+      placeholder: Copilot CLI 1.x / Copilot app build …
+    validations:
+      required: true
+  - type: input
+    id: component
+    attributes:
+      label: Agent eller skill
+      placeholder: grillmester:barista / grillmester-security-review
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduksjon
+      description: Beskriv minste trygge reproduksjon og hvilket repo-oppsett som er relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Forventet og faktisk resultat
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sladdet evidens
+      description: Legg ved relevante statuslinjer eller logger etter at tokens, URL-parametre, PII og interne data er fjernet.
+      render: text
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Sikkerhet
+      options:
+        - label: Jeg har fjernet secrets, personopplysninger, intern/konfidensiell informasjon og sensitiv produksjonsdata.
+          required: true
+        - label: Dette er ikke en sårbarhetsrapport som bør sendes privat.
+          required: true

@@ -5,7 +5,14 @@ license: MIT
 ---
 # Tilgjengelighet-review
 
-Review-prosess for universell utforming (UU) i Nav-flater. Universell utforming av ikt er lovpålagt for offentlig sektor gjennom **Likestillings- og diskrimineringsloven §17** og **Forskrift om universell utforming av ikt-løsninger**, med **WCAG 2.1 nivå A og AA** som forskriftskravet per i dag. **WCAG 2.2 AA** er fremoverlent praksis der relevant (nye suksesskriterier som 2.4.11 Focus Not Obscured er enkle å etterleve med Aksel). Verifiser alltid gjeldende krav mot **Tilsynet for universell utforming av ikt** (uutilsynet.no), som kan revidere løsningene våre og gi pålegg.
+Review-prosess for universell utforming (UU) i Nav-flater. Offentlig sektor er
+omfattet av norske krav til universell utforming av ikt; gjeldende standard og
+virkeområde skal alltid verifiseres mot
+[Uu-tilsynet](https://www.uutilsynet.no/regelverk/regelverk/149) før juridiske
+konklusjoner trekkes. Per siste kildekontroll er WCAG 2.1 nivå A og AA det
+forskriftsfestede utgangspunktet. Bruk WCAG 2.2 som en fremoverlent
+kvalitetsreferanse når consumerens policy eller risikobilde tilsier det, ikke
+som en umerket påstand om gjeldende norsk minstekrav.
 
 ## Avgrensning mot consumer-eid policy
 
@@ -24,7 +31,7 @@ eksplisitt godkjenning.
 ### Semantikk og struktur
 
 - Bruk `<main>`, `<nav>`, `<article>`, `<section>`, `<button>` og `<a>` der semantikken finnes.
-- Overskriftsnivåer skal være logiske og uten hopp (`h1` → `h2` → `h3`).
+- Overskriftsnivåer (`h1`–`h6`) skal følge en logisk hierarkisk struktur uten hopp.
 - Dokumentet skal ha riktig `lang` og sidetittel der app-strukturen eier dette.
 
 ### Skjema og feil
@@ -37,7 +44,9 @@ eksplisitt godkjenning.
 ### Interaksjon
 
 - Alle interaktive elementer skal ha tilgjengelig navn og synlig fokus.
-- Ikonknapper skal ha `title` eller tilsvarende Aksel-mønster.
+- Ikonknapper skal ha et meningsfullt tilgjengelig navn via synlig tekst,
+  `aria-label`, `aria-labelledby` eller komponentens dokumenterte Aksel-API.
+  `title` kan være supplerende informasjon, men er ikke tilstrekkelig alene.
 - Ikke bruk `<div onClick>` uten rolle, `tabIndex`, tastaturhåndtering og fokusstil.
 - Bruk beskrivende lenketekst, ikke "Klikk her".
 
@@ -85,13 +94,19 @@ test("side har ingen alvorlige tilgjengelighetsfeil", async ({ page }) => {
 
 ## Bruk Aksel i bunn
 
-Aksel-komponenter (`@navikt/ds-react`) har WCAG-samsvar, fokus-håndtering, ARIA og skjermleser-støtte innebygd. Første review-spørsmål er alltid: *brukes Aksel-komponenter der det finnes, eller er noe håndlaget unødvendig?*
+Aksel-komponenter (`@navikt/ds-react`) gir testede semantiske mønstre og er som
+regel et bedre utgangspunkt enn håndlagde alternativer. De er **ikke** en
+garanti for WCAG-samsvar: riktig bruk, innhold og hele sidekonteksten må fortsatt
+testes. Første review-spørsmål er: *brukes Aksel-komponenter der det finnes, og
+er de brukt riktig i denne flyten?*
 
 Se `grillmester-aksel-design`-skillen for komponentvalg, tokens og mønstre.
 
-## Manuell + automatisk testing (Nav-praksis)
+## Manuell + automatisk testing
 
-Begge deler kreves — automatiske verktøy fanger ~30 % av WCAG-bruddene.
+Kombiner automatiske og manuelle metoder fordi de finner ulike feil. Velg et
+representativt, risikobasert utvalg av sider og flyter; ikke påstå en fast
+dekningsprosent eller testfrekvens uten en autoritativ kilde eller lokal policy.
 
 - **Automatisk:** `axe-core` (via `@axe-core/react` eller Playwright-integrasjon) i CI. Lighthouse for rask sanity-sjekk.
 - **Manuell tastatur-test:** Tab gjennom hele flyten uten mus. Fokus skal være synlig, rekkefølgen logisk, ingen feller.
@@ -101,13 +116,20 @@ Begge deler kreves — automatiske verktøy fanger ~30 % av WCAG-bruddene.
 
 ## Klarspråk er tilgjengelighet
 
-Nav skriver for folk i sårbare situasjoner. Uklart språk er et UU-brudd i praksis (WCAG 3.1.5 Lesenivå). Feilmeldinger, labels og hjelpetekst skal være konkrete og handlingsrettede. Se `grillmester-klarsprak`-skillen.
+Nav skriver for folk i sårbare situasjoner. Klart språk er avgjørende for at
+innhold og handlinger kan forstås, men WCAG 3.1.5 kan ikke brukes som en
+universell etikett på all uklar tekst. Vurder suksesskriteriet mot faktisk
+målgruppe og innhold; gjør uansett feilmeldinger, labels og hjelpetekst konkrete
+og handlingsrettede. Se `grillmester-klarsprak`-skillen.
 
 ## Hvem tester
 
-- **Teamet selv** ved hver PR: automatisk skann + tastatur-gjennomgang av endrede flyter. Nye sider krever også skjermleser-sjekk.
-- **Fagressurs/designer** ved større flyter eller nytt flow-design.
-- **Ekstern UU-revisor (WCAG-EM-metodikk)** ved lansering av nye publikumsrettede tjenester, og periodisk for eksisterende. Funn prioriteres i backlog med frist.
+- **Teamet selv:** test den endrede eller mest risikoutsatte flyten med relevante
+  automatiske og manuelle metoder. Consumerens policy bestemmer hvilke checks
+  som er obligatoriske per PR.
+- **Fagressurs/designer:** involver ved større eller komplekse flyter.
+- **Uavhengig faglig review:** vurder ved nye eller vesentlig endrede tjenester
+  og ellers ut fra risiko, regelverk og consumerens revisjonsplan.
 - **Brukertesting med assistive teknologier** bør inngå i større leveranser — ikke alt fanges av heuristikker.
 
 ## Review-sjekkliste
@@ -118,14 +140,16 @@ Nav skriver for folk i sårbare situasjoner. Uklart språk er et UU-brudd i prak
 - [ ] Skjermleser-test på nye eller endrede skjemaer og modaler
 - [ ] Synlig fokus og logisk fokus-rekkefølge
 - [ ] Feilmeldinger er koblet til felt (`aria-describedby`) og på klarspråk
-- [ ] Overskrifts-hierarki (`h1`–`h3`) uten hopp
+- [ ] Logisk overskriftshierarki (`h1`–`h6`) uten hopp
 - [ ] Språk-attributt (`lang="nb"`) og korrekt dokumenttittel
 - [ ] Kontrast og reflow ved 200/400 % zoom
-- [ ] Tilgjengelighetserklæring oppdatert ved kjente avvik (uutilsynet-krav)
+- [ ] Kjente avvik er vurdert mot løsningens gjeldende tilgjengelighetserklæring
+      og consumerens publiseringsansvar
 
 ## Kilder
 
 - [uutilsynet.no](https://www.uutilsynet.no) — tilsyn, regelverk, tilgjengelighetserklæring
 - [WCAG 2.2](https://www.w3.org/TR/WCAG22/) — W3C-standard; vurder 2.2-suksesskriterier der relevant (forskriftskravet er per i dag 2.1 A/AA — verifiser mot uutilsynet.no)
-- [Aksel tilgjengelighet](https://aksel.nav.no/grunnleggende/prinsipper/universell-utforming) — Navs praksis og komponentstøtte
+- [Aksel: frontend-kode og tilgjengelighet](https://aksel.nav.no/god-praksis/artikler/utvikling) — komponenter må brukes og testes i kontekst
+- [Aksel: Test less!](https://aksel.nav.no/god-praksis/artikler/test-less) — representativ og risikobasert testing
 - [WCAG-EM](https://www.w3.org/TR/WCAG-EM/) — metodikk for eksterne revisjoner

@@ -1,15 +1,15 @@
-# Aksel markup-fasit (ekte ds-react-output)
+# Aksel markup-snapshot (ekte ds-react-output)
 
-> **Generert** av `scripts/generate_markup_fasit.mjs` via `@navikt/ds-react@8.12.0` +
-> `react-dom/server`. Hver kodeblokk er ds-reacts **egen** statiske HTML — garantert
-> korrekt DOM som rendrer autentisk Aksel med `@navikt/ds-css` lastet. Ikke rediger
-> for hånd; kjør generatoren på nytt ved Aksel-oppgradering.
+> **Versjonert snapshot:** generert fra `@navikt/ds-react@8.12.0` med
+> `react-dom/server`. Hver kodeblokk er ds-reacts egen statiske HTML for den
+> versjonen. Generatoren følger ikke pluginen, og snapshotet er ikke en garanti
+> for nyere Aksel-versjoner. Verifiser kompatibilitet mot consumerens installerte
+> pakke eller rendret DOM før bruk.
 
-Dette er Visual Companion-sidens **fasit**: bruk denne ekte `.aksel-*`-markupen i
-VC-skissene i stedet for `.mock-*`-tilnærminger. Da rendrer skissen ekte Aksel —
-riktige farger, fasonger, ikoner og struktur — uten React, build eller CDN.
+Når versjonen er kompatibel, bruk denne ekte `.aksel-*`-markupen i VC-skissene
+i stedet for å etterligne en eksisterende Aksel-komponent med `.mock-*`.
 
-## Slik bruker du fasiten
+## Slik bruker du snapshotet
 
 1. VC-siden MÅ ha rot-konteksten under (setter standard fargekontekst = `accent`, så
    primærknapper blir blå). `@navikt/ds-css` lastes via `/aksel.css` (allerede i
@@ -1207,4 +1207,6 @@ vises i åpen/statisk tilstand — i VC viser du dem inline. Komponenter som kre
 hooks (DatePicker/MonthPicker) rendrer som et felt med kalenderknapp; selve
 kalenderen er interaktiv og hører hjemme i Figma-katalogen eller en ds-react-prototype.
 
-Regenerer ved Aksel-oppgradering: `node scripts/generate_markup_fasit.mjs`.
+Ved Aksel-oppgradering må snapshotet regenereres i en separat, reviewet
+vedlikeholdsflyt før versjonsdeklarasjonen endres. Inntil da: bruk live
+pakkeevidens eller en grovere wireframe.

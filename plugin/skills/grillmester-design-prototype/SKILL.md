@@ -1,13 +1,14 @@
 ---
 name: grillmester-design-prototype
-description: "Utforsk designkonsepter visuelt med Aksel-tema i nettleser, og lever som Figma-skisse. Brukes via /grillmester-design-prototype når et konsept skal visualiseres."
+description: "Utforsk designkonsepter visuelt med Aksel-tema i nettleser, og lever Figma-klart eller som Figma-skisse når write finnes. Brukes via /grillmester-design-prototype når et konsept skal visualiseres."
 license: MIT
 ---
 
 # Prototype — fra konsept til synlig skisse
 
-Utforsk designkonsepter interaktivt i nettleseren, iterer med designeren,
-og lever som Figma-skisse med ekte Aksel-komponenter.
+Utforsk designkonsepter interaktivt i nettleseren, iterer med designeren, og
+lever Figma-klart — eller som Figma-skisse med ekte Aksel-komponenter når
+runtime tilbyr godkjent write.
 
 ## Gate for writes og eksterne sideeffekter
 
@@ -112,10 +113,13 @@ Før du skriver en HTML-mockup, sjekk alltid `/grillmester-aksel-design` skill f
 - Korrekt spacing (token = pixelverdi, f.eks. `--ax-space-16` = 16px)
 - Korrekt fargebruk (`--ax-bg-*`, `--ax-text-*`, `--ax-border-*`)
 
-Bruk **ekte `.aksel-*`-markup fra `references/aksel-markup-fasit.md`** — generert fra
-`@navikt/ds-react` (ds-reacts egen DOM), rendrer autentisk Aksel via ds-css. Frame-malen
-setter rot-konteksten (`data-color="accent"`) som gjør primærknapper blå. `.mock-*` er kun
-for ikke-Aksel-stillas. Fargene ligger i CSS-en (`data-color`/`data-variant`), ikke i JS.
+Bruk den bundlede `.aksel-*`-markupen i
+`references/aksel-markup-fasit.md` som en **versjonert startreferanse**. Den er
+ekte ds-react-output, men ikke en evig Aksel-fasit: verifiser først at consumerens
+installerte Aksel-versjon har kompatibel DOM/CSS. Ved avvik er installerbar
+pakke, aktuell Aksel-dokumentasjon eller rendret komponent autoritativ. Frame-
+malen setter rot-konteksten (`data-color="accent"`). `.mock-*` er bare for
+ikke-Aksel-stillas.
 
 Tokens i v8: `--ax-space-{px}` (f.eks. `--ax-space-16` = 16px, `--ax-space-24` = 24px).
 Radius: `--ax-radius-4`, `--ax-radius-8`, `--ax-radius-12`.
@@ -161,20 +165,23 @@ Vis ulike situasjoner som separate mockups eller sekvens: normal, venter (lastin
 
 ## Fase 2: Figma-leveranse
 
-Når konseptet er valgt og Figma MCP finnes, les
+Når konseptet er valgt, sjekk Figma read og write som separate kapabiliteter.
+Figma MCP-tilstedeværelse alene er ikke en write-garanti. Hvis en eksplisitt
+create/edit-kapabilitet finnes, les
 [Figma-prototypereferansen](references/figma-prototype.md). Ikke last den lange
 referansen under ren chat- eller nettleserutforsking. Bruk
-[komponentkatalogen](references/aksel-figma-katalog.json) som fasit for kjente
-Aksel-komponenter og [tokenreferansen](references/aksel-figma-tokens.md) for
-layouten rundt dem.
+[komponentkatalogen](references/aksel-figma-katalog.json) som en bundlet
+oppdagelsessnapshot og [tokenreferansen](references/aksel-figma-tokens.md) for
+layouten rundt dem. Det aktive Figma-biblioteket er autoritativt.
 
 1. Finn riktig plan og filkontekst read-only.
 2. Vis leveranse-preview og få eksplisitt godkjenning før filoppretting eller
    redigering.
 3. Søk Aksel først. Bruk en eksisterende komponent når den finnes; bygg custom
    bare når biblioteket faktisk mangler mønsteret.
-4. Bruk katalogdata direkte for kjente komponenter. Kjør preflight bare for det
-   katalogen ikke dekker, og logg varianter, default, tekstnoder og fonter.
+4. Preflight komponentnøkkel, varianter og tekst-/fontkrav mot det aktive
+   biblioteket før første write i økten. Bruk snapshotet til å gjøre preflighten
+   målrettet, ikke til å hoppe over den.
 5. Bygg inkrementelt, én seksjon per kall, med eksakte navn fra katalog eller
    preflight.
 6. Sammenlign skjermbilde mot valgt Visual Companion-retning, fiks avvik og del
@@ -200,7 +207,9 @@ Vis resultat → designer gir feedback → juster → gjenta til fornøyd.
   Serveren verifiserer markøren og fjerner bare denne sesjonen. Den støtter ikke
   `--cleanup-all`. For flere kjente restsesjoner: vis eksakte ID-er/stier, få
   eksplisitt godkjenning, og rydd én ID om gangen.
-- Uten Figma MCP → beskriv konseptet, lever som Issue.
+- Med bare Figma read → bruk konteksten, men lever Visual Companion,
+  Figma-klart utkast eller Issue-utkast; ikke hev at en fil ble skrevet.
+- Uten Figma MCP → beskriv konseptet, lever som Issue-utkast.
 - Uten Node.js → Chat + Figma direkte (hopp over Visual Companion).
 - I cloud/remote uten tilgjengelig loopback-URL → Chat + Figma direkte.
 - Uten Playwright → manuelt skjermbilde fra designer.

@@ -16,8 +16,10 @@ routes, resource cleanup, logging configuration, tests, and quality gates.
 Search by symbols and dependencies rather than assuming paths. Establish
 whether startup uses `EngineMain`, `embeddedServer`, test-only modules, or a
 custom bootstrap; whether configuration is HOCON, YAML, environment-backed, or
-typed code; and which DI approach is already used. Do not rely on a consumer
-repository's agent instructions for these facts. If the repository is not Ktor,
+typed code; and which DI approach is already used. Treat recognized consumer
+instructions as declared context and rationale, then verify effective or
+volatile runtime facts against code, build files, manifests, tests and current
+primary documentation. Stop and surface conflicts. If the repository is not Ktor,
 stop applying Ktor patterns and follow its actual framework.
 
 ## Preserve startup reachability

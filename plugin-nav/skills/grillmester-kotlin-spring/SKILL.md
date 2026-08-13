@@ -57,9 +57,15 @@ annotations; do not assume a starter coordinate or `@ProtectedWithClaims`
 shape. Treat network access and a valid token as insufficient authorization.
 
 Validate untrusted input at the boundary, avoid sensitive fields in URLs and
-logs, and keep operational endpoints deliberately scoped. Use
-`grillmester-security-review` for a changed identity model, sensitive-data flow, privileged
-operation, or new trust boundary.
+logs, and keep operational endpoints deliberately scoped. When the standard
+`grillmester` package is also installed, optionally use
+`grillmester-security-review` for a changed identity model, sensitive-data
+flow, privileged operation, or new trust boundary. Without that package,
+review the caller and asset, authentication and resource authorization,
+personal-data flow, secrets, logging, outbound destinations, least privilege,
+abuse cases and safe failure behavior here. Mark unresolved identity, data
+classification or trust-boundary facts as `NEEDS_CONTEXT`; do not treat this
+framework review as security approval.
 
 ## Test through discovered seams
 

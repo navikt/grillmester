@@ -2,9 +2,10 @@
 """Validate and describe Grillmester's immutable release chain.
 
 The public release tag identifies a catalog-only commit. The catalog then
-identifies the plugin payload with an exact GitHub commit SHA. Stable releases
-are new, stable-versioned catalogs whose payload is identical to a named RC
-apart from the manifest version; an RC tag is never moved or re-used.
+identifies both package payloads with one exact GitHub commit SHA. Stable
+releases are new, stable-versioned catalogs whose payloads are identical to a
+named RC apart from each manifest's version; an RC tag is never moved or
+re-used.
 """
 
 from __future__ import annotations
@@ -21,7 +22,11 @@ from pathlib import Path
 from typing import Any, Sequence
 
 
-PLUGIN_NAME = "grillmester"
+PLUGIN_NAMES = ("grillmester", "grillmester-nav")
+PLUGIN_PATHS = {
+    "grillmester": "plugin",
+    "grillmester-nav": "plugin-nav",
+}
 PLUGIN_REPOSITORY = "navikt/grillmester"
 CATALOG_PATH = ".github/plugin/marketplace.json"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -86,20 +91,26 @@ def read_object(path: Path) -> dict[str, Any]:
 
 def inspect_catalog(path: Path, *, channel: str) -> Catalog:
     value = read_object(path)
-    if value.get("name") != PLUGIN_NAME:
+    if value.get("name") != "grillmester":
         raise ReleaseContractError("catalog has the wrong marketplace name")
 
     metadata = value.get("metadata")
     plugins = value.get("plugins")
     if not isinstance(metadata, dict):
         raise ReleaseContractError("catalog metadata must be an object")
-    if not isinstance(plugins, list) or len(plugins) != 1:
-        raise ReleaseContractError("catalog must contain exactly one plugin")
-    plugin = plugins[0]
-    if not isinstance(plugin, dict) or plugin.get("name") != PLUGIN_NAME:
-        raise ReleaseContractError("catalog does not contain Grillmester")
+    if not isinstance(plugins, list) or len(plugins) != len(PLUGIN_NAMES):
+        raise ReleaseContractError("catalog must contain both Grillmester packages")
+    entries = {
+        entry.get("name"): entry
+        for entry in plugins
+        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+    }
+    if tuple(entries) != PLUGIN_NAMES:
+        raise ReleaseContractError("catalog package order or names have drifted")
 
-    version = parse_version(plugin.get("version"))
+    version = parse_version(entries[PLUGIN_NAMES[0]].get("version"))
+    if any(entry.get("version") != version.text for entry in entries.values()):
+        raise ReleaseContractError("catalog package versions differ")
     if metadata.get("version") != version.text:
         raise ReleaseContractError("catalog metadata and plugin versions differ")
     if channel == "rc" and version.prerelease is None:
@@ -107,20 +118,21 @@ def inspect_catalog(path: Path, *, channel: str) -> Catalog:
     if channel == "stable" and version.prerelease is not None:
         raise ReleaseContractError("stable promotion requires a stable version")
 
-    source = plugin.get("source")
-    if not isinstance(source, dict):
-        raise ReleaseContractError("release catalog must use an immutable source")
-    source_sha = source.get("sha")
-    expected_source = {
-        "source": "github",
-        "repo": PLUGIN_REPOSITORY,
-        "path": "plugin",
-        "sha": source_sha,
-    }
-    if source != expected_source:
-        raise ReleaseContractError(
-            "catalog source must be navikt/grillmester/plugin at one exact SHA"
-        )
+    sources = {name: entry.get("source") for name, entry in entries.items()}
+    if any(not isinstance(source, dict) for source in sources.values()):
+        raise ReleaseContractError("release catalog must use immutable sources")
+    source_sha = sources[PLUGIN_NAMES[0]].get("sha")  # type: ignore[union-attr]
+    for name, source in sources.items():
+        expected_source = {
+            "source": "github",
+            "repo": PLUGIN_REPOSITORY,
+            "path": PLUGIN_PATHS[name],
+            "sha": source_sha,
+        }
+        if source != expected_source:
+            raise ReleaseContractError(
+                "catalog packages must pin their canonical paths at one exact SHA"
+            )
     if not isinstance(source_sha, str) or FULL_SHA.fullmatch(source_sha) is None:
         raise ReleaseContractError("catalog source SHA must be 40 lowercase hex digits")
     return Catalog(version=version, source_sha=source_sha)
@@ -166,22 +178,27 @@ def bind_catalog_bytes(catalog_path: Path, catalog_repo: Path) -> None:
         )
 
 
-def validate_source_checkout(repo: Path, catalog: Catalog) -> dict[str, Any]:
+def validate_source_checkout(
+    repo: Path, catalog: Catalog
+) -> dict[str, dict[str, Any]]:
     actual_sha = git_output(repo, "rev-parse", "HEAD")
     if actual_sha != catalog.source_sha:
         raise ReleaseContractError(
             f"source checkout is {actual_sha}; catalog pins {catalog.source_sha}"
         )
-    manifest = read_object(repo / "plugin/plugin.json")
-    if manifest.get("name") != PLUGIN_NAME:
-        raise ReleaseContractError("source manifest has the wrong plugin name")
-    if manifest.get("version") != catalog.version.text:
-        raise ReleaseContractError(
-            "source manifest version does not match the catalog version"
-        )
-    if manifest.get("repository") != f"https://github.com/{PLUGIN_REPOSITORY}":
-        raise ReleaseContractError("source manifest has the wrong repository")
-    return manifest
+    manifests: dict[str, dict[str, Any]] = {}
+    for name in PLUGIN_NAMES:
+        manifest = read_object(repo / PLUGIN_PATHS[name] / "plugin.json")
+        if manifest.get("name") != name:
+            raise ReleaseContractError(f"source manifest has the wrong name for {name}")
+        if manifest.get("version") != catalog.version.text:
+            raise ReleaseContractError(
+                f"source manifest version does not match the catalog for {name}"
+            )
+        if manifest.get("repository") != f"https://github.com/{PLUGIN_REPOSITORY}":
+            raise ReleaseContractError(f"source manifest has the wrong repository for {name}")
+        manifests[name] = manifest
+    return manifests
 
 
 def validate_regenerated_catalog(
@@ -253,49 +270,65 @@ def validate_stable_promotion(
         raise ReleaseContractError(
             "stable and RC versions must have the same major.minor.patch"
         )
-
-    stable_manifest_path = stable_source / "plugin.json"
-    rc_manifest_path = rc_source / "plugin.json"
-    stable_manifest = read_object(stable_manifest_path)
-    rc_manifest = read_object(rc_manifest_path)
-    stable_manifest.pop("version", None)
-    rc_manifest.pop("version", None)
-    if stable_manifest != rc_manifest:
-        raise ReleaseContractError(
-            "stable source manifest differs from the RC beyond its version"
+    stable_package_manifest = stable_source / "package-manifest.json"
+    rc_package_manifest = rc_source / "package-manifest.json"
+    try:
+        package_manifest_matches = (
+            stable_package_manifest.read_bytes() == rc_package_manifest.read_bytes()
         )
-    stable_manifest_bytes = stable_manifest_path.read_bytes()
-    stable_version = json.dumps(stable.version.text).encode("utf-8")
-    rc_version = json.dumps(rc.version.text).encode("utf-8")
-    version_field = re.compile(rb'("version"\s*:\s*)' + re.escape(stable_version))
-    normalized_manifest, substitutions = version_field.subn(
-        rb"\g<1>" + rc_version,
-        stable_manifest_bytes,
-    )
-    if substitutions != 1 or normalized_manifest != rc_manifest_path.read_bytes():
+    except FileNotFoundError as exc:
         raise ReleaseContractError(
-            "stable plugin.json differs byte-for-byte from the RC beyond its version value"
+            "stable and RC sources must both contain package-manifest.json"
+        ) from exc
+    if not package_manifest_matches:
+        raise ReleaseContractError(
+            "stable package-manifest.json differs from the reviewed RC"
         )
 
-    stable_payload = payload_manifest(stable_source, exclude_manifest=True)
-    rc_payload = payload_manifest(rc_source, exclude_manifest=True)
-    if stable_payload != rc_payload:
-        missing = sorted(rc_payload.keys() - stable_payload.keys())
-        added = sorted(stable_payload.keys() - rc_payload.keys())
-        changed = sorted(
-            path
-            for path in stable_payload.keys() & rc_payload.keys()
-            if stable_payload[path] != rc_payload[path]
+    for name in PLUGIN_NAMES:
+        stable_package = stable_source / PLUGIN_PATHS[name]
+        rc_package = rc_source / PLUGIN_PATHS[name]
+        stable_manifest_path = stable_package / "plugin.json"
+        rc_manifest_path = rc_package / "plugin.json"
+        stable_manifest = read_object(stable_manifest_path)
+        rc_manifest = read_object(rc_manifest_path)
+        stable_manifest.pop("version", None)
+        rc_manifest.pop("version", None)
+        if stable_manifest != rc_manifest:
+            raise ReleaseContractError(
+                f"stable {name} manifest differs from the RC beyond its version"
+            )
+        stable_manifest_bytes = stable_manifest_path.read_bytes()
+        stable_version = json.dumps(stable.version.text).encode("utf-8")
+        rc_version = json.dumps(rc.version.text).encode("utf-8")
+        version_field = re.compile(rb'("version"\s*:\s*)' + re.escape(stable_version))
+        normalized_manifest, substitutions = version_field.subn(
+            rb"\g<1>" + rc_version, stable_manifest_bytes
         )
-        detail = "; ".join(
-            f"{label}: {', '.join(paths[:5])}"
-            for label, paths in (("missing", missing), ("added", added), ("changed", changed))
-            if paths
-        )
-        raise ReleaseContractError(
-            "stable payload differs from the reviewed RC beyond plugin.json version"
-            + (f"; {detail}" if detail else "")
-        )
+        if substitutions != 1 or normalized_manifest != rc_manifest_path.read_bytes():
+            raise ReleaseContractError(
+                f"stable {name}/plugin.json differs byte-for-byte from the RC beyond its version value"
+            )
+
+        stable_payload = payload_manifest(stable_package, exclude_manifest=True)
+        rc_payload = payload_manifest(rc_package, exclude_manifest=True)
+        if stable_payload != rc_payload:
+            missing = sorted(rc_payload.keys() - stable_payload.keys())
+            added = sorted(stable_payload.keys() - rc_payload.keys())
+            changed = sorted(
+                path
+                for path in stable_payload.keys() & rc_payload.keys()
+                if stable_payload[path] != rc_payload[path]
+            )
+            detail = "; ".join(
+                f"{label}: {', '.join(paths[:5])}"
+                for label, paths in (("missing", missing), ("added", added), ("changed", changed))
+                if paths
+            )
+            raise ReleaseContractError(
+                f"stable {name} payload differs from the reviewed RC beyond plugin.json version"
+                + (f"; {detail}" if detail else "")
+            )
 
 
 def write_outputs(path: Path, values: dict[str, str]) -> None:
@@ -342,8 +375,8 @@ def render_notes(
 
     status = "release candidate" if channel == "rc" else "stable release"
     promoted = (
-        f"\nThis stable release promotes the tested `{rc_tag}` payload. The only "
-        "permitted payload change is `plugin.json.version`.\n"
+        f"\nThis stable release promotes the tested `{rc_tag}` payloads. The only "
+        "permitted payload changes are the two `plugin.json.version` values.\n"
         if rc_tag
         else ""
     )
@@ -353,7 +386,7 @@ This is a **{status}** with an immutable, two-step provenance chain.{promoted}
 | Layer | Immutable identity |
 | --- | --- |
 | Release tag | `{tag}` → catalog commit `{catalog_sha}` |
-| Plugin payload | catalog `source.sha` → `{source_sha}` |
+| Package payloads | both catalog sources → `{source_sha}` |
 
 The tag points to a catalog-only commit. It never points at `main` and is never
 moved after publication.
@@ -366,6 +399,12 @@ copilot plugin install grillmester@grillmester
 copilot --agent=grillmester:grillmester
 ```
 
+For the optional NAV specialist pack, also run:
+
+```bash
+copilot plugin install grillmester-nav@grillmester
+```
+
 ### Verify
 
 ```bash
@@ -375,9 +414,10 @@ copilot plugin list
 ### Roll back
 
 For a repository activation, revert its marketplace `ref` to the previously
-reviewed tag. For a personal installation, uninstall Grillmester, add/update the
-marketplace at the previous tag, and install it again. Tags are immutable; never
-retag an older or newer catalog.
+reviewed tag. For a personal installation, uninstall every installed
+Grillmester package, add/update the marketplace at the previous tag, and
+reinstall the same package set. Tags are immutable; never retag an older or
+newer catalog.
 """
 
 
@@ -479,10 +519,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 validate_stable_promotion(
                     catalog,
-                    args.source_repo / "plugin",
+                    args.source_repo,
                     args.rc_tag,
                     rc,
-                    args.rc_source_repo / "plugin",
+                    args.rc_source_repo,
                 )
             print(
                 f"Validated {args.channel} chain: {catalog.version.tag} -> "

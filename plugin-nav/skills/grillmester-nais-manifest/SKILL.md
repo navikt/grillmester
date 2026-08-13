@@ -16,8 +16,11 @@ names, or one manifest per environment.
 
 Derive application name, namespace, team label, image placeholder, port, probes,
 ingress, resource values, environment variables, pools, database type, and
-access policy from repository evidence. Do not use consumer agent instructions
-as a source for deployment facts.
+access policy from repository evidence. Treat recognized
+`AGENTS.md`/instruction sources as declared context and rationale, then verify
+names, topology and effective values against manifests, code, workflows,
+telemetry or current authoritative platform documentation. If the sources
+conflict, stop and ask rather than silently preferring either one.
 
 If no manifest exists, ask the user for owning team, app name, target
 environments, runtime port, required dependencies, exposure, and operational
@@ -73,9 +76,12 @@ that exposes different ones.
 
 ## Resource rules
 
-Do not set `resources.limits.cpu` for a Nais workload. CPU quota throttling can
-amplify JVM startup, GC, and latency problems. Set a CPU request for scheduling
-and retain a memory limit so the pod cannot consume unbounded node memory.
+Normally omit `resources.limits.cpu` for a Nais workload, in line with current
+Nais cost and good-practice guidance. CPU quota throttling can amplify JVM
+startup, GC, and latency problems. Verify current platform guidance and retain
+an evidenced exception when the workload deliberately needs CPU-constrained
+testing or another owner-approved bound. Set a CPU request for scheduling and
+retain a measured memory limit so the pod cannot consume unbounded node memory.
 
 Treat example sizes as hypotheses, not defaults. Compare current telemetry,
 heap and off-heap use, workload concurrency, replicas, autoscaling, startup,
@@ -102,10 +108,14 @@ accessPolicy:
       - host: <approved-external-host>
 ```
 
-An empty or absent inbound rule set does not grant callers. Do not add a fake
-inbound caller merely to make the block non-empty. Keep policy aligned with
-application token validation and authorization. Require security review for
-changes to callers, destinations, auth flags, or scopes.
+An empty or absent inbound rule set does not grant callers through the
+service-discovery/accessPolicy path. It does not block traffic through an
+ingress. Review ingress exposure, edge authentication and application-level
+authorization as separate controls; never present `accessPolicy.inbound` as a
+complete caller inventory or ingress firewall. Do not add a fake inbound
+caller merely to make the block non-empty. Keep policy aligned with application
+token validation and authorization. Require security review for changes to
+callers, destinations, auth flags, ingress or scopes.
 
 ## Add platform capabilities only when code uses them
 
@@ -203,7 +213,9 @@ after the user accepts them.
 
 ### Never
 
-- Set `resources.limits.cpu` or remove the memory limit.
+- Add `resources.limits.cpu` without current Nais guidance and an evidenced,
+  owner-approved exception, or remove the memory limit without equivalent
+  measured protection.
 - Store secrets in Git or copy another application's identity values.
 - Invent paths, namespaces, ports, probes, environment prefixes, or callers.
 - Lower the termination grace period without measured shutdown evidence.

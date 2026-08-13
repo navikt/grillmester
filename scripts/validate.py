@@ -12,14 +12,33 @@ from typing import Any
 
 
 PLUGIN_NAME = "grillmester"
+PACKAGE_NAMES = ("grillmester", "grillmester-nav")
+PACKAGE_PATHS = {
+    "grillmester": "plugin",
+    "grillmester-nav": "plugin-nav",
+}
 PLUGIN_REPOSITORY = "navikt/grillmester"
 SKILL_PREFIX = f"{PLUGIN_NAME}-"
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SOURCE_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 COMPONENT_ID = re.compile(r"`(grillmester(?:-[a-z0-9-]+)?)`")
+PROSE_COMPONENT_ID = re.compile(r"(?<![/:\w-])(grillmester-[a-z0-9-]+)\b")
+SLASH_COMPONENT_ID = re.compile(r"/((?:grillmester)-[a-z0-9-]+)\b")
 QUALIFIED_COMPONENT_ID = re.compile(r"`grillmester:([a-z][a-z0-9-]+)`")
+OPTIONAL_CROSS_PACKAGE = re.compile(
+    r"\b(?:optional(?:ly)?|valgfri\w*|when\b.{0,120}\binstalled\b|"
+    r"if\b.{0,120}\binstalled\b|når\b.{0,120}\binstallert\b|"
+    r"hvis\b.{0,120}\binstallert\b)",
+    re.IGNORECASE | re.DOTALL,
+)
+STANDALONE_FALLBACK = re.compile(
+    r"\b(?:without|uten|self-contained|selvstendig|NEEDS_CONTEXT)\b",
+    re.IGNORECASE,
+)
 REALISTIC_NATIONAL_ID = re.compile(r"(?<!\d)\d{11}(?!\d)")
+FIGMA_COMPONENT_KEY = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
+FIGMA_KEY_FILES = {"aksel-figma-katalog.md", "aksel-figma-katalog.json"}
 FORBIDDEN_RUNTIME_IDS = re.compile(
     r"\b(?:hovmester|souschef|konditor|inspektor-claude|inspektor-gpt)\b",
     re.IGNORECASE,
@@ -51,6 +70,7 @@ AGENT_FRONTMATTER_KEYS = {
     "model",
     "user-invocable",
     "disable-model-invocation",
+    "deferred-tool-loading",
     "infer",
     "tools",
 }
@@ -62,122 +82,6 @@ SKILL_FRONTMATTER_KEYS = {
     "disable-model-invocation",
 }
 
-
-def mcp_tools(prefixes: tuple[str, ...], names: tuple[str, ...]) -> set[str]:
-    return {f"{prefix}/{name}" for prefix in prefixes for name in names}
-
-
-GITHUB_PREFIXES = ("github", "github-mcp-server", "io.github.navikt/github-mcp")
-FIGMA_PREFIXES = ("figma", "com.figma/figma-mcp")
-PLAYWRIGHT_PREFIXES = ("playwright", "com.microsoft/playwright-mcp")
-AKSEL_PREFIXES = ("io.github.navikt/aksel-mcp",)
-
-DESIGNER_TOOLS = {
-    "read",
-    "search",
-    "edit",
-    "execute",
-    "skill",
-    "web",
-    "ask_user",
-} | mcp_tools(
-    GITHUB_PREFIXES,
-    (
-        "get_me",
-        "list_issues",
-        "issue_read",
-        "search_issues",
-        "list_label",
-        "issue_write",
-    ),
-) | mcp_tools(
-    AKSEL_PREFIXES,
-    (
-        "aksel_find_docs",
-        "aksel_get_doc",
-        "aksel_get_component_info",
-        "aksel_get_token_details",
-        "aksel_find_icons",
-    ),
-) | mcp_tools(
-    FIGMA_PREFIXES,
-    (
-        "whoami",
-        "get_metadata",
-        "get_screenshot",
-        "get_design_context",
-        "get_variable_defs",
-        "get_libraries",
-        "search_design_system",
-        "create_new_file",
-        "use_figma",
-        "generate_figma_design",
-    ),
-) | mcp_tools(
-    PLAYWRIGHT_PREFIXES,
-    (
-        "browser_navigate",
-        "browser_snapshot",
-        "browser_take_screenshot",
-        "browser_resize",
-        "browser_wait_for",
-        "browser_console_messages",
-        "browser_click",
-    ),
-)
-
-DOCTOR_WHO_TOOLS = {
-    "read",
-    "search",
-    "edit",
-    "skill",
-    "web",
-    "ask_user",
-} | mcp_tools(
-    GITHUB_PREFIXES,
-    (
-        "get_me",
-        "get_file_contents",
-        "search_code",
-        "search_repositories",
-        "list_branches",
-        "list_commits",
-        "get_commit",
-        "get_latest_release",
-        "list_releases",
-        "list_issues",
-        "issue_read",
-        "search_issues",
-        "issue_write",
-        "list_pull_requests",
-        "search_pull_requests",
-        "projects_get",
-        "projects_list",
-        "projects_write",
-    ),
-)
-
-# NAV's registry historically advertised create_issue while the current GitHub
-# MCP surface uses issue_write. Both are the same reviewed external-write class.
-DESIGNER_TOOLS.add("io.github.navikt/github-mcp/create_issue")
-DOCTOR_WHO_TOOLS.add("io.github.navikt/github-mcp/create_issue")
-# Support the Copilot CLI's documented split default and the current upstream
-# consolidated PR-read surface used by short/NAV server IDs. Keep both reviewed
-# read shapes explicit; unknown IDs are ignored rather than expanding authority.
-DOCTOR_WHO_TOOLS.update(
-    {
-        "github/pull_request_read",
-        "github-mcp-server/get_pull_request",
-        "github-mcp-server/get_pull_request_files",
-        "github-mcp-server/pull_request_read",
-        "io.github.navikt/github-mcp/pull_request_read",
-    }
-)
-
-ROLE_TOOL_CONTRACTS = {
-    "designer": DESIGNER_TOOLS,
-    "doctor-who": DOCTOR_WHO_TOOLS,
-}
 LANGUAGE_FLOOR = (
     "Respond in the user's language. Keep technical and mechanical identifiers in "
     "English, preserve canonical Norwegian domain terms, and never translate stable "
@@ -348,6 +252,15 @@ def load_content_lock(
                     f"content lock {kind} {component_id} sourcePath must be repository-relative"
                 )
             lineage = contract.get("lineage", [])
+            package = contract.get("package", "grillmester")
+            if package not in PACKAGE_NAMES:
+                errors.append(
+                    f"content lock {kind} {component_id} has unknown package {package!r}"
+                )
+            if kind == "agent" and package != "grillmester":
+                errors.append(
+                    f"content lock agent {component_id} must stay in the standard package"
+                )
             if not isinstance(lineage, list):
                 errors.append(f"content lock {kind} {component_id} lineage must be a list")
             else:
@@ -380,9 +293,10 @@ def validate_attribution(
 ) -> None:
     provenance = (root / "PROVENANCE.md").read_text(encoding="utf-8")
     notices = (root / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
-    payload_notices = (root / "plugin/THIRD_PARTY_NOTICES.md").read_text(
-        encoding="utf-8"
-    )
+    payload_notices = [
+        (root / package_path / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+        for package_path in PACKAGE_PATHS.values()
+    ]
     for source_id, source in sources.items():
         repository = source.get("repository")
         revision = source.get("revision")
@@ -398,12 +312,12 @@ def validate_attribution(
             errors.append(
                 f"third-party source {source_id} must record repository and revision in THIRD_PARTY_NOTICES.md"
             )
-        if not repository.startswith("navikt/") and (
-            repository not in payload_notices or revision not in payload_notices
-        ):
-            errors.append(
-                f"third-party source {source_id} must ship repository and revision in plugin/THIRD_PARTY_NOTICES.md"
-            )
+        if not repository.startswith("navikt/"):
+            for package_name, notice in zip(PACKAGE_NAMES, payload_notices, strict=True):
+                if repository not in notice or revision not in notice:
+                    errors.append(
+                        f"third-party source {source_id} must ship repository and revision in {PACKAGE_PATHS[package_name]}/THIRD_PARTY_NOTICES.md"
+                    )
 
 
 def parse_scalar(value: str) -> Any:
@@ -457,44 +371,74 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, Any], str]:
 
 
 def validate_manifests(root: Path, errors: list[str]) -> str | None:
-    plugin_path = root / "plugin/plugin.json"
+    package_manifest = load_json(root / "package-manifest.json", errors)
     marketplace_path = root / ".github/plugin/marketplace.json"
-    plugin = load_json(plugin_path, errors)
     marketplace = load_json(marketplace_path, errors)
-    if not plugin or not marketplace:
+    if not package_manifest or not marketplace:
         return None
 
-    if "$schema" in plugin:
-        errors.append(
-            "plugin.json must use native Copilot semantics and must not declare Agent Plugins $schema"
-        )
+    if package_manifest.get("schemaVersion") != 1:
+        errors.append("package-manifest.json schemaVersion must be 1")
+    package_definitions = package_manifest.get("packages")
+    if not isinstance(package_definitions, list) or len(package_definitions) != 2:
+        errors.append("package-manifest.json must contain exactly two packages")
+        return None
+    expected_definitions = [
+        {"name": "grillmester", "path": "plugin", "agents": 7, "skills": 34},
+        {"name": "grillmester-nav", "path": "plugin-nav", "agents": 0, "skills": 10},
+    ]
+    if package_definitions != expected_definitions:
+        errors.append("package-manifest.json package roster or counts have drifted")
+
+    package_manifests: dict[str, dict[str, Any]] = {}
+    for name, package_path in PACKAGE_PATHS.items():
+        manifest = load_json(root / package_path / "plugin.json", errors)
+        if manifest:
+            package_manifests[name] = manifest
+    if set(package_manifests) != set(PACKAGE_NAMES):
+        return None
+
+    versions: set[str] = set()
     expected_plugin_keys = {
-        "name",
-        "version",
-        "description",
-        "author",
-        "repository",
-        "license",
-        "agents",
-        "skills",
+        "name", "version", "description", "author", "repository", "license", "skills"
     }
-    unexpected_plugin_keys = set(plugin) - expected_plugin_keys
-    if unexpected_plugin_keys:
-        errors.append(
-            "plugin.json expands the reviewed component surface with unknown keys: "
-            f"{sorted(unexpected_plugin_keys)}"
-        )
-    if plugin.get("name") != PLUGIN_NAME:
-        errors.append(f"plugin.json name must be {PLUGIN_NAME!r}")
-    version = plugin.get("version")
-    if not isinstance(version, str) or not SEMVER.fullmatch(version):
-        errors.append("plugin.json version must be SemVer, optionally with a prerelease suffix")
-        version = None
-    if plugin.get("agents") != "agents/" or plugin.get("skills") != "skills/":
-        errors.append("plugin.json must point to canonical agents/ and skills/ directories")
-    for key in ("description", "author", "repository", "license"):
-        if not plugin.get(key):
-            errors.append(f"plugin.json is missing {key}")
+    for name, plugin in package_manifests.items():
+        if "$schema" in plugin:
+            errors.append(
+                f"{PACKAGE_PATHS[name]}/plugin.json must use native Copilot semantics and must not declare Agent Plugins $schema"
+            )
+        allowed_keys = set(expected_plugin_keys)
+        if name == "grillmester":
+            allowed_keys.add("agents")
+        unexpected_plugin_keys = set(plugin) - allowed_keys
+        if unexpected_plugin_keys:
+            errors.append(
+                f"{PACKAGE_PATHS[name]}/plugin.json expands the reviewed component surface: "
+                f"{sorted(unexpected_plugin_keys)}"
+            )
+        if plugin.get("name") != name:
+            errors.append(f"{PACKAGE_PATHS[name]}/plugin.json name must be {name!r}")
+        version = plugin.get("version")
+        if not isinstance(version, str) or not SEMVER.fullmatch(version):
+            errors.append(
+                f"{PACKAGE_PATHS[name]}/plugin.json version must be SemVer"
+            )
+        else:
+            versions.add(version)
+        if plugin.get("skills") != "skills/":
+            errors.append(f"{PACKAGE_PATHS[name]}/plugin.json must point to skills/")
+        if name == "grillmester" and plugin.get("agents") != "agents/":
+            errors.append("plugin/plugin.json must point to agents/")
+        if name == "grillmester-nav" and "agents" in plugin:
+            errors.append("plugin-nav must remain a skills-only add-on")
+        for key in ("description", "author", "repository", "license"):
+            if not plugin.get(key):
+                errors.append(f"{PACKAGE_PATHS[name]}/plugin.json is missing {key}")
+    if len(versions) != 1:
+        errors.append("all plugin manifests must use one release version")
+        version: str | None = None
+    else:
+        version = next(iter(versions))
 
     if marketplace.get("name") != PLUGIN_NAME:
         errors.append(f"marketplace name must be {PLUGIN_NAME!r}")
@@ -505,43 +449,52 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
     if not isinstance(metadata, dict) or metadata.get("version") != version:
         errors.append("marketplace metadata version must equal plugin.json version")
     plugins = marketplace.get("plugins")
-    if not isinstance(plugins, list) or len(plugins) != 1 or not isinstance(plugins[0], dict):
-        errors.append("marketplace must contain exactly one plugin entry")
+    if not isinstance(plugins, list) or len(plugins) != 2 or any(
+        not isinstance(entry, dict) for entry in plugins
+    ):
+        errors.append("marketplace must contain exactly two plugin entries")
     else:
-        entry = plugins[0]
-        if entry.get("name") != PLUGIN_NAME:
-            errors.append(f"marketplace plugin name must be {PLUGIN_NAME!r}")
-        if entry.get("version") != version:
-            errors.append("marketplace plugin version must equal plugin.json version")
-        source = entry.get("source")
-        if source == "plugin":
-            pass
-        elif isinstance(source, dict):
-            expected_keys = {"source", "repo", "path", "sha"}
-            if set(source) != expected_keys:
+        if [entry.get("name") for entry in plugins] != list(PACKAGE_NAMES):
+            errors.append("marketplace plugin names or order have drifted")
+        release_shas: set[str] = set()
+        for entry in plugins:
+            name = entry.get("name")
+            if name not in PACKAGE_PATHS:
+                continue
+            if entry.get("version") != version:
+                errors.append(f"marketplace {name} version must equal manifest version")
+            source = entry.get("source")
+            if source == PACKAGE_PATHS[name]:
+                pass
+            elif isinstance(source, dict):
+                expected_keys = {"source", "repo", "path", "sha"}
+                if set(source) != expected_keys:
+                    errors.append(
+                        f"release marketplace {name} source must contain only source, repo, path, and sha"
+                    )
+                if source.get("source") != "github":
+                    errors.append('release marketplace source type must be "github"')
+                if source.get("repo") != PLUGIN_REPOSITORY:
+                    errors.append(
+                        f"release marketplace repo must be {PLUGIN_REPOSITORY!r}"
+                    )
+                if source.get("path") != PACKAGE_PATHS[name]:
+                    errors.append(
+                        f"release marketplace {name} path must be {PACKAGE_PATHS[name]!r}"
+                    )
+                sha = source.get("sha")
+                if not isinstance(sha, str) or not FULL_SHA.fullmatch(sha):
+                    errors.append("release marketplace source sha must be a lowercase full commit SHA")
+                else:
+                    release_shas.add(sha)
+            else:
                 errors.append(
-                    "release marketplace source must contain only source, repo, path, and sha"
+                    f"marketplace {name} source must be {PACKAGE_PATHS[name]!r} or immutable GitHub source"
                 )
-            if source.get("source") != "github":
-                errors.append('release marketplace source type must be "github"')
-            if source.get("repo") != PLUGIN_REPOSITORY:
-                errors.append(
-                    f"release marketplace repo must be {PLUGIN_REPOSITORY!r}"
-                )
-            if source.get("path") != "plugin":
-                errors.append('release marketplace plugin path must be "plugin"')
-            sha = source.get("sha")
-            if not isinstance(sha, str) or not FULL_SHA.fullmatch(sha):
-                errors.append(
-                    "release marketplace source sha must be a lowercase full commit SHA"
-                )
-        else:
-            errors.append(
-                'marketplace plugin source must be the development path "plugin" '
-                "or an immutable GitHub release source"
-            )
-        if not entry.get("description"):
-            errors.append("marketplace plugin needs a description")
+            if not entry.get("description"):
+                errors.append(f"marketplace {name} needs a description")
+        if len(release_shas) > 1:
+            errors.append("release marketplace packages must pin one source SHA")
     return version
 
 
@@ -620,6 +573,7 @@ def validate_agents(
             "model",
             "user-invocable",
             "disable-model-invocation",
+            "deferred-tool-loading",
             "infer",
         ):
             if key not in expected:
@@ -627,30 +581,46 @@ def validate_agents(
             if frontmatter.get(key) != expected[key]:
                 errors.append(f"{path}: {key} must be {expected[key]!r}")
         expected_tools = expected.get("tools")
+        tool_policy = expected.get("toolPolicy", "explicit")
         tools = frontmatter.get("tools")
-        if not isinstance(expected_tools, list) or not expected_tools:
-            errors.append(f"content lock agent {agent_id} tools must be a non-empty list")
-        elif len(expected_tools) != len(set(expected_tools)):
-            errors.append(f"content lock agent {agent_id} tools must not contain duplicates")
-        elif any(tool == "*" or tool.endswith("/*") for tool in expected_tools):
-            errors.append(
-                f"content lock agent {agent_id} tools must not contain wildcards"
-            )
-        elif not isinstance(tools, list) or len(tools) != len(set(tools)):
-            errors.append(f"{path}: tools must be a duplicate-free list")
-        elif set(tools) != set(expected_tools):
-            errors.append(f"{path}: tools must be exactly {sorted(expected_tools)}")
-
-        role_tools = ROLE_TOOL_CONTRACTS.get(agent_id)
-        if role_tools is not None:
-            if expected.get("toolPolicy") != "explicit-cross-client":
+        deferred_tools = frontmatter.get("deferred-tool-loading")
+        if "deferred-tool-loading" in frontmatter:
+            if deferred_tools is not True:
+                errors.append(f"{path}: deferred-tool-loading must be true when present")
+            elif expected.get("deferred-tool-loading") is not True:
                 errors.append(
-                    f"content lock agent {agent_id} must use explicit-cross-client tool policy"
+                    f"{path}: deferred-tool-loading is not part of the reviewed agent contract"
                 )
-            if not isinstance(expected_tools, list) or set(expected_tools) != role_tools:
+        if tool_policy == "runtime-all":
+            if "tools" in expected:
                 errors.append(
-                    f"content lock agent {agent_id} violates the reviewed role tool boundary"
+                    f"content lock agent {agent_id} runtime-all policy must omit tools"
                 )
+            if "tools" in frontmatter:
+                errors.append(
+                    f"{path}: runtime-all policy must omit tools so the runtime supplies its complete toolset"
+                )
+            if "deferred-tool-loading" in frontmatter:
+                errors.append(
+                    f"{path}: runtime-all agents already use tool search and must omit deferred-tool-loading"
+                )
+        else:
+            if not isinstance(expected_tools, list) or not expected_tools:
+                errors.append(
+                    f"content lock agent {agent_id} tools must be a non-empty list"
+                )
+            elif len(expected_tools) != len(set(expected_tools)):
+                errors.append(
+                    f"content lock agent {agent_id} tools must not contain duplicates"
+                )
+            elif any(tool == "*" or tool.endswith("/*") for tool in expected_tools):
+                errors.append(
+                    f"content lock agent {agent_id} tools must not contain wildcards"
+                )
+            elif not isinstance(tools, list) or len(tools) != len(set(tools)):
+                errors.append(f"{path}: tools must be a duplicate-free list")
+            elif set(tools) != set(expected_tools):
+                errors.append(f"{path}: tools must be exactly {sorted(expected_tools)}")
 
     missing = set(contracts) - set(found)
     for agent_id in sorted(missing):
@@ -677,7 +647,11 @@ def validate_skill_links(
 
 
 def validate_skills(
-    root: Path, contracts: dict[str, dict[str, Any]], errors: list[str]
+    root: Path,
+    contracts: dict[str, dict[str, Any]],
+    errors: list[str],
+    *,
+    package_name: str = "grillmester",
 ) -> set[str]:
     skills_dir = root / "skills"
     found: dict[str, Path] = {}
@@ -730,6 +704,11 @@ def validate_skills(
         if expected is None:
             errors.append(f"unexpected skill {skill_id}; update the reviewed skill contract first")
         else:
+            expected_package = expected.get("package", "grillmester")
+            if expected_package != package_name:
+                errors.append(
+                    f"{path}: content lock assigns {skill_id} to {expected_package}, not {package_name}"
+                )
             for key in ("user-invocable", "disable-model-invocation"):
                 if key not in expected:
                     continue
@@ -748,7 +727,12 @@ def validate_skills(
                 errors,
             )
 
-    missing = set(contracts) - set(found)
+    package_contracts = {
+        skill_id
+        for skill_id, contract in contracts.items()
+        if contract.get("package", "grillmester") == package_name
+    }
+    missing = package_contracts - set(found)
     for skill_id in sorted(missing):
         errors.append(f"missing required skill: {skill_id}")
     return set(found)
@@ -762,14 +746,25 @@ def runtime_markdown(root: Path) -> list[Path]:
     return sorted(paths)
 
 
+def markdown_paragraph(text: str, offset: int) -> str:
+    """Return the blank-line-delimited paragraph containing ``offset``."""
+
+    start = text.rfind("\n\n", 0, offset)
+    end = text.find("\n\n", offset)
+    return text[start + 2 if start >= 0 else 0 : end if end >= 0 else len(text)]
+
+
 def validate_content(
     root: Path,
     plugin_root: Path,
     agent_ids: set[str],
     skill_ids: set[str],
     errors: list[str],
+    *,
+    all_skill_ids: set[str] | None = None,
 ) -> None:
     known_ids = agent_ids | skill_ids
+    all_known_ids = agent_ids | (all_skill_ids or skill_ids)
     legacy_skill_ids = {
         skill_id.removeprefix(SKILL_PREFIX)
         for skill_id in skill_ids
@@ -777,6 +772,7 @@ def validate_content(
     }
     for path in runtime_markdown(plugin_root):
         text = path.read_text(encoding="utf-8")
+        formatted_component_ids = set(COMPONENT_ID.findall(text))
         relative_path = path.relative_to(plugin_root).as_posix()
         forbidden = FORBIDDEN_RUNTIME_IDS.search(text)
         if forbidden:
@@ -804,7 +800,48 @@ def validate_content(
                 )
         for component_id in COMPONENT_ID.findall(text):
             if component_id not in known_ids and component_id != PLUGIN_NAME:
-                errors.append(f"{path}: dangling Grillmester component reference: {component_id}")
+                if component_id in all_known_ids:
+                    if re.search(rf"/{re.escape(component_id)}\b", text):
+                        errors.append(
+                            f"{path}: package-local closure violation: /{component_id} is in another plugin package"
+                        )
+                else:
+                    errors.append(f"{path}: dangling Grillmester component reference: {component_id}")
+        for component_id in SLASH_COMPONENT_ID.findall(text):
+            if component_id not in known_ids:
+                if component_id in all_known_ids:
+                    errors.append(
+                        f"{path}: package-local closure violation: /{component_id} is in another plugin package"
+                    )
+                else:
+                    errors.append(
+                        f"{path}: dangling Grillmester slash-command reference: {component_id}"
+                    )
+        for match in PROSE_COMPONENT_ID.finditer(text):
+            component_id = match.group(1)
+            if component_id in known_ids:
+                continue
+            if component_id not in all_known_ids:
+                if (
+                    component_id not in PACKAGE_NAMES
+                    and component_id not in formatted_component_ids
+                ):
+                    errors.append(
+                        f"{path}: dangling Grillmester prose component reference: {component_id}"
+                    )
+                continue
+            paragraph = markdown_paragraph(text, match.start())
+            if not OPTIONAL_CROSS_PACKAGE.search(paragraph):
+                errors.append(
+                    f"{path}: cross-package reference {component_id} must be a conditional optional route"
+                )
+                continue
+            if plugin_root.name == PACKAGE_PATHS["grillmester-nav"] and not (
+                STANDALONE_FALLBACK.search(paragraph)
+            ):
+                errors.append(
+                    f"{path}: add-on cross-package reference {component_id} needs a standalone fallback"
+                )
         for component_id in QUALIFIED_COMPONENT_ID.findall(text):
             if component_id not in known_ids:
                 errors.append(f"{path}: dangling qualified component reference: {component_id}")
@@ -816,7 +853,18 @@ def validate_content(
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        if REALISTIC_NATIONAL_ID.search(text):
+        national_id_matches = list(REALISTIC_NATIONAL_ID.finditer(text))
+        if national_id_matches and path.name in FIGMA_KEY_FILES:
+            key_spans = [match.span() for match in FIGMA_COMPONENT_KEY.finditer(text)]
+            national_id_matches = [
+                match
+                for match in national_id_matches
+                if not any(
+                    key_start <= match.start() and match.end() <= key_end
+                    for key_start, key_end in key_spans
+                )
+            ]
+        if national_id_matches:
             errors.append(f"{path}: contains an 11-digit value that looks like a national ID")
 
 
@@ -842,11 +890,34 @@ def validate_layout(root: Path, errors: list[str]) -> None:
         if path.exists():
             errors.append(f"forbidden alternate or generated path: {path}")
 
-    plugin_root = root / "plugin"
-    if plugin_root.is_dir():
-        for path in sorted(plugin_root.rglob("*")):
-            if path.is_symlink():
-                errors.append(f"plugin package must not contain symlinks: {path}")
+    for package_path in PACKAGE_PATHS.values():
+        plugin_root = root / package_path
+        if plugin_root.is_dir():
+            for path in sorted(plugin_root.rglob("*")):
+                if path.is_symlink():
+                    errors.append(f"plugin package must not contain symlinks: {path}")
+
+
+def validate_package_rosters(
+    root: Path,
+    agent_ids: set[str],
+    standard_skill_ids: set[str],
+    nav_skill_ids: set[str],
+    errors: list[str],
+) -> None:
+    if len(agent_ids) != 7:
+        errors.append(f"standard package must contain 7 agents, found {len(agent_ids)}")
+    if len(standard_skill_ids) != 34:
+        errors.append(
+            f"standard package must contain 34 skills, found {len(standard_skill_ids)}"
+        )
+    if len(nav_skill_ids) != 10:
+        errors.append(f"NAV add-on must contain 10 skills, found {len(nav_skill_ids)}")
+    overlap = standard_skill_ids & nav_skill_ids
+    if overlap:
+        errors.append(f"skill IDs must have one canonical package: {sorted(overlap)}")
+    if (root / "plugin-nav/agents").exists():
+        errors.append("NAV add-on must not contain an agents directory")
 
 
 def validate_assets(root: Path, errors: list[str]) -> None:
@@ -874,6 +945,7 @@ def validate_assets(root: Path, errors: list[str]) -> None:
 def validate_repo(root: Path) -> list[str]:
     root = root.resolve()
     plugin_root = root / "plugin"
+    nav_plugin_root = root / "plugin-nav"
     errors: list[str] = []
     validate_layout(root, errors)
     validate_assets(root, errors)
@@ -881,8 +953,32 @@ def validate_repo(root: Path) -> list[str]:
     sources, agent_contracts, skill_contracts = load_content_lock(root, errors)
     validate_attribution(root, sources, errors)
     agent_ids = validate_agents(plugin_root, agent_contracts, errors)
-    skill_ids = validate_skills(plugin_root, skill_contracts, errors)
-    validate_content(root, plugin_root, agent_ids, skill_ids, errors)
+    standard_skill_ids = validate_skills(
+        plugin_root, skill_contracts, errors, package_name="grillmester"
+    )
+    nav_skill_ids = validate_skills(
+        nav_plugin_root, skill_contracts, errors, package_name="grillmester-nav"
+    )
+    all_skill_ids = standard_skill_ids | nav_skill_ids
+    validate_package_rosters(
+        root, agent_ids, standard_skill_ids, nav_skill_ids, errors
+    )
+    validate_content(
+        root,
+        plugin_root,
+        agent_ids,
+        standard_skill_ids,
+        errors,
+        all_skill_ids=all_skill_ids,
+    )
+    validate_content(
+        root,
+        nav_plugin_root,
+        set(),
+        nav_skill_ids,
+        errors,
+        all_skill_ids=all_skill_ids,
+    )
     return errors
 
 

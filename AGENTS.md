@@ -1,7 +1,9 @@
 # Repository contract
 
-This repository owns the portable Grillmester Copilot plugin. Keep the plugin
-small, deterministic, and independent of any single consumer repository.
+This repository owns the portable Grillmester Copilot packages: the standard
+agent team in `plugin/` and the optional, skills-only NAV add-on in
+`plugin-nav/`. Keep both deterministic and independent of any single consumer
+repository.
 
 ## Content boundaries
 
@@ -11,8 +13,8 @@ small, deterministic, and independent of any single consumer repository.
   terms.
 - Keep consumer build commands, domain facts, data classifications, language
   mappings, and path-specific rules in consumer repositories.
-- Do not distribute `copilot-instructions.md`, `AGENTS.md`, or path-scoped
-  instructions as plugin components.
+- Do not distribute `copilot-instructions.md`, `AGENTS.md`, path-scoped
+  instructions, PR templates, or issue templates as plugin components.
 - Do not add a second file-sync lifecycle, managed consumer manifest, install
   hook, MCP server, or executable hook without an explicit architecture
   decision.
@@ -39,6 +41,8 @@ python3 scripts/smoke_plugin_install.py
 ```
 
 The install smoke test must use a disposable, isolated Copilot home. For live
-client behavior, mount the plugin with `copilot --plugin-dir plugin` in an
-empty test repository. Never use a consumer repository as a write target for
-a smoke test.
+client behavior, mount the standard package with `copilot --experimental
+--sandbox --plugin-dir plugin` and optionally add `--plugin-dir plugin-nav`, in
+an empty test repository. Confirm the sandbox status and effective policy;
+an empty repository is not a sandbox substitute.
+Never use a consumer repository as a write target for a smoke test.

@@ -17,8 +17,9 @@ database per service.
 
 For capacity claims, obtain the actual production tier, replica range,
 `max_connections`, pool settings, connection metrics, and other workloads using
-the instance. Do not derive them from another repository or consumer agent
-instructions. If those facts are unavailable, report the calculation with
+the instance. Consumer instructions can declare ownership and intended
+invariants, but verify effective capacity values against manifests,
+configuration and telemetry; never borrow them from another repository. If those facts are unavailable, report the calculation with
 unknown inputs instead of presenting a safe pool size as fact.
 
 ## Confirm PostgreSQL is the right state boundary

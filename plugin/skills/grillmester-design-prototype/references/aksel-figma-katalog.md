@@ -1,8 +1,16 @@
-# Aksel Figma-katalog (empirisk uttrukket)
+# Aksel Figma-snapshot (empirisk uttrukket)
 
-Oppslag over alle **instansierbare** Aksel-komponenter i Figma-biblioteket `02 Aksel Components`, uttrukket via preflight (import + instans-inspeksjon). Bruk denne i stedet for å gjette variant-navn, defaults, tekstnode-navn eller fonter — det fjerner preflight-runder og gjettefeil.
+Oppslag over observerte **instansierbare** Aksel-komponenter i Figma-biblioteket
+`02 Aksel Components`, uttrukket via import og instans-inspeksjon. Bruk det til
+å gjøre live preflight målrettet, ikke til å hoppe over verifikasjon mot det
+aktive biblioteket.
 
-> Vår egen «manifest» inntil Aksel publiserer en maskinlesbar én (jf. Issue #58). Verdiene er hentet direkte fra biblioteket. **45 komponenter** dekket i Figma; ytterligere 10 finnes kun i `@navikt/ds-react` (se bunn).
+> Dette er et historisk internt snapshot – ikke et offisielt Aksel-manifest.
+> Det ble importert fra den pinnede kildesnapshoten og sist gjennomgått i Grillmester
+> 2026-08-11. Den opprinnelige capture-datoen og en offentlig immutable Figma-
+> bibliotekversjon er ukjent; `planKey` og observerte komponentnøkler finnes i
+> JSON-filen. **45 komponenter** er registrert; det aktive biblioteket er alltid
+> autoritativt.
 
 ## Slik leser du katalogen
 
@@ -31,7 +39,7 @@ Oppslag over alle **instansierbare** Aksel-komponenter i Figma-biblioteket `02 A
 | CopyButton | `CopyButton` `efe9bd1c76e9060e51d7cb409a5bc0ad9be4075d` | Size(**Medium**/Small/XSmall) · Variant(**Neutral text**/Neutral link/Accent text/Accent link) · Icon(**Icon left**/Icon right/Icon only) · State · Interaction · Tooltip | `label` | |
 | Search | `Search` `027adba8384c0521d2094da02b89c5424d81ba9d` | Size(**Medium**/Small) · Variant(**Primary**/Secondary/Simple) · State(**Default**/Hover/Error) | `Label`, `Description`, `Text` | Fritekstsøk (ikke verdivalg → Combobox) |
 | DatePicker | `DatePicker_Input` `9d4963840f5694193e2b4062636179510c00ae0b` | Size(**Medium**/Small) · State(**Default**/Hover/Error/Disabled/Read-only) | `Label`, `Description`, `Date` | |
-| MonthPicker | `MonthPicker_Input` <code>0f220322c6eef1&#50;283602221aa9e14cad8822215</code> | Size(**Medium**/Small) · State(**Default**/Hover/Error/Disabled/Read-only) | `Label`, `Description`, `Date` | |
+| MonthPicker | `MonthPicker_Input` `0f220322c6eef12283602221aa9e14cad8822215` | Size(**Medium**/Small) · State(**Default**/Hover/Error/Disabled/Read-only) | `Label`, `Description`, `Date` | |
 | FormProgress | `FormProgress` `09c3f76750b876883d302d70429a8df41c2efde7` | State(**Default**/Hover) · Open(**False**/True) | `Steg`, `333`, `av`, `999`, `label` | Søknadssteg — **bruk denne, ikke Stepper**. `333`=gjeldende, `999`=totalt (tekstnoder, ikke akse) |
 | FileUpload | `FileUpload-ItemList` `da7dfbe17329c3262d786c69f1e5a7a8f4721822` `(component)` | _ingen akser_ | `Label`, `Text`+`Details` per fil | Liste over opplastede filer |
 | ErrorSummary | `ErrorSummary` `28098a551f358c8e5caea1c585b440bc6a8469c2` | Size(**Medium**/Small) · **Amount(1–10, def 1)** | `Heading`, `Text` per feil | Antall-akse. Valideringsoversikt med lenker til felt |
@@ -47,7 +55,7 @@ Oppslag over alle **instansierbare** Aksel-komponenter i Figma-biblioteket `02 A
 | LocalAlert | `LocalAlert` `371252a7c82249b947473c344b5ad4342b6a6aae` | Variant(**Error**/Announcement/Warning/Success) · Size(**Medium**/Small) | `Heading`, `paragraph` | **Default=Error**. `Announcement`=nøytral info (ingen `Info`) |
 | GlobalAlert | `GlobalAlert` `c28f3f88406e1903f7683e2e9106770d857cb6f0` | Variant(**Error**/Announcement/Warning/Success) · Size(**Medium**/Small) · Centered content(**True**/False) | `Heading`, `paragraph` | **Default=Error**. Hele bredden, øverst i løsningen |
 | InlineMessage | `InlineMessage` `f906b500d476f60a2b637a401fe86c78ff8f9fa3` | Variant(**Error**/Warning/Success/Info) · Size(**Medium**/Small) · Is link(**False**/True) · State | `paragraph` | **Har `Info`-variant** (i motsetning til Local/GlobalAlert). Korte statusmeldinger i kontekst |
-| Tag | `Tag` <code>247551580c347876a&#52;7506679823a7eaf5c74174</code> | Size(**Medium**/Small/Xsmall) · Color(**Neutral**/Info/Success/Danger/Warning/Meta 1/Meta 2/Brand Magenta/Brand Beige) · Variant(**Outline**/Moderate/Strong) | `tag label` | Status-merkelapp |
+| Tag | `Tag` `247551580c347876a47506679823a7eaf5c74174` | Size(**Medium**/Small/Xsmall) · Color(**Neutral**/Info/Success/Danger/Warning/Meta 1/Meta 2/Brand Magenta/Brand Beige) · Variant(**Outline**/Moderate/Strong) | `tag label` | Status-merkelapp |
 | InfoCard | `InfoCard` `eae0533f8be3249959cdf7c986194f7ed28035cc` | Type(**Info**/Tips/Do this/Avoid this/Attention/Summary/Success/Links/Message) · Size(**Medium**/Small) | `Heading`, `paragraph` | Fremhever innhold (ikke varsel). NB: Figma-varianter er inspirasjon; kode velger farge/ikon fritt |
 | ProgressBar | `ProgressBar` `dc428811db999112790c5147866a1b52b957a85d` | Size(Small/**Medium**/Large) | _ingen_ | Kjent varighet/progresjon. Søknad → FormProgress |
 | Loader | `Loader` `1ed30f72e820c88ec1d09b169fc387cf77cfaa4c` | Variant(**Default**/Accent) · Size(**3XLarge**/2XLarge/XLarge/Large/Medium/Small/XSmall) | _ingen_ | Ubestemt lasting >1s |
@@ -113,4 +121,6 @@ Disse finnes i `@navikt/ds-react`, men ikke som instansierbare Figma-komponenter
 
 ## Dekning
 
-**45/55 aktive komponenter** uttrukket empirisk (skjema, status, layout, overlegg, navigasjon, typografi, data komplett). 10 er kun kode / ikke i Figma (over). Oppdater ved nye Aksel-utgivelser ved å kjøre samme preflight-mønster (se `figma-prototype.md`).
+**45 komponenter** er registrert empirisk på tvers av skjema, status, layout,
+overlegg, navigasjon og typografi. Tallet beskriver snapshotet, ikke dagens
+garanterte biblioteksdekning. Kjør preflight-mønsteret i `figma-prototype.md`.

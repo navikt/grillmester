@@ -25,15 +25,16 @@ def catalog(version: str, sha: str) -> dict[str, object]:
         "metadata": {"version": version},
         "plugins": [
             {
-                "name": "grillmester",
+                "name": name,
                 "version": version,
                 "source": {
                     "source": "github",
                     "repo": "navikt/grillmester",
-                    "path": "plugin",
+                    "path": path,
                     "sha": sha,
                 },
             }
+            for name, path in CONTRACT.PLUGIN_PATHS.items()
         ],
     }
 
@@ -139,15 +140,31 @@ class ReleaseContractTest(unittest.TestCase):
             root = Path(temp)
             source = root / "source"
             (source / "scripts").mkdir(parents=True)
-            (source / "plugin").mkdir()
-            (source / "plugin/plugin.json").write_text(
+            package_definitions = []
+            for name, path in CONTRACT.PLUGIN_PATHS.items():
+                (source / path).mkdir()
+                (source / path / "plugin.json").write_text(
+                    json.dumps(
+                        {
+                            "name": name,
+                            "version": "0.2.0-rc.1",
+                            "description": f"Description for {name}",
+                            "author": {"name": "Team eSyfo"},
+                            "repository": "https://github.com/navikt/grillmester",
+                        }
+                    )
+                )
+                package_definitions.append({"name": name, "path": path})
+            (source / "package-manifest.json").write_text(
                 json.dumps(
                     {
-                        "name": "grillmester",
-                        "version": "0.2.0-rc.1",
-                        "description": "Description",
-                        "author": {"name": "Team eSyfo"},
-                        "repository": "https://github.com/navikt/grillmester",
+                        "schemaVersion": 1,
+                        "marketplace": {
+                            "name": "grillmester",
+                            "description": "Description",
+                            "owner": "Team eSyfo",
+                        },
+                        "packages": package_definitions,
                     }
                 )
             )
@@ -200,15 +217,23 @@ class ReleaseContractTest(unittest.TestCase):
             root = Path(temp)
             stable_plugin = root / "stable"
             rc_plugin = root / "rc"
-            for plugin, version in (
+            for checkout, version in (
                 (stable_plugin, "1.4.0"),
                 (rc_plugin, "1.4.0-rc.2"),
             ):
-                plugin.mkdir()
-                (plugin / "plugin.json").write_text(
-                    json.dumps({"name": "grillmester", "version": version})
+                (checkout / "package-manifest.json").parent.mkdir(
+                    parents=True, exist_ok=True
                 )
-                (plugin / "payload.txt").write_text("reviewed bytes\n")
+                (checkout / "package-manifest.json").write_text(
+                    '{"schemaVersion":1}\n'
+                )
+                for name, path in CONTRACT.PLUGIN_PATHS.items():
+                    package = checkout / path
+                    package.mkdir(parents=True)
+                    (package / "plugin.json").write_text(
+                        json.dumps({"name": name, "version": version})
+                    )
+                    (package / "payload.txt").write_text("reviewed bytes\n")
 
             CONTRACT.validate_stable_promotion(
                 stable,
@@ -229,15 +254,23 @@ class ReleaseContractTest(unittest.TestCase):
             root = Path(temp)
             stable_plugin = root / "stable"
             rc_plugin = root / "rc"
-            for plugin, version, payload in (
+            for checkout, version, payload in (
                 (stable_plugin, "1.4.0", "changed\n"),
                 (rc_plugin, "1.4.0-rc.2", "reviewed\n"),
             ):
-                plugin.mkdir()
-                (plugin / "plugin.json").write_text(
-                    json.dumps({"name": "grillmester", "version": version})
+                (checkout / "package-manifest.json").parent.mkdir(
+                    parents=True, exist_ok=True
                 )
-                (plugin / "payload.txt").write_text(payload)
+                (checkout / "package-manifest.json").write_text(
+                    '{"schemaVersion":1}\n'
+                )
+                for name, path in CONTRACT.PLUGIN_PATHS.items():
+                    package = checkout / path
+                    package.mkdir(parents=True)
+                    (package / "plugin.json").write_text(
+                        json.dumps({"name": name, "version": version})
+                    )
+                    (package / "payload.txt").write_text(payload)
 
             with self.assertRaisesRegex(
                 CONTRACT.ReleaseContractError, "payload differs"
@@ -261,16 +294,32 @@ class ReleaseContractTest(unittest.TestCase):
             root = Path(temp)
             stable_plugin = root / "stable"
             rc_plugin = root / "rc"
-            stable_plugin.mkdir()
-            rc_plugin.mkdir()
-            (stable_plugin / "plugin.json").write_text(
-                '{"name":"grillmester","version":"1.4.0"}\n'
-            )
-            (rc_plugin / "plugin.json").write_text(
-                '{\n  "name": "grillmester",\n  "version": "1.4.0-rc.2"\n}\n'
-            )
-            for plugin in (stable_plugin, rc_plugin):
-                (plugin / "payload.txt").write_text("reviewed\n")
+            for checkout in (stable_plugin, rc_plugin):
+                checkout.mkdir(parents=True)
+                (checkout / "package-manifest.json").write_text(
+                    '{"schemaVersion":1}\n'
+                )
+            for name, path in CONTRACT.PLUGIN_PATHS.items():
+                stable_package = stable_plugin / path
+                rc_package = rc_plugin / path
+                stable_package.mkdir(parents=True)
+                rc_package.mkdir(parents=True)
+                if name == "grillmester":
+                    (stable_package / "plugin.json").write_text(
+                        '{"name":"grillmester","version":"1.4.0"}\n'
+                    )
+                    (rc_package / "plugin.json").write_text(
+                        '{\n  "name": "grillmester",\n  "version": "1.4.0-rc.2"\n}\n'
+                    )
+                else:
+                    (stable_package / "plugin.json").write_text(
+                        '{"name":"grillmester-nav","version":"1.4.0"}\n'
+                    )
+                    (rc_package / "plugin.json").write_text(
+                        '{"name":"grillmester-nav","version":"1.4.0-rc.2"}\n'
+                    )
+                for package in (stable_package, rc_package):
+                    (package / "payload.txt").write_text("reviewed\n")
 
             with self.assertRaisesRegex(
                 CONTRACT.ReleaseContractError, "byte-for-byte"
@@ -283,6 +332,42 @@ class ReleaseContractTest(unittest.TestCase):
                     rc_plugin,
                 )
 
+    def test_stable_promotion_rejects_package_manifest_drift(self) -> None:
+        stable = CONTRACT.Catalog(
+            version=CONTRACT.parse_version("1.4.0"), source_sha="1" * 40
+        )
+        rc = CONTRACT.Catalog(
+            version=CONTRACT.parse_version("1.4.0-rc.2"), source_sha="2" * 40
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            stable_source = root / "stable"
+            rc_source = root / "rc"
+            for checkout, version, manifest_body in (
+                (stable_source, "1.4.0", '{"packages":["changed"]}\n'),
+                (rc_source, "1.4.0-rc.2", '{"packages":["reviewed"]}\n'),
+            ):
+                checkout.mkdir(parents=True)
+                (checkout / "package-manifest.json").write_text(manifest_body)
+                for name, path in CONTRACT.PLUGIN_PATHS.items():
+                    package = checkout / path
+                    package.mkdir(parents=True)
+                    (package / "plugin.json").write_text(
+                        json.dumps({"name": name, "version": version})
+                    )
+                    (package / "payload.txt").write_text("reviewed\n")
+
+            with self.assertRaisesRegex(
+                CONTRACT.ReleaseContractError, "package-manifest.json differs"
+            ):
+                CONTRACT.validate_stable_promotion(
+                    stable,
+                    stable_source,
+                    "v1.4.0-rc.2",
+                    rc,
+                    rc_source,
+                )
+
     def test_release_notes_explain_both_immutable_links(self) -> None:
         notes = CONTRACT.render_notes(
             channel="rc",
@@ -293,8 +378,9 @@ class ReleaseContractTest(unittest.TestCase):
         )
 
         self.assertIn("v0.2.0-poc.4` → catalog commit", notes)
-        self.assertIn("catalog `source.sha`", notes)
+        self.assertIn("both catalog sources", notes)
         self.assertIn("navikt/grillmester#v0.2.0-poc.4", notes)
+        self.assertIn("grillmester-nav@grillmester", notes)
         self.assertIn("never\nmoved", notes)
 
     def test_stable_release_notes_require_matching_rc_parent(self) -> None:

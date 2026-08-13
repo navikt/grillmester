@@ -65,5 +65,8 @@ approval. A restart can erase the best transient evidence, so collect it first.
 
 For database startup failures, continue with
 [database-diagnose.md](./database-diagnose.md). For auth failures, use
-[auth-diagnose.md](./auth-diagnose.md). Confirmed application defects continue
-through grillmester-diagnosing-bugs.
+[auth-diagnose.md](./auth-diagnose.md). When the standard `grillmester`
+package is installed, confirmed application defects may optionally continue
+through `grillmester-diagnosing-bugs`. Without it, report the minimum
+reproduction, observed failure and proposed regression boundary; use
+`NEEDS_CONTEXT` if any cannot be verified.

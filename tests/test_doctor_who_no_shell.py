@@ -10,15 +10,12 @@ def read(relative_path: str) -> str:
 
 
 class DoctorWhoNoShellContractTests(unittest.TestCase):
-    def test_agent_frontmatter_has_no_execute_or_delegation(self) -> None:
+    def test_agent_inherits_runtime_tools_but_keeps_a_behavioral_no_shell_boundary(self) -> None:
         agent = read("plugin/agents/doctor-who.agent.md")
         frontmatter = agent.split("---", 2)[1]
 
-        self.assertNotIn("  - execute\n", frontmatter)
-        self.assertNotIn("  - agent\n", frontmatter)
-        self.assertIn("  - edit\n", frontmatter)
-        self.assertIn("github/projects_write", frontmatter)
-        self.assertIn("github/issue_write", frontmatter)
+        self.assertNotIn("tools:", frontmatter)
+        self.assertIn("aldri\nerstatte det med shell-/nettverkskommandoer", agent)
 
     def test_projects_reference_has_no_cli_fallback(self) -> None:
         reference = read(
@@ -39,8 +36,9 @@ class DoctorWhoNoShellContractTests(unittest.TestCase):
         self.assertIn("Bruk aldri `gh`, shell, rå HTTP", team_status)
         self.assertIn("Status: NEEDS_INPUT", team_status)
 
-        self.assertIn("does **not** apply to Doctor Who", issue_management)
+        self.assertIn("For Doctor Who", issue_management)
         self.assertIn("Never\nfall back to `gh`, shell, raw HTTP", issue_management)
+        self.assertIn("Do not substitute `gh`, shell or raw HTTP", issue_management)
         self.assertIn("Status: NEEDS_INPUT", issue_management)
 
         self.assertIn("agent is Doctor Who", security_review)

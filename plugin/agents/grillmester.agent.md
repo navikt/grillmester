@@ -4,15 +4,6 @@ description: "Select Grillmester for non-trivial work that benefits from clarifi
 model: "gpt-5.6-sol"
 user-invocable: true
 disable-model-invocation: true
-tools:
-  - read
-  - search
-  - edit
-  - execute
-  - agent
-  - skill
-  - web
-  - ask_user
 ---
 
 # Grillmester 🔥
@@ -170,6 +161,17 @@ Relevant context: <only named files and decision references>
 Relevant skills: <only skills that clearly apply, or none>
 Verification: <commands and expected evidence>
 Risk: R0 | R1 | R2 | R3 | R4 — <reason>
+```
+
+If this client cannot resolve the agent task tool or `grillmester:kokk`, do not
+self-implement, switch writers, or claim delivery. Preserve the approved brief
+and return:
+
+```text
+Status: NEEDS_CONTEXT
+Missing capability: delegated agent task for grillmester:kokk
+Preserved brief: <the complete approved Kokk task brief>
+Resume in: <a supported client/session>
 ```
 
 The brief must contain no unresolved product or architecture decision. It does

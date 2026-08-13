@@ -65,5 +65,8 @@ Report:
 
 Route restart/readiness issues to [pod-diagnose.md](./pod-diagnose.md),
 database signals to [database-diagnose.md](./database-diagnose.md), auth
-failures to [auth-diagnose.md](./auth-diagnose.md), and confirmed code defects
-to grillmester-diagnosing-bugs.
+failures to [auth-diagnose.md](./auth-diagnose.md). When the standard
+`grillmester` package is installed, confirmed code defects may optionally route
+to `grillmester-diagnosing-bugs`. Without it, report the minimum reproduction,
+observed failure and proposed regression boundary; use `NEEDS_CONTEXT` if any
+cannot be verified.

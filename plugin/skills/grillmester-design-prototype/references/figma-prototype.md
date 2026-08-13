@@ -5,6 +5,11 @@
 > eksterne writes krever en konkret preview og eksplisitt godkjenning. Gaten
 > gjelder alle arbeidsflyter og eksempler i denne referansen.
 
+Før denne referansen brukes som write-oppskrift, bekreft at runtime tilbyr en
+konkret Figma create/edit-kapabilitet. Read-only Figma MCP er nyttig for
+kontekst, men skal degradere til Visual Companion, Figma-klart utkast eller
+Issue-utkast; MCP-tilstedeværelse alene er ikke write-evidens.
+
 ## Oppstart: Hent planKey
 
 ```
@@ -142,17 +147,27 @@ for (let i = 0; i < texts.length; i++) {
 
 Forhåndsvalgt tilstand (valgt radio/checkbox i en gruppe) finnes ikke som gruppe-akse — det må eventuelt settes via `setProperties` på en nestet sub-instans. For en skisse er det ofte godt nok å vise uvalgt.
 
-## Preflight (kun for komponenter katalogen ikke dekker)
+## Preflight mot aktivt bibliotek
 
-> **Sjekk katalogen først — den er fasiten.** Alle 45 aktive Aksel-Figma-komponenter er empirisk uttrukket (key, akser, default, tekst-node-navn, fonter, antall-akser, slot-feller). To formater, samme innhold:
-> - [`aksel-figma-katalog.json`](./aksel-figma-katalog.json) — **kilde til sannhet** (maskinlesbar; bruk feltene direkte: `key`, `axes[].default`, `countAxis`, `slot`, `textNodes`).
+> **Sjekk snapshotet først, verifiser deretter live.** Det registrerer 45
+> observerte Aksel-Figma-komponenter og gjør preflighten målrettet. To formater,
+> samme snapshot:
+> - [`aksel-figma-katalog.json`](./aksel-figma-katalog.json) — maskinlesbare, observerte verdier (`key`, `axes[].default`, `countAxis`, `slot`, `textNodes`).
 > - [`aksel-figma-katalog.md`](./aksel-figma-katalog.md) — lesbart oppslag for mennesker.
 >
-> Finner du komponenten i katalogen, **hopp over preflight** og bruk verdiene direkte. Katalogen er drift-validert (se under), så keys og defaults stemmer. Preflight kun det katalogen ikke dekker.
+> Før første write i en økt: importer den aktuelle komponenten og bekreft key,
+> akser, default, tekstnoder og fonter. Ved avvik gjelder det aktive biblioteket.
 >
-> **For layouten rundt komponentene** (luft, bakgrunner, kanter, hjørner, løs tekst) bruk [`aksel-figma-tokens.md`](./aksel-figma-tokens.md) — spacing-skala, semantiske farger, radius og typografi. Da blir hele skissen Aksel-korrekt, ikke bare komponentene. Ved tvil: `get_variable_defs` på en eksisterende Aksel-node viser de faktiske `--ax-*`-tokenene.
+> **For layouten rundt komponentene** (luft, bakgrunner, kanter, hjørner, løs
+> tekst) bruk [`aksel-figma-tokens.md`](./aksel-figma-tokens.md) — spacing-skala,
+> semantiske farger, radius og typografi. Det bringer skissen nærmere det
+> reviewede snapshotet; det aktive biblioteket er fortsatt autoritativt. Ved
+> tvil viser `get_variable_defs` på en eksisterende Aksel-node de faktiske
+> `--ax-*`-tokenene.
 
-Preflight er kun nødvendig for komponenter **utenfor** katalogen (sjelden). Da kjører du EN instans for å avdekke varianter, text-node-navn og font-krav — den eneste pålitelige kilden til faktiske node-navn (som `"intput text"`) og default-varianter. Legg gjerne funnet inn i katalogen etterpå.
+Kjør én preflight-instans for å avdekke varianter, tekstnode-navn og fontkrav.
+Det aktive biblioteket er den eneste pålitelige kilden til dagens faktiske
+node-navn og default-varianter.
 
 ```javascript
 // Preflight-mønster — kjør som FØRSTE use_figma-kall
@@ -174,12 +189,12 @@ return JSON.stringify({ variants: variantNames, default: defaultName, textNodes:
 
 Dette forhindrer feil-runder der du gjetter variant-navn, default-varianter, fonter eller tekst-node-navn.
 
-## Vedlikehold av katalogen (drift-validering)
+## Vedlikehold av snapshotet
 
-Katalogen er en **selv-validert kontrakt**, ikke et statisk dokument:
-
-- **Vokter-test** (`scripts/test_catalog.py`, kjøres i CI sammen med de andre testene): verifiserer at JSON er internt konsistent (gyldige akser/defaults, `countAxis` peker på en ekte akse, keys er 40-tegns hex) **og** at markdown speiler JSON (samme navn + keys). JSON og markdown kan derfor ikke drifte fra hverandre usett.
-- **Figma-drift-harness**: når Aksel slipper ny versjon, kjør ett `use_figma`-kall som looper over alle `key` i JSON, importerer hver og sammenligner `defaultVariant`-akser mot fasiten. Avvik = Aksel har endret en key/akse/default → oppdater katalogen. Mønster:
+Snapshotet er vedlikeholdsevidens, ikke en runtimekontrakt. Når Aksel endres,
+kan en eksplisitt, reviewet vedlikeholdsflyt loope over registrerte keys og
+sammenligne default-akser. Ikke kjør hele katalogen som skjult del av en vanlig
+designoppgave. Mønster:
 
 ```javascript
 // Drift-harness — lim inn [{navn,kind,key,axes:{Akse:default}}] fra JSON
@@ -201,7 +216,8 @@ for (const e of EXP) {
 return { av: EXP.length, avvik: issues };  // avvik=[] → katalogen er i synk
 ```
 
-Sist verifisert: **45/45 importerer, null avvik.**
+Det historiske uttrekket rapporterte **45/45 importert uten avvik**. Påstanden
+gjelder uttrekkstidspunktet og må ikke presenteres som live-status.
 
 ## Plugin API-mønster for instansiering
 

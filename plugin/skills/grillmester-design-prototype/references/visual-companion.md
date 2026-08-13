@@ -5,12 +5,10 @@ under designutforsking.
 
 ## Aksel-korrekthet (VIKTIG)
 
-> **Bruk markup-fasiten — `references/aksel-markup-fasit.md`.** Den inneholder ekte
-> `.aksel-*`-markup for hver aktive komponent, generert direkte fra `@navikt/ds-react`
-> (`react-dom/server`). Det er ds-reacts *egen* output — garantert korrekt DOM som
-> rendrer autentisk Aksel (riktige farger, fasonger, ikoner, struktur) i VC, helt uten
-> React eller build. Lim inn snippeten, bytt teksten. Dette er den pålitelige veien til
-> Aksel-likt utseende i VC.
+> **Bruk markup-snapshotet — `references/aksel-markup-fasit.md`.** Det inneholder
+> ekte `.aksel-*`-markup generert fra en navngitt ds-react-versjon. Sammenlikn
+> med consumerens installerte versjon før bruk; aktuell pakke og rendret DOM er
+> autoritativ når snapshotet avviker.
 
 Serveren laster **ekte `@navikt/ds-css`** fra prosjektets node_modules, slik at
 alle Aksel-tokens (`--ax-*`) og komponentklasser (`.aksel-*`) er definert.
@@ -49,19 +47,23 @@ ulagret = høyest prioritet. Endrer du frame-malen: behold dette laget — legg 
 ulagret regel som rører `padding`/`margin` på generiske selektorer.
 
 **Arbeidsflyt for HTML-mockups:**
-1. Hent komponent-markup fra `references/aksel-markup-fasit.md` (ekte `.aksel-*`).
+1. Hent kompatibel komponent-markup fra consumerens installerte Aksel-versjon,
+   eller bruk `references/aksel-markup-fasit.md` når snapshot-versjonen er
+   verifisert kompatibel.
    Kopier **hele** snippeten — inkludert ikon-SVG-er og wrapper-divs — og bytt kun
    teksten. Forenkler du for hånd (dropper f.eks. `aksel-alert__icon`-SVG-en),
    mister komponenten deler av utseendet sitt.
-2. Trenger du spacing/token-detaljer utover fasiten: sjekk `/grillmester-aksel-design`, og hent
+2. Trenger du spacing/token-detaljer utover snapshotet: sjekk `/grillmester-aksel-design`, og hent
    `https://aksel.nav.no/llm.md` ved første HTML-generering i sesjonen.
 3. `.mock-*`-klassene er kun for **ikke-Aksel-stillas** (egne layout-bokser uten en
-   tilsvarende komponent) — ikke for å etterligne en Aksel-komponent. Finnes komponenten
-   i fasiten, bruk fasiten.
+   tilsvarende komponent) — ikke for å etterligne en Aksel-komponent. Finnes en
+   kompatibel Aksel-komponent, bruk dens verifiserte markup.
 
-**VC vs. Figma:** VC med ekte markup gir komponent-tro utseende for utforsking av layout,
-flyt og hierarki. Pixel-/variant-presisjon og handoff hører fortsatt hjemme i Figma
-(katalogen). Regenerer fasiten ved Aksel-oppgradering: `node scripts/generate_markup_fasit.mjs`.
+**VC vs. Figma:** VC med verifisert markup gir komponentnært utseende for
+utforsking av layout, flyt og hierarki. Pixel-/variant-presisjon og handoff
+hører fortsatt hjemme i det aktive Figma-biblioteket. Hvis snapshotet er
+inkompatibelt, fall tilbake til grovere wireframe framfor å late som det er
+oppdatert.
 
 ## Når brukes nettleseren vs. chatten?
 
@@ -234,9 +236,10 @@ Legg til `data-multiselect` på container:
 ### Wireframe-snarveier (`.mock-*`) — kun ikke-Aksel-stillas
 
 Disse er for layout-stillas uten en tilsvarende Aksel-komponent. **Er det en
-Aksel-komponent, hent ekte markup fra `references/aksel-markup-fasit.md` i stedet** —
-tredje kolonne viser hvilken. `.mock-*`-radene merket med en komponent finnes nå i
-fasiten og bør erstattes med ekte markup.
+Aksel-komponent, hent kompatibel markup fra consumerens pakke eller det
+versjonsverifiserte `references/aksel-markup-fasit.md` i stedet** — tredje
+kolonne viser hvilken. `.mock-*`-radene merket med en komponent bør erstattes
+med verifisert markup.
 
 | Klasse | Bruk | Bruk ekte i stedet (fasit) |
 |---|---|---|
@@ -267,7 +270,7 @@ blir blå, alerts får farge, FormSummary får riktig header — uten React.
 
 `.mock-*`-klassene over er **kun for ikke-Aksel-stillas** (egne wireframe-bokser,
 sidebars, splittvisninger uten en tilsvarende komponent). Ikke bruk `.mock-*` for å
-representere en Aksel-komponent som finnes i fasiten.
+representere en Aksel-komponent som finnes i den verifiserte pakkeversjonen.
 
 ### Spacing i innhold
 

@@ -1,6 +1,13 @@
 {
-  "_om": "Empirisk uttrukket maskinlesbar fasit over Aksel Figma-komponenter. Bruk denne for å slå opp key, akser, default, tekstnoder og feller før use_figma — uten preflight-gjetting. Human-lesbar variant: aksel-figma-katalog.md. Felt: key importeres med importComponentSetByKeyAsync (kind=componentSet) eller importComponentByKeyAsync (kind=component). axes[].default = variant-default. countAxis = akse som styrer ANTALL barn (kan ikke appende). textNodes = eksakte findOne-navn (repeat=fyll per indeks). slot=true → skjul/erstatt synlig Slot+placeholder. defaultPitfall = default-verdi som ofte er feil. Les alltid node.fontName dynamisk.",
+  "_om": "Empirisk uttrukket snapshot av Aksel Figma-komponenter. Bruk dataene til målrettet preflight, aldri som erstatning for å verifisere key, akser, default, tekstnoder og fonter mot det aktive biblioteket før write. Human-lesbar variant: aksel-figma-katalog.md. Felt: key importeres med importComponentSetByKeyAsync (kind=componentSet) eller importComponentByKeyAsync (kind=component). axes[].default = observert variant-default. countAxis = akse som styrer antall barn. textNodes = observerte findOne-navn. slot=true betyr at synlig Slot/placeholder må vurderes. Les alltid node.fontName dynamisk.",
   "bibliotek": "02 Aksel Components",
+  "snapshotProvenance": {
+    "source": "navikt/hovmester@48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2",
+    "originalCapturedAt": "unknown",
+    "reviewedAt": "2026-08-11",
+    "immutableLibraryVersion": "unknown",
+    "authority": "active Figma library"
+  },
   "planKey": "organization::810213623608415105",
   "dekning": {
     "iFigma": 45,
@@ -573,7 +580,7 @@
       "kategori": "skjema",
       "figmaNavn": "MonthPicker_Input",
       "kind": "componentSet",
-      "key": "0f220322c6eef1\u0032283602221aa9e14cad8822215",
+      "key": "0f220322c6eef12283602221aa9e14cad8822215",
       "axes": [
         {
           "navn": "Size",
@@ -886,7 +893,7 @@
       "kategori": "status",
       "figmaNavn": "Tag",
       "kind": "componentSet",
-      "key": "247551580c347876a\u00347506679823a7eaf5c74174",
+      "key": "247551580c347876a47506679823a7eaf5c74174",
       "axes": [
         {
           "navn": "Size",

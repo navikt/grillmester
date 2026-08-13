@@ -6,8 +6,14 @@ license: MIT
 
 # Nav Troubleshoot
 
-Locate a deployed-environment cause before proposing a fix. Use the normal bug
-workflow to implement and regression-test a confirmed code defect.
+Locate a deployed-environment cause before proposing a fix. When the standard
+`grillmester` package is also installed, optionally route a confirmed code
+defect to `grillmester-diagnosing-bugs` for implementation and regression
+testing. Without that package, keep this diagnostic skill read-only: report a
+minimal reproduction, the confirmed evidence, a proposed regression-test
+boundary and the smallest reversible fix, then hand implementation back to the
+user or repository workflow. Mark `NEEDS_CONTEXT` when the reproduction or
+expected behavior cannot be established from available evidence.
 
 ## Establish runtime identity
 
@@ -77,7 +83,9 @@ Do not print secret values, tokens, message payloads or personal data.
 - grillmester-kafka-topic for messaging design
 - grillmester-postgresql-review for schema and query review
 - grillmester-observability-setup for instrumentation design
-- grillmester-diagnosing-bugs for reproduction and regression tests
+- When the standard `grillmester` package is installed,
+  `grillmester-diagnosing-bugs` is an optional route for reproduction and
+  regression tests. Without it, use the self-contained handoff above.
 
 ## Grenser
 

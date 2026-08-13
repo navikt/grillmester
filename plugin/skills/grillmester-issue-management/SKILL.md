@@ -85,17 +85,12 @@ is unavailable, keep the reviewed mutation as a draft and return
 `Status: NEEDS_INPUT`, naming the required integration or the exact manual
 GitHub UI action.
 
-The following generic developer workflow does **not** apply to Doctor Who. An
-implementation agent whose own contract explicitly grants command execution
-may, when repository policy permits it, use native `gh` issue operations such
-as:
-
-- `gh issue edit PARENT --add-sub-issue CHILD`
-- `gh issue edit ISSUE --add-blocked-by BLOCKER`
-- `gh issue edit ISSUE --type TYPE`
-
-Use the confirmed repository and account context. Verify every created or
-changed issue, project item, field value, and relationship after writing.
+Do not substitute `gh`, shell or raw HTTP for a missing semantic tracker
+capability, including from an implementation agent. This keeps the same
+external-write contract across public and delegated roles. Use the confirmed
+repository and account context only through the approved semantic integration.
+Verify every created or changed issue, project item, field value, and
+relationship after writing.
 Report partial failure without silently omitting project state or substituting
 a text-only relationship.
 

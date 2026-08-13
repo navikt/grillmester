@@ -5,7 +5,9 @@ on:
     branches:
       - main
     paths:
+      - "package-manifest.json"
       - "plugin/**"
+      - "plugin-nav/**"
 
 concurrency:
   group: publish-grillmester-marketplace
@@ -82,7 +84,7 @@ jobs:
           {
             echo "catalog_base64=$(base64 -w0 "${catalog}")"
             echo "catalog_sha256=$(sha256sum "${catalog}" | cut -d' ' -f1)"
-            echo "catalog_version=$(jq -er '.plugins[0].version' "${catalog}")"
+            echo "catalog_version=$(jq -er '.metadata.version' "${catalog}")"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Install pinned GitHub Copilot CLI
@@ -121,14 +123,28 @@ jobs:
           mkdir -p "$(dirname "${catalog}")"
           printf '%s' "${CATALOG_BASE64}" | base64 --decode > "${catalog}"
           [[ "$(sha256sum "${catalog}" | cut -d' ' -f1)" == "${CATALOG_SHA256}" ]]
-          [[ "$(jq -er '.plugins | length' "${catalog}")" == "1" ]]
-          [[ "$(jq -er '.plugins[0].name' "${catalog}")" == "grillmester" ]]
-          [[ "$(jq -er '.plugins[0].version' "${catalog}")" == "${CATALOG_VERSION}" ]]
-          [[ "$(jq -er '.metadata.version' "${catalog}")" == "${CATALOG_VERSION}" ]]
-          [[ "$(jq -er '.plugins[0].source.source' "${catalog}")" == "github" ]]
-          [[ "$(jq -er '.plugins[0].source.repo' "${catalog}")" == "navikt/grillmester" ]]
-          [[ "$(jq -er '.plugins[0].source.path' "${catalog}")" == "plugin" ]]
-          [[ "$(jq -er '.plugins[0].source.sha' "${catalog}")" == "${SOURCE_SHA}" ]]
+          jq -e \
+            --arg version "${CATALOG_VERSION}" \
+            --arg source_sha "${SOURCE_SHA}" \
+            '
+              .name == "grillmester" and
+              .metadata.version == $version and
+              (.plugins | length) == 2 and
+              [.plugins[].name] == ["grillmester", "grillmester-nav"] and
+              [.plugins[].version] == [$version, $version] and
+              .plugins[0].source == {
+                source: "github",
+                repo: "navikt/grillmester",
+                path: "plugin",
+                sha: $source_sha
+              } and
+              .plugins[1].source == {
+                source: "github",
+                repo: "navikt/grillmester",
+                path: "plugin-nav",
+                sha: $source_sha
+              }
+            ' "${catalog}" >/dev/null
 
           git init --quiet
           git config user.name "github-actions[bot]"
@@ -146,8 +162,10 @@ jobs:
             parent_args=(-p "${base_sha}")
 
             previous_catalog="$(git show "${base_sha}:.github/plugin/marketplace.json")"
-            previous_version="$(jq -er '.plugins[0].version' <<<"${previous_catalog}")"
-            previous_source_sha="$(jq -er '.plugins[0].source.sha' <<<"${previous_catalog}")"
+            previous_version="$(jq -er '.metadata.version' <<<"${previous_catalog}")"
+            previous_source_sha="$(jq -er \
+              '[.plugins[].source.sha] | unique | if length == 1 then .[0] else error("catalog source SHAs differ") end' \
+              <<<"${previous_catalog}")"
             current_version="${CATALOG_VERSION}"
 
             if [[ "${current_version}" == "${previous_version}" ]]; then
@@ -161,7 +179,7 @@ jobs:
 
             while read -r catalog_commit; do
               [[ -z "${catalog_commit}" ]] && continue
-              published_version="$(git show "${catalog_commit}:.github/plugin/marketplace.json" | jq -er '.plugins[0].version')"
+              published_version="$(git show "${catalog_commit}:.github/plugin/marketplace.json" | jq -er '.metadata.version')"
               if [[ "${published_version}" == "${current_version}" ]]; then
                 echo "Refusing to reuse previously published marketplace version ${current_version}." >&2
                 exit 1

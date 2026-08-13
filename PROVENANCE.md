@@ -1,8 +1,10 @@
 # Provenance
 
-This repository owns the operative Grillmester plugin content. The sources
-below record attribution and the reviewed import boundary. They are not
-runtime dependencies and do not create a synchronization relationship.
+This repository owns the operative Grillmester package content: the standard
+agent team under `plugin/` and the optional, skills-only NAV add-on under
+`plugin-nav/`. The sources below record attribution and the reviewed import
+boundary. They are not runtime dependencies and do not create a synchronization
+relationship.
 
 The authoritative component-by-component bill of materials is
 [`policy/content-lock.json`](policy/content-lock.json). It records every agent
@@ -52,6 +54,16 @@ assumptions. Cross-component calls are plugin-qualified where required.
 Source: `navikt/hovmester` at
 `48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2`.
 
+The pinned source did not contain an explicit license file. Git history for the
+exact imported paths records Audun Sørheim as the sole human author, plus
+automation. Audun, as contributing maintainer, explicitly approved reuse and
+public POC distribution of those paths in Grillmester on 2026-08-13. This is a
+recorded POC authorization, not a substitute for final organizational rights
+and brand review. Before stable promotion, the repository owner must record
+the relevant NAV rights-holder approval or replace material whose terms cannot
+be established. The public agent name and characterization “Doctor Who” also
+requires a NAV legal/brand decision or a rename before stable promotion.
+
 Imported agents:
 
 - `designer`, `doctor-who`
@@ -74,14 +86,14 @@ team-status, architecture, and visual-prototype workflows. It removes ambient
 repository synchronization, fixed Team eSyfo repositories or project boards,
 template placeholders, and automatic external writes. Figma, GitHub, and
 delivery side effects require an explicit
-preview and approval. Designer and Doctor Who use explicit cross-client tool
-allowlists rather than inheriting every configured tool. The allowlists name
-Copilot's canonical MCP prefixes, the corresponding CLI server names and NAV's
-registered GitHub/Aksel server names, without server wildcards. Neither role
-can delegate; Doctor Who cannot execute shell commands, and Designer's built-in
-edit/execute capability is contractually limited to the bundled Visual
-Companion server and the exact private `screen_dir` path returned by its active
-startup JSON.
+preview and approval. All four public roles intentionally inherit the
+runtime's broad tool surface, matching the piloted Hovmester/Budstikka model
+and avoiding a drifting matrix of client-specific aliases. Their behavioral
+contracts remain narrower: neither Designer nor Doctor Who delegates; Doctor
+Who does not use shell commands, and Designer's edit/execute use is limited to the
+bundled Visual Companion server and the exact private `screen_dir` path returned
+by its active startup JSON. Technical containment and approval remain client-
+and enterprise-owned; see `docs/runtime-safety.md`.
 
 ### Visual Companion lineage
 
@@ -102,6 +114,17 @@ alive—without copying remote binds, repository state, generic file serving,
 external assets or raw event text. See the full MIT notice in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+### Aksel generated-reference lineage
+
+The generated component markup and icon reference material is based on
+`@navikt/ds-react@8.12.0` and `@navikt/aksel-icons@8.12.0`. Both packages point
+to `navikt/aksel` revision
+`59ebc666cfa4a78945c293f546d0d8121abfbfec` and are distributed under the MIT
+license, Copyright 2025 Nav (Arbeids- og velferdsdirektoratet). Grillmester's
+snapshots are reference material, not an authoritative replacement for the
+live Aksel libraries; the complete notice is included in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 ## Consumer-owned material
 
 Budstikka's `copilot-instructions.md` and path-scoped language, security, and
@@ -112,7 +135,9 @@ with each consumer.
 
 Hovmester collections, sync workflows, generated mirrors, repository forms,
 and consumer templates are distribution or repository infrastructure and are
-not part of the plugin payload.
+not part of either plugin payload. The issue and PR templates in this source
+repository govern contributions to `navikt/grillmester`; they are not shipped
+to consumers.
 
 `grillmester-doctor` consolidates the reviewed ownership boundary from the
 pinned Budstikka and Hovmester instruction sources into a read-only audit. It

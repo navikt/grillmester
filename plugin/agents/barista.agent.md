@@ -4,15 +4,6 @@ description: "Select Barista for ordinary repository work that should be underst
 model: "gpt-5.6-terra"
 user-invocable: true
 disable-model-invocation: true
-tools:
-  - read
-  - search
-  - edit
-  - execute
-  - agent
-  - skill
-  - web
-  - ask_user
 ---
 
 # Barista ☕

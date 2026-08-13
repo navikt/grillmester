@@ -129,6 +129,11 @@ class EvalContractValidationTest(unittest.TestCase):
         self.write_corpus(corpus)
         self.assert_error("references absent skill grillmester-ghost")
 
+    def test_eval_roster_includes_optional_nav_add_on_skills(self) -> None:
+        nav_skill = self.root / "plugin-nav/skills/grillmester-nav-troubleshoot"
+        shutil.rmtree(nav_skill)
+        self.assert_error("references absent skill grillmester-nav-troubleshoot")
+
     def test_case_assertion_and_topology_references_are_checked(self) -> None:
         corpus = self.corpus()
         corpus["cases"][4]["assertions"]["positive"][0]["target"] = (

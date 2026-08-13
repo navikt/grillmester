@@ -12,9 +12,11 @@ vertical slices that remain understandable and useful on their own.
 Start only after the user has explicitly selected `/grillmester-to-issues` in the current
 conversation. Relevance or a prior recommendation is not selection.
 
-Read the repository's issue-tracker adapter before tracker use. Stop before
-publishing when it does not establish the required operations, labels, or
-authorization boundary.
+Establish tracker context from consumer-owned instructions, issue templates,
+contributor documentation, and read-only GitHub metadata before tracker use.
+A dedicated adapter file is optional; its absence must not block drafting.
+Stop before publishing only when the target repository, authorization boundary,
+or a required operation or metadata value remains unresolved.
 
 ## Process
 
@@ -84,8 +86,8 @@ relationships and obtain explicit authorization for those writes.
 After authorization, publish one issue per slice in dependency order
 (blockers first) so later relationships can reference real identifiers. Use the
 tracker's native parent and blocking relationships. Apply only labels and issue
-types established by the adapter; never approximate a missing relationship or
-label in prose.
+types established by consumer evidence or live metadata; never approximate a
+missing relationship or label in prose.
 
 Read the created issues, project state, and native relationships back after
 writing. Report a

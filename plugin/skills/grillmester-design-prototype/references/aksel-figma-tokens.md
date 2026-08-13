@@ -1,6 +1,9 @@
 # Aksel-tokens for Figma-skisser (empirisk uttrukket)
 
-Komponentene i [`aksel-figma-katalog.md`](./aksel-figma-katalog.md) bærer sin egen styling. Denne filen dekker **layouten rundt** dem — luft, bakgrunner, kanter, hjørner og løs tekst — så hele skissen blir Aksel-korrekt, ikke bare komponentene.
+Komponentene i [`aksel-figma-katalog.md`](./aksel-figma-katalog.md) bærer sin
+egen styling. Denne historiske hurtigreferansen hjelper med **layouten rundt**
+dem — luft, bakgrunner, kanter, hjørner og løs tekst. Den gjør ikke alene en
+hel skisse Aksel-korrekt; aktivt bibliotek og live preflight er autoritativt.
 
 > Tokens ligger i biblioteket `01 Aksel Tokens`. **Autoritativ live-kilde:** `get_variable_defs` på en node returnerer de faktiske `--ax-*`-verdiene den bruker — kjør den ved tvil. Verdiene under er en praktisk hurtigreferanse for å bygge omkringliggende layout uten å gjette.
 
@@ -25,7 +28,7 @@ Praktiske valg: feltavstand i skjema **24**, seksjonsavstand **40–48**, tett g
 
 > **Ikke hardkod hex.** Hent den faktiske verdien live: `get_variable_defs` på en
 > node, eller `search_design_system` på token-navnet for å binde variabelen. Da kan
-> fargene aldri drifte fra Aksel. Listene under er *navnekart* — hvilket token som
+> redusere risikoen for drift. Listene under er *navnekart* fra snapshotet — hvilket token som
 > hører til hvilken situasjon — ikke en verditabell.
 
 **Bakgrunn** (`--ax-bg-*`)

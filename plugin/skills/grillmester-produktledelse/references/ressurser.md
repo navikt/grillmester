@@ -1,7 +1,10 @@
-# Ressurser per kompetanse
+# Produktfaglige ressurser
 
-Kuratert utvalg knyttet til de åtte kompetansene i kompetansehjulet (se `kompetansehjul.md`).
-Kun offentlig tilgjengelige ressurser; bøker er oppgitt med forfatter og tittel.
+Kuratert, ikke-autoritativt utvalg for produktfaglig refleksjon og læring.
+Lenkene under er offentlig tilgjengelige; bøker er oppgitt med forfatter og
+tittel. Velg ressurser ut fra brukerens uttrykte mål og kontekst, ikke en
+standardisert nivåvurdering. Interne søkehint nederst må verifiseres av brukeren
+og er ikke kilder pluginen kan hente selv.
 
 ## Offentlig sektor/Nav
 
@@ -67,4 +70,6 @@ Kun offentlig tilgjengelige ressurser; bøker er oppgitt med forfatter og tittel
 
 ## Interne ressurser
 
-Interne kurs, nettverk og maler finnes på Navet og i Slack-kanalen #kompetanse-for-produktledere.
+Historisk søkehint: interne kurs, nettverk og maler kan finnes på Navet eller i
+relevante produktfaglige Slack-kanaler. Be brukeren bekrefte gjeldende navn og
+tilgang; ikke presenter hintet som en verifisert ressurs.

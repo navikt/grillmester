@@ -132,7 +132,7 @@ Only offer to create an ADR when all three are true:
 If any of the three is missing, skip the ADR. Use the format in
 [ADR-FORMAT.md](./ADR-FORMAT.md).
 
-For a decision candidate returned by `/grillmester-architecture-review` or
-`/grillmester-nav-architecture-review`, first explain why it does or does not
+For a decision candidate returned by `/grillmester-architecture-review` or the
+bundled `/grillmester-nav-architecture-review`, first explain why it does or does not
 pass this gate. Draft or record it only after the user has explicitly chosen
 the ADR route; review output alone never makes that choice.

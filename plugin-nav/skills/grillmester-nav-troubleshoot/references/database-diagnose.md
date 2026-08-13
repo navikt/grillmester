@@ -73,4 +73,8 @@ make the incident worse.
 - Startup crash or sidecar failure:
   [pod-diagnose.md](./pod-diagnose.md)
 - Query, index or schema design: grillmester-postgresql-review
-- Code-level reproduction and regression test: grillmester-diagnosing-bugs
+- When the standard `grillmester` package is installed, optionally route
+  code-level reproduction and regression testing to
+  `grillmester-diagnosing-bugs`. Without it, report the smallest reproducible
+  query or transaction, observable failure and proposed regression boundary;
+  use `NEEDS_CONTEXT` if any cannot be verified safely.

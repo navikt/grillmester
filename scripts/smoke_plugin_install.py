@@ -15,19 +15,14 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, NamedTuple, Sequence
 
 
-PLUGIN_NAME = "grillmester"
 MARKETPLACE_NAME = "grillmester"
-PLUGIN_SPEC = f"{PLUGIN_NAME}@{MARKETPLACE_NAME}"
 PLUGIN_REPOSITORY = "navikt/grillmester"
-EXPECTED_AGENTS = 7
-EXPECTED_SKILLS = 44
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 UNAVAILABLE_PLUGINS_COMMAND = "the plugins command is not available"
 PREVIOUS_VERSION = "0.0.0-upgrade-smoke"
-PREVIOUS_SOURCE = "previous-plugin"
 UPGRADE_SENTINEL = ".grillmester-upgrade-fixture"
 SAFE_ENV_PASSTHROUGH = {
     "PATH",
@@ -44,6 +39,28 @@ SAFE_ENV_PASSTHROUGH = {
     "CURL_CA_BUNDLE",
     "REQUESTS_CA_BUNDLE",
 }
+
+
+class PackageSpec(NamedTuple):
+    name: str
+    path: str
+    agents: int
+    skills: int
+
+    @property
+    def qualified_name(self) -> str:
+        return f"{self.name}@{MARKETPLACE_NAME}"
+
+
+PACKAGES = (
+    PackageSpec("grillmester", "plugin", 7, 34),
+    PackageSpec("grillmester-nav", "plugin-nav", 0, 10),
+)
+PACKAGE_BY_NAME = {package.name: package for package in PACKAGES}
+PLUGIN_NAME = PACKAGES[0].name
+PLUGIN_SPEC = PACKAGES[0].qualified_name
+EXPECTED_AGENTS = PACKAGES[0].agents
+EXPECTED_SKILLS = sum(package.skills for package in PACKAGES)
 
 
 def isolated_cli_environment(
@@ -126,18 +143,30 @@ def load_json_object(path: Path, *, allow_comments: bool = False) -> dict[str, A
     return value
 
 
-def marketplace_source_from_catalog(catalog_path: Path) -> str | dict[str, Any]:
+def marketplace_sources_from_catalog(
+    catalog_path: Path,
+) -> dict[str, str | dict[str, Any]]:
     catalog = load_json_object(catalog_path)
     plugins = catalog.get("plugins")
-    if not isinstance(plugins, list) or len(plugins) != 1:
-        raise RuntimeError("marketplace catalog must contain exactly one plugin")
-    entry = plugins[0]
-    if not isinstance(entry, dict) or entry.get("name") != PLUGIN_NAME:
-        raise RuntimeError("marketplace catalog does not contain Grillmester")
-    source = entry.get("source")
-    if not isinstance(source, (str, dict)):
-        raise RuntimeError("marketplace plugin source has an invalid type")
-    return source
+    if not isinstance(plugins, list) or len(plugins) != len(PACKAGES):
+        raise RuntimeError("marketplace catalog must contain both Grillmester packages")
+    if any(not isinstance(entry, dict) for entry in plugins):
+        raise RuntimeError("marketplace plugin entries must be objects")
+    if [entry.get("name") for entry in plugins] != [p.name for p in PACKAGES]:
+        raise RuntimeError("marketplace package names or order have drifted")
+    result: dict[str, str | dict[str, Any]] = {}
+    for entry in plugins:
+        source = entry.get("source")
+        if not isinstance(source, (str, dict)):
+            raise RuntimeError("marketplace plugin source has an invalid type")
+        result[entry["name"]] = source
+    return result
+
+
+def marketplace_source_from_catalog(catalog_path: Path) -> str | dict[str, Any]:
+    """Compatibility accessor for the standard package source."""
+
+    return marketplace_sources_from_catalog(catalog_path)[PLUGIN_NAME]
 
 
 def marketplace_source(root: Path) -> str | dict[str, Any]:
@@ -162,46 +191,56 @@ def write_json_object(path: Path, value: dict[str, Any]) -> None:
 
 def prepare_upgrade_marketplace(
     root: Path,
-    source_plugin: Path,
+    source_root: Path,
     staged_marketplace: Path,
-) -> tuple[Path, dict[str, Any], dict[str, Any]]:
+) -> tuple[dict[str, Path], dict[str, Any], dict[str, Any]]:
     """Create an older local source beside an exact current catalog fixture."""
 
     current_catalog = load_json_object(root / ".github/plugin/marketplace.json")
-    current_source = marketplace_source(root)
-    current_version = plugin_version(source_plugin)
+    current_sources = marketplace_sources_from_catalog(
+        root / ".github/plugin/marketplace.json"
+    )
+    current_versions = {
+        plugin_version(source_root / package.path) for package in PACKAGES
+    }
+    if len(current_versions) != 1:
+        raise RuntimeError("package manifest versions differ")
+    current_version = next(iter(current_versions))
     if current_version == PREVIOUS_VERSION:
         raise RuntimeError("upgrade fixture version must differ from the current plugin")
 
     plugins = current_catalog.get("plugins")
-    if not isinstance(plugins, list) or len(plugins) != 1:
-        raise RuntimeError("marketplace catalog must contain exactly one plugin")
-    current_entry = plugins[0]
-    if not isinstance(current_entry, dict):
-        raise RuntimeError("marketplace plugin entry must be an object")
-    if current_entry.get("version") != current_version:
-        raise RuntimeError("marketplace and plugin manifest versions do not match")
+    if not isinstance(plugins, list) or len(plugins) != len(PACKAGES):
+        raise RuntimeError("marketplace catalog must contain both packages")
+    previous_plugins: dict[str, Path] = {}
+    for package, current_entry in zip(PACKAGES, plugins, strict=True):
+        if not isinstance(current_entry, dict) or current_entry.get("name") != package.name:
+            raise RuntimeError("marketplace package roster has drifted")
+        if current_entry.get("version") != current_version:
+            raise RuntimeError("marketplace and package manifest versions do not match")
+        source_package = source_root / package.path
+        previous_path = f"previous-{package.path}"
+        previous_plugin = staged_marketplace / previous_path
+        shutil.copytree(source_package, previous_plugin)
+        previous_manifest = load_json_object(previous_plugin / "plugin.json")
+        previous_manifest["version"] = PREVIOUS_VERSION
+        write_json_object(previous_plugin / "plugin.json", previous_manifest)
+        (previous_plugin / UPGRADE_SENTINEL).write_text(
+            "This file must disappear after a successful upgrade.\n",
+            encoding="utf-8",
+        )
+        previous_plugins[package.name] = previous_plugin
 
-    previous_plugin = staged_marketplace / PREVIOUS_SOURCE
-    shutil.copytree(source_plugin, previous_plugin)
-    previous_manifest = load_json_object(previous_plugin / "plugin.json")
-    previous_manifest["version"] = PREVIOUS_VERSION
-    write_json_object(previous_plugin / "plugin.json", previous_manifest)
-    (previous_plugin / UPGRADE_SENTINEL).write_text(
-        "This file must disappear after a successful upgrade.\n",
-        encoding="utf-8",
-    )
-
-    # A development catalog resolves its relative source from the registered
-    # marketplace. Release catalogs keep their exact pinned GitHub source.
-    if current_source == "plugin":
-        shutil.copytree(source_plugin, staged_marketplace / "plugin")
+        # Development sources resolve relative to the staged marketplace.
+        if current_sources[package.name] == package.path:
+            shutil.copytree(source_package, staged_marketplace / package.path)
 
     previous_catalog = copy.deepcopy(current_catalog)
     previous_catalog["metadata"]["version"] = PREVIOUS_VERSION
-    previous_catalog["plugins"][0]["version"] = PREVIOUS_VERSION
-    previous_catalog["plugins"][0]["source"] = PREVIOUS_SOURCE
-    return previous_plugin, previous_catalog, current_catalog
+    for package, entry in zip(PACKAGES, previous_catalog["plugins"], strict=True):
+        entry["version"] = PREVIOUS_VERSION
+        entry["source"] = f"previous-{package.path}"
+    return previous_plugins, previous_catalog, current_catalog
 
 
 def activate_marketplace_catalog(
@@ -222,30 +261,37 @@ def activate_marketplace_catalog(
     )
 
 
-def validate_catalog_source(
-    source: str | dict[str, Any],
+def validate_catalog_sources(
+    sources: dict[str, str | dict[str, Any]],
     *,
     expected_release_sha: str | None,
     checkout_sha: str,
 ) -> str | None:
-    if source == "plugin":
+    if set(sources) != set(PACKAGE_BY_NAME):
+        raise RuntimeError("marketplace source package roster has drifted")
+    development = all(
+        sources[package.name] == package.path for package in PACKAGES
+    )
+    if development:
         if expected_release_sha is not None:
-            raise RuntimeError("release smoke expected an immutable GitHub source")
+            raise RuntimeError("release smoke expected immutable GitHub sources")
         return None
-    if not isinstance(source, dict):
-        raise RuntimeError("marketplace source must be 'plugin' or a GitHub object")
 
-    source_sha = source.get("sha")
+    first_source = sources[PLUGIN_NAME]
+    source_sha = first_source.get("sha") if isinstance(first_source, dict) else None
     if not isinstance(source_sha, str) or not FULL_SHA.fullmatch(source_sha):
-        raise RuntimeError("release marketplace source needs an exact commit SHA")
-    expected_source = {
-        "source": "github",
-        "repo": PLUGIN_REPOSITORY,
-        "path": "plugin",
-        "sha": source_sha,
-    }
-    if source != expected_source:
-        raise RuntimeError("release marketplace source has drifted from the pinned shape")
+        raise RuntimeError("release marketplace sources need one exact commit SHA")
+    for package in PACKAGES:
+        expected_source = {
+            "source": "github",
+            "repo": PLUGIN_REPOSITORY,
+            "path": package.path,
+            "sha": source_sha,
+        }
+        if sources[package.name] != expected_source:
+            raise RuntimeError(
+                "release marketplace packages have drifted from their pinned shapes"
+            )
     if expected_release_sha is not None and source_sha != expected_release_sha:
         raise RuntimeError(
             f"release marketplace pins {source_sha}; expected {expected_release_sha}"
@@ -255,6 +301,36 @@ def validate_catalog_source(
             f"release marketplace pins {source_sha}; checkout HEAD is {checkout_sha}"
         )
     return source_sha
+
+
+def validate_catalog_source(
+    source: str | dict[str, Any],
+    *,
+    expected_release_sha: str | None,
+    checkout_sha: str,
+) -> str | None:
+    """Compatibility helper for unit tests of a single canonical source."""
+
+    sources = {
+        package.name: (
+            source
+            if package.name == PLUGIN_NAME
+            else (
+                package.path
+                if source == "plugin"
+                else {
+                    **source,
+                    "path": package.path,
+                }
+            )
+        )
+        for package in PACKAGES
+    }
+    return validate_catalog_sources(
+        sources,
+        expected_release_sha=expected_release_sha,
+        checkout_sha=checkout_sha,
+    )
 
 
 def tree_manifest(root: Path) -> dict[str, str]:
@@ -296,18 +372,21 @@ def assert_payload_matches(expected: Path, actual: Path) -> None:
     raise RuntimeError("installed payload differs from source plugin; " + "; ".join(details))
 
 
-def verify_installed_package(source: Path, installed: Path) -> tuple[int, int]:
+def verify_installed_package(
+    source: Path, installed: Path, package: PackageSpec | None = None
+) -> tuple[int, int]:
+    package = package or PACKAGES[0]
     manifest_path = installed / "plugin.json"
     manifest = load_json_object(manifest_path)
-    if manifest.get("name") != PLUGIN_NAME:
+    if manifest.get("name") != package.name:
         raise RuntimeError("installed plugin manifest has the wrong name")
 
     agent_count = len(list((installed / "agents").glob("*.agent.md")))
     skill_count = len(list((installed / "skills").glob("*/SKILL.md")))
-    if agent_count != EXPECTED_AGENTS:
-        raise RuntimeError(f"installed {agent_count} agents; expected {EXPECTED_AGENTS}")
-    if skill_count != EXPECTED_SKILLS:
-        raise RuntimeError(f"installed {skill_count} skills; expected {EXPECTED_SKILLS}")
+    if agent_count != package.agents:
+        raise RuntimeError(f"installed {agent_count} agents; expected {package.agents}")
+    if skill_count != package.skills:
+        raise RuntimeError(f"installed {skill_count} skills; expected {package.skills}")
 
     for required in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
         if not (installed / required).is_file():
@@ -317,14 +396,14 @@ def verify_installed_package(source: Path, installed: Path) -> tuple[int, int]:
     return agent_count, skill_count
 
 
-def enabled_setting(copilot_home: Path) -> bool | None:
+def enabled_setting(copilot_home: Path, plugin_spec: str = PLUGIN_SPEC) -> bool | None:
     settings = load_json_object(copilot_home / "settings.json")
     enabled = settings.get("enabledPlugins")
     if not isinstance(enabled, dict):
         raise RuntimeError("Copilot settings do not contain enabledPlugins")
-    value = enabled.get(PLUGIN_SPEC)
+    value = enabled.get(plugin_spec)
     if value is not None and not isinstance(value, bool):
-        raise RuntimeError("Grillmester enabledPlugins setting is not boolean")
+        raise RuntimeError(f"{plugin_spec} enabledPlugins setting is not boolean")
     return value
 
 
@@ -333,13 +412,15 @@ def try_toggle_lifecycle(
     env: dict[str, str],
     cwd: Path,
     copilot_home: Path,
+    package: PackageSpec | None = None,
 ) -> bool:
+    package = package or PACKAGES[0]
     command_prefixes = ([copilot], [copilot, "--experimental"])
     disable_result: subprocess.CompletedProcess[str] | None = None
     selected_prefix: list[str] | None = None
 
     for prefix in command_prefixes:
-        command = [*prefix, "plugins", "disable", PLUGIN_SPEC, "--plugin"]
+        command = [*prefix, "plugins", "disable", package.qualified_name, "--plugin"]
         disable_result = execute(command, env, cwd)
         if disable_result.returncode == 0:
             selected_prefix = list(prefix)
@@ -355,32 +436,37 @@ def try_toggle_lifecycle(
         )
         return False
 
-    if enabled_setting(copilot_home) is not False:
+    if enabled_setting(copilot_home, package.qualified_name) is not False:
         raise RuntimeError("disable command did not persist disabled plugin state")
     disabled_listing = run([copilot, "plugin", "list"], env, cwd)
-    if PLUGIN_SPEC not in disabled_listing or "[disabled]" not in disabled_listing:
-        raise RuntimeError("stable plugin list did not report Grillmester as disabled")
+    if package.qualified_name not in disabled_listing or "[disabled]" not in disabled_listing:
+        raise RuntimeError(f"plugin list did not report {package.name} as disabled")
 
     enable_command = [
         *selected_prefix,
         "plugins",
         "enable",
-        PLUGIN_SPEC,
+        package.qualified_name,
         "--plugin",
     ]
     run(enable_command, env, cwd)
-    if enabled_setting(copilot_home) is not True:
+    if enabled_setting(copilot_home, package.qualified_name) is not True:
         raise RuntimeError("enable command did not persist enabled plugin state")
     enabled_listing = run([copilot, "plugin", "list"], env, cwd)
-    if PLUGIN_SPEC not in enabled_listing or "[disabled]" in enabled_listing:
-        raise RuntimeError("stable plugin list did not report Grillmester as enabled")
+    if package.qualified_name not in enabled_listing or "[disabled]" in enabled_listing:
+        raise RuntimeError(f"plugin list did not report {package.name} as enabled")
 
     mode = "documented --experimental mode" if len(selected_prefix) > 1 else "default mode"
     print(f"Verified enable/disable lifecycle through {mode}.")
     return True
 
 
-def verify_uninstalled(copilot_home: Path, installed: Path) -> None:
+def verify_uninstalled(
+    copilot_home: Path,
+    installed: Path,
+    package: PackageSpec | None = None,
+) -> None:
+    package = package or PACKAGES[0]
     if installed.exists():
         raise RuntimeError(f"uninstall left the plugin payload behind: {installed}")
 
@@ -390,7 +476,7 @@ def verify_uninstalled(copilot_home: Path, installed: Path) -> None:
         raise RuntimeError("Copilot config does not contain installedPlugins")
     if any(
         isinstance(plugin, dict)
-        and plugin.get("name") == PLUGIN_NAME
+        and plugin.get("name") == package.name
         and plugin.get("marketplace") == MARKETPLACE_NAME
         for plugin in installed_plugins
     ):
@@ -398,8 +484,8 @@ def verify_uninstalled(copilot_home: Path, installed: Path) -> None:
 
     settings = load_json_object(copilot_home / "settings.json")
     enabled = settings.get("enabledPlugins")
-    if not isinstance(enabled, dict) or PLUGIN_SPEC in enabled:
-        raise RuntimeError("uninstall left Grillmester in enabledPlugins")
+    if not isinstance(enabled, dict) or package.qualified_name in enabled:
+        raise RuntimeError(f"uninstall left {package.name} in enabledPlugins")
 
 
 def remote_install_smoke(
@@ -409,7 +495,7 @@ def remote_install_smoke(
     cwd: Path,
     copilot_home: Path,
     marketplace_ref: str,
-    source_plugin: Path,
+    source_root: Path,
 ) -> tuple[int, int]:
     """Install from a real remote catalog ref, verify bytes, then uninstall."""
 
@@ -426,17 +512,27 @@ def remote_install_smoke(
         env,
         cwd,
     )
-    run([copilot, "plugin", "install", PLUGIN_SPEC], env, cwd)
-    installed = copilot_home / "installed-plugins" / MARKETPLACE_NAME / PLUGIN_NAME
-    agent_count, skill_count = verify_installed_package(source_plugin, installed)
-    if enabled_setting(copilot_home) is not True:
-        raise RuntimeError("remote installation did not enable Grillmester")
+    agent_count = 0
+    skill_count = 0
+    for package in PACKAGES:
+        run([copilot, "plugin", "install", package.qualified_name], env, cwd)
+        installed = copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
+        package_agents, package_skills = verify_installed_package(
+            source_root / package.path, installed, package
+        )
+        agent_count += package_agents
+        skill_count += package_skills
+        if enabled_setting(copilot_home, package.qualified_name) is not True:
+            raise RuntimeError(f"remote installation did not enable {package.name}")
     listing = run([copilot, "plugin", "list"], env, cwd)
-    if PLUGIN_SPEC not in listing:
-        raise RuntimeError("plugin list does not report the remote installation")
+    for package in PACKAGES:
+        if package.qualified_name not in listing:
+            raise RuntimeError(f"plugin list does not report {package.name}")
 
-    run([copilot, "plugin", "uninstall", PLUGIN_SPEC], env, cwd)
-    verify_uninstalled(copilot_home, installed)
+    for package in reversed(PACKAGES):
+        installed = copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
+        run([copilot, "plugin", "uninstall", package.qualified_name], env, cwd)
+        verify_uninstalled(copilot_home, installed, package)
     return agent_count, skill_count
 
 
@@ -452,13 +548,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="catalog file to inspect instead of the checkout's development catalog",
     )
     parser.add_argument(
-        "--source-plugin",
+        "--source-root",
         type=Path,
-        help="plugin payload to compare with the installed package",
+        help="source checkout containing every package payload",
     )
     parser.add_argument(
         "--source-sha",
-        help="source checkout SHA when --source-plugin is outside this checkout",
+        help="source checkout SHA when --source-root is outside this checkout",
     )
     parser.add_argument(
         "--remote-marketplace-ref",
@@ -484,7 +580,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     root = Path(__file__).resolve().parents[1]
-    source_plugin = args.source_plugin or root / "plugin"
+    source_root = args.source_root or root
     catalog_path = args.catalog or root / ".github/plugin/marketplace.json"
     checkout_sha = args.source_sha or run(
         ["git", "rev-parse", "HEAD"], os.environ.copy(), root
@@ -492,8 +588,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if FULL_SHA.fullmatch(checkout_sha) is None:
         print("--source-sha must be a lowercase 40-character SHA", file=sys.stderr)
         return 2
-    release_sha = validate_catalog_source(
-        marketplace_source_from_catalog(catalog_path),
+    release_sha = validate_catalog_sources(
+        marketplace_sources_from_catalog(catalog_path),
         expected_release_sha=args.expect_release_sha,
         checkout_sha=checkout_sha,
     )
@@ -538,7 +634,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 cwd=command_cwd,
                 copilot_home=copilot_home,
                 marketplace_ref=args.remote_marketplace_ref,
-                source_plugin=source_plugin,
+                source_root=source_root,
             )
             print(
                 f"Verified remote catalog {args.remote_marketplace_ref} -> "
@@ -549,10 +645,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         staged_marketplace = temp_root / "marketplace"
         (
-            previous_plugin,
+            previous_plugins,
             previous_catalog,
             current_catalog,
-        ) = prepare_upgrade_marketplace(root, source_plugin, staged_marketplace)
+        ) = prepare_upgrade_marketplace(root, source_root, staged_marketplace)
         write_json_object(
             staged_marketplace / ".github/plugin/marketplace.json",
             previous_catalog,
@@ -562,18 +658,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        run(
-            [copilot, "plugin", "install", PLUGIN_SPEC],
-            env,
-            command_cwd,
-        )
-
-        installed = (
-            copilot_home / "installed-plugins" / MARKETPLACE_NAME / PLUGIN_NAME
-        )
-        verify_installed_package(previous_plugin, installed)
-        if enabled_setting(copilot_home) is not True:
-            raise RuntimeError("installation did not enable Grillmester")
+        for package in PACKAGES:
+            run(
+                [copilot, "plugin", "install", package.qualified_name],
+                env,
+                command_cwd,
+            )
+            installed = (
+                copilot_home
+                / "installed-plugins"
+                / MARKETPLACE_NAME
+                / package.name
+            )
+            verify_installed_package(
+                previous_plugins[package.name], installed, package
+            )
+            if enabled_setting(copilot_home, package.qualified_name) is not True:
+                raise RuntimeError(f"installation did not enable {package.name}")
 
         activate_marketplace_catalog(
             current_catalog,
@@ -582,12 +683,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        run(
-            [copilot, "plugin", "update", PLUGIN_SPEC],
-            env,
-            command_cwd,
-        )
-        agent_count, skill_count = verify_installed_package(source_plugin, installed)
+        agent_count = 0
+        skill_count = 0
+        for package in PACKAGES:
+            run(
+                [copilot, "plugin", "update", package.qualified_name],
+                env,
+                command_cwd,
+            )
+            installed = (
+                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
+            )
+            package_agents, package_skills = verify_installed_package(
+                source_root / package.path, installed, package
+            )
+            agent_count += package_agents
+            skill_count += package_skills
 
         # `plugin update` only documents forward updates. Exercise rollback with
         # the documented uninstall/install path after repinning the marketplace.
@@ -598,20 +709,30 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        run(
-            [copilot, "plugin", "uninstall", PLUGIN_SPEC],
-            env,
-            command_cwd,
-        )
-        verify_uninstalled(copilot_home, installed)
-        run(
-            [copilot, "plugin", "install", PLUGIN_SPEC],
-            env,
-            command_cwd,
-        )
-        verify_installed_package(previous_plugin, installed)
-        if enabled_setting(copilot_home) is not True:
-            raise RuntimeError("rollback reinstall did not enable Grillmester")
+        for package in reversed(PACKAGES):
+            installed = (
+                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
+            )
+            run(
+                [copilot, "plugin", "uninstall", package.qualified_name],
+                env,
+                command_cwd,
+            )
+            verify_uninstalled(copilot_home, installed, package)
+        for package in PACKAGES:
+            run(
+                [copilot, "plugin", "install", package.qualified_name],
+                env,
+                command_cwd,
+            )
+            installed = (
+                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
+            )
+            verify_installed_package(
+                previous_plugins[package.name], installed, package
+            )
+            if enabled_setting(copilot_home, package.qualified_name) is not True:
+                raise RuntimeError(f"rollback reinstall did not enable {package.name}")
 
         activate_marketplace_catalog(
             current_catalog,
@@ -620,33 +741,51 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        run(
-            [copilot, "plugin", "update", PLUGIN_SPEC],
-            env,
-            command_cwd,
-        )
-        verify_installed_package(source_plugin, installed)
-        if enabled_setting(copilot_home) is not True:
-            raise RuntimeError("forward re-upgrade did not preserve enabled state")
+        for package in PACKAGES:
+            installed = (
+                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
+            )
+            run(
+                [copilot, "plugin", "update", package.qualified_name],
+                env,
+                command_cwd,
+            )
+            verify_installed_package(source_root / package.path, installed, package)
+            if enabled_setting(copilot_home, package.qualified_name) is not True:
+                raise RuntimeError(
+                    f"forward re-upgrade did not preserve {package.name} enabled state"
+                )
 
-        try_toggle_lifecycle(copilot, env, command_cwd, copilot_home)
+        for package in PACKAGES:
+            try_toggle_lifecycle(
+                copilot, env, command_cwd, copilot_home, package
+            )
+            installed = (
+                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
+            )
+            run(
+                [copilot, "plugin", "update", package.qualified_name],
+                env,
+                command_cwd,
+            )
+            verify_installed_package(source_root / package.path, installed, package)
 
-        run(
-            [copilot, "plugin", "update", PLUGIN_SPEC],
-            env,
-            command_cwd,
-        )
-        verify_installed_package(source_plugin, installed)
-
-        run(
-            [copilot, "plugin", "uninstall", PLUGIN_SPEC],
-            env,
-            command_cwd,
-        )
-        verify_uninstalled(copilot_home, installed)
+        for package in reversed(PACKAGES):
+            installed = (
+                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
+            )
+            run(
+                [copilot, "plugin", "uninstall", package.qualified_name],
+                env,
+                command_cwd,
+            )
+            verify_uninstalled(copilot_home, installed, package)
         final_listing = run([copilot, "plugin", "list"], env, command_cwd)
-        if PLUGIN_SPEC in final_listing:
-            raise RuntimeError("plugin list still reports Grillmester after uninstall")
+        for package in PACKAGES:
+            if package.qualified_name in final_listing:
+                raise RuntimeError(
+                    f"plugin list still reports {package.name} after uninstall"
+                )
 
         source_label = f"release {release_sha}" if release_sha else "development source"
         print(

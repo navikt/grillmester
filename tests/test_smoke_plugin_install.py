@@ -53,13 +53,14 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
     def test_upgrade_fixture_uses_distinct_versions_and_sources(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "repo"
-            plugin = root / "plugin"
-            plugin.mkdir(parents=True)
-            SMOKE.write_json_object(
-                plugin / "plugin.json",
-                {"name": SMOKE.PLUGIN_NAME, "version": "1.2.3"},
-            )
-            (plugin / "payload.txt").write_text("current\n", encoding="utf-8")
+            for package in SMOKE.PACKAGES:
+                plugin = root / package.path
+                plugin.mkdir(parents=True)
+                SMOKE.write_json_object(
+                    plugin / "plugin.json",
+                    {"name": package.name, "version": "1.2.3"},
+                )
+                (plugin / "payload.txt").write_text("current\n", encoding="utf-8")
             SMOKE.write_json_object(
                 root / ".github/plugin/marketplace.json",
                 {
@@ -67,38 +68,40 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                     "metadata": {"version": "1.2.3"},
                     "plugins": [
                         {
-                            "name": SMOKE.PLUGIN_NAME,
+                            "name": package.name,
                             "version": "1.2.3",
-                            "source": "plugin",
+                            "source": package.path,
                         }
+                        for package in SMOKE.PACKAGES
                     ],
                 },
             )
             staged = Path(temp) / "staged"
 
-            previous_plugin, previous_catalog, current_catalog = (
-                SMOKE.prepare_upgrade_marketplace(root, plugin, staged)
+            previous_plugins, previous_catalog, current_catalog = (
+                SMOKE.prepare_upgrade_marketplace(root, root, staged)
             )
 
-            self.assertEqual(
-                SMOKE.PREVIOUS_VERSION,
-                SMOKE.plugin_version(previous_plugin),
-            )
-            self.assertEqual(
-                SMOKE.PREVIOUS_SOURCE,
-                previous_catalog["plugins"][0]["source"],
-            )
-            self.assertEqual(
-                SMOKE.PREVIOUS_VERSION,
-                previous_catalog["plugins"][0]["version"],
-            )
-            self.assertEqual("plugin", current_catalog["plugins"][0]["source"])
-            self.assertEqual("1.2.3", current_catalog["plugins"][0]["version"])
-            self.assertTrue((previous_plugin / SMOKE.UPGRADE_SENTINEL).is_file())
-            self.assertEqual(
-                SMOKE.tree_manifest(plugin),
-                SMOKE.tree_manifest(staged / "plugin"),
-            )
+            for package, previous_entry, current_entry in zip(
+                SMOKE.PACKAGES,
+                previous_catalog["plugins"],
+                current_catalog["plugins"],
+                strict=True,
+            ):
+                previous_plugin = previous_plugins[package.name]
+                self.assertEqual(
+                    SMOKE.PREVIOUS_VERSION,
+                    SMOKE.plugin_version(previous_plugin),
+                )
+                self.assertEqual(f"previous-{package.path}", previous_entry["source"])
+                self.assertEqual(SMOKE.PREVIOUS_VERSION, previous_entry["version"])
+                self.assertEqual(package.path, current_entry["source"])
+                self.assertEqual("1.2.3", current_entry["version"])
+                self.assertTrue((previous_plugin / SMOKE.UPGRADE_SENTINEL).is_file())
+                self.assertEqual(
+                    SMOKE.tree_manifest(root / package.path),
+                    SMOKE.tree_manifest(staged / package.path),
+                )
 
     def test_catalog_activation_uses_public_marketplace_update_command(self) -> None:
         catalog = {
@@ -172,6 +175,29 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 checkout_sha=checkout_sha,
             )
 
+    def test_release_sources_reject_cross_package_path_or_sha_drift(self) -> None:
+        sha = "0123456789abcdef0123456789abcdef01234567"
+        sources = {
+            package.name: {
+                "source": "github",
+                "repo": SMOKE.PLUGIN_REPOSITORY,
+                "path": package.path,
+                "sha": sha,
+            }
+            for package in SMOKE.PACKAGES
+        }
+        sources["grillmester-nav"] = {
+            **sources["grillmester-nav"],
+            "path": "plugin",
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "pinned shapes"):
+            SMOKE.validate_catalog_sources(
+                sources,
+                expected_release_sha=sha,
+                checkout_sha=sha,
+            )
+
     def test_release_expectation_rejects_development_source(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "immutable GitHub source"):
             SMOKE.validate_catalog_source(
@@ -215,18 +241,22 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
     def test_remote_install_uses_exact_catalog_ref_and_cleans_up(self) -> None:
         sha = "0123456789abcdef0123456789abcdef01234567"
         copilot_home = Path("/tmp/copilot-home")
-        installed = (
-            copilot_home
-            / "installed-plugins"
-            / SMOKE.MARKETPLACE_NAME
-            / SMOKE.PLUGIN_NAME
-        )
+        installed = copilot_home / "installed-plugins" / SMOKE.MARKETPLACE_NAME
         with mock.patch.object(
             SMOKE,
             "run",
-            side_effect=["", "", f"{SMOKE.PLUGIN_SPEC}\n", ""],
+            side_effect=[
+                "",
+                "",
+                "",
+                "\n".join(package.qualified_name for package in SMOKE.PACKAGES),
+                "",
+                "",
+            ],
         ) as run, mock.patch.object(
-            SMOKE, "verify_installed_package", return_value=(7, 44)
+            SMOKE,
+            "verify_installed_package",
+            side_effect=[(7, 34), (0, 10)],
         ) as verify, mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled") as uninstalled:
@@ -236,7 +266,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 cwd=Path("/tmp/work"),
                 copilot_home=copilot_home,
                 marketplace_ref=f"navikt/grillmester#{sha}",
-                source_plugin=Path("/tmp/source/plugin"),
+                source_root=Path("/tmp/source"),
             )
 
         self.assertEqual((7, 44), result)
@@ -250,8 +280,26 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             ],
             run.call_args_list[0].args[0],
         )
-        verify.assert_called_once_with(Path("/tmp/source/plugin"), installed)
-        uninstalled.assert_called_once_with(copilot_home, installed)
+        self.assertEqual(2, verify.call_count)
+        self.assertEqual(2, uninstalled.call_count)
+        verify.assert_any_call(
+            Path("/tmp/source/plugin"), installed / "grillmester", SMOKE.PACKAGES[0]
+        )
+        verify.assert_any_call(
+            Path("/tmp/source/plugin-nav"),
+            installed / "grillmester-nav",
+            SMOKE.PACKAGES[1],
+        )
+        uninstalled.assert_any_call(
+            copilot_home,
+            installed / "grillmester-nav",
+            SMOKE.PACKAGES[1],
+        )
+        uninstalled.assert_any_call(
+            copilot_home,
+            installed / "grillmester",
+            SMOKE.PACKAGES[0],
+        )
 
     def test_remote_install_rejects_a_moving_ref(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "full catalog SHA"):
@@ -261,7 +309,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 cwd=Path("/tmp"),
                 copilot_home=Path("/tmp/home"),
                 marketplace_ref="navikt/grillmester#main",
-                source_plugin=Path("/tmp/plugin"),
+                source_root=Path("/tmp"),
             )
 
 

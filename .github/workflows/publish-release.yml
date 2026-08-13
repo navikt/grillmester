@@ -98,7 +98,25 @@ jobs:
           source_repo="${RUNNER_TEMP}/source"
           git worktree add --detach "${catalog_repo}" "${catalog_sha}"
           catalog="${catalog_repo}/.github/plugin/marketplace.json"
-          source_sha="$(jq -er '.plugins[0].source.sha' "${catalog}")"
+          source_sha="$(jq -er '
+            .metadata.version as $version |
+            .plugins[0].source.sha as $sha |
+            if
+              (.plugins | length) == 2 and
+              [.plugins[].name] == ["grillmester", "grillmester-nav"] and
+              [.plugins[].version] == [$version, $version] and
+              .plugins[0].source == {
+                source: "github", repo: "navikt/grillmester",
+                path: "plugin", sha: $sha
+              } and
+              .plugins[1].source == {
+                source: "github", repo: "navikt/grillmester",
+                path: "plugin-nav", sha: $sha
+              }
+            then $sha
+            else error("catalog must contain the exact two-package release roster")
+            end
+          ' "${catalog}")"
           [[ "${source_sha}" =~ ^[0-9a-f]{40}$ ]]
           git cat-file -e "${source_sha}^{commit}"
           git merge-base --is-ancestor \
@@ -186,7 +204,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
           {
             echo "CATALOG_PATH=${catalog}"
-            echo "SOURCE_PLUGIN=${source_repo}/plugin"
+            echo "SOURCE_ROOT=${source_repo}"
             echo "SOURCE_SHA=${source_sha}"
           } >> "${GITHUB_ENV}"
 
@@ -199,7 +217,7 @@ jobs:
         run: >-
           python3 scripts/smoke_plugin_install.py
           --catalog "${CATALOG_PATH}"
-          --source-plugin "${SOURCE_PLUGIN}"
+          --source-root "${SOURCE_ROOT}"
           --source-sha "${SOURCE_SHA}"
           --expect-release-sha "${SOURCE_SHA}"
           --remote-marketplace-ref "navikt/grillmester#${CATALOG_SHA}"
@@ -281,48 +299,125 @@ jobs:
           catalog_file="${RUNNER_TEMP}/marketplace.json"
           git show "${CATALOG_SHA}:.github/plugin/marketplace.json" > "${catalog_file}"
           catalog="$(<"${catalog_file}")"
-          [[ "$(jq -er '.plugins | length' <<<"${catalog}")" == "1" ]]
-          [[ "$(jq -er '.plugins[0].name' <<<"${catalog}")" == "grillmester" ]]
-          version="$(jq -er '.plugins[0].version' <<<"${catalog}")"
+          version="$(jq -er '.metadata.version' <<<"${catalog}")"
           [[ "${TAG}" == "v${version}" ]]
           if [[ "${CHANNEL}" == "rc" ]]; then
             [[ "${version}" == *-* ]]
           else
             [[ "${version}" != *-* ]]
           fi
-          [[ "$(jq -er '.metadata.version' <<<"${catalog}")" == "${version}" ]]
-          [[ "$(jq -er '.plugins[0].source.source' <<<"${catalog}")" == "github" ]]
-          [[ "$(jq -er '.plugins[0].source.repo' <<<"${catalog}")" == "navikt/grillmester" ]]
-          [[ "$(jq -er '.plugins[0].source.path' <<<"${catalog}")" == "plugin" ]]
-          [[ "$(jq -er '.plugins[0].source.sha' <<<"${catalog}")" == "${SOURCE_SHA}" ]]
-          manifest_file="${RUNNER_TEMP}/plugin.json"
-          git show "${SOURCE_SHA}:plugin/plugin.json" > "${manifest_file}"
-          manifest="$(<"${manifest_file}")"
-          [[ "$(jq -er '.name' <<<"${manifest}")" == "grillmester" ]]
-          [[ "$(jq -er '.version' <<<"${manifest}")" == "${version}" ]]
-          [[ "$(jq -er '.repository' <<<"${manifest}")" == "https://github.com/navikt/grillmester" ]]
+          jq -e \
+            --arg version "${version}" \
+            --arg source_sha "${SOURCE_SHA}" \
+            '
+              .name == "grillmester" and
+              .metadata.version == $version and
+              (.plugins | length) == 2 and
+              [.plugins[].name] == ["grillmester", "grillmester-nav"] and
+              [.plugins[].version] == [$version, $version] and
+              .plugins[0].source == {
+                source: "github",
+                repo: "navikt/grillmester",
+                path: "plugin",
+                sha: $source_sha
+              } and
+              .plugins[1].source == {
+                source: "github",
+                repo: "navikt/grillmester",
+                path: "plugin-nav",
+                sha: $source_sha
+              }
+            ' "${catalog_file}" >/dev/null
+
+          package_manifest_file="${RUNNER_TEMP}/package-manifest.json"
+          standard_manifest_file="${RUNNER_TEMP}/grillmester-plugin.json"
+          nav_manifest_file="${RUNNER_TEMP}/grillmester-nav-plugin.json"
+          git show "${SOURCE_SHA}:package-manifest.json" > "${package_manifest_file}"
+          git show "${SOURCE_SHA}:plugin/plugin.json" > "${standard_manifest_file}"
+          git show "${SOURCE_SHA}:plugin-nav/plugin.json" > "${nav_manifest_file}"
+          jq -e '
+            .schemaVersion == 1 and
+            (keys | sort) == ["marketplace", "packages", "schemaVersion"] and
+            (.marketplace | keys | sort) == ["description", "name", "owner"] and
+            .marketplace.name == "grillmester" and
+            .marketplace.owner == "Team eSyfo" and
+            (.marketplace.description | type == "string" and length > 0) and
+            .packages == [
+              {name: "grillmester", path: "plugin", agents: 7, skills: 34},
+              {name: "grillmester-nav", path: "plugin-nav", agents: 0, skills: 10}
+            ]
+          ' "${package_manifest_file}" >/dev/null
+          jq -e \
+            --arg version "${version}" \
+            --arg owner "$(jq -er '.marketplace.owner' "${package_manifest_file}")" \
+            '
+              (keys | sort) == [
+                "agents", "author", "description", "license", "name",
+                "repository", "skills", "version"
+              ] and
+              (.author | keys) == ["name"] and
+              .name == "grillmester" and
+              .version == $version and
+              (.description | type == "string" and length > 0) and
+              .author.name == $owner and
+              .repository == "https://github.com/navikt/grillmester" and
+              .agents == "agents/" and .skills == "skills/"
+            ' "${standard_manifest_file}" >/dev/null
+          jq -e \
+            --arg version "${version}" \
+            --arg owner "$(jq -er '.marketplace.owner' "${package_manifest_file}")" \
+            '
+              (keys | sort) == [
+                "author", "description", "license", "name", "repository",
+                "skills", "version"
+              ] and
+              (.author | keys) == ["name"] and
+              .name == "grillmester-nav" and
+              .version == $version and
+              (.description | type == "string" and length > 0) and
+              .author.name == $owner and
+              .repository == "https://github.com/navikt/grillmester" and
+              (has("agents") | not) and .skills == "skills/"
+            ' "${nav_manifest_file}" >/dev/null
 
           # Recreate the generator's complete release catalog without running
           # repository code under the write token, then require exact bytes.
           regenerated_catalog="${RUNNER_TEMP}/regenerated-marketplace.json"
           jq -n \
-            --arg name "$(jq -er '.name' "${manifest_file}")" \
-            --arg owner "$(jq -er '.author.name' "${manifest_file}")" \
-            --arg description "$(jq -er '.description' "${manifest_file}")" \
+            --arg marketplace_name "$(jq -er '.marketplace.name' "${package_manifest_file}")" \
+            --arg owner "$(jq -er '.marketplace.owner' "${package_manifest_file}")" \
+            --arg marketplace_description "$(jq -er '.marketplace.description' "${package_manifest_file}")" \
+            --arg standard_name "$(jq -er '.name' "${standard_manifest_file}")" \
+            --arg standard_description "$(jq -er '.description' "${standard_manifest_file}")" \
+            --arg nav_name "$(jq -er '.name' "${nav_manifest_file}")" \
+            --arg nav_description "$(jq -er '.description' "${nav_manifest_file}")" \
             --arg version "${version}" \
             --arg source_sha "${SOURCE_SHA}" \
             '{
-              name: $name,
+              name: $marketplace_name,
               owner: {name: $owner},
-              metadata: {description: $description, version: $version},
+              metadata: {
+                description: $marketplace_description,
+                version: $version
+              },
               plugins: [{
-                name: $name,
-                description: $description,
+                name: $standard_name,
+                description: $standard_description,
                 version: $version,
                 source: {
                   source: "github",
                   repo: "navikt/grillmester",
                   path: "plugin",
+                  sha: $source_sha
+                }
+              }, {
+                name: $nav_name,
+                description: $nav_description,
+                version: $version,
+                source: {
+                  source: "github",
+                  repo: "navikt/grillmester",
+                  path: "plugin-nav",
                   sha: $source_sha
                 }
               }]
@@ -342,62 +437,110 @@ jobs:
             [[ "${actual_rc_tree}" == "${expected_rc_tree}"$'\t'.github/plugin/marketplace.json ]]
             rc_catalog_file="${RUNNER_TEMP}/rc-marketplace.json"
             git show "${RC_CATALOG_SHA}:.github/plugin/marketplace.json" > "${rc_catalog_file}"
-            rc_catalog="$(<"${rc_catalog_file}")"
-            [[ "$(jq -er '.plugins | length' <<<"${rc_catalog}")" == "1" ]]
-            [[ "$(jq -er '.plugins[0].name' <<<"${rc_catalog}")" == "grillmester" ]]
-            rc_catalog_version="$(jq -er '.plugins[0].version' <<<"${rc_catalog}")"
+            rc_catalog_version="$(jq -er '.metadata.version' "${rc_catalog_file}")"
             [[ "v${rc_catalog_version}" == "${RC_TAG}" ]]
-            [[ "$(jq -er '.metadata.version' <<<"${rc_catalog}")" == "${rc_catalog_version}" ]]
-            [[ "$(jq -er '.plugins[0].source.source' <<<"${rc_catalog}")" == "github" ]]
-            [[ "$(jq -er '.plugins[0].source.repo' <<<"${rc_catalog}")" == "navikt/grillmester" ]]
-            [[ "$(jq -er '.plugins[0].source.path' <<<"${rc_catalog}")" == "plugin" ]]
-            [[ "$(jq -er '.plugins[0].source.sha' <<<"${rc_catalog}")" == "${RC_SOURCE_SHA}" ]]
+            jq -e \
+              --arg version "${rc_catalog_version}" \
+              --arg source_sha "${RC_SOURCE_SHA}" \
+              '
+                .name == "grillmester" and
+                .metadata.version == $version and
+                (.plugins | length) == 2 and
+                [.plugins[].name] == ["grillmester", "grillmester-nav"] and
+                [.plugins[].version] == [$version, $version] and
+                .plugins[0].source == {
+                  source: "github",
+                  repo: "navikt/grillmester",
+                  path: "plugin",
+                  sha: $source_sha
+                } and
+                .plugins[1].source == {
+                  source: "github",
+                  repo: "navikt/grillmester",
+                  path: "plugin-nav",
+                  sha: $source_sha
+                }
+              ' "${rc_catalog_file}" >/dev/null
             git merge-base --is-ancestor \
               "${RC_SOURCE_SHA}" refs/remotes/origin/main
-            stable_manifest="${RUNNER_TEMP}/stable-plugin.json"
-            rc_manifest="${RUNNER_TEMP}/rc-plugin.json"
-            git show "${SOURCE_SHA}:plugin/plugin.json" > "${stable_manifest}"
-            git show "${RC_SOURCE_SHA}:plugin/plugin.json" > "${rc_manifest}"
-            rc_version="$(jq -er '.version' "${rc_manifest}")"
+            rc_package_manifest_file="${RUNNER_TEMP}/rc-package-manifest.json"
+            rc_standard_manifest_file="${RUNNER_TEMP}/rc-grillmester-plugin.json"
+            rc_nav_manifest_file="${RUNNER_TEMP}/rc-grillmester-nav-plugin.json"
+            git show "${RC_SOURCE_SHA}:package-manifest.json" > "${rc_package_manifest_file}"
+            git show "${RC_SOURCE_SHA}:plugin/plugin.json" > "${rc_standard_manifest_file}"
+            git show "${RC_SOURCE_SHA}:plugin-nav/plugin.json" > "${rc_nav_manifest_file}"
+            cmp -s "${package_manifest_file}" "${rc_package_manifest_file}"
+            rc_version="$(jq -er '.version' "${rc_standard_manifest_file}")"
             [[ "v${rc_version}" == "${RC_TAG}" ]]
-            [[ "$(jq -er '.name' "${rc_manifest}")" == "grillmester" ]]
-            [[ "$(jq -er '.repository' "${rc_manifest}")" == "https://github.com/navikt/grillmester" ]]
+            [[ "$(jq -er '.version' "${rc_nav_manifest_file}")" == "${rc_version}" ]]
+            [[ "$(jq -er '.name' "${rc_standard_manifest_file}")" == "grillmester" ]]
+            [[ "$(jq -er '.name' "${rc_nav_manifest_file}")" == "grillmester-nav" ]]
+            [[ "$(jq -er '.repository' "${rc_standard_manifest_file}")" == "https://github.com/navikt/grillmester" ]]
+            [[ "$(jq -er '.repository' "${rc_nav_manifest_file}")" == "https://github.com/navikt/grillmester" ]]
             [[ "${rc_version%%-*}" == "${version}" && "${rc_version}" == *-* ]]
-            [[ "$(jq -cS 'del(.version)' "${stable_manifest}")" == \
-               "$(jq -cS 'del(.version)' "${rc_manifest}")" ]]
+            [[ "$(jq -cS 'del(.version)' "${standard_manifest_file}")" == \
+               "$(jq -cS 'del(.version)' "${rc_standard_manifest_file}")" ]]
+            [[ "$(jq -cS 'del(.version)' "${nav_manifest_file}")" == \
+               "$(jq -cS 'del(.version)' "${rc_nav_manifest_file}")" ]]
             [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
-              -- plugin ':(exclude)plugin/plugin.json')" ]]
+              -- plugin plugin-nav \
+              ':(exclude)plugin/plugin.json' \
+              ':(exclude)plugin-nav/plugin.json')" ]]
 
-            # Preserve the stronger byte contract too: replacing the one
-            # stable version value must reproduce the reviewed RC manifest.
+            # Preserve the stronger byte contract too: replacing each stable
+            # version value must reproduce both reviewed RC manifests.
             stable_version_pattern="${version//./\\.}"
             [[ "$(grep -Ec "\"version\"[[:space:]]*:[[:space:]]*\"${stable_version_pattern}\"" \
-              "${stable_manifest}")" == "1" ]]
-            normalized_manifest="${RUNNER_TEMP}/normalized-plugin.json"
+              "${standard_manifest_file}")" == "1" ]]
+            [[ "$(grep -Ec "\"version\"[[:space:]]*:[[:space:]]*\"${stable_version_pattern}\"" \
+              "${nav_manifest_file}")" == "1" ]]
+            normalized_standard_manifest="${RUNNER_TEMP}/normalized-grillmester-plugin.json"
+            normalized_nav_manifest="${RUNNER_TEMP}/normalized-grillmester-nav-plugin.json"
             sed -E \
               "0,/(\"version\"[[:space:]]*:[[:space:]]*)\"${stable_version_pattern}\"/s//\\1\"${rc_version}\"/" \
-              "${stable_manifest}" > "${normalized_manifest}"
-            cmp -s "${normalized_manifest}" "${rc_manifest}"
+              "${standard_manifest_file}" > "${normalized_standard_manifest}"
+            sed -E \
+              "0,/(\"version\"[[:space:]]*:[[:space:]]*)\"${stable_version_pattern}\"/s//\\1\"${rc_version}\"/" \
+              "${nav_manifest_file}" > "${normalized_nav_manifest}"
+            cmp -s "${normalized_standard_manifest}" "${rc_standard_manifest_file}"
+            cmp -s "${normalized_nav_manifest}" "${rc_nav_manifest_file}"
 
             regenerated_rc_catalog="${RUNNER_TEMP}/regenerated-rc-marketplace.json"
             jq -n \
-              --arg name "$(jq -er '.name' "${rc_manifest}")" \
-              --arg owner "$(jq -er '.author.name' "${rc_manifest}")" \
-              --arg description "$(jq -er '.description' "${rc_manifest}")" \
+              --arg marketplace_name "$(jq -er '.marketplace.name' "${rc_package_manifest_file}")" \
+              --arg owner "$(jq -er '.marketplace.owner' "${rc_package_manifest_file}")" \
+              --arg marketplace_description "$(jq -er '.marketplace.description' "${rc_package_manifest_file}")" \
+              --arg standard_name "$(jq -er '.name' "${rc_standard_manifest_file}")" \
+              --arg standard_description "$(jq -er '.description' "${rc_standard_manifest_file}")" \
+              --arg nav_name "$(jq -er '.name' "${rc_nav_manifest_file}")" \
+              --arg nav_description "$(jq -er '.description' "${rc_nav_manifest_file}")" \
               --arg version "${rc_version}" \
               --arg source_sha "${RC_SOURCE_SHA}" \
               '{
-                name: $name,
+                name: $marketplace_name,
                 owner: {name: $owner},
-                metadata: {description: $description, version: $version},
+                metadata: {
+                  description: $marketplace_description,
+                  version: $version
+                },
                 plugins: [{
-                  name: $name,
-                  description: $description,
+                  name: $standard_name,
+                  description: $standard_description,
                   version: $version,
                   source: {
                     source: "github",
                     repo: "navikt/grillmester",
                     path: "plugin",
+                    sha: $source_sha
+                  }
+                }, {
+                  name: $nav_name,
+                  description: $nav_description,
+                  version: $version,
+                  source: {
+                    source: "github",
+                    repo: "navikt/grillmester",
+                    path: "plugin-nav",
                     sha: $source_sha
                   }
                 }]

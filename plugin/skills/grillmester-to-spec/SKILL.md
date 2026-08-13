@@ -13,8 +13,10 @@ single actionable issue already carries the work.
 Start only after the user has explicitly selected `/grillmester-to-spec` in the current
 conversation. Relevance or a prior recommendation is not selection.
 
-Read the repository's issue-tracker adapter before tracker use. Follow its
-language, terminology, label, and write-authorization rules.
+Discover tracker context from consumer-owned instructions, issue templates,
+contributor documentation, and read-only GitHub metadata. A dedicated adapter
+file is optional. Drafting may continue without one; publishing must stop when
+the target repository, write authorization, or required metadata is unresolved.
 
 ## 1. Establish the source
 
@@ -74,8 +76,9 @@ fragment only when it carries a decision more precisely than prose.
 ## 3. Confirm and publish
 
 Present the complete draft and proposed tracker metadata. Publish only after
-explicit human authorization. Apply only labels and relationships defined by
-the tracker adapter, then read the published issue back and verify it.
+explicit human authorization. Apply only labels and relationships established
+by consumer evidence or live metadata, then read the published issue back and
+verify it.
 
 A specification does not imply issue decomposition. Recommend `/grillmester-to-issues`
 only when several independently deliverable slices need durable tracking.
