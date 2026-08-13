@@ -57,11 +57,16 @@ optional `references/`, `scripts/`, and `assets/` directories beside it. Keep
 disclosed references one level below `SKILL.md` and point to each one directly
 from `SKILL.md` with the condition for loading it.
 
-Use only frontmatter supported by the installed GitHub Copilot CLI:
+Use only frontmatter documented for every Copilot surface the target supports.
+GitHub's cross-surface skill guide and the installed CLI reference are both
+relevant; do not infer that a field from one client works everywhere:
 
 - `name` — required; match the directory and slash name.
 - `description` — required; provide model discovery signals for a
   model-reachable skill and a concise picker summary for a manual-only skill.
+- `license` — optional in GitHub's cross-surface skill format. Follow the
+  target repository's policy; Grillmester requires `license: MIT` on every
+  bundled skill.
 - `disable-model-invocation: true` — make the skill manual-only;
   `user-invocable` defaults to `true`.
 - `user-invocable: false` — hide a model-reachable skill from the picker.
@@ -69,9 +74,18 @@ Use only frontmatter supported by the installed GitHub Copilot CLI:
   human.
 - `argument-hint` — optional guidance when slash invocation accepts genuine
   user input.
+- `allowed-tools` — optional pre-approval for listed tools while the skill is
+  active. It does not grant OAuth scope, install a tool, or restrict the agent
+  to that list. Omit it by default so normal client approval remains visible;
+  never pre-approve `shell` or `bash` unless the skill and every referenced
+  script are trusted and that loss of per-call confirmation is explicitly
+  intended. Grillmester deliberately omits this field and its package policy
+  rejects it.
 
-Check the
-[GitHub Copilot CLI skills reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#skills-reference)
+Check both the
+[GitHub Copilot agent-skills guide](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/add-skills)
+and the
+[Copilot CLI skills reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#skills-reference)
 before introducing any other key. Repository policy may narrow these choices.
 
 Complete this step when the invocation mode, its reachable surfaces, the

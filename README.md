@@ -42,15 +42,27 @@ copilot plugin list
 
 Dette installerer pluginen for Copilot-brukeren på maskinen og gjør den
 tilgjengelig i alle repoer. `marketplace` er en flytende POC-kanal: katalogen
-kan avanseres, men hver publisert katalog peker på en eksakt plugin-SHA.
+kan avanseres, men hver publisert katalog peker på en eksakt plugin-SHA. En
+reviewet pluginendring som merges til `main` og passerer publisheren, er dermed
+tilgjengelig for eksplisitt innmeldte POC-brukere ved neste trusted
+CLI-sesjon. CI, `COPILOT_AUTO_UPDATE=false` og `--no-auto-update` hopper over
+den automatiske hentingen.
+
+For å følge POC-kanalen automatisk ved nye CLI-sesjoner må du eksplisitt
+aktivere `autoUpdate` i din egen `~/.copilot/settings.json`. Grillmester kan
+ikke slå på dette fra pluginmanifestet. Den anbefalte, preview-først
+konfigurasjonen og det trygge bootstrap-scriptet
+[`scripts/configure_autoupdate.py`](scripts/configure_autoupdate.py) ligger i
+[installasjonsguiden](docs/installation.md#anbefalt-personlig-oppsett-med-automatisk-oppdatering).
 
 Start Copilot slik du vanligvis gjør i Nav, åpne `/agent`, og velg
 `grillmester:grillmester`.
 
 Når en reviewet kandidat finnes under
-[Releases](https://github.com/navikt/grillmester/releases), erstatter du
-`marketplace` med den eksakte `v<versjon>`-taggen for en reproduserbar
-installasjon. Se [installasjon og aktivering](docs/installation.md).
+[Releases](https://github.com/navikt/grillmester/releases), kan du erstatte
+`marketplace` med den eksakte `v<versjon>`-taggen når reproduserbarhet er
+viktigere enn automatisk oppdatering. Se
+[installasjon og aktivering](docs/installation.md).
 
 ### Copilot app — to bekreftelser
 
@@ -211,6 +223,18 @@ et offentlig issue; bruk [private vulnerability reporting](SECURITY.md).
 
 ### Oppdater eller rull tilbake personlig installasjon
 
+Med den anbefalte flytende kanalen og `autoUpdate: true` sjekker Copilot CLI
+etter en ny Grillmester-versjon ved starten av en trusted CLI-sesjon. CI og en
+eksplisitt `COPILOT_AUTO_UPDATE=false`/`--no-auto-update` hopper over dette. Du
+kan også oppdatere eksplisitt:
+
+```bash
+copilot plugin marketplace update grillmester
+copilot plugin update grillmester@grillmester
+```
+
+For å pinne eller rulle tilbake til en immutable kandidat:
+
 ```bash
 copilot plugin uninstall grillmester@grillmester
 copilot plugin marketplace remove grillmester
@@ -221,7 +245,9 @@ copilot plugin install grillmester@grillmester
 For teamrepo og cloud agent brukes `.github/copilot/settings.json`; personlig
 CLI-oppsett ligger i `~/.copilot/settings.json`. Feltene er
 `extraKnownMarketplaces` og `enabledPlugins`, mens enterprise kan bruke
-`strictKnownMarketplaces`. Eksakte eksempler og rollback finnes i
+`strictKnownMarketplaces`. Repo- og enterprise-settings kan installere eller
+aktivere pluginen, men kan ikke slå på CLIs auto-update for en egendefinert
+marketplace. Eksakte eksempler og rollback finnes i
 [installasjonsguiden](docs/installation.md).
 
 ## Dokumentasjon

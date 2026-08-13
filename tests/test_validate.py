@@ -130,9 +130,49 @@ class PackageValidationTest(unittest.TestCase):
     def test_kokk_keeps_read_only_primary_source_research(self) -> None:
         path = self.root / "plugin/agents/kokk.agent.md"
         text = path.read_text(encoding="utf-8")
+        normalized = " ".join(text.split())
         self.assertIn("  - web\n", text.split("---", 2)[1])
-        self.assertIn("current\n   primary documentation", text)
-        self.assertIn("never use shell-network commands as a fallback", text)
+        self.assertIn("already selected by the repository or brief", normalized)
+        self.assertIn("never use shell-network commands as a fallback", normalized)
+        self.assertIn("must not select or change product behavior", normalized)
+
+    def test_external_source_ownership_is_split_between_grillmester_and_kokk(self) -> None:
+        grillmester = " ".join(
+            (self.root / "plugin/agents/grillmester.agent.md")
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        kokk = " ".join(
+            (self.root / "plugin/agents/kokk.agent.md")
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        self.assertIn("external API or library choice", grillmester)
+        self.assertIn("implementation details for those locked choices", grillmester)
+        self.assertIn("already selected by the repository or brief", kokk)
+        self.assertIn("API, library, version, protocol, or contract", kokk)
+
+    def test_designer_degraded_delivery_is_capability_conditional(self) -> None:
+        designer = " ".join(
+            (self.root / "plugin/agents/designer.agent.md")
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        self.assertIn("Figma-klart utkast eller Issue-utkast", designer)
+        self.assertIn("Med eksplisitt Figma create/edit", designer)
+        self.assertIn("Med eksplisitt GitHub Issue-write", designer)
+        self.assertNotIn("Lever som Figma-fil eller Issue.", designer)
+
+    def test_create_a_skill_documents_supported_frontmatter_without_preapproval(self) -> None:
+        skill = " ".join(
+            (self.root / "plugin/skills/grillmester-create-a-skill/SKILL.md")
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        self.assertIn("`license` — optional", skill)
+        self.assertIn("`allowed-tools` — optional pre-approval", skill)
+        self.assertIn("It does not grant OAuth scope", skill)
+        self.assertIn("Grillmester deliberately omits this field", skill)
 
     def test_designer_runtime_all_rejects_a_partial_tool_matrix(self) -> None:
         path = self.root / "plugin/agents/designer.agent.md"

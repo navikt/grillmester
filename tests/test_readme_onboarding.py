@@ -76,6 +76,10 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, self.text)
 
+        self.assertIn("autoUpdate: true", self.text)
+        self.assertIn("kan ikke slå på CLIs auto-update", self.text)
+        self.assertIn("scripts/configure_autoupdate.py", self.text)
+
 
 if __name__ == "__main__":
     unittest.main()

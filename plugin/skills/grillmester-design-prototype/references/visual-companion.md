@@ -133,7 +133,8 @@ Gi designeren URL raskt etter oppstart; for eksisterende flater først etter ver
 
 4. **Iterer eller gå videre:**
    - Ny versjon? Skriv ny fil (f.eks. `layout-v2.html`)
-   - Ferdig? Gå til Figma-leveranse
+   - Ferdig? Gå til Figma-leveranse når create/edit finnes og writen
+     godkjennes; ellers ferdigstill et Figma-klart utkast eller Issue-utkast
 
 5. **Rydde ved temaskifte:** Skriv et venteinnhold:
    ```html
