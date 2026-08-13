@@ -71,7 +71,7 @@ publication cannot race the catalog publisher.
 ## Release a candidate
 
 1. Set `plugin/plugin.json.version` to a strict prerelease SemVer, for example
-   `0.3.0-poc.2`. Build metadata is not accepted, and a version must never be
+   `0.3.0-poc.3`. Build metadata is not accepted, and a version must never be
    reused for different payload bytes.
 2. Merge that source change normally. Wait for **Publish marketplace catalog**
    and resolve the exact catalog-only commit containing the version:
@@ -91,7 +91,7 @@ publication cannot race the catalog publisher.
    ```json
    {
      "schemaVersion": 1,
-     "requestId": "v0.3.0-poc.2-1",
+     "requestId": "v0.3.0-poc.3-1",
      "channel": "rc",
      "catalogSha": "0123456789abcdef0123456789abcdef01234567",
      "rcTag": ""
@@ -122,6 +122,17 @@ installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/44-skil
 payload, and uninstalls it. A failed post-publication smoke stops promotion and
 requires a new corrective version; tags are never moved.
 
+The floating `marketplace` branch is also the personal CLI auto-update channel.
+Every reviewed plugin merge to `main` that passes the publisher is therefore a
+deployment to users who opted into this POC channel; there is no later approval
+gate before their next session checks for updates. Keep an isolated Copilot
+home on the previous version, start a new trusted CLI session after publication,
+and verify that it advances without an explicit update command. This is
+post-deployment evidence and is separate from the immutable-tag smoke. Use an
+immutable release tag when rollout must wait for a separate approval. Record
+App and VS Code behavior separately; neither may be inferred from the CLI
+result.
+
 ## Promote a reviewed candidate to stable
 
 Stable is a new version, source commit, catalog commit, tag, and GitHub Release;
@@ -141,7 +152,7 @@ SHA, and the reviewed prerelease tag. Then merge a separate request-file PR:
   "requestId": "v0.3.0-1",
   "channel": "stable",
   "catalogSha": "fedcba9876543210fedcba9876543210fedcba98",
-  "rcTag": "v0.3.0-poc.2"
+  "rcTag": "v0.3.0-poc.3"
 }
 ```
 
@@ -169,8 +180,10 @@ retry without changing or reusing immutable release content.
 Do not rewrite a bad release. Stop adoption and:
 
 1. Revert each managed consumer's marketplace `ref` to the last reviewed tag.
-2. For a personal install, uninstall `grillmester`, add/update the marketplace
-   at the previous tag, and install `grillmester` again.
+2. For a personal install on the floating auto-update channel, either disable
+   the plugin while investigating or pin the marketplace to the previous tag,
+   which intentionally disables automatic advancement. Uninstall and reinstall
+   `grillmester` from that tag before starting a new session.
 3. Publish a new version containing the correction. Catalog version reuse is
    rejected, including reuse of an older historical version.
 

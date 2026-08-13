@@ -53,16 +53,31 @@ tool calls, godkjent write og avvist write før stabil release.
 
 | Klient | POC-status | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
-| **Copilot CLI** | Referanseklient. Lokal mount og install-/oppgraderings-/rollbackflyt testes deterministisk. | Publisert immutable kandidat, resolved modell, agentvalg og runtime-toolbruk på representativt repo. |
-| **Copilot app** | Dokumentert Plugins-UI og deep-link onboarding. | Eksakt resolved katalog/source, kvalifisert agentvalg, delegering, tilgjengelige MCP-tools og godkjent/avvist write. |
+| **Copilot CLI** | Referanseklient. Lokal mount og install-/oppgraderings-/rollbackflyt testes deterministisk; POC-installasjonen og deklarativ auto-install er bekreftet i reelle sesjoner med 7 agenter og 44 skills. | Publisert `poc.2 → poc.3` session-start auto-update, immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
+| **Copilot app** | Plugins-UI-installasjon og discovery av 7 agenter og 44 skills er bekreftet i en reell POC-sesjon. | Om custom-marketplace-installasjonen auto-oppdateres, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
-| **VS Code** | Sekundær kompatibilitetsflate. | Observer og logg; den styrer ikke første Nav-release. |
+| **VS Code** | Sekundær kompatibilitetsflate. VS Code dokumenterer update-sjekk hver 24. time når `extensions.autoUpdate` er aktivert. | Verifiser faktisk custom-marketplace-oppdatering med to Grillmester-versjoner; den styrer ikke første Nav-release. |
 | **OpenCode** | Skills-only eksperiment. | Hver skill må portabilitetsauditeres. Agentteam, marketplace og felles agentkontrakt følger ikke med. |
 
 GitHub dokumenterer at Copilot app kan installere plugins via **Settings →
 Plugins**, og at CLI-konfigurerte skills/MCP-er kan bli tilgjengelige i appen.
 Det er ikke i seg selv evidens for samme runtimeadferd; klientene testes
 separat.
+
+Custom-marketplace auto-update i Copilot CLI er en bruker-eid opt-in. Et repo
+eller en managed policy kan registrere og aktivere pluginen, men GitHub sier
+eksplisitt at `autoUpdate: true` der ignoreres. Copilot app har ingen
+dokumentert tilsvarende garanti. VS Code har en egen
+[oppdateringsmekanisme](https://code.visualstudio.com/docs/agent-customization/agent-plugins#_update-plugins).
+Disse tre mekanismene må derfor rapporteres separat, ikke som én felles
+«Copilot auto-update»-status.
+
+Den flytende `marketplace`-branchen er POC-kanalen. Når publisheren har
+avansert den etter en merge til `main`, kan CLI-brukere som har valgt
+`autoUpdate: true`, hente endringen ved neste trusted CLI-sesjon. CI,
+`COPILOT_AUTO_UPDATE=false` og `--no-auto-update` hopper over hentingen.
+Auto-update-testen er derfor post-deploy-evidens; en separat godkjenningsport
+krever en immutable release-tag i stedet.
 
 ## Gate fra RC til stabil release
 
@@ -90,8 +105,12 @@ separat.
    reporting faktisk kan åpnes av en vanlig reporter; repository-eier er
    ansvarlig for kanalen.
 10. Test oppgradering og rollback i det piloterte referanserepoet og minst to
-   representative Nav-consumere. Manglende evidens er `UNVERIFIED`, aldri
-   `PASS`.
+    representative Nav-consumere. Manglende evidens er `UNVERIFIED`, aldri
+    `PASS`.
+11. Publiser to påfølgende POC-/RC-versjoner og bekreft at en isolert personlig
+    CLI-konfigurasjon med `autoUpdate: true` går fra den første til den andre
+    ved neste trusted CLI-sesjon uten manuell update-kommando. Observer App og
+    VS Code separat.
 
 Stable skal bruke nytt versjonsnummer, source commit, catalog commit, tag og
 GitHub Release. RC-taggen flyttes aldri. Den komplette prosedyren ligger i

@@ -21,7 +21,63 @@ installasjonen skal være reproduserbar.
 interne roller og 44 kuraterte skills for metode, design, produktarbeid,
 levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
-## Personlig installasjon i Copilot CLI
+## Anbefalt personlig oppsett med automatisk oppdatering
+
+For en personlig CLI-installasjon er den anbefalte POC-standarden en flytende
+marketplace-kanal med automatisk oppdatering ved sesjonsstart. Merge dette i
+din egen `~/.copilot/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "grillmester": {
+      "source": {
+        "source": "github",
+        "repo": "navikt/grillmester",
+        "ref": "marketplace"
+      },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "grillmester@grillmester": true
+  }
+}
+```
+
+`enabledPlugins` installerer og aktiverer pluginen deklarativt.
+`extraKnownMarketplaces.grillmester.autoUpdate` gjør at Copilot CLI sjekker den
+egendefinerte marketplacen ved starten av en ny trusted CLI-sesjon. Denne
+opt-in-en virker bare fra brukerens egen settingsfil; samme felt i repo- eller
+managed settings ignoreres. Oppdateringen hoppes over i CI og når sesjonen startes med
+`COPILOT_AUTO_UPDATE=false` eller `--no-auto-update`. Se GitHubs
+[pluginreferanse](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference#copilot-plugins-update-options)
+og
+[settingsreferanse](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference#user-settings-copilotsettingsjson).
+
+Fra en Grillmester-checkout kan du bruke det idempotente bootstrap-scriptet i
+stedet for å merge JSON manuelt:
+
+```bash
+python3 scripts/configure_autoupdate.py
+python3 scripts/configure_autoupdate.py --apply
+```
+
+Første kjøring er bare preview. `--apply` bevarer ukjente innstillinger,
+oppretter en privat backup av en eksisterende fil og skriver atomisk. Scriptet
+avviser JSONC, symlinker, en eksisterende pin og eksplisitt global
+`autoUpdate: false` fremfor å overskrive dem stille. Se `--help` for de
+eksplisitte override-flaggene. `--enable-global-auto-update` endrer en bredere
+brukerpreferanse: den aktiverer automatisk oppdatering av både selve Copilot
+CLI og alle plugins. Bruk den bare etter å ha lest previewen.
+
+Start deretter Copilot slik du vanligvis gjør i Nav. I en isolert test med
+Copilot CLI 1.0.79 auto-installerte dette oppsettet Grillmester ved neste
+trusted sesjon. Fremoveroppdateringen kan først verifiseres etter at neste
+versjon er publisert. Det er observasjon av POC-deployen, ikke en preventiv
+releasegate.
+
+## Manuell personlig installasjon i Copilot CLI
 
 Installer den nåværende POC-en:
 
@@ -33,6 +89,20 @@ copilot plugin list
 
 `marketplace` er en flytende POC-kanal. For reproduserbar installasjon bruker
 du samme kommando med en reviewet `v<versjon>`-tagg i stedet.
+
+Publisheren avanserer `marketplace` etter en reviewet pluginendring på `main`.
+For brukere med `autoUpdate: true` betyr en slik merge derfor deploy til
+POC-kanalen. Bruk en immutable release-tag når oppdateringen må vente på en
+separat godkjenning.
+
+Denne imperative flyten slår ikke på automatisk oppdatering for en
+egendefinert marketplace. Bruk brukeroppsettet over, eller oppdater manuelt
+med:
+
+```bash
+copilot plugin marketplace update grillmester
+copilot plugin update grillmester@grillmester
+```
 
 Start Copilot slik du vanligvis gjør i Nav, åpne `/agent`, og velg
 `grillmester:grillmester`. Installasjonen ligger i brukerens Copilot-home og er
@@ -61,6 +131,10 @@ hvilken katalog og source-SHA appen faktisk resolver.
 App-installasjonen gjelder brukerens app-oppsett og skriver ikke pluginfiler
 eller aktivering inn i repoet. Den aktiverer heller ikke cloud agent for teamet;
 bruk repoaktivering for det.
+
+GitHub dokumenterer foreløpig ikke om Copilot app automatisk oppdaterer en
+personlig installasjon fra en egendefinert marketplace. Dette må observeres med
+to faktiske Grillmester-versjoner før det loves som App-adferd.
 
 ## Eksterne GitHub-capabilities
 
@@ -116,13 +190,6 @@ eksakte agentkollisjonene. Bruk den baseline- og rollback-bundne
 [consumer-pilot-runbooken](consumer-pilot-runbook.md); ikke slett hele
 `.github/agents` eller `.github/skills`.
 
-## Personlig deklarativ aktivering
-
-Copilot CLI støtter de samme `extraKnownMarketplaces`- og `enabledPlugins`-
-feltene i `~/.copilot/settings.json`. Dette er et alternativ til de imperative
-installasjonskommandoene for brukerens CLI-sesjoner. Ikke commit personlige
-settings i et consumer-repo.
-
 ## Enterprise-policy
 
 Enterprise-adminer kan bruke managed settings for å tillate, kreve eller
@@ -133,11 +200,33 @@ en tom liste betyr full marketplace-lockdown. Se
 En bruker- eller repoendring kan ikke omgå en enterprise-blokkering. Managed
 settings er den autoritative grensen for hva brukere og repoer kan aktivere.
 
+Enterprise kan registrere marketplacen og deklarativt aktivere pluginen på
+støttede klientflater. GitHub tillater derimot ikke managed settings å slå på
+CLIs session-start auto-update for en egendefinert marketplace. For en
+Nav-dekkende utrulling må Team Copilot derfor avklare om en reviewet ref rulles
+sentralt, eller om den bruker-eide opt-in-en distribueres gjennom en godkjent
+bootstrap.
+
 ## Oppdatere og rulle tilbake
 
 ### Personlig installasjon
 
-Bind marketplacen til den nye reviewede taggen og installer pluginen på nytt:
+Flytende `marketplace` + bruker-eid `autoUpdate: true` oppdaterer ved starten
+av en ny trusted CLI-sesjon. CI, `COPILOT_AUTO_UPDATE=false` og
+`--no-auto-update` hopper over hentingen. Hver katalog peker fortsatt på en
+immutable source-SHA. En feil utrulling på den flytende kanalen fikses fremover
+med en ny, høyere pluginversjon. Ikke flytt eller skriv om en publisert tag
+eller kataloghistorie.
+
+For en umiddelbar manuell oppdatering:
+
+```bash
+copilot plugin marketplace update grillmester
+copilot plugin update grillmester@grillmester
+```
+
+For å pinne eller rulle tilbake, bind marketplacen til en reviewet tag og
+installer på nytt:
 
 ```bash
 copilot plugin uninstall grillmester@grillmester
@@ -150,14 +239,9 @@ copilot plugin list
 Rollback er samme flyt med forrige reviewede tag. Start en ny Copilot-sesjon
 etterpå; en pågående sesjon glemmer ikke nødvendigvis allerede lastet innhold.
 
-Brukte du den tidligere `0.3.0-poc.1`-inndelingen, avinstallerer du den gamle
-tilleggspakken én gang:
-
-```bash
-copilot plugin uninstall grillmester-nav@grillmester
-```
-
-Senere oppdateringer og rollback berører bare `grillmester@grillmester`.
+En pinned tag er bevisst ikke en auto-update-kanal. Hvis du senere vil tilbake
+til den flytende kanalen, bruk bootstrap-scriptet med det eksplisitte
+`--replace-existing-marketplace`-flagget etter preview.
 
 ### Teamrepo
 
