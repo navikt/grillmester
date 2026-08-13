@@ -98,21 +98,13 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
             "grillmester-review",
         )
         component(
-            self.plugin / "plugin-nav/skills/grillmester-lumi-survey/SKILL.md",
+            self.plugin / "plugin/skills/grillmester-lumi-survey/SKILL.md",
             "grillmester-lumi-survey",
         )
         json_file(
             self.plugin / "plugin/plugin.json",
             {
                 "name": "grillmester",
-                "version": "1.0.0-rc.1",
-                "repository": "https://github.com/navikt/grillmester",
-            },
-        )
-        json_file(
-            self.plugin / "plugin-nav/plugin.json",
-            {
-                "name": "grillmester-nav",
                 "version": "1.0.0-rc.1",
                 "repository": "https://github.com/navikt/grillmester",
             },
@@ -213,16 +205,12 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
             },
         )
 
-    def baseline(
-        self,
-        package_names: tuple[str, ...] = PREFLIGHT.PLUGIN_NAMES,
-    ) -> dict[str, object]:
+    def baseline(self) -> dict[str, object]:
         report = PREFLIGHT.build_baseline_report(
             self.plugin,
             self.consumer,
             self.catalog,
             self.ref,
-            package_names,
         )
         self.assertTrue(report["baselineWritable"], report["blockers"])
         PREFLIGHT.write_baseline(
@@ -234,7 +222,6 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
         self,
         *,
         leave_caller: bool = False,
-        package_names: tuple[str, ...] = PREFLIGHT.PLUGIN_NAMES,
     ) -> None:
         (self.consumer / ".github/agents/barista.agent.md").unlink()
         (self.consumer / ".github/agents/kokk.agent.md").unlink()
@@ -255,20 +242,16 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
             }
         ]
         json_file(self.consumer / ".github/.hovmester-manifest.json", manifest)
-        self.activate(package_names)
+        self.activate()
         commit_all(self.consumer, "pilot migration")
 
-    def postflight(
-        self,
-        expected_package_names: tuple[str, ...] | None = None,
-    ) -> dict[str, object]:
+    def postflight(self) -> dict[str, object]:
         return PREFLIGHT.build_postflight_report(
             self.plugin,
             self.consumer,
             self.catalog,
             self.ref,
             self.baseline_path,
-            expected_package_names,
         )
 
     def test_agent_ids_are_filename_derived_in_all_supported_roots(self) -> None:
@@ -315,8 +298,7 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
         self.assertEqual(self.catalog_sha, report["release"]["catalogSha"])
         self.assertRegex(report["release"]["catalogSha256"], r"^[0-9a-f]{64}$")
 
-    def test_standard_package_set_scopes_roster_activation_and_baseline(self) -> None:
-        standard = PREFLIGHT.PACKAGE_SETS["standard"]
+    def test_single_plugin_roster_includes_nav_skill_and_detects_collision(self) -> None:
         local_nav_skill = ".github/skills/lumi/SKILL.md"
         component(
             self.consumer / local_nav_skill,
@@ -327,74 +309,56 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
         )
         manifest["files"].append(local_nav_skill)
         json_file(self.consumer / ".github/.hovmester-manifest.json", manifest)
-        commit_all(self.consumer, "add NAV add-on collision")
+        commit_all(self.consumer, "add Nav specialist skill collision")
 
-        agents, skills = PREFLIGHT.plugin_rosters(self.plugin, standard)
+        agents, skills = PREFLIGHT.plugin_rosters(self.plugin)
         report = PREFLIGHT.build_baseline_report(
             self.plugin,
             self.consumer,
             self.catalog,
             self.ref,
-            standard,
         )
 
         self.assertEqual({"barista", "kokk"}, set(agents))
-        self.assertEqual({"grillmester-review"}, set(skills))
+        self.assertEqual(
+            {"grillmester-review", "grillmester-lumi-survey"}, set(skills)
+        )
         self.assertEqual(["grillmester"], report["plugin"]["packages"])
         self.assertEqual(["grillmester"], report["migrationContract"]["packages"])
-        self.assertEqual(["grillmester-review"], report["plugin"]["skillIds"])
-        self.assertEqual([], report["collisions"]["skills"])
-        self.assertTrue(report["baselineWritable"], report["blockers"])
-        full_report = PREFLIGHT.build_baseline_report(
-            self.plugin,
-            self.consumer,
-            self.catalog,
-            self.ref,
-            PREFLIGHT.PACKAGE_SETS["full"],
+        self.assertEqual(
+            ["grillmester-lumi-survey", "grillmester-review"],
+            report["plugin"]["skillIds"],
         )
         self.assertEqual(
             ["grillmester-lumi-survey"],
-            [item["id"] for item in full_report["collisions"]["skills"]],
+            [item["id"] for item in report["collisions"]["skills"]],
         )
+        self.assertTrue(report["baselineWritable"], report["blockers"])
 
-        self.activate(standard)
+    def test_activation_rejects_obsolete_add_on(self) -> None:
+        self.activate()
         self.assertEqual(
             "CONFIGURED",
-            PREFLIGHT.activation_state(self.consumer, self.ref, standard)["status"],
+            PREFLIGHT.activation_state(self.consumer, self.ref)["status"],
         )
+        settings = json.loads(
+            (self.consumer / ".github/copilot/settings.json").read_text()
+        )
+        settings["enabledPlugins"][PREFLIGHT.LEGACY_ADD_ON_SPEC] = True
+        json_file(self.consumer / ".github/copilot/settings.json", settings)
         self.assertEqual(
             "INVALID",
-            PREFLIGHT.activation_state(
-                self.consumer,
-                self.ref,
-                PREFLIGHT.PACKAGE_SETS["full"],
-            )["status"],
+            PREFLIGHT.activation_state(self.consumer, self.ref)["status"],
         )
-        with self.assertRaisesRegex(PREFLIGHT.PreflightError, "package set"):
-            PREFLIGHT.plugin_rosters(self.plugin, ("grillmester-nav",))
 
-    def test_standard_postflight_reuses_the_captured_package_set(self) -> None:
-        standard = PREFLIGHT.PACKAGE_SETS["standard"]
-        self.baseline(standard)
-        self.migrate(package_names=standard)
-
-        report = self.postflight()
-
-        self.assertEqual("MIGRATION_PREFLIGHT_PASSED", report["verdict"])
-        self.assertEqual(["grillmester"], report["plugin"]["packages"])
-        self.assertTrue(report["comparisons"]["pluginPackages"]["matches"])
-        with self.assertRaisesRegex(PREFLIGHT.PreflightError, "captured baseline"):
-            self.postflight(PREFLIGHT.PACKAGE_SETS["full"])
-
-    def test_baseline_package_set_is_integrity_bound(self) -> None:
-        standard = PREFLIGHT.PACKAGE_SETS["standard"]
-        self.baseline(standard)
+    def test_baseline_plugin_identity_is_integrity_bound(self) -> None:
+        self.baseline()
         baseline = json.loads(self.baseline_path.read_text(encoding="utf-8"))
-        baseline["plugin"]["packages"] = list(PREFLIGHT.PACKAGE_SETS["full"])
+        baseline["plugin"]["packages"] = ["grillmester-nav"]
 
         with self.assertRaisesRegex(
             PREFLIGHT.PreflightError,
-            "internally inconsistent",
+            "package identity has drifted",
         ):
             PREFLIGHT.validate_baseline_artifact(baseline)
 

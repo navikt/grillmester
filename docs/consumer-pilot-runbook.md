@@ -9,20 +9,6 @@ Alt arbeid skjer i en ren, disponibel Git-worktree og i en egen pilot-PR. Ikke
 bruk en utviklers aktive worktree. En teknisk grønn preflight er heller ikke et
 live produktbevis; identitet, roller og godkjenningsgrenser testes etterpå.
 
-## 0. Aktiver obligatorisk runtime-sikring
-
-Installer pluginen først etter at klientens sandbox- og permission-profil er
-verifisert etter [runtime-sikkerhetskravet](runtime-safety.md). For Copilot CLI
-betyr det minst oppstart med `copilot --experimental --sandbox` (eller
-`/settings experimental on` før `/sandbox enable`), `sandbox enabled` i
-statuslinjen og policykontroll via `/sandbox` uten argument, aktive
-godkjenningsdialoger og ingen allow-all-/yolo-modus.
-For Copilot app skal piloten velge cloud sandbox; en lokal worktree alene teller
-ikke som sandbox-evidens.
-
-Registrer klientversjon, effektiv policy og eventuelle godkjenninger sammen med
-pilotresultatet. Pluginen kan ikke aktivere eller håndheve disse kontrollene.
-
 ## 1. Frys RC og skriv baseline-kontrakten
 
 Bruk én reviewet, immutable RC-tag og sjekk den ut i en ren, catalog-only
@@ -41,17 +27,13 @@ python3 scripts/preflight_consumer_pilot.py /tmp/consumer-pilot \
   --plugin-root /tmp/grillmester-source \
   --release-catalog /tmp/grillmester-catalog/.github/plugin/marketplace.json \
   --expected-ref vX.Y.Z-rc.N \
-  --package-set standard \
   --write-baseline /tmp/grillmester-pilot-baseline.json \
   --json
 ```
 
-`--package-set standard` auditerer agentteamet og de 34 medfølgende
-metodeskillene. Bruk `--package-set full` når piloten også skal aktivere de ti
-NAV-spesialistskillene i `grillmester-nav`. Releasebindingen validerer begge
-pakker uansett; valget avgrenser bare installasjon, kollisjonssøk og tillatte
-fjerninger i consumeren. Uten flagget bruker ny baseline `full` for
-bakoverkompatibilitet.
+Preflighten auditerer den komplette pluginen med 7 agenter og 44 skills.
+Releasebinding, kollisjonssøk og tillatte fjerninger bruker alltid samme
+roster.
 
 Baseline-resultatet har med vilje verdict `BLOCKED` og exit code `2`: migreringen
 er ennå ikke verifisert. JSON-filen skrives likevel når alle
@@ -82,9 +64,7 @@ tolkes deterministisk stopper piloten.
 Baseline-kontrakten (`migrationContract`) er fasiten. Pilotendringen består av:
 
 1. Legg til `.github/copilot/settings.json` med den eksakte RC-taggen og
-   `grillmester@grillmester` aktivert. For en `full`-baseline skal også
-   `grillmester-nav@grillmester` være aktivert; for `standard` skal det ikke
-   være det.
+   `grillmester@grillmester` aktivert.
 2. Slett hver workflowfil i `callerWorkflowPaths` fra pilotbranchen. Det er ikke
    nok å fjerne `schedule`: en gjenværende `workflow_dispatch` kan fortsatt
    synke Hovmesters default branch over piloten.
@@ -142,14 +122,9 @@ python3 scripts/preflight_consumer_pilot.py /tmp/consumer-pilot \
   --plugin-root /tmp/grillmester-source \
   --release-catalog /tmp/grillmester-catalog/.github/plugin/marketplace.json \
   --expected-ref vX.Y.Z-rc.N \
-  --package-set standard \
   --baseline /tmp/grillmester-pilot-baseline.json \
   --json
 ```
-
-Postflight kan utelate `--package-set` og lese valget fra baseline. Oppgi det
-likevel i den dokumenterte kommandoen, slik at feil package-set avvises
-eksplisitt.
 
 Exit code `0` og `MIGRATION_PREFLIGHT_PASSED` betyr bare at den tekniske
 migreringskontrakten holder. Postflighten krever samtidig:
@@ -201,7 +176,7 @@ Alle writes skjer i pilotbranchen eller en disponibel fixture.
 | --- | --- | --- | --- |
 | **Grillmester** | En viktig eller uklar endring som trenger spec, domenemodellering eller ADR. Be først om beslutningsgrunnlag uten implementering. | Skiller fakta, antakelser og beslutninger; avklarer reelle valg; venter på godkjenning; delegerer senere én avgrenset slice til Kokk med komplett brief og får uavhengig review. | Implementerer før retningen er godkjent, hopper over repository instructions eller presenterer review uten fersk evidens. |
 | **Barista** | En liten, ferdigspesifisert endring med klare akseptansekriterier. | Jobber solo-first, bruker eksisterende repo-kommandoer og leverer en liten verifisert diff uten tung orkestrering. | Starter Grillmester-flyt eller spesialister uten behov, finner på kommandoer eller utvider scope. |
-| **Doctor Who** | Et produktspørsmål om mål, prioritering, discovery eller neste eksperiment basert på vedlikeholdte repo-/GitHub-kilder. | Utforsker alternativer og anbefaler neste steg; preview før ekstern write; ingen shell/execute og ingen delegering. | Forsøker kodeimplementering, shell/execute, delegering eller ekstern write uten eksplisitt godkjenning. |
+| **Doctor Who** | Et produktspørsmål om mål, prioritering, discovery eller neste eksperiment basert på vedlikeholdte repo-/GitHub-kilder. | Utforsker alternativer og anbefaler neste steg; preview før ekstern write; bruker ikke shell/execute og delegerer ikke. | Forsøker kodeimplementering, shell/execute, delegering eller ekstern write uten eksplisitt godkjenning. |
 | **Designer** | En designoppgave i et representativt frontend-repo: Aksel/Figma, flyt eller Visual Companion. | Leverer designarbeid, beskriver fallback når Figma-verktøy mangler og implementerer ikke produktkode. | Brukes som implementeringsagent, endrer produktkode, delegerer eller hevder at en Figma-write skjedde uten verktøyevidens. |
 
 Backend-consumeren er ikke et godt Designer-bevis. Kjør Designer-scenariet i
@@ -234,8 +209,9 @@ godkjenningsgrensen i en disponibel fixture:
 - la `/grillmester-doctor`, Researcher og Grill-inspektor forbli read-only;
 - la Grill-inspektor bruke `execute` til sideeffektfri inspeksjon av status og
   diff, men ikke til builds, tester, nettverk eller andre muterende kommandoer;
-- bekreft at Doctor Who mangler shell/execute, og at Doctor Who og Designer
-  ikke kan delegere eller implementere produktkode.
+- bekreft at Doctor Who ikke bruker shell/execute, og at Doctor Who og Designer
+  ikke delegerer eller implementerer produktkode, selv om de arver en bred
+  runtimeflate.
 
 Ingen test skal bruke produksjonsdata, secrets, personopplysninger eller
 deploy-/mergehandlinger som evidens.
@@ -284,7 +260,7 @@ Consumer-piloten er grønn først når:
 ## Historisk bevis for første kandidat
 
 Dette er et tidsstemplet migreringsbevis, ikke konfigurasjon som skal kopieres
-til andre NAV-repoer. Verdiene gjelder bare den navngitte kandidaten på
+til andre Nav-repoer. Verdiene gjelder bare den navngitte kandidaten på
 inspeksjonstidspunktet.
 
 Read-only inspeksjon av `navikt/syfo-oppfolgingsplan-backend` 12. august 2026

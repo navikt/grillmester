@@ -41,12 +41,14 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             self.app_source("Installer Grillmester"),
         )
 
-    def test_cli_flow_pins_the_reviewed_marketplace_release(self) -> None:
+    def test_cli_flow_uses_the_poc_channel_and_explains_release_pinning(self) -> None:
         self.assertIn(
             "copilot plugin marketplace add "
-            "navikt/grillmester#REVIEWED_RELEASE_TAG",
+            "navikt/grillmester#marketplace",
             self.text,
         )
+        self.assertIn("`marketplace` er en flytende POC-kanal", self.text)
+        self.assertIn("eksakte `v<versjon>`-taggen", self.text)
         self.assertIn(
             "copilot plugin install grillmester@grillmester",
             self.text,

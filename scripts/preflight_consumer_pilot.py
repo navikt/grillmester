@@ -18,20 +18,13 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 PLUGIN_NAME = "grillmester"
-PLUGIN_NAMES = ("grillmester", "grillmester-nav")
-PLUGIN_PATHS = {
-    "grillmester": "plugin",
-    "grillmester-nav": "plugin-nav",
-}
+PLUGIN_NAMES = (PLUGIN_NAME,)
+PLUGIN_PATHS = {PLUGIN_NAME: "plugin"}
 MARKETPLACE_NAME = "grillmester"
 PLUGIN_SPEC = f"{PLUGIN_NAME}@{MARKETPLACE_NAME}"
-PLUGIN_SPECS = tuple(f"{name}@{MARKETPLACE_NAME}" for name in PLUGIN_NAMES)
-PACKAGE_SETS = {
-    "standard": (PLUGIN_NAME,),
-    "full": PLUGIN_NAMES,
-}
+LEGACY_ADD_ON_SPEC = "grillmester-nav@grillmester"
 PLUGIN_REPOSITORY = "navikt/grillmester"
 HOVMESTER_REPOSITORY = "navikt/hovmester"
 CATALOG_PATH = ".github/plugin/marketplace.json"
@@ -145,27 +138,11 @@ def skill_roster(paths: Iterable[Path], root: Path) -> dict[str, list[str]]:
     return dict(sorted(roster.items()))
 
 
-def validate_package_names(package_names: tuple[str, ...]) -> tuple[str, ...]:
-    if package_names not in PACKAGE_SETS.values():
-        raise PreflightError(
-            "package set must be the standard Grillmester package or the full "
-            "standard + NAV package set"
-        )
-    return package_names
-
-
 def plugin_rosters(
     plugin_root: Path,
-    package_names: tuple[str, ...] = PLUGIN_NAMES,
 ) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
-    package_names = validate_package_names(package_names)
     agents = agent_roster(agent_files(plugin_root / "plugin/agents"), plugin_root)
-    skill_paths: list[Path] = []
-    for package_name in package_names:
-        package_path = PLUGIN_PATHS[package_name]
-        skill_paths.extend(
-            (plugin_root / package_path / "skills").glob("*/SKILL.md")
-        )
+    skill_paths = list((plugin_root / "plugin/skills").glob("*/SKILL.md"))
     skills = skill_roster(skill_paths, plugin_root)
     if not agents or not skills:
         raise PreflightError("plugin agent or skill roster is empty")
@@ -328,16 +305,14 @@ def release_binding(
     if catalog.get("name") != MARKETPLACE_NAME:
         raise PreflightError("release catalog has the wrong marketplace name")
     plugins = catalog.get("plugins")
-    if not isinstance(plugins, list) or len(plugins) != len(PLUGIN_NAMES):
-        raise PreflightError("release catalog must contain both Grillmester packages")
+    if not isinstance(plugins, list) or len(plugins) != 1:
+        raise PreflightError("release catalog must contain exactly one Grillmester package")
     if any(not isinstance(plugin, dict) for plugin in plugins):
         raise PreflightError("release catalog plugin entries must be objects")
     if [plugin.get("name") for plugin in plugins] != list(PLUGIN_NAMES):
         raise PreflightError("release catalog package names or order have drifted")
     package_entries = {plugin["name"]: plugin for plugin in plugins}
     version = package_entries[PLUGIN_NAME].get("version")
-    if any(plugin.get("version") != version for plugin in plugins):
-        raise PreflightError("release catalog package versions differ")
     metadata = catalog.get("metadata")
     if not isinstance(version, str) or expected_ref != f"v{version}":
         raise PreflightError("expected ref does not match the release catalog version")
@@ -346,16 +321,15 @@ def release_binding(
 
     source = package_entries[PLUGIN_NAME].get("source")
     source_sha = source.get("sha") if isinstance(source, dict) else None
-    for name, entry in package_entries.items():
-        if entry.get("source") != {
-            "source": "github",
-            "repo": PLUGIN_REPOSITORY,
-            "path": PLUGIN_PATHS[name],
-            "sha": source_sha,
-        }:
-            raise PreflightError(
-                "release catalog packages must pin canonical paths at one source SHA"
-            )
+    if package_entries[PLUGIN_NAME].get("source") != {
+        "source": "github",
+        "repo": PLUGIN_REPOSITORY,
+        "path": PLUGIN_PATHS[PLUGIN_NAME],
+        "sha": source_sha,
+    }:
+        raise PreflightError(
+            "release catalog must pin the canonical plugin path at one source SHA"
+        )
     if not isinstance(source_sha, str) or FULL_SHA.fullmatch(source_sha) is None:
         raise PreflightError("release catalog does not pin a full source SHA")
 
@@ -545,12 +519,8 @@ def hovmester_state(consumer: Path) -> dict[str, Any]:
 def activation_state(
     consumer: Path,
     expected_ref: str,
-    package_names: tuple[str, ...] = PLUGIN_NAMES,
 ) -> dict[str, Any]:
-    package_names = validate_package_names(package_names)
-    expected_specs = {
-        f"{package_name}@{MARKETPLACE_NAME}" for package_name in package_names
-    }
+    expected_specs = {PLUGIN_SPEC}
     settings_path = consumer / SETTINGS_PATH
     if not settings_path.is_file() or settings_path.is_symlink():
         return {
@@ -559,7 +529,7 @@ def activation_state(
             "sha256": None,
             "status": "NOT_CONFIGURED",
             "ref": None,
-            "packages": list(package_names),
+            "packages": list(PLUGIN_NAMES),
             "problems": ["repository activation file is missing"],
         }
     try:
@@ -571,7 +541,7 @@ def activation_state(
             "sha256": sha256(settings_path),
             "status": "INVALID",
             "ref": None,
-            "packages": list(package_names),
+            "packages": list(PLUGIN_NAMES),
             "problems": [str(exc)],
         }
 
@@ -598,18 +568,17 @@ def activation_state(
         for plugin_spec in sorted(expected_specs):
             if enabled.get(plugin_spec) is not True:
                 problems.append(f"enabledPlugins.{plugin_spec} must be true")
-        for plugin_spec in sorted(set(PLUGIN_SPECS) - expected_specs):
-            if enabled.get(plugin_spec) is True:
-                problems.append(
-                    f"enabledPlugins.{plugin_spec} is enabled outside the audited package set"
-                )
+        if enabled.get(LEGACY_ADD_ON_SPEC) is True:
+            problems.append(
+                f"enabledPlugins.{LEGACY_ADD_ON_SPEC} must be removed after package consolidation"
+            )
     return {
         "path": SETTINGS_PATH,
         "exists": True,
         "sha256": sha256(settings_path),
         "status": "CONFIGURED" if not problems else "INVALID",
         "ref": ref if isinstance(ref, str) else None,
-        "packages": list(package_names),
+        "packages": list(PLUGIN_NAMES),
         "problems": problems,
     }
 
@@ -752,15 +721,13 @@ def snapshot(
     consumer: Path,
     release_catalog: Path,
     expected_ref: str,
-    package_names: tuple[str, ...] = PLUGIN_NAMES,
 ) -> dict[str, Any]:
-    package_names = validate_package_names(package_names)
     plugin_root = plugin_root.resolve()
     consumer = consumer.resolve()
     if not consumer.is_dir():
         raise PreflightError(f"consumer directory does not exist: {consumer}")
     release = release_binding(plugin_root, release_catalog.resolve(), expected_ref)
-    plugin_agents, plugin_skills = plugin_rosters(plugin_root, package_names)
+    plugin_agents, plugin_skills = plugin_rosters(plugin_root)
     local_agents, local_skills = consumer_rosters(consumer)
     hovmester = hovmester_state(consumer)
     managed = set(hovmester["managedFiles"])
@@ -774,9 +741,9 @@ def snapshot(
             "skillCount": len(plugin_skills),
             "agentIds": sorted(plugin_agents),
             "skillIds": sorted(plugin_skills),
-            "packages": list(package_names),
+            "packages": list(PLUGIN_NAMES),
         },
-        "activation": activation_state(consumer, expected_ref, package_names),
+        "activation": activation_state(consumer, expected_ref),
         "hovmester": hovmester,
         "localComponents": {"agentIds": local_agents, "skillIds": local_skills},
         "collisions": {
@@ -833,14 +800,12 @@ def build_baseline_report(
     consumer: Path,
     release_catalog: Path,
     expected_ref: str,
-    package_names: tuple[str, ...] = PLUGIN_NAMES,
 ) -> dict[str, Any]:
     report = snapshot(
         plugin_root,
         consumer,
         release_catalog,
         expected_ref,
-        package_names,
     )
     blockers: list[str] = list(report["release"]["problems"])
     consumer_git = report["consumer"]["git"]
@@ -915,10 +880,8 @@ def validate_baseline_artifact(baseline: dict[str, Any]) -> dict[str, Any]:
         or FULL_SHA.fullmatch(release.get("sourceSha", "")) is None
     ):
         raise PreflightError("baseline release identity is incomplete")
-    packages = baseline["plugin"].get("packages")
-    if not isinstance(packages, list):
-        raise PreflightError("baseline package set is missing")
-    validate_package_names(tuple(packages))
+    if baseline["plugin"].get("packages") != list(PLUGIN_NAMES):
+        raise PreflightError("baseline package identity has drifted")
 
     expected = baseline_contract(baseline)
     if expected is None or contract != expected:
@@ -965,7 +928,6 @@ def build_postflight_report(
     release_catalog: Path,
     expected_ref: str,
     baseline_path: Path,
-    expected_package_names: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
     baseline_path = baseline_path.resolve()
     consumer = consumer.resolve()
@@ -977,19 +939,11 @@ def build_postflight_report(
         raise PreflightError("baseline artifact must live outside the consumer repository")
     baseline = load_json_object(baseline_path)
     contract = validate_baseline_artifact(baseline)
-    package_names = tuple(baseline["plugin"]["packages"])
-    if expected_package_names is not None:
-        expected_package_names = validate_package_names(expected_package_names)
-        if package_names != expected_package_names:
-            raise PreflightError(
-                "requested package set differs from the captured baseline"
-            )
     report = snapshot(
         plugin_root,
         consumer,
         release_catalog,
         expected_ref,
-        package_names,
     )
     blockers: list[str] = list(report["release"]["problems"])
     comparisons: dict[str, dict[str, Any]] = {}
@@ -1203,7 +1157,7 @@ def print_human(report: dict[str, Any]) -> None:
     print(f"Mode: {report['mode']}")
     print(f"Consumer: {report['consumer']['path']}")
     print(f"Release: {report['release']['expectedRef']} ({report['release']['sourceSha']})")
-    print(f"Package set: {', '.join(report['plugin']['packages'])}")
+    print(f"Plugin package: {', '.join(report['plugin']['packages'])}")
     print(f"Activation: {report['activation']['status']}")
     print(f"Hovmester source SHA: {report['hovmester']['sourceSha'] or 'none'}")
     print(f"Hovmester caller count: {len(report['hovmester']['syncWorkflows'])}")
@@ -1240,15 +1194,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="Exact reviewed v-prefixed release tag",
     )
-    parser.add_argument(
-        "--package-set",
-        choices=tuple(PACKAGE_SETS),
-        help=(
-            "audited installation set: standard, or full with grillmester-nav; "
-            "baseline creation defaults to full and postflight otherwise reuses "
-            "the captured set"
-        ),
-    )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument(
         "--write-baseline",
@@ -1268,13 +1213,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv if argv is not None else sys.argv[1:])
     try:
         if args.write_baseline is not None:
-            package_names = PACKAGE_SETS[args.package_set or "full"]
             report = build_baseline_report(
                 args.plugin_root,
                 args.consumer,
                 args.release_catalog,
                 args.expected_ref,
-                package_names,
             )
             if report["baselineWritable"]:
                 write_baseline(
@@ -1290,7 +1233,6 @@ def main(argv: list[str] | None = None) -> int:
                 args.release_catalog,
                 args.expected_ref,
                 args.baseline,
-                PACKAGE_SETS[args.package_set] if args.package_set else None,
             )
     except PreflightError as exc:
         print(f"preflight error: {exc}", file=sys.stderr)

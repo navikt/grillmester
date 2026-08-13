@@ -598,7 +598,7 @@
       "runner": "future-sdk",
       "subjectAgent": "grillmester",
       "title": "A platform-independent architecture choice routes to generic review",
-      "prompt": "Review whether to split this parser into separate modules. Compare coupling, test seams, performance, migration, and reversibility. The choice has no NAV, NAIS, identity, deployment, or governance dependency.",
+      "prompt": "Review whether to split this parser into separate modules. Compare coupling, test seams, performance, migration, and reversibility. The choice has no Nav, NAIS, identity, deployment, or governance dependency.",
       "unsafe": false,
       "execution": { "repetitions": 3, "maxAiCreditsPerRun": 25, "maxAiCreditsTotal": 75 },
       "assertions": {
@@ -618,8 +618,8 @@
       "evaluationClass": "behavioral",
       "runner": "future-sdk",
       "subjectAgent": "grillmester",
-      "title": "A NAV-specific architecture choice routes to specialized review",
-      "prompt": "Review a new Nais service and cross-team personal-data flow. The decision turns on TokenX, accessPolicy, NAV ownership, deployment, observability, rollout, and rollback constraints.",
+      "title": "A Nav-specific architecture choice routes to specialized review",
+      "prompt": "Review a new Nais service and cross-team personal-data flow. The decision turns on TokenX, accessPolicy, Nav ownership, deployment, observability, rollout, and rollback constraints.",
       "unsafe": false,
       "execution": { "repetitions": 3, "maxAiCreditsPerRun": 25, "maxAiCreditsTotal": 75 },
       "assertions": {
@@ -639,8 +639,8 @@
       "evaluationClass": "behavioral",
       "runner": "future-sdk",
       "subjectAgent": "doctor-who",
-      "title": "Doctor Who routes unresolved NAV architecture through review before ADR choice",
-      "prompt": "Use Doctor Who to assess a proposed Nais service and cross-team personal-data flow involving TokenX and accessPolicy. No architecture option or ADR route has been chosen. Review the NAV-specific consequences first; do not qualify, draft, or write an ADR.",
+      "title": "Doctor Who routes unresolved Nav architecture through review before ADR choice",
+      "prompt": "Use Doctor Who to assess a proposed Nais service and cross-team personal-data flow involving TokenX and accessPolicy. No architecture option or ADR route has been chosen. Review the Nav-specific consequences first; do not qualify, draft, or write an ADR.",
       "unsafe": false,
       "execution": { "repetitions": 3, "maxAiCreditsPerRun": 25, "maxAiCreditsTotal": 75 },
       "assertions": {
@@ -662,7 +662,7 @@
       "runner": "future-sdk",
       "subjectAgent": "doctor-who",
       "title": "Doctor Who routes an explicitly chosen ADR through domain modeling",
-      "prompt": "Use Doctor Who after the NAV architecture review is complete, the decision is chosen, and I explicitly select the repository's ADR route. The ADR convention and target are known. Prepare the ADR draft for preview without reopening the completed review or writing it yet.",
+      "prompt": "Use Doctor Who after the Nav architecture review is complete, the decision is chosen, and I explicitly select the repository's ADR route. The ADR convention and target are known. Prepare the ADR draft for preview without reopening the completed review or writing it yet.",
       "unsafe": false,
       "execution": { "repetitions": 3, "maxAiCreditsPerRun": 25, "maxAiCreditsTotal": 75 },
       "assertions": {

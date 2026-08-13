@@ -2,7 +2,7 @@
 """Validate and describe Grillmester's immutable release chain.
 
 The public release tag identifies a catalog-only commit. The catalog then
-identifies both package payloads with one exact GitHub commit SHA. Stable
+identifies the plugin payload with one exact GitHub commit SHA. Stable
 releases are new, stable-versioned catalogs whose payloads are identical to a
 named RC apart from each manifest's version; an RC tag is never moved or
 re-used.
@@ -22,11 +22,8 @@ from pathlib import Path
 from typing import Any, Sequence
 
 
-PLUGIN_NAMES = ("grillmester", "grillmester-nav")
-PLUGIN_PATHS = {
-    "grillmester": "plugin",
-    "grillmester-nav": "plugin-nav",
-}
+PLUGIN_NAMES = ("grillmester",)
+PLUGIN_PATHS = {"grillmester": "plugin"}
 PLUGIN_REPOSITORY = "navikt/grillmester"
 CATALOG_PATH = ".github/plugin/marketplace.json"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -34,10 +31,7 @@ SEMVER = re.compile(
     r"^(?P<major>0|[1-9][0-9]*)\."
     r"(?P<minor>0|[1-9][0-9]*)\."
     r"(?P<patch>0|[1-9][0-9]*)"
-    r"(?:-(?P<prerelease>"
-    r"(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
-    r"(?:\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*"
-    r"))?$"
+    r"(?:-(?P<prerelease>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
 
 
@@ -70,10 +64,20 @@ def parse_version(value: object) -> Version:
         raise ReleaseContractError(
             "version must be strict SemVer without build metadata"
         )
+    prerelease = match.group("prerelease")
+    if prerelease is not None and any(
+        identifier != "0"
+        and identifier.isdigit()
+        and identifier.startswith("0")
+        for identifier in prerelease.split(".")
+    ):
+        raise ReleaseContractError(
+            "version must be strict SemVer without leading prerelease zeroes"
+        )
     return Version(
         text=value,
         core=tuple(int(match.group(name)) for name in ("major", "minor", "patch")),
-        prerelease=match.group("prerelease"),
+        prerelease=prerelease,
     )
 
 
@@ -99,7 +103,7 @@ def inspect_catalog(path: Path, *, channel: str) -> Catalog:
     if not isinstance(metadata, dict):
         raise ReleaseContractError("catalog metadata must be an object")
     if not isinstance(plugins, list) or len(plugins) != len(PLUGIN_NAMES):
-        raise ReleaseContractError("catalog must contain both Grillmester packages")
+        raise ReleaseContractError("catalog must contain exactly one Grillmester package")
     entries = {
         entry.get("name"): entry
         for entry in plugins
@@ -109,8 +113,6 @@ def inspect_catalog(path: Path, *, channel: str) -> Catalog:
         raise ReleaseContractError("catalog package order or names have drifted")
 
     version = parse_version(entries[PLUGIN_NAMES[0]].get("version"))
-    if any(entry.get("version") != version.text for entry in entries.values()):
-        raise ReleaseContractError("catalog package versions differ")
     if metadata.get("version") != version.text:
         raise ReleaseContractError("catalog metadata and plugin versions differ")
     if channel == "rc" and version.prerelease is None:
@@ -131,7 +133,7 @@ def inspect_catalog(path: Path, *, channel: str) -> Catalog:
         }
         if source != expected_source:
             raise ReleaseContractError(
-                "catalog packages must pin their canonical paths at one exact SHA"
+                "catalog must pin the canonical plugin path at one exact SHA"
             )
     if not isinstance(source_sha, str) or FULL_SHA.fullmatch(source_sha) is None:
         raise ReleaseContractError("catalog source SHA must be 40 lowercase hex digits")
@@ -375,8 +377,8 @@ def render_notes(
 
     status = "release candidate" if channel == "rc" else "stable release"
     promoted = (
-        f"\nThis stable release promotes the tested `{rc_tag}` payloads. The only "
-        "permitted payload changes are the two `plugin.json.version` values.\n"
+        f"\nThis stable release promotes the tested `{rc_tag}` payload. The only "
+        "permitted payload change is the `plugin.json.version` value.\n"
         if rc_tag
         else ""
     )
@@ -386,7 +388,7 @@ This is a **{status}** with an immutable, two-step provenance chain.{promoted}
 | Layer | Immutable identity |
 | --- | --- |
 | Release tag | `{tag}` → catalog commit `{catalog_sha}` |
-| Package payloads | both catalog sources → `{source_sha}` |
+| Plugin payload | catalog source → `{source_sha}` |
 
 The tag points to a catalog-only commit. It never points at `main` and is never
 moved after publication.
@@ -399,12 +401,6 @@ copilot plugin install grillmester@grillmester
 copilot --agent=grillmester:grillmester
 ```
 
-For the optional NAV specialist pack, also run:
-
-```bash
-copilot plugin install grillmester-nav@grillmester
-```
-
 ### Verify
 
 ```bash
@@ -414,9 +410,9 @@ copilot plugin list
 ### Roll back
 
 For a repository activation, revert its marketplace `ref` to the previously
-reviewed tag. For a personal installation, uninstall every installed
-Grillmester package, add/update the marketplace at the previous tag, and
-reinstall the same package set. Tags are immutable; never retag an older or
+reviewed tag. For a personal installation, uninstall Grillmester, add/update
+the marketplace at the previous tag, and reinstall the plugin. Tags are
+immutable; never retag an older or
 newer catalog.
 """
 

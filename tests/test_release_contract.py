@@ -304,20 +304,12 @@ class ReleaseContractTest(unittest.TestCase):
                 rc_package = rc_plugin / path
                 stable_package.mkdir(parents=True)
                 rc_package.mkdir(parents=True)
-                if name == "grillmester":
-                    (stable_package / "plugin.json").write_text(
-                        '{"name":"grillmester","version":"1.4.0"}\n'
-                    )
-                    (rc_package / "plugin.json").write_text(
-                        '{\n  "name": "grillmester",\n  "version": "1.4.0-rc.2"\n}\n'
-                    )
-                else:
-                    (stable_package / "plugin.json").write_text(
-                        '{"name":"grillmester-nav","version":"1.4.0"}\n'
-                    )
-                    (rc_package / "plugin.json").write_text(
-                        '{"name":"grillmester-nav","version":"1.4.0-rc.2"}\n'
-                    )
+                (stable_package / "plugin.json").write_text(
+                    '{"name":"grillmester","version":"1.4.0"}\n'
+                )
+                (rc_package / "plugin.json").write_text(
+                    '{\n  "name": "grillmester",\n  "version": "1.4.0-rc.2"\n}\n'
+                )
                 for package in (stable_package, rc_package):
                     (package / "payload.txt").write_text("reviewed\n")
 
@@ -378,9 +370,10 @@ class ReleaseContractTest(unittest.TestCase):
         )
 
         self.assertIn("v0.2.0-poc.4` → catalog commit", notes)
-        self.assertIn("both catalog sources", notes)
+        self.assertIn("catalog source →", notes)
         self.assertIn("navikt/grillmester#v0.2.0-poc.4", notes)
-        self.assertIn("grillmester-nav@grillmester", notes)
+        self.assertIn("grillmester@grillmester", notes)
+        self.assertNotIn("grillmester-nav@grillmester", notes)
         self.assertIn("never\nmoved", notes)
 
     def test_stable_release_notes_require_matching_rc_parent(self) -> None:

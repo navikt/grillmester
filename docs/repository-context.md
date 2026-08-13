@@ -67,7 +67,7 @@ andre repoer.
 
 Behold `.github/PULL_REQUEST_TEMPLATE*` og `.github/ISSUE_TEMPLATE/` i
 consumer-repoet. De er samarbeidskontrakter for både mennesker og verktøy, ikke
-en del av Grillmesters runtime. En liten, generell NAV-default kan eventuelt
+en del av Grillmesters runtime. En liten, generell Nav-default kan eventuelt
 eies av et offentlig `navikt/.github`; lokale templates overstyrer imidlertid
 organisasjonsdefaulten, og issue-template-mapper merges ikke.
 
@@ -104,15 +104,16 @@ dag agents, skills, instructions, MCP Registry, `nav-pilot`-collections/sync og
 en onboardingflate som kan vurdere agent readiness og foreslå repo-kontekst.
 De to produktene har ulike, men overlappende roller:
 
-- `navikt/copilot` kan fortsatt levere NAVs eksisterende instructions og skills
-- `grillmester@grillmester` leverer agentteamet og den kuraterte arbeidsflyten
-- `grillmester-nav@grillmester` er et valgfritt NAV-faglag
+- `navikt/copilot` kan fortsatt levere Navs eksisterende instructions og skills
+- `grillmester@grillmester` leverer agentteamet og alle 44 skills i den
+  kuraterte arbeidsflyten
 
 Grillmester-skills bruker `grillmester-`-prefiks. Det gjør eksakte kollisjoner
 mindre sannsynlige, men semantisk overlapp kan fortsatt finnes. Installer bare
-NAV-tillegget hvis det gir verdi utover det repoet allerede får.
+én Grillmester-plugin, og bruk `/grillmester-doctor` til å synliggjøre overlapp
+før teamet eventuelt rydder i repo-lokale komponenter.
 
-Før stabil NAV-bred lansering må eierne avtale om Grillmester skal anbefales
+Før stabil lansering bredt i Nav må eierne avtale om Grillmester skal anbefales
 eller katalogføres gjennom `nav-pilot`/onboarding, hvilke MCP Registry-ID-er som
 er støttet, og hvem som eier overlappende innhold. Inntil det er avklart er
 Grillmester-POC-en en separat, eksplisitt installasjon — ikke en stille del av
@@ -153,4 +154,4 @@ separat, godkjent oppgave.
 
 - [Installer og aktiver riktig scope](installation.md)
 - [Velg agent og skillfamilie](agents-and-skills.md)
-- [Forstå trust-, tool- og sandboxgrensene](trust-and-client-support.md)
+- [Forstå trust-, tool- og klientgrensene](trust-and-client-support.md)

@@ -6,7 +6,7 @@ inngangen; agentteamet bruker interne roller og relevante skills etter behov.
 ## Offentlige agenter
 
 Agentprofilene har en kuratert standardmodell, men faktisk modelloppløsning
-avhenger av klient, lisens og NAVs enterprise-policy. Manglende modell eller
+avhenger av klient, lisens og Navs enterprise-policy. Manglende modell eller
 automatisk fallback skal registreres i klienttesten; ikke anta at navnet i
 frontmatter beviser runtime-modellen.
 
@@ -67,7 +67,7 @@ MCP med riktige scopes. Uten den skal Designer si hva som mangler og tilby en
 ### Doctor Who 🕰️
 
 **Bruk når:** Arbeidet handler om mål, prioritering, discovery, produktfag,
-workshops, teamhelse eller NAV-spesifikk arkitektur.
+workshops, teamhelse eller Nav-spesifikk arkitektur.
 
 **Prøv:**
 
@@ -79,7 +79,7 @@ workshops, teamhelse eller NAV-spesifikk arkitektur.
 konkret neste steg. Eksterne writes skal forhåndsvises og godkjennes.
 
 **Ikke bruk når:** Målet primært er å endre kode. Bruk Barista eller
-Grillmester og trekk inn relevante produkt-/NAV-skills der.
+Grillmester og trekk inn relevante produkt-/Nav-skills der.
 
 ## Interne roller
 
@@ -98,9 +98,9 @@ Skills er oppgaveorienterte metoder. Copilot matcher naturlige forespørsler mot
 beskrivelsen og laster innholdet progressivt. Du kan også velge en skill
 eksplisitt, for eksempel `/grillmester-security-review`.
 
-Fagpakken er ikke begrenset til Team eSyfo. NAV-spesialiseringene er skrevet
-mot repositoryevidens og autoritative kilder, ikke mot én teams faste repo,
-prosjekt eller cadence.
+Skillsettet er ikke begrenset til Team eSyfo. Nav-spesialiseringene er skrevet
+mot repoevidens og autoritative kilder, ikke mot ett teams faste repo, prosjekt
+eller arbeidsrytme.
 
 Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 
@@ -112,26 +112,25 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | **Kodebase og levering** | Arkitekturforbedring, README, PR eller skillvedlikehold. | Improve codebase architecture, README update, Pull request, Create a skill |
 | **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel design, Accessibility review, Design prototype, Figma workflow |
 | **Produkt og tjeneste** | Mål, discovery, teamarbeid, workshop, klarspråk eller ansvarlig atferdsdesign. | OKR, Produktledelse, Team status, Workshop design, Klarspråk, Dulting |
-| **NAV backend og plattform** | Kontrakter, identitet, runtime, data og operasjon i NAV/NAIS. | API design, Auth overview, Kafka topic, Kotlin/Ktor, Kotlin/Spring, Nais manifest, NAV troubleshoot, Observability, PostgreSQL review |
-| **NAV produktcapabilities** | En NAV-spesifikk tjenestekomponent eller arbeidsmåte trengs. | NAV architecture review, Lumi Survey |
+| **Nav backend og plattform** | Kontrakter, identitet, runtime, data og operasjon i Nav/Nais. | API design, Auth overview, Kafka topic, Kotlin/Ktor, Kotlin/Spring, Nais manifest, Nav troubleshoot, Observability, PostgreSQL review |
+| **Nav-produktcapabilities** | En Nav-spesifikk tjenestekomponent eller arbeidsmåte trengs. | Nav architecture review, Lumi Survey |
 
-Lumi Survey er en ordinær NAV-capability. Som alle integrasjonsskills skal den
+Lumi Survey er en ordinær Nav-capability. Som alle integrasjonsskills skal den
 verifisere gjeldende pakke/API og repoets faktiske auth-/Nais-oppsett; den skal
 ikke gjette detaljer fra minnet.
 
-## Standardpakken og NAV-tillegget
+## Én komplett plugin
 
-`grillmester@grillmester` gir agentteamet og et kuratert skillsett for metode,
-design, produktarbeid og levering. Det inkluderer NAV-nære emner som Aksel, UU
-og NAV-arkitektur fordi de er direkte del av de offentlige agentenes oppdrag.
-`grillmester-nav@grillmester` legger til backend-, plattform- og
-integrasjonsfagkunnskap uten å installere agentene en gang til. Installer begge
-for full dekning; NAV-pakken er ikke ment brukt uten standardpakken.
+`grillmester@grillmester` gir hele agentteamet og alle 44 skills i én
+installasjon. Det inkluderer metode, design, produktarbeid, levering og
+Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
+agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
+pakkeinndeling.
 
-Noen arbeidsflyter ruter mellom flere skills. Standardpakken valideres som
-selvstendig agentopplevelse. NAV-pakken valideres både strukturelt alene og
-funksjonelt sammen med standardpakken; kryssreferanser skal gi en tydelig
-fallback eller installasjonsbeskjed, ikke en død lenke.
+Noen fagområder overlapper med `navikt/copilot`. Alle runtime-ID-er har
+`grillmester-`-prefiks, men semantisk overlapp kan fortsatt finnes. Bruk
+`/grillmester-doctor` når et team vil se hva repoet allerede får fra andre
+kilder.
 
 ## Finn riktig skill
 
@@ -143,12 +142,12 @@ Du trenger vanligvis ikke lære alle navnene. Beskriv resultatet du ønsker:
 - «Gjør denne teksten kortere og tydeligere uten å endre betydningen.»
 
 Bruk klientens skilloversikt hvis du vil kontrollere hva som er tilgjengelig.
-Hvis en backend-, plattform- eller integrasjonsskill mangler, sjekk at
-NAV-tillegget er installert. Hvis matchingen
-velger feil metode, velg skillen eksplisitt og si hvorfor.
+Hvis en dokumentert skill mangler, kjør `/grillmester-doctor` og kontroller at
+riktig pluginversjon er aktiv. Hvis matchingen velger feil metode, velg skillen
+eksplisitt og si hvorfor.
 
 ## Videre
 
-- [Installer standard- eller NAV-pakken](installation.md)
+- [Installer Grillmester](installation.md)
 - [Legg repoets stående sannhet på riktig sted](repository-context.md)
-- [Forstå tools, sandbox og klientstøtte](trust-and-client-support.md)
+- [Forstå tools, tillit og klientstøtte](trust-and-client-support.md)

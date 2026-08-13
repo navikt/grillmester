@@ -40,36 +40,36 @@ class PublishWorkflowContractTest(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('- "package-manifest.json"', text)
         self.assertIn('- "plugin/**"', text)
-        self.assertIn('- "plugin-nav/**"', text)
+        self.assertNotIn('plugin-nav', text)
         self.assertNotIn("workflow_dispatch", text)
         self.assertNotIn('- "scripts/generate_marketplace.py"', text)
         self.assertNotIn('- ".github/workflows/publish-marketplace.yml"', text)
 
-    def test_catalog_publisher_revalidates_exact_two_package_roster(self) -> None:
+    def test_catalog_publisher_revalidates_exact_one_plugin_roster(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         write_job = text.split("\n  publish:\n", maxsplit=1)[1]
-        self.assertIn("(.plugins | length) == 2", write_job)
+        self.assertIn("(.plugins | length) == 1", write_job)
         self.assertIn(
-            '[.plugins[].name] == ["grillmester", "grillmester-nav"]',
+            '[.plugins[].name] == ["grillmester"]',
             write_job,
         )
         self.assertIn('path: "plugin"', write_job)
-        self.assertIn('path: "plugin-nav"', write_job)
-        self.assertIn('[.plugins[].version] == [$version, $version]', write_job)
-        self.assertEqual(2, write_job.count("sha: $source_sha"))
+        self.assertNotIn('path: "plugin-nav"', write_job)
+        self.assertIn('[.plugins[].version] == [$version]', write_job)
+        self.assertEqual(1, write_job.count("sha: $source_sha"))
 
-    def test_manual_validator_is_read_only_and_smokes_exact_remote_ref(self) -> None:
+    def test_manual_validator_is_read_only_and_smokes_exact_local_payload(self) -> None:
         text = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("catalog_sha:", text)
         self.assertIn("refs/remotes/origin/marketplace", text)
         self.assertIn("refs/remotes/origin/main", text)
-        self.assertIn("--remote-marketplace-ref", text)
+        self.assertNotIn("--remote-marketplace-ref", text)
         self.assertIn('--source-root "${SOURCE_ROOT}"', text)
         self.assertNotIn("--source-plugin", text)
         self.assertIn(
-            '[.plugins[].name] == ["grillmester", "grillmester-nav"]', text
+            '[.plugins[].name] == ["grillmester"]', text
         )
-        self.assertIn('path: "plugin-nav"', text)
+        self.assertNotIn('path: "plugin-nav"', text)
         self.assertIn("api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RC_TAG}", text)
         self.assertIn("contents: read", text)
         self.assertNotIn("contents: write", text)
@@ -119,7 +119,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
             text.index("Publish exact reviewed release idempotently"),
             text.index("GH_TOKEN: ${{ github.token }}"),
         )
-        write_job = text.split("\n  release:\n", maxsplit=1)[1]
+        write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
+            "\n  remote-smoke:\n", maxsplit=1
+        )[0]
         self.assertIn("environment: grillmester-release", write_job)
         self.assertIn("contents: write", write_job)
         self.assertEqual(1, write_job.count("      - name:"))
@@ -135,20 +137,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
             write_job,
         )
         self.assertIn(
-            'cmp -s "${normalized_nav_manifest}" "${rc_nav_manifest_file}"',
-            write_job,
-        )
-        self.assertIn(
             'cmp -s "${package_manifest_file}" "${rc_package_manifest_file}"',
             write_job,
         )
         self.assertIn(
             'cmp -s "${regenerated_rc_catalog}" "${rc_catalog_file}"', write_job
         )
-        self.assertIn(
-            "-- plugin plugin-nav", write_job
-        )
-        self.assertIn("':(exclude)plugin-nav/plugin.json'", write_job)
+        self.assertIn("-- plugin ':(exclude)plugin/plugin.json'", write_job)
+        self.assertNotIn("plugin-nav", write_job)
         self.assertIn('git ls-tree -r "${RC_CATALOG_SHA}"', write_job)
         self.assertIn("'.tag_name'", write_job)
         self.assertNotIn("git tag -f", write_job)
@@ -156,23 +152,17 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("git push -f", write_job)
         self.assertNotIn("--force-with-lease", write_job)
 
-    def test_release_validates_and_smokes_both_packages(self) -> None:
+    def test_release_validates_one_complete_plugin_and_remote_smokes_tag(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('--source-root "${SOURCE_ROOT}"', text)
         self.assertNotIn("--source-plugin", text)
         self.assertGreaterEqual(
-            text.count('[.plugins[].name] == ["grillmester", "grillmester-nav"]'),
+            text.count('[.plugins[].name] == ["grillmester"]'),
             3,
         )
-        self.assertGreaterEqual(text.count('path: "plugin-nav"'), 4)
+        self.assertNotIn('path: "plugin-nav"', text)
         self.assertIn(
-            'git show "${SOURCE_SHA}:plugin-nav/plugin.json"', text
-        )
-        self.assertIn(
-            'git show "${RC_SOURCE_SHA}:plugin-nav/plugin.json"', text
-        )
-        self.assertIn(
-            '{name: "grillmester-nav", path: "plugin-nav", agents: 0, skills: 10}',
+            '{name: "grillmester", path: "plugin", agents: 7, skills: 44}',
             text,
         )
         self.assertIn(
@@ -182,10 +172,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn(
             '"agents", "author", "description", "license", "name",', text
         )
+        self.assertEqual(1, text.count('(.author | keys) == ["name"]'))
+        self.assertIn("Smoke-test published release tag", text)
         self.assertIn(
-            '"author", "description", "license", "name", "repository",', text
+            '--remote-marketplace-ref "navikt/grillmester#${TAG}"', text
         )
-        self.assertEqual(2, text.count('(.author | keys) == ["name"]'))
 
 
 if __name__ == "__main__":

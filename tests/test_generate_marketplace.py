@@ -42,20 +42,9 @@ class MarketplaceGenerationTest(unittest.TestCase):
                     "repository": "https://github.com/navikt/grillmester",
                 },
             ),
-            GENERATOR.Package(
-                name="grillmester-nav",
-                path="plugin-nav",
-                manifest={
-                    "name": "grillmester-nav",
-                    "version": "2.3.4",
-                    "description": "NAV add-on.",
-                    "author": {"name": "Team eSyfo"},
-                    "repository": "https://github.com/navikt/grillmester",
-                },
-            ),
         ]
 
-    def test_development_catalog_has_two_local_disjoint_packages(self) -> None:
+    def test_development_catalog_has_one_complete_local_plugin(self) -> None:
         actual = GENERATOR.build_marketplace(
             self.package_manifest, self.packages, mode="development"
         )
@@ -70,17 +59,11 @@ class MarketplaceGenerationTest(unittest.TestCase):
                     "version": "2.3.4",
                     "source": "plugin",
                 },
-                {
-                    "name": "grillmester-nav",
-                    "description": "NAV add-on.",
-                    "version": "2.3.4",
-                    "source": "plugin-nav",
-                },
             ],
             actual["plugins"],
         )
 
-    def test_release_catalog_pins_both_paths_to_one_exact_sha(self) -> None:
+    def test_release_catalog_pins_canonical_plugin_path_to_exact_sha(self) -> None:
         sha = "0123456789abcdef0123456789abcdef01234567"
         actual = GENERATOR.build_marketplace(
             self.package_manifest, self.packages, mode="release", sha=sha
@@ -91,12 +74,6 @@ class MarketplaceGenerationTest(unittest.TestCase):
                     "source": "github",
                     "repo": "navikt/grillmester",
                     "path": "plugin",
-                    "sha": sha,
-                },
-                {
-                    "source": "github",
-                    "repo": "navikt/grillmester",
-                    "path": "plugin-nav",
                     "sha": sha,
                 },
             ],
@@ -112,9 +89,9 @@ class MarketplaceGenerationTest(unittest.TestCase):
                 sha="main",
             )
 
-    def test_packages_must_share_one_version(self) -> None:
-        self.packages[1].manifest["version"] = "2.3.5"
-        with self.assertRaisesRegex(GENERATOR.MarketplaceError, "same version"):
+    def test_plugin_author_must_match_marketplace_owner(self) -> None:
+        self.packages[0].manifest["author"] = {"name": "Unexpected owner"}
+        with self.assertRaisesRegex(GENERATOR.MarketplaceError, "owner"):
             GENERATOR.build_marketplace(
                 self.package_manifest, self.packages, mode="development"
             )
@@ -137,7 +114,7 @@ class MarketplaceGenerationTest(unittest.TestCase):
             self.assertEqual(before, output.read_bytes())
 
     def test_repository_must_be_a_canonical_github_repository_url(self) -> None:
-        self.packages[1].manifest["repository"] = "https://example.com/grillmester"
+        self.packages[0].manifest["repository"] = "https://example.com/grillmester"
         with self.assertRaisesRegex(GENERATOR.MarketplaceError, "github.com"):
             GENERATOR.build_marketplace(
                 self.package_manifest, self.packages, mode="release", sha="0" * 40

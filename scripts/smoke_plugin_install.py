@@ -21,8 +21,12 @@ from typing import Any, NamedTuple, Sequence
 MARKETPLACE_NAME = "grillmester"
 PLUGIN_REPOSITORY = "navikt/grillmester"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+SEMVER = re.compile(
+    r"^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+    r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+)
 UNAVAILABLE_PLUGINS_COMMAND = "the plugins command is not available"
-PREVIOUS_VERSION = "0.0.0-upgrade-smoke"
+PREVIOUS_VERSION = "0.3.0-poc.1"
 UPGRADE_SENTINEL = ".grillmester-upgrade-fixture"
 SAFE_ENV_PASSTHROUGH = {
     "PATH",
@@ -53,8 +57,22 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 7, 34),
-    PackageSpec("grillmester-nav", "plugin-nav", 0, 10),
+    PackageSpec("grillmester", "plugin", 7, 44),
+)
+LEGACY_CORE = PackageSpec("grillmester", "plugin", 7, 34)
+LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10)
+PREVIOUS_PACKAGES = (LEGACY_CORE, LEGACY_ADD_ON)
+LEGACY_ADD_ON_SKILLS = (
+    "grillmester-api-design",
+    "grillmester-auth-overview",
+    "grillmester-kafka-topic",
+    "grillmester-kotlin-ktor",
+    "grillmester-kotlin-spring",
+    "grillmester-lumi-survey",
+    "grillmester-nais-manifest",
+    "grillmester-nav-troubleshoot",
+    "grillmester-observability-setup",
+    "grillmester-postgresql-review",
 )
 PACKAGE_BY_NAME = {package.name: package for package in PACKAGES}
 PLUGIN_NAME = PACKAGES[0].name
@@ -149,7 +167,7 @@ def marketplace_sources_from_catalog(
     catalog = load_json_object(catalog_path)
     plugins = catalog.get("plugins")
     if not isinstance(plugins, list) or len(plugins) != len(PACKAGES):
-        raise RuntimeError("marketplace catalog must contain both Grillmester packages")
+        raise RuntimeError("marketplace catalog must contain exactly one Grillmester package")
     if any(not isinstance(entry, dict) for entry in plugins):
         raise RuntimeError("marketplace plugin entries must be objects")
     if [entry.get("name") for entry in plugins] != [p.name for p in PACKAGES]:
@@ -164,9 +182,42 @@ def marketplace_sources_from_catalog(
 
 
 def marketplace_source_from_catalog(catalog_path: Path) -> str | dict[str, Any]:
-    """Compatibility accessor for the standard package source."""
+    """Return the canonical Grillmester package source."""
 
     return marketplace_sources_from_catalog(catalog_path)[PLUGIN_NAME]
+
+
+def reviewed_release_tag(catalog_path: Path) -> str:
+    """Derive the only valid remote marketplace tag from catalog metadata."""
+
+    catalog = load_json_object(catalog_path)
+    metadata = catalog.get("metadata")
+    plugins = catalog.get("plugins")
+    if not isinstance(metadata, dict) or not isinstance(plugins, list) or len(plugins) != 1:
+        raise RuntimeError("marketplace catalog has no unambiguous release version")
+    entry = plugins[0]
+    version = entry.get("version") if isinstance(entry, dict) else None
+    if not isinstance(version, str) or not is_strict_semver(version):
+        raise RuntimeError("marketplace catalog version must be strict SemVer")
+    if metadata.get("version") != version:
+        raise RuntimeError("marketplace metadata and plugin versions differ")
+    return f"v{version}"
+
+
+def is_strict_semver(value: str) -> bool:
+    """Validate the supported SemVer subset without ambiguous backtracking."""
+
+    match = SEMVER.fullmatch(value)
+    if match is None:
+        return False
+    prerelease = match.group(1)
+    if prerelease is None:
+        return True
+    return all(
+        identifier == "0"
+        or not (identifier.isdigit() and identifier.startswith("0"))
+        for identifier in prerelease.split(".")
+    )
 
 
 def marketplace_source(root: Path) -> str | dict[str, Any]:
@@ -190,28 +241,26 @@ def write_json_object(path: Path, value: dict[str, Any]) -> None:
 
 
 def prepare_upgrade_marketplace(
-    root: Path,
+    catalog_path: Path,
     source_root: Path,
     staged_marketplace: Path,
 ) -> tuple[dict[str, Path], dict[str, Any], dict[str, Any]]:
     """Create an older local source beside an exact current catalog fixture."""
 
-    current_catalog = load_json_object(root / ".github/plugin/marketplace.json")
-    current_sources = marketplace_sources_from_catalog(
-        root / ".github/plugin/marketplace.json"
-    )
+    current_catalog = load_json_object(catalog_path)
+    current_sources = marketplace_sources_from_catalog(catalog_path)
     current_versions = {
         plugin_version(source_root / package.path) for package in PACKAGES
     }
     if len(current_versions) != 1:
-        raise RuntimeError("package manifest versions differ")
+        raise RuntimeError("plugin manifest version is unavailable")
     current_version = next(iter(current_versions))
     if current_version == PREVIOUS_VERSION:
         raise RuntimeError("upgrade fixture version must differ from the current plugin")
 
     plugins = current_catalog.get("plugins")
     if not isinstance(plugins, list) or len(plugins) != len(PACKAGES):
-        raise RuntimeError("marketplace catalog must contain both packages")
+        raise RuntimeError("marketplace catalog must contain exactly one package")
     previous_plugins: dict[str, Path] = {}
     for package, current_entry in zip(PACKAGES, plugins, strict=True):
         if not isinstance(current_entry, dict) or current_entry.get("name") != package.name:
@@ -235,11 +284,44 @@ def prepare_upgrade_marketplace(
         if current_sources[package.name] == package.path:
             shutil.copytree(source_package, staged_marketplace / package.path)
 
+    previous_core = previous_plugins[PLUGIN_NAME]
+    previous_add_on = staged_marketplace / f"previous-{LEGACY_ADD_ON.path}"
+    (previous_add_on / "skills").mkdir(parents=True)
+    for skill_id in LEGACY_ADD_ON_SKILLS:
+        core_skill = previous_core / "skills" / skill_id
+        if not core_skill.is_dir():
+            raise RuntimeError(f"legacy add-on skill is missing from current payload: {skill_id}")
+        shutil.copytree(core_skill, previous_add_on / "skills" / skill_id)
+        shutil.rmtree(core_skill)
+    for required in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
+        shutil.copy2(previous_core / required, previous_add_on / required)
+    write_json_object(
+        previous_add_on / "plugin.json",
+        {
+            "name": LEGACY_ADD_ON.name,
+            "version": PREVIOUS_VERSION,
+            "description": "Legacy Nav specialist skills retained only by migration smoke.",
+            "author": {"name": "Team eSyfo"},
+            "repository": "https://github.com/navikt/grillmester",
+            "license": "MIT",
+            "skills": "skills/",
+        },
+    )
+    previous_plugins[LEGACY_ADD_ON.name] = previous_add_on
+
     previous_catalog = copy.deepcopy(current_catalog)
     previous_catalog["metadata"]["version"] = PREVIOUS_VERSION
     for package, entry in zip(PACKAGES, previous_catalog["plugins"], strict=True):
         entry["version"] = PREVIOUS_VERSION
         entry["source"] = f"previous-{package.path}"
+    previous_catalog["plugins"].append(
+        {
+            "name": LEGACY_ADD_ON.name,
+            "description": "Legacy Nav specialist skills retained only by migration smoke.",
+            "version": PREVIOUS_VERSION,
+            "source": f"previous-{LEGACY_ADD_ON.path}",
+        }
+    )
     return previous_plugins, previous_catalog, current_catalog
 
 
@@ -280,7 +362,7 @@ def validate_catalog_sources(
     first_source = sources[PLUGIN_NAME]
     source_sha = first_source.get("sha") if isinstance(first_source, dict) else None
     if not isinstance(source_sha, str) or not FULL_SHA.fullmatch(source_sha):
-        raise RuntimeError("release marketplace sources need one exact commit SHA")
+        raise RuntimeError("release marketplace source needs one exact commit SHA")
     for package in PACKAGES:
         expected_source = {
             "source": "github",
@@ -290,7 +372,7 @@ def validate_catalog_sources(
         }
         if sources[package.name] != expected_source:
             raise RuntimeError(
-                "release marketplace packages have drifted from their pinned shapes"
+                "release marketplace has drifted from its pinned source shape"
             )
     if expected_release_sha is not None and source_sha != expected_release_sha:
         raise RuntimeError(
@@ -311,21 +393,7 @@ def validate_catalog_source(
 ) -> str | None:
     """Compatibility helper for unit tests of a single canonical source."""
 
-    sources = {
-        package.name: (
-            source
-            if package.name == PLUGIN_NAME
-            else (
-                package.path
-                if source == "plugin"
-                else {
-                    **source,
-                    "path": package.path,
-                }
-            )
-        )
-        for package in PACKAGES
-    }
+    sources = {PLUGIN_NAME: source}
     return validate_catalog_sources(
         sources,
         expected_release_sha=expected_release_sha,
@@ -495,6 +563,7 @@ def remote_install_smoke(
     cwd: Path,
     copilot_home: Path,
     marketplace_ref: str,
+    expected_tag: str,
     source_root: Path,
 ) -> tuple[int, int]:
     """Install from a real remote catalog ref, verify bytes, then uninstall."""
@@ -503,9 +572,11 @@ def remote_install_smoke(
         raise RuntimeError(
             f"remote marketplace ref must start with {PLUGIN_REPOSITORY}#"
         )
-    immutable_ref = marketplace_ref.removeprefix(f"{PLUGIN_REPOSITORY}#")
-    if FULL_SHA.fullmatch(immutable_ref) is None:
-        raise RuntimeError("pre-promotion remote smoke requires a full catalog SHA")
+    actual_ref = marketplace_ref.removeprefix(f"{PLUGIN_REPOSITORY}#")
+    if actual_ref != expected_tag:
+        raise RuntimeError(
+            f"remote marketplace ref must use reviewed release tag {expected_tag}"
+        )
 
     run(
         [copilot, "plugin", "marketplace", "add", marketplace_ref],
@@ -550,7 +621,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--source-root",
         type=Path,
-        help="source checkout containing every package payload",
+        help="source checkout containing the plugin payload",
     )
     parser.add_argument(
         "--source-sha",
@@ -559,7 +630,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--remote-marketplace-ref",
         help=(
-            "install from navikt/grillmester#<catalog-SHA> in an isolated home "
+            "install from navikt/grillmester#v<version> in an isolated home "
             "instead of staging a local marketplace"
         ),
     )
@@ -595,6 +666,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     if args.remote_marketplace_ref is not None and release_sha is None:
         raise RuntimeError("remote marketplace smoke requires a release catalog")
+    expected_release_tag = reviewed_release_tag(catalog_path)
 
     with tempfile.TemporaryDirectory(prefix="grillmester-plugin-smoke-") as temp:
         temp_root = Path(temp)
@@ -634,6 +706,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 cwd=command_cwd,
                 copilot_home=copilot_home,
                 marketplace_ref=args.remote_marketplace_ref,
+                expected_tag=expected_release_tag,
                 source_root=source_root,
             )
             print(
@@ -648,7 +721,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             previous_plugins,
             previous_catalog,
             current_catalog,
-        ) = prepare_upgrade_marketplace(root, source_root, staged_marketplace)
+        ) = prepare_upgrade_marketplace(catalog_path, source_root, staged_marketplace)
         write_json_object(
             staged_marketplace / ".github/plugin/marketplace.json",
             previous_catalog,
@@ -658,7 +731,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        for package in PACKAGES:
+        for package in PREVIOUS_PACKAGES:
             run(
                 [copilot, "plugin", "install", package.qualified_name],
                 env,
@@ -675,6 +748,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if enabled_setting(copilot_home, package.qualified_name) is not True:
                 raise RuntimeError(f"installation did not enable {package.name}")
+
+        # POC package consolidation requires explicit removal of the old
+        # skills-only add-on before the marketplace roster loses that entry.
+        legacy_installed = (
+            copilot_home
+            / "installed-plugins"
+            / MARKETPLACE_NAME
+            / LEGACY_ADD_ON.name
+        )
+        run(
+            [copilot, "plugin", "uninstall", LEGACY_ADD_ON.qualified_name],
+            env,
+            command_cwd,
+        )
+        verify_uninstalled(copilot_home, legacy_installed, LEGACY_ADD_ON)
 
         activate_marketplace_catalog(
             current_catalog,
@@ -699,6 +787,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             agent_count += package_agents
             skill_count += package_skills
+        verify_uninstalled(copilot_home, legacy_installed, LEGACY_ADD_ON)
 
         # `plugin update` only documents forward updates. Exercise rollback with
         # the documented uninstall/install path after repinning the marketplace.
@@ -719,7 +808,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 command_cwd,
             )
             verify_uninstalled(copilot_home, installed, package)
-        for package in PACKAGES:
+        for package in (LEGACY_CORE,):
             run(
                 [copilot, "plugin", "install", package.qualified_name],
                 env,
@@ -786,11 +875,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise RuntimeError(
                     f"plugin list still reports {package.name} after uninstall"
                 )
+        if LEGACY_ADD_ON.qualified_name in final_listing:
+            raise RuntimeError("plugin list still reports the legacy add-on")
+        verify_uninstalled(copilot_home, legacy_installed, LEGACY_ADD_ON)
 
         source_label = f"release {release_sha}" if release_sha else "development source"
         print(
             f"Verified {source_label}: {agent_count} agents, {skill_count} skills, "
-            "byte-exact forward upgrade, explicit rollback, repeatable update, "
+            "legacy add-on removal, byte-exact forward upgrade, explicit rollback, repeatable update, "
             f"and uninstall using {version}"
         )
     return 0

@@ -1,6 +1,6 @@
 ---
 name: grillmester-architecture-review
-description: Review consequential architecture proposals using repository evidence, system boundaries, quality attributes, operational constraints, alternatives, migration, and reversibility. Use for platform-independent review; route NAV or NAIS consequences to the bundled NAV specialization.
+description: Review consequential architecture proposals using repository evidence, system boundaries, quality attributes, operational constraints, alternatives, migration, and reversibility. Use for platform-independent review; route Nav or NAIS consequences to the bundled Nav specialization.
 license: MIT
 ---
 
@@ -14,10 +14,9 @@ explicitly chooses that route.
 Use this skill when the important reasoning is portable across organizations,
 platforms, and technology stacks. If organization- or platform-specific facts
 could change the recommendation, identify and verify those facts explicitly.
-When the decision depends on NAV or NAIS, route the specialized pass to the
+When the decision depends on Nav or NAIS, route the specialized pass to the
 bundled `/grillmester-nav-architecture-review`. Backend, platform and
-integration follow-ups may recommend optional skills from the NAV add-on,
-but the architecture specialization itself is part of the standard package.
+integration follow-ups may route to the relevant bundled implementation skill.
 
 Use `/grillmester-security-review` for a concrete code, configuration, privacy,
 or threat review. An architecture review may identify the need for that deeper
