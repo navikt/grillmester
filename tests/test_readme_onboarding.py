@@ -1,84 +1,53 @@
 from __future__ import annotations
 
-import re
 import unittest
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
-MARKDOWN_LINK = re.compile(
-    r"\[([^]]+)]\((https://github\.com/copilot/app/launch\?[^)]+)\)"
-)
+INSTALLATION = ROOT / "docs/installation.md"
 
 
 class ReadmeOnboardingContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.text = README.read_text(encoding="utf-8")
+        cls.installation = INSTALLATION.read_text(encoding="utf-8")
 
-    def app_source(self, label: str) -> tuple[str, str]:
-        links = dict(MARKDOWN_LINK.findall(self.text))
-        launcher = urlparse(links[label])
-        self.assertEqual("https", launcher.scheme)
-        self.assertEqual("github.com", launcher.netloc)
-        self.assertEqual("/copilot/app/launch", launcher.path)
+    def test_readme_is_a_short_four_agent_onboarding(self) -> None:
+        self.assertLessEqual(len(self.text.splitlines()), 120)
+        self.assertLessEqual(len(self.text.split()), 600)
+        for agent in ("Grillmester", "Barista", "Designer", "Doctor Who"):
+            with self.subTest(agent=agent):
+                self.assertIn(f"**{agent}**", self.text)
 
-        app_url = parse_qs(launcher.query)["open"][0]
-        app = urlparse(app_url)
-        self.assertEqual("ghapp", app.scheme)
-        self.assertEqual("plugins", app.netloc)
-        return app.path, parse_qs(app.query)["source"][0]
+        self.assertNotIn("Status: POC", self.text)
+        self.assertNotIn("Copilot app — to bekreftelser", self.text)
+        self.assertNotIn("strukturert designunderlag", self.text)
 
-    def test_app_links_use_only_the_documented_unpinned_source_shapes(self) -> None:
-        self.assertEqual(
-            ("/marketplace/add", "navikt/grillmester"),
-            self.app_source("Legg til Grillmester-markedsplassen"),
-        )
-        self.assertEqual(
-            ("/install", "grillmester@grillmester"),
-            self.app_source("Installer Grillmester"),
-        )
-
-    def test_cli_flow_uses_the_poc_channel_and_explains_release_pinning(self) -> None:
-        self.assertIn(
-            "copilot plugin marketplace add "
-            "navikt/grillmester#marketplace",
-            self.text,
-        )
-        self.assertIn("`marketplace` er en flytende POC-kanal", self.text)
-        self.assertIn("eksakte `v<versjon>`-taggen", self.text)
-        self.assertIn(
-            "copilot plugin install grillmester@grillmester",
-            self.text,
-        )
-        self.assertIn("copilot plugin list", self.text)
-        self.assertIn(
-            "copilot plugin marketplace add "
-            "navikt/grillmester#NEW_REVIEWED_RELEASE_TAG",
-            self.text,
-        )
-        self.assertIn(
-            "copilot plugin uninstall grillmester@grillmester",
-            self.text,
-        )
-        self.assertIn("copilot plugin marketplace remove grillmester", self.text)
-
-    def test_user_repo_and_managed_scopes_remain_distinct(self) -> None:
+    def test_cli_install_and_auto_update_are_copyable(self) -> None:
         for marker in (
+            "copilot plugin marketplace add navikt/grillmester#marketplace",
+            "copilot plugin install grillmester@grillmester",
             "~/.copilot/settings.json",
-            ".github/copilot/settings.json",
-            "extraKnownMarketplaces",
-            "enabledPlugins",
-            "strictKnownMarketplaces",
+            '"ref": "marketplace"',
+            '"autoUpdate": true',
+            '"grillmester@grillmester": true',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, self.text)
 
-        self.assertIn("autoUpdate: true", self.text)
-        self.assertIn("kan ikke slå på CLIs auto-update", self.text)
-        self.assertIn("scripts/configure_autoupdate.py", self.text)
+    def test_advanced_installation_details_remain_in_the_guide(self) -> None:
+        for marker in (
+            "Copilot app",
+            ".github/copilot/settings.json",
+            "strictKnownMarketplaces",
+            "scripts/configure_autoupdate.py",
+            "NEW_REVIEWED_RELEASE_TAG",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.installation)
 
 
 if __name__ == "__main__":
