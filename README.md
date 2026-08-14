@@ -21,6 +21,9 @@ Velg agent ut fra hva du skal gjøre:
 Kokk, Grill-inspektør og Researcher er interne roller som agentene bruker ved
 behov. [Se alle agenter og skills](docs/agents-and-skills.md).
 
+Designer har mest nytte av Aksel MCP og Figma MCP. Playwright MCP er valgfritt
+for nettleserinspeksjon. Se [anbefalt MCP-oppsett](docs/mcp-setup.md).
+
 ## Installer
 
 Kjør dette én gang:
@@ -98,6 +101,7 @@ issue; bruk [private vulnerability reporting](SECURITY.md) for sårbarheter.
 
 - [Installere, oppdatere og aktivere](docs/installation.md)
 - [Agenter og skills](docs/agents-and-skills.md)
+- [Anbefalt MCP-oppsett](docs/mcp-setup.md)
 - [Repo-eid kontekst, instructions og templates](docs/repository-context.md)
 - [Utvikling og bidrag](docs/development.md)
 
