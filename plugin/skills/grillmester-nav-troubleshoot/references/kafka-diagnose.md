@@ -1,7 +1,7 @@
 # Kafka diagnosis
 
 Detect the actual client and processing model first. Plain Kafka clients,
-Streams, framework wrappers and Rapids & Rivers have different failure modes.
+Streams and framework wrappers have different failure modes.
 Discover topic, consumer group, partitions, offset policy, retry/dead-letter
 behavior and metric names from consumer evidence.
 
@@ -52,15 +52,6 @@ recovery. Do not recommend scaling past useful partition parallelism.
 | TLS/connectivity error | injected config names, mounts, policy and broker status |
 | downstream side effects missing | transaction/idempotency boundary and parked records |
 | lag began after deploy | group ID, offset policy, subscription and code change |
-
-## Rapids & Rivers, only when verified
-
-Resolve the exact dependency version and inspect local exemplars before using
-framework-specific advice. Check preconditions, validations, event matching,
-callback signatures, and the repository's failure semantics. A filter can
-intentionally drop a packet without reaching the handler. Add temporary
-diagnostics only after approval, with field allowlisting and no payload or
-personal data.
 
 ## Mutations
 

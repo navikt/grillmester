@@ -1,7 +1,6 @@
 ---
 name: grillmester-lumi-survey
 description: Integrate or review @navikt/lumi-survey in a Nav frontend and its backend-for-frontend. Use for survey selection and configuration, package setup, widget rendering, submission transport, TokenX or Azure/Entra token exchange, Nais accessPolicy, privacy-safe context, and end-to-end verification of Lumi feedback.
-license: MIT
 ---
 
 # Integrate Lumi Survey from current evidence

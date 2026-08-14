@@ -1,7 +1,6 @@
 ---
 name: grillmester-api-design
 description: Design or change a backend API contract in Nav. Use for new endpoints, versioning, breaking changes, deprecation, consumer discovery, accessPolicy implications, compatibility gates, or API catalogue publication.
-license: MIT
 ---
 
 # Design an API contract

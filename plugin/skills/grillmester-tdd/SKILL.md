@@ -1,7 +1,6 @@
 ---
 name: grillmester-tdd
 description: "Runs vertical red-green-refactor cycles through a repository's discovered public interfaces and test tooling. Use when test-first or red-green-refactor is explicitly requested, or when a bug fix needs a reproduction test before implementation; use grillmester-integration-tests or grillmester-e2e-tests for ordinary test creation without a TDD request."
-license: MIT
 ---
 
 # Test-driven development

@@ -1,7 +1,6 @@
 ---
 name: grillmester-kafka-topic
-description: Design, implement, or review Kafka in a Nav backend. Use for a new or changed topic, Kafkarator resource, event contract, producer, consumer, key strategy, idempotency, consumer group, event evolution, poison-message handling, DLQ, plain Apache Kafka, or Rapids and Rivers.
-license: MIT
+description: Design, implement, or review Kafka in a Nav backend. Use for a new or changed topic, Kafkarator resource, event contract, producer, consumer, key strategy, idempotency, consumer group, event evolution, poison-message handling, DLQ, plain Apache Kafka, or Spring Kafka.
 ---
 
 # Design a Kafka topic and flow
@@ -25,26 +24,23 @@ before creating either.
 | Evidence | Stack |
 |---|---|
 | direct `KafkaConsumer` or `KafkaProducer`, `org.apache.kafka:kafka-clients` | Plain Apache Kafka |
-| a Rapids and Rivers dependency or import, `RapidApplication`, `River.PacketListener` | Rapids and Rivers |
 | `@KafkaListener`, `KafkaTemplate`, Spring Kafka dependency | Spring Kafka |
 
 Follow the dominant pattern already used by the service. Do not migrate or mix
-plain Kafka, Rapids, and Spring Kafka without an explicit design decision. In a
-Ktor process, prefer the repository's existing plain-Kafka or Rapids lifecycle;
-do not introduce Spring idioms merely because a generic Nav example uses them.
+plain Kafka and Spring Kafka without an explicit design decision. In a Ktor
+process, prefer the repository's existing plain-Kafka lifecycle; do not
+introduce Spring idioms merely because a generic example uses them.
 
 If the repository has no Kafka stack, compare the operational and contract
-needs with the user. Plain Kafka is a small direct dependency. Introduce
-Rapids only when the service joins an established rapid ecosystem and the
-team explicitly chooses it, never merely because it is a common Nav pattern.
+needs with the user. Plain Kafka is a small direct dependency.
 
 ## Decide whether Kafka fits
 
 Use synchronous HTTP when the caller needs an immediate success or failure and
 an asynchronous event when producers should not wait for downstream work.
 Periodic bounded work belongs in a Naisjob; a continuous consumer belongs in a
-long-running application. Reuse an established rapid for choreography rather
-than adding a parallel event mechanism without agreement.
+long-running application. Reuse an established event mechanism rather than
+adding a parallel one without agreement.
 
 ## Specify the event contract
 
@@ -63,12 +59,9 @@ Use past-tense fact names rather than commands. A stable entity key preserves
 ordering only within that entity's partition. A random key improves spread but
 removes entity ordering.
 
-Do not impose Rapids metadata on plain Kafka. Existing Rapids contracts may
-use `@id` and `@event_name`, but those names and semantics are owned by the
-repository's actual contract and framework version. A plain contract may
-instead carry event identity in a Kafka header or a documented payload field.
-Preserve the published contract and deduplicate on that event identity, never
-on offset.
+The published contract owns its event identity and naming. It may carry event
+identity in a Kafka header or a documented payload field. Preserve that
+contract and deduplicate on the event identity, never on offset.
 
 ## Provision the topic declaratively
 
@@ -105,17 +98,20 @@ Partition count, retention, and cleanup policy are durable operational choices;
 justify them from traffic, replay needs, and consumer parallelism. Keep ACLs
 explicit per application.
 
-## Wire a consumer into Ktor safely
+## Wire the detected consumer lifecycle safely
 
-A blocking `poll` loop runs alongside the HTTP server, never inside a route.
-Use the service's existing DI, coroutine, thread, or lifecycle mechanism. Close
-the consumer through the same owned-resource cleanup path and allow the pod's
-termination grace period to drain work.
+For a plain Kafka client in Ktor, a blocking `poll` loop runs alongside the HTTP
+server, never inside a route. Use the service's existing DI, coroutine, thread,
+or lifecycle mechanism. Close the consumer through the same owned-resource
+cleanup path and allow the pod's termination grace period to drain work. For
+Spring Kafka, preserve the repository's managed listener-container lifecycle;
+do not add a second poll loop.
 
-Measure loop progress without calling the broker from a health probe. Follow the
-repository's existing liveness/readiness policy; an application-maintained poll
-heartbeat is safer than turning a transient broker issue into probe traffic or
-load-balancer churn.
+For a plain client, measure loop progress without calling the broker from a
+health probe; an application-maintained poll heartbeat is safer than turning a
+transient broker issue into probe traffic or load-balancer churn. For Spring,
+preserve the repository's existing listener-container metrics and health
+behavior. Follow the service's established liveness/readiness policy.
 
 ## Handle delivery and permanent failures
 
@@ -129,8 +125,7 @@ Reuse the existing poison-message strategy:
 
 - some services park the original record and reason in Postgres and replay it
   through an explicit operator flow;
-- services without suitable persistence may publish to an owned DLQ topic;
-- Rapids services may have an established validation or parking pattern.
+- services without suitable persistence may publish to an owned DLQ topic.
 
 Do not replace one strategy with another silently. Preserve enough metadata to
 replay safely, alert on the rate, restrict access to sensitive payloads, and
@@ -155,8 +150,6 @@ process after user agreement.
 - Plain Apache Kafka in Ktor, including SSL configuration, commit strategy,
   producer settings, and tests:
   [references/plain-kafka.md](references/plain-kafka.md).
-- Rapids and Rivers version and compatibility gate:
-  [references/rapids-and-rivers.md](references/rapids-and-rivers.md).
 
 ## Deliver evidence
 

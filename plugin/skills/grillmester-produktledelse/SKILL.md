@@ -1,7 +1,6 @@
 ---
 name: grillmester-produktledelse
 description: "Supports public-sector product discovery, opportunity trees, assumption testing, user interviews, product-risk reflection and product-lead competency development. Use for open problem spaces, initiative risk, discovery planning or self-evaluation."
-license: MIT
 ---
 
 # Produktledelse

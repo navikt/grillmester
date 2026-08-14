@@ -1,7 +1,6 @@
 ---
 name: grillmester-kotlin-ktor
 description: Implement or review Kotlin and Ktor backend work in Nav. Use for routes, plugins, startup, modules, dependency injection, configuration, structured logging and MDC, outgoing HttpClient, graceful shutdown, or Ktor integration with authentication, Kafka, and Postgres.
-license: MIT
 ---
 
 # Work in a Kotlin and Ktor backend

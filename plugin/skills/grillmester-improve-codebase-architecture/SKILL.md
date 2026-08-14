@@ -1,7 +1,6 @@
 ---
 name: grillmester-improve-codebase-architecture
 description: "Finds deepening opportunities that improve module depth, locality, leverage, test seams, and navigability. Use when the user asks to improve architecture, consolidate tightly coupled or shallow modules, find refactoring candidates, or explain why code is difficult to test or navigate."
-license: MIT
 ---
 
 # improve-codebase-architecture
@@ -55,14 +54,10 @@ Apply the deletion test to anything you suspect is shallow.
 
 ### 2. Present the candidates as an HTML report
 
-Write an offline, self-contained, script-free HTML file outside the repository.
-Create a fresh private temp directory with a secure temporary-file
-API or `mktemp -d`; do not construct a predictable name in a shared temp
-directory. Require the directory to be owned by the current user with mode
-`0700`, then create the report with exclusive-create/no-follow semantics and
-mode `0600`. Fail closed if those guarantees cannot be established. Treat every
-value derived from the repository as untrusted data and follow the escaping,
-static-markup, and Content Security Policy contract in
+Write an offline, self-contained, script-free HTML file in a fresh private OS
+temporary directory. Treat every value derived from the repository as
+untrusted data and follow the safe-write, escaping, static-markup, and Content
+Security Policy contract in
 [HTML-REPORT.md](HTML-REPORT.md). Do not run `open` or `xdg-open`. State the
 absolute path and offer to open the report only if the user explicitly asks
 after it has been written.

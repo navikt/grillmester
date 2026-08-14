@@ -20,11 +20,6 @@
       "repository": "mattpocock/skills",
       "revision": "8b78b531ab965735c5dc74f6f7a219e1e37326df",
       "note": "Reviewed only the diagnosing-bugs redaction and writing-for-agents source-of-truth deltas; this is not a wholesale upstream sync."
-    },
-    "rapids-and-rivers": {
-      "repository": "navikt/rapids-and-rivers",
-      "revision": "3b4bac878a15738552f2c8374d2dcf32929fdca2",
-      "note": "Reviewed version drift to justify the Kafka compatibility gate; no concrete framework API example is imported, and consumers remain the source of truth."
     }
   },
   "agents": {
@@ -134,17 +129,7 @@
     "grillmester-improve-codebase-architecture": {"source": "pilot", "sourcePath": ".github/skills/improve-codebase-architecture", "disposition": "adapted"},
     "grillmester-integration-tests": {"source": "pilot", "sourcePath": ".github/skills/integration-tests", "disposition": "adapted"},
     "grillmester-issue-management": {"source": "pilot", "sourcePath": ".github/skills/issue-management", "disposition": "adapted"},
-    "grillmester-kafka-topic": {
-      "source": "pilot",
-      "sourcePath": ".github/skills/kafka-topic",
-      "lineage": [
-        {"source": "rapids-and-rivers", "sourcePath": "build.gradle.kts"},
-        {"source": "rapids-and-rivers", "sourcePath": "settings.gradle.kts"},
-        {"source": "rapids-and-rivers", "sourcePath": "README.md"},
-        {"source": "rapids-and-rivers", "sourcePath": "rapids-and-rivers-impl/README.md"}
-      ],
-      "disposition": "adapted"
-    },
+    "grillmester-kafka-topic": {"source": "pilot", "sourcePath": ".github/skills/kafka-topic", "disposition": "adapted"},
     "grillmester-klarsprak": {"source": "pilot", "sourcePath": ".github/skills/klarsprak", "disposition": "adapted"},
     "grillmester-kotlin-ktor": {"source": "pilot", "sourcePath": ".github/skills/kotlin-ktor", "disposition": "adapted"},
     "grillmester-kotlin-spring": {"source": "hovmester", "sourcePath": ".github/skills/kotlin-spring", "disposition": "adapted"},

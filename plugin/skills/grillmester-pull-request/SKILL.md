@@ -1,7 +1,6 @@
 ---
 name: grillmester-pull-request
 description: Create or update a pull request for a verified task-scoped change. Use when the user explicitly asks to open or update a PR after implementation, self-review, and required deterministic gates are complete.
-license: MIT
 ---
 
 # Prepare and publish a reviewable pull request

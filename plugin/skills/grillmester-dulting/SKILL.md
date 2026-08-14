@@ -1,7 +1,6 @@
 ---
 name: grillmester-dulting
 description: "Utforsker, utformer og evaluerer etisk forsvarlige atferdsintervensjoner i offentlige tjenester. Bruk ved dulting, nudging, atferdsdesign, påminnelser, defaults, friksjon eller sludge, handlingsutløsende tekst og forsøk som skal påvirke brukeradferd."
-license: MIT
 ---
 
 # Utform ansvarlig dulting

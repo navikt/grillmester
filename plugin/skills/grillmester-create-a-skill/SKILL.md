@@ -1,7 +1,6 @@
 ---
 name: grillmester-create-a-skill
 description: Create, revise, review, or diagnose a GitHub Copilot CLI skill with a predictable authoring and forward-testing workflow. Use when a user asks to create or improve a skill, investigate why one does not trigger, or validate skill behavior.
-license: MIT
 ---
 
 # Create a Skill
@@ -63,9 +62,6 @@ narrowed by the target repository's policy:
 - `name` — required; match the directory and slash name.
 - `description` — required; provide model discovery signals for a
   model-reachable skill and a concise picker summary for a manual-only skill.
-- `license` — provenance metadata accepted by Grillmester's validator and
-  verified client-loading flow. Grillmester requires `MIT`; another target
-  repository follows its own verified client and license policy.
 - `disable-model-invocation: true` — make the skill manual-only;
   `user-invocable` defaults to `true`.
 - `user-invocable: false` — hide a model-reachable skill from the picker.

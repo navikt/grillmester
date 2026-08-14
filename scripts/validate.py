@@ -64,7 +64,6 @@ AGENT_FRONTMATTER_KEYS = {
 SKILL_FRONTMATTER_KEYS = {
     "name",
     "description",
-    "license",
     "user-invocable",
     "disable-model-invocation",
 }
@@ -663,8 +662,6 @@ def validate_skills(
             )
         if not frontmatter.get("description"):
             errors.append(f"{path}: description is required")
-        if frontmatter.get("license") != "MIT":
-            errors.append(f"{path}: license must be 'MIT'")
         if not body:
             errors.append(f"{path}: skill body is empty")
         if skill_id == "grillmester-doctor":

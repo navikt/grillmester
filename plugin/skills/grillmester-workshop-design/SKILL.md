@@ -1,7 +1,6 @@
 ---
 name: grillmester-workshop-design
 description: "Designs outcome-driven workshops, meetings, retrospectives, foundation sprints and team-health follow-up with facilitation plans and tool-neutral board structures. Use when a group needs exploration, alignment, a decision or concrete follow-up."
-license: MIT
 ---
 
 # Workshopdesign

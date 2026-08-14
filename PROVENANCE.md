@@ -169,13 +169,6 @@ redaction before sharing diagnostic artifacts from
 as-cache principle from `skills/productivity/writing-for-agents`. No other
 upstream behavior from that revision is imported by this change.
 
-Rapids and Rivers was checked against
-`navikt/rapids-and-rivers` at
-`3b4bac878a15738552f2c8374d2dcf32929fdca2`. The review confirmed that
-coordinates and API shapes vary by version, so the local Kafka reference uses
-a compatibility gate instead of framework snippets. No concrete Rapids API
-example is imported; the consumer repository remains authoritative.
-
 The UI prototype guidance was also compared with current `mattpocock/skills` at
 `84fdeffd12f2ee307994d1eb6feb48173b6e0502`. Its relevant
 `skills/engineering/prototype/UI.md` is byte-identical to the already reviewed

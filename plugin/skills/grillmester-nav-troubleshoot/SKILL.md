@@ -1,7 +1,6 @@
 ---
 name: grillmester-nav-troubleshoot
 description: "Diagnoses failures in deployed Nais workloads using runtime evidence from Kubernetes, deployment status, metrics, logs and traces. Use for pod startup failures, deploy failures, 401/403 responses, message-consumer lag, database connectivity, latency, restarts or conflicting production signals."
-license: MIT
 ---
 
 # Nav Troubleshoot

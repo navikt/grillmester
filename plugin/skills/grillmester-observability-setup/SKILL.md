@@ -1,7 +1,6 @@
 ---
 name: grillmester-observability-setup
 description: "Designs or improves metrics, structured logging, tracing, health checks, dashboards and alerts for deployed services. Use for instrumentation, correlation, PromQL/LogQL, operational dashboards, SLO signals or Nais observability setup."
-license: MIT
 ---
 
 # Observability setup

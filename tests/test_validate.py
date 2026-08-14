@@ -316,14 +316,6 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("cloud activation evidence boundary")
 
-    def test_skill_license_is_required(self) -> None:
-        path = self.root / "plugin/skills/grillmester-tdd/SKILL.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace("license: MIT\n", "", 1),
-            encoding="utf-8",
-        )
-        self.assert_error("license must be 'MIT'")
-
     def test_diagnosing_skill_redacts_shared_and_hitl_evidence(self) -> None:
         skill = (
             self.root / "plugin/skills/grillmester-diagnosing-bugs/SKILL.md"
@@ -342,7 +334,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assertIn("Never enter raw logs, HAR content", hitl)
         self.assertNotIn("Paste the error message", hitl)
 
-    def test_skill_authoring_documents_license_and_live_authority(self) -> None:
+    def test_skill_authoring_documents_live_authority(self) -> None:
         skill = (
             self.root / "plugin/skills/grillmester-create-a-skill/SKILL.md"
         ).read_text(encoding="utf-8")
@@ -351,8 +343,6 @@ class PackageValidationTest(unittest.TestCase):
             / "plugin/skills/grillmester-create-a-skill/references/principles.md"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("`license` — provenance metadata accepted", skill)
-        self.assertIn("Grillmester requires `MIT`", skill)
         self.assertIn(
             "environment, manifests and tool output as\nsource of truth", principles
         )

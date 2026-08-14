@@ -1,7 +1,6 @@
 ---
 name: grillmester-security-review
 description: Review a design or change for security and privacy risks involving sensitive data, authentication, authorization, secrets, logging, trust boundaries, external integrations, infrastructure permissions, or incident exposure. Use before delivery of security-relevant work or when the user requests a security review.
-license: MIT
 ---
 
 # Review security and privacy

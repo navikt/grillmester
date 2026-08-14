@@ -1,7 +1,6 @@
 ---
 name: grillmester-issue-management
 description: Creates, updates, links, inspects or closes GitHub issues after the work has been shaped. Use for explicit tracker requests and native issue mechanics; do not use it to design, implement or decompose a plan.
-license: MIT
 ---
 
 # Issue Management

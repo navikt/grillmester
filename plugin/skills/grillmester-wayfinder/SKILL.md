@@ -1,7 +1,6 @@
 ---
 name: grillmester-wayfinder
 description: Use only after the user explicitly selects Wayfinder to plan work too large for one agent session as a shared map of decision tickets, resolved one at a time until the route is clear.
-license: MIT
 ---
 
 # Wayfinder

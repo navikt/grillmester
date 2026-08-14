@@ -1,7 +1,6 @@
 ---
 name: grillmester-to-spec
 description: Use only after the user explicitly selects To Spec to turn an already resolved conversation or design into a concise engineering specification; do not interview or reopen decisions.
-license: MIT
 ---
 
 # To Spec

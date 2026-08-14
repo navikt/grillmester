@@ -1,7 +1,6 @@
 ---
 name: grillmester-team-status
 description: "Builds evidence-based team status, goal progress and prioritisation summaries from explicitly confirmed sources. Use for weekly status, planning-period reviews, cross-repository work overviews or prioritisation; GitHub Projects is supported but never assumed."
-license: MIT
 ---
 
 # Teamstatus

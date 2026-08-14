@@ -1,7 +1,6 @@
 ---
 name: grillmester-triage
 description: "Assesses incoming issues and pull requests, verifies claims, identifies missing context and produces work-ready briefs. Use for inbox review, bug-report assessment, prioritisation, readiness decisions or a specific issue/PR that needs triage."
-license: MIT
 ---
 
 # Triage

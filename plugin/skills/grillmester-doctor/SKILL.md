@@ -1,7 +1,6 @@
 ---
 name: grillmester-doctor
 description: "Audits whether the current repository is ready for effective Grillmester use across Copilot CLI, the Copilot app, cloud agent, and Copilot code review. Use only when the user explicitly asks to check, diagnose, or understand the repository's Grillmester setup; the audit is read-only."
-license: MIT
 disable-model-invocation: true
 ---
 

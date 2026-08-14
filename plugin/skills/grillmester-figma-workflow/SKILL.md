@@ -1,7 +1,6 @@
 ---
 name: grillmester-figma-workflow
 description: "Design-til-kode-arbeidsflyt — Figma-lenker, Code Connect og mapping fra design til Aksel-komponenter, tokens og responsiv layout. Brukes via /grillmester-figma-workflow når oppgaven har Figma-lenke eller design-to-code."
-license: MIT
 ---
 
 # Figma → Aksel-kode

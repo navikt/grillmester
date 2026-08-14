@@ -1,7 +1,6 @@
 ---
 name: grillmester-accessibility-review
 description: "UU/WCAG-review for Nav-frontend — tastaturflyt, skjermleser, axe, kontrast, fokus, feilmeldinger, skjema og Aksel-bruk. Brukes via /grillmester-accessibility-review før PR eller release."
-license: MIT
 ---
 # Tilgjengelighet-review
 

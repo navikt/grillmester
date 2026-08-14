@@ -1,7 +1,6 @@
 ---
 name: grillmester-nav-architecture-review
 description: Review architecture choices that specifically depend on Nav or NAIS platform, integration, identity, deployment, security, privacy, operability, or team-governance constraints. Use for Nav services, cross-team contracts, NAIS resources and migrations, Nav authentication or accessPolicy changes, and Nav data flows; use grillmester-architecture-review for platform-independent review.
-license: MIT
 ---
 
 # Review Nav architecture

@@ -1,7 +1,6 @@
 ---
 name: grillmester-handoff
 description: Create a compact temporary handoff so a fresh GitHub Copilot session can continue the current work.
-license: MIT
 disable-model-invocation: true
 ---
 

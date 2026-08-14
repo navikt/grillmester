@@ -1,7 +1,6 @@
 ---
 name: grillmester-kotlin-spring
 description: Implement or review Kotlin and Spring backend work in Nav. Use for Spring Boot controllers, services, configuration, dependency injection, authentication and authorization, Actuator probes, Nais runtime integration, structured logging, Testcontainers, MockOAuth2Server, or Spring-specific tests.
-license: MIT
 ---
 
 # Work with Kotlin and Spring in Nav

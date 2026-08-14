@@ -1,7 +1,6 @@
 ---
 name: grillmester-readme-update
 description: "Creates or updates repository README documentation from verified implementation and operational evidence. Use when a README is missing, stale or needs accurate coverage of purpose, setup, interfaces, data flows, deployment, observability or ownership."
-license: MIT
 ---
 
 # README update

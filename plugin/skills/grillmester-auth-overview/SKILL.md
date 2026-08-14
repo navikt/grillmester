@@ -1,7 +1,6 @@
 ---
 name: grillmester-auth-overview
 description: Set up, change, or troubleshoot authentication and authorization in a Nav backend. Use for incoming JWT validation, TokenX OBO, Azure or Entra ID M2M, Texas, Maskinporten, Wonderwall, accessPolicy, protected endpoints, 401 or 403 errors, and issuer or audience mismatches.
-license: MIT
 ---
 
 # Establish an authentication design

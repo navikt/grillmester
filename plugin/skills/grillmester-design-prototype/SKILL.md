@@ -1,7 +1,6 @@
 ---
 name: grillmester-design-prototype
 description: "Utforsk designkonsepter visuelt med Aksel-tema i nettleser, og lever Figma-klart eller som Figma-skisse når write finnes. Brukes via /grillmester-design-prototype når et konsept skal visualiseres."
-license: MIT
 ---
 
 # Prototype — fra konsept til synlig skisse

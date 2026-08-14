@@ -1,7 +1,6 @@
 ---
 name: grillmester-review
 description: Self-review the complete task-scoped diff before independent review or delivery. Use after implementation, before a pull request, or when asked to inspect uncommitted work, a branch against a fixed point, or changes since a named revision.
-license: MIT
 ---
 
 # Review the complete task diff

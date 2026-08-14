@@ -1,7 +1,6 @@
 ---
 name: grillmester-architecture-review
 description: Review consequential architecture proposals using repository evidence, system boundaries, quality attributes, operational constraints, alternatives, migration, and reversibility. Use for platform-independent review; route Nav or NAIS consequences to the bundled Nav specialization.
-license: MIT
 ---
 
 # Review architecture

@@ -73,16 +73,18 @@ class ArchitectureHtmlReportTest(unittest.TestCase):
         self.assertIn("Never insert dynamic content into tag names, attributes", guide)
         self.assertIn("Generate candidate IDs from their ordinal position", guide)
         self.assertIn("Do not include source snippets", guide)
+        self.assertIn("secure OS temp API (`mktemp -d` on POSIX)", guide)
+        self.assertIn("mode `0700`", guide)
+        self.assertIn("following symlinks", guide)
+        self.assertIn("mode `0600`", guide)
 
     def test_skill_does_not_auto_open_generated_report(self) -> None:
         skill = SKILL.read_text(encoding="utf-8")
         normalized = " ".join(skill.split())
 
         self.assertIn("offline, self-contained, script-free HTML file", skill)
-        self.assertIn("secure temporary-file API or `mktemp -d`", normalized)
-        self.assertIn("mode `0700`", normalized)
-        self.assertIn("exclusive-create/no-follow", normalized)
-        self.assertIn("mode `0600`", normalized)
+        self.assertIn("fresh private OS temporary directory", normalized)
+        self.assertIn("safe-write", normalized)
         self.assertNotIn("architecture-candidates-<timestamp>", skill)
         self.assertRegex(skill, r"Do not\s+run `open` or `xdg-open`")
         self.assertIn("only if the user explicitly asks", skill)

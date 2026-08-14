@@ -1,7 +1,6 @@
 ---
 name: grillmester-aksel-design
 description: "Aksel-designsystem og Nav-frontendmønstre — komponentvalg, layout, spacing/tokens, skjema og responsiv UI med @navikt/ds-react. Brukes via /grillmester-aksel-design ved nye komponenter, layout-endringer eller styling-valg, og før rå HTML/CSS eller custom styling vurderes."
-license: MIT
 ---
 
 # Aksel Design System

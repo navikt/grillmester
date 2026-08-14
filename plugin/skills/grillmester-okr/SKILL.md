@@ -1,7 +1,6 @@
 ---
 name: grillmester-okr
 description: "Helps formulate and review outcome-oriented goals for public-sector product work. Use for OKRs, objectives and key results, planning cycles, goal reviews, baselines, measurement plans or converting delivery lists into measurable outcomes."
-license: MIT
 ---
 
 # OKR og målarbeid i offentlig sektor
