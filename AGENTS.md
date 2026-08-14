@@ -31,7 +31,6 @@ Run before publishing a change:
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
 python3 scripts/validate.py
-python3 scripts/validate_evals.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/grillmester-design-prototype/scripts/server.js
 node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
