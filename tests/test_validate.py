@@ -41,6 +41,24 @@ class PackageValidationTest(unittest.TestCase):
         path = self.root / relative_path
         path.write_text(json.dumps(value), encoding="utf-8")
 
+    def replace_frontmatter(
+        self, relative_path: str, key: str, value: str, *, quoted: bool = False
+    ) -> None:
+        path = self.root / relative_path
+        text = path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        closing = lines.index("---", 1)
+        for index in range(1, closing):
+            if lines[index].startswith(f"{key}:"):
+                rendered = json.dumps(value) if quoted else value
+                lines[index] = f"{key}: {rendered}"
+                path.write_text(
+                    "\n".join(lines) + ("\n" if text.endswith("\n") else ""),
+                    encoding="utf-8",
+                )
+                return
+        self.fail(f"frontmatter key {key!r} not found in {relative_path}")
+
     def assert_error(self, fragment: str) -> None:
         errors = self.errors()
         self.assertTrue(
@@ -50,6 +68,38 @@ class PackageValidationTest(unittest.TestCase):
 
     def test_actual_package_is_valid(self) -> None:
         self.assertEqual([], VALIDATE.validate_repo(ROOT))
+
+    def test_boolean_agent_description_is_rejected(self) -> None:
+        self.replace_frontmatter(
+            "plugin/agents/designer.agent.md", "description", "true"
+        )
+        self.assert_error("description must be a non-empty string")
+
+    def test_boolean_skill_description_is_rejected(self) -> None:
+        self.replace_frontmatter(
+            "plugin/skills/grillmester-domain-modeling/SKILL.md",
+            "description",
+            "true",
+        )
+        self.assert_error("description must be a non-empty string")
+
+    def test_aggregate_discovery_budget_is_enforced_independently(self) -> None:
+        for skill_id in ("grillmester-grill-me", "grillmester-grill-with-docs"):
+            self.replace_frontmatter(
+                f"plugin/skills/{skill_id}/SKILL.md",
+                "description",
+                "x" * (VALIDATE.MAX_DISCOVERY_TEXT_BYTES // 2 + 1),
+                quoted=True,
+            )
+
+        errors = self.errors()
+        self.assertTrue(
+            any(
+                f"aggregate budget is {VALIDATE.MAX_DISCOVERY_TEXT_BYTES}" in error
+                for error in errors
+            ),
+            errors,
+        )
 
     def test_agent_plugins_schema_is_rejected(self) -> None:
         manifest = self.load_json("plugin/plugin.json")
@@ -454,6 +504,19 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("looks like a national ID")
 
+    def test_plugin_file_symlink_is_rejected_before_reading_target(self) -> None:
+        outside = Path(self.temp.name) / "invalid-agent.md"
+        outside.write_bytes(b"---\nname: barista\n---\n\xff")
+        link = self.root / "plugin/agents/barista.agent.md"
+        link.unlink()
+        link.symlink_to(outside)
+
+        errors = self.errors()
+        self.assertTrue(
+            any("plugin package must not contain symlinks" in error for error in errors),
+            errors,
+        )
+
     def test_copyable_figma_keys_are_not_mistaken_for_national_ids(self) -> None:
         catalog_path = self.root / (
             "plugin/skills/grillmester-design-prototype/references/"
@@ -486,6 +549,14 @@ class PackageValidationTest(unittest.TestCase):
             raw_catalog + f'\n{{"unsafeExample":"{shaped_value}"}}\n',
             encoding="utf-8",
         )
+        self.assert_error("looks like a national ID")
+
+    def test_figma_key_exception_is_limited_to_exact_catalog_paths(self) -> None:
+        path = self.root / "docs/aksel-figma-katalog.md"
+        shaped_value = "12345" + "678901"
+        figma_shaped_value = ("a" * 10) + shaped_value + ("b" * 19)
+        self.assertEqual(40, len(figma_shaped_value))
+        path.write_text(figma_shaped_value, encoding="utf-8")
         self.assert_error("looks like a national ID")
 
     def test_source_revision_must_be_a_full_sha(self) -> None:
@@ -585,10 +656,13 @@ class PackageValidationTest(unittest.TestCase):
         path.write_bytes(path.read_bytes() + b"drift")
         self.assert_error("differs from the reviewed digest")
 
-    def test_plugin_symlink_is_rejected(self) -> None:
-        link = self.root / "plugin/skills/grillmester-review/linked-skill.md"
-        link.symlink_to(self.root / "README.md")
-        self.assert_error("must not contain symlinks")
+    def test_plugin_package_root_symlink_is_rejected(self) -> None:
+        target = self.root / "node_modules/plugin-payload"
+        target.parent.mkdir()
+        (self.root / "plugin").rename(target)
+        (self.root / "plugin").symlink_to(target, target_is_directory=True)
+
+        self.assert_error("plugin package root must not be a symlink")
 
 
 if __name__ == "__main__":

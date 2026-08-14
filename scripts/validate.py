@@ -25,7 +25,11 @@ SLASH_COMPONENT_ID = re.compile(r"/((?:grillmester)-[a-z0-9-]+)\b")
 QUALIFIED_COMPONENT_ID = re.compile(r"`grillmester:([a-z][a-z0-9-]+)`")
 REALISTIC_NATIONAL_ID = re.compile(r"(?<!\d)\d{11}(?!\d)")
 FIGMA_COMPONENT_KEY = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
-FIGMA_KEY_FILES = {"aksel-figma-katalog.md", "aksel-figma-katalog.json"}
+FIGMA_KEY_PATHS = {
+    "plugin/skills/grillmester-design-prototype/references/aksel-figma-katalog.md",
+    "plugin/skills/grillmester-design-prototype/references/aksel-figma-katalog.json",
+}
+MAX_DISCOVERY_TEXT_BYTES = 13 * 1024
 FORBIDDEN_RUNTIME_IDS = re.compile(
     r"\b(?:hovmester|souschef|konditor|inspektor-claude|inspektor-gpt)\b",
     re.IGNORECASE,
@@ -502,8 +506,9 @@ def validate_agents(
             continue
         if frontmatter.get("name") != agent_id:
             errors.append(f"{path}: frontmatter name must equal filename ID {agent_id!r}")
-        if not frontmatter.get("description"):
-            errors.append(f"{path}: description is required")
+        description = frontmatter.get("description")
+        if not isinstance(description, str) or not description.strip():
+            errors.append(f"{path}: description must be a non-empty string")
         if not body:
             errors.append(f"{path}: agent body is empty")
         normalized_body = " ".join(body.split())
@@ -660,8 +665,9 @@ def validate_skills(
             errors.append(
                 f"{path}: plugin skill IDs must use the {SKILL_PREFIX!r} namespace"
             )
-        if not frontmatter.get("description"):
-            errors.append(f"{path}: description is required")
+        description = frontmatter.get("description")
+        if not isinstance(description, str) or not description.strip():
+            errors.append(f"{path}: description must be a non-empty string")
         if not body:
             errors.append(f"{path}: skill body is empty")
         if skill_id == "grillmester-doctor":
@@ -725,6 +731,34 @@ def runtime_markdown(root: Path) -> list[Path]:
         if directory.exists():
             paths.extend(path for path in directory.rglob("*.md") if path.is_file())
     return sorted(paths)
+
+
+def validate_discovery_budget(plugin_root: Path, errors: list[str]) -> None:
+    discovery_bytes = 0
+    component_paths = (
+        sorted((plugin_root / "agents").glob("*.agent.md")),
+        sorted((plugin_root / "skills").glob("*/SKILL.md")),
+    )
+
+    for paths in component_paths:
+        for path in paths:
+            try:
+                frontmatter, _ = parse_frontmatter(path)
+            except FrontmatterError:
+                continue
+
+            component_id = frontmatter.get("name")
+            description = frontmatter.get("description")
+            if isinstance(component_id, str) and isinstance(description, str):
+                discovery_bytes += len(component_id.encode("utf-8"))
+                discovery_bytes += len(description.encode("utf-8"))
+
+    if discovery_bytes > MAX_DISCOVERY_TEXT_BYTES:
+        errors.append(
+            "plugin discovery text is "
+            f"{discovery_bytes} UTF-8 bytes; the aggregate budget is "
+            f"{MAX_DISCOVERY_TEXT_BYTES}"
+        )
 
 
 def markdown_paragraph(text: str, offset: int) -> str:
@@ -806,8 +840,9 @@ def validate_content(
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
+        relative_path = path.relative_to(root).as_posix()
         national_id_matches = list(REALISTIC_NATIONAL_ID.finditer(text))
-        if national_id_matches and path.name in FIGMA_KEY_FILES:
+        if national_id_matches and relative_path in FIGMA_KEY_PATHS:
             key_spans = [match.span() for match in FIGMA_COMPONENT_KEY.finditer(text)]
             national_id_matches = [
                 match
@@ -819,6 +854,22 @@ def validate_content(
             ]
         if national_id_matches:
             errors.append(f"{path}: contains an 11-digit value that looks like a national ID")
+
+
+def validate_plugin_symlinks(root: Path, errors: list[str]) -> bool:
+    found = False
+    for package_path in PACKAGE_PATHS.values():
+        plugin_root = root / package_path
+        if plugin_root.is_symlink():
+            errors.append(f"plugin package root must not be a symlink: {plugin_root}")
+            found = True
+            continue
+        if plugin_root.is_dir():
+            for path in sorted(plugin_root.rglob("*")):
+                if path.is_symlink():
+                    errors.append(f"plugin package must not contain symlinks: {path}")
+                    found = True
+    return found
 
 
 def validate_layout(root: Path, errors: list[str]) -> None:
@@ -842,14 +893,6 @@ def validate_layout(root: Path, errors: list[str]) -> None:
     for path in forbidden:
         if path.exists():
             errors.append(f"forbidden alternate or generated path: {path}")
-
-    for package_path in PACKAGE_PATHS.values():
-        plugin_root = root / package_path
-        if plugin_root.is_dir():
-            for path in sorted(plugin_root.rglob("*")):
-                if path.is_symlink():
-                    errors.append(f"plugin package must not contain symlinks: {path}")
-
 
 def validate_package_rosters(
     agent_ids: set[str],
@@ -888,6 +931,8 @@ def validate_repo(root: Path) -> list[str]:
     root = root.resolve()
     plugin_root = root / "plugin"
     errors: list[str] = []
+    if validate_plugin_symlinks(root, errors):
+        return errors
     validate_layout(root, errors)
     validate_assets(root, errors)
     validate_manifests(root, errors)
@@ -898,6 +943,7 @@ def validate_repo(root: Path) -> list[str]:
         plugin_root, skill_contracts, errors, package_name="grillmester"
     )
     validate_package_rosters(agent_ids, skill_ids, errors)
+    validate_discovery_budget(plugin_root, errors)
     validate_content(
         root,
         plugin_root,

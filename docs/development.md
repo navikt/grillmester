@@ -36,6 +36,12 @@ python3 scripts/smoke_plugin_install.py
 Smoken skal bekrefte hele pluginen: 7 agenter, 44 skills og byte-eksakt
 installasjon, oppgradering, rollback og avinstallering.
 
+## Discovery-budsjett
+
+Validatoren begrenser samlet UTF-8-størrelse for navn og beskrivelser til
+13 KiB. Dette er en enkel vekstratchet, ikke en simulering av klientens
+tokenisering. Kort ned discoverytekst før grensen eventuelt økes.
+
 ## Dokumentasjonskontrakt
 
 Når du endrer agenter, skills eller pakkeinndeling:
