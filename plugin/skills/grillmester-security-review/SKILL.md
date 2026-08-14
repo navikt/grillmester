@@ -28,6 +28,9 @@ reference](references/threat-model.md) and perform its DFD-first STRIDE review.
 
 - Minimize sensitive data and keep it out of ordinary logs, URLs, errors,
   telemetry, fixtures, and agent output.
+- Trace values through validation and diagnostic wrappers before approving log
+  or error output. A field named `validatedValue`, a validation report, or an
+  interpolated exception can still contain the original sensitive input.
 - Verify secret sourcing, storage, rotation, redaction, and failure behavior
   without printing secret values.
 - Separate authentication from authorization; validate identity and token

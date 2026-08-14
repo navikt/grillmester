@@ -82,6 +82,10 @@ Keep each meaning in a **single source of truth**. Check every line for
 the model's behavior compared with the default? Delete failed sentences rather
 than polishing them.
 
+For volatile runtime facts, treat the environment, manifests and tool output as
+source of truth and documentation or bundled snapshots as a cache: use them for
+discovery, then verify against the current environment before acting.
+
 ## Leading words
 
 A **leading word** is a compact concept already present in the model's

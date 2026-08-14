@@ -162,6 +162,19 @@ Several pilot skills were originally copied or adapted from
 `2ab958093e83e0ec752e6c1c5932da465bf23e0c`. They remain subject to that
 project's MIT license; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+Two later, narrowly scoped deltas were reviewed against `mattpocock/skills` at
+`8b78b531ab965735c5dc74f6f7a219e1e37326df`: secret and personal-data
+redaction before sharing diagnostic artifacts from
+`skills/engineering/diagnosing-bugs`, and the environment-as-authority/docs-
+as-cache principle from `skills/productivity/writing-for-agents`. No other
+upstream behavior from that revision is imported by this change.
+
+The Rapids and Rivers example was checked against
+`navikt/rapids-and-rivers` at
+`3b4bac878a15738552f2c8374d2dcf32929fdca2`. Only its current coordinate,
+packet-routing and listener API shapes inform the local Kafka reference; the
+consumer build remains authoritative for the version and established stack.
+
 The UI prototype guidance was also compared with current `mattpocock/skills` at
 `84fdeffd12f2ee307994d1eb6feb48173b6e0502`. Its relevant
 `skills/engineering/prototype/UI.md` is byte-identical to the already reviewed

@@ -71,11 +71,11 @@ eksplisitte override-flaggene. `--enable-global-auto-update` endrer en bredere
 brukerpreferanse: den aktiverer automatisk oppdatering av både selve Copilot
 CLI og alle plugins. Bruk den bare etter å ha lest previewen.
 
-Start deretter Copilot slik du vanligvis gjør i Nav. I en isolert test med
-Copilot CLI 1.0.79 auto-installerte dette oppsettet Grillmester ved neste
-trusted sesjon. Fremoveroppdateringen kan først verifiseres etter at neste
-versjon er publisert. Det er observasjon av POC-deployen, ikke en preventiv
-releasegate.
+Start deretter Copilot slik du vanligvis gjør i Nav. Med Copilot CLI 1.0.79 er
+både auto-install og en publisert
+[`poc.2 → poc.3` session-start-oppdatering](evidence/cli-autoupdate-poc2-to-poc3.md)
+bekreftet. Dette er observasjon av POC-deployen, ikke en preventiv releasegate;
+andre klienter har egne update-gater.
 
 ## Manuell personlig installasjon i Copilot CLI
 

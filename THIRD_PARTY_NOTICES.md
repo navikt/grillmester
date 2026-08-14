@@ -2,7 +2,7 @@
 
 ## mattpocock/skills
 
-Portions of the agent skills in this repository are copied or adapted from [`mattpocock/skills`](https://github.com/mattpocock/skills) at revision `2ab958093e83e0ec752e6c1c5932da465bf23e0c`. Exact local paths and reviewed source lineage are recorded in [PROVENANCE.md](PROVENANCE.md).
+Portions of the agent skills in this repository are copied or adapted from [`mattpocock/skills`](https://github.com/mattpocock/skills) at the original reviewed revision `2ab958093e83e0ec752e6c1c5932da465bf23e0c`. Narrow diagnostic-redaction and skill-authoring deltas were later reviewed at `8b78b531ab965735c5dc74f6f7a219e1e37326df`. Exact local paths and reviewed source lineage are recorded in [PROVENANCE.md](PROVENANCE.md).
 
 MIT License
 

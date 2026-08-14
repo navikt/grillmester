@@ -19,6 +19,13 @@ focused command, application boot command and available fixtures. Do not assume
 Gradle, Kotest, Ktor, Node, pytest, containers, Kafka or a database until
 repository evidence establishes them.
 
+Before showing or saving command output, a HAR, log, trace or event, replace
+secrets, auth headers, cookies, tokens and personal or sensitive data with
+`<REDACTED>`; retain only signal lines. Keep required credentials in approved
+environment variables, never in commands, scripts or fixtures. If redacted
+evidence cannot establish the boundary, return `Status: NEEDS_CONTEXT` and name
+the approved evidence or access needed instead of asking for raw data.
+
 If the symptom is a runtime/platform problem in production, use the platform's
 approved diagnostic tooling to establish the failing boundary, then return here
 for the reproduction and fix discipline. When the app runs on NAIS,
@@ -45,7 +52,7 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Do not give up
 5. **Property / fuzz loop.** If the bug is "sometimes wrong output", run 1000 random inputs and look for the failure mode.
 6. **Bisection harness.** If the bug appeared between two known states (commit, dataset, version), automate "boot at X, check, repeat" so you can `git bisect run` it.
 7. **Differential loop.** Run the same input through the old vs. the new version (or two configurations) and diff the output.
-8. **HITL bash script.** Last resort. If a human has to click/act, drive _them_ with `scripts/hitl-loop.template.sh` so the loop stays structured. Captured output is fed back to you.
+8. **HITL bash script.** Last resort. If a human has to click/act, drive _them_ with `scripts/hitl-loop.template.sh` so the loop stays structured. Only sanitized signal output is fed back to you.
 
 Build the right feedback loop and the bug is 90% fixed.
 
@@ -74,7 +81,7 @@ temporary instrumentation. Do **not** move on to hypotheses without a loop.
 
 ### Completion criterion — a tight loop that can go red
 
-Phase 1 is done when the loop is **tight** and **red-capable**: you can name **one command** — a script path, a test invocation, a curl — that you have **already run at least once** (paste the invocation and its output), and that is:
+Phase 1 is done when the loop is **tight** and **red-capable**: you can name **one command** — a script path, a test invocation, a curl — that you have **already run at least once** (paste the sanitized invocation and signal-only output), and that is:
 
 - [ ] **Red-capable** — it drives the actual failing code path and asserts the user's **exact symptom**, so it can go red on this bug and green once fixed. Not "runs without failing" — it must be able to _catch this specific bug_.
 - [ ] **Deterministic** — the same verdict every run (flaky bugs: a pinned, high reproduction rate, per above).

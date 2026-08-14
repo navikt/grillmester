@@ -15,6 +15,16 @@
       "repository": "obra/superpowers",
       "revision": "44c9b2d6e889982ac18c27d05a19fefe335194e1",
       "note": "Reviewed Visual Companion lineage under skills/brainstorming; the original Hovmester import revision is unknown."
+    },
+    "matt-current": {
+      "repository": "mattpocock/skills",
+      "revision": "8b78b531ab965735c5dc74f6f7a219e1e37326df",
+      "note": "Reviewed only the diagnosing-bugs redaction and writing-for-agents source-of-truth deltas; this is not a wholesale upstream sync."
+    },
+    "rapids-and-rivers": {
+      "repository": "navikt/rapids-and-rivers",
+      "revision": "3b4bac878a15738552f2c8374d2dcf32929fdca2",
+      "note": "Reviewed only current coordinate, routing and listener API shapes for the Kafka reference; consumers remain the version source of truth."
     }
   },
   "agents": {
@@ -88,7 +98,14 @@
     "grillmester-api-design": {"source": "pilot", "sourcePath": ".github/skills/api-design", "disposition": "adapted"},
     "grillmester-architecture-review": {"source": "pilot", "sourcePath": ".github/skills/architecture-review", "disposition": "adapted"},
     "grillmester-auth-overview": {"source": "pilot", "sourcePath": ".github/skills/auth-overview", "disposition": "adapted"},
-    "grillmester-create-a-skill": {"source": "pilot", "sourcePath": ".github/skills/create-a-skill", "disposition": "adapted"},
+    "grillmester-create-a-skill": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/create-a-skill",
+      "lineage": [
+        {"source": "matt-current", "sourcePath": "skills/productivity/writing-for-agents"}
+      ],
+      "disposition": "adapted"
+    },
     "grillmester-design-prototype": {
       "source": "hovmester",
       "sourcePath": ".github/skills/prototype",
@@ -97,7 +114,14 @@
       ],
       "disposition": "adapted"
     },
-    "grillmester-diagnosing-bugs": {"source": "pilot", "sourcePath": ".github/skills/diagnosing-bugs", "disposition": "adapted"},
+    "grillmester-diagnosing-bugs": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/diagnosing-bugs",
+      "lineage": [
+        {"source": "matt-current", "sourcePath": "skills/engineering/diagnosing-bugs"}
+      ],
+      "disposition": "adapted"
+    },
     "grillmester-doctor": {"source": ["pilot", "hovmester"], "sourcePath": ".github/copilot-instructions.md", "disposition": "consolidated", "disable-model-invocation": true},
     "grillmester-domain-modeling": {"source": "pilot", "sourcePath": ".github/skills/domain-modeling", "disposition": "adapted"},
     "grillmester-dulting": {"source": "hovmester", "sourcePath": ".github/skills/dulting", "disposition": "adapted"},
@@ -110,7 +134,17 @@
     "grillmester-improve-codebase-architecture": {"source": "pilot", "sourcePath": ".github/skills/improve-codebase-architecture", "disposition": "adapted"},
     "grillmester-integration-tests": {"source": "pilot", "sourcePath": ".github/skills/integration-tests", "disposition": "adapted"},
     "grillmester-issue-management": {"source": "pilot", "sourcePath": ".github/skills/issue-management", "disposition": "adapted"},
-    "grillmester-kafka-topic": {"source": "pilot", "sourcePath": ".github/skills/kafka-topic", "disposition": "adapted"},
+    "grillmester-kafka-topic": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/kafka-topic",
+      "lineage": [
+        {"source": "rapids-and-rivers", "sourcePath": "build.gradle.kts"},
+        {"source": "rapids-and-rivers", "sourcePath": "settings.gradle.kts"},
+        {"source": "rapids-and-rivers", "sourcePath": "README.md"},
+        {"source": "rapids-and-rivers", "sourcePath": "rapids-and-rivers-impl/README.md"}
+      ],
+      "disposition": "adapted"
+    },
     "grillmester-klarsprak": {"source": "pilot", "sourcePath": ".github/skills/klarsprak", "disposition": "adapted"},
     "grillmester-kotlin-ktor": {"source": "pilot", "sourcePath": ".github/skills/kotlin-ktor", "disposition": "adapted"},
     "grillmester-kotlin-spring": {"source": "hovmester", "sourcePath": ".github/skills/kotlin-spring", "disposition": "adapted"},

@@ -57,11 +57,15 @@ optional `references/`, `scripts/`, and `assets/` directories beside it. Keep
 disclosed references one level below `SKILL.md` and point to each one directly
 from `SKILL.md` with the condition for loading it.
 
-Use only frontmatter supported by the installed GitHub Copilot CLI:
+Use the portable GitHub skill frontmatter supported by the target clients and
+narrowed by the target repository's policy:
 
 - `name` — required; match the directory and slash name.
 - `description` — required; provide model discovery signals for a
   model-reachable skill and a concise picker summary for a manual-only skill.
+- `license` — provenance metadata accepted by Grillmester's validator and
+  verified client-loading flow. Grillmester requires `MIT`; another target
+  repository follows its own verified client and license policy.
 - `disable-model-invocation: true` — make the skill manual-only;
   `user-invocable` defaults to `true`.
 - `user-invocable: false` — hide a model-reachable skill from the picker.

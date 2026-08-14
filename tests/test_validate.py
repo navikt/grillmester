@@ -324,6 +324,40 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("license must be 'MIT'")
 
+    def test_diagnosing_skill_redacts_shared_and_hitl_evidence(self) -> None:
+        skill = (
+            self.root / "plugin/skills/grillmester-diagnosing-bugs/SKILL.md"
+        ).read_text(encoding="utf-8")
+        hitl = (
+            self.root
+            / "plugin/skills/grillmester-diagnosing-bugs/scripts/hitl-loop.template.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Before showing or saving command output", skill)
+        self.assertIn("auth headers, cookies, tokens", skill)
+        self.assertIn("`<REDACTED>`", skill)
+        self.assertIn("approved\nenvironment variables", skill)
+        self.assertIn("Status: NEEDS_CONTEXT", skill)
+        self.assertIn("capture_signal", hitl)
+        self.assertIn("Never enter raw logs, HAR content", hitl)
+        self.assertNotIn("Paste the error message", hitl)
+
+    def test_skill_authoring_documents_license_and_live_authority(self) -> None:
+        skill = (
+            self.root / "plugin/skills/grillmester-create-a-skill/SKILL.md"
+        ).read_text(encoding="utf-8")
+        principles = (
+            self.root
+            / "plugin/skills/grillmester-create-a-skill/references/principles.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("`license` — provenance metadata accepted", skill)
+        self.assertIn("Grillmester requires `MIT`", skill)
+        self.assertIn(
+            "environment, manifests and tool output as\nsource of truth", principles
+        )
+        self.assertIn("documentation or bundled snapshots as a cache", principles)
+
     def test_marketplace_owner_is_required(self) -> None:
         manifest = self.load_json(".github/plugin/marketplace.json")
         del manifest["owner"]

@@ -8,9 +8,10 @@
 #
 # Two helpers:
 #   step "<instruction>"       -> show the instruction, wait for Enter
-#   capture VAR "<question>"   -> show the question, read the answer into VAR
+#   capture_signal VAR "<question>" -> read one already-redacted signal into VAR
 #
-# At the end the captured values are printed as KEY=VALUE for the agent to parse.
+# Never enter raw logs, HAR content, secrets, auth headers, cookies, tokens or
+# personal data. At the end only the bounded signals are printed for parsing.
 
 set -euo pipefail
 
@@ -19,9 +20,10 @@ step() {
   read -r -p "    [Enter when done] " _
 }
 
-capture() {
+capture_signal() {
   local var="$1" question="$2" answer
   printf '\n>>> %s\n' "$question"
+  printf '    Enter one sanitized signal; replace sensitive values with <REDACTED>.\n'
   read -r -p "    > " answer
   printf -v "$var" '%s' "$answer"
 }
@@ -30,9 +32,9 @@ capture() {
 
 step "Start the affected system with the repository's discovered local command, or connect to an explicitly approved test environment."
 
-capture STATUS "curl -s -o /dev/null -w '%{http_code}' against the failing route. Which HTTP status?"
+capture_signal STATUS "Which HTTP status did the bounded check return?"
 
-capture ERROR "Paste the error message from the app log (or 'none'):"
+capture_signal ERROR "Which redacted error type or code identifies the symptom? Do not paste a log line."
 
 # --- edit above ---------------------------------------------------------
 

@@ -55,7 +55,17 @@ Apply the deletion test to anything you suspect is shallow.
 
 ### 2. Present the candidates as an HTML report
 
-Write a self-contained HTML file to the OS temp directory so that nothing ends up in the repository. Resolve the temp directory from `$TMPDIR` with `/tmp` as fallback, and write to `<tmpdir>/architecture-candidates-<timestamp>.html`. Open it for the user (`open <path>` on macOS, `xdg-open <path>` on Linux) and state the absolute path.
+Write an offline, self-contained, script-free HTML file outside the repository.
+Create a fresh private temp directory with a secure temporary-file
+API or `mktemp -d`; do not construct a predictable name in a shared temp
+directory. Require the directory to be owned by the current user with mode
+`0700`, then create the report with exclusive-create/no-follow semantics and
+mode `0600`. Fail closed if those guarantees cannot be established. Treat every
+value derived from the repository as untrusted data and follow the escaping,
+static-markup, and Content Security Policy contract in
+[HTML-REPORT.md](HTML-REPORT.md). Do not run `open` or `xdg-open`. State the
+absolute path and offer to open the report only if the user explicitly asks
+after it has been written.
 
 Each candidate gets a card with: **Files**, **Problem** (one sentence), **Solution** (one sentence), **Benefits** (bullet list in the vocabulary — locality/leverage/test surface), **Before/after diagram**, and **Recommendation strength** (`Strong`, `Worth exploring`, `Speculative`). Close with a **Top recommendation**: which one you would take first and why.
 

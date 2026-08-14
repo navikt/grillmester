@@ -53,7 +53,7 @@ tool calls, godkjent write og avvist write før stabil release.
 
 | Klient | POC-status | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
-| **Copilot CLI** | Referanseklient. Lokal mount og install-/oppgraderings-/rollbackflyt testes deterministisk; POC-installasjonen og deklarativ auto-install er bekreftet i reelle sesjoner med 7 agenter og 44 skills. | Publisert `poc.2 → poc.3` session-start auto-update, immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
+| **Copilot CLI** | Referanseklient. Lokal mount, install-/oppgraderings-/rollbackflyt, POC-installasjon, deklarativ auto-install og publisert [`poc.2 → poc.3` session-start auto-update](evidence/cli-autoupdate-poc2-to-poc3.md) er bekreftet i reelle sesjoner med 7 agenter og 44 skills. | Immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
 | **Copilot app** | Plugins-UI-installasjon og discovery av 7 agenter og 44 skills er bekreftet i en reell POC-sesjon. | Om custom-marketplace-installasjonen auto-oppdateres, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær kompatibilitetsflate. VS Code dokumenterer update-sjekk hver 24. time når `extensions.autoUpdate` er aktivert. | Verifiser faktisk custom-marketplace-oppdatering med to Grillmester-versjoner; den styrer ikke første Nav-release. |

@@ -4,9 +4,13 @@ description: Rapids and Rivers patterns: lifecycle choice, packet validation, pu
 
 # Rapids and Rivers
 
-Use this reference only when repository evidence shows
-`no.nav.helse:rapids-rivers`, or the user has approved adopting it. Do not add a
-second Kafka stack to a plain- or Spring-Kafka service by accident.
+Use this reference only when repository evidence shows Rapids and Rivers, for
+example the current
+`com.github.navikt:rapids-and-rivers` facade coordinate, an older
+established coordinate, or imports from its API packages. Otherwise require the
+user to approve adopting it. Do not add a second Kafka stack to a plain- or
+Spring-Kafka service by accident. Resolve the version and coordinate from the
+consumer's build before editing; do not copy a version from this reference.
 
 `RapidApplication` owns a process lifecycle and an HTTP server. If the service
 also has Ktor startup, inspect how the repository composes them before changing
@@ -22,37 +26,47 @@ class DomainEventRiver(
 ) : River.PacketListener {
     init {
         River(rapidsConnection).apply {
-            validate { it.demandValue("@event_name", "case_created") }
+            precondition { it.requireValue("@event_name", "case_created") }
             validate { it.requireKey("@id", "@created_at", "case_id") }
             validate { it.interestedIn("optional_field") }
         }.register(this)
     }
 
-    override fun onPacket(packet: JsonMessage, context: MessageContext) {
+    override fun onPacket(
+        packet: JsonMessage,
+        context: MessageContext,
+        metadata: MessageMetadata,
+        meterRegistry: MeterRegistry,
+    ) {
         handler.handle(
-            eventId = packet["@id"].asText(),
-            caseId = packet["case_id"].asText(),
+            eventId = packet["@id"].asString(),
+            caseId = packet["case_id"].asString(),
         )
     }
 
-    override fun onError(problems: MessageProblems, context: MessageContext) {
-        logger.error("Packet validation failed: ${problems.toExtendedReport()}")
+    override fun onError(
+        problems: MessageProblems,
+        context: MessageContext,
+        metadata: MessageMetadata,
+    ) {
+        logger.error("packet_validation_failed river=DomainEventRiver")
     }
 }
 ```
 
 | Predicate | Purpose |
 |---|---|
-| `demandValue(key, value)` | activate only for the intended event type |
-| `demandKey(key)` | activate only when a field exists |
+| `precondition { requireValue(key, value) }` | select the intended event type |
+| `precondition { forbid(key) }` / `precondition { forbidValue(key, value) }` | exclude packets outside this river |
 | `requireKey(...)` | require fields or report validation failure |
 | `require(key, parser)` | require and parse a field |
 | `requireAny(...)` | require at least one alternative |
 | `interestedIn(...)` | read optional fields without rejecting old messages |
-| `rejectKey` / `rejectValue` | skip packets matching an exclusion |
 
-Use `demandValue` for event-type filtering. Requiring an optional field breaks
-backward compatibility; use `interestedIn` for additive evolution.
+Use `precondition` with `requireValue` and `forbid*` for routing. Use
+`validate` only after the packet has been selected. Requiring an optional
+field breaks backward compatibility; use `interestedIn` for additive
+evolution.
 
 ## Publishing
 
@@ -82,8 +96,10 @@ documented event identity before applying side effects.
 - Temporary dependency failure: throw so the record can be redelivered.
 - Permanent semantic failure: use the repository's established parking or DLQ
   path, then continue only after the record is durably accounted for.
-- Packet validation failure: report through `onError` without logging the raw
-  packet or sensitive validation values.
+- Packet validation failure: report through `onError` with a sanitized,
+  structural summary such as the river or contract name. Never interpolate the
+  packet, `MessageProblems`, `toExtendedReport()` or sensitive validation
+  values.
 
 Do not invent a DLQ topic when the service already parks records in a database,
 and do not silently discard a packet that cannot be replayed or investigated.

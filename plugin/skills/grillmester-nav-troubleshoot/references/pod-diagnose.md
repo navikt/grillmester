@@ -3,16 +3,23 @@
 Confirm cluster, namespace, workload, pod, container and selector from
 consumer/deployment evidence. Labels and container names vary.
 
-## Read-only command templates
+## Inspection command templates
 
 Substitute only verified values:
+
+Read-only is not a safety classification. Live logs, events and `describe`
+output can contain secrets, personal data and sensitive operational metadata.
+Before collecting any of them, confirm the exact cluster/context, namespace,
+object and container, choose a narrow time window or result limit, show the
+exact command and scope, and obtain explicit approval. Redact sensitive values
+before displaying the output or bringing it into model context.
 
 ```bash
 kubectl get pods --namespace <namespace> --selector '<verified-selector>' -o wide
 kubectl describe pod --namespace <namespace> <pod>
-kubectl logs --namespace <namespace> <pod> --container <container> --tail=100
-kubectl logs --namespace <namespace> <pod> --container <container> --previous --tail=100
-kubectl get events --namespace <namespace> --sort-by='.lastTimestamp'
+kubectl logs --namespace <namespace> <pod> --container <container> --since=<verified-window> --tail=<verified-limit>
+kubectl logs --namespace <namespace> <pod> --container <container> --previous --tail=<verified-limit>
+kubectl get events --namespace <namespace> --field-selector 'involvedObject.name=<pod>' --sort-by='.lastTimestamp'
 kubectl top pod --namespace <namespace> <pod>
 ```
 
@@ -20,8 +27,10 @@ If context is not already locked to the verified cluster, include the explicit
 context argument supported by the local setup. Do not rely on the current
 kubectl context by accident.
 
-Following logs, exec, port-forwarding and broad namespace queries can expose
-sensitive data or consume a long-running session. Explain scope and ask first.
+Never request or paste unredacted output. Prefer the smallest approved excerpt
+that preserves the diagnostic signal. Following logs, exec, port-forwarding
+and broad namespace queries require a separate explanation of scope and
+explicit approval.
 
 ## Diagnostic tree
 

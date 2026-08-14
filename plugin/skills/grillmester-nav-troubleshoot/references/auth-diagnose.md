@@ -10,8 +10,16 @@ Nais patterns, not defaults.
 - route or operation
 - environment, cluster and namespace on both sides
 - expected identity provider, flow, audience and authorization rule
-- whether 401/403 comes from ingress/network policy, token validation or
-  application authorization
+- the verified producer of the HTTP response: ingress or auth proxy, sidecar,
+  application, or downstream service
+
+Identify the response producer from redacted response metadata and tracing or
+log evidence before interpreting the status. Nais `accessPolicy` contributes
+service-to-service connectivity and, where applicable, token grants; generated
+NetworkPolicy enforces network connectivity. Neither is generally the producer
+of an HTTP 401 or 403. A blocked network path normally means that no HTTP
+response arrives. Diagnose ingress separately, and do not infer the rejecting
+layer from the status alone.
 
 Do not paste or log a raw token. If claim inspection is necessary, use an
 approved secure method and record only non-sensitive fields needed for the
@@ -44,17 +52,15 @@ clock issue. Do not assume a cache implementation or renewal skew; inspect it.
 
 ```text
 403 Forbidden
-├── Is the request rejected before application code?
-│   ├── Yes → inspect actual Nais access policy and generated network policy
-│   └── No → continue
-├── Is the confirmed caller allowed by the deployed inbound policy?
-│   ├── No → propose the narrowest required rule
-│   └── Yes → continue
+├── Which verified component produced the HTTP response?
+│   ├── ingress/auth proxy/sidecar → inspect that component's verified rules
+│   ├── application → continue
+│   └── downstream service → repeat the boundary analysis there
 ├── Does application authorization require roles, groups or scopes?
 │   ├── Yes → compare redacted claims with verified rules
 │   └── No → continue
-└── Is a downstream service returning 403?
-    └── Repeat the boundary analysis for that caller-recipient pair
+└── Is there actually no HTTP response?
+    └── diagnose DNS, routing, ingress and accessPolicy/NetworkPolicy separately
 ```
 
 ## Texas or another sidecar
@@ -77,7 +83,8 @@ state. Show the exact redacted command and ask for approval first.
 | wrong audience | caller target and recipient identity |
 | expired token | cache lifetime, clock and renewal behavior in actual code |
 | discovery/JWKS unreachable | outbound policy, DNS and provider status |
-| network-policy denial | deployed inbound rule for the confirmed caller |
+| no HTTP response, timeout or reset | DNS, routing, ingress and service-to-service access policy |
+| proxy- or sidecar-generated 401/403 | verified proxy/sidecar configuration and redacted diagnostics |
 | app-level denial | verified roles, groups, scopes and route policy |
 
 Any policy or code change is a proposal until the user approves the exact

@@ -117,12 +117,17 @@ second cache on top of a provider that already owns caching.
 ## Diagnose 401 and 403 systematically
 
 1. Reproduce without printing the token.
-2. Confirm which layer rejected the request: ingress or access policy, token
-   validation, claim validation, or resource authorization.
+2. Identify the verified producer of the HTTP response from redacted evidence:
+   ingress or auth proxy, sidecar, application, or downstream service.
 3. Compare environment, issuer, audience, target, provider, expiry, `azp`, and
    required claims with the deployed manifest and code.
-4. Verify that the caller's outbound policy and callee's inbound policy agree.
-5. Add or update the smallest safe test that proves the failure mode.
+4. Diagnose ingress separately. Use `accessPolicy` for service-to-service
+   connectivity and applicable token-grant context, and NetworkPolicy for
+   network-connectivity evidence. Do not presume that either produced an
+   observed HTTP status; a blocked network path commonly produces no HTTP
+   response at all.
+5. Verify that the caller's outbound policy and callee's inbound policy agree.
+6. Add or update the smallest safe test that proves the failure mode.
 
 For local and automated test patterns, read
 [references/local-auth-mock.md](references/local-auth-mock.md).
