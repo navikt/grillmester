@@ -25,7 +25,7 @@ before creating either.
 | Evidence | Stack |
 |---|---|
 | direct `KafkaConsumer` or `KafkaProducer`, `org.apache.kafka:kafka-clients` | Plain Apache Kafka |
-| `RapidApplication`, `River.PacketListener`, `no.nav.helse:rapids-rivers` | Rapids and Rivers |
+| a Rapids and Rivers dependency or import, `RapidApplication`, `River.PacketListener` | Rapids and Rivers |
 | `@KafkaListener`, `KafkaTemplate`, Spring Kafka dependency | Spring Kafka |
 
 Follow the dominant pattern already used by the service. Do not migrate or mix
@@ -34,8 +34,9 @@ Ktor process, prefer the repository's existing plain-Kafka or Rapids lifecycle;
 do not introduce Spring idioms merely because a generic Nav example uses them.
 
 If the repository has no Kafka stack, compare the operational and contract
-needs with the user. Plain Kafka is a small direct dependency; Rapids is useful
-when the surrounding domain already coordinates through a shared rapid.
+needs with the user. Plain Kafka is a small direct dependency. Introduce
+Rapids only when the service joins an established rapid ecosystem and the
+team explicitly chooses it, never merely because it is a common Nav pattern.
 
 ## Decide whether Kafka fits
 
@@ -62,10 +63,12 @@ Use past-tense fact names rather than commands. A stable entity key preserves
 ordering only within that entity's partition. A random key improves spread but
 removes entity ordering.
 
-Do not impose Rapids metadata on plain Kafka. Rapids commonly uses `@id` and
-`@event_name` in the packet. A plain contract may instead carry event identity
-in a Kafka header or a documented payload field. Preserve the repository's
-published contract and deduplicate on that event identity, never on offset.
+Do not impose Rapids metadata on plain Kafka. Existing Rapids contracts may
+use `@id` and `@event_name`, but those names and semantics are owned by the
+repository's actual contract and framework version. A plain contract may
+instead carry event identity in a Kafka header or a documented payload field.
+Preserve the published contract and deduplicate on that event identity, never
+on offset.
 
 ## Provision the topic declaratively
 
@@ -152,7 +155,7 @@ process after user agreement.
 - Plain Apache Kafka in Ktor, including SSL configuration, commit strategy,
   producer settings, and tests:
   [references/plain-kafka.md](references/plain-kafka.md).
-- Rapids and Rivers validation, publishing, idempotency, and TestRapid:
+- Rapids and Rivers version and compatibility gate:
   [references/rapids-and-rivers.md](references/rapids-and-rivers.md).
 
 ## Deliver evidence

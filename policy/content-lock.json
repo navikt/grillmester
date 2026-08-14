@@ -24,7 +24,7 @@
     "rapids-and-rivers": {
       "repository": "navikt/rapids-and-rivers",
       "revision": "3b4bac878a15738552f2c8374d2dcf32929fdca2",
-      "note": "Reviewed only current coordinate, routing and listener API shapes for the Kafka reference; consumers remain the version source of truth."
+      "note": "Reviewed version drift to justify the Kafka compatibility gate; no concrete framework API example is imported, and consumers remain the source of truth."
     }
   },
   "agents": {

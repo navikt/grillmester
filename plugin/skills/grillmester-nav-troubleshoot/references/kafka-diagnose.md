@@ -55,10 +55,12 @@ recovery. Do not recommend scaling past useful partition parallelism.
 
 ## Rapids & Rivers, only when verified
 
-Inspect validation rules, required/interested keys and event-name matching. A
-filter can intentionally drop a packet without reaching the handler. Add
-temporary diagnostics only after approval, with field allowlisting and no
-payload/person data.
+Resolve the exact dependency version and inspect local exemplars before using
+framework-specific advice. Check preconditions, validations, event matching,
+callback signatures, and the repository's failure semantics. A filter can
+intentionally drop a packet without reaching the handler. Add temporary
+diagnostics only after approval, with field allowlisting and no payload or
+personal data.
 
 ## Mutations
 
