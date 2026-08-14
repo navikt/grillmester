@@ -258,14 +258,21 @@ Aksel-komponenter fungerer i Next.js (App Router og Pages Router). To ting å v�
 **1. Bruk `LinkCard` med Next.js `Link`** så forhåndshenting (`prefetch`) og klient-navigering fungerer:
 
 ```tsx
-import { LinkCard, LinkCardAnchor, LinkCardDescription, LinkCardTitle } from "@navikt/ds-react";
+import {
+  LinkCard,
+  LinkCardAnchor,
+  LinkCardDescription,
+  LinkCardTitle,
+} from "@navikt/ds-react/LinkCard";
 import Link from "next/link";
 
 export function DashboardCard(): JSX.Element {
   return (
     <LinkCard>
       <LinkCardTitle>
-        <LinkCardAnchor as={Link} href="/dashboard">Dashboard</LinkCardAnchor>
+        <LinkCardAnchor asChild>
+          <Link href="/dashboard">Dashboard</Link>
+        </LinkCardAnchor>
       </LinkCardTitle>
       <LinkCardDescription>Se statistikk og nøkkeltall.</LinkCardDescription>
     </LinkCard>
@@ -273,12 +280,14 @@ export function DashboardCard(): JSX.Element {
 }
 ```
 
-**2. Komponenter med intern state (`Dialog`, `DialogTrigger`, `ExpansionCard`, `Tabs`) er klient-komponenter.** Merk fila eller wrapperen med `"use client"` i App Router:
+**2. Ikke legg til `"use client"` bare fordi en Aksel-komponent har intern
+state.** Aksel-komponenter kan brukes fra Server Components. Merk din egen fil
+som klientkomponent bare når den bruker klient-only hooks, events eller
+browser-API-er. Bruk named exports fra komponentens subpath:
 
 ```tsx
-"use client";
-
-import { Button, Dialog, DialogPopup, DialogTrigger } from "@navikt/ds-react";
+import { Button } from "@navikt/ds-react";
+import { Dialog, DialogPopup, DialogTrigger } from "@navikt/ds-react/Dialog";
 
 export function EditButton(): JSX.Element {
   return (
@@ -366,7 +375,7 @@ CSS-mønster for skip-link som kun vises ved fokus:
   inset-block-start: 0;
   inset-inline-start: 0;
   transform: translateY(-100%);
-  padding: var(--a-space-8) var(--a-space-16);
+  padding: var(--ax-space-8) var(--ax-space-16);
   background: var(--ax-bg-default);
   color: var(--ax-text-neutral);
 }

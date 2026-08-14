@@ -31,7 +31,9 @@ i stedet for å etterligne en eksisterende Aksel-komponent med `.mock-*`.
 
 ### Button
 
-variant: primary | secondary | tertiary | danger. size: medium | small | xsmall. Primær er blå (accent) via rot-konteksten.
+variant: primary | secondary | tertiary. `danger` settes med `data-color`, ikke
+som variant. size: medium | small | xsmall. Primær er blå (accent) via
+rot-konteksten.
 
 ```html
 <div style="display:flex;gap:12px">
@@ -318,7 +320,9 @@ Kopierer tekst til utklippstavle.
 
 ### ConfirmationPanel
 
-Bekreftelse/samtykke før innsending.
+Avviklet. Følg Aksels bekreftelsesmønster i nye løsninger, ofte med `Checkbox`;
+behold dette bare når du gjengir eller vedlikeholder en eksisterende
+ConfirmationPanel.
 
 ```html
 <div class="aksel-confirmation-panel aksel-form-field" data-color="warning">
@@ -926,21 +930,13 @@ Fremhevet lenke med kontekst.
 </div>
 ```
 
-### Box
-
-Layout-primitiv med bakgrunn/ramme/padding via tokens.
-
-```html
-<div style="--__axc-r-p-xs:var(--ax-6);--__axc-box-background:var(--ax-bg-surface-subtle);--__axc-box-radius-xs:var(--ax-radius-large)" class="aksel-r-p aksel-box aksel-box-bg aksel-box-radius">
-  <p class="aksel-body-short aksel-body-short--medium">Innhold i en Box.</p>
-</div>
-```
-
 ## Overlegg (modaler, popovere)
 
 ### Modal
 
-Dialog over innholdet. open vises her; i VC vis åpen tilstand inline.
+Modal er fortsatt støttet. Aksel anbefaler `Dialog` for nye løsninger, men det
+haster ikke å migrere eksisterende bruk. `open` vises her; i Visual Companion
+vises åpen tilstand inline.
 
 ```html
 <dialog aria-label="Bekreft" class="aksel-modal aksel-modal--medium aksel-modal--autowidth">

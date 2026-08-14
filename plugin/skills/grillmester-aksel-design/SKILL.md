@@ -22,15 +22,25 @@ eksterne writes krever separat eksplisitt godkjenning.
 
 ## Hent oppdatert dokumentasjon
 
-Aksel-dokumentasjon er tilgjengelig som LLM-optimaliserte .md-filer. Hent alltid dokumentasjon fra kilden fremfor å anta API fra treningsdata:
+Før du bruker rådene under, finn de eksakt resolverte versjonene av
+`@navikt/ds-react` og `@navikt/ds-css` i manifest, lockfil og eventuelt
+`node_modules`. Bekreft at pakkene er samversjonerte, og skill mellom v7 og v8.
+Installerte typer, eksportkart og rendret DOM vinner over denne snapshoten.
+
+Aksel-dokumentasjon er tilgjengelig som LLM-optimaliserte `.md`-filer. Hent
+dokumentasjon fra kilden fremfor å anta API fra treningsdata:
 
 ```
 https://aksel.nav.no/llm.md
 ```
 
-Denne filen er et indeks over alle Aksel-docs. Hent individuelle sider ved behov.
+Denne filen er en indeks. Følg lenken til den konkrete `.md`-siden, og bruk
+bare råd som gjelder den resolverte versjonen og komponenten du arbeider med.
 
 ## Installasjon og oppsett
+
+Bruk repositoryets eksisterende package manager og versjonsstrategi. For et
+repository som allerede bruker pnpm kan kommandoen være:
 
 ```bash
 pnpm add @navikt/ds-react @navikt/ds-css @navikt/aksel-icons
@@ -74,10 +84,9 @@ Disse overstyrer treningsdata. Verifiser alltid mot `aksel.nav.no/llm.md`.
 - **`Alert` er deprecated** (nov 2025): Bruk `LocalAlert`, `GlobalAlert`, `InlineMessage` eller `InfoCard`
 - **Ingen `Button variant="danger"`**: Bruk `data-color="danger"` i stedet
 - **Ingen `Button size="large"`**: Gyldige: `"medium"`, `"small"`, `"xsmall"`
-- **`borderRadius="large"` fjernet**: Bruk `"4"`, `"8"`, `"12"`, `"full"`
+- **`borderRadius="large"` fjernet**: Bruk `"0"`, `"2"`, `"4"`, `"8"`, `"12"`, `"16"` eller `"full"`
 - **CSS-klasseprefiks er `.aksel-`**: Ikke `.navds-`
 - **Aldri override `--ax-*` semantiske tokens** eller `.aksel-*` klasser
-- **VStack/HStack har ingen `padding`-prop**: Wrap i `Box` for padding
 - **`gap` trenger alltid `space-`-prefiks**: `gap="space-16"`, aldri `gap="4"`
 
 ```tsx

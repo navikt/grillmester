@@ -47,14 +47,16 @@ Bruk `title` på ikon-komponenten **eller** `aria-label` på knappen — ikke be
 
 ## v8-codemods (migrering)
 
-Når du oppgraderer fra eldre Aksel-versjoner til v8 finnes det automatiske codemods:
+Når du oppgraderer fra eldre Aksel-versjoner til v8, velg en eksplisitt
+CLI-versjon, les dens `--help`, kjør mot en ren branch og review diffen. Disse
+kommandoene er verifisert med `@navikt/aksel@8.16.1`:
 
 ```bash
 # Oppdater Aksel-primitives (Box/VStack/HStack/HGrid med spacing-props)
-npx @navikt/aksel codemod v8-primitive-spacing
+npx @navikt/aksel@8.16.1 codemod v8-primitive-spacing
 
-# Oppdater tokens i CSS/SCSS/Less og Tailwind-config
-npx @navikt/aksel codemod v8-token-spacing
+# Oppdater v8-tokens
+npx @navikt/aksel@8.16.1 codemod v8-tokens
 ```
 
 Etter codemod, kjør repoets sjekker (f.eks. `mise check`, `pnpm lint`, `pnpm test`) for å fange regresjoner.

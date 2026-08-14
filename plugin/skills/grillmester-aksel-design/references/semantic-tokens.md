@@ -5,7 +5,8 @@ Aksel v8 introduserer et semantisk token-lag med prefikset `--ax-` (aksel x). Di
 ## Prinsipp
 
 - Bruk `--ax-bg-*`, `--ax-text-*` og `--ax-border-*` for flater, tekst og border.
-- Unngå rå farger som `--ax-accent-400`; bruk semantiske versjoner som `--ax-accent-moderate-hover`.
+- Unngå rå farger som `--ax-accent-400`; bruk semantiske versjoner som
+  `--ax-bg-accent-moderate-hover`.
 - Ikke endre hovedfargen på appen — bruk `data-color` for å bytte farge på enkeltkomponenter.
 
 ## Bakgrunnstokens
@@ -109,11 +110,12 @@ Inne i en `[data-color]`-kontekst kan du bruke de generiske variablene (`--ax-bg
 
 ## Lys/mørk modus
 
-Tokenene er allerede mørk/lys-aware. Bruk `.light` eller `.dark` (eller `:root`) som rotklasse — semantiske tokens peker automatisk på riktig verdi.
+Tokenene er allerede mørk/lys-aware. Bruk `.light`/`.dark` på temaroten, eller
+følg en eksisterende, verifisert theme-wrapper i consumeren. Ikke overstyr
+tokenverdiene manuelt.
 
-```css
-.dark {
-  --ax-bg-default: #0e151f;
-  --ax-text-neutral: var(--ax-neutral-1000); /* lys tekst */
-}
+```tsx
+<div className="dark">
+  <App />
+</div>
 ```

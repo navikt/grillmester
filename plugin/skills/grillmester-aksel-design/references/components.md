@@ -227,7 +227,6 @@ Bruk `Dialog`-komposisjon for modal eller drawer-lignende UI. `position="center"
 
 ```tsx
 import {
-  Button,
   Dialog,
   DialogBody,
   DialogCloseTrigger,
@@ -237,7 +236,8 @@ import {
   DialogPopup,
   DialogTitle,
   DialogTrigger,
-} from "@navikt/ds-react";
+} from "@navikt/ds-react/Dialog";
+import { Button } from "@navikt/ds-react";
 
 export function EditDrawer(): JSX.Element {
   return (
@@ -284,8 +284,8 @@ import {
   LinkCardDescription,
   LinkCardFooter,
   LinkCardTitle,
-  Tag,
-} from "@navikt/ds-react";
+} from "@navikt/ds-react/LinkCard";
+import { Tag } from "@navikt/ds-react";
 
 export function NavigationCard(): JSX.Element {
   return (

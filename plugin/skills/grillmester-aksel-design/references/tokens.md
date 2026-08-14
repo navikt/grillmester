@@ -1,6 +1,7 @@
 # Tokens
 
-Denne referansen er for rask oppslag når du jobber med Aksel v8+.
+Denne hurtigreferansen er kontrollert mot Aksel 8.16.1. Consumerens resolverte
+pakker, typer og live-dokumentasjon er alltid autoritative.
 
 ## Spacing-skala for props (`space-*`)
 
@@ -33,9 +34,13 @@ Bruk disse tokenene i Aksel-props som `gap`, `padding`, `paddingInline`, `paddin
 
 ## Legacy migreringstabell (pre-v7 → v7)
 
-> **Merk**: Denne migrasjonsguiden dekker pre-v7 (`--navds-*`) til v7 (`--a-spacing-*` / `--a-border-radius-*`). For v7 → v8, bruk codemods: `npx @navikt/aksel codemod v8-primitive-spacing`
+> **Merk**: Denne migrasjonsguiden dekker pre-v7 (`--navds-*`) til v7
+> (`--a-spacing-*` / `--a-border-radius-*`). For v7 → v8, bruk de aktuelle
+> codemodene i [setup.md](setup.md), ikke denne legacy-tabellen.
 
-Bruk denne tabellen når du rydder i eldre CSS-variabler. For komponent-props i Aksel-primitives bruker du `space-*` og `radius-*` i prop-API-et, mens CSS-eksemplene lenger ned viser dagens `--a-*`-variabler fra `@navikt/ds-css`.
+Bruk denne tabellen bare når du rydder i eldre CSS-variabler. For
+komponent-props bruker du `space-*` og radiusverdier i prop-API-et. Dagens v8
+CSS-eksempler lenger ned bruker `--ax-*`; `--a-*` hører til v7-delen.
 
 ### Spacing-variabler (legacy)
 
@@ -63,18 +68,17 @@ Bruk denne tabellen når du rydder i eldre CSS-variabler. For komponent-props i 
 
 ## Border radius
 
-Brukes i `Box borderRadius` og andre APIs som tar radius-tokens.
+| `Box borderRadius` | CSS-variabel | Verdi |
+|---|---|---:|
+| `"0"` | – | 0px |
+| `"2"` | `--ax-radius-2` | 2px |
+| `"4"` | `--ax-radius-4` | 4px |
+| `"8"` | `--ax-radius-8` | 8px |
+| `"12"` | `--ax-radius-12` | 12px |
+| `"16"` | `--ax-radius-16` | 16px |
+| `"full"` | `--ax-radius-full` | 9999px |
 
-| Token | Verdi |
-|---|---:|
-| `radius-0` | 0px |
-| `radius-2` | 2px |
-| `radius-4` | 4px |
-| `radius-8` | 8px |
-| `radius-12` | 12px |
-| `radius-full` | 9999px |
-
-Merk: `Box borderRadius` bruker verdiene `"0"`, `"2"`, `"4"`, `"8"`, `"12"` og `"full"` i propen, mens CSS-variablene er `--a-radius-*`.
+Det finnes ikke et `radius-0`-token.
 
 ## Brytepunkter
 
@@ -92,53 +96,44 @@ Det finnes også `2xl` (1440px) i tokenlaget, men de fleste layout-eksempler i r
 
 ## Semantiske tokens
 
-Disse er gode standardvalg for vanlige flater og tekst. For det fulle `--ax-*`-laget og `data-color`-mekanismen, se `references/semantic-tokens.md`.
-
-| Token | Hva det er | Nåværende verdi |
-|---|---|---|
-| `surface-default` | Standard flate | `rgba(255, 255, 255, 1)` |
-| `surface-subtle` | Nedtonet flate | `rgba(242, 243, 245, 1)` |
-| `border-subtle` | Lav kontrast / skillelinje | `rgba(7, 26, 54, 0.21)` |
-| `border-default` | Standard border | `rgba(2, 20, 49, 0.49)` |
-| `text-default` | Standard tekstfarge | `rgba(35, 38, 42, 1)` |
-| `text-subtle` | Sekundær tekst | `rgba(1, 11, 24, 0.68)` |
+Vanlige v8-valg er `--ax-bg-default`, `--ax-bg-neutral-soft`,
+`--ax-border-neutral-subtle`, `--ax-border-neutral`, `--ax-text-neutral` og
+`--ax-text-neutral-subtle`. Se [semantic-tokens.md](semantic-tokens.md) og den
+installerte pakkens eksport for resten; ikke cache fargeverdiene her.
 
 ## CSS-variabler
 
-> **Merk**: CSS-variabelnavn avhenger av Aksel-versjon og importmetode. Sjekk faktisk installerte tokens i prosjektet (`@navikt/ds-css` vs `@navikt/ds-tokens`). Eksemplene under bruker `--a-*`-prefikset fra `@navikt/ds-css`, som fortsatt er vanlig i Nav-prosjekter.
+> **Merk**: Sjekk faktisk installert Aksel-major og eksporterte tokens i
+> prosjektet. Eksemplene under er v8 og bruker `--ax-*`. Behold `--a-*` bare
+> når repositoryet fortsatt er på v7.
 
 Når du må skrive CSS, bruk Aksel sine variabler direkte og hold prop-token og CSS-variabel i samme familie.
 
 ### Spacing
-- `space-4` i prop-API ↔ `var(--a-space-4)` i CSS
-- `space-16` i prop-API ↔ `var(--a-space-16)` i CSS
-- `space-24` i prop-API ↔ `var(--a-space-24)` i CSS
-- `space-40` i prop-API ↔ `var(--a-space-40)` i CSS
-- `space-128` i prop-API ↔ `var(--a-space-128)` i CSS
-
-### Radius
-- `radius-2` i prop-API ↔ `var(--a-radius-2)` i CSS
-- `radius-4` i prop-API ↔ `var(--a-radius-4)` i CSS
-- `radius-8` i prop-API ↔ `var(--a-radius-8)` i CSS
-- `radius-12` i prop-API ↔ `var(--a-radius-12)` i CSS
-- `radius-full` i prop-API ↔ `var(--a-radius-full)` i CSS
+- `space-4` i prop-API ↔ `var(--ax-space-4)` i CSS
+- `space-16` i prop-API ↔ `var(--ax-space-16)` i CSS
+- `space-24` i prop-API ↔ `var(--ax-space-24)` i CSS
+- `space-40` i prop-API ↔ `var(--ax-space-40)` i CSS
+- `space-128` i prop-API ↔ `var(--ax-space-128)` i CSS
 
 ### Surface / border / text
-- `var(--a-surface-default)`
-- `var(--a-surface-subtle)`
-- `var(--a-border-subtle)`
-- `var(--a-border-default)`
-- `var(--a-text-default)`
-- `var(--a-text-subtle)`
+- `var(--ax-bg-default)`
+- `var(--ax-bg-neutral-soft)`
+- `var(--ax-border-neutral-subtle)`
+- `var(--ax-border-neutral)`
+- `var(--ax-text-neutral)`
+- `var(--ax-text-neutral-subtle)`
 
 ### Brytepunkter
-- `var(--a-breakpoint-sm)` → `480px`
-- `var(--a-breakpoint-md)` → `768px`
-- `var(--a-breakpoint-lg)` → `1024px`
-- `var(--a-breakpoint-xl)` → `1280px`
+
+Variablene `--ax-breakpoint-*` finnes, men CSS custom properties kan normalt
+ikke brukes i selve betingelsen til en media query. Bruk responsive prop-aliaser
+(`sm`, `md`, `lg`, `xl`, `2xl`) eller statiske verdier fra den installerte
+`@navikt/ds-tokens`-eksporten i `@media (...)`.
 
 ## Tommelfingerregler
 
 - I React-props: bruk `space-*` og responsive objekt-props
-- I CSS: bruk `var(--a-space-*)`, `var(--a-radius-*)` og semantiske tokens når prosjektet eksporterer dem via `@navikt/ds-css`
+- I v8-CSS: bruk `var(--ax-space-*)`, `var(--ax-radius-*)` og semantiske
+  tokens som den installerte pakken faktisk eksporterer
 - Foretrekk semantiske surface-/text-/border-tokens foran rå farger
