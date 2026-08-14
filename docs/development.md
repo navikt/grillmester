@@ -18,8 +18,8 @@ Den endrer ikke den vanlige personlige installasjonen.
 ## Verifikasjon
 
 Releasekatalogen genereres fra pluginmanifestene. CI verifiserer blant annet
-katalogpinning, innholdslås, agent-/skillroster, progressive lenker,
-evalreferanser og install–oppgradering–rollback–avinstallering.
+katalogpinning, innholdslås, agent-/skillroster, progressive lenker og
+install–oppgradering–rollback–avinstallering.
 
 Kjør den lokale hovedgaten:
 
