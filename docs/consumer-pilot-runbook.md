@@ -31,7 +31,7 @@ python3 scripts/preflight_consumer_pilot.py /tmp/consumer-pilot \
   --json
 ```
 
-Preflighten auditerer den komplette pluginen med 7 agenter og 43 skills.
+Preflighten auditerer den komplette pluginen med 7 agenter og 42 skills.
 Releasebinding, kollisjonssøk og tillatte fjerninger bruker alltid samme
 roster.
 

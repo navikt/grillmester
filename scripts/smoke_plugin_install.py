@@ -27,7 +27,7 @@ SEMVER = re.compile(
 )
 UNAVAILABLE_PLUGINS_COMMAND = "the plugins command is not available"
 PREVIOUS_VERSION = "0.3.0-poc.1"
-PREVIOUS_UNIFIED_VERSION = "0.3.0-rc.3"
+PREVIOUS_UNIFIED_VERSION = "0.3.0-rc.5"
 UPGRADE_SENTINEL = ".grillmester-upgrade-fixture"
 SAFE_ENV_PASSTHROUGH = {
     "PATH",
@@ -58,11 +58,11 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 7, 43),
+    PackageSpec("grillmester", "plugin", 7, 42),
 )
 LEGACY_CORE = PackageSpec("grillmester", "plugin", 7, 34)
 LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10)
-PREVIOUS_UNIFIED_PACKAGE = PackageSpec("grillmester", "plugin", 7, 44)
+PREVIOUS_UNIFIED_PACKAGE = PackageSpec("grillmester", "plugin", 7, 43)
 PREVIOUS_PACKAGES = (LEGACY_CORE, LEGACY_ADD_ON)
 LEGACY_ADD_ON_SKILLS = (
     "grillmester-api-design",
@@ -76,7 +76,9 @@ LEGACY_ADD_ON_SKILLS = (
     "grillmester-observability-setup",
     "grillmester-postgresql-review",
 )
-REMOVED_LEGACY_SKILLS = ("grillmester-kotlin-spring",)
+SAME_PACKAGE_REMOVED_SKILLS = ("grillmester-nav-architecture-review",)
+HISTORICAL_REMOVED_SKILLS = ("grillmester-kotlin-spring",)
+REMOVED_SKILLS = SAME_PACKAGE_REMOVED_SKILLS + HISTORICAL_REMOVED_SKILLS
 PACKAGE_BY_NAME = {package.name: package for package in PACKAGES}
 PLUGIN_NAME = PACKAGES[0].name
 PLUGIN_SPEC = PACKAGES[0].qualified_name
@@ -243,6 +245,26 @@ def write_json_object(path: Path, value: dict[str, Any]) -> None:
     )
 
 
+def add_removed_skill_fixtures(plugin: Path, skill_ids: Sequence[str]) -> None:
+    """Add synthetic skills that existed only in an older package version."""
+
+    for skill_id in skill_ids:
+        removed_skill = plugin / "skills" / skill_id
+        if removed_skill.exists():
+            raise RuntimeError(
+                f"removed skill is present in the current payload: {skill_id}"
+            )
+        removed_skill.mkdir(parents=True)
+        (removed_skill / "SKILL.md").write_text(
+            "---\n"
+            f"name: {skill_id}\n"
+            "description: Historical migration fixture; never ship this skill.\n"
+            "---\n\n"
+            "# Historical migration fixture\n",
+            encoding="utf-8",
+        )
+
+
 def prepare_upgrade_marketplace(
     catalog_path: Path,
     source_root: Path,
@@ -294,21 +316,7 @@ def prepare_upgrade_marketplace(
             shutil.copytree(source_package, staged_marketplace / package.path)
 
     previous_core = previous_plugins[PLUGIN_NAME]
-    for skill_id in REMOVED_LEGACY_SKILLS:
-        legacy_skill = previous_core / "skills" / skill_id
-        if legacy_skill.exists():
-            raise RuntimeError(
-                f"removed legacy skill is present in the current payload: {skill_id}"
-            )
-        legacy_skill.mkdir(parents=True)
-        (legacy_skill / "SKILL.md").write_text(
-            "---\n"
-            f"name: {skill_id}\n"
-            "description: Historical migration fixture; never ship this skill.\n"
-            "---\n\n"
-            "# Historical migration fixture\n",
-            encoding="utf-8",
-        )
+    add_removed_skill_fixtures(previous_core, SAME_PACKAGE_REMOVED_SKILLS)
 
     previous_unified_plugin = staged_marketplace / "previous-unified-plugin"
     shutil.copytree(previous_core, previous_unified_plugin)
@@ -324,6 +332,10 @@ def prepare_upgrade_marketplace(
     for entry in previous_unified_catalog["plugins"]:
         entry["version"] = PREVIOUS_UNIFIED_VERSION
         entry["source"] = "previous-unified-plugin"
+
+    # The split poc.1 fixture predates the Spring removal as well as the
+    # architecture-skill consolidation exercised from the rc.5 fixture.
+    add_removed_skill_fixtures(previous_core, HISTORICAL_REMOVED_SKILLS)
 
     previous_add_on = staged_marketplace / f"previous-{LEGACY_ADD_ON.path}"
     (previous_add_on / "skills").mkdir(parents=True)
@@ -486,19 +498,24 @@ def assert_payload_matches(expected: Path, actual: Path) -> None:
     raise RuntimeError("installed payload differs from source plugin; " + "; ".join(details))
 
 
-def assert_removed_legacy_skills_absent(installed: Path) -> None:
-    for skill_id in REMOVED_LEGACY_SKILLS:
+def assert_removed_skills_absent(installed: Path) -> None:
+    for skill_id in REMOVED_SKILLS:
         if (installed / "skills" / skill_id).exists():
             raise RuntimeError(
-                f"current installation retained removed legacy skill: {skill_id}"
+                f"current installation retained removed skill: {skill_id}"
             )
 
 
-def assert_removed_legacy_skills_present(installed: Path) -> None:
-    for skill_id in REMOVED_LEGACY_SKILLS:
+def assert_same_package_removed_skills_present(installed: Path) -> None:
+    for skill_id in SAME_PACKAGE_REMOVED_SKILLS:
         if not (installed / "skills" / skill_id).is_dir():
             raise RuntimeError(
-                f"same-package update fixture is missing legacy skill: {skill_id}"
+                f"same-package update fixture is missing removed skill: {skill_id}"
+            )
+    for skill_id in HISTORICAL_REMOVED_SKILLS:
+        if (installed / "skills" / skill_id).exists():
+            raise RuntimeError(
+                f"same-package update fixture unexpectedly contains older skill: {skill_id}"
             )
 
 
@@ -519,7 +536,7 @@ def verify_installed_package(
         raise RuntimeError(f"installed {skill_count} skills; expected {package.skills}")
 
     if package == PACKAGES[0]:
-        assert_removed_legacy_skills_absent(installed)
+        assert_removed_skills_absent(installed)
 
     for required in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
         if not (installed / required).is_file():
@@ -814,7 +831,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             unified_installed,
             PREVIOUS_UNIFIED_PACKAGE,
         )
-        assert_removed_legacy_skills_present(unified_installed)
+        assert_same_package_removed_skills_present(unified_installed)
         if enabled_setting(
             copilot_home, PREVIOUS_UNIFIED_PACKAGE.qualified_name
         ) is not True:
@@ -863,7 +880,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             unified_installed,
             PREVIOUS_UNIFIED_PACKAGE,
         )
-        assert_removed_legacy_skills_present(unified_installed)
+        assert_same_package_removed_skills_present(unified_installed)
         if enabled_setting(
             copilot_home, PREVIOUS_UNIFIED_PACKAGE.qualified_name
         ) is not True:

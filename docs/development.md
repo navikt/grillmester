@@ -33,7 +33,7 @@ node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
 ```
 
-Smoken skal bekrefte hele pluginen: 7 agenter, 43 skills og byte-eksakt
+Smoken skal bekrefte hele pluginen: 7 agenter, 42 skills og byte-eksakt
 installasjon, oppgradering, rollback og avinstallering.
 
 ## Discovery-budsjett
