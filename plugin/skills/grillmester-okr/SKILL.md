@@ -3,107 +3,112 @@ name: grillmester-okr
 description: "Helps formulate and review outcome-oriented goals for public-sector product work. Use for OKRs, objectives and key results, planning cycles, goal reviews, baselines, measurement plans or converting delivery lists into measurable outcomes."
 ---
 
-# OKR og målarbeid i offentlig sektor
+# OKRs and goal-setting in the public sector
 
-Hjelp teamet å formulere, kvalitetssikre og følge opp mål. Flytt utkast fra
-aktiviteter til observerbare utfall, men ikke dikt opp baselines, måltall eller
-måledata. Eksempler finnes i [eksempler.md](./references/eksempler.md).
+Help the team formulate, review and follow up on goals. Move drafts from activities
+to observable outcomes, but do not invent baselines, target values or
+measurement data. Examples are available in
+[eksempler.md](./references/eksempler.md).
 
-## Oppdag målkonteksten
+## Discover the goal context
 
-Ikke anta tertialrytme, OKR-format, måldokument, tracker eller prosjektfelt.
+Do not assume a four-month (tertial) cadence, OKR format, goal document, tracker
+or project fields.
 
-1. Les bestillingen og relevante consumer-eide instrukser og dokumenter.
-2. Finn teamets dokumenterte målperiode, begreper, vedtatte mål, eiere,
-   datakilder og oppfølgingsrytme.
-3. Hvis et repository, dokument eller prosjekt bare antydes av issue-maler,
-   lenker eller remote-navn, behandle det som en kandidat og få det bekreftet.
-4. Spør ett manglende faktaspørsmål om gangen. Minstekontekst er ønsket utfall,
-   målgruppe, periode, beslutningseier og tilgjengelig målegrunnlag.
+1. Read the request and relevant consumer-owned instructions and documents.
+2. Find the team's documented goal period, terminology, adopted goals, owners,
+   data sources and follow-up cadence.
+3. If an issue template, link or remote name only suggests a repository,
+   document or project, treat it as a candidate and have it confirmed.
+4. Ask one missing factual question at a time. The minimum context is the
+   desired outcome, target group, period, decision owner and available
+   measurement basis.
 
-Skill mellom vedtatte mål, arbeidsutkast og dine egne forslag.
+Distinguish adopted goals, working drafts and your own suggestions.
 
-## Formuleringsguide
+## Formulation guide
 
-- Mål utfall, ikke output. En leveranse er et mulig virkemiddel.
-- Bruk bruker- og samfunnsverdi fremfor inntekt som standard i offentlig sektor.
-- Hold antallet mål lavt. 1–3 ambisjoner med 2–3 nøkkelresultater hver er en
-  nyttig tommelfingerregel, ikke en policy.
-- En ambisjon er kvalitativ; et nøkkelresultat beskriver et målbart utfall.
-- Be om baseline og målverdi. Hvis en av dem ikke finnes, merk den som uavklart.
-- Avklar hvordan og hvor ofte resultatet kan måles med forsvarlig datakvalitet.
-- Skill ordinær drift fra forbedringsambisjoner. En målbar forbedring i
-  tjenestekvalitet kan være et reelt utfall.
-- Tilpass norsk eller engelsk terminologi til consumerens språkregler.
+- Measure outcomes, not outputs. A deliverable is one possible means.
+- Default to user and societal value rather than revenue in the public sector.
+- Keep the number of goals low. One to three objectives with two to three key
+  results each is a useful rule of thumb, not a policy.
+- An objective is qualitative; a key result describes a measurable outcome.
+- Ask for a baseline and target value. If either is missing, mark it as
+  unresolved.
+- Clarify how and how often the result can be measured with adequate data
+  quality.
+- Distinguish routine operations from improvement objectives. A measurable
+  improvement in service quality can be a genuine outcome.
+- Adapt Norwegian or English terminology to the consumer's language rules.
 
-Eksempel:
+Example:
 
-- Godt utgangspunkt: «Andelen brukere som fullfører uten å kontakte oss øker
+- Good starting point: «Andelen brukere som fullfører uten å kontakte oss øker
   fra 62 prosent til 75 prosent.»
-- Aktivitet: «Lansere ny søknadsdialog.» Spør hvilken observerbar endring
-  leveransen skal bidra til.
+- Activity: «Lansere ny søknadsdialog.» Ask what observable change the
+  deliverable should contribute to.
 
-## Lint alle utkast
+## Lint every draft
 
-Presenter funn per relevant regel og foreslå konkret omskriving:
+Present findings for each relevant rule and suggest a specific rewrite:
 
-| Sjekk | Avklaring |
+| Check | Clarification |
 |---|---|
-| Aktivitet i forkledning | Hva blir annerledes for brukeren eller samfunnet? |
-| Baseline eller mål mangler | Hva er dagens nivå, ønsket nivå og kilden? |
-| Måleplan mangler | Hvordan, hvor og hvor ofte måles resultatet? |
-| For mange mål | Hva kan velges bort for å skape fokus? |
-| Drift blandet inn | Er dette en vedvarende forpliktelse eller en forbedring? |
-| Verdi-kobling mangler | Hvilken bruker- eller samfunnsverdi støttes? |
-| Proxy-mål | Måler tallet faktisk verdien, og hvilke bivirkninger kan det ha? |
+| Activity in disguise | What changes for the user or society? |
+| Missing baseline or target | What are the current level, desired level and source? |
+| Missing measurement plan | How, where and how often is the result measured? |
+| Too many goals | What can be deprioritised to create focus? |
+| Operations mixed in | Is this an ongoing obligation or an improvement? |
+| Missing value link | What user or societal value does this support? |
+| Proxy measure | Does the number actually measure the value, and what side effects might it have? |
 
-Ikke «forbedre» et mål ved å finne på et plausibelt tall. Bruk tydelige
-plassholdere og spørsmål.
+Do not "improve" a goal by inventing a plausible number. Use clear placeholders
+and questions.
 
-## Oppfølgingsrytme
+## Follow-up cadence
 
-Følg teamets dokumenterte kadens. Hvis den ikke finnes, tilby denne generiske
-rytmen som et forslag:
+Follow the team's documented cadence. If none exists, offer this generic cadence
+as a suggestion:
 
-| Tidspunkt | Aktivitet |
+| Timing | Activity |
 |---|---|
-| Periodestart | Formulere mål, baseline, måleplan og eierskap |
-| Jevnlig | Se på signaler og læring, ikke bare leveransestatus |
-| Midtveis | Vurdere prognose og justere innsats eller antagelser |
-| Periodeslutt | Oppsummere resultat, datakvalitet og læring |
+| Start of period | Formulate goals, baseline, measurement plan and ownership |
+| Regularly | Review signals and learning, not only delivery status |
+| Mid-period | Assess the forecast and adjust effort or assumptions |
+| End of period | Summarise results, data quality and learning |
 
-En tracker kan koble arbeid til mål, men trackeraktivitet dokumenterer ikke i
-seg selv måloppnåelse. Oppdag prosjekt og felter dynamisk hvis teamet faktisk
-bruker dem. Ikke anta at målene skal bli feltopsjoner eller at feltnavn kan
-endres automatisk.
+A tracker can connect work to goals, but tracker activity does not itself
+document goal attainment. Discover the project and fields dynamically if the
+team actually uses them. Do not assume that goals should become field options
+or that field names can be changed automatically.
 
-## Varige endringer
+## Durable changes
 
-Før du endrer et måldokument, en issue, en PR eller prosjektmetadata:
+Before changing a goal document, issue, PR or project metadata:
 
-1. vis eksakt repository, dokument eller prosjekt
-2. vis fullstendig utkast og planlagte feltendringer
-3. be om eksplisitt godkjenning
+1. show the exact repository, document or project
+2. show the complete draft and planned field changes
+3. ask for explicit approval
 
-Hvis riktig målsted er ukjent, spør. Ikke opprett et nytt måldokument som
-standard.
+If the correct target is unknown, ask. Do not create a new goal document by
+default.
 
-## Grenser
+## Boundaries
 
-### Alltid
+### Always
 
-- Lint også egne forslag.
-- Skill utfall, leveranser og ordinær drift.
-- Merk manglende data, baselines og vedtak.
+- Lint your own suggestions too.
+- Distinguish outcomes, deliverables and routine operations.
+- Mark missing data, baselines and decisions.
 
-### Spør først
+### Ask first
 
-- Skrive eller publisere mål.
-- Opprette issues eller pull requests.
-- Endre tracker- eller prosjektmetadata.
+- Write or publish goals.
+- Create issues or pull requests.
+- Change tracker or project metadata.
 
-### Aldri
+### Never
 
-- Gi karakter på måloppnåelse uten data.
-- Finne på baseline, målverdi, eier eller måleplan.
-- Behandle antall ferdige oppgaver som dokumentasjon på effekt.
+- Rate goal attainment without data.
+- Invent a baseline, target value, owner or measurement plan.
+- Treat the number of completed tasks as evidence of impact.

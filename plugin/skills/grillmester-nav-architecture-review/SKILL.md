@@ -5,129 +5,134 @@ description: Review architecture choices that specifically depend on Nav or NAIS
 
 # Review Nav architecture
 
-Gjør en Nav-spesifikk arkitekturgjennomgang av en foreslått endring. Denne
-skillen er spesialiseringen for beslutninger der Nav- eller NAIS-konteksten kan
-endre anbefalingen. Bruk `/grillmester-architecture-review` når vurderingen er
-plattformuavhengig.
+Perform a Nav-specific architecture review of a proposed change. This skill is
+the specialisation for decisions where the Nav or NAIS context may change the
+recommendation. Use `/grillmester-architecture-review` when the assessment is
+platform-independent.
 
-Reviewen gir funn, råd og beslutningskandidater; den forfatter ikke
-beslutningen. `/grillmester-domain-modeling` eier både ADR-kvalifiseringen og et
-eventuelt ADR-utkast eller en varig endring, og brukes først etter at brukeren
-eksplisitt velger den ruten.
+The review provides findings, advice, and decision candidates; it does not
+author the decision. `/grillmester-domain-modeling` owns both ADR qualification
+and any ADR draft or durable change, and is used only after the user explicitly
+chooses that route.
 
-## Avgrens Nav-overflaten
+## Bound the Nav surface
 
-Oppdag consumer-repositoryets faktiske kontekst før du anbefaler noe:
+Discover the consumer repository's actual context before recommending anything:
 
-1. Les relevante repository-instruksjoner, kode, eksisterende beslutninger,
-   manifester, kontrakter og arkitekturdokumentasjon.
-2. Identifiser ønsket utfall, beslutningseier, berørte apper og team,
-   produsenter og konsumenter, dataflyt, datakategorier, caller-identiteter og
-   driftsmiljø.
-3. Finn hvilke Nav-flater som faktisk berøres: NAIS-ressurser, nettverk og
-   deploy, identitet og tokens, tilgangspolicy, data eller events,
-   observability, plattformtjenester eller tverrteam-governance.
-4. Skill mellom verifiserte repositoryfakta, gjeldende autoritative føringer,
-   tolkninger og manglende kontekst. Rapporter manglende fakta som åpne spørsmål.
+1. Read relevant repository instructions, code, existing decisions, manifests,
+   contracts, and architecture documentation.
+2. Identify the desired outcome, decision owner, affected apps and teams,
+   producers and consumers, data flow, data categories, caller identities, and
+   operating environment.
+3. Determine which Nav surfaces are actually affected: NAIS resources, network
+   and deployment, identity and tokens, access policy, data or events,
+   observability, platform services, or cross-team governance.
+4. Distinguish verified repository facts, current authoritative guidance,
+   interpretations, and missing context. Report missing facts as open questions.
 
-For plattformegenskaper, identitetsmekanismer, sikkerhetskrav eller andre
-tidsfølsomme føringer, bruk oppdatert autoritativ dokumentasjon. Eksemplene i
-denne skillen er spor til hva som må verifiseres, ikke gjeldende policy i seg
-selv.
+For platform properties, identity mechanisms, security requirements, or other
+time-sensitive guidance, use current authoritative documentation. The examples
+in this skill are clues to what must be verified, not current policy in
+themselves.
 
-## Når spesialiseringen er relevant
+## When the specialisation is relevant
 
-- Ny eller vesentlig endret Nav-tjeneste, systemgrense eller tverrteam-kontrakt.
-- NAIS-ressurs, plattformintegrasjon, data- eller eventflyt, eller migrering.
-- Endret Nav-autentisering, tokenflyt, autorisering eller `accessPolicy`.
-- Ny eller vesentlig endret behandling av personopplysninger i Nav-kontekst.
-- Plattformavvik eller operasjonell beslutning som påvirker Nav-governance,
-  andre team eller produksjonsberedskap.
+- A new or materially changed Nav service, system boundary, or cross-team
+  contract.
+- A NAIS resource, platform integration, data or event flow, or migration.
+- Changed Nav authentication, token flow, authorisation, or `accessPolicy`.
+- New or materially changed processing of personal data in a Nav context.
+- A platform deviation or operational decision that affects Nav governance,
+  other teams, or production readiness.
 
-Et internt refaktoreringsvalg eller en portabel teknologiavveining hører
-vanligvis hjemme i `/grillmester-architecture-review`. Bruk denne
-spesialiseringen bare for Nav-delen dersom en større review inneholder begge.
+An internal refactoring choice or portable technology trade-off usually belongs
+in `/grillmester-architecture-review`. Use this specialisation only for the Nav
+part when a broader review contains both.
 
-## Tre Nav-perspektiver
+## Three Nav perspectives
 
-Last [perspektiv-sjekklistene](./references/perspektiv-sjekklister.md), og bruk
-bare grenene som passer den verifiserte konteksten:
+Load the [perspective checklists](./references/perspektiv-sjekklister.md), and
+use only the branches that fit the verified context:
 
-1. **Arkitektur og governance** — teamautonomi, kontrakteierskap,
-   plattformkapabiliteter, avvik og behov for råd fra berørte team.
-2. **Sikkerhet og personvern** — datakategorier, formål og retention,
-   caller-identitet, tokenflyt, autorisering, `accessPolicy`, PII, audit og
-   behov for spesialistvurdering.
-3. **NAIS-plattform og drift** — deklarerte ressurser, nettverk, kapasitet,
-   observability, levering, failure handling, migrering, rollback og
-   dekommisjonering.
+1. **Architecture and governance** — team autonomy, contract ownership,
+   platform capabilities, deviations, and the need for advice from affected
+   teams.
+2. **Security and privacy** — data categories, purpose and retention, caller
+   identity, token flow, authorisation, `accessPolicy`, PII, audit, and the need
+   for specialist assessment.
+3. **NAIS platform and operations** — declared resources, network, capacity,
+   observability, delivery, failure handling, migration, rollback, and
+   decommissioning.
 
-For hvert relevant perspektiv, rapporter fakta og kilde, risiko eller
-bekymring, anbefaling og gjenværende usikkerhet. Bruk
-`/grillmester-security-review` når en konkret design, konfigurasjon eller
-trusselgrense krever dypere sikkerhets- eller personverngjennomgang.
+For each relevant perspective, report the fact and source, risk or concern,
+recommendation, and remaining uncertainty. Use
+`/grillmester-security-review` when a specific design, configuration, or trust
+boundary requires a deeper security or privacy review.
 
-## Alternativer og råd
+## Alternatives and advice
 
-Sammenlign reelle alternativer mot eksplisitte beslutningskriterier når det
-finnes et valg. Ta med nåtilstanden bare når det å beholde den er et troverdig
-alternativ. Ikke konstruer et bestemt antall alternativer eller tving inn
-"gjøre ingenting".
+Compare real alternatives against explicit decision criteria when a choice
+exists. Include the current state only when retaining it is a credible
+alternative. Do not construct a fixed number of alternatives or force in "do
+nothing".
 
-Identifiser hvem som eier beslutningen, hvem som eier eller bruker kontraktene,
-og hvilke råd som trengs. Architecture Advice informerer teamets beslutning;
-det er ikke en sentral godkjenning. Ikke hevde at noen er rådspurt uten evidens.
-Ikke kontakt andre team eller del materiale uten brukerens eksplisitte
-godkjenning; vis mottaker, kanal og utkast først.
+Identify who owns the decision, who owns or uses the contracts, and which advice
+is needed. Architecture Advice informs the team's decision; it is not central
+approval. Do not claim that someone was consulted without evidence. Do not
+contact other teams or share material without the user's explicit approval;
+show the recipient, channel, and draft first.
 
-## Returner review, ikke ADR
+## Return a review, not an ADR
 
-Returner:
+Return:
 
-- **Scope og evidens** — inkludert hvilke Nav-flater som er verifisert;
-- **Funn per relevant Nav-perspektiv** — prioritert etter konsekvens, med
-  evidens, påvirkning og anbefaling;
-- **Alternativer og trade-offs** — når det finnes et reelt valg;
-- **Åpne spørsmål** — med hvem eller hvilken autoritativ kilde som kan svare;
-- **Samlet anbefaling** — med usikkerhet, residual risiko og nødvendig råd;
-- **Beslutningskandidater** — vanskelige å reversere valg der Nav-konteksten
-  forklarer en ellers overraskende trade-off.
+- **Scope and evidence** — including which Nav surfaces were verified;
+- **Findings for each relevant Nav perspective** — prioritised by consequence,
+  with evidence, impact, and recommendation;
+- **Alternatives and trade-offs** — when a genuine choice exists;
+- **Open questions** — naming who can answer or which authoritative source to
+  consult;
+- **Overall recommendation** — with uncertainty, residual risk, and necessary
+  advice;
+- **Decision candidates** — hard-to-reverse choices where the Nav context
+  explains an otherwise surprising trade-off.
 
-Ikke avgjør ADR-kvalifisering, lag ADR-utkast, rediger beslutningsdokumentasjon
-eller endre status. Forklar hvorfor en kandidat kan fortjene varig
-dokumentasjon, spør brukeren om den skal rutes videre, og bruk
-`/grillmester-domain-modeling` først etter et eksplisitt valg.
+Do not decide ADR qualification, draft an ADR, edit decision documentation, or
+change status. Explain why a candidate may deserve durable documentation, ask
+the user whether it should be routed onward, and use
+`/grillmester-domain-modeling` only after an explicit choice.
 
-## Relaterte skills
+## Related skills
 
-- `/grillmester-architecture-review` for plattformuavhengige arkitekturspørsmål
-- `/grillmester-security-review` for dypere sikkerhets- og personvernreview
+- `/grillmester-architecture-review` for platform-independent architecture
+  questions
+- `/grillmester-security-review` for a deeper security and privacy review
 
-Reviewen kan også anbefale `grillmester-nais-manifest` for konkret manifestarbeid,
-`grillmester-auth-overview` for identitetsmekanismer,
-`grillmester-observability-setup` for telemetri og varsling, eller
-`grillmester-nav-troubleshoot` for driftsdiagnose. De er fordypninger, ikke
-forutsetninger; fullfør denne reviewen og rapporter manglende evidens dersom en
-nødvendig runtime-capability ikke er tilgjengelig.
+The review may also recommend `grillmester-nais-manifest` for concrete manifest
+work, `grillmester-auth-overview` for identity mechanisms,
+`grillmester-observability-setup` for telemetry and alerting, or
+`grillmester-nav-troubleshoot` for operational diagnosis. They are deep dives,
+not prerequisites; complete this review and report missing evidence if a
+necessary runtime capability is unavailable.
 
-## Grenser
+## Boundaries
 
-### Alltid
+### Always
 
-- Vurder bare de Nav-perspektivene som kan endre anbefalingen.
-- Vis evidens, trade-offs, beslutningseier og gjenværende usikkerhet.
-- Verifiser tidsfølsomme føringer mot autoritative kilder.
-- Merk uavklarte eiere, datakategorier og tverrteam-avhengigheter.
+- Assess only the Nav perspectives that may change the recommendation.
+- Show evidence, trade-offs, the decision owner, and remaining uncertainty.
+- Verify time-sensitive guidance against authoritative sources.
+- Note unresolved owners, data categories, and cross-team dependencies.
 
-### Spør først
+### Ask first
 
-- Kontakte berørte team eller dele review- eller beslutningsmateriale.
-- Gjøre eksterne eller varige endringer basert på anbefalingen.
+- Contact affected teams or share review or decision material.
+- Make external or durable changes based on the recommendation.
 
-### Aldri
+### Never
 
-- Fatte eller dokumentere beslutningen på vegne av teamet.
-- Opprette, skrive eller endre en ADR i denne skillen.
-- Bruke reviewen som compliance-, personvern- eller sikkerhetsgodkjenning.
-- Dokumentere personopplysninger, secrets eller andre beskyttede detaljer i
-  review- eller beslutningsmateriale.
+- Make or document the decision on behalf of the team.
+- Create, write, or change an ADR in this skill.
+- Use the review as compliance, privacy, or security approval.
+- Document personal data, secrets, or other protected details in review or
+  decision material.

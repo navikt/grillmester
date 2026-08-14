@@ -3,55 +3,58 @@ name: grillmester-workshop-design
 description: "Designs outcome-driven workshops, meetings, retrospectives, foundation sprints and team-health follow-up with facilitation plans and tool-neutral board structures. Use when a group needs exploration, alignment, a decision or concrete follow-up."
 ---
 
-# Workshopdesign
+# Workshop design
 
-Design møter og workshops med tydelig resultat, reell involvering og oppfølging.
-Lever som standard en kjøreplan og en verktøynøytral samarbeidsflate i tekst.
+Design meetings and workshops with a clear outcome, genuine involvement and
+follow-up. By default, deliver a facilitation plan and a tool-neutral
+collaboration surface in text.
 
-## Oppdag konteksten
+## Discover the context
 
-Les relevante consumer-eide instrukser og dokumenter, og avklar ett punkt om
-gangen:
+Read relevant consumer-owned instructions and documents, and clarify one point
+at a time:
 
-1. **Bakgrunn:** hva har skjedd, og hvorfor nå?
-2. **Ønsket resultat:** hva skal konkret være annerledes etter samlingen?
-3. **Deltakere og roller:** hvem deltar, hvem beslutter, hvem fasiliterer, og
-   hvilke makt- eller trygghetsforhold må ivaretas?
-4. **Rammer:** tid, fysisk/digital/hybrid, tilgjengelighet, språk og tidssoner.
-5. **Verktøy og dokumentasjon:** hva bruker teamet, hvem skal ha tilgang, og hva
-   kan lagres?
+1. **Background:** what has happened, and why now?
+2. **Desired outcome:** what specifically should be different after the
+   session?
+3. **Participants and roles:** who participates, decides and facilitates, and
+   which power or safety dynamics must be accommodated?
+4. **Constraints:** time, physical/digital/hybrid format, accessibility,
+   language and time zones.
+5. **Tools and documentation:** what does the team use, who should have access,
+   and what may be stored?
 
-Ikke anta team, møteverktøy, samarbeidsflate, beslutningsmodell eller
-rapporteringskrav. Spør hvis fakta mangler.
+Do not assume the team, meeting tool, collaboration surface, decision model or
+reporting requirements. Ask when facts are missing.
 
-## BØRA-gaten
+## The BØRA gate
 
-Ingen kjøreplan før ønsket resultat er konkret nok til å evalueres. Alle
-kjøreplaner starter med:
+Do not create a facilitation plan until the desired outcome is concrete enough
+to evaluate. Every plan starts with:
 
 - **Bakgrunn**
 - **Ønsket resultat**
 - **Agenda**
 
-Merk agendapunktene som informasjon, diskusjon eller beslutning. BØRA er et
-nyttig format, ikke en consumer-policy; bruk en dokumentert lokal mal hvis
-teamet har en.
+Label agenda items as information, discussion or decision. BØRA is a useful
+format, not a consumer policy; use a documented local template if the team has
+one.
 
-## Designprinsipper
+## Design principles
 
-- La deltakerne tenke individuelt før plenumsdiskusjon.
-- Bruk heatmapping eller stemming for å synliggjøre mønstre, men avklar hvem som
-  faktisk eier beslutningen.
-- Design for psykologisk trygghet og tilgjengelig deltakelse, særlig ved
-  asymmetrisk makt eller konflikt.
-- Fest tiltak med eier, frist og forventet signal på effekt.
-- Ha synlig parkeringsplass og behandle den før avslutning.
-- Varier format og legg inn pauser ut fra lengde, energinivå og
-  tilgjengelighetsbehov.
+- Let participants think individually before a plenary discussion.
+- Use heatmapping or voting to reveal patterns, but clarify who actually owns
+  the decision.
+- Design for psychological safety and accessible participation, especially
+  where there is asymmetric power or conflict.
+- Anchor actions with an owner, deadline and expected signal of impact.
+- Keep a visible parking lot and address it before closing.
+- Vary the format and add breaks based on length, energy level and accessibility
+  needs.
 
-## Leveranse
+## Deliverable
 
-### Kjøreplan
+### Facilitation plan
 
 ```markdown
 # <Samling> — <dato>
@@ -67,60 +70,61 @@ teamet har en.
 | 09:15–10:00 | <økt> | diskusjon/beslutning | <notat> |
 ```
 
-For hver økt: formål, tidsboks, arbeidsform, fasilitatorord, materiell,
-tilgjengelighetstilpasning og fallgruve.
+For each session, include the purpose, timebox, working format, facilitator
+script, materials, accessibility adaptations and likely pitfall.
 
-### Samarbeidsflate som tekst
+### Collaboration surface as text
 
-Beskriv områder, kolonner, instruksjonslapper, stemmeregler, tilgang og hva som
-skal eksporteres. Tilpass til verktøyet brukeren har bekreftet. Hvis det er
-ukjent, lever en verktøynøytral struktur og spør før du bruker
-plattformspesifikke funksjoner.
+Describe areas, columns, instruction notes, voting rules, access and what should
+be exported. Adapt to the tool the user has confirmed. If it is unknown,
+deliver a tool-neutral structure and ask before using platform-specific
+features.
 
-## Formatruting
+## Format routing
 
-| Behov | Referanse |
+| Need | Reference |
 |---|---|
-| Nytt team eller initiativ som trenger felles hypotese | [Foundation Sprint](./references/foundation-sprint.md) |
-| Retro eller teamhelse | [Retro og teamhelse](./references/retro-og-teamhelse.md) |
-| Målworkshop | Bruk denne flyten og last grillmester-okr for målformulering |
-| Gruppe uten produktoppdrag | Vurder teamkontrakt fremfor Foundation Sprint |
+| New team or initiative that needs a shared hypothesis | [Foundation Sprint](./references/foundation-sprint.md) |
+| Retrospective or team health | [Retro og teamhelse](./references/retro-og-teamhelse.md) |
+| Goal workshop | Use this flow and load grillmester-okr for goal formulation |
+| Group without a product mission | Consider a team contract rather than a Foundation Sprint |
 
-Referanseoppleggene er utgangspunkt. Tilpass etter faktisk resultat,
-deltakere, risiko og rammer.
+The reference formats are starting points. Adapt them to the actual outcome,
+participants, risks and constraints.
 
-## Personvern og trygghet
+## Privacy and safety
 
-- Avklar om input er anonymt, konfidensielt eller kan deles.
-- Ikke gjengi personsensitive utsagn eller helsedata i varige artefakter.
-- Teamhelse er samtalegrunnlag, ikke prestasjonsrapportering.
-- Be brukeren dele bare det utdraget som er nødvendig hvis en intern kilde ikke
-  kan leses trygt.
+- Clarify whether input is anonymous, confidential or shareable.
+- Do not reproduce sensitive personal statements or health data in durable
+  artifacts.
+- Team health is a basis for conversation, not performance reporting.
+- Ask the user to share only the necessary excerpt if an internal source cannot
+  be read safely.
 
-## Varige endringer
+## Durable changes
 
-Før du oppretter eller endrer møteinnkalling, samarbeidsflate, issue, dokument,
-melding eller annen ekstern ressurs:
+Before creating or changing a meeting invitation, collaboration surface, issue,
+document, message or other external resource:
 
-1. vis målsted, mottakere og tilgangsnivå
-2. vis fullstendig utkast eller planlagt struktur
-3. be om eksplisitt godkjenning
+1. show the target, recipients and access level
+2. show the complete draft or planned structure
+3. ask for explicit approval
 
-## Grenser
+## Boundaries
 
-### Alltid
+### Always
 
-- Avklar ønsket resultat før kjøreplan.
-- Tilpass for deltakere, beslutningsform og tilgjengelighet.
-- Avslutt med evaluering og konkrete neste steg.
+- Clarify the desired outcome before creating the facilitation plan.
+- Adapt to the participants, decision format and accessibility needs.
+- Close with an evaluation and concrete next steps.
 
-### Spør først
+### Ask first
 
-- Opprette, dele eller endre møte, dokument eller samarbeidsflate.
-- Kontakte deltakere eller publisere resultat og teamhelsedata.
+- Create, share or change a meeting, document or collaboration surface.
+- Contact participants or publish results and team-health data.
 
-### Aldri
+### Never
 
-- Love integrasjon eller tilgang som ikke er verifisert.
-- Bruke teamhelse som individuell vurdering eller rapportering oppover.
-- Publisere rå, sensitive workshopdata uten eksplisitt godkjenning.
+- Promise an integration or access that has not been verified.
+- Use team health for individual assessment or upward reporting.
+- Publish raw, sensitive workshop data without explicit approval.

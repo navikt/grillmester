@@ -3,127 +3,130 @@ name: grillmester-team-status
 description: "Builds evidence-based team status, goal progress and prioritisation summaries from explicitly confirmed sources. Use for weekly status, planning-period reviews, cross-repository work overviews or prioritisation; GitHub Projects is supported but never assumed."
 ---
 
-# Teamstatus
+# Team status
 
-Bygg en sporbar statusrapport fra kildene teamet faktisk bruker. GitHub Projects
-er én mulig kilde, ikke en forutsetning. Standardmodusen er read-only.
+Build a traceable status report from the sources the team actually uses.
+GitHub Projects is one possible source, not a prerequisite. The default mode is
+read-only.
 
-## 1. Avklar statusoppdraget
+## 1. Clarify the status request
 
-Finn eller spør om:
+Find or ask for:
 
-- team eller produktområde
-- rapporttype, periode og målgruppe
-- beslutningen rapporten skal støtte
-- autoritative kilder for mål, arbeid, kapasitet og feltsemantikk
-- hvilke repositories, prosjekter og andre systemer som inngår
+- team or product area
+- report type, period, and audience
+- the decision the report should support
+- authoritative sources for goals, work, capacity, and field semantics
+- which repositories, projects, and other systems are included
 
-Les relevante consumer-eide instruksjoner og dokumenter først. Et remote-navn,
-en project-lenke eller en projects-verdi i en issue-mal er bare et spor til det
-er bekreftet av eksplisitt teamkontekst eller brukeren.
+Read relevant consumer-owned instructions and documents first. A remote name,
+project link, or project value in an issue template is only a clue until
+confirmed by explicit team context or the user.
 
-Ved arbeid på tvers av repositories må scope være navngitt eller bekreftet.
-Ikke gjør organisasjonsbrede søk og kall resultatet «teamstatus».
+When working across repositories, the scope must be named or confirmed. Do not
+perform organisation-wide searches and call the result "team status".
 
-## 2. Etabler kildegrunnlaget
+## 2. Establish the evidence base
 
-Lag en kort intern kildeliste med:
+Create a short internal source list with:
 
-- kilde og scope
-- når data ble hentet
-- hvilke felter eller dokumenter som er brukt
-- tilgangshull og kjente svakheter
+- source and scope
+- when the data was retrieved
+- which fields or documents were used
+- access gaps and known weaknesses
 
-Hvis en nødvendig kilde, periode eller semantikk mangler, spør ett konkret
-spørsmål. Hvis kilden ikke kan leses, be brukeren dele et relevant utdrag og
-merk begrensningen i rapporten.
+If a necessary source, period, or semantic definition is missing, ask one
+specific question. If the source cannot be read, ask the user to share a
+relevant excerpt and note the limitation in the report.
 
 For GitHub Projects:
 
-1. Sjekk om en godkjent semantisk GitHub-/Projects-integrasjon faktisk er
-   tilgjengelig i runtime. Bruk aldri `gh`, shell, rå HTTP eller andre
-   nettverkskommandoer som fallback i denne produktflyten.
-2. Få owner og project number fra en bekreftet lenke eller teamkilde.
-3. Hent felt, opsjoner og items dynamisk gjennom integrasjonen.
-4. Finn teamets forklaring av kolonner og felter. Ikke utled «aktiv»,
-   «ferdig», mål, periode, størrelse eller prioritet bare fra feltnavnet.
-5. Bruk [projects-v2.md](./references/projects-v2.md) for tekniske
-   leseoppskrifter når relevant.
+1. Check whether an approved semantic GitHub or Projects integration is
+   actually available at runtime. Never use `gh`, shell, raw HTTP, or other
+   network commands as a fallback in this product workflow.
+2. Obtain the owner and project number from a confirmed link or team source.
+3. Retrieve fields, options, and items dynamically through the integration.
+4. Find the team's explanation of columns and fields. Do not infer "active",
+   "done", goals, period, size, or priority from the field name alone.
+5. Use [projects-v2.md](./references/projects-v2.md) for technical read
+   procedures when relevant.
 
-Hvis nødvendig Projects-evidens ikke kan leses med tilgjengelige, godkjente
-verktøy, be om et datert eksportert eller innlimt utdrag og stopp med
-`Status: NEEDS_INPUT`. Navngi evidensen som mangler; ikke foreslå en
-shellkommando. Et manglende skriveverktøy kan heller ikke omgås: behold
-endringsutkastet i samtalen og be om integrasjonen eller manuell utførelse i
-GitHub-grensesnittet.
+If necessary Projects evidence cannot be read with the available approved
+tools, ask for a dated export or pasted excerpt and stop with
+`Status: NEEDS_INPUT`. Name the missing evidence; do not suggest a shell
+command. A missing write tool cannot be bypassed either: keep the change draft
+in the conversation and ask for the integration or manual execution in the
+GitHub interface.
 
-Issue-maler kan brukes til å foreslå et prosjekt som brukeren kan bekrefte, men
-de definerer ikke automatisk teamets tavle eller hele rapportscopet.
+Issue templates may be used to suggest a project for the user to confirm, but
+they do not automatically define the team's board or the full report scope.
 
-## 3. Bygg rapporten
+## 3. Build the report
 
-Velg malen som passer fra [rapportmaler.md](./references/rapportmaler.md):
+Select the appropriate template from
+[rapportmaler.md](./references/rapportmaler.md):
 
-| Rapport | Formål |
+| Report | Purpose |
 |---|---|
-| Ukesoversikt | Synliggjøre arbeid, blokkeringer og nylige endringer |
-| Periodestatus | Koble verifiserte resultatsignaler og arbeid til teamets mål |
-| Prioriteringsunderlag | Sammenligne avklarte kandidater mot mål og kriterier |
+| Weekly overview | Show work, blockers, and recent changes |
+| Period status | Connect verified outcome signals and work to the team's goals |
+| Prioritisation material | Compare clarified candidates against goals and criteria |
 
-Rapporten skal skille mellom:
+The report must distinguish:
 
-1. **Kildegrunnlag** — hva som er lest, med tidspunkt og scope.
-2. **Verifiserte observasjoner** — det kildene faktisk viser.
-3. **Tolkning** — mønstre og konsekvenser du utleder.
-4. **Datagap og antagelser** — hva som ikke kunne verifiseres.
-5. **Neste avklaring** — hva teamet bør undersøke eller beslutte.
+1. **Evidence base** — what was read, with timestamp and scope.
+2. **Verified observations** — what the sources actually show.
+3. **Interpretation** — patterns and consequences you infer.
+4. **Data gaps and assumptions** — what could not be verified.
+5. **Next clarification** — what the team should investigate or decide.
 
-En tracker dokumenterer arbeid, ikke nødvendigvis effekt. Ikke vurder
-måloppnåelse fra issue-status alene; bruk måledata eller merk effektstatus som
-ukjent.
+A tracker documents work, not necessarily impact. Do not assess goal achievement
+from issue status alone; use measurement data or mark impact status as unknown.
 
-Før et prioriteringsunderlag må anledning, mål, kriterier, kapasitet og
-kandidater være avklart. Ikke fyll manglende kandidater med en antatt backlog.
+Before producing prioritisation material, clarify the occasion, goals, criteria,
+capacity, and candidates. Do not fill missing candidates with an assumed
+backlog.
 
-## Tavle- eller feltguide mangler
+## When a board or field guide is missing
 
-Tilby et kort intervju:
+Offer a short interview:
 
-1. Hva betyr hver relevant kolonne eller status?
-2. Hvilke felter brukes til mål, periode, prioritet og størrelse?
-3. Hvilke unntak og overgangsregler finnes?
+1. What does each relevant column or status mean?
+2. Which fields are used for goals, period, priority, and size?
+3. Which exceptions and transition rules exist?
 
-Lever først guiden som et utkast i samtalen. Avklar deretter riktig
-consumer-eid målsted. Opprett issue, fil eller PR bare etter eksplisitt
-godkjenning.
+First provide the guide as a draft in the conversation. Then clarify the correct
+consumer-owned target location. Create an issue, file, or PR only after explicit
+approval.
 
-## Eksterne endringer
+## External changes
 
-Statusarbeid er read-only med mindre brukeren ber om noe annet. Før du endrer en
-issue, prosjektverdi, guide eller rapport:
+Status work is read-only unless the user requests otherwise. Before changing an
+issue, project value, guide, or report:
 
-1. vis eksakt repository, prosjekt, item og felt eller dokument
-2. vis gammel og ny verdi eller fullstendig utkast
-3. be om eksplisitt godkjenning
+1. show the exact repository, project, item, and field or document
+2. show the old and new value or the complete draft
+3. ask for explicit approval
 
-Ikke endre feltdefinisjoner eller opsjoner som en bieffekt av rapportering.
+Do not change field definitions or options as a side effect of reporting.
 
-## Grenser
+## Boundaries
 
-### Alltid
+### Always
 
-- Bekreft scope og kilder.
-- Hent prosjektfelter dynamisk når GitHub Projects brukes.
-- Skill kildedata, tolkning, antagelser og datagap.
-- Oppgi tidspunkt for data som kan endre seg.
+- Confirm the scope and sources.
+- Retrieve project fields dynamically when GitHub Projects is used.
+- Separate source data, interpretation, assumptions, and data gaps.
+- State the timestamp for data that can change.
 
-### Spør først
+### Ask first
 
-- Opprette eller endre issues, prosjektitems, feltverdier, guider eller PR-er.
-- Utvide analysen til repositories eller systemer utenfor bekreftet scope.
+- Create or change issues, project items, field values, guides, or PRs.
+- Extend the analysis to repositories or systems outside the confirmed scope.
 
-### Aldri
+### Never
 
-- Gjette prosjekt, feltsemantikk, teamgrense eller målperiode.
-- Presentere trackeraktivitet som dokumentert bruker- eller samfunnseffekt.
-- Endre ekstern tilstand uten vist utkast og eksplisitt godkjenning.
+- Guess the project, field semantics, team boundary, or goal period.
+- Present tracker activity as documented user or societal impact.
+- Change external state without showing a draft and receiving explicit
+  approval.

@@ -15,7 +15,7 @@ class DoctorWhoNoShellContractTests(unittest.TestCase):
         frontmatter = agent.split("---", 2)[1]
 
         self.assertNotIn("tools:", frontmatter)
-        self.assertIn("aldri\nerstatte det med shell-/nettverkskommandoer", agent)
+        self.assertIn("never replace it\nwith shell or network commands", agent)
 
     def test_projects_reference_has_no_cli_fallback(self) -> None:
         reference = read(
@@ -33,7 +33,7 @@ class DoctorWhoNoShellContractTests(unittest.TestCase):
         issue_management = read("plugin/skills/grillmester-issue-management/SKILL.md")
         security_review = read("plugin/skills/grillmester-security-review/SKILL.md")
 
-        self.assertIn("Bruk aldri `gh`, shell, rå HTTP", team_status)
+        self.assertIn("Never use `gh`, shell, raw HTTP", team_status)
         self.assertIn("Status: NEEDS_INPUT", team_status)
 
         self.assertIn("For Doctor Who", issue_management)

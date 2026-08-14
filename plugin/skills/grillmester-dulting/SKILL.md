@@ -1,86 +1,90 @@
 ---
 name: grillmester-dulting
-description: "Utforsker, utformer og evaluerer etisk forsvarlige atferdsintervensjoner i offentlige tjenester. Bruk ved dulting, nudging, atferdsdesign, påminnelser, defaults, friksjon eller sludge, handlingsutløsende tekst og forsøk som skal påvirke brukeradferd."
+description: "Explores, designs and evaluates ethically responsible behavioural interventions in public services. Use for nudging, behavioural design, reminders, defaults, friction or sludge, action-triggering copy, and experiments intended to influence user behaviour."
 ---
 
-# Utform ansvarlig dulting
+# Design responsible nudges
 
-Behandle dulting som en hypotese om en konkret brukeradferd, ikke som pynt eller
-en snarvei rundt et tjenesteproblem. Bygg på faktisk brukerinnsikt, produktdata,
-regelverk og consumerens dokumenterte rammer. Skill verifiserte fakta, antakelser
-og beslutninger gjennom hele arbeidet.
+Treat a nudge as a hypothesis about a specific user behaviour, not as decoration
+or a shortcut around a service problem. Base it on actual user insight, product
+data, regulations and the consumer's documented constraints. Distinguish
+verified facts, assumptions and decisions throughout the work.
 
-## Avgrens problemet
+## Scope the problem
 
-1. Les relevant brukerreise, forskning, målbilde, eksisterende målinger,
-   brukerrettet tekst og consumer-instruksjoner.
-2. Formuler adferden presist: «Når `<situasjon>` oppstår, skal `<aktør>` kunne
-   gjøre `<handling>`». Navngi ønsket brukerutfall, ikke bare systemets mål.
-3. Etabler baseline, berørte grupper, frivillighet, konsekvensen av å handle eller
-   la være, og om handlingen påvirker rettigheter, helse, økonomi eller deling av
-   personopplysninger.
-4. Merk manglende innsikt som et åpent spørsmål. Ikke dikt opp effektdata,
-   brukerbehov, frister, sosiale normer eller rettslige konsekvenser.
+1. Read the relevant user journey, research, target state, existing
+   measurements, user-facing copy and consumer instructions.
+2. Define the behaviour precisely: «Når `<situasjon>` oppstår, skal `<aktør>`
+   kunne gjøre `<handling>`». Name the desired user outcome, not only the
+   system's goal.
+3. Establish the baseline, affected groups, voluntariness, the consequences of
+   acting or not acting, and whether the action affects rights, health,
+   finances or the sharing of personal data.
+4. Mark missing insight as an open question. Do not invent effect data, user
+   needs, deadlines, social norms or legal consequences.
 
-## Finn riktig type tiltak
+## Find the right type of intervention
 
-Diagnostiser først om hindringen er informasjon, evne/friksjon, motivasjon,
-prompt/tidspunkt, tillit eller en strukturell begrensning.
+First diagnose whether the barrier is information, ability or friction,
+motivation, prompt or timing, trust, or a structural constraint.
 
-- Rett feil, uklar informasjon og unødvendig friksjon før sterkere påvirkning.
-- Bruk `grillmester-klarsprak` når forståelse eller ordvalg er problemet.
-- Behandle nødvendig juridisk eller sikkerhetsmessig friksjon som en ramme, ikke
-  som sludge som automatisk skal fjernes.
-- Ikke bruk dulting for å skjule manglende kapasitet, et uavklart regelverk eller
-  en tjeneste som ikke lar brukeren gjennomføre oppgaven.
+- Correct errors, unclear information and unnecessary friction before applying
+  stronger influence.
+- Use `grillmester-klarsprak` when comprehension or wording is the problem.
+- Treat necessary legal or security-related friction as a constraint, not as
+  sludge that should automatically be removed.
+- Do not use nudging to conceal insufficient capacity, unresolved regulations
+  or a service that does not let the user complete the task.
 
-Last [atferdsmønstrene](references/behavioral-patterns.md) når du skal kartlegge
-reisen, bruke Fogg/EAST eller sammenligne konkrete teknikker.
+Load the [behavioural patterns](references/behavioral-patterns.md) when mapping
+the journey, applying Fogg/EAST or comparing specific techniques.
 
-## Sammenlign intervensjoner
+## Compare interventions
 
-Lag to eller tre reelt forskjellige hypoteser, inkludert et enklere alternativ
-som informasjon, friksjonsfjerning eller ingen dulting når det er relevant. For
-hver hypotese, vis:
+Create two or three genuinely different hypotheses, including a simpler option
+such as information, friction removal or no nudge where relevant. For each
+hypothesis, show:
 
-- barrieren den skal påvirke;
-- plassering og tidspunkt i brukerreisen;
-- forventet mekanisme og hvilket belegg som mangler;
-- autonomi-, personvern-, tilgjengelighets- og fordelingsrisiko;
-- primærmåling, guardrails og en eksplisitt stoppregel.
+- the barrier it is intended to affect;
+- its placement and timing in the user journey;
+- the expected mechanism and what evidence is missing;
+- autonomy, privacy, accessibility and distributional risks;
+- the primary measure, guardrails and an explicit stopping rule.
 
-Bruk `grillmester-aksel-design`, `grillmester-design-prototype` eller
-`grillmester-prototype` når en avgrenset
-visualisering eller et forsøk er nødvendig. Bruk aldri prototypen som bevis for
-at intervensjonen virker i produksjon.
+Use `grillmester-aksel-design`, `grillmester-design-prototype` or
+`grillmester-prototype` when a scoped visualisation or experiment is needed.
+Never use the prototype as evidence that the intervention works in production.
 
-## Kjør etikkporten
+## Run the ethics gate
 
-Last [etikk- og evalueringsreferansen](references/ethics-and-evaluation.md) for
-FORGOOD-vurdering, forsøksdesign og måleplan. Stopp før utforming eller
-eksperiment når ansvarlig produkt-, fag-, juridisk-, personvern- eller
-tilgjengelighetsrolle må ta en beslutning som ikke kan utledes av kildene.
+Load the [ethics and evaluation reference](references/ethics-and-evaluation.md)
+for the FORGOOD assessment, experiment design and measurement plan. Stop before
+designing or experimenting when the responsible product, subject-matter, legal,
+privacy or accessibility role must make a decision that cannot be derived from
+the sources.
 
-Krev særskilt avklaring ved:
+Require specific clarification for:
 
-- tidspress eller tapsframing i en rettighetskritisk eller sårbar situasjon;
-- defaults som kan dele eller behandle personopplysninger;
-- personalisering basert på sensitive eller uventede data;
-- automatisert påvirkning som kan forveksles med et vedtak eller faglig råd;
-- forskjellige virkninger for grupper som allerede møter høy friksjon.
+- time pressure or loss framing in rights-critical or vulnerable situations;
+- defaults that may share or process personal data;
+- personalisation based on sensitive or unexpected data;
+- automated influence that could be mistaken for a formal decision or
+  professional advice;
+- different effects on groups that already face substantial friction.
 
-## Lever en testbar brief
+## Deliver a testable brief
 
-Oppsummer brukerreisen, baseline, ønsket adferd, dokumentert barriere, valgt og
-forkastet hypotese, evidens, FORGOOD-funn, databehov, målinger, guardrails,
-stoppregel, ansvarlige roller og neste minste læringssteg. Skill tydelig mellom
-en designhypotese og en godkjent produksjonsendring.
+Summarise the user journey, baseline, desired behaviour, documented barrier,
+selected and rejected hypotheses, evidence, FORGOOD findings, data needs,
+measures, guardrails, stopping rule, responsible roles and the next smallest
+learning step. Clearly distinguish a design hypothesis from an approved
+production change.
 
-## Grenser
+## Boundaries
 
-- Bruk aldri falske frister, fabrikerte normtall, skjulte opt-outs eller skyld og
-  frykt som virkemiddel.
-- Optimaliser aldri bare gjennomføring når feil, press, klager, skjevhet eller
-  kvalitet kan forverres.
-- Gjør ingen ekstern publisering, brukerrekruttering, produksjonsendring eller
-  eksperimentstart uten eksplisitt avgrenset godkjenning.
+- Never use false deadlines, fabricated social-proof figures, hidden opt-outs,
+  guilt or fear as mechanisms.
+- Never optimise solely for completion when errors, pressure, complaints, bias
+  or quality may worsen.
+- Do not publish externally, recruit users, change production or start an
+  experiment without explicit, scoped approval.
