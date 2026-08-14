@@ -51,10 +51,10 @@ tool calls, godkjent write og avvist write før stabil release.
 
 ## Klientstøtte
 
-| Klient | POC-status | Hva som fortsatt må bevises før stabil |
+| Klient | Nåstatus | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
-| **Copilot CLI** | Referanseklient. Lokal mount, install-/oppgraderings-/rollbackflyt, POC-installasjon, deklarativ auto-install og publisert [`poc.2 → poc.3` session-start auto-update](evidence/cli-autoupdate-poc2-to-poc3.md) er bekreftet i reelle sesjoner med 7 agenter og 44 skills. | Immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
-| **Copilot app** | Plugins-UI-installasjon og discovery av 7 agenter og 44 skills er bekreftet i en reell POC-sesjon. | Om custom-marketplace-installasjonen auto-oppdateres, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. |
+| **Copilot CLI** | Referanseklient. Lokal mount, install-/oppgraderings-/rollbackflyt, personlig installasjon, deklarativ auto-install og oppdatering ved sesjonsstart er bekreftet i reelle sesjoner med 7 agenter og 44 skills. | Immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
+| **Copilot app** | Plugins-UI-installasjon og discovery av 7 agenter og 44 skills er bekreftet i en reell sesjon. | Om custom-marketplace-installasjonen auto-oppdateres, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær kompatibilitetsflate. VS Code dokumenterer update-sjekk hver 24. time når `extensions.autoUpdate` er aktivert. | Verifiser faktisk custom-marketplace-oppdatering med to Grillmester-versjoner; den styrer ikke første Nav-release. |
 | **OpenCode** | Skills-only eksperiment. | Hver skill må portabilitetsauditeres. Agentteam, marketplace og felles agentkontrakt følger ikke med. |
@@ -72,7 +72,7 @@ dokumentert tilsvarende garanti. VS Code har en egen
 Disse tre mekanismene må derfor rapporteres separat, ikke som én felles
 «Copilot auto-update»-status.
 
-Den flytende `marketplace`-branchen er POC-kanalen. Når publisheren har
+Den flytende `marketplace`-branchen er oppdateringskanalen. Når publisheren har
 avansert den etter en merge til `main`, kan CLI-brukere som har valgt
 `autoUpdate: true`, hente endringen ved neste trusted CLI-sesjon. CI,
 `COPILOT_AUTO_UPDATE=false` og `--no-auto-update` hopper over hentingen.
@@ -107,7 +107,7 @@ krever en immutable release-tag i stedet.
 10. Test oppgradering og rollback i det piloterte referanserepoet og minst to
     representative Nav-consumere. Manglende evidens er `UNVERIFIED`, aldri
     `PASS`.
-11. Publiser to påfølgende POC-/RC-versjoner og bekreft at en isolert personlig
+11. Publiser to påfølgende RC-versjoner og bekreft at en isolert personlig
     CLI-konfigurasjon med `autoUpdate: true` går fra den første til den andre
     ved neste trusted CLI-sesjon uten manuell update-kommando. Observer App og
     VS Code separat.

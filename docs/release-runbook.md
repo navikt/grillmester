@@ -71,7 +71,7 @@ publication cannot race the catalog publisher.
 ## Release a candidate
 
 1. Set `plugin/plugin.json.version` to a strict prerelease SemVer, for example
-   `0.3.0-poc.3`. Build metadata is not accepted, and a version must never be
+   `0.3.0-rc.1`. Build metadata is not accepted, and a version must never be
    reused for different payload bytes.
 2. Merge that source change normally. Wait for **Publish marketplace catalog**
    and resolve the exact catalog-only commit containing the version:
@@ -91,7 +91,7 @@ publication cannot race the catalog publisher.
    ```json
    {
      "schemaVersion": 1,
-     "requestId": "v0.3.0-poc.3-1",
+     "requestId": "v0.3.0-rc.1-1",
      "channel": "rc",
      "catalogSha": "0123456789abcdef0123456789abcdef01234567",
      "rcTag": ""
@@ -124,7 +124,7 @@ requires a new corrective version; tags are never moved.
 
 The floating `marketplace` branch is also the personal CLI auto-update channel.
 Every reviewed plugin merge to `main` that passes the publisher is therefore a
-deployment to users who opted into this POC channel; there is no later approval
+deployment to users who opted into this floating channel; there is no later approval
 gate before their next session checks for updates. Keep an isolated Copilot
 home on the previous version, start a new trusted CLI session after publication,
 and verify that it advances without an explicit update command. This is
@@ -152,7 +152,7 @@ SHA, and the reviewed prerelease tag. Then merge a separate request-file PR:
   "requestId": "v0.3.0-1",
   "channel": "stable",
   "catalogSha": "fedcba9876543210fedcba9876543210fedcba98",
-  "rcTag": "v0.3.0-poc.3"
+  "rcTag": "v0.3.0-rc.1"
 }
 ```
 

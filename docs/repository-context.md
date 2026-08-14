@@ -115,8 +115,8 @@ før teamet eventuelt rydder i repo-lokale komponenter.
 
 Før stabil lansering bredt i Nav må eierne avtale om Grillmester skal anbefales
 eller katalogføres gjennom `nav-pilot`/onboarding, hvilke MCP Registry-ID-er som
-er støttet, og hvem som eier overlappende innhold. Inntil det er avklart er
-Grillmester-POC-en en separat, eksplisitt installasjon — ikke en stille del av
+er støttet, og hvem som eier overlappende innhold. Inntil det er avklart
+installeres Grillmester separat og eksplisitt — det er ikke en stille del av
 den andre synkflyten.
 
 En repo-lokal agent eller skill med samme ID kan ha presedens og skygge

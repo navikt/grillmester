@@ -6,7 +6,7 @@ enterprise-policy. De tre nivåene løser ulike behov.
 ## Før du begynner
 
 - Installer en versjon av GitHub Copilot CLI som støtter plugins.
-- Bruk `marketplace`-branchen for POC, eller velg en reviewet tag fra
+- Bruk `marketplace`-branchen for løpende oppdateringer, eller velg en reviewet tag fra
   [Grillmester Releases](https://github.com/navikt/grillmester/releases) når
   en kandidat er publisert.
 
@@ -23,7 +23,7 @@ levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
 ## Anbefalt personlig oppsett med automatisk oppdatering
 
-For en personlig CLI-installasjon er den anbefalte POC-standarden en flytende
+For en personlig CLI-installasjon er det anbefalte oppsettet en flytende
 marketplace-kanal med automatisk oppdatering ved sesjonsstart. Merge dette i
 din egen `~/.copilot/settings.json`:
 
@@ -71,15 +71,13 @@ eksplisitte override-flaggene. `--enable-global-auto-update` endrer en bredere
 brukerpreferanse: den aktiverer automatisk oppdatering av både selve Copilot
 CLI og alle plugins. Bruk den bare etter å ha lest previewen.
 
-Start deretter Copilot slik du vanligvis gjør i Nav. Med Copilot CLI 1.0.79 er
-både auto-install og en publisert
-[`poc.2 → poc.3` session-start-oppdatering](evidence/cli-autoupdate-poc2-to-poc3.md)
-bekreftet. Dette er observasjon av POC-deployen, ikke en preventiv releasegate;
-andre klienter har egne update-gater.
+Start deretter Copilot slik du vanligvis gjør i Nav. Copilot CLI sjekker etter
+pluginoppdateringer når en ny sesjon starter. Andre klienter har egne
+oppdateringsmekanismer.
 
 ## Manuell personlig installasjon i Copilot CLI
 
-Installer den nåværende POC-en:
+Installer Grillmester:
 
 ```bash
 copilot plugin marketplace add navikt/grillmester#marketplace
@@ -87,12 +85,12 @@ copilot plugin install grillmester@grillmester
 copilot plugin list
 ```
 
-`marketplace` er en flytende POC-kanal. For reproduserbar installasjon bruker
+`marketplace` er en flytende oppdateringskanal. For reproduserbar installasjon bruker
 du samme kommando med en reviewet `v<versjon>`-tagg i stedet.
 
 Publisheren avanserer `marketplace` etter en reviewet pluginendring på `main`.
-For brukere med `autoUpdate: true` betyr en slik merge derfor deploy til
-POC-kanalen. Bruk en immutable release-tag når oppdateringen må vente på en
+For brukere med `autoUpdate: true` betyr en slik merge derfor at versjonen blir
+tilgjengelig i den flytende kanalen. Bruk en immutable release-tag når oppdateringen må vente på en
 separat godkjenning.
 
 Denne imperative flyten slår ikke på automatisk oppdatering for en
@@ -249,18 +247,18 @@ Endre `ref` i `.github/copilot/settings.json` i en vanlig PR. Rollback er en PR
 eller revert tilbake til forrige tag. Da er både endringen og gjenopprettingen
 synlig i Git-historikken.
 
-## Lokal POC og utvikling
+## Lokal utvikling
 
 Når ingen release er publisert, eller når du utvikler pluginen, kan du mounte
 en lokal checkout i en disponibel testrepo:
 
 ```bash
-git clone git@github.com:navikt/grillmester.git /tmp/grillmester-poc
+git clone git@github.com:navikt/grillmester.git /tmp/grillmester-dev
 cd /path/to/a/disposable-test-repo
 ```
 
 Start Copilot slik du vanligvis gjør i Nav, last den lokale mappen
-`/tmp/grillmester-poc/plugin` med klientens dokumenterte `--plugin-dir`-flyt,
+`/tmp/grillmester-dev/plugin` med klientens dokumenterte `--plugin-dir`-flyt,
 og velg Grillmester med `/agent`.
 
 Denne flyten er eksplisitt og midlertidig for prosessen du starter. Den er ikke

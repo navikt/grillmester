@@ -749,7 +749,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if enabled_setting(copilot_home, package.qualified_name) is not True:
                 raise RuntimeError(f"installation did not enable {package.name}")
 
-        # POC package consolidation requires explicit removal of the old
+        # Single-package consolidation requires explicit removal of the old
         # skills-only add-on before the marketplace roster loses that entry.
         legacy_installed = (
             copilot_home
