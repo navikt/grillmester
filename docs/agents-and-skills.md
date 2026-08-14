@@ -60,16 +60,8 @@ tilgjengelige verktøy.
 **Ikke bruk når:** Du vil implementere produktkode. Godkjent design går videre
 til Barista eller Grillmester.
 
-Figma-lesing og -skriving krever at klienten faktisk tilbyr relevante
-Figma-verktøy, og at brukeren har godkjent tilgangen. Uten dem skal Designer
-tilby en ærlig fallback og aldri hevde at en Figma-write skjedde.
-
-For ferske Aksel-fakta anbefales Aksel MCP. Til inspeksjon av en kjørende
-løsning kan Designer bruke tilgjengelige nettleserverktøy, blant annet
-Playwright MCP. Visual Companion er et utforskingssteg. En Figma-leveranse
-bygges som redigerbar, Figma-native struktur, med ekte Aksel-instanser der en
-relevant komponent finnes. HTML-lag er bare visuell referanse. Se
-[anbefalt MCP-oppsett](mcp-setup.md).
+Designer fungerer best med Aksel MCP og Figma MCP. Ved arbeid mot en kjørende
+app anbefales også Playwright MCP. Se [MCP-oppsett](mcp-setup.md).
 
 ### Doctor Who 🕰️
 
