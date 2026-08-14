@@ -120,7 +120,7 @@ user.
 | Create or improve an issue | grillmester-issue-management |
 | Stress-test an important choice | grillmester-grill-me |
 | User-facing text | grillmester-klarsprak |
-| Nav- or NAIS-specific architecture review | grillmester-nav-architecture-review |
+| Consequential Nav or NAIS architecture review | grillmester-architecture-review |
 | Assess the need for an ADR or draft one after an explicit choice | grillmester-domain-modeling |
 | Personal data, identity, access, external data flows, or trust boundaries | grillmester-security-review |
 

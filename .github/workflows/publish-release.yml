@@ -328,7 +328,7 @@ jobs:
             .marketplace.owner == "Team eSyfo" and
             (.marketplace.description | type == "string" and length > 0) and
             .packages == [
-              {name: "grillmester", path: "plugin", agents: 7, skills: 43}
+              {name: "grillmester", path: "plugin", agents: 7, skills: 42}
             ]
           ' "${package_manifest_file}" >/dev/null
           jq -e \

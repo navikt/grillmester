@@ -162,7 +162,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertNotIn('path: "plugin-nav"', text)
         self.assertIn(
-            '{name: "grillmester", path: "plugin", agents: 7, skills: 43}',
+            '{name: "grillmester", path: "plugin", agents: 7, skills: 42}',
             text,
         )
         self.assertIn(

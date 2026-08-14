@@ -1,6 +1,6 @@
 ---
 name: grillmester-architecture-review
-description: Review consequential architecture proposals using repository evidence, system boundaries, quality attributes, operational constraints, alternatives, migration, and reversibility. Use for platform-independent review; route Nav or NAIS consequences to the bundled Nav specialization.
+description: Review consequential architecture proposals using repository evidence, boundaries, quality attributes, operations, alternatives, migration, and reversibility. Use for new services, cross-team contracts, platform choices, migrations, or hard-to-reverse design choices, including when Nav or NAIS context may change the recommendation. Do not trigger merely because a repository uses Nav or NAIS, or for concrete implementation, configuration, security/privacy review, or incident diagnosis.
 ---
 
 # Review architecture
@@ -10,12 +10,12 @@ and decision candidates. `/grillmester-domain-modeling` alone decides whether a
 candidate qualifies for an ADR and drafts or records it after the user
 explicitly chooses that route.
 
-Use this skill when the important reasoning is portable across organizations,
-platforms, and technology stacks. If organization- or platform-specific facts
-could change the recommendation, identify and verify those facts explicitly.
-When the decision depends on Nav or NAIS, route the specialized pass to the
-bundled `/grillmester-nav-architecture-review`. Backend, platform and
-integration follow-ups may route to the relevant bundled implementation skill.
+Use this skill for consequential choices across system boundaries. If
+organization- or platform-specific facts could change the recommendation,
+identify and verify them explicitly. When Nav or NAIS context may matter, load
+[the conditional Nav context](references/nav-context.md) and apply only branches
+that could change the recommendation. Concrete follow-up work belongs to the
+matching implementation or review specialist.
 
 Use `/grillmester-security-review` for a concrete code, configuration, privacy,
 or threat review. An architecture review may identify the need for that deeper
@@ -68,8 +68,11 @@ a fixed number of alternatives, force a "do nothing" option, or declare a
 winner when the evidence does not support one.
 
 Identify the people or teams whose knowledge is needed, while keeping decision
-ownership explicit. Do not claim consultation occurred without evidence, and
-do not contact anyone or share material without the user's authorization.
+ownership explicit. Do not claim consultation occurred without evidence. Do
+not include personal data, secrets, or protected details in review or decision
+material. Before contacting anyone or sharing material, show the recipient,
+channel, and draft and get explicit approval. Ask before any other external or
+durable change.
 
 ## Return a review, not an ADR
 

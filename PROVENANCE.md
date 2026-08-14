@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: seven agents and 43 skills. The sources below record attribution
+`plugin/`: seven agents and 42 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -74,14 +74,28 @@ starts only through a separate user-initiated Barista or Grillmester workflow.
 
 Imported skills:
 
-- `accessibility-review`, `aksel-design`, `figma-workflow`,
-  `nav-architecture-review`, `okr`, `produktledelse`, `team-status`,
-  `workshop-design`, `dulting`, `lumi-survey`
+- `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
+  `produktledelse`, `team-status`, `workshop-design`, `dulting`, `lumi-survey`
 - Hovmester's visual `prototype` workflow is imported as `design-prototype`;
   the pilot's behavior-oriented `prototype` retains its original ID.
 
+Hovmester's Nav architecture material was itself adopted from
+`navikt/copilot`. Grillmester consolidates its useful, non-duplicative parts
+into the conditional Nav reference under `grillmester-architecture-review`
+instead of shipping a second architecture-review skill. The lineage was
+reviewed against `navikt/copilot` at
+`2d0911b353a91ec9091d252b481acb5777de7059`; the source workflow was introduced
+in `4eb4cc8ea3e49a231e70ee75fa5df32336f84853`. Grillmester retains current-source
+verification, ownership across team boundaries, and Architecture Advice as
+advice rather than central approval. It does not import the upstream ADR
+generator, fixed alternative count, or static platform assumptions. This is
+reviewed source lineage, not a runtime dependency or synchronization
+relationship. See the MIT notice in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 The portable adaptation keeps the design, Aksel, Figma, product, workshop,
-team-status, architecture, and visual-prototype workflows. It removes ambient
+team-status, and visual-prototype workflows, plus the consolidated Nav context
+described above. It removes ambient
 repository synchronization, fixed Team eSyfo repositories or project boards,
 template placeholders, and automatic external writes. Figma, GitHub, and
 delivery side effects require an explicit

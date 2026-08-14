@@ -118,7 +118,7 @@ The write step fetches and revalidates the refs again immediately before it
 mutates GitHub. It creates an annotated tag at the catalog commit and a GitHub
 prerelease with `--verify-tag` and `latest=false`. The following read-only
 `remote-smoke` job peels the published tag back to the expected catalog commit,
-installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/43-skill
+installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/42-skill
 payload, and uninstalls it. A failed post-publication smoke stops promotion and
 requires a new corrective version; tags are never moved.
 
