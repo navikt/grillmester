@@ -155,8 +155,9 @@ Etter at designeren har sett skjermen:
 1. Lag 2–3 varianter som valgalternativer på skjermen
 2. Spør: «Hvilken variant foretrekker du?» med beskrivende navn
 3. Iterer på valgt variant
-4. Fang valgt variant, hvorfor den vant og eventuelle deler som skal lånes fra
-   andre varianter. Når konseptet er valgt — gå til Fase 2.
+4. Fang valgt variant, hvorfor den vant og eventuelle lånte deler. Behold også
+   en observerbar referanse: skjermbilde når mulig, ellers HTML-filnavn,
+   screen-/choice-ID og designerens eksplisitte valg. Gå til Fase 2.
 
 ### Situasjoner brukeren møter
 
@@ -183,8 +184,9 @@ layouten rundt dem. Det aktive Figma-biblioteket er autoritativt.
    målrettet, ikke til å hoppe over den.
 5. Bygg inkrementelt, én seksjon per kall, med eksakte navn fra katalog eller
    preflight.
-6. Sammenlign skjermbilde mot valgt Visual Companion-retning, fiks avvik og del
-   oppdatert lenke ved milepæler.
+6. Sammenlign Figma-screenshot mot valgt Visual Companion-retning. Bevar flyt,
+   hierarki og innhold; la aktivt Aksel-bibliotek styre komponentstruktur,
+   varianter og tokens. Fiks utilsiktede avvik og del oppdatert lenke.
 
 Lever redigerbare komponenter og samle tilstander i én variant-komponent. For
 eksisterende flater: bruk ekte skjermbilde som bakgrunn og en redigerbar overlay;

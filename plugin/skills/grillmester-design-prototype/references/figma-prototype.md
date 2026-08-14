@@ -1,9 +1,10 @@
 # Figma-prototype — Nav-spesifikk referanse
 
-> **Write-gate:** Lesing av Figma-kontekst er tillatt som standard. Oppretting
-> eller redigering av en Figma-fil, publisering av Code Connect-data eller andre
-> eksterne writes krever en konkret preview og eksplisitt godkjenning. Gaten
-> gjelder alle arbeidsflyter og eksempler i denne referansen.
+> **Write-gate:** Lesing av Figma-kontekst og eksisterende Code Connect-mapping
+> er tillatt som standard. Oppretting eller redigering av en Figma-fil og andre
+> eksterne writes krever en konkret preview og eksplisitt godkjenning. Denne
+> arbeidsflyten skal aldri opprette, endre eller publisere Code Connect-mapping.
+> Gaten gjelder alle arbeidsflyter og eksempler i denne referansen.
 
 Før denne referansen brukes som write-oppskrift, bekreft at runtime tilbyr en
 konkret Figma create/edit-kapabilitet. Read-only Figma MCP er nyttig for
@@ -219,6 +220,24 @@ return { av: EXP.length, avvik: issues };  // avvik=[] → katalogen er i synk
 Det historiske uttrekket rapporterte **45/45 importert uten avvik**. Påstanden
 gjelder uttrekkstidspunktet og må ikke presenteres som live-status.
 
+## Verifiser eksisterende Code Connect read-only
+
+Code Connect er ikke nødvendig for å bygge en redigerbar Figma-skisse, men gir
+bedre Figma-til-kode-handoff når Aksel har publisert mapping for instansen.
+Etter at én representativ, ekte Aksel-instans finnes i filen:
+
+1. Kall `get_code_connect_map` på instansen og les `label`, `componentName`,
+   `source` og `version`. Snippet kan mangle selv om mappingen finnes.
+2. Hvis mappingen ikke gir nok kontekst for implementeringshandoff: kall
+   `get_design_context` med `clientFrameworks: ["React"]` og kontroller at
+   konteksten peker til forventet Aksel-API.
+3. Ved tomt svar: noter bare at mapping ikke ble returnert for denne
+   instansen, klienten og økten. Ikke konkluder med at hele Aksel-biblioteket
+   mangler Code Connect, og ikke blokker Figma-leveransen.
+
+Ikke kall `add_code_connect_map`, `get_code_connect_suggestions` eller
+`send_code_connect_mappings`, og ikke be designeren endre Code Connect.
+
 ## Plugin API-mønster for instansiering
 
 ```javascript
@@ -388,7 +407,10 @@ mainFrame.itemSpacing = 24; // Mellom alle felt
 - Tekstendring krever font-loading: kall `loadFontAsync()` for alle fonter i noden *før* du endrer `.characters`
 - Bruk `await figma.setCurrentPageAsync(page)` — IKKE `figma.currentPage = page`
 - `setRelaunchData`, `getPluginData`/`setPluginData` er IKKE støttet her — bruk `getSharedPluginData`/`setSharedPluginData` ved behov
-- `generate_figma_design` lager ny fil — bruk `use_figma` for å redigere eksisterende
+- `generate_figma_design` kan capture live UI til ny fil, eksisterende fil eller
+  clipboard. Resultatet er redigerbare lag, men ikke automatisk ekte
+  Aksel-instanser. Bruk capture bare som visuell referanse og `use_figma` for
+  den endelige designsystemstrukturen.
 - Aksel-biblioteker trenger ikke manuell subscription i Nav-org
 - `counterAxisSizingMode` aksepterer bare `"FIXED"` eller `"AUTO"` — aldri `"FILL"`
 - Logg alltid `componentSet.children.map(c => c.name)` FØR du velger variant
@@ -468,7 +490,10 @@ For eksisterende flater vil designere ofte se modulen i **ekte sidekontekst** (p
 
 Resultat: ekte sidekontekst + en modul som fortsatt kan redigeres (den er en instans, ikke et bilde), uten overlapping. Endrer du komponentens høyde vesentlig, må spacer/bakgrunn knipses på nytt.
 
-**Den ekte Figma-/Aksel-komponenten er eneste fasit.** Skjermbilder er kun bakgrunn for kontekst — aldri en kilde komponenten skal «matche».
+**Autoriteten er delt:** Valgt Visual Companion-retning styrer flyt,
+informasjonshierarki og innhold. Den aktive Figma-/Aksel-komponenten styrer
+komponentstruktur, støttede varianter og tokens. Skjermbilder er kontekst og
+sammenligningsgrunnlag, ikke en kilde som overstyrer designsystemet.
 
 ## Lever tilstander som variant-komponent (ikke løse frames)
 
@@ -486,14 +511,20 @@ set.name = "<Modulnavn>";
 
 **Slå sammen nesten-like tilstander.** Skiller to tilstander seg bare med et **forbigående** element (f.eks. en bekreftelse som vises kort etter en handling og forsvinner av seg selv), behold **én** hviletilstand og dokumentér det forbigående elementet som en egen **annotasjon** ved siden av — ikke en egen permanent skjerm. To nesten-identiske «status»-rammer leses som dobbeltføring.
 
-## Parity-gate: Figma vs Visual Companion-fasit (OBLIGATORISK)
+## Parity-gate: valgt retning mot Figma (OBLIGATORISK)
 
-**Aldri lever uten visuell verifisering mot fasiten.** Visual Companion-skissen er fasit — Figma-resultatet skal matche den. Etter bygging:
+**Aldri lever uten visuell verifisering.** Figma skal bevare den valgte
+retningens flyt, hierarki og innhold, men skal bruke aktiv Aksel-struktur fremfor
+å kopiere HTML-en piksel for piksel. Etter bygging:
 
 1. Ta screenshot av Figma: `get_screenshot(fileKey, nodeId)` av hovedframen
-2. Hent fasiten: VC-screenshotet fra `screen_dir` (det designeren valgte)
+2. Hent screenshotet som ble tatt av den valgte, rendrerte VC-varianten før
+   overgangen. `screen_dir` inneholder HTML-fragmenter, ikke screenshots. Hvis
+   screenshot mangler, bruk HTML-kildefilen, screen-/choice-ID og den eksplisitte
+   beslutningen.
 3. Sammenlign side om side mot denne sjekklisten (avledet fra faktiske feil-moduser):
-   - **Struktur**: samme komponenter, samme rekkefølge, ingen manglende felter
+   - **Struktur**: samme brukerfunksjoner, innholdsblokker og rekkefølge;
+     komponentvalg kan avvike når aktiv Aksel tilbyr en riktigere komponent
    - **Overlapp**: overlapper tekst/elementer? (auto-layout ikke satt)
    - **Kollaps**: textarea/input kollapset til 0px? (mangler resize/minHeight)
    - **Spacing**: proporsjonal, ikke akkumulert dobbel-spacing fra nøstede frames
@@ -501,11 +532,12 @@ set.name = "<Modulnavn>";
    - **Tekst**: faktisk innhold, ikke placeholder (`Label`/`intput text`/«Erstatt med eget innhold»)?
    - **Slot**: Modal/Accordion/ExpansionCard — er Slot-placeholdere skjult/erstattet?
    - **Font**: `Source Sans 3`, ikke Inter/hardkodet
-4. Fiks alle avvik funnet i steg 3
-5. Ta nytt screenshot og bekreft mot fasiten
-6. Lever til designeren først når Figma matcher VC-skissen
+4. Fiks utilsiktede avvik. Behold bevisste avvik som følger av korrekte
+   Aksel-komponenter, og forklar dem.
+5. Ta nytt screenshot og bekreft både valgt retning og Aksel-korrekthet
+6. Lever til designeren først når resultatet er visuelt verifisert
 
-Hvis du ikke har en VC-fasit (gikk rett til Figma), bruk samme sjekkliste mot det avtalte konseptet.
+Hvis du ikke har en VC-referanse (gikk rett til Figma), bruk samme sjekkliste mot det avtalte konseptet.
 
 ## Lever
 
