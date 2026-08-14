@@ -82,7 +82,6 @@ Eksempel med Barista:
 Noen skills overlapper faglig med `navikt/copilot`, men har
 `grillmester-`-prefiks og kan installeres side om side. Kjør
 `/grillmester-doctor` for å kontrollere overlapp og lokale kollisjoner.
-
 Repoets `AGENTS.md`, instructions og PR-/issue-maler beholdes som før.
 
 ## Hvis agentene ikke dukker opp

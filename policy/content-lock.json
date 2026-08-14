@@ -132,7 +132,6 @@
     "grillmester-kafka-topic": {"source": "pilot", "sourcePath": ".github/skills/kafka-topic", "disposition": "adapted"},
     "grillmester-klarsprak": {"source": "pilot", "sourcePath": ".github/skills/klarsprak", "disposition": "adapted"},
     "grillmester-kotlin-ktor": {"source": "pilot", "sourcePath": ".github/skills/kotlin-ktor", "disposition": "adapted"},
-    "grillmester-kotlin-spring": {"source": "hovmester", "sourcePath": ".github/skills/kotlin-spring", "disposition": "adapted"},
     "grillmester-lumi-survey": {"source": "hovmester", "sourcePath": ".github/skills/lumi-survey", "disposition": "adapted"},
     "grillmester-nais-manifest": {"source": "pilot", "sourcePath": ".github/skills/nais-manifest", "disposition": "adapted"},
     "grillmester-nav-architecture-review": {"source": "hovmester", "sourcePath": ".github/skills/nav-architecture-review", "disposition": "adapted"},

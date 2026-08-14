@@ -18,7 +18,7 @@ installasjonen skal være reproduserbar.
 ## Innhold
 
 `grillmester@grillmester` er hele produktet: fire offentlige agenter, tre
-interne roller og 44 kuraterte skills for metode, design, produktarbeid,
+interne roller og 43 kuraterte skills for metode, design, produktarbeid,
 levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
 ## Anbefalt personlig oppsett med automatisk oppdatering

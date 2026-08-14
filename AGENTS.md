@@ -1,7 +1,7 @@
 # Repository contract
 
 This repository owns the portable Grillmester Copilot plugin in `plugin/`:
-seven agents and 44 skills. Keep it deterministic and independent of any
+seven agents and 43 skills. Keep it deterministic and independent of any
 single consumer repository.
 
 ## Content boundaries

@@ -80,8 +80,13 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 )
                 skill_ids = [
                     *(f"fixture-skill-{index}" for index in range(34)),
-                    *SMOKE.LEGACY_ADD_ON_SKILLS,
+                    *(
+                        skill_id
+                        for skill_id in SMOKE.LEGACY_ADD_ON_SKILLS
+                        if skill_id not in SMOKE.REMOVED_LEGACY_SKILLS
+                    ),
                 ]
+                self.assertEqual(package.skills, len(skill_ids))
                 for skill_id in skill_ids:
                     skill = plugin / "skills" / skill_id / "SKILL.md"
                     skill.parent.mkdir(parents=True)
@@ -103,7 +108,13 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             )
             staged = Path(temp) / "staged"
 
-            previous_plugins, previous_catalog, current_catalog = (
+            (
+                previous_plugins,
+                previous_catalog,
+                previous_unified_plugin,
+                previous_unified_catalog,
+                current_catalog,
+            ) = (
                 SMOKE.prepare_upgrade_marketplace(
                     root / ".github/plugin/marketplace.json", root, staged
                 )
@@ -116,6 +127,18 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             self.assertEqual(
                 [SMOKE.PLUGIN_NAME],
                 [entry["name"] for entry in current_catalog["plugins"]],
+            )
+            self.assertEqual(
+                SMOKE.PREVIOUS_UNIFIED_VERSION,
+                previous_unified_catalog["metadata"]["version"],
+            )
+            self.assertEqual(
+                SMOKE.PREVIOUS_UNIFIED_VERSION,
+                SMOKE.plugin_version(previous_unified_plugin),
+            )
+            self.assertEqual(
+                SMOKE.PREVIOUS_UNIFIED_PACKAGE.skills,
+                len(list((previous_unified_plugin / "skills").glob("*/SKILL.md"))),
             )
             for package, previous_entry in zip(
                 SMOKE.PREVIOUS_PACKAGES, previous_catalog["plugins"], strict=True
@@ -145,6 +168,12 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             for skill_id in SMOKE.LEGACY_ADD_ON_SKILLS:
                 self.assertFalse((core_skills / skill_id).exists())
                 self.assertTrue((add_on_skills / skill_id / "SKILL.md").is_file())
+            for skill_id in SMOKE.REMOVED_LEGACY_SKILLS:
+                self.assertFalse((root / "plugin/skills" / skill_id).exists())
+                self.assertFalse((staged / "plugin/skills" / skill_id).exists())
+                self.assertTrue(
+                    (previous_unified_plugin / "skills" / skill_id / "SKILL.md").is_file()
+                )
 
     def test_catalog_activation_uses_public_marketplace_update_command(self) -> None:
         catalog = {
@@ -259,6 +288,21 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "changed: plugin.json"):
                 SMOKE.assert_payload_matches(expected, actual)
 
+    def test_removed_legacy_skill_is_rejected_from_current_installation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            installed = Path(temp)
+            removed = (
+                installed
+                / "skills"
+                / SMOKE.REMOVED_LEGACY_SKILLS[0]
+                / "SKILL.md"
+            )
+            removed.parent.mkdir(parents=True)
+            removed.write_text("legacy\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "retained removed legacy skill"):
+                SMOKE.assert_removed_legacy_skills_absent(installed)
+
     def test_unavailable_documented_toggle_is_an_explicit_skip(self) -> None:
         unavailable = subprocess.CompletedProcess(
             args=[],
@@ -294,7 +338,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
         ) as run, mock.patch.object(
             SMOKE,
             "verify_installed_package",
-            return_value=(7, 44),
+            return_value=(7, 43),
         ) as verify, mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled") as uninstalled:
@@ -308,7 +352,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 source_root=Path("/tmp/source"),
             )
 
-        self.assertEqual((7, 44), result)
+        self.assertEqual((7, 43), result)
         self.assertEqual(
             [
                 "copilot",

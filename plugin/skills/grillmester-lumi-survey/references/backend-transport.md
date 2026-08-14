@@ -35,9 +35,9 @@ validate the incoming identity according to its existing boundary, exchange it
 for the verified upstream audience when an on-behalf-of flow is required, and
 send only the accepted payload over the verified destination.
 
-For Node, Kotlin/Ktor, or Kotlin/Spring, follow the framework and auth patterns
-already present in the repository. Do not invent a local sidecar URL, identity
-provider value, environment variable name, request helper, or annotation.
+Follow the server framework and auth patterns already present in the
+repository. Do not invent a local sidecar URL, identity provider value,
+environment variable name, request helper, or annotation.
 
 Set an explicit timeout inside the browser request budget. Retry only when the
 upstream contract says a repeated submission is safe or provides an

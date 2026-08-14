@@ -112,7 +112,7 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | **Kodebase og levering** | Arkitekturforbedring, README, PR eller skillvedlikehold. | Improve codebase architecture, README update, Pull request, Create a skill |
 | **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel design, Accessibility review, Design prototype, Figma workflow |
 | **Produkt og tjeneste** | Mål, discovery, teamarbeid, workshop, klarspråk eller ansvarlig atferdsdesign. | OKR, Produktledelse, Team status, Workshop design, Klarspråk, Dulting |
-| **Nav backend og plattform** | Kontrakter, identitet, runtime, data og operasjon i Nav/Nais. | API design, Auth overview, Kafka topic, Kotlin/Ktor, Kotlin/Spring, Nais manifest, Nav troubleshoot, Observability, PostgreSQL review |
+| **Nav backend og plattform** | Kontrakter, identitet, runtime, data og operasjon i Nav/Nais. | API design, Auth overview, Kafka topic, Kotlin/Ktor, Nais manifest, Nav troubleshoot, Observability, PostgreSQL review |
 | **Nav-produktcapabilities** | En Nav-spesifikk tjenestekomponent eller arbeidsmåte trengs. | Nav architecture review, Lumi Survey |
 
 Lumi Survey er en ordinær Nav-capability. Som alle integrasjonsskills skal den
@@ -121,7 +121,7 @@ ikke gjette detaljer fra minnet.
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 44 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 43 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en

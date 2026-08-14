@@ -53,8 +53,8 @@ tool calls, godkjent write og avvist write før stabil release.
 
 | Klient | Nåstatus | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
-| **Copilot CLI** | Referanseklient. Lokal mount, install-/oppgraderings-/rollbackflyt, personlig installasjon, deklarativ auto-install og oppdatering ved sesjonsstart er bekreftet i reelle sesjoner med 7 agenter og 44 skills. | Immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
-| **Copilot app** | Plugins-UI-installasjon og discovery av 7 agenter og 44 skills er bekreftet i en reell sesjon. | Om custom-marketplace-installasjonen auto-oppdateres, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. |
+| **Copilot CLI** | Referanseklient. Lokal mount, install-/oppgraderings-/rollbackflyt, personlig installasjon, deklarativ auto-install og oppdatering ved sesjonsstart er bekreftet i reelle sesjoner for den tidligere pakken med 7 agenter og 44 skills. | Den nye pakken med 43 skills, immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
+| **Copilot app** | Plugins-UI-installasjon og discovery er bekreftet i en reell sesjon for den tidligere pakken med 7 agenter og 44 skills. | Discovery av den nye pakken med 43 skills, custom-marketplace-oppdatering, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær kompatibilitetsflate. VS Code dokumenterer update-sjekk hver 24. time når `extensions.autoUpdate` er aktivert. | Verifiser faktisk custom-marketplace-oppdatering med to Grillmester-versjoner; den styrer ikke første Nav-release. |
 | **OpenCode** | Skills-only eksperiment. | Hver skill må portabilitetsauditeres. Agentteam, marketplace og felles agentkontrakt følger ikke med. |
@@ -83,7 +83,7 @@ krever en immutable release-tag i stedet.
 
 1. Installer den eksakte, immutable RC-ref-en og bekreft modelloppløsning i
    Copilot CLI.
-2. Bekreft at den ene pluginen gir nøyaktig 7 agenter og 44 skills uten
+2. Bekreft at den ene pluginen gir nøyaktig 7 agenter og 43 skills uten
    agent-/skillkollisjoner eller døde referanser.
 3. Bekreft at de fire offentlige agentene er valgbare, mens Kokk,
    Grill-inspektør og Researcher bare delegeres med gyldige briefs.

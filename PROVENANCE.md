@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: seven agents and 44 skills. The sources below record attribution
+`plugin/`: seven agents and 43 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -76,7 +76,7 @@ Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`,
   `nav-architecture-review`, `okr`, `produktledelse`, `team-status`,
-  `workshop-design`, `dulting`, `kotlin-spring`, `lumi-survey`
+  `workshop-design`, `dulting`, `lumi-survey`
 - Hovmester's visual `prototype` workflow is imported as `design-prototype`;
   the pilot's behavior-oriented `prototype` retains its original ID.
 

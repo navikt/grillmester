@@ -27,6 +27,7 @@ SEMVER = re.compile(
 )
 UNAVAILABLE_PLUGINS_COMMAND = "the plugins command is not available"
 PREVIOUS_VERSION = "0.3.0-poc.1"
+PREVIOUS_UNIFIED_VERSION = "0.3.0-rc.3"
 UPGRADE_SENTINEL = ".grillmester-upgrade-fixture"
 SAFE_ENV_PASSTHROUGH = {
     "PATH",
@@ -57,10 +58,11 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 7, 44),
+    PackageSpec("grillmester", "plugin", 7, 43),
 )
 LEGACY_CORE = PackageSpec("grillmester", "plugin", 7, 34)
 LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10)
+PREVIOUS_UNIFIED_PACKAGE = PackageSpec("grillmester", "plugin", 7, 44)
 PREVIOUS_PACKAGES = (LEGACY_CORE, LEGACY_ADD_ON)
 LEGACY_ADD_ON_SKILLS = (
     "grillmester-api-design",
@@ -74,6 +76,7 @@ LEGACY_ADD_ON_SKILLS = (
     "grillmester-observability-setup",
     "grillmester-postgresql-review",
 )
+REMOVED_LEGACY_SKILLS = ("grillmester-kotlin-spring",)
 PACKAGE_BY_NAME = {package.name: package for package in PACKAGES}
 PLUGIN_NAME = PACKAGES[0].name
 PLUGIN_SPEC = PACKAGES[0].qualified_name
@@ -244,7 +247,13 @@ def prepare_upgrade_marketplace(
     catalog_path: Path,
     source_root: Path,
     staged_marketplace: Path,
-) -> tuple[dict[str, Path], dict[str, Any], dict[str, Any]]:
+) -> tuple[
+    dict[str, Path],
+    dict[str, Any],
+    Path,
+    dict[str, Any],
+    dict[str, Any],
+]:
     """Create an older local source beside an exact current catalog fixture."""
 
     current_catalog = load_json_object(catalog_path)
@@ -255,8 +264,8 @@ def prepare_upgrade_marketplace(
     if len(current_versions) != 1:
         raise RuntimeError("plugin manifest version is unavailable")
     current_version = next(iter(current_versions))
-    if current_version == PREVIOUS_VERSION:
-        raise RuntimeError("upgrade fixture version must differ from the current plugin")
+    if current_version in {PREVIOUS_VERSION, PREVIOUS_UNIFIED_VERSION}:
+        raise RuntimeError("upgrade fixture versions must differ from the current plugin")
 
     plugins = current_catalog.get("plugins")
     if not isinstance(plugins, list) or len(plugins) != len(PACKAGES):
@@ -285,6 +294,37 @@ def prepare_upgrade_marketplace(
             shutil.copytree(source_package, staged_marketplace / package.path)
 
     previous_core = previous_plugins[PLUGIN_NAME]
+    for skill_id in REMOVED_LEGACY_SKILLS:
+        legacy_skill = previous_core / "skills" / skill_id
+        if legacy_skill.exists():
+            raise RuntimeError(
+                f"removed legacy skill is present in the current payload: {skill_id}"
+            )
+        legacy_skill.mkdir(parents=True)
+        (legacy_skill / "SKILL.md").write_text(
+            "---\n"
+            f"name: {skill_id}\n"
+            "description: Historical migration fixture; never ship this skill.\n"
+            "---\n\n"
+            "# Historical migration fixture\n",
+            encoding="utf-8",
+        )
+
+    previous_unified_plugin = staged_marketplace / "previous-unified-plugin"
+    shutil.copytree(previous_core, previous_unified_plugin)
+    previous_unified_manifest = load_json_object(
+        previous_unified_plugin / "plugin.json"
+    )
+    previous_unified_manifest["version"] = PREVIOUS_UNIFIED_VERSION
+    write_json_object(
+        previous_unified_plugin / "plugin.json", previous_unified_manifest
+    )
+    previous_unified_catalog = copy.deepcopy(current_catalog)
+    previous_unified_catalog["metadata"]["version"] = PREVIOUS_UNIFIED_VERSION
+    for entry in previous_unified_catalog["plugins"]:
+        entry["version"] = PREVIOUS_UNIFIED_VERSION
+        entry["source"] = "previous-unified-plugin"
+
     previous_add_on = staged_marketplace / f"previous-{LEGACY_ADD_ON.path}"
     (previous_add_on / "skills").mkdir(parents=True)
     for skill_id in LEGACY_ADD_ON_SKILLS:
@@ -322,7 +362,13 @@ def prepare_upgrade_marketplace(
             "source": f"previous-{LEGACY_ADD_ON.path}",
         }
     )
-    return previous_plugins, previous_catalog, current_catalog
+    return (
+        previous_plugins,
+        previous_catalog,
+        previous_unified_plugin,
+        previous_unified_catalog,
+        current_catalog,
+    )
 
 
 def activate_marketplace_catalog(
@@ -440,6 +486,22 @@ def assert_payload_matches(expected: Path, actual: Path) -> None:
     raise RuntimeError("installed payload differs from source plugin; " + "; ".join(details))
 
 
+def assert_removed_legacy_skills_absent(installed: Path) -> None:
+    for skill_id in REMOVED_LEGACY_SKILLS:
+        if (installed / "skills" / skill_id).exists():
+            raise RuntimeError(
+                f"current installation retained removed legacy skill: {skill_id}"
+            )
+
+
+def assert_removed_legacy_skills_present(installed: Path) -> None:
+    for skill_id in REMOVED_LEGACY_SKILLS:
+        if not (installed / "skills" / skill_id).is_dir():
+            raise RuntimeError(
+                f"same-package update fixture is missing legacy skill: {skill_id}"
+            )
+
+
 def verify_installed_package(
     source: Path, installed: Path, package: PackageSpec | None = None
 ) -> tuple[int, int]:
@@ -455,6 +517,9 @@ def verify_installed_package(
         raise RuntimeError(f"installed {agent_count} agents; expected {package.agents}")
     if skill_count != package.skills:
         raise RuntimeError(f"installed {skill_count} skills; expected {package.skills}")
+
+    if package == PACKAGES[0]:
+        assert_removed_legacy_skills_absent(installed)
 
     for required in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
         if not (installed / required).is_file():
@@ -720,14 +785,120 @@ def main(argv: Sequence[str] | None = None) -> int:
         (
             previous_plugins,
             previous_catalog,
+            previous_unified_plugin,
+            previous_unified_catalog,
             current_catalog,
         ) = prepare_upgrade_marketplace(catalog_path, source_root, staged_marketplace)
         write_json_object(
             staged_marketplace / ".github/plugin/marketplace.json",
-            previous_catalog,
+            previous_unified_catalog,
         )
         run(
             [copilot, "plugin", "marketplace", "add", str(staged_marketplace)],
+            env,
+            command_cwd,
+        )
+        run(
+            [copilot, "plugin", "install", PREVIOUS_UNIFIED_PACKAGE.qualified_name],
+            env,
+            command_cwd,
+        )
+        unified_installed = (
+            copilot_home
+            / "installed-plugins"
+            / MARKETPLACE_NAME
+            / PREVIOUS_UNIFIED_PACKAGE.name
+        )
+        verify_installed_package(
+            previous_unified_plugin,
+            unified_installed,
+            PREVIOUS_UNIFIED_PACKAGE,
+        )
+        assert_removed_legacy_skills_present(unified_installed)
+        if enabled_setting(
+            copilot_home, PREVIOUS_UNIFIED_PACKAGE.qualified_name
+        ) is not True:
+            raise RuntimeError("same-package fixture installation is not enabled")
+
+        activate_marketplace_catalog(
+            current_catalog,
+            staged_marketplace,
+            copilot,
+            env,
+            command_cwd,
+        )
+        run(
+            [copilot, "plugin", "update", PACKAGES[0].qualified_name],
+            env,
+            command_cwd,
+        )
+        verify_installed_package(
+            source_root / PACKAGES[0].path,
+            unified_installed,
+            PACKAGES[0],
+        )
+        if enabled_setting(copilot_home, PACKAGES[0].qualified_name) is not True:
+            raise RuntimeError("same-package update did not preserve enabled state")
+
+        activate_marketplace_catalog(
+            previous_unified_catalog,
+            staged_marketplace,
+            copilot,
+            env,
+            command_cwd,
+        )
+        run(
+            [copilot, "plugin", "uninstall", PACKAGES[0].qualified_name],
+            env,
+            command_cwd,
+        )
+        verify_uninstalled(copilot_home, unified_installed, PACKAGES[0])
+        run(
+            [copilot, "plugin", "install", PREVIOUS_UNIFIED_PACKAGE.qualified_name],
+            env,
+            command_cwd,
+        )
+        verify_installed_package(
+            previous_unified_plugin,
+            unified_installed,
+            PREVIOUS_UNIFIED_PACKAGE,
+        )
+        assert_removed_legacy_skills_present(unified_installed)
+        if enabled_setting(
+            copilot_home, PREVIOUS_UNIFIED_PACKAGE.qualified_name
+        ) is not True:
+            raise RuntimeError("same-package rollback installation is not enabled")
+
+        activate_marketplace_catalog(
+            current_catalog,
+            staged_marketplace,
+            copilot,
+            env,
+            command_cwd,
+        )
+        run(
+            [copilot, "plugin", "update", PACKAGES[0].qualified_name],
+            env,
+            command_cwd,
+        )
+        verify_installed_package(
+            source_root / PACKAGES[0].path,
+            unified_installed,
+            PACKAGES[0],
+        )
+        if enabled_setting(copilot_home, PACKAGES[0].qualified_name) is not True:
+            raise RuntimeError("same-package re-update did not preserve enabled state")
+
+        run(
+            [copilot, "plugin", "uninstall", PACKAGES[0].qualified_name],
+            env,
+            command_cwd,
+        )
+        verify_uninstalled(copilot_home, unified_installed, PACKAGES[0])
+        activate_marketplace_catalog(
+            previous_catalog,
+            staged_marketplace,
+            copilot,
             env,
             command_cwd,
         )
@@ -882,7 +1053,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         source_label = f"release {release_sha}" if release_sha else "development source"
         print(
             f"Verified {source_label}: {agent_count} agents, {skill_count} skills, "
-            "legacy add-on removal, byte-exact forward upgrade, explicit rollback, repeatable update, "
+            "same-package removed-skill cleanup and rollback, legacy add-on removal, "
+            "byte-exact forward upgrade, explicit rollback, repeatable update, "
             f"and uninstall using {version}"
         )
     return 0
