@@ -5,7 +5,8 @@
 </p>
 
 Grillmester er en GitHub Copilot-plugin med agenter og skills for utvikling,
-design og produktarbeid i Nav.
+design og produktarbeid i Nav. Tilgang og tillatt bruk styres av Navs gjeldende
+policy.
 
 ## Agentene
 
@@ -21,8 +22,8 @@ Velg agent ut fra hva du skal gjøre:
 Kokk, Grill-inspektør og Researcher er interne roller som agentene bruker ved
 behov. [Se alle agenter og skills](docs/agents-and-skills.md).
 
-Designer fungerer best med Aksel MCP og Figma MCP. Ved arbeid mot en kjørende
-app anbefales også Playwright MCP. Se [MCP-oppsett](docs/mcp-setup.md).
+Når designoppgaven trenger det, kan Designer bruke Aksel, Figma og Playwright.
+Se [valgfritt MCP-oppsett](docs/mcp-setup.md) for capabilities og oppsett.
 
 ## Installer
 
@@ -36,9 +37,10 @@ copilot plugin install grillmester@grillmester
 Start en ny Copilot-sesjon, åpne `/agent`, og velg en agent under
 `grillmester`.
 
-### Automatisk oppdatering
+### Valgfri automatisk oppdatering i Copilot CLI
 
-Legg Grillmester til i `~/.copilot/settings.json`. Behold eventuelle andre
+For personlig bruk i Copilot CLI kan du selv velge automatisk oppdatering. Legg
+Grillmester til i `~/.copilot/settings.json`, og behold eventuelle andre
 innstillinger i filen:
 
 ```json
@@ -59,8 +61,16 @@ innstillinger i filen:
 }
 ```
 
-Copilot CLI sjekker da etter nye versjoner når en ny sesjon starter. Se
-[installasjonsguiden](docs/installation.md) for manuell oppdatering, fast
+Copilot CLI sjekker da etter nye versjoner når en ny sesjon starter.
+
+### Klientstatus
+
+- **Copilot CLI:** Referanseklient med valgfri personlig auto-oppdatering.
+- **Copilot app:** Oppdater en installert plugin manuelt med **Update**.
+- **VS Code:** Egen oppdateringsmekanisme; custom-marketplace-oppdatering er
+  ikke verifisert.
+
+Se [installasjonsguiden](docs/installation.md) for manuell oppdatering, fast
 versjon, Copilot-appen og aktivering i et teamrepo.
 
 ## Bruk

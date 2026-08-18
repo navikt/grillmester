@@ -131,9 +131,11 @@ App-installasjonen gjelder brukerens app-oppsett og skriver ikke pluginfiler
 eller aktivering inn i repoet. Den aktiverer heller ikke cloud agent for teamet;
 bruk repoaktivering for det.
 
-GitHub dokumenterer foreløpig ikke om Copilot app automatisk oppdaterer en
-personlig installasjon fra en egendefinert marketplace. Dette må observeres med
-to faktiske Grillmester-versjoner før det loves som App-adferd.
+For å oppdatere en installert plugin må du foreløpig velge **Update** under
+**Settings → Plugins** i Copilot app. Dette er en kjent klientbegrensning.
+GitHub dokumenterer foreløpig ikke automatisk oppdatering av en personlig
+installasjon fra en egendefinert marketplace. Dette må observeres med to
+faktiske Grillmester-versjoner før det loves som App-adferd.
 
 ## Eksterne GitHub-capabilities
 
