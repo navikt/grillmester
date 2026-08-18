@@ -51,21 +51,63 @@ If strict separation from every repository writer is required, replace the
 write token with a dedicated GitHub App credential exposed only through the
 protected release environment, and make that App the sole tag/release ruleset
 bypass actor. Do not claim strict actor separation until that hardening is in
-place.
+place. If that future hardening changes bypass actors, deliberately update this
+documented ruleset and readback contract. Empty `bypass_actors` is a standing
+control: neither normal publisher needs a bypass, and no alternate writer is
+authorized to bypass these protections.
 
-## One-time repository controls
+## Repository controls
 
-An administrator must configure and verify all of these before the first
-release:
+An administrator must maintain and verify these current active controls:
 
 - Protect `main`; require reviewed PRs for workflow, release-contract, and
   `.github/release-request.json` changes. A release-request PR should change
   only the request file.
-- Protect `marketplace` from deletion and force-pushes. Limit ordinary updates
-  to the catalog publisher's automation path, subject to the trust boundary
-  above.
-- Add `v*` tag rules that prevent update and deletion. Restrict creation to the
-  approved release automation identity.
+- Keep the existing active `main` ruleset (ID `20790914`) unchanged, including
+  Team `4531825` with `always` bypass. Do not copy, replace, or broaden that
+  ruleset as part of marketplace or tag protection.
+- In addition to the existing `main` ruleset, maintain exactly two separate
+  active repository rulesets for the `marketplace`/`v*` distribution refs, both
+  with an empty `bypass_actors` list:
+
+  | Target | `conditions.ref_name.include` | `rules` |
+  | --- | --- | --- |
+  | `branch` | `["refs/heads/marketplace"]` | `[{"type":"deletion"},{"type":"non_fast_forward"}]` |
+  | `tag` | `["refs/tags/v*"]` | `[{"type":"deletion"},{"type":"update"}]` |
+
+  Their effective API shape is `enforcement: "active"`, the target and include
+  value shown above, `conditions.ref_name.exclude: []`, the exact target-specific
+  rules shown above, and
+  `bypass_actors: []`. Ruleset names are administrative labels; the target,
+  conditions, rule types, enforcement, and bypass actors are the contract.
+
+  When `protect-release-tags` was created, its REST create request supplied
+  `update.parameters.update_allows_fetch_and_merge: false`. GitHub accepted
+  that request, but its tag-target detail readback normalizes the rule to
+  `{"type":"update"}` without the branch-oriented parameter. The durable
+  live/readback contract is therefore the exact tag rule types `deletion` and
+  `update`; do not require that parameter to be returned.
+
+  On 2026-08-18, readback verified the following repository-owned active
+  rulesets for `navikt/grillmester`: `protect-marketplace-history` (ID
+  `20981629`) with branch target `refs/heads/marketplace`, and
+  `protect-release-tags` (ID `20981630`) with tag target `refs/tags/v*`.
+  Both had source type `Repository`, source `navikt/grillmester`,
+  `conditions.ref_name.exclude: []`, and `bypass_actors: []`.
+  Effective rules for `marketplace` were exactly `deletion` and
+  `non_fast_forward` from ruleset `20981629`. The existing `main` ruleset
+  `20790914` and Team `4531825` `always` bypass were unchanged, as confirmed
+  by pre- and post-change readback.
+
+  These deliberately minimal rules do not include a `creation` rule. They
+  therefore allow the catalog publisher's ordinary fast-forward update of
+  `marketplace` and the release publisher's creation of a new `v*` tag, while
+  blocking deletion and non-fast-forward movement of `marketplace`. For `v*`
+  tags, `deletion` plus `update` blocks every update or retarget. A
+  `non_fast_forward` rule alone does not establish that guarantee because
+  GitHub's PATCH Git reference endpoint permits a fast-forward reference update
+  with `force: false`. No ruleset bypass is needed for either normal publisher
+  operation.
 - Enable immutable GitHub Releases if the repository setting is available.
 - Create the `grillmester-release` environment, restrict deployments to
   `main`, require a reviewer other than the request author, enable
@@ -76,6 +118,126 @@ an unconfigured environment automatically. Verify the settings in GitHub
 before merging a release request. All three workflows share the
 `publish-grillmester-marketplace` concurrency group so selection and
 publication cannot race the catalog publisher.
+
+### Read back the live rules
+
+Use an authenticated repository administrator, or an equivalent caller with
+permission to read ruleset bypass actors. `bypass_actors` is returned only to a
+caller with write access to the ruleset, so an absent or `null` value is
+inconclusive and must never be accepted as an empty list. These commands are
+read-only and deliberately request only the fields needed to review the rules;
+they neither print credentials nor use verbose HTTP output.
+
+```bash
+set -euo pipefail
+
+repository=navikt/grillmester
+
+repository_ruleset_ids="$(
+  gh api --paginate "repos/${repository}/rulesets?includes_parents=false" \
+    --jq '.[] | .id'
+)"
+
+if [[ -z "$repository_ruleset_ids" ]]; then
+  printf '%s\n' 'No repository-owned ruleset IDs were returned.' >&2
+  exit 1
+fi
+
+while IFS= read -r id; do
+  detail="$(
+    gh api "repos/${repository}/rulesets/${id}" \
+      --jq '
+        if type == "object" and length > 0 then
+          {id, name, target, source_type, source, enforcement, conditions, rules, bypass_actors}
+        else
+          error("ruleset detail response was empty or not an object")
+        end
+      '
+  )"
+
+  if [[ -z "$detail" ]]; then
+    printf 'Ruleset %s returned an empty detail response.\n' "$id" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$detail"
+done <<< "$repository_ruleset_ids"
+
+printf '%s\n' 'Ruleset summaries, including inherited parent controls:'
+gh api --paginate "repos/${repository}/rulesets?includes_parents=true" \
+  --jq '.[] | [.id, .name, .target, .source_type, .source, .enforcement] | @tsv'
+```
+
+The first list call is limited to repository-owned rulesets and captures all
+returned IDs before any detail lookup. It fails closed if enumeration, any
+sequential detail request, or projection fails, or if the repository-owned ID
+list or a detail object is empty. The detail projection includes `source_type`
+and `source`; require each of the two new rulesets to have
+`source_type: "Repository"` and `source: "navikt/grillmester"`. Select them by
+`target` and `conditions.ref_name.include`, not by name. For each, inspect:
+
+- `enforcement` is `active`;
+- `conditions.ref_name.include` is exactly `refs/heads/marketplace` for the
+  branch ruleset or exactly `refs/tags/v*` for the tag ruleset, and `exclude`
+  is empty;
+- the branch rules are exactly `deletion` and `non_fast_forward`, without extra
+  rule types;
+- the tag rules are exactly `deletion` and `update`, without extra rule types;
+  and
+- `bypass_actors` is empty.
+
+The second list call intentionally uses `includes_parents=true` and prints only
+summary fields, including `source_type` and `source`, so inherited organization
+or parent controls remain visible. Do not send those inherited IDs to the
+repository ruleset-detail endpoint. A failed or empty repository detail
+response is inconclusive; do not infer the rule, parameter, source, or bypass
+state from a list response. An absent or `null` `bypass_actors` value remains
+inconclusive and must not be accepted as an empty list.
+
+Also inspect ruleset `20790914`: it remains the existing `main` protection and
+still lists Team actor ID `4531825` with bypass mode `always`. The two maintained
+rulesets must not add a bypass actor or alter this main-team bypass.
+
+As a cross-check, inspect the effective rules for `marketplace`; this confirms
+the applicable branch rule types but does not replace the per-ID detail
+readback of conditions or bypass actors:
+
+```bash
+repository=navikt/grillmester
+
+gh api "repos/${repository}/rules/branches/marketplace" --jq '.[] | .type'
+```
+
+### Post-activation proof and accepted residual risk
+
+Prove the controls only through normal, legitimate publisher operations:
+
+1. During a planned catalog promotion, dispatch **Publish marketplace catalog**
+   from current `main` with a new, valid source SHA and confirm its normal
+   fast-forward push to `marketplace` succeeds.
+2. During a planned reviewed release, let **Publish reviewed release request**
+   create its new `v<version>` tag and confirm its existing remote smoke
+   succeeds.
+3. Repeat the readback above after each activation or ruleset change. A
+   successful publisher run and API readback together prove the allowed paths
+   and configured restrictions. The 2026-08-18 readback is configuration
+   evidence only; it does not prove that either controlled publisher has run.
+
+Do not test deletion, force-push, or tag movement against production refs. The
+readback is safe configuration evidence for those blocked operations, not an
+empirical demonstration against the production refs; use a disposable
+repository if a destructive behavior demonstration is ever required.
+
+The accepted residual risk is that repository writers and workflows holding
+`contents: write` can still append valid fast-forward history to `marketplace`
+or create new matching `v*` tags. These two rulesets prevent destructive ref
+changes to `marketplace` and every update or retarget of matching tags; they do
+not prevent tag creation or valid branch-history append. There is no dedicated
+GitHub App in scope, so the normal `GITHUB_TOKEN` publisher is not a
+cryptographic per-workflow identity and the rules cannot distinguish it from
+another authorized repository writer. Existing workflow validation, protected
+`main`, and environment review remain defense-in-depth controls, not proof of
+strict writer separation.
 
 ## Release a candidate
 
@@ -196,6 +358,10 @@ Do not rewrite a bad release. Stop adoption and:
    `grillmester` from that tag before starting a new session.
 3. Publish a new version containing the correction. Catalog version reuse is
    rejected, including reuse of an older historical version.
+
+Normal recovery is roll-forward. Any temporary ruleset enforcement change must
+be authorized by a repository administrator, recorded in the incident, returned
+to `active` immediately, and followed by fresh readback.
 
 If the publisher is wedged by a malformed `marketplace` tip, do not force-push
 or edit the branch manually. Disable release publication, preserve the bad SHA
