@@ -88,10 +88,11 @@ copilot plugin list
 `marketplace` er en flytende oppdateringskanal. For reproduserbar installasjon bruker
 du samme kommando med en reviewet `v<versjon>`-tagg i stedet.
 
-Publisheren avanserer `marketplace` etter en reviewet pluginendring på `main`.
-For brukere med `autoUpdate: true` betyr en slik merge derfor at versjonen blir
-tilgjengelig i den flytende kanalen. Bruk en immutable release-tag når oppdateringen må vente på en
-separat godkjenning.
+En maintainer avanserer `marketplace` ved å eksplisitt promotere en eksakt,
+validert source-SHA fra `main`. En vanlig merge til `main` endrer ikke den
+flytende kanalen. For brukere med `autoUpdate: true` blir versjonen tilgjengelig
+etter denne promoteringen. Bruk en immutable release-tag når oppdateringen må
+vente på en separat godkjenning.
 
 Denne imperative flyten slår ikke på automatisk oppdatering for en
 egendefinert marketplace. Bruk brukeroppsettet over, eller oppdater manuelt

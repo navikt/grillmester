@@ -16,12 +16,16 @@ Never move, replace, delete, or force-update a release tag.
 
 Three workflows have deliberately separate jobs:
 
-- **Publish marketplace catalog** runs after plugin or release-contract
-  changes land on `main`. A read-only job validates and seals the generated
-  one-package catalog before any third-party smoke tooling
-  runs. A one-step write job revalidates the sealed bytes, creates a
+- **Publish marketplace catalog** is an explicit maintainer dispatch from
+  current `main` with an exact source SHA reachable from `origin/main`. A
+  read-only job validates that trusted dispatch context, regenerates and seals
+  the one-package catalog from that exact source before any third-party smoke
+  tooling runs. The selected source commit's own tooling and tests execute only
+  in that read-only validation job. The one-step write job is a fresh runner:
+  it executes no selected-source code, revalidates the sealed bytes, creates a
   catalog-only child of the current `marketplace` tip, and performs a normal
-  fast-forward push. It has no manual-dispatch entry point.
+  fast-forward push. Its following read-only smoke installs from the actual
+  floating `marketplace` ref.
 - **Validate immutable release** is an optional, read-only manual preflight.
   Dispatch it from `main` with an exact catalog SHA. It cannot create a tag or
   release.
@@ -33,6 +37,11 @@ Three workflows have deliberately separate jobs:
   fixed inline publication step with no checkout, action, package install, or
   repository-script execution. After publication, a read-only job verifies the
   tag target and installs from the actual remote `v<version>` ref.
+
+The source reachability control relies on the current linear/squash `main`
+history. If merge commits are enabled, strengthen it to require first-parent
+membership. If `main` advances during validation or before an idempotent rerun,
+the current-main guard fails closed; dispatch a fresh run from current `main`.
 
 The release-request PR, protected `main`, rulesets, and environment approval
 are process and accidental-misdispatch controls. A normal repository
@@ -73,8 +82,10 @@ publication cannot race the catalog publisher.
 1. Set `plugin/plugin.json.version` to a strict prerelease SemVer, for example
    `0.3.0-rc.1`. Build metadata is not accepted, and a version must never be
    reused for different payload bytes.
-2. Merge that source change normally. Wait for **Publish marketplace catalog**
-   and resolve the exact catalog-only commit containing the version:
+2. Merge that source change normally. From current `main`, explicitly dispatch
+   **Publish marketplace catalog** with the exact lowercase 40-character source
+   SHA to promote. Wait for it to complete, then resolve the exact catalog-only
+   commit containing the version:
 
    ```bash
    git fetch origin main marketplace
@@ -123,15 +134,14 @@ payload, and uninstalls it. A failed post-publication smoke stops promotion and
 requires a new corrective version; tags are never moved.
 
 The floating `marketplace` branch is also the personal CLI auto-update channel.
-Every reviewed plugin merge to `main` that passes the publisher is therefore a
-deployment to users who opted into this floating channel; there is no later approval
-gate before their next session checks for updates. Keep an isolated Copilot
-home on the previous version, start a new trusted CLI session after publication,
-and verify that it advances without an explicit update command. This is
-post-deployment evidence and is separate from the immutable-tag smoke. Use an
-immutable release tag when rollout must wait for a separate approval. Record
-App and VS Code behavior separately; neither may be inferred from the CLI
-result.
+It advances only after a maintainer explicitly promotes an exact validated
+source SHA; an ordinary merge to `main` does not deploy it. Keep an isolated
+Copilot home on the previous version, start a new trusted CLI session after
+publication, and verify that it advances without an explicit update command.
+This is post-deployment evidence and is separate from the immutable-tag smoke.
+Use an immutable release tag when rollout must wait for a separate approval.
+Record App and VS Code behavior separately; neither may be inferred from the
+CLI result.
 
 ## Promote a reviewed candidate to stable
 
@@ -140,8 +150,8 @@ it is never a second label on the RC catalog. Create a source commit whose
 plugin manifest uses the stable version, such as `0.3.0`. Apart from the exact
 `version` value in `plugin/plugin.json`, the package payload and manifest format
 must be byte-identical to the named candidate. The release contract must also
-be byte-identical. Let the catalog publisher create the new stable-versioned
-catalog.
+be byte-identical. Explicitly promote its exact source SHA through the catalog
+publisher to create the new stable-versioned catalog.
 
 Optionally run the read-only validator with `channel=stable`, the new catalog
 SHA, and the reviewed prerelease tag. Then merge a separate request-file PR:

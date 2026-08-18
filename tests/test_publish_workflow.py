@@ -15,11 +15,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("persist-credentials: false", text)
         self.assertEqual(1, text.count("GH_TOKEN: ${{ github.token }}"))
+        self.assertEqual(1, text.count("contents: write"))
         self.assertLess(
             text.index("Publish catalog-only commit atomically"),
             text.index("GH_TOKEN: ${{ github.token }}"),
         )
-        write_job = text.split("\n  publish:\n", maxsplit=1)[1]
+        write_job = text.split("\n  publish:\n", maxsplit=1)[1].split(
+            "\n  remote-smoke:\n", maxsplit=1
+        )[0]
         self.assertIn("contents: write", write_job)
         self.assertEqual(1, write_job.count("      - name:"))
         self.assertNotIn("uses:", write_job)
@@ -35,15 +38,61 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("Refusing to reuse marketplace version", text)
         self.assertIn("Refusing to reuse previously published marketplace version", text)
         self.assertIn("git rev-list --skip=1", text)
+        self.assertIn('git ls-remote --heads origin "refs/heads/${MARKETPLACE_BRANCH}"', text)
+        self.assertIn("git push origin --atomic", text)
 
-    def test_unrelated_main_changes_do_not_republish_plugin(self) -> None:
+    def test_idempotent_rerun_requires_tip_bytes_to_match_sealed_catalog(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('- "package-manifest.json"', text)
-        self.assertIn('- "plugin/**"', text)
-        self.assertNotIn('plugin-nav', text)
-        self.assertNotIn("workflow_dispatch", text)
-        self.assertNotIn('- "scripts/generate_marketplace.py"', text)
-        self.assertNotIn('- ".github/workflows/publish-marketplace.yml"', text)
+        write_job = text.split("\n  publish:\n", maxsplit=1)[1].split(
+            "\n  remote-smoke:\n", maxsplit=1
+        )[0]
+        source_match = '[[ "${SOURCE_SHA}" == "${previous_source_sha}" ]]'
+        digest = (
+            'previous_catalog_sha256="$(git show "${base_sha}:${catalog}" '
+            '| sha256sum | cut -d\' \' -f1)"'
+        )
+        identity_match = (
+            '[[ "${CATALOG_SHA256}" == "${previous_catalog_sha256}" ]]'
+        )
+        success = 'echo "Marketplace already publishes ${current_version} at ${SOURCE_SHA}."'
+        self.assertIn(digest, write_job)
+        self.assertIn(identity_match, write_job)
+        self.assertIn(
+            "Refusing idempotent marketplace rerun: existing catalog bytes do not match the sealed catalog.",
+            write_job,
+        )
+        self.assertLess(write_job.index(source_match), write_job.index(digest))
+        self.assertLess(write_job.index(digest), write_job.index(identity_match))
+        self.assertLess(write_job.index(identity_match), write_job.index(success))
+
+    def test_marketplace_promotion_is_explicit_and_not_push_triggered(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        trigger = text.split("\nconcurrency:", maxsplit=1)[0]
+        self.assertIn("workflow_dispatch:", trigger)
+        self.assertIn("source_sha:", trigger)
+        self.assertIn("required: true", trigger)
+        self.assertIn("type: string", trigger)
+        self.assertNotIn("push:", trigger)
+        self.assertNotIn("paths:", trigger)
+
+    def test_promotion_requires_current_main_and_exact_reachable_source_sha(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn('SOURCE_SHA: ${{ inputs.source_sha }}', text)
+        self.assertIn('DISPATCH_REF: ${{ github.ref }}', text)
+        self.assertIn('DISPATCH_SHA: ${{ github.sha }}', text)
+        self.assertIn('[[ "${DISPATCH_REF}" == "refs/heads/main" ]]', text)
+        self.assertIn('[[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]', text)
+        self.assertIn('[[ "${DISPATCH_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]]', text)
+        self.assertIn('git cat-file -e "${SOURCE_SHA}^{commit}"', text)
+        self.assertIn('git merge-base --is-ancestor \\\n            "${SOURCE_SHA}" refs/remotes/origin/main', text)
+        self.assertIn('WORKFLOW_SHA: ${{ github.sha }}', text)
+        self.assertNotIn("needs.validate.outputs.source-sha", text)
+        self.assertNotIn("needs.validate.outputs.workflow-sha", text)
+        self.assertNotIn("steps.source.outputs.sha", text)
+        self.assertNotIn("steps.source.outputs.workflow_sha", text)
+        self.assertIn(
+            'The selected workflow SHA is no longer current origin/main.', text
+        )
 
     def test_catalog_publisher_revalidates_exact_one_plugin_roster(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
@@ -57,6 +106,20 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn('path: "plugin-nav"', write_job)
         self.assertIn('[.plugins[].version] == [$version]', write_job)
         self.assertEqual(1, write_job.count("sha: $source_sha"))
+
+    def test_validation_regenerates_and_seals_catalog_from_exact_source_before_write(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn('git worktree add --detach "${source_root}" "${SOURCE_SHA}"', text)
+        self.assertIn(
+            'python3 "${source_root}/scripts/generate_marketplace.py" \\\n            --mode release --sha "${SOURCE_SHA}"',
+            text,
+        )
+        self.assertIn('--mode release --sha "${SOURCE_SHA}" --check', text)
+        self.assertIn('python3 "${source_root}/scripts/validate.py"', text)
+        self.assertLess(
+            text.index("Validate trusted promotion source and generate immutable catalog"),
+            text.index("Publish catalog-only commit atomically"),
+        )
 
     def test_manual_validator_is_read_only_and_smokes_exact_local_payload(self) -> None:
         text = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
@@ -84,6 +147,29 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn(lock, publish)
         self.assertIn(lock, promote)
         self.assertIn(lock, release)
+
+    def test_floating_marketplace_remote_smoke_is_read_only(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        publish = text.split("\n  publish:\n", maxsplit=1)[1].split(
+            "\n  remote-smoke:\n", maxsplit=1
+        )[0]
+        remote_smoke = text.split("\n  remote-smoke:\n", maxsplit=1)[1]
+        for job in (publish, remote_smoke):
+            self.assertIn('SOURCE_SHA: ${{ inputs.source_sha }}', job)
+            self.assertIn('WORKFLOW_SHA: ${{ github.sha }}', job)
+            self.assertNotIn("needs.validate.outputs.source-sha", job)
+            self.assertNotIn("needs.validate.outputs.workflow-sha", job)
+        self.assertIn("- publish", remote_smoke)
+        self.assertIn("contents: read", remote_smoke)
+        self.assertNotIn("contents: write", remote_smoke)
+        self.assertNotIn("GH_TOKEN", remote_smoke)
+        self.assertIn('ref: ${{ github.sha }}', remote_smoke)
+        self.assertIn("refs/remotes/origin/marketplace", remote_smoke)
+        self.assertIn('git worktree add --detach \\\n            "${marketplace_root}" refs/remotes/origin/marketplace', remote_smoke)
+        self.assertIn(
+            '--remote-marketplace-ref "navikt/grillmester#marketplace"', remote_smoke
+        )
+        self.assertIn("--allow-floating-marketplace", remote_smoke)
 
     def test_promoter_has_a_real_failing_main_guard(self) -> None:
         text = PROMOTE_WORKFLOW.read_text(encoding="utf-8")

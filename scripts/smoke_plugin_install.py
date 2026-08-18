@@ -647,6 +647,7 @@ def remote_install_smoke(
     marketplace_ref: str,
     expected_tag: str,
     source_root: Path,
+    allow_floating_marketplace: bool = False,
 ) -> tuple[int, int]:
     """Install from a real remote catalog ref, verify bytes, then uninstall."""
 
@@ -655,9 +656,13 @@ def remote_install_smoke(
             f"remote marketplace ref must start with {PLUGIN_REPOSITORY}#"
         )
     actual_ref = marketplace_ref.removeprefix(f"{PLUGIN_REPOSITORY}#")
-    if actual_ref != expected_tag:
+    allowed_refs = {expected_tag}
+    if allow_floating_marketplace:
+        allowed_refs.add("marketplace")
+    if actual_ref not in allowed_refs:
         raise RuntimeError(
             f"remote marketplace ref must use reviewed release tag {expected_tag}"
+            " or the explicitly allowed floating marketplace ref"
         )
 
     run(
@@ -716,6 +721,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "instead of staging a local marketplace"
         ),
     )
+    parser.add_argument(
+        "--allow-floating-marketplace",
+        action="store_true",
+        help="allow the remote marketplace ref to be the floating marketplace branch",
+    )
     return parser.parse_args(argv)
 
 
@@ -725,6 +735,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.expect_release_sha
     ):
         print("--expect-release-sha must be a lowercase 40-character SHA", file=sys.stderr)
+        return 2
+    if args.allow_floating_marketplace and args.remote_marketplace_ref is None:
+        print(
+            "--allow-floating-marketplace requires --remote-marketplace-ref",
+            file=sys.stderr,
+        )
         return 2
 
     copilot = shutil.which("copilot")
@@ -790,6 +806,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 marketplace_ref=args.remote_marketplace_ref,
                 expected_tag=expected_release_tag,
                 source_root=source_root,
+                allow_floating_marketplace=args.allow_floating_marketplace,
             )
             print(
                 f"Verified remote catalog {args.remote_marketplace_ref} -> "
