@@ -16,6 +16,7 @@ body:
       options:
         - Copilot CLI
         - Copilot app
+        - VS Code
         - Copilot cloud agent
         - Plugininstallasjon eller oppdatering
         - Agent
