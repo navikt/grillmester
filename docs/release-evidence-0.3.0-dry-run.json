@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": "1.0",
+  "evidenceType": "macos-client-validation",
+  "platform": "macOS",
+  "synthetic": true,
+  "releaseVersion": "0.3.0",
+  "release": {
+    "rcTag": "v0.3.0-rc.1",
+    "catalogSha": "89abcdef0123456789abcdef0123456789abcdef",
+    "sourceSha": "0123456789abcdef0123456789abcdef01234567"
+  },
+  "evidencePolicy": {
+    "forbidden": [
+      "prompts",
+      "transcripts",
+      "secrets",
+      "personal data",
+      "sensitive diagnostics"
+    ]
+  },
+  "hardBlockers": [
+    "unexpected-write",
+    "approval-or-stop-boundary-violation",
+    "sensitive-data",
+    "wrong-plugin-or-agent-identity",
+    "failed-rollback"
+  ],
+  "clientResults": [
+    {
+      "client": "Copilot CLI",
+      "clientVersion": "synthetic-cli-1.0",
+      "rcTag": "v0.3.0-rc.1",
+      "catalogSha": "89abcdef0123456789abcdef0123456789abcdef",
+      "sourceSha": "0123456789abcdef0123456789abcdef01234567",
+      "resolvedModel": "synthetic-model-cli",
+      "scenarioResults": [
+        {
+          "scenario": "installation-discovery",
+          "result": "PASS",
+          "observedTools": ["synthetic-plugin-list"],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "update",
+          "result": "PASS",
+          "observedTools": ["synthetic-plugin-update"],
+          "observedApprovals": ["approved"],
+          "sideEffects": ["synthetic plugin version changed"],
+          "deviations": []
+        },
+        {
+          "scenario": "rollback",
+          "result": "PASS",
+          "observedTools": ["synthetic-plugin-install"],
+          "observedApprovals": ["approved"],
+          "sideEffects": ["synthetic plugin version restored"],
+          "deviations": []
+        },
+        {
+          "scenario": "restart-after-rollback",
+          "result": "PASS",
+          "observedTools": ["synthetic-session-restart"],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "role-grillmester",
+          "result": "PASS",
+          "observedTools": ["synthetic-read"],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "role-barista",
+          "result": "PASS",
+          "observedTools": ["synthetic-read"],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "role-designer",
+          "result": "PASS",
+          "observedTools": ["synthetic-visual-companion"],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "role-doctor-who",
+          "result": "PASS",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "harness-parity",
+          "result": "PASS",
+          "observedTools": ["synthetic-read", "synthetic-fixture-write"],
+          "observedApprovals": ["approved write", "rejected write"],
+          "sideEffects": ["one synthetic fixture file changed"],
+          "deviations": [],
+          "parityChecks": [
+            "/grillmester-grilling",
+            "automatic-skill-routing",
+            "wayfinder-delegation",
+            "grillmester-kokk-grill-inspektor",
+            "visual-companion",
+            "approved-write",
+            "rejected-write"
+          ]
+        }
+      ]
+    },
+    {
+      "client": "Copilot App",
+      "clientVersion": "synthetic-app-1.0",
+      "rcTag": "v0.3.0-rc.1",
+      "catalogSha": "89abcdef0123456789abcdef0123456789abcdef",
+      "sourceSha": "0123456789abcdef0123456789abcdef01234567",
+      "resolvedModel": "synthetic-model-app",
+      "scenarioResults": [
+        {"scenario": "installation-discovery", "result": "PASS", "observedTools": ["synthetic-plugin-list"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "update", "result": "PASS", "observedTools": ["synthetic-plugin-update"], "observedApprovals": ["approved"], "sideEffects": ["synthetic plugin version changed"], "deviations": []},
+        {"scenario": "rollback", "result": "PASS", "observedTools": ["synthetic-plugin-install"], "observedApprovals": ["approved"], "sideEffects": ["synthetic plugin version restored"], "deviations": []},
+        {"scenario": "restart-after-rollback", "result": "PASS", "observedTools": ["synthetic-session-restart"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "role-grillmester", "result": "PASS", "observedTools": ["synthetic-read"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "role-barista", "result": "PASS", "observedTools": ["synthetic-read"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "role-designer", "result": "PASS", "observedTools": ["synthetic-visual-companion"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "role-doctor-who", "result": "PASS", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "harness-parity", "result": "PASS", "observedTools": ["synthetic-read", "synthetic-fixture-write"], "observedApprovals": ["approved write", "rejected write"], "sideEffects": ["one synthetic fixture file changed"], "deviations": [], "parityChecks": ["/grillmester-grilling", "automatic-skill-routing", "wayfinder-delegation", "grillmester-kokk-grill-inspektor", "visual-companion", "approved-write", "rejected-write"]}
+      ]
+    },
+    {
+      "client": "VS Code",
+      "clientVersion": "synthetic-vscode-1.0",
+      "rcTag": "v0.3.0-rc.1",
+      "catalogSha": "89abcdef0123456789abcdef0123456789abcdef",
+      "sourceSha": "0123456789abcdef0123456789abcdef01234567",
+      "resolvedModel": "synthetic-model-vscode",
+      "scenarioResults": [
+        {"scenario": "installation-discovery", "result": "PASS", "observedTools": ["synthetic-plugin-list"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "update", "result": "PASS", "observedTools": ["synthetic-plugin-update"], "observedApprovals": ["approved"], "sideEffects": ["synthetic plugin version changed"], "deviations": []},
+        {"scenario": "rollback", "result": "PASS", "observedTools": ["synthetic-plugin-install"], "observedApprovals": ["approved"], "sideEffects": ["synthetic plugin version restored"], "deviations": []},
+        {"scenario": "restart-after-rollback", "result": "PASS", "observedTools": ["synthetic-session-restart"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "role-grillmester", "result": "PASS", "observedTools": ["synthetic-read"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "role-barista", "result": "PASS", "observedTools": ["synthetic-read"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "role-designer", "result": "PASS", "observedTools": ["synthetic-visual-companion"], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "role-doctor-who", "result": "PASS", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
+        {"scenario": "harness-parity", "result": "PASS", "observedTools": ["synthetic-read", "synthetic-fixture-write"], "observedApprovals": ["approved write", "rejected write"], "sideEffects": ["one synthetic fixture file changed"], "deviations": [], "parityChecks": ["/grillmester-grilling", "automatic-skill-routing", "wayfinder-delegation", "grillmester-kokk-grill-inspektor", "visual-companion", "approved-write", "rejected-write"]}
+      ]
+    }
+  ],
+  "aggregate": {
+    "result": "UNVERIFIED",
+    "maintainerDisposition": "synthetic dry run only; no client behavior was executed",
+    "deviations": []
+  }
+}

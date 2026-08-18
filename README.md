@@ -109,7 +109,7 @@ issue; bruk [private vulnerability reporting](SECURITY.md) for sårbarheter.
 
 ## Mer dokumentasjon
 
-- [Installere, oppdatere og aktivere](docs/installation.md)
+- [Installasjon](docs/installation.md) og [macOS-klientvalidering](docs/macos-client-validation-protocol.md)
 - [Agenter og skills](docs/agents-and-skills.md)
 - [Repo-eid kontekst, instructions og templates](docs/repository-context.md)
 - [Utvikling og bidrag](docs/development.md)
