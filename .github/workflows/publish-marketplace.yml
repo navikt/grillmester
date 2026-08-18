@@ -1,12 +1,12 @@
 name: Publish marketplace catalog
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "package-manifest.json"
-      - "plugin/**"
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact lowercase 40-character source SHA reachable from main
+        required: true
+        type: string
 
 concurrency:
   group: publish-grillmester-marketplace
@@ -23,60 +23,82 @@ jobs:
       catalog-base64: ${{ steps.publication.outputs.catalog_base64 }}
       catalog-sha256: ${{ steps.publication.outputs.catalog_sha256 }}
       catalog-version: ${{ steps.publication.outputs.catalog_version }}
-      source-sha: ${{ steps.source.outputs.sha }}
     steps:
-      - name: Check out source revision
+      - name: Check out trusted promotion tooling
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Record immutable source revision
+      - name: Validate trusted promotion source and generate immutable catalog
         id: source
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        shell: bash
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+          DISPATCH_SHA: ${{ github.sha }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
 
-      - name: Check generated development catalog
-        run: python3 scripts/generate_marketplace.py --mode development --check
+          [[ "${DISPATCH_REF}" == "refs/heads/main" ]] || {
+            echo "Marketplace promotion must be dispatched from main." >&2
+            exit 1
+          }
+          [[ "${DISPATCH_SHA}" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "The selected workflow SHA must be a lowercase 40-character SHA." >&2
+            exit 1
+          }
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "source_sha must be a lowercase 40-character SHA." >&2
+            exit 1
+          }
 
-      - name: Validate plugin package
-        run: python3 scripts/validate.py
+          git fetch --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main"
+          [[ "${DISPATCH_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
+            echo "The selected workflow SHA is not current origin/main." >&2
+            exit 1
+          }
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git merge-base --is-ancestor \
+            "${SOURCE_SHA}" refs/remotes/origin/main || {
+            echo "source_sha is not reachable from origin/main." >&2
+            exit 1
+          }
 
-      - name: Run Python tests
-        run: python3 -m unittest discover -s tests -v
+          source_root="${RUNNER_TEMP}/source"
+          git worktree add --detach "${source_root}" "${SOURCE_SHA}"
+          python3 "${source_root}/scripts/generate_marketplace.py" \
+            --mode release --sha "${SOURCE_SHA}"
+          python3 "${source_root}/scripts/generate_marketplace.py" \
+            --mode release --sha "${SOURCE_SHA}" --check
+          python3 "${source_root}/scripts/validate.py"
+          {
+            echo "source_root=${source_root}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Python tests from exact source
+        run: python3 -m unittest discover -s "${{ steps.source.outputs.source_root }}/tests" -v
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
 
-      - name: Validate Visual Companion scripts
+      - name: Validate Visual Companion scripts from exact source
         run: |
-          node --check plugin/skills/grillmester-design-prototype/scripts/server.js
-          node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
-          node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
-
-      - name: Generate immutable release catalog
-        run: >-
-          python3 scripts/generate_marketplace.py
-          --mode release
-          --sha "${{ steps.source.outputs.sha }}"
-
-      - name: Check immutable release catalog
-        run: >-
-          python3 scripts/generate_marketplace.py
-          --mode release
-          --sha "${{ steps.source.outputs.sha }}"
-          --check
-
-      - name: Validate immutable release catalog
-        run: python3 scripts/validate.py
+          source_root="${{ steps.source.outputs.source_root }}"
+          node --check "${source_root}/plugin/skills/grillmester-design-prototype/scripts/server.js"
+          node --check "${source_root}/plugin/skills/grillmester-design-prototype/scripts/helper.js"
+          node --test "${source_root}/plugin/skills/grillmester-design-prototype/tests/server.test.js"
 
       - name: Seal validated catalog for publication
         id: publication
         shell: bash
         run: |
           set -euo pipefail
-          catalog=".github/plugin/marketplace.json"
+          catalog="${{ steps.source.outputs.source_root }}/.github/plugin/marketplace.json"
           {
             echo "catalog_base64=$(base64 -w0 "${catalog}")"
             echo "catalog_sha256=$(sha256sum "${catalog}" | cut -d' ' -f1)"
@@ -88,8 +110,11 @@ jobs:
 
       - name: Smoke-test immutable marketplace installation
         run: >-
-          python3 scripts/smoke_plugin_install.py
-          --expect-release-sha "${{ steps.source.outputs.sha }}"
+          python3 "${{ steps.source.outputs.source_root }}/scripts/smoke_plugin_install.py"
+          --catalog "${{ steps.source.outputs.source_root }}/.github/plugin/marketplace.json"
+          --source-root "${{ steps.source.outputs.source_root }}"
+          --source-sha "${{ inputs.source_sha }}"
+          --expect-release-sha "${{ inputs.source_sha }}"
 
   publish:
     needs: validate
@@ -102,7 +127,8 @@ jobs:
       CATALOG_SHA256: ${{ needs.validate.outputs.catalog-sha256 }}
       CATALOG_VERSION: ${{ needs.validate.outputs.catalog-version }}
       MARKETPLACE_BRANCH: marketplace
-      SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      WORKFLOW_SHA: ${{ github.sha }}
     steps:
       - name: Publish catalog-only commit atomically
         shell: bash
@@ -113,6 +139,7 @@ jobs:
           set -euo pipefail
 
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${CATALOG_SHA256}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${CATALOG_VERSION}" =~ ^[0-9A-Za-z.-]+$ ]]
           catalog=".github/plugin/marketplace.json"
@@ -143,6 +170,19 @@ jobs:
             "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
 
           remote_tip="$(git ls-remote --heads origin "refs/heads/${MARKETPLACE_BRANCH}")"
+          git fetch --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main"
+          [[ "${WORKFLOW_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
+            echo "The selected workflow SHA is no longer current origin/main." >&2
+            exit 1
+          }
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git merge-base --is-ancestor \
+            "${SOURCE_SHA}" refs/remotes/origin/main || {
+            echo "source_sha is no longer reachable from origin/main." >&2
+            exit 1
+          }
+
           base_sha=""
           parent_args=()
           if [[ -n "${remote_tip}" ]]; then
@@ -160,8 +200,13 @@ jobs:
 
             if [[ "${current_version}" == "${previous_version}" ]]; then
               if [[ "${SOURCE_SHA}" == "${previous_source_sha}" ]]; then
-                echo "Marketplace already publishes ${current_version} at ${SOURCE_SHA}."
-                exit 0
+                previous_catalog_sha256="$(git show "${base_sha}:${catalog}" | sha256sum | cut -d' ' -f1)"
+                if [[ "${CATALOG_SHA256}" == "${previous_catalog_sha256}" ]]; then
+                  echo "Marketplace already publishes ${current_version} at ${SOURCE_SHA}."
+                  exit 0
+                fi
+                echo "Refusing idempotent marketplace rerun: existing catalog bytes do not match the sealed catalog." >&2
+                exit 1
               fi
               echo "Refusing to reuse marketplace version ${current_version} for ${SOURCE_SHA}; previous source is ${previous_source_sha}." >&2
               exit 1
@@ -191,3 +236,55 @@ jobs:
           # update therefore fails as non-fast-forward without any force mode.
           git push origin --atomic \
             "${commit_sha}:refs/heads/${MARKETPLACE_BRANCH}"
+
+  remote-smoke:
+    needs:
+      - validate
+      - publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      WORKFLOW_SHA: ${{ github.sha }}
+    steps:
+      - name: Check out trusted smoke tooling
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Bind floating marketplace to published source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main" \
+            "refs/heads/marketplace:refs/remotes/origin/marketplace"
+          git merge-base --is-ancestor "${SOURCE_SHA}" refs/remotes/origin/main
+          marketplace_root="${RUNNER_TEMP}/marketplace"
+          source_root="${RUNNER_TEMP}/source"
+          git worktree add --detach \
+            "${marketplace_root}" refs/remotes/origin/marketplace
+          git worktree add --detach "${source_root}" "${SOURCE_SHA}"
+          {
+            echo "CATALOG_PATH=${marketplace_root}/.github/plugin/marketplace.json"
+            echo "SOURCE_ROOT=${source_root}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Install pinned GitHub Copilot CLI
+        run: npm install --global @github/copilot@1.0.79
+
+      - name: Smoke-test published floating marketplace
+        run: >-
+          python3 scripts/smoke_plugin_install.py
+          --catalog "${CATALOG_PATH}"
+          --source-root "${SOURCE_ROOT}"
+          --source-sha "${SOURCE_SHA}"
+          --expect-release-sha "${SOURCE_SHA}"
+          --remote-marketplace-ref "navikt/grillmester#marketplace"
+          --allow-floating-marketplace

@@ -72,9 +72,10 @@ dokumentert tilsvarende garanti. VS Code har en egen
 Disse tre mekanismene må derfor rapporteres separat, ikke som én felles
 «Copilot auto-update»-status.
 
-Den flytende `marketplace`-branchen er oppdateringskanalen. Når publisheren har
-avansert den etter en merge til `main`, kan CLI-brukere som har valgt
-`autoUpdate: true`, hente endringen ved neste trusted CLI-sesjon. CI,
+Den flytende `marketplace`-branchen er oppdateringskanalen. Når en maintainer
+har eksplisitt promotert en eksakt validert source-SHA fra `main`, kan
+CLI-brukere som har valgt `autoUpdate: true`, hente endringen ved neste trusted
+CLI-sesjon. En vanlig merge til `main` flytter ikke `marketplace`. CI,
 `COPILOT_AUTO_UPDATE=false` og `--no-auto-update` hopper over hentingen.
 Auto-update-testen er derfor post-deploy-evidens; en separat godkjenningsport
 krever en immutable release-tag i stedet.

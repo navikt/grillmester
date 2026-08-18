@@ -397,6 +397,57 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                     source_root=Path("/tmp"),
                 )
 
+    def test_remote_install_allows_floating_marketplace_only_when_explicit(self) -> None:
+        with mock.patch.object(
+            SMOKE,
+            "run",
+            side_effect=["", "", "grillmester@grillmester", ""],
+        ), mock.patch.object(
+            SMOKE, "verify_installed_package", return_value=(7, 42)
+        ), mock.patch.object(
+            SMOKE, "enabled_setting", return_value=True
+        ), mock.patch.object(SMOKE, "verify_uninstalled"):
+            result = SMOKE.remote_install_smoke(
+                copilot="copilot",
+                env={"CI": "true"},
+                cwd=Path("/tmp/work"),
+                copilot_home=Path("/tmp/copilot-home"),
+                marketplace_ref="navikt/grillmester#marketplace",
+                expected_tag="v1.2.3",
+                source_root=Path("/tmp/source"),
+                allow_floating_marketplace=True,
+            )
+
+        self.assertEqual((7, 42), result)
+
+    def test_remote_install_rejects_floating_marketplace_without_explicit_opt_in(
+        self,
+    ) -> None:
+        with self.assertRaisesRegex(RuntimeError, "explicitly allowed floating"):
+            SMOKE.remote_install_smoke(
+                copilot="copilot",
+                env={},
+                cwd=Path("/tmp"),
+                copilot_home=Path("/tmp/home"),
+                marketplace_ref="navikt/grillmester#marketplace",
+                expected_tag="v1.2.3",
+                source_root=Path("/tmp"),
+            )
+
+    def test_cli_rejects_floating_marketplace_opt_in_without_remote_ref(self) -> None:
+        with mock.patch.object(SMOKE.shutil, "which") as which:
+            with mock.patch("sys.stderr", new_callable=StringIO) as error:
+                self.assertEqual(
+                    2,
+                    SMOKE.main(["--allow-floating-marketplace"]),
+                )
+            which.assert_not_called()
+
+        self.assertIn(
+            "--allow-floating-marketplace requires --remote-marketplace-ref",
+            error.getvalue(),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
