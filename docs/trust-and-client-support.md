@@ -82,6 +82,11 @@ krever en immutable release-tag i stedet.
 
 ## Gate fra RC til stabil release
 
+Bruk den versjonerte
+[macOS-klientvalideringsprotokollen](macos-client-validation-protocol.md) og
+evidensmalen for den repeterbare CLI-, App- og VS Code-delen av gaten. Resten av
+denne gaten dekker bredere organisasjons- og releaseavklaringer.
+
 1. Installer den eksakte, immutable RC-ref-en og bekreft modelloppløsning i
    Copilot CLI.
 2. Bekreft at den ene pluginen gir nøyaktig 7 agenter og 42 skills uten
