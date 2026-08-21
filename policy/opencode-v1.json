@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "target": "opencode-v1",
+  "output": "targets/opencode-v1",
+  "source": {
+    "pluginManifest": "plugin/plugin.json",
+    "agents": "plugin/agents",
+    "skills": "plugin/skills"
+  },
+  "agents": {
+    "barista": {
+      "mode": "primary",
+      "hidden": false,
+      "skillAccess": "allow-with-manual-ask",
+      "permission": {
+        "*": "ask",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "question": "allow",
+        "task": {
+          "*": "deny",
+          "grill-inspektor": "allow"
+        }
+      }
+    },
+    "designer": {
+      "mode": "primary",
+      "hidden": false,
+      "skillAccess": "allow-with-manual-ask",
+      "permission": {
+        "*": "ask",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "question": "allow",
+        "bash": {
+          "*": "deny",
+          "node scripts/server.js --project-dir *": "ask",
+          "node *grillmester-design-prototype/scripts/server.js --project-dir *": "ask",
+          "node scripts/server.js * --cleanup-all*": "deny",
+          "node *grillmester-design-prototype/scripts/server.js * --cleanup-all*": "deny"
+        },
+        "task": "deny"
+      }
+    },
+    "doctor-who": {
+      "mode": "primary",
+      "hidden": false,
+      "skillAccess": "allow-with-manual-ask",
+      "permission": {
+        "*": "ask",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "question": "allow",
+        "bash": "deny",
+        "task": "deny"
+      }
+    },
+    "grill-inspektor": {
+      "mode": "subagent",
+      "hidden": true,
+      "skillAccess": "allow-with-manual-ask",
+      "permission": {
+        "*": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "bash": "ask",
+        "edit": "deny",
+        "question": "deny",
+        "task": "deny"
+      }
+    },
+    "grillmester": {
+      "mode": "primary",
+      "hidden": false,
+      "skillAccess": "allow-with-manual-ask",
+      "permission": {
+        "*": "ask",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "question": "allow",
+        "task": {
+          "*": "deny",
+          "kokk": "allow",
+          "grill-inspektor": "allow",
+          "researcher": "allow"
+        }
+      }
+    },
+    "kokk": {
+      "mode": "subagent",
+      "hidden": true,
+      "skillAccess": "allow-with-manual-ask",
+      "permission": {
+        "*": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "ask",
+        "bash": "ask",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "question": "deny",
+        "task": "deny"
+      }
+    },
+    "researcher": {
+      "mode": "subagent",
+      "hidden": true,
+      "skillAccess": "deny",
+      "permission": {
+        "*": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "edit": "deny",
+        "bash": "deny",
+        "question": "deny",
+        "task": "deny"
+      }
+    }
+  },
+  "runtimeTextReplacements": [
+    {
+      "from": "agent task tool",
+      "to": "`task` tool"
+    },
+    {
+      "from": "`agent` tool",
+      "to": "`task` tool"
+    },
+    {
+      "from": "`ask_user`",
+      "to": "`question`"
+    },
+    {
+      "from": "ask_user:",
+      "to": "question:"
+    },
+    {
+      "from": "`execute`",
+      "to": "`bash`"
+    },
+    {
+      "from": "`web`",
+      "to": "`webfetch` or `websearch`"
+    },
+    {
+      "from": "built-in search tool",
+      "to": "built-in `grep`/`glob` tools"
+    },
+    {
+      "from": "rerouting to Copilot CLI/app or a repository-approved\nMCP",
+      "to": "rerouting to an OpenCode session with approved external retrieval"
+    },
+    {
+      "from": "GitHub Copilot's supported fields",
+      "to": "the target runtime's supported fields"
+    }
+  ],
+  "pathTextReplacements": {
+    "skills/grillmester-handoff/SKILL.md": [
+      {
+        "from": "fresh GitHub Copilot session",
+        "to": "fresh OpenCode session"
+      }
+    ],
+    "skills/grillmester-design-prototype/references/visual-companion.md": [
+      {
+        "from": "lokal Copilot CLI/app-kjøring",
+        "to": "lokal OpenCode CLI/app-kjøring"
+      }
+    ],
+    "skills/grillmester-create-a-skill/references/principles.md": [
+      {
+        "from": "Use GitHub Copilot's supported invocation fields rather than encoding policy\nin prose.",
+        "to": "Keep portable skill metadata in `SKILL.md`, OpenCode slash entry points in\n`commands/`, and model access in ordered `permission.skill` rules rather than\nencoding invocation policy in prose."
+      }
+    ],
+    "skills/grillmester-create-a-skill/references/glossary.md": [
+      {
+        "from": "Runtime\nbehavior is configured through the target runtime's supported fields, which define\nexactly how model and user reach are configured.",
+        "to": "Runtime behavior is split between portable skill metadata, explicit OpenCode\ncommand wrappers, and ordered `permission.skill` rules."
+      }
+    ]
+  },
+  "overlays": {
+    "skills/grillmester-doctor/SKILL.md": "policy/opencode-v1/overlays/skills/grillmester-doctor/SKILL.md",
+    "skills/grillmester-create-a-skill/SKILL.md": "policy/opencode-v1/overlays/skills/grillmester-create-a-skill/SKILL.md",
+    "skills/grillmester-create-a-skill/references/opencode-validation.md": "policy/opencode-v1/overlays/skills/grillmester-create-a-skill/references/opencode-validation.md"
+  },
+  "remove": [
+    "skills/grillmester-create-a-skill/references/copilot-cli-validation.md"
+  ],
+  "skillCapabilities": {
+    "default": "native",
+    "overrides": {
+      "grillmester-create-a-skill": "overlay",
+      "grillmester-doctor": "overlay"
+    }
+  },
+  "forbiddenRuntimeTokens": [
+    "ask_user",
+    "`execute`",
+    "`web`",
+    "agent task tool",
+    "`agent` tool",
+    "built-in search tool"
+  ],
+  "forbiddenByPrefix": {
+    "skills/grillmester-doctor/": [
+      "Copilot",
+      ".github/copilot"
+    ],
+    "skills/grillmester-create-a-skill/": [
+      "Copilot",
+      "copilot"
+    ],
+    "skills/grillmester-handoff/": [
+      "GitHub Copilot"
+    ]
+  }
+}

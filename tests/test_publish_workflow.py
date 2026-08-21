@@ -8,9 +8,33 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/publish-marketplace.yml"
 PROMOTE_WORKFLOW = ROOT / ".github/workflows/promote-release.yml"
 RELEASE_WORKFLOW = ROOT / ".github/workflows/publish-release.yml"
+VALIDATE_WORKFLOW = ROOT / ".github/workflows/validate.yml"
 
 
 class PublishWorkflowContractTest(unittest.TestCase):
+    def test_every_release_gate_uses_the_pinned_native_opencode_smoke(self) -> None:
+        workflows = {
+            "validate": VALIDATE_WORKFLOW.read_text(encoding="utf-8"),
+            "marketplace": WORKFLOW.read_text(encoding="utf-8"),
+            "manual release validation": PROMOTE_WORKFLOW.read_text(encoding="utf-8"),
+            "release publication": RELEASE_WORKFLOW.read_text(encoding="utf-8"),
+        }
+        for label, text in workflows.items():
+            with self.subTest(workflow=label):
+                self.assertIn("npm install --global opencode-ai@1.18.19", text)
+                self.assertIn("smoke_opencode.py", text)
+                self.assertIn("--require-binary", text)
+
+        self.assertIn(
+            'python3 "${{ steps.source.outputs.source_root }}/scripts/smoke_opencode.py"',
+            workflows["marketplace"],
+        )
+        for label in ("manual release validation", "release publication"):
+            self.assertIn(
+                'python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py"',
+                workflows[label],
+            )
+
     def test_write_credentials_exist_only_in_final_publish_step(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("persist-credentials: false", text)
@@ -226,6 +250,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'cmp -s "${package_manifest_file}" "${rc_package_manifest_file}"',
             write_job,
         )
+        self.assertIn(
+            'git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/opencode.json"',
+            write_job,
+        )
+        self.assertIn("-- targets/opencode-v1", write_job)
         self.assertIn(
             'cmp -s "${regenerated_rc_catalog}" "${rc_catalog_file}"', write_job
         )

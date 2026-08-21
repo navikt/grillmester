@@ -1,0 +1,5 @@
+# OpenCode may bootstrap runtime dependencies in this config directory.
+node_modules/
+package.json
+bun.lock
+bun.lockb

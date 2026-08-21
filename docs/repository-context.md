@@ -12,6 +12,46 @@ Dette er et bevisst skille:
 
 Prompter og instructions er kontekst, ikke en teknisk sikkerhetsgrense.
 
+## Kort konklusjon om `AGENTS.md`-standarden
+
+Flytt gjerne **stående, klientnøytrale repo-instruksjoner** til `AGENTS.md`.
+GitHub Copilot CLI oppdager `AGENTS.md` i repo-/arbeidsstien, og OpenCode bruker
+samme fil som prosjektregler. Det gir én god kilde for build/test, arkitektur,
+domenespråk og varige grenser.
+
+Ikke gjør agent-, skill- og instructionfilene til varianter av samme
+`AGENTS.md`-format. De representerer ulike aktiveringsnivåer:
+
+- `AGENTS.md` er alltid-på repo-kontekst
+- `SKILL.md` er den åpne Agent Skills-standarden for metode som lastes ved
+  behov
+- agentprofiler er valgbare roller med harness-spesifikk delegering, tools og
+  permissions
+- slash commands er harness-spesifikke innganger til en prompt eller skill
+
+Det finnes altså ingen felles «`agent.md`-standard» som dekker disse fire
+kontraktene. For consumer-eide skills som faktisk skal deles mellom Copilot og
+OpenCode, er `.agents/skills/<id>/SKILL.md` den beste felles roten fordi begge
+klientene oppdager Agent Skills-formatet der. Grillmesters distribuerte skills
+forblir likevel target-eid generert innhold; de skal ikke synkes inn i
+consumeren som en ny fil-livssyklus.
+
+GitHub dokumenterer både
+[`AGENTS.md`-discovery i Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions#types-of-custom-instructions)
+og at
+[Agent Skills er en åpen standard](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills).
+OpenCode dokumenterer tilsvarende
+[`AGENTS.md`-regler](https://opencode.ai/docs/rules) og
+[native skill discovery](https://opencode.ai/docs/skills).
+
+Copilot-støtten er klientavhengig. GitHubs
+[støttematrise for custom instructions](https://docs.github.com/en/copilot/reference/custom-instructions-support)
+viser støtte for `AGENTS.md` i blant annet Copilot CLI, coding agent, code
+review og VS Code Chat, men ikke i alle IDE-chatflater. Behold derfor
+`.github/copilot-instructions.md` som en konfliktfri Copilot-fallback når
+JetBrains eller Visual Studio Chat er en nødvendig klientflate; ikke dupliser
+ulike regler i de to filene.
+
 ## Hva skal ligge hvor?
 
 GitHub skiller mellom stående regler og oppgaveorienterte skills:
@@ -22,6 +62,8 @@ GitHub skiller mellom stående regler og oppgaveorienterte skills:
 | `.github/copilot-instructions.md` | Repo-wide regler som bare gjelder GitHub Copilot. | Copilot-spesifikke arbeidsregler eller kontekst. |
 | `.github/instructions/**/*.instructions.md` | Regler som bare er sanne for bestemte stier eller filtyper. | Frontendregler i `apps/web/**`, migreringsregler i `db/migrations/**`. |
 | Grillmester skills | Oppgaveorientert metode som lastes når den trengs. | Sikkerhetsreview, TDD, API-design, workshopdesign. |
+| Native agentprofil | Valgbar rolle, delegering og runtime-capabilities. | `.github/agents/*.agent.md` i Copilot; `agents/*.md` i Grillmesters OpenCode-target. |
+| Native command | Eksplisitt slash-inngang; ikke stående instruksjon. | Copilot-skillkommando eller OpenCode `commands/*.md`. |
 | CI/rulesets/CODEOWNERS | Krav som må håndheves deterministisk. | Tester, formattering, branch protection, obligatorisk review. |
 
 Se GitHubs

@@ -54,10 +54,16 @@ tool calls, godkjent write og avvist write før stabil release.
 | Klient | Nåstatus | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
 | **Copilot CLI** | Referanseklient. Lokal mount, install-/oppgraderings-/rollbackflyt, personlig installasjon, deklarativ auto-install og oppdatering ved sesjonsstart er bekreftet i reelle sesjoner for den tidligere pakken med 7 agenter og 44 skills. | Den nye pakken med 42 skills, immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
-| **Copilot app** | Plugins-UI-installasjon og discovery er bekreftet i en reell sesjon for den tidligere pakken med 7 agenter og 44 skills. | Discovery av den nye pakken med 42 skills, custom-marketplace-oppdatering, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. |
+| **Copilot app** | Plugins-UI-installasjon og discovery er bekreftet i en reell sesjon for den tidligere pakken med 7 agenter og 44 skills. Appen tilbyr også BYOK mot blant annet LM Studio og OpenAI-kompatible endepunkter i public preview. | Discovery av den nye pakken med 42 skills, custom-marketplace-oppdatering, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. Grillmester + lokal BYOK-modell og appens nettverkstrafikk er `UNVERIFIED`; app-guiden lover ikke CLI-ens offline-modus. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær kompatibilitetsflate. VS Code dokumenterer update-sjekk hver 24. time når `extensions.autoUpdate` er aktivert. | Verifiser faktisk custom-marketplace-oppdatering med to Grillmester-versjoner; den styrer ikke første Nav-release. |
-| **OpenCode** | Skills-only eksperiment. | Hver skill må portabilitetsauditeres. Agentteam, marketplace og felles agentkontrakt følger ikke med. |
+| **OpenCode 1.18.19** | Eget, deterministisk generert target med 7 native agenter, 42 skills, 42 slash commands og projiserte native permission-/delegeringskontrakter. Isolert no-model-smoke bekrefter resolved config, discovery, native read av consumerens `AGENTS.md`, fravær av target-modellpin og en bruker-eid override som pinner bare Kokk lokalt. Aktivering skjer eksplisitt med `OPENCODE_CONFIG_DIR`; innebygde agenter beholdes. | Samme immutable source-SHA må fortsatt gjennom at `AGENTS.md` påvirker modellsvar, skill/command med modell, delegering, godkjent/avvist write og representativ model/tool-smoke før status kan kalles release-verifisert. Det finnes ingen marketplace/auto-update. |
+| **OpenCode 2 beta** | Oppstrøms forventer V1-kompatibilitet for støttede agent-, command- og skillfiler. Grillmester bruker ingen OpenCode-plugin. | Full runtimeparitet er `UNVERIFIED`. V2-permissions og provider/model-adferd må testes separat; betaen styrer ikke OpenCode 1-release. |
+| **Copilot CLI + lokal BYOK** | GitHub dokumenterer OpenAI-kompatible lokale providers, tool calling/streaming-krav og `COPILOT_OFFLINE=true`. Grillmesters agentpin kan overstyres eksplisitt med `subagents.agents.<name>.model: "inherit"`. | Den eksakte lokale modellen, kvantiseringen, contextprofilen, tool calls, delegeringen og permissionadferden må gjennom samme capability-smoke. 32k laptop-context er under GitHubs anbefalte 128k og skal rapporteres som en begrensning. |
+
+OpenCode-smoken over kontakter ingen modell. Den har derfor ikke utført
+modelldrevet skillbruk, semantisk orkestrering/delegering, write-godkjenning
+eller kvalitetsvurdering; dette står eksplisitt igjen i høyre kolonne.
 
 GitHub dokumenterer at Copilot app kan installere plugins via **Settings →
 Plugins**, og at CLI-konfigurerte skills/MCP-er kan bli tilgjengelige i appen.
@@ -72,6 +78,20 @@ dokumentert tilsvarende garanti. VS Code har en egen
 Disse tre mekanismene må derfor rapporteres separat, ikke som én felles
 «Copilot auto-update»-status.
 
+OpenCode-targetet og Copilot BYOK løser modellvalg på ulike måter. OpenCode-
+agentene har ingen modellpin og arver session/provider. Copilot-pluginen
+beholder sin reviewede pin; Copilot CLI faller tilbake til sessionmodellen hvis
+en deklarert agentmodell ikke kan brukes, men en lokal pilot bør sette
+`inherit` eksplisitt i brukerens subagentsettings fremfor å være avhengig av
+fallback. Se [lokale modeller og capability-smoke](local-models.md).
+
+«Lokal modell» betyr bare at inferensen går til det lokale endepunktet.
+Webtools, MCP-er, telemetry og update-/modellkatalogkall vurderes separat.
+Copilot CLI har en dokumentert offline-modus. Grillmesters vanlige OpenCode-
+target er ikke i seg selv en local-only-profil; en slik profil må i tillegg
+deny-e remote capabilities og håndheve egress. Ikke rapporter en session som
+lokal-only bare fordi valgt modell kjører på `127.0.0.1`.
+
 Den flytende `marketplace`-branchen er oppdateringskanalen. Når en maintainer
 har eksplisitt promotert en eksakt validert source-SHA fra `main`, kan
 CLI-brukere som har valgt `autoUpdate: true`, hente endringen ved neste trusted
@@ -80,7 +100,30 @@ CLI-sesjon. En vanlig merge til `main` flytter ikke `marketplace`. CI,
 Auto-update-testen er derfor post-deploy-evidens; en separat godkjenningsport
 krever en immutable release-tag i stedet.
 
-## Gate fra RC til stabil release
+## Gate for release-verifisert OpenCode 1.18.19
+
+Et generert target er støttet kildekode, men er ikke alene bevis på at en
+konkret runtime, provider og modell oppfører seg riktig. For samme immutable
+source-SHA:
+
+1. Kjør `python3 scripts/generate_opencode.py --check`, validatoren og hele
+   testpakken uten drift.
+2. Kjør `python3 scripts/smoke_opencode.py --require-binary` med den pinnede
+   OpenCode 1.18.19-binæren. Bekreft eksakt roster, commands, skills,
+   fravær av modellpin, deklarerte native permissionregler og consumerens
+   `AGENTS.md` i isolert config. Denne smoken er med vilje uten modell.
+3. Start targetet fra et disponibelt consumer-repo med den samme source-SHA-en
+   og observer en skill/command, delegering, godkjent write og avvist write.
+4. Gjenta den representative oppgaven med provider-/modellprofilen som skal
+   omtales som støttet. For en lokal modell må også
+   [capability-smoken](local-models.md#capability-smoke-før-modellen-får-bakgrunnsarbeid)
+   bestås.
+
+Rapporter OpenCode 2, andre OpenCode 1-versjoner og uprøvde modeller som
+`UNVERIFIED`; filkompatibilitet eller et vellykket chat-svar oppgraderer ikke
+statusen alene.
+
+## Gate fra RC til stabil Copilot-release
 
 Bruk den versjonerte
 [macOS-klientvalideringsprotokollen](macos-client-validation-protocol.md) og

@@ -108,6 +108,9 @@ jobs:
       - name: Install pinned GitHub Copilot CLI
         run: npm install --global @github/copilot@1.0.79
 
+      - name: Install pinned OpenCode CLI
+        run: npm install --global opencode-ai@1.18.19
+
       - name: Smoke-test immutable marketplace installation
         run: >-
           python3 "${{ steps.source.outputs.source_root }}/scripts/smoke_plugin_install.py"
@@ -115,6 +118,11 @@ jobs:
           --source-root "${{ steps.source.outputs.source_root }}"
           --source-sha "${{ inputs.source_sha }}"
           --expect-release-sha "${{ inputs.source_sha }}"
+
+      - name: Smoke-test immutable OpenCode target
+        run: >-
+          python3 "${{ steps.source.outputs.source_root }}/scripts/smoke_opencode.py"
+          --require-binary
 
   publish:
     needs: validate

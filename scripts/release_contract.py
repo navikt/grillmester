@@ -2,10 +2,10 @@
 """Validate and describe Grillmester's immutable release chain.
 
 The public release tag identifies a catalog-only commit. The catalog then
-identifies the plugin payload with one exact GitHub commit SHA. Stable
-releases are new, stable-versioned catalogs whose payloads are identical to a
-named RC apart from each manifest's version; an RC tag is never moved or
-re-used.
+identifies every target payload with one exact GitHub commit SHA. Stable
+releases are new, stable-versioned catalogs whose Copilot and OpenCode
+payloads are identical to a named RC apart from the Copilot manifest's
+version; an RC tag is never moved or re-used.
 """
 
 from __future__ import annotations
@@ -24,6 +24,8 @@ from typing import Any, Sequence
 
 PLUGIN_NAMES = ("grillmester",)
 PLUGIN_PATHS = {"grillmester": "plugin"}
+NATIVE_TARGET_PATHS = ("targets/opencode-v1",)
+SUPPORTED_OPENCODE_VERSION = "1.18.19"
 PLUGIN_REPOSITORY = "navikt/grillmester"
 CATALOG_PATH = ".github/plugin/marketplace.json"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -200,6 +202,8 @@ def validate_source_checkout(
         if manifest.get("repository") != f"https://github.com/{PLUGIN_REPOSITORY}":
             raise ReleaseContractError(f"source manifest has the wrong repository for {name}")
         manifests[name] = manifest
+    for target in NATIVE_TARGET_PATHS:
+        payload_manifest(repo / target)
     return manifests
 
 
@@ -332,6 +336,27 @@ def validate_stable_promotion(
                 + (f"; {detail}" if detail else "")
             )
 
+    for target in NATIVE_TARGET_PATHS:
+        stable_payload = payload_manifest(stable_source / target)
+        rc_payload = payload_manifest(rc_source / target)
+        if stable_payload != rc_payload:
+            missing = sorted(rc_payload.keys() - stable_payload.keys())
+            added = sorted(stable_payload.keys() - rc_payload.keys())
+            changed = sorted(
+                path
+                for path in stable_payload.keys() & rc_payload.keys()
+                if stable_payload[path] != rc_payload[path]
+            )
+            detail = "; ".join(
+                f"{label}: {', '.join(paths[:5])}"
+                for label, paths in (("missing", missing), ("added", added), ("changed", changed))
+                if paths
+            )
+            raise ReleaseContractError(
+                f"stable {target} payload differs from the reviewed RC"
+                + (f"; {detail}" if detail else "")
+            )
+
 
 def write_outputs(path: Path, values: dict[str, str]) -> None:
     with path.open("a", encoding="utf-8") as output:
@@ -388,7 +413,8 @@ This is a **{status}** with an immutable, two-step provenance chain.{promoted}
 | Layer | Immutable identity |
 | --- | --- |
 | Release tag | `{tag}` → catalog commit `{catalog_sha}` |
-| Plugin payload | catalog source → `{source_sha}` |
+| Source payloads | catalog source → `{source_sha}` |
+| OpenCode {SUPPORTED_OPENCODE_VERSION} target | `{source_sha}/targets/opencode-v1` |
 
 The tag points to a catalog-only commit. It never points at `main` and is never
 moved after publication.
@@ -399,6 +425,21 @@ moved after publication.
 copilot plugin marketplace add navikt/grillmester#{tag}
 copilot plugin install grillmester@grillmester
 copilot --agent=grillmester:grillmester
+```
+
+### Run with OpenCode {SUPPORTED_OPENCODE_VERSION}
+
+Only OpenCode `{SUPPORTED_OPENCODE_VERSION}` is release-gated for this payload;
+other OpenCode 1 versions are unverified. Install and verify that exact client,
+check out the catalog's exact source SHA, then point OpenCode at the native,
+model-neutral target. The consumer repository's own `AGENTS.md` remains in force.
+
+```bash
+npm install --global opencode-ai@{SUPPORTED_OPENCODE_VERSION}
+test "$(opencode --version)" = "{SUPPORTED_OPENCODE_VERSION}"
+git clone https://github.com/navikt/grillmester.git grillmester
+git -C grillmester checkout --detach {source_sha}
+OPENCODE_CONFIG_DIR="$PWD/grillmester/targets/opencode-v1" opencode --agent grillmester
 ```
 
 ### Verify

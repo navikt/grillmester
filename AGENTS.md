@@ -1,8 +1,12 @@
 # Repository contract
 
-This repository owns the portable Grillmester Copilot plugin in `plugin/`:
-seven agents and 42 skills. Keep it deterministic and independent of any
-single consumer repository.
+This repository owns the portable Grillmester Copilot plugin in `plugin/`
+and the generated native OpenCode 1 target in `targets/opencode-v1/`: seven
+agents and 42 skills, plus 42 explicit OpenCode commands. The Copilot source
+and target-neutral prompt bodies remain canonical; regenerate the OpenCode
+projection through `scripts/generate_opencode.py` instead of editing it by
+hand. Keep both targets deterministic and independent of any single consumer
+repository.
 
 ## Content boundaries
 
@@ -30,12 +34,14 @@ Run before publishing a change:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
+python3 scripts/generate_opencode.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/grillmester-design-prototype/scripts/server.js
 node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
 node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
+python3 scripts/smoke_opencode.py --require-binary
 ```
 
 The install smoke test must use a disposable, isolated Copilot home. For live
@@ -43,3 +49,5 @@ client behavior, use Nav's normal `cplt` setup in an empty, disposable test
 repository, pass Copilot's `--plugin-dir plugin` through according to the
 current `cplt` documentation, and select the agent with `/agent`.
 Never use a consumer repository as a write target for a smoke test.
+The OpenCode smoke test must likewise use its disposable consumer repository,
+isolated home/config directories, and the pinned client version in the script.

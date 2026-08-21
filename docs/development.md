@@ -17,24 +17,49 @@ Den endrer ikke den vanlige personlige installasjonen.
 
 ## Verifikasjon
 
-Releasekatalogen genereres fra pluginmanifestene. CI verifiserer blant annet
-katalogpinning, innholdslås, agent-/skillroster, progressive lenker og
-install–oppgradering–rollback–avinstallering.
+Releasekatalogen genereres fra pluginmanifestene. Det native OpenCode 1-
+targetet genereres fra samme reviewede plugininnhold og den eksplisitte
+policyen i `policy/opencode-v1.json`. Når canonical agent-, skill- eller
+policyinnhold endres, regenerer det committede targetet først:
+
+```bash
+python3 scripts/generate_opencode.py
+```
+
+Ikke håndrediger `targets/opencode-v1/`. CI verifiserer blant annet
+katalogpinning, innholdslås, agent-/skillroster, OpenCode-projeksjon,
+progressive lenker og install–oppgradering–rollback–avinstallering.
 
 Kjør den lokale hovedgaten:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
+python3 scripts/generate_opencode.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/grillmester-design-prototype/scripts/server.js
 node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
 node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
+python3 scripts/smoke_opencode.py
 ```
 
-Smoken skal bekrefte hele pluginen: 7 agenter, 42 skills og byte-eksakt
-installasjon, oppgradering, rollback og avinstallering.
+Plugin-smoken skal bekrefte 7 agenter, 42 skills og byte-eksakt installasjon,
+oppgradering, rollback og avinstallering. OpenCode-smoken bruker OpenCode
+`1.18.19`, kopierer targetet til en skrivbar tempmappe og bekrefter native
+discovery av 7 agenter, 42 skills, 42 commands, fravær av modellpin,
+deklarerte permissionregler og at native `read` løser consumerens `AGENTS.md`
+fra riktig repo uten å kontakte en modell. Den bekrefter også at en bruker-eid
+hybridprofil kan pinne bare Kokk til en lokal modell. Den beviser derfor ikke
+at `AGENTS.md` faktisk påvirker et modellsvar, modelldrevet skillbruk,
+delegering, write-godkjenning eller kvalitet. Smoken hopper kontrollert over
+når binæren mangler. En release-gate skal i stedet kreve den eksplisitt:
+
+```bash
+python3 scripts/smoke_opencode.py \
+  --opencode /absolute/path/to/opencode \
+  --require-binary
+```
 
 ## Discovery-budsjett
 

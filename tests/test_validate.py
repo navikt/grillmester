@@ -69,6 +69,11 @@ class PackageValidationTest(unittest.TestCase):
     def test_actual_package_is_valid(self) -> None:
         self.assertEqual([], VALIDATE.validate_repo(ROOT))
 
+    def test_stale_opencode_projection_is_rejected(self) -> None:
+        path = self.root / "targets/opencode-v1/agents/grillmester.md"
+        path.write_text("stale\n", encoding="utf-8")
+        self.assert_error("OpenCode target is stale")
+
     def test_boolean_agent_description_is_rejected(self) -> None:
         self.replace_frontmatter(
             "plugin/agents/designer.agent.md", "description", "true"

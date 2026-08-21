@@ -5,10 +5,12 @@ inngangen; agentteamet bruker interne roller og relevante skills etter behov.
 
 ## Offentlige agenter
 
-Agentprofilene har en kuratert standardmodell, men faktisk modelloppløsning
-avhenger av klient, lisens og Navs enterprise-policy. Manglende modell eller
-automatisk fallback skal registreres i klienttesten; ikke anta at navnet i
-frontmatter beviser runtime-modellen.
+Copilot-profilene har en kuratert standardmodell, men faktisk modelloppløsning
+avhenger av klient, lisens og Navs enterprise-policy. OpenCode-targetet utelater
+modellpin og arver session-/providermodellen, også ved intern delegering.
+Manglende modell, override eller automatisk fallback skal registreres i
+klienttesten; ikke anta at frontmatter eller model picker beviser hva som kjørte.
+Se [lokale modeller](local-models.md) for eksplisitt valg og capability-smoke.
 
 ### Grillmester 🔥
 
@@ -88,8 +90,10 @@ Grillmester og trekk inn relevante produkt-/Nav-skills der.
 | **Grill-inspektør** 🔎 | Leser hele task-diffen, akseptansekriteriene og fersk evidens; kan bruke read-only shellkommandoer som `git diff` for å verifisere. | Endrer ikke implementasjonen og løser ikke produktvalg. |
 | **Researcher** | Besvarer ett avgrenset Wayfinder-spørsmål fra repo og autoritative kilder. | Ingen writes og ingen produkt-/arkitekturbeslutning. |
 
-De interne rollene er `user-invocable: false`. Det hindrer at de presenteres som
-ordinære startpunkt, men agentteamet kan delegere til dem med en komplett brief.
+I Copilot er de interne rollene `user-invocable: false`. I OpenCode er de
+`mode: subagent` og `hidden: true`. Begge deler hindrer at de presenteres som
+ordinære startpunkt, mens agentteamet fortsatt kan delegere med en komplett
+brief gjennom klientens native mekanisme.
 
 ## Skillfamilier
 
@@ -148,5 +152,7 @@ eksplisitt og si hvorfor.
 ## Videre
 
 - [Installer Grillmester](installation.md)
+- [Bruk Grillmester i OpenCode](opencode.md)
+- [Velg og test en lokal modell](local-models.md)
 - [Legg repoets stående sannhet på riktig sted](repository-context.md)
 - [Forstå tools, tillit og klientstøtte](trust-and-client-support.md)

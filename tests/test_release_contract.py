@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -204,6 +205,40 @@ class ReleaseContractTest(unittest.TestCase):
                     source_sha=sha,
                 )
 
+    def test_source_checkout_requires_the_native_opencode_target(self) -> None:
+        release = CONTRACT.Catalog(
+            version=CONTRACT.parse_version("1.4.0-rc.2"), source_sha="1" * 40
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp)
+            for name, path in CONTRACT.PLUGIN_PATHS.items():
+                package = source / path
+                package.mkdir(parents=True)
+                (package / "plugin.json").write_text(
+                    json.dumps(
+                        {
+                            "name": name,
+                            "version": release.version.text,
+                            "repository": "https://github.com/navikt/grillmester",
+                        }
+                    )
+                )
+            with mock.patch.object(
+                CONTRACT, "git_output", return_value=release.source_sha
+            ), self.assertRaisesRegex(
+                CONTRACT.ReleaseContractError, "opencode-v1"
+            ):
+                CONTRACT.validate_source_checkout(source, release)
+
+            for target_path in CONTRACT.NATIVE_TARGET_PATHS:
+                target = source / target_path
+                target.mkdir(parents=True)
+                (target / "opencode.json").write_text("{}\n")
+            with mock.patch.object(
+                CONTRACT, "git_output", return_value=release.source_sha
+            ):
+                CONTRACT.validate_source_checkout(source, release)
+
     def test_stable_payload_may_differ_only_by_manifest_version(self) -> None:
         stable = CONTRACT.Catalog(
             version=CONTRACT.parse_version("1.4.0"),
@@ -234,6 +269,12 @@ class ReleaseContractTest(unittest.TestCase):
                         json.dumps({"name": name, "version": version})
                     )
                     (package / "payload.txt").write_text("reviewed bytes\n")
+                for target_path in CONTRACT.NATIVE_TARGET_PATHS:
+                    target = checkout / target_path
+                    target.mkdir(parents=True)
+                    (target / "manifest.json").write_text(
+                        '{"target":"opencode-v1"}\n'
+                    )
 
             CONTRACT.validate_stable_promotion(
                 stable,
@@ -271,6 +312,12 @@ class ReleaseContractTest(unittest.TestCase):
                         json.dumps({"name": name, "version": version})
                     )
                     (package / "payload.txt").write_text(payload)
+                for target_path in CONTRACT.NATIVE_TARGET_PATHS:
+                    target = checkout / target_path
+                    target.mkdir(parents=True)
+                    (target / "manifest.json").write_text(
+                        '{"target":"opencode-v1"}\n'
+                    )
 
             with self.assertRaisesRegex(
                 CONTRACT.ReleaseContractError, "payload differs"
@@ -312,6 +359,13 @@ class ReleaseContractTest(unittest.TestCase):
                 )
                 for package in (stable_package, rc_package):
                     (package / "payload.txt").write_text("reviewed\n")
+            for checkout in (stable_plugin, rc_plugin):
+                for target_path in CONTRACT.NATIVE_TARGET_PATHS:
+                    target = checkout / target_path
+                    target.mkdir(parents=True)
+                    (target / "manifest.json").write_text(
+                        '{"target":"opencode-v1"}\n'
+                    )
 
             with self.assertRaisesRegex(
                 CONTRACT.ReleaseContractError, "byte-for-byte"
@@ -348,9 +402,60 @@ class ReleaseContractTest(unittest.TestCase):
                         json.dumps({"name": name, "version": version})
                     )
                     (package / "payload.txt").write_text("reviewed\n")
+                for target_path in CONTRACT.NATIVE_TARGET_PATHS:
+                    target = checkout / target_path
+                    target.mkdir(parents=True)
+                    (target / "manifest.json").write_text(
+                        '{"target":"opencode-v1"}\n'
+                    )
 
             with self.assertRaisesRegex(
                 CONTRACT.ReleaseContractError, "package-manifest.json differs"
+            ):
+                CONTRACT.validate_stable_promotion(
+                    stable,
+                    stable_source,
+                    "v1.4.0-rc.2",
+                    rc,
+                    rc_source,
+                )
+
+    def test_stable_promotion_rejects_opencode_target_drift(self) -> None:
+        stable = CONTRACT.Catalog(
+            version=CONTRACT.parse_version("1.4.0"), source_sha="1" * 40
+        )
+        rc = CONTRACT.Catalog(
+            version=CONTRACT.parse_version("1.4.0-rc.2"), source_sha="2" * 40
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            stable_source = root / "stable"
+            rc_source = root / "rc"
+            for checkout, version in (
+                (stable_source, "1.4.0"),
+                (rc_source, "1.4.0-rc.2"),
+            ):
+                checkout.mkdir(parents=True)
+                (checkout / "package-manifest.json").write_text(
+                    '{"schemaVersion":1}\n'
+                )
+                for name, path in CONTRACT.PLUGIN_PATHS.items():
+                    package = checkout / path
+                    package.mkdir(parents=True)
+                    (package / "plugin.json").write_text(
+                        json.dumps({"name": name, "version": version})
+                    )
+                    (package / "payload.txt").write_text("reviewed\n")
+                for target_path in CONTRACT.NATIVE_TARGET_PATHS:
+                    target = checkout / target_path
+                    target.mkdir(parents=True)
+                    (target / "manifest.json").write_text(
+                        "changed\n" if checkout == stable_source else "reviewed\n"
+                    )
+
+            with self.assertRaisesRegex(
+                CONTRACT.ReleaseContractError,
+                "targets/opencode-v1 payload differs",
             ):
                 CONTRACT.validate_stable_promotion(
                     stable,
@@ -373,8 +478,38 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("catalog source →", notes)
         self.assertIn("navikt/grillmester#v0.2.0-poc.4", notes)
         self.assertIn("grillmester@grillmester", notes)
+        self.assertIn(
+            f"Run with OpenCode {CONTRACT.SUPPORTED_OPENCODE_VERSION}", notes
+        )
+        self.assertIn(
+            f"OpenCode {CONTRACT.SUPPORTED_OPENCODE_VERSION} target", notes
+        )
+        self.assertIn(
+            f"npm install --global opencode-ai@{CONTRACT.SUPPORTED_OPENCODE_VERSION}",
+            notes,
+        )
+        self.assertIn(
+            'test "$(opencode --version)" = '
+            f'"{CONTRACT.SUPPORTED_OPENCODE_VERSION}"',
+            notes,
+        )
+        self.assertIn("other OpenCode 1 versions are unverified", notes)
+        self.assertIn("checkout --detach " + "2" * 40, notes)
+        self.assertIn(
+            'OPENCODE_CONFIG_DIR="$PWD/grillmester/targets/opencode-v1" '
+            "opencode --agent grillmester",
+            notes,
+        )
         self.assertNotIn("grillmester-nav@grillmester", notes)
         self.assertIn("never\nmoved", notes)
+
+    def test_release_notes_pin_the_release_gated_opencode_version(self) -> None:
+        self.assertEqual("1.18.19", CONTRACT.SUPPORTED_OPENCODE_VERSION)
+        smoke_source = (ROOT / "scripts/smoke_opencode.py").read_text()
+        self.assertIn(
+            f'EXPECTED_OPENCODE_VERSION = "{CONTRACT.SUPPORTED_OPENCODE_VERSION}"',
+            smoke_source,
+        )
 
     def test_stable_release_notes_require_matching_rc_parent(self) -> None:
         with self.assertRaisesRegex(

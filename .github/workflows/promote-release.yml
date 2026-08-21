@@ -167,6 +167,9 @@ jobs:
       - name: Install pinned GitHub Copilot CLI
         run: npm install --global @github/copilot@1.0.79
 
+      - name: Install pinned OpenCode CLI
+        run: npm install --global opencode-ai@1.18.19
+
       - name: Smoke-test exact immutable catalog locally
         run: >-
           python3 scripts/smoke_plugin_install.py
@@ -174,3 +177,8 @@ jobs:
           --source-root "${SOURCE_ROOT}"
           --source-sha "${SOURCE_SHA}"
           --expect-release-sha "${SOURCE_SHA}"
+
+      - name: Smoke-test exact immutable OpenCode target locally
+        run: >-
+          python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py"
+          --require-binary

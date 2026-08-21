@@ -4,9 +4,9 @@
   <img src="docs/assets/grillmester-hero.jpg" alt="En retro robotgrillmester ved en kullgrill i et norsk landskap" width="100%">
 </p>
 
-Grillmester er en GitHub Copilot-plugin med agenter og skills for utvikling,
-design og produktarbeid i Nav. Tilgang og tillatt bruk styres av Navs gjeldende
-policy.
+Grillmester leverer native agenter og skills for GitHub Copilot og den release-
+gatede OpenCode-versjonen 1.18.19, for utvikling, design og produktarbeid i Nav.
+Tilgang og tillatt bruk styres av Navs gjeldende policy.
 
 ## Agentene
 
@@ -22,10 +22,9 @@ Velg agent ut fra hva du skal gjøre:
 Kokk, Grill-inspektør og Researcher er interne roller som agentene bruker ved
 behov. [Se alle agenter og skills](docs/agents-and-skills.md).
 
-Når designoppgaven trenger det, kan Designer bruke Aksel, Figma og Playwright.
-Se [valgfritt MCP-oppsett](docs/mcp-setup.md) for capabilities og oppsett.
+Designer kan bruke Aksel, Figma og Playwright gjennom [valgfritt MCP-oppsett](docs/mcp-setup.md).
 
-## Installer
+## Installer med Copilot
 
 Kjør dette én gang:
 
@@ -67,8 +66,8 @@ Copilot CLI sjekker da etter nye versjoner når en ny sesjon starter.
 
 - **Copilot CLI:** Referanseklient med valgfri personlig auto-oppdatering.
 - **Copilot app:** Oppdater en installert plugin manuelt med **Update**.
-- **VS Code:** Egen oppdateringsmekanisme; custom-marketplace-oppdatering er
-  ikke verifisert.
+- **VS Code:** Egen oppdateringsmekanisme; custom marketplace er ikke verifisert.
+- **OpenCode 1.18.19:** Native modellnøytralt target; andre OpenCode 1-versjoner er ikke release-verifisert. Se [guiden](docs/opencode.md).
 
 Se [installasjonsguiden](docs/installation.md) for manuell oppdatering, fast
 versjon, Copilot-appen og aktivering i et teamrepo.
@@ -111,6 +110,7 @@ issue; bruk [private vulnerability reporting](SECURITY.md) for sårbarheter.
 
 - [Installasjon](docs/installation.md) og [macOS-klientvalidering](docs/macos-client-validation-protocol.md)
 - [Agenter og skills](docs/agents-and-skills.md)
+- [OpenCode 1.18.19](docs/opencode.md) og [lokale modeller](docs/local-models.md)
 - [Repo-eid kontekst, instructions og templates](docs/repository-context.md)
 - [Utvikling og bidrag](docs/development.md)
 

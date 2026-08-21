@@ -207,6 +207,9 @@ jobs:
       - name: Install pinned GitHub Copilot CLI
         run: npm install --global @github/copilot@1.0.79
 
+      - name: Install pinned OpenCode CLI
+        run: npm install --global opencode-ai@1.18.19
+
       - name: Smoke-test exact immutable catalog locally
         run: >-
           python3 scripts/smoke_plugin_install.py
@@ -214,6 +217,11 @@ jobs:
           --source-root "${SOURCE_ROOT}"
           --source-sha "${SOURCE_SHA}"
           --expect-release-sha "${SOURCE_SHA}"
+
+      - name: Smoke-test exact immutable OpenCode target locally
+        run: >-
+          python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py"
+          --require-binary
 
   release:
     needs: validate
@@ -320,6 +328,10 @@ jobs:
           standard_manifest_file="${RUNNER_TEMP}/grillmester-plugin.json"
           git show "${SOURCE_SHA}:package-manifest.json" > "${package_manifest_file}"
           git show "${SOURCE_SHA}:plugin/plugin.json" > "${standard_manifest_file}"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/opencode.json"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/agents/grillmester.md"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/skills/grillmester-grilling/SKILL.md"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/commands/grillmester-grilling.md"
           jq -e '
             .schemaVersion == 1 and
             (keys | sort) == ["marketplace", "packages", "schemaVersion"] and
@@ -426,6 +438,8 @@ jobs:
                "$(jq -cS 'del(.version)' "${rc_standard_manifest_file}")" ]]
             [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
               -- plugin ':(exclude)plugin/plugin.json')" ]]
+            [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
+              -- targets/opencode-v1)" ]]
 
             # Preserve the stronger byte contract too: replacing the stable
             # version value must reproduce the reviewed RC manifest.

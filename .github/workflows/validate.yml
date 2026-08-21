@@ -42,3 +42,9 @@ jobs:
 
       - name: Smoke-test marketplace installation
         run: python3 scripts/smoke_plugin_install.py
+
+      - name: Install pinned OpenCode CLI
+        run: npm install --global opencode-ai@1.18.19
+
+      - name: Smoke-test OpenCode target
+        run: python3 scripts/smoke_opencode.py --require-binary

@@ -271,23 +271,47 @@ ikke skal påvirke resultatet.
 
 ## OpenCode
 
-Copilot-agentene og marketplace-installasjonen er laget for GitHub Copilot.
-Enkeltstående, reviewede skills kan prøves i OpenCode user-scope. `gh skill`
-er public preview og krever GitHub CLI 2.90.0 eller nyere:
+Grillmester har et deterministisk generert, native target for den release-
+gatede OpenCode-klienten `1.18.19`. Det gir hele flaten med 7 agenter, 42
+skills, 42 slash commands, native delegering og native permissions. Andre
+OpenCode 1-versjoner er `UNVERIFIED`. Dette er ikke en marketplace-installasjon
+og skriver ikke filer i consumer-repoet.
+
+Sjekk ut source-SHA-en som den reviewede releasen peker på, og start OpenCode i
+consumer-repoet med targetet som eksplisitt config directory:
 
 ```bash
-gh skill install navikt/grillmester grillmester-dulting \
-  --agent opencode --scope user --pin REVIEWED_SOURCE_SHA
+npm install --global opencode-ai@1.18.19
+test "$(opencode --version)" = "1.18.19"
+
+git clone https://github.com/navikt/grillmester.git /path/to/grillmester
+git -C /path/to/grillmester checkout --detach REVIEWED_SOURCE_SHA
+
+cd /path/to/consumer-repo
+OPENCODE_CONFIG_DIR=/absolute/path/to/grillmester/targets/opencode-v1 \
+  opencode --agent grillmester
 ```
 
-Bruk source-SHA-en som releasekatalogen peker på, ikke katalogtaggen. Dette er
-skills-only interop: OpenCode får ikke agentteamet, kvalifisert delegering eller
-agentenes felles kontrakt. Stående regler må fortsatt ligge i consumerens
-`AGENTS.md`.
+Ikke fortsett hvis versjonstesten feiler. En nyere OpenCode-binær er ikke
+automatisk dekket av denne release-gaten.
+
+Release-taggen peker på en catalog-only commit; bruk derfor den eksakte source-
+SHA-en som release notes/katalogen oppgir for payloaden, ikke taggen eller
+`main`, som source-checkout. Targetet pinner ingen provider eller modell. Velg
+dem i OpenCode-runtime; interne subagenter arver primary-agentens sessionmodell.
+Targetet overstyrer ikke OpenCodes innebygde standardagent, derfor velger
+startkommandoen Grillmester eksplisitt.
+
+Se [den komplette OpenCode-guiden](opencode.md) for discovery, smoke,
+oppdatering, rollback, kollisjoner og grensen mot OpenCode 2-beta. Se
+[lokale modeller](local-models.md) for LM Studio, `llama.cpp`, Qwen3.8-27B og
+Copilot CLI BYOK som et alternativ uten harnessbytte.
 
 ## Neste steg
 
 - [Velg riktig agent og skillfamilie](agents-and-skills.md)
 - [Forstå repoets ansvar for instructions og templates](repository-context.md)
 - [Forstå tools, tillit og klientstøtte](trust-and-client-support.md)
+- [Bruk hele Grillmester-teamet i OpenCode](opencode.md)
+- [Velg og test en lokal modell](local-models.md)
 - [Kjør en kontrollert consumer-pilot](consumer-pilot-runbook.md)
