@@ -5,18 +5,18 @@
   },
   "metadata": {
     "description": "A Copilot agent team for clarified software delivery, design, product work, and Nav specialist capabilities.",
-    "version": "0.3.0-rc.6"
+    "version": "0.3.0-rc.7"
   },
   "plugins": [
     {
       "name": "grillmester",
       "description": "A Copilot agent team for clarified software delivery, design, and product work with portable progressive skills.",
-      "version": "0.3.0-rc.6",
+      "version": "0.3.0-rc.7",
       "source": {
         "source": "github",
         "repo": "navikt/grillmester",
         "path": "plugin",
-        "sha": "13f82082924b12be8a7f18e0fb95791818cb979f"
+        "sha": "49f6cd0ae6c41855b4d184a0c417c976498e69a3"
       }
     }
   ]
