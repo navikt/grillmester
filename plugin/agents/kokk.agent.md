@@ -1,7 +1,7 @@
 ---
 name: kokk
 description: "Internal implementer for one complete, independently testable vertical slice supplied through a concise Kokk task brief."
-model: "gpt-5.6-terra"
+model: "gpt-5.6-sol"
 user-invocable: false
 disable-model-invocation: false
 tools:
