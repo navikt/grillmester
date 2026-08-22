@@ -274,6 +274,27 @@ def prepare_debug_config_probe(source: Path, destination: Path) -> None:
         )
 
 
+def prepare_agent_list_probe(source: Path, destination: Path) -> None:
+    """Stage only agent metadata for bounded human-formatted list output."""
+
+    destination.mkdir()
+    opencode_config = source / "opencode.json"
+    if opencode_config.is_file():
+        shutil.copy2(opencode_config, destination / "opencode.json")
+    shutil.copytree(source / "agents", destination / "agents")
+    make_tree_writable(destination)
+    for agent in (destination / "agents").glob("*.md"):
+        text = agent.read_text(encoding="utf-8")
+        end = text.find("\n---\n", 4)
+        if not text.startswith("---\n") or end < 0:
+            raise SmokeError(f"cannot isolate frontmatter for agent list: {agent}")
+        agent.write_text(
+            text[: end + len("\n---\n")]
+            + f"\nOpenCode agent list probe for {agent.stem}.\n",
+            encoding="utf-8",
+        )
+
+
 def prepare_skill_debug_probes(
     source: Path, destination: Path
 ) -> list[tuple[Path, frozenset[str]]]:
@@ -655,11 +676,13 @@ def smoke(
         sandbox = Path(temp)
         config_dir = sandbox / "config"
         config_probe = sandbox / "config-probe"
+        agent_list_probe = sandbox / "agent-list-probe"
         skill_probe_root = sandbox / "skill-probes"
         consumer = sandbox / "consumer"
         shutil.copytree(target, config_dir)
         make_tree_writable(config_dir)
         prepare_debug_config_probe(config_dir, config_probe)
+        prepare_agent_list_probe(config_dir, agent_list_probe)
         skill_probes = prepare_skill_debug_probes(config_dir, skill_probe_root)
         consumer.mkdir()
         (consumer / "AGENTS.md").write_text(
@@ -709,9 +732,11 @@ def smoke(
         )
         config_agents = validate_resolved_config(config, inventory)
 
+        agent_list_env = dict(env)
+        agent_list_env["OPENCODE_CONFIG_DIR"] = str(agent_list_probe)
         agent_list = run(
             [str(binary), "agent", "list", "--pure"],
-            env=env,
+            env=agent_list_env,
             cwd=consumer,
             timeout_seconds=timeout_seconds,
         )

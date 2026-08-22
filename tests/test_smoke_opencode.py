@@ -147,7 +147,17 @@ class OpenCodeSmokeTest(unittest.TestCase):
 
                 if args[:2] == ["agent", "list"]:
                     print("build (primary)")
-                    for name in AGENTS:
+                    # OpenCode 1.18.20 can lose the tail of this human-formatted
+                    # output when a complete skill tree expands every agent's
+                    # resolved external-directory permissions beyond the pipe
+                    # flush boundary. A discovery probe must therefore omit
+                    # skills while retaining every agent definition.
+                    listed_agents = (
+                        AGENTS[:2]
+                        if any((config / "skills").glob("*/SKILL.md"))
+                        else AGENTS
+                    )
+                    for name in listed_agents:
                         mode = "primary" if name in PRIMARY else "subagent"
                         print(f"{{name}} ({{mode}})")
                     raise SystemExit(0)
