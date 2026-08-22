@@ -545,14 +545,17 @@ jobs:
             --provider-id ci-local \
             --provider-base-url "ci-local=http://127.0.0.1:${LOCAL_PROVIDER_PORT}/v1" \
             --provider-model ci-local/ci-model \
-            --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}" -- models ci-local \
+            --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}" -- \
+            models ci-local --verbose \
             > "${manager_output}" 2>&1
           then
             sed -n '1,200p' "${manager_output}" >&2
             exit 1
           fi
-          # OpenCode 1.18.20's Bun-built `models` command can lose its short
-          # stdout tail when redirected on macOS. The manager's fail-closed
-          # preflight has already verified the exact provider and model; a
-          # zero exit from the provider-filtered command is the stable
-          # end-to-end cplt launch signal.
+          # The plain listing is only 18 bytes and the Bun-built OpenCode
+          # 1.18.20 client can lose that short pipe flush on hosted macOS.
+          # Verbose mode emits bounded model metadata and lets this final cplt
+          # launch independently confirm the selected ID and capacity limits.
+          grep -F 'ci-local/ci-model' "${manager_output}" >/dev/null
+          grep -F '"context": 32768' "${manager_output}" >/dev/null
+          grep -F '"output": 8192' "${manager_output}" >/dev/null

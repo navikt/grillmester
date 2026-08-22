@@ -242,12 +242,13 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertIn('--provider-model ci-local/ci-model', text)
         self.assertIn(
-            '--opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}" -- models ci-local',
+            '--opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}" --',
             text,
         )
-        self.assertIn("manager's fail-closed", text)
-        self.assertIn("provider-filtered command", text)
-        self.assertNotIn("grep -F 'ci-local/ci-model'", text)
+        self.assertIn("models ci-local --verbose", text)
+        self.assertIn("grep -F 'ci-local/ci-model'", text)
+        self.assertIn("grep -F '\"context\": 32768'", text)
+        self.assertIn("grep -F '\"output\": 8192'", text)
 
     def test_all_workflow_checkouts_disable_persisted_credentials(self) -> None:
         for workflow in (

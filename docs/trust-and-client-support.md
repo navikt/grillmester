@@ -101,12 +101,13 @@ betyr samme host. En dokumentasjonsadresse på samme port må samtidig
 klassifiseres som blokkert. Manageren binder fortsatt modell-providerens
 base-URL til eksakt loopback. Til slutt installerer den den
 deterministiske bundle-en og kjører den ekte managerflyten
-`local-only ... -- models ci-local` gjennom cplt med en eksplisitt lokal
+`local-only ... -- models ci-local --verbose` gjennom cplt med en eksplisitt lokal
 OpenAI-kompatibel provider, eksakt loopback-base-URL, modell-ID og positive
 context-/outputgrenser. Managerens fail-closed preflight validerer den eksakte
-provider-/modellbindingen før exec. Gaten bruker deretter den provider-filtrerte
-kommandoens exitkode som stabilt launch-signal, fordi den Bun-bygde OpenCode
-1.18.20-binæren kan miste den korte modell-listingen når stdout omdirigeres på
+provider-/modellbindingen før exec. Den avsluttende provider-filtrerte kommandoen
+bruker verbose metadata og validerer modell-ID samt context-/outputgrensene på
+nytt. Den større, avgrensede utskriften unngår at den Bun-bygde OpenCode
+1.18.20-binæren mister den minimale 18-byte-listingen ved pipe-flush på hosted
 macOS. Den generiske cplt-batterien forventer
 at OpenCodes standarddomene er tillatt; `local-only` blokkerer det med vilje, så
 gaten validerer hvert JSON-item og den ene strengere mismatchen eksplisitt i
