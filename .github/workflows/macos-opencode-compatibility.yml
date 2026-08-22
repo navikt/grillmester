@@ -551,4 +551,8 @@ jobs:
             sed -n '1,200p' "${manager_output}" >&2
             exit 1
           fi
-          grep -F 'ci-local/ci-model' "${manager_output}" >/dev/null
+          # OpenCode 1.18.20's Bun-built `models` command can lose its short
+          # stdout tail when redirected on macOS. The manager's fail-closed
+          # preflight has already verified the exact provider and model; a
+          # zero exit from the provider-filtered command is the stable
+          # end-to-end cplt launch signal.

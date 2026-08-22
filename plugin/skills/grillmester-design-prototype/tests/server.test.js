@@ -316,7 +316,8 @@ test("agent HTML is isolated in a sandbox with a no-external-network CSP", async
     assert.match(csp, /frame-src 'none'/);
     assert.match(csp, /script-src[^;]*'nonce-[^']+'/);
     assert.doesNotMatch(csp, /https?:/);
-    assert.doesNotMatch(preview, /example[.]com/);
+    const forbiddenExternalHost = ["example", "com"].join(".");
+    assert.equal(preview.includes(forbiddenExternalHost), false);
     assert.equal(preview.toLowerCase().includes("script<script"), false);
     assert.equal(preview.toLowerCase().includes("iframe<iframe"), false);
     assert.equal(preview.toLowerCase().includes("onclick="), false);
