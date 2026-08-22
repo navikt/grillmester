@@ -129,20 +129,10 @@ binæren `opencode`, ikke `opencode2`, for den release-gatede flaten. Se
 
 ## Installer eksakte klienter
 
-Skill mellom en bekvemmelighetsinstallasjon og bootstrap-evidens. Ved en vanlig
-`npm install --global opencode-ai@1.18.20` kjører pakkens installkode:
-`postinstall` kjører `verifyBinary` før manageren kan hashe den installerte
-binæren. Homebrew er en bekvemmelighetsinstallasjon for cplt, ikke bevis på en
-høy-assurance bootstrap.
-
-Ved vanlig utvikling kan de pinnede convenience-kommandoene brukes:
-
-Lifecycle-manageren bruker bare Python-standardbiblioteket, men krever
-Python `3.11` eller nyere (`tomllib`). Kontroller den sammen med
-OpenCode-versjonen først:
+Installer den release-gatede OpenCode-versjonen og kontroller den eksakte
+versjonen:
 
 ```bash
-python3 -c 'import sys; assert sys.version_info >= (3, 11)'
 npm install --global opencode-ai@1.18.20
 test "$(opencode --version)" = "1.18.20"
 ```
@@ -162,12 +152,63 @@ kjøre `copilot --version` samt GitHub-authdiagnostikk når Copilot finnes på
 maskinen. Bruk derfor den eksakte versjonskontrollen over og OpenCode-smokene
 under for en OpenCode-only validering.
 
-For høy assurance: hent den eksakte npm-plattformpakken for OpenCode
-`1.18.20` og den eksakte cplt-releaseasseten direkte. Verifiser
-upstream-arkivchecksummen, forventet inventar og den reviewede binærdigesten før
-første kjøring. Legg først deretter de verifiserte binærene på `PATH` for
-manageren. Managerens senere checksum- og stagingkontroll kan ikke retroaktivt
-sikre bootstrapen eller kode som en package manager allerede har kjørt.
+Se OpenCodes [offisielle CLI-guide](https://opencode.ai/docs/cli/) og cplts
+[offisielle installasjon](https://github.com/navikt/cplt#install). En nyere
+OpenCode-binær eller cplt-release er ikke automatisk dekket av Grillmesters
+release-gate.
+
+## Hent og verifiser en Grillmester-bundle
+
+Den primære installasjonskilden er OpenCode-assetene på den reviewede
+[GitHub-releasen](https://github.com/navikt/grillmester/releases): én
+deterministisk `tar.gz` og dens detached `.sha256`. Ikke bruk GitHubs automatisk
+genererte source-arkiv som OpenCode-bundle. Last ned begge assetene fra samme
+release, bruk de eksakte filnavnene som releasen oppgir, og verifiser før
+utpakking, for eksempel:
+
+```bash
+cd /path/to/downloads
+tag=vREPLACE_WITH_VERSION
+asset="grillmester-opencode-${tag}.tar.gz"
+shasum -a 256 -c "${asset}.sha256"
+tar -xzf "${asset}" -C /path/to/user-owned/extraction
+```
+
+Bundle-en inneholder manageren, profilene og targetet under roten
+`grillmester-opencode-v1/`. Inspiser at
+`DISTRIBUTION-MANIFEST.json` binder den forventede source-SHA-en, OpenCode
+`1.18.20`, cplt `2026.08.17-062831-1008a92` og eksakt filinventar.
+
+For vanlig, native cplt-bruk er bundle-en nå klar. Bruk den utpakkede roten som
+`GRILLMESTER_ROOT` i [quick-starten](#native-cplt-kom-raskt-i-gang); ikke kjør
+managerens `install`-kommando. En source-checkout er bare utviklingsinput for
+vedlikeholdere og er ikke den støttede sluttbrukerinstallasjonen. `main`,
+GitHubs source-arkiv og løse kopier av `targets/opencode-v1/` erstatter ikke den
+checksummede release-bundle-en.
+
+## Valgfri lifecycle-manager
+
+Resten av managerflyten er valgfri hardening for en kontrollert, immutable
+installasjon med runtimeprofiler og rollback. Installer manageren bare når du
+har valgt denne assurance-kontrakten. Lifecycle-manageren bruker bare Python-
+standardbiblioteket, men krever Python `3.11` eller nyere (`tomllib`):
+
+```bash
+python3 -c 'import sys; assert sys.version_info >= (3, 11)'
+```
+
+Skill mellom en bekvemmelighetsinstallasjon og bootstrap-evidens. Ved en vanlig
+`npm install --global opencode-ai@1.18.20` kjører pakkens installkode:
+`postinstall` kjører `verifyBinary` før manageren kan hashe den installerte
+binæren. Homebrew er en bekvemmelighetsinstallasjon for cplt, ikke bevis på en
+høy-assurance bootstrap.
+
+For høy assurance: hent den eksakte npm-plattformpakken for OpenCode `1.18.20`
+og den eksakte cplt-releaseasseten direkte. Verifiser upstream-arkivchecksummen,
+forventet inventar og den reviewede binærdigesten før første kjøring. Legg først
+deretter de verifiserte binærene på `PATH` for manageren. Managerens senere
+checksum- og stagingkontroll kan ikke retroaktivt sikre bootstrapen eller kode
+som en package manager allerede har kjørt.
 
 Bundle-ens [immutable klientlås](../policy/client-artifacts.json) inneholder URL,
 arkivstørrelse, upstream-digest, eksakt tar-roster og binærdigest. Den bundled
@@ -213,40 +254,15 @@ python3 -I -S "$verify" --lock "$lock" --client cplt \
 
 Bruk deretter de absolutte filene som `--opencode "$verified_bin/opencode"`
 og `--cplt "$verified_bin/cplt"`. En feil selector, ekstra tar-member, feil
-størrelse eller digest publiserer ingen kjørbar output.
-
-Se OpenCodes [offisielle CLI-guide](https://opencode.ai/docs/cli/) og cplts
-[offisielle installasjon](https://github.com/navikt/cplt#install). En nyere
-OpenCode-binær er ikke automatisk dekket av Grillmesters release-gate. Alle
-cplt-baserte profiler nekter å starte med en annen cplt-release; pinnen dekker
+størrelse eller digest publiserer ingen kjørbar output. Alle cplt-baserte
+managerprofiler nekter å starte med en annen cplt-release; pinnen dekker
 CLI-flagg, sandboxprofil, innebygde allowlister og enforcement som ett reviewet
 runtimegrensesnitt. I cplt-modus krever manageren i tillegg at den resolverte
 OpenCode-binæren er byte-identisk med en offisiell plattformbinær fra npm-
 distribusjonen av `opencode-ai@1.18.20`. Den opprinnelige binæren leses og
 checksummes, men startes ikke.
 
-## Installer en immutable Grillmester-bundle
-
-Den primære installasjonskilden er OpenCode-assetene på den reviewede
-[GitHub-releasen](https://github.com/navikt/grillmester/releases): én
-deterministisk `tar.gz` og dens detached `.sha256`. Ikke bruk GitHubs automatisk
-genererte source-arkiv som OpenCode-bundle. Last ned begge assetene fra samme
-release, bruk de eksakte filnavnene som releasen oppgir, og verifiser før
-utpakking, for eksempel:
-
-```bash
-cd /path/to/downloads
-tag=vREPLACE_WITH_VERSION
-asset="grillmester-opencode-${tag}.tar.gz"
-shasum -a 256 -c "${asset}.sha256"
-tar -xzf "${asset}" -C /path/to/user-owned/extraction
-```
-
-Bundle-en inneholder manageren, profilene og targetet under roten
-`grillmester-opencode-v1/`. Inspiser at
-`DISTRIBUTION-MANIFEST.json` binder den forventede source-SHA-en, OpenCode
-`1.18.20`, cplt `2026.08.17-062831-1008a92` og eksakt filinventar. Installer
-deretter:
+Installer deretter lifecycle-manageren:
 
 ```bash
 cd /path/to/extracted/grillmester-opencode-v1
@@ -270,11 +286,7 @@ for rollback. Behold den checksumverifiserte, utpakkede bundle-en på en
 bruker-eid plassering: manageren kjøres derfra ved launch og rollback, mens
 targetpayloaden ligger i lifecycle home.
 
-En source-checkout er bare utviklingsinput for vedlikeholdere og er ikke den
-støttede sluttbrukerinstallasjonen. `main`, GitHubs source-arkiv og løse kopier
-av `targets/opencode-v1/` erstatter ikke den checksummede release-bundle-en.
-
-## Velg runtimeprofil
+## Velg managerens runtimeprofil
 
 Bundle-en velger aldri provider, modell eller credential. I en manager-herdet
 cplt-session peker `OPENCODE_MODELS_PATH` på en manager-eid, read-only tom

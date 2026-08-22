@@ -46,7 +46,6 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
 
     def test_runtime_prerequisites_include_python_311(self) -> None:
         for name, document in (
-            ("README", self.readme),
             ("OpenCode guide", self.guide),
             ("installation guide", self.installation),
         ):
@@ -184,30 +183,41 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn(domain, quick_start)
         self.assertIn("Ikke bruk\n`--allow-all-domains`", quick_start)
 
-    def test_readme_leads_with_native_cplt_before_optional_hardening(self) -> None:
-        self.assertLessEqual(len(self.readme.splitlines()), 120)
+    def test_readme_has_complete_client_journeys_before_optional_hardening(self) -> None:
+        self.assertLessEqual(len(self.readme.splitlines()), 110)
         self.assertLess(
-            self.readme.index("## Start med OpenCode"),
-            self.readme.index("## Installer med Copilot"),
+            self.readme.index("### GitHub Copilot"),
+            self.readme.index("### OpenCode via cplt"),
         )
-        section = self.readme.split("## Start med OpenCode", 1)[1].split(
-            "## Installer med Copilot", 1
+        section = self.readme.split("### OpenCode via cplt", 1)[1].split(
+            "## Velg agent", 1
         )[0]
         normalized = " ".join(section.split())
 
+        journey_markers = (
+            "**Forutsetninger:**",
+            "**Hent Grillmester:**",
+            "**Velg modell:**",
+            "**Start med GitHub Copilot-provider:**",
+        )
+        positions = [normalized.index(marker) for marker in journey_markers]
+        self.assertEqual(sorted(positions), positions)
         self.assertLess(
-            normalized.index("cplt støtter OpenCode direkte out of the box"),
-            normalized.index("Release-manageren er en valgfri assurance-profil"),
+            normalized.index("cplt --agent opencode"),
+            normalized.index("lifecycle-flyten"),
         )
         for marker in (
+            "docs/opencode.md#installer-eksakte-klienter",
+            "docs/opencode.md#hent-og-verifiser-en-grillmester-bundle",
+            "docs/opencode.md#valgfri-lifecycle-manager",
             "OPENCODE_CONFIG_DIR",
             "cplt --agent opencode",
             "cd /path/to/consumer-repo",
             "--allow-read",
             "--pass-env OPENCODE_CONFIG_DIR",
             "docs/opencode.md#native-cplt-kom-raskt-i-gang",
-            "Release-manageren er en valgfri assurance-profil",
-            "forhåndsgodkjent Nav-standard",
+            "port- eller credential-tilgangen cplt trenger",
+            "ikke nødvendig for vanlig cplt-bruk",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, normalized)
