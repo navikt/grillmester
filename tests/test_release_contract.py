@@ -995,7 +995,7 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("effective resolved config", notes)
         self.assertIn("`OPENCODE_DISABLE_SHARE=true`", notes)
         self.assertIn("macOS-only `local-only`", normalized_notes)
-        self.assertIn("separate trust and egress boundary", notes)
+        self.assertIn("separate trust and egress boundaries", normalized_notes)
         self.assertIn("Model quality is gated separately", normalized_notes)
         self.assertIn("### Verify Copilot", notes)
         self.assertIn("copilot plugin list", notes)

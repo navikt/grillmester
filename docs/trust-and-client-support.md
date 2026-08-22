@@ -95,15 +95,18 @@ Den verifiserer arkivstørrelse, upstream-digest, eksakt tar-roster,
 binærstørrelse og binærdigest før første klientkjøring. Deretter kjører den
 native discovery/runtime-smoke, cplts virkelige `check --json`-prober med
 managerens `local-only`-nettverksflagg, targeted allow/block-klassifisering og
-en rå `/usr/bin/nc`-måling: samme listenerport må være nåbar via loopback, men
-ikke via runnerens non-loopback-adresse. Til slutt installerer den den
+rå `/usr/bin/nc`-målinger: samme listenerport må være nåbar både via loopback
+og en annen adresse som tilhører runneren, fordi Seatbelts `localhost`-selector
+betyr samme host. En dokumentasjonsadresse på samme port må samtidig
+klassifiseres som blokkert. Manageren binder fortsatt modell-providerens
+base-URL til eksakt loopback. Til slutt installerer den den
 deterministiske bundle-en og kjører den ekte managerflyten
 `local-only ... -- models ci-local` gjennom cplt med en eksplisitt lokal
 OpenAI-kompatibel provider, eksakt loopback-base-URL, modell-ID og positive
 context-/outputgrenser. Den generiske cplt-batterien forventer
 at OpenCodes standarddomene er tillatt; `local-only` blokkerer det med vilje, så
 gaten validerer hvert JSON-item og den ene strengere mismatchen eksplisitt i
-stedet for å tolke exit code alene. Dette er konkret Seatbelt-/proxy-/hostpin-
+stedet for å tolke exit code alene. Dette er konkret Seatbelt-/proxy-/host-
 evidens for den pinnede macOS-runneren, ikke modellkvalitet, providerprosessens
 egress eller en garanti for andre OS-/klientversjoner.
 

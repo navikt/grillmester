@@ -235,7 +235,11 @@ live etter siste managerkontroll. Samtidig fiendtlig kode med samme same-UID er
 derfor eksplisitt utenfor assurance-grensen; full lukking krever en upstream
 cplt-parameter for en forseglet configsnapshot.
 Garantien gjelder harnesset på macOS, der Seatbelt kan pinne forced-proxy-egress
-til localhost. På Linux er Landlock-reglene portbaserte: kernel `6.7` eller
+til samme host. Seatbelts `localhost`-selector omfatter alle adresser som
+tilhører Mac-en, så manageren låser providerens base-URL separat til loopback og
+aksepterer en dokumentert restflate mot andre host-lokale tjenester på den
+valgte porten. Eksterne hoster på samme port forblir blokkert. På Linux er
+Landlock-reglene portbaserte: kernel `6.7` eller
 nyere etterlater en smal ekstern kanal på proxyens ephemeral-port, mens eldre
 kernels bare har filesystem-enforcement. `local-only` skal derfor feile lukket
 på Linux med denne cplt-pinnen. Localhost-providerprosessen kjører utenfor cplt

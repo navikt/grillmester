@@ -44,8 +44,9 @@ Three workflows have deliberately separate jobs:
   at the selected source SHA. Separate Copilot and genuine macOS compatibility
   jobs must also pass. The macOS job verifies the pinned native OpenCode and
   cplt archives and executables before their first execution, runs the native
-  and cplt runtime smokes, proves allowed-loopback/blocked-host raw sockets under
-  forced proxy policy, and launches the installed manager through `local-only`
+  and cplt runtime smokes, proves Seatbelt's same-host localhost semantics plus
+  blocked remote-host classification under forced proxy policy, and launches
+  the installed manager through `local-only`
   with an explicit local provider, exact loopback base URL, model ID, and
   positive context/output limits.
   Only after all of those jobs succeed does the workflow wait at the protected

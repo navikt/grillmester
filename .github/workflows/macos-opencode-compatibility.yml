@@ -354,7 +354,7 @@ jobs:
           [[ -f "${bundle_root}/DISTRIBUTION-MANIFEST.json" ]]
           echo "BUNDLE_ROOT=${bundle_root}" >> "${GITHUB_ENV}"
 
-      - name: Prove cplt local-only policy and raw-socket host pinning
+      - name: Prove cplt local-only policy and host-local socket semantics
         shell: bash
         env:
           PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
@@ -468,13 +468,23 @@ jobs:
           if address.is_loopback or address.is_unspecified:
               raise SystemExit("no non-loopback runner address was found")
           PY
-          if CPLT_CONFIG="${policy}/cplt-config.toml" \
+          # Seatbelt's `localhost` selector covers every address assigned to
+          # this Mac, not only 127.0.0.1. The manager still binds the provider
+          # base URL to loopback; this probe records the pinned cplt semantics.
+          CPLT_CONFIG="${policy}/cplt-config.toml" \
             "${policy_command[@]}" exec -- \
             /usr/bin/nc -z -G 2 "${runner_ip}" "${listener_port}"
-          then
-            echo "cplt allowed a direct raw socket to the host's non-loopback address." >&2
-            exit 1
-          fi
+
+          remote_same_port="198.51.100.1:${listener_port}"
+          remote_result="${RUNNER_TEMP}/cplt-check-remote-same-port.json"
+          CPLT_CONFIG="${policy}/cplt-config.toml" \
+            "${policy_command[@]}" check --json net \
+            "${remote_same_port}" --no-connect > "${remote_result}"
+          jq -e --arg target "${remote_same_port}" '
+            .platform == "macos (Seatbelt)" and .battery == false and
+            (.items | length) == 1 and .items[0].target == $target and
+            .items[0].decision == "blocked"
+          ' "${remote_result}" >/dev/null
           {
             echo "LOCAL_PROVIDER_PORT=${listener_port}"
             echo "MACOS_CONSUMER=${project}"

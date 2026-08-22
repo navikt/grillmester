@@ -61,15 +61,18 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("åpner direkte\negress til alle", self.installation)
 
     def test_local_only_names_platform_and_provider_boundaries(self) -> None:
+        guide = " ".join(self.guide.split())
         for marker in (
             "full forced-proxy-håndheving på macOS",
-            "Launcheren skal\nderfor feile lukket for `local-only` på Linux",
-            "providerprosessen som lytter på\nlocalhost",
-            "kjører\nutenfor cplt-sandboxen",
+            "Launcheren skal derfor feile lukket for `local-only` på Linux",
+            "providerprosessen som lytter på localhost",
+            "kjører utenfor cplt-sandboxen",
+            "Seatbelts `localhost`-selector",
+            "eksterne maskiner på samme port klassifiseres som blokkert",
         ):
             with self.subTest(marker=marker):
-                self.assertIn(marker, self.guide)
-        self.assertIn("står også i\nblocklisten", self.guide)
+                self.assertIn(marker, guide)
+        self.assertIn("står også i blocklisten", guide)
         self.assertIn("både allow- og blocklisten", self.local_models)
 
     def test_cplt_launch_documents_the_fixed_audited_home(self) -> None:
@@ -438,8 +441,9 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
 
         self.assertIn("`macos-live-compatibility`", trust)
         self.assertIn("eksakte pinnede Darwin-assetene", trust)
-        self.assertIn("rå `/usr/bin/nc`-måling", trust)
-        self.assertIn("non-loopback-adresse", trust)
+        self.assertIn("rå `/usr/bin/nc`-målinger", trust)
+        self.assertIn("Seatbelts `localhost`-selector", trust)
+        self.assertIn("dokumentasjonsadresse på samme port", trust)
 
 
 if __name__ == "__main__":

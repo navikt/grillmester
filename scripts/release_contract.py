@@ -904,9 +904,12 @@ provider support. The profile config is only a baseline because managed/MDM
 config can merge later. The manager validates the effective resolved config,
 and `OPENCODE_DISABLE_SHARE=true` blocks sharing independently of merge order.
 
-The macOS-only `local-only` profile isolates cplt policy and external egress,
-but its localhost provider remains a separate trust and egress boundary. Model
-quality is gated separately from this deterministic runtime contract.
+The macOS-only `local-only` profile isolates cplt policy and external egress.
+Seatbelt treats every address assigned to the Mac as localhost, while the
+manager binds the selected provider URL separately to loopback; other host-local
+services on the selected port and the provider itself remain separate trust and
+egress boundaries. Model quality is gated separately from this deterministic
+runtime contract.
 
 ### Verify Copilot
 

@@ -405,8 +405,12 @@ Bruk `hybrid` for et eksplisitt privat/internt hostname; samme eksakte navn må
 da også oppgis med `--provider-domain`. Manageren gjør ingen DNS-preflight.
 cplt håndhever public/private- og loopbackgrensen når forbindelsen opprettes og
 unngår dermed en DNS-TOCTOU mellom preflight og tilkobling. `local-only` forbyr
-cloud-domener og håndhever bare navngitte localhost-porter med full forced-
-proxy-grense på macOS. Alle fire cplt-baserte profiler krever eksakt cplt
+cloud-domener og håndhever bare navngitte host-lokale porter med full forced-
+proxy-grense på macOS. Manageren binder fortsatt providerens base-URL eksakt
+til loopback. Seatbelts `localhost`-selector omfatter alle adresser som tilhører
+samme Mac, så en annen lokal tjeneste på den valgte porten er en dokumentert
+restflate; eksterne hoster på samme port forblir blokkert. Alle fire
+cplt-baserte profiler krever eksakt cplt
 `2026.08.17-062831-1008a92`; pinnen gjelder ikke bare `local-only`.
 
 `local-only` avgrenser harnesset. Den lokale providerprosessen kjører utenfor

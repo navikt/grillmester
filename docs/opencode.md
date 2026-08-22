@@ -464,13 +464,18 @@ python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch
 Profilen forbyr providerdomener, deaktiverer OpenCodes update-, model-catalog-,
 LSP-download-, default-plugin-, share- og Exa-flyter, og bruker cplts forced
 proxy med en fail-closed allow-/blocklist. Listen dekker cplts komplette
-OpenCode-defaults i den pinnede cplt-releasen; bare den navngitte localhost-
-porten slipper gjennom. En tom cplt-allowlist betyr allow-all og brukes derfor
+OpenCode-defaults i den pinnede cplt-releasen; bare den navngitte host-lokale
+porten slipper gjennom. Managerens provider-base-URL er fortsatt låst til
+loopback. En tom cplt-allowlist betyr allow-all og brukes derfor
 aldri. En ikke-tom `.invalid`-sentinel aktiverer allowlist-modus og står også i
 blocklisten, slik at sentinelen selv ikke er et nettverksmål.
 
-Denne garantien gjelder harnessprosessen, ikke providerprosessen som lytter på
-localhost. LM Studio, `llama-server` eller en annen lokal provider kjører
+På macOS matcher Seatbelts `localhost`-selector alle nettverksadresser som
+tilhører samme Mac, ikke bare `127.0.0.1`. En annen host-lokal tjeneste på den
+eksplisitt valgte porten er derfor en restflate, mens eksterne maskiner på samme
+port klassifiseres som blokkert. Denne garantien gjelder harnessprosessen, ikke
+providerprosessen som lytter på localhost. LM Studio, `llama-server` eller en
+annen lokal provider kjører
 utenfor cplt-sandboxen og må selv være betrodd og ha en separat egresspolicy
 hvis hele kjeden skal være offline.
 

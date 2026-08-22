@@ -227,6 +227,8 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn('check --json net opencode.ai:443', text)
         self.assertIn('/usr/bin/nc -z -G 2 127.0.0.1 "${listener_port}"', text)
         self.assertIn('/usr/bin/nc -z -G 2 "${runner_ip}" "${listener_port}"', text)
+        self.assertIn('remote_same_port="198.51.100.1:${listener_port}"', text)
+        self.assertIn('.items[0].decision == "blocked"', text)
         self.assertIn('manage_opencode.py" install', text)
         self.assertIn('--source "${BUNDLE_ROOT}"', text)
         self.assertIn('manage_opencode.py" launch', text)
