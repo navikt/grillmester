@@ -535,7 +535,16 @@ jobs:
           PY
           listener_pid=$!
           trap 'kill "${listener_pid}" 2>/dev/null || true' EXIT
-          /usr/bin/nc -z -G 2 127.0.0.1 "${LOCAL_PROVIDER_PORT}"
+          listener_ready=false
+          for _attempt in {1..100}; do
+            if /usr/bin/nc -z -G 2 127.0.0.1 "${LOCAL_PROVIDER_PORT}"
+            then
+              listener_ready=true
+              break
+            fi
+            sleep 0.1
+          done
+          [[ "${listener_ready}" == true ]]
           python3 -I -S "${BUNDLE_ROOT}/scripts/manage_opencode.py" install \
             --source "${BUNDLE_ROOT}"
           cd "${MACOS_CONSUMER}"
@@ -552,10 +561,8 @@ jobs:
             sed -n '1,200p' "${manager_output}" >&2
             exit 1
           fi
-          # The plain listing is only 18 bytes and the Bun-built OpenCode
-          # 1.18.20 client can lose that short pipe flush on hosted macOS.
-          # Verbose mode emits bounded model metadata and lets this final cplt
-          # launch independently confirm the selected ID and capacity limits.
+          # Verbose mode emits bounded model metadata so this final cplt launch
+          # independently confirms the selected ID and capacity limits.
           grep -F 'ci-local/ci-model' "${manager_output}" >/dev/null
           grep -F '"context": 32768' "${manager_output}" >/dev/null
           grep -F '"output": 8192' "${manager_output}" >/dev/null

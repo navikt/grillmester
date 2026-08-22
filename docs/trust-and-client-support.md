@@ -106,9 +106,8 @@ OpenAI-kompatibel provider, eksakt loopback-base-URL, modell-ID og positive
 context-/outputgrenser. Managerens fail-closed preflight validerer den eksakte
 provider-/modellbindingen før exec. Den avsluttende provider-filtrerte kommandoen
 bruker verbose metadata og validerer modell-ID samt context-/outputgrensene på
-nytt. Den større, avgrensede utskriften unngår at den Bun-bygde OpenCode
-1.18.20-binæren mister den minimale 18-byte-listingen ved pipe-flush på hosted
-macOS. Den generiske cplt-batterien forventer
+nytt. Workflowen venter avgrenset på at den ferske lokale listeneren er klar før
+installasjon og launch. Den generiske cplt-batterien forventer
 at OpenCodes standarddomene er tillatt; `local-only` blokkerer det med vilje, så
 gaten validerer hvert JSON-item og den ene strengere mismatchen eksplisitt i
 stedet for å tolke exit code alene. Dette er konkret Seatbelt-/proxy-/host-
