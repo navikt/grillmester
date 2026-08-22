@@ -30,6 +30,22 @@ Ikke håndrediger `targets/opencode-v1/`. CI verifiserer blant annet
 katalogpinning, innholdslås, agent-/skillroster, OpenCode-projeksjon,
 progressive lenker og install–oppgradering–rollback–avinstallering.
 
+OpenCode-sluttbrukere skal installere den deterministiske release-`tar.gz`-en
+med detached SHA-256, ikke en source-checkout. Checkout-installasjon er bare
+utviklingsinput. Bundlebygget verifiserer target, profiler og manager og binder
+dem til eksakt source-SHA i `DISTRIBUTION-MANIFEST.json`:
+
+```bash
+python3 scripts/build_opencode_bundle.py \
+  --source-root . \
+  --source-sha "$(git rev-parse HEAD)" \
+  --output /tmp/grillmester-opencode-v1.tar.gz
+shasum -a 256 /tmp/grillmester-opencode-v1.tar.gz
+```
+
+Et releasebygg skal kjøres to ganger og gi byte-identiske arkiver før den
+detached checksumfilen publiseres.
+
 Kjør den lokale hovedgaten:
 
 ```bash
@@ -42,24 +58,39 @@ node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
 node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py
+python3 scripts/smoke_opencode_runtime.py --cplt cplt
 ```
 
 Plugin-smoken skal bekrefte 7 agenter, 42 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. OpenCode-smoken bruker OpenCode
-`1.18.19`, kopierer targetet til en skrivbar tempmappe og bekrefter native
+`1.18.20`, kopierer targetet til en skrivbar tempmappe og bekrefter native
 discovery av 7 agenter, 42 skills, 42 commands, fravær av modellpin,
 deklarerte permissionregler og at native `read` løser consumerens `AGENTS.md`
 fra riktig repo uten å kontakte en modell. Den bekrefter også at en bruker-eid
 hybridprofil kan pinne bare Kokk til en lokal modell. Den beviser derfor ikke
 at `AGENTS.md` faktisk påvirker et modellsvar, modelldrevet skillbruk,
-delegering, write-godkjenning eller kvalitet. Smoken hopper kontrollert over
-når binæren mangler. En release-gate skal i stedet kreve den eksplisitt:
+delegering, write-godkjenning eller kvalitet. Den separate runtime-smoken bruker
+en deterministisk loopback-provider gjennom ekte OpenCode og bekrefter native
+delegering, blokkert `.env`, progressiv skill-reference, avvist write og en
+eksplisitt auto-godkjent write uten å kontakte en modell. Begge smokene hopper
+kontrollert over når binæren mangler. En release-gate skal kreve eksakt
+OpenCode `1.18.20`, eksakt cplt `2026.08.17-062831-1008a92` for alle
+cplt-baserte profiler og smokene eksplisitt:
 
 ```bash
 python3 scripts/smoke_opencode.py \
   --opencode /absolute/path/to/opencode \
   --require-binary
+python3 scripts/smoke_opencode_runtime.py \
+  --opencode /absolute/path/to/opencode \
+  --require-binary \
+  --cplt cplt
 ```
+
+Runtime-smoken bruker en deterministisk provider og beviser ikke kvaliteten til
+en lokal eller ekstern modell. Manageren og bundle-en har ingen avhengighet til
+`nav-pilot-agent` eller en installert Copilot-agent. `--direct` er bare et
+eksplisitt opt-out fra cplt-sandbox og egresspolicy.
 
 ## Discovery-budsjett
 

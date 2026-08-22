@@ -3,14 +3,8 @@ description: "Internal read-only researcher for one claimed Wayfinder research t
 mode: subagent
 hidden: true
 permission:
-  "*": deny
-  read: allow
-  glob: allow
-  grep: allow
-  list: allow
-  lsp: allow
-  webfetch: allow
-  websearch: allow
+  "doom_loop": deny
+  todowrite: deny
   edit: deny
   bash: deny
   question: deny

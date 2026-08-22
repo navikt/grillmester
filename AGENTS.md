@@ -42,6 +42,7 @@ node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
 node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py --require-binary
+python3 scripts/smoke_opencode_runtime.py --require-binary --cplt cplt
 ```
 
 The install smoke test must use a disposable, isolated Copilot home. For live
@@ -50,4 +51,10 @@ repository, pass Copilot's `--plugin-dir plugin` through according to the
 current `cplt` documentation, and select the agent with `/agent`.
 Never use a consumer repository as a write target for a smoke test.
 The OpenCode smoke test must likewise use its disposable consumer repository,
-isolated home/config directories, and the pinned client version in the script.
+isolated home/config directories, and exactly OpenCode `1.18.20`. Every
+cplt-backed profile is release-gated to exactly cplt
+`2026.08.17-062831-1008a92`; the runtime smoke must exercise that wrapper and
+use only its deterministic loopback provider. It must not contact a real model
+or reuse an ambient provider credential. Build release bundles only through
+the deterministic bundle builder, and publish the resulting `tar.gz` together
+with its detached SHA-256.

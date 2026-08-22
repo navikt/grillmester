@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -16,6 +20,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Check generated marketplace catalog
         run: python3 scripts/generate_marketplace.py --mode development --check
@@ -37,14 +43,114 @@ jobs:
           node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
           node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
 
+      - name: Install checksum-pinned OpenCode CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/opencode-linux-x64-1.18.20.tgz"
+          binary_dir="${RUNNER_TEMP}/opencode-bin"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 70000000 \
+            "https://registry.npmjs.org/opencode-linux-x64/-/opencode-linux-x64-1.18.20.tgz" \
+            --output "${archive}"
+          echo "1fe5e153b35b7d306df98135cdab1876e9637ef79941b6adc3bda00d485629f9c4f3781df4a67cbb96e209fed364472c8bd40979b1606b6513ade6ec8afcd0ba  ${archive}" \
+            | sha512sum --check --strict
+          mapfile -t opencode_entries < <(tar -tzf "${archive}")
+          [[ "${#opencode_entries[@]}" == "2" ]]
+          [[ "${opencode_entries[0]}" == "package/package.json" ]]
+          [[ "${opencode_entries[1]}" == "package/bin/opencode" ]]
+          mkdir -p "${binary_dir}"
+          tar -xzf "${archive}" -C "${binary_dir}" --strip-components=2 \
+            --no-same-owner --no-same-permissions -- "package/bin/opencode"
+          chmod 0555 "${binary_dir}/opencode"
+          [[ -f "${binary_dir}/opencode" && -x "${binary_dir}/opencode" && ! -L "${binary_dir}/opencode" ]]
+          echo "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16  ${binary_dir}/opencode" \
+            | sha256sum --check --strict
+          echo "OPENCODE_BIN=${binary_dir}/opencode" >> "${GITHUB_ENV}"
+
+      - name: Install checksum-pinned cplt
+        shell: bash
+        run: |
+          set -euo pipefail
+          release="2026.08.17-062831-1008a92"
+          archive="${RUNNER_TEMP}/cplt-x86_64-unknown-linux-gnu.tar.gz"
+          binary_dir="${RUNNER_TEMP}/cplt-bin"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 10000000 \
+            "https://github.com/navikt/cplt/releases/download/${release}/cplt-x86_64-unknown-linux-gnu.tar.gz" \
+            --output "${archive}"
+          echo "3e6607db8ed2f361bb4e8a43246d38acc7e63e5d956de96c3319fffbd3be3eb4  ${archive}" \
+            | sha256sum --check --strict
+          mapfile -t cplt_entries < <(tar -tzf "${archive}")
+          [[ "${#cplt_entries[@]}" == "1" && "${cplt_entries[0]}" == "cplt" ]]
+          mkdir -p "${binary_dir}"
+          tar -xzf "${archive}" -C "${binary_dir}" \
+            --no-same-owner --no-same-permissions -- cplt
+          chmod 0555 "${binary_dir}/cplt"
+          [[ -f "${binary_dir}/cplt" && ! -L "${binary_dir}/cplt" ]]
+          echo "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5  ${binary_dir}/cplt" \
+            | sha256sum --check --strict
+          [[ "$("${binary_dir}/cplt" --version)" == "cplt ${release}" ]]
+          echo "CPLT_BIN=${binary_dir}/cplt" >> "${GITHUB_ENV}"
+
+      - name: Smoke-test OpenCode target discovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${OPENCODE_BIN}" == "${RUNNER_TEMP}/opencode-bin/opencode" ]]
+          [[ "${CPLT_BIN}" == "${RUNNER_TEMP}/cplt-bin/cplt" ]]
+          [[ -f "${OPENCODE_BIN}" && -x "${OPENCODE_BIN}" && ! -L "${OPENCODE_BIN}" ]]
+          [[ -f "${CPLT_BIN}" && -x "${CPLT_BIN}" && ! -L "${CPLT_BIN}" ]]
+          [[ "$(stat -c '%a:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
+          [[ "$(stat -c '%a:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
+          echo "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16  ${OPENCODE_BIN}" | sha256sum --check --strict
+          echo "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5  ${CPLT_BIN}" | sha256sum --check --strict
+          python3 scripts/smoke_opencode.py --require-binary --opencode "${OPENCODE_BIN}"
+
+      - name: Smoke-test OpenCode runtime contracts
+        shell: bash
+        env:
+          PATH: ${{ runner.temp }}/opencode-bin:${{ runner.temp }}/cplt-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        run: |
+          set -euo pipefail
+          [[ "${OPENCODE_BIN}" == "${RUNNER_TEMP}/opencode-bin/opencode" ]]
+          [[ "${CPLT_BIN}" == "${RUNNER_TEMP}/cplt-bin/cplt" ]]
+          [[ -f "${OPENCODE_BIN}" && -x "${OPENCODE_BIN}" && ! -L "${OPENCODE_BIN}" ]]
+          [[ -f "${CPLT_BIN}" && -x "${CPLT_BIN}" && ! -L "${CPLT_BIN}" ]]
+          [[ "$(stat -c '%a:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
+          [[ "$(stat -c '%a:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
+          echo "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16  ${OPENCODE_BIN}" | sha256sum --check --strict
+          echo "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5  ${CPLT_BIN}" | sha256sum --check --strict
+          python3 scripts/smoke_opencode_runtime.py \
+            --require-binary --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"
+
+  copilot-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
       - name: Install pinned GitHub Copilot CLI
         run: npm install --global @github/copilot@1.0.79
 
       - name: Smoke-test marketplace installation
         run: python3 scripts/smoke_plugin_install.py
 
-      - name: Install pinned OpenCode CLI
-        run: npm install --global opencode-ai@1.18.19
-
-      - name: Smoke-test OpenCode target
-        run: python3 scripts/smoke_opencode.py --require-binary
+  macos-live-compatibility:
+    uses: ./.github/workflows/macos-opencode-compatibility.yml
+    with:
+      source_sha: ${{ github.sha }}
+    permissions:
+      contents: read

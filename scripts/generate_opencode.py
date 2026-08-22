@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping, Sequence
 
@@ -18,21 +19,46 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = Path("policy/opencode-v1.json")
 TARGET_ID = "opencode-v1"
 GENERATOR_VERSION = 1
+MAX_JSON_DEPTH = 40
 COMPONENT_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 QUALIFIED_AGENT_ID = re.compile(r"(?<![a-z0-9-])grillmester:([a-z][a-z0-9-]*)")
 SLASH_SKILL_REFERENCE = re.compile(r"`?/((?:grillmester)-[a-z0-9-]+)\b`?")
 ALLOWED_ACTIONS = {"allow", "ask", "deny"}
 ALLOWED_CAPABILITIES = {"native", "overlay", "degraded", "unsupported"}
 ALLOWED_SKILL_ACCESS = {"allow-with-manual-ask", "deny"}
-TARGET_GITIGNORE = """# OpenCode may bootstrap runtime dependencies in this config directory.
-node_modules/
-package.json
-bun.lock
-bun.lockb
-"""
-TARGET_CONFIG = {"$schema": "https://opencode.ai/config.json"}
-RUNTIME_ARTIFACT_FILES = {"package.json", "bun.lock", "bun.lockb"}
-RUNTIME_ARTIFACT_DIRECTORIES = {"node_modules"}
+POLICY_FIELDS = frozenset(
+    {
+        "schemaVersion",
+        "target",
+        "output",
+        "source",
+        "agents",
+        "runtimeTextReplacements",
+        "pathTextReplacements",
+        "overlays",
+        "remove",
+        "skillCapabilities",
+        "forbiddenRuntimeTokens",
+        "forbiddenByPrefix",
+    }
+)
+POLICY_PERMISSION_TOOLS = frozenset(
+    {
+        "edit",
+        "bash",
+        "webfetch",
+        "websearch",
+        "todowrite",
+        "question",
+        "task",
+        "doom_loop",
+    }
+)
+TARGET_CONFIG = {
+    "$schema": "https://opencode.ai/config.json",
+    "autoupdate": False,
+    "share": "disabled",
+}
 TARGET_INVOCATION_NOTE = (
     "> **OpenCode v1:** Backticked `grillmester-*` names below are skill IDs, "
     "not slash commands. Load them with the native `skill` tool. Slash commands "
@@ -47,15 +73,47 @@ class ProjectionError(ValueError):
 GeneratedFile = tuple[bytes, int]
 
 
+def reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ProjectionError(f"duplicate JSON key: {key!r}")
+        result[key] = value
+    return result
+
+
+def reject_nonstandard_json_constant(value: str) -> None:
+    raise ProjectionError(f"non-standard JSON constant is forbidden: {value}")
+
+
 def load_object(path: Path, *, label: str) -> dict[str, Any]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=reject_duplicate_json_keys,
+            parse_constant=reject_nonstandard_json_constant,
+        )
     except FileNotFoundError as exc:
         raise ProjectionError(f"{label} does not exist: {path}") from exc
+    except UnicodeDecodeError as exc:
+        raise ProjectionError(f"{label} is not UTF-8: {path}") from exc
+    except RecursionError as exc:
+        raise ProjectionError(f"{label} exceeds the JSON nesting limit") from exc
     except json.JSONDecodeError as exc:
         raise ProjectionError(f"{label} is not valid JSON: {exc}") from exc
+    except OSError as exc:
+        raise ProjectionError(f"could not read {label} {path}: {exc}") from exc
     if not isinstance(value, dict):
         raise ProjectionError(f"{label} must contain a JSON object")
+    pending: list[tuple[object, int]] = [(value, 0)]
+    while pending:
+        item, depth = pending.pop()
+        if depth > MAX_JSON_DEPTH:
+            raise ProjectionError(f"{label} exceeds the JSON nesting limit")
+        if isinstance(item, dict):
+            pending.extend((child, depth + 1) for child in item.values())
+        elif isinstance(item, list):
+            pending.extend((child, depth + 1) for child in item)
     return value
 
 
@@ -124,12 +182,28 @@ def validate_action(value: Any, *, label: str) -> None:
     for pattern, action in value.items():
         if not isinstance(pattern, str) or not pattern:
             raise ProjectionError(f"{label} contains an invalid pattern")
-        validate_action(action, label=f"{label}.{pattern}")
+        if not isinstance(action, str) or action not in ALLOWED_ACTIONS:
+            raise ProjectionError(
+                f"{label}.{pattern} must be one of "
+                + ", ".join(sorted(ALLOWED_ACTIONS))
+            )
 
 
 def load_policy(root: Path, policy_path: Path = DEFAULT_POLICY) -> dict[str, Any]:
     resolved = policy_path if policy_path.is_absolute() else root / policy_path
     policy = load_object(resolved, label="OpenCode target policy")
+    if set(policy) != POLICY_FIELDS:
+        details = []
+        missing = sorted(POLICY_FIELDS - set(policy))
+        unexpected = sorted(set(policy) - POLICY_FIELDS)
+        if missing:
+            details.append(f"missing {missing}")
+        if unexpected:
+            details.append(f"unexpected {unexpected}")
+        raise ProjectionError(
+            "OpenCode target policy fields must match schemaVersion 1 exactly: "
+            + "; ".join(details)
+        )
     if policy.get("schemaVersion") != 1 or policy.get("target") != TARGET_ID:
         raise ProjectionError("OpenCode target policy must declare schemaVersion 1 and opencode-v1")
     output = relative_path(policy.get("output"), label="policy output")
@@ -168,6 +242,30 @@ def load_policy(root: Path, policy_path: Path = DEFAULT_POLICY) -> dict[str, Any
             raise ProjectionError(f"policy agent {agent_id} needs permissions")
         if "model" in permissions:
             raise ProjectionError(f"policy agent {agent_id} must not pin a model")
+        if "read" in permissions:
+            raise ProjectionError(
+                f"policy agent {agent_id} must leave read to OpenCode runtime guards"
+            )
+        if "*" in permissions:
+            raise ProjectionError(
+                f"policy agent {agent_id} must not use a wildcard that shadows "
+                "OpenCode runtime guards"
+            )
+        if "external_directory" in permissions:
+            raise ProjectionError(
+                f"policy agent {agent_id} must leave external_directory to "
+                "OpenCode dynamic skill-directory guards"
+            )
+        if "skill" in permissions:
+            raise ProjectionError(
+                f"policy agent {agent_id} must express skill policy through skillAccess"
+            )
+        unknown_tools = set(permissions) - POLICY_PERMISSION_TOOLS
+        if unknown_tools:
+            raise ProjectionError(
+                f"policy agent {agent_id} names unsupported permission tools: "
+                f"{sorted(unknown_tools)}"
+            )
         for tool, action in permissions.items():
             if not isinstance(tool, str) or not tool:
                 raise ProjectionError(f"policy agent {agent_id} has an invalid tool key")
@@ -229,6 +327,10 @@ def validate_replacement(value: Any, *, label: str) -> None:
         raise ProjectionError(f"{label} replacement target must be text")
 
 
+def portable_path_key(relative: str) -> str:
+    return unicodedata.normalize("NFC", relative).casefold()
+
+
 def add_file(
     files: dict[str, GeneratedFile],
     casefolded: dict[str, str],
@@ -240,12 +342,25 @@ def add_file(
     posix = PurePosixPath(relative)
     if posix.is_absolute() or ".." in posix.parts or str(posix) != relative:
         raise ProjectionError(f"generated path is unsafe: {relative!r}")
-    folded = relative.casefold()
+    # APFS and other consumer filesystems may normalize Unicode and compare
+    # names case-insensitively. Reject those aliases at generation time rather
+    # than relying only on the installer's later manifest verification.
+    folded = portable_path_key(relative)
     previous = casefolded.get(folded)
     if previous is not None:
         raise ProjectionError(f"generated path collision: {previous!r} and {relative!r}")
     casefolded[folded] = relative
     files[relative] = (data, 0o755 if executable else 0o644)
+
+
+def remove_file(
+    files: dict[str, GeneratedFile], casefolded: dict[str, str], relative: str
+) -> None:
+    folded = portable_path_key(relative)
+    if relative not in files or casefolded.get(folded) != relative:
+        raise ProjectionError(f"generated path index drift for {relative!r}")
+    del files[relative]
+    del casefolded[folded]
 
 
 def apply_text_adapter(
@@ -565,7 +680,6 @@ def build_projection(
     files: dict[str, GeneratedFile] = {}
     casefolded: dict[str, str] = {}
     replacement_hits: dict[str, int] = {}
-    add_file(files, casefolded, ".gitignore", TARGET_GITIGNORE.encode("utf-8"))
     add_file(
         files,
         casefolded,
@@ -650,16 +764,14 @@ def build_projection(
     for target in policy["remove"]:
         if target not in files:
             raise ProjectionError(f"remove target does not exist in projection: {target}")
-        del files[target]
-        del casefolded[target.casefold()]
+        remove_file(files, casefolded, target)
 
     for target, overlay_source in policy["overlays"].items():
         path = root / relative_path(overlay_source, label=f"overlay source for {target}")
         if path.is_symlink() or not path.is_file():
             raise ProjectionError(f"overlay source must be a regular file: {path}")
         if target in files:
-            del files[target]
-            del casefolded[target.casefold()]
+            remove_file(files, casefolded, target)
         if path.suffix.lower() == ".md":
             text = path.read_text(encoding="utf-8")
             if PurePosixPath(target).name == "SKILL.md":
@@ -808,9 +920,11 @@ def compare_projection(output: Path, expected: Mapping[str, GeneratedFile]) -> l
     if output.exists():
         if output.is_symlink() or not output.is_dir():
             return [f"target output is not a regular directory: {output}"]
-    actual_paths, symlinks, _ = scan_output(output)
+    actual_paths, symlinks, _, special_nodes = scan_output(output)
     for path in symlinks:
         differences.append(f"generated target contains symlink: {path}")
+    for path in special_nodes:
+        differences.append(f"generated target contains non-regular node: {path}")
     expected_paths = set(expected)
     for relative in sorted(expected_paths - set(actual_paths)):
         differences.append(f"missing generated file: {relative}")
@@ -835,29 +949,24 @@ def compare_projection(output: Path, expected: Mapping[str, GeneratedFile]) -> l
                     n=2,
                 )
                 differences.append("".join(diff).rstrip())
-        actual_executable = bool(actual_path.stat().st_mode & 0o111)
-        expected_executable = bool(expected_mode & 0o111)
-        if actual_executable != expected_executable:
+        actual_mode = actual_path.stat().st_mode & 0o7777
+        if actual_mode != expected_mode:
             differences.append(
-                f"generated mode differs for {relative}: executable={actual_executable}, "
-                f"expected={expected_executable}"
+                f"generated mode differs for {relative}: actual={actual_mode:04o}, "
+                f"expected={expected_mode:04o}"
             )
     return differences
 
 
-def is_runtime_artifact(relative: str) -> bool:
-    path = PurePosixPath(relative)
-    return (
-        len(path.parts) == 1 and relative in RUNTIME_ARTIFACT_FILES
-    ) or (bool(path.parts) and path.parts[0] in RUNTIME_ARTIFACT_DIRECTORIES)
-
-
-def scan_output(output: Path) -> tuple[dict[str, Path], list[Path], list[Path]]:
+def scan_output(
+    output: Path,
+) -> tuple[dict[str, Path], list[Path], list[Path], list[Path]]:
     files: dict[str, Path] = {}
     symlinks: list[Path] = []
     directories: list[Path] = []
+    special_nodes: list[Path] = []
     if not output.is_dir() or output.is_symlink():
-        return files, symlinks, directories
+        return files, symlinks, directories, special_nodes
     pending = [output]
     while pending:
         directory = pending.pop()
@@ -865,8 +974,6 @@ def scan_output(output: Path) -> tuple[dict[str, Path], list[Path], list[Path]]:
             for entry in entries:
                 path = Path(entry.path)
                 relative = path.relative_to(output).as_posix()
-                if is_runtime_artifact(relative):
-                    continue
                 if entry.is_symlink():
                     symlinks.append(path)
                 elif entry.is_dir(follow_symlinks=False):
@@ -874,7 +981,9 @@ def scan_output(output: Path) -> tuple[dict[str, Path], list[Path], list[Path]]:
                     pending.append(path)
                 elif entry.is_file(follow_symlinks=False):
                     files[relative] = path
-    return files, symlinks, directories
+                else:
+                    special_nodes.append(path)
+    return files, symlinks, directories, special_nodes
 
 
 def update_projection(output: Path, expected: Mapping[str, GeneratedFile]) -> bool:
@@ -882,7 +991,12 @@ def update_projection(output: Path, expected: Mapping[str, GeneratedFile]) -> bo
         raise ProjectionError(f"target output is not a regular directory: {output}")
     changed = bool(compare_projection(output, expected))
     output.mkdir(parents=True, exist_ok=True)
-    actual_files, symlinks, directories = scan_output(output)
+    actual_files, symlinks, directories, special_nodes = scan_output(output)
+    if special_nodes:
+        raise ProjectionError(
+            "generated target contains non-regular nodes: "
+            + ", ".join(str(path) for path in sorted(special_nodes))
+        )
     actual_files.update(
         (path.relative_to(output).as_posix(), path) for path in symlinks
     )

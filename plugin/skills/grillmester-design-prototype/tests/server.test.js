@@ -41,7 +41,7 @@ function runCli(projectDir, extraArgs = []) {
   });
 }
 
-function startServer(projectDir, extraArgs = []) {
+function startServer(projectDir, extraArgs = [], environment = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
@@ -53,7 +53,10 @@ function startServer(projectDir, extraArgs = []) {
         "127.0.0.1",
         ...extraArgs,
       ],
-      { stdio: ["ignore", "pipe", "pipe"] },
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, ...environment },
+      },
     );
     children.add(child);
     child.stdout.setEncoding("utf8");
@@ -267,10 +270,18 @@ test("starting a preview does not mutate the consumer worktree", async () => {
 test("agent HTML is isolated in a sandbox with a no-external-network CSP", async () => {
   const projectDir = makeProject();
   const running = await startServer(projectDir);
+  const rasterDataUrl =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
   try {
     fs.writeFileSync(
       path.join(running.info.screen_dir, "unsafe.html"),
-      '<h2>Konsept</h2><script>fetch("https://example.com/leak")</script><img src="https://example.com/pixel">',
+      '<h2 data-choice="choice-1">Konsept</h2>' +
+        '<script<script src="https://example.com/script">fetch("https://example.com/leak")</script\t\n ignored>' +
+        '<iframe<iframe src="https://example.com/frame"></iframe>' +
+        '<a href="https://example.com/link" onclick="fetch(1)">lenke</a>' +
+        '<img src="https://example.com/pixel" onerror="fetch(2)">' +
+        `<img id="safe-raster" src="${rasterDataUrl}" srcset="${rasterDataUrl} 2x">` +
+        '<img id="active-svg" src="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=">',
     );
 
     const shellResponse = await fetch(running.info.url);
@@ -305,10 +316,97 @@ test("agent HTML is isolated in a sandbox with a no-external-network CSP", async
     assert.match(csp, /frame-src 'none'/);
     assert.match(csp, /script-src[^;]*'nonce-[^']+'/);
     assert.doesNotMatch(csp, /https?:/);
-    assert.doesNotMatch(preview, /fetch\("https:\/\/example\.com\/leak"\)/);
-    assert.doesNotMatch(preview, /https:\/\/example\.com\/pixel/);
+    assert.equal(preview.includes('fetch("https://example.com/leak")'), false);
+    assert.equal(preview.includes("https://example.com/pixel"), false);
+    assert.equal(preview.includes("https://example.com/script"), false);
+    assert.equal(preview.includes("https://example.com/frame"), false);
+    assert.equal(preview.includes("https://example.com/link"), false);
+    assert.equal(preview.toLowerCase().includes("script<script"), false);
+    assert.equal(preview.toLowerCase().includes("iframe<iframe"), false);
+    assert.equal(preview.toLowerCase().includes("onclick="), false);
+    assert.equal(preview.toLowerCase().includes("onerror="), false);
+    assert.equal(
+      preview.includes(
+        `<img id="safe-raster" src="${rasterDataUrl}" srcset="${rasterDataUrl} 2x">`,
+      ),
+      true,
+    );
+    assert.equal(preview.includes("data:image/svg+xml"), false);
     assert.match(preview, /parent\.postMessage/);
     assert.match(preview, /ikke lagret — si valget i chatten/);
+  } finally {
+    await stopServer(running);
+  }
+});
+
+test("parser-state markup cannot swallow the trusted preview helper", async () => {
+  const projectDir = makeProject();
+  const running = await startServer(projectDir);
+  try {
+    fs.writeFileSync(
+      path.join(running.info.screen_dir, "parser-state.html"),
+      '<textarea id="balanced-textarea">Begrunnelse</textarea>' +
+        '<svg><title id="balanced-title">Søk</title></svg>' +
+        '<style id="balanced-style">.safe-marker { color: inherit; }</style>' +
+        '<!--balanced-comment-->' +
+        '<!--unclosed-comment-marker' +
+        '<plaintext id="unclosed-plaintext">plaintext-marker' +
+        '<textarea id="unclosed-textarea">textarea-marker' +
+        '<title id="unclosed-title">title-marker' +
+        '<xmp id="unclosed-xmp">xmp-marker' +
+        '<template id="unclosed-template">template-marker' +
+        '<noscript id="unclosed-noscript">noscript-marker' +
+        '<style id="unclosed-style">style-marker' +
+        '<noembed id="unclosed-noembed">noembed-marker' +
+        '<noframes id="unclosed-noframes">noframes-marker',
+    );
+
+    const response = await fetch(endpoint(running.info.url, "/preview"));
+    const preview = await response.text();
+    assert.equal(response.status, 200);
+
+    assert.match(preview, /<textarea id="balanced-textarea">/);
+    assert.match(preview, /<title id="balanced-title">/);
+    assert.match(preview, /<style id="balanced-style">/);
+    assert.match(preview, /<!--balanced-comment-->/);
+    assert.equal(preview.includes("<!--unclosed-comment-marker"), false);
+    assert.match(preview, /&lt;!--unclosed-comment-marker/);
+    for (const element of [
+      "plaintext",
+      "textarea",
+      "title",
+      "xmp",
+      "template",
+      "noscript",
+      "style",
+      "noembed",
+      "noframes",
+    ]) {
+      assert.equal(
+        preview.includes(`<${element} id="unclosed-${element}">`),
+        false,
+        `unclosed ${element} tag must be flattened`,
+      );
+    }
+    for (const marker of [
+      "unclosed-comment-marker",
+      "plaintext-marker",
+      "textarea-marker",
+      "title-marker",
+      "xmp-marker",
+      "template-marker",
+      "noscript-marker",
+      "style-marker",
+      "noembed-marker",
+      "noframes-marker",
+    ]) {
+      assert.match(preview, new RegExp(marker));
+    }
+    const helperStart = preview.indexOf(
+      "window.__grillmesterVisualCompanionScreen=",
+    );
+    assert.ok(helperStart > preview.indexOf("noframes-marker"));
+    assert.match(preview.slice(helperStart), /parent\.postMessage/);
   } finally {
     await stopServer(running);
   }
@@ -384,6 +482,56 @@ test("symlinked preview and CSS files cannot escape their allowed roots", async 
     assert.doesNotMatch(preview, /TOP-SECRET-SYMLINK-PROOF/);
     assert.match(preview, /Venter på innhold/);
     assert.match(running.getStderr(), /Aksel CSS was rejected/);
+  } finally {
+    await stopServer(running);
+  }
+});
+
+test("a file changed in place during a bounded read is rejected", async () => {
+  const projectDir = makeProject();
+  const cssDirectory = path.join(
+    projectDir,
+    "node_modules/@navikt/ds-css/dist",
+  );
+  fs.mkdirSync(cssDirectory, { recursive: true });
+  const cssPath = path.join(cssDirectory, "index.min.css");
+  fs.writeFileSync(cssPath, Buffer.alloc(128 * 1024, "a"));
+
+  const preloadPath = path.join(projectDir, "mutate-read.js");
+  fs.writeFileSync(
+    preloadPath,
+    `"use strict";
+const fs = require("node:fs");
+const target = process.env.GRILLMESTER_TEST_MUTATE_READ;
+const expected = fs.statSync(target);
+const originalRead = fs.readSync;
+let mutated = false;
+fs.readSync = function patchedRead(descriptor, ...args) {
+  const count = originalRead.call(fs, descriptor, ...args);
+  const observed = fs.fstatSync(descriptor);
+  if (!mutated && count > 0 && observed.dev === expected.dev && observed.ino === expected.ino) {
+    mutated = true;
+    fs.writeFileSync(target, Buffer.alloc(expected.size, "b"));
+  }
+  return count;
+};
+`,
+  );
+
+  const running = await startServer(projectDir, [], {
+    GRILLMESTER_TEST_MUTATE_READ: cssPath,
+    NODE_OPTIONS: `--require=${preloadPath}`,
+  });
+  try {
+    fs.writeFileSync(
+      path.join(running.info.screen_dir, "stable.html"),
+      '<div class="option"><h3>Stabil</h3></div>',
+    );
+    const response = await fetch(endpoint(running.info.url, "/preview"));
+    const preview = await response.text();
+    assert.equal(response.status, 200);
+    assert.match(preview, /Aksel CSS mangler/);
+    assert.match(running.getStderr(), /File changed while it was being read/);
   } finally {
     await stopServer(running);
   }

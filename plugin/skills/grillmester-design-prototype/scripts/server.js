@@ -21,6 +21,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const MAX_CONTENT_BYTES = 2 * 1024 * 1024;
+const MAX_INLINE_IMAGE_URL_BYTES = MAX_CONTENT_BYTES;
 const MAX_CSS_BYTES = 8 * 1024 * 1024;
 const MAX_EVENT_BODY_BYTES = 1024;
 const MAX_EVENT_FILE_BYTES = 64 * 1024;
@@ -173,9 +174,28 @@ function existingPrivateDirectory(target, expectedParent) {
   return realTarget;
 }
 
-function openReadOnlyNoFollow(target) {
-  const noFollow = fs.constants.O_NOFOLLOW || 0;
-  return fs.openSync(target, fs.constants.O_RDONLY | noFollow);
+function openExistingReadOnly(target) {
+  // The string flag makes the non-creating intent explicit to both Node and
+  // static analysis. Descriptor identity is checked before any bytes are read,
+  // so a path swap between lstat/realpath/open still fails closed.
+  return fs.openSync(target, "r");
+}
+
+function readDescriptorAtMost(descriptor, maxBytes, target) {
+  const chunks = [];
+  let total = 0;
+  while (total <= maxBytes) {
+    const remaining = maxBytes + 1 - total;
+    const buffer = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
+    const count = fs.readSync(descriptor, buffer, 0, buffer.length, null);
+    if (count === 0) break;
+    chunks.push(buffer.subarray(0, count));
+    total += count;
+  }
+  if (total > maxBytes) {
+    throw new Error(`File exceeds ${maxBytes} bytes: ${target}`);
+  }
+  return Buffer.concat(chunks, total);
 }
 
 function readRegularFile(target, allowedRoot, maxBytes) {
@@ -184,7 +204,7 @@ function readRegularFile(target, allowedRoot, maxBytes) {
   if (!isPathInside(root, lexicalTarget)) {
     throw new Error(`Path is outside its allowed root: ${target}`);
   }
-  const linkStat = fs.lstatSync(lexicalTarget);
+  const linkStat = fs.lstatSync(lexicalTarget, { bigint: true });
   if (linkStat.isSymbolicLink() || !linkStat.isFile()) {
     throw new Error(`Refusing non-regular or symlink file: ${target}`);
   }
@@ -192,16 +212,34 @@ function readRegularFile(target, allowedRoot, maxBytes) {
   if (!isPathInside(root, realTarget)) {
     throw new Error(`Resolved file escaped its allowed root: ${target}`);
   }
-  const descriptor = openReadOnlyNoFollow(realTarget);
+  const descriptor = openExistingReadOnly(realTarget);
   try {
-    const stat = fs.fstatSync(descriptor);
-    if (!stat.isFile()) {
+    const before = fs.fstatSync(descriptor, { bigint: true });
+    if (!before.isFile()) {
       throw new Error(`Refusing non-regular file: ${target}`);
     }
-    if (stat.size > maxBytes) {
+    if (before.dev !== linkStat.dev || before.ino !== linkStat.ino) {
+      throw new Error(`File changed while it was being opened: ${target}`);
+    }
+    if (before.size > BigInt(maxBytes)) {
       throw new Error(`File exceeds ${maxBytes} bytes: ${target}`);
     }
-    return fs.readFileSync(descriptor, "utf8");
+    const content = readDescriptorAtMost(descriptor, maxBytes, target);
+    const after = fs.fstatSync(descriptor, { bigint: true });
+    if (
+      !after.isFile() ||
+      after.dev !== before.dev ||
+      after.ino !== before.ino ||
+      after.mode !== before.mode ||
+      after.nlink !== before.nlink ||
+      after.size !== before.size ||
+      after.mtimeNs !== before.mtimeNs ||
+      after.ctimeNs !== before.ctimeNs ||
+      BigInt(content.length) !== before.size
+    ) {
+      throw new Error(`File changed while it was being read: ${target}`);
+    }
+    return content.toString("utf8");
   } finally {
     fs.closeSync(descriptor);
   }
@@ -446,19 +484,304 @@ function safeInlineStyle(value) {
   return String(value).replace(/<\/style/gi, "<\\/style");
 }
 
+const FORBIDDEN_PREVIEW_ELEMENTS = new Set([
+  "base",
+  "embed",
+  "iframe",
+  "link",
+  "meta",
+  "noembed",
+  "noframes",
+  "object",
+  "plaintext",
+  "script",
+  "template",
+]);
+// These elements switch the HTML tokenizer into a raw-text/RCDATA state. Keep
+// well-formed elements (textarea and SVG title are useful in prototypes), but
+// discard an opening tag that has no explicit close inside the agent fragment.
+// Otherwise it could consume the fixed wrapper and trusted helper scripts that
+// follow {{CONTENT}} in frame-template.tmpl.
+const RAW_TEXT_PREVIEW_ELEMENTS = new Set([
+  "noscript",
+  "style",
+  "textarea",
+  "title",
+  "xmp",
+]);
+const NETWORK_CAPABLE_ATTRIBUTES = new Set([
+  "action",
+  "background",
+  "cite",
+  "codebase",
+  "data",
+  "formaction",
+  "href",
+  "ping",
+  "poster",
+  "src",
+  "srcset",
+  "xlink:href",
+]);
+const SAFE_RASTER_DATA_URL = /^data:image\/(?:gif|jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
+
+function isHtmlSpace(character) {
+  return (
+    character === " " ||
+    character === "\t" ||
+    character === "\n" ||
+    character === "\r" ||
+    character === "\f"
+  );
+}
+
+function isTagNameCharacter(character) {
+  if (!character) return false;
+  const code = character.charCodeAt(0);
+  return (
+    (code >= 48 && code <= 57) ||
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122) ||
+    character === ":" ||
+    character === "-"
+  );
+}
+
+function scanHtmlTag(source, start) {
+  if (source[start] !== "<") return null;
+  if (source.startsWith("<!--", start)) {
+    const commentEnd = source.indexOf("-->", start + 4);
+    return {
+      end: commentEnd === -1 ? source.length : commentEnd + 3,
+      name: null,
+      closing: false,
+      comment: true,
+      closed: commentEnd !== -1,
+    };
+  }
+  let cursor = start + 1;
+  let closing = false;
+  if (source[cursor] === "/") {
+    closing = true;
+    cursor += 1;
+  }
+  while (isHtmlSpace(source[cursor])) cursor += 1;
+  const nameStart = cursor;
+  while (isTagNameCharacter(source[cursor])) cursor += 1;
+  if (cursor === nameStart) return null;
+  const name = source.slice(nameStart, cursor).toLowerCase();
+  let quote = null;
+  for (; cursor < source.length; cursor += 1) {
+    const character = source[cursor];
+    if (quote !== null) {
+      if (character === quote) quote = null;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === ">") {
+      return { end: cursor + 1, name, closing, comment: false };
+    }
+  }
+  return { end: source.length, name, closing, comment: false };
+}
+
+function findClosingTag(source, start, name) {
+  let cursor = start;
+  while (cursor < source.length) {
+    const candidateStart = source.indexOf("<", cursor);
+    if (candidateStart === -1) return null;
+    const candidate = scanHtmlTag(source, candidateStart);
+    if (candidate && candidate.closing && candidate.name === name) {
+      return { start: candidateStart, end: candidate.end };
+    }
+    cursor = candidate ? candidate.end : candidateStart + 1;
+  }
+  return null;
+}
+
+function isSafeRasterDataUrl(value) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    Buffer.byteLength(value, "utf8") > MAX_INLINE_IMAGE_URL_BYTES
+  ) {
+    return false;
+  }
+  const match = SAFE_RASTER_DATA_URL.exec(value);
+  return match !== null && match[1].length % 4 === 0;
+}
+
+function isSafeRasterSrcset(value) {
+  if (typeof value !== "string") return false;
+  const parts = value.trim().split(/[\t\n\f\r ]+/);
+  if (parts.length === 1) return isSafeRasterDataUrl(parts[0]);
+  if (parts.length !== 2 || !isSafeRasterDataUrl(parts[0])) return false;
+  return /^(?:[1-9]\d*w|(?:[1-9]\d*(?:\.\d+)?|0?\.\d+)x)$/.test(parts[1]);
+}
+
+function mayKeepNetworkAttribute(elementName, attributeName, attributeValue) {
+  if (attributeName === "src" && elementName === "img") {
+    return isSafeRasterDataUrl(attributeValue);
+  }
+  if (
+    attributeName === "srcset" &&
+    (elementName === "img" || elementName === "source")
+  ) {
+    return isSafeRasterSrcset(attributeValue);
+  }
+  return false;
+}
+
+function withoutNetworkAttributes(tag) {
+  let cursor = 1;
+  let result = "<";
+  if (tag[cursor] === "/") {
+    return tag;
+  }
+  while (isHtmlSpace(tag[cursor])) {
+    result += tag[cursor];
+    cursor += 1;
+  }
+  const elementNameStart = cursor;
+  while (isTagNameCharacter(tag[cursor])) {
+    result += tag[cursor];
+    cursor += 1;
+  }
+  const elementName = tag.slice(elementNameStart, cursor).toLowerCase();
+  while (cursor < tag.length - 1) {
+    const attributeStart = cursor;
+    while (isHtmlSpace(tag[cursor])) cursor += 1;
+    if (tag[cursor] === "/" || tag[cursor] === ">") {
+      result += tag.slice(attributeStart, cursor);
+      if (tag[cursor] === "/") {
+        result += "/";
+        cursor += 1;
+      }
+      break;
+    }
+    const nameStart = cursor;
+    while (
+      cursor < tag.length - 1 &&
+      !isHtmlSpace(tag[cursor]) &&
+      tag[cursor] !== "=" &&
+      tag[cursor] !== ">" &&
+      tag[cursor] !== "/"
+    ) {
+      cursor += 1;
+    }
+    if (cursor === nameStart) {
+      cursor += 1;
+      continue;
+    }
+    const attributeName = tag.slice(nameStart, cursor).toLowerCase();
+    while (isHtmlSpace(tag[cursor])) cursor += 1;
+    let attributeValue = null;
+    if (tag[cursor] === "=") {
+      cursor += 1;
+      while (isHtmlSpace(tag[cursor])) cursor += 1;
+      const quote = tag[cursor] === '"' || tag[cursor] === "'" ? tag[cursor] : null;
+      if (quote !== null) {
+        cursor += 1;
+        const valueStart = cursor;
+        while (cursor < tag.length - 1 && tag[cursor] !== quote) cursor += 1;
+        attributeValue = tag.slice(valueStart, cursor);
+        if (tag[cursor] === quote) cursor += 1;
+      } else {
+        const valueStart = cursor;
+        while (
+          cursor < tag.length - 1 &&
+          !isHtmlSpace(tag[cursor]) &&
+          tag[cursor] !== ">"
+        ) {
+          cursor += 1;
+        }
+        attributeValue = tag.slice(valueStart, cursor);
+      }
+    }
+    if (
+      (!NETWORK_CAPABLE_ATTRIBUTES.has(attributeName) ||
+        mayKeepNetworkAttribute(elementName, attributeName, attributeValue)) &&
+      !attributeName.startsWith("on")
+    ) {
+      result += tag.slice(attributeStart, cursor);
+    }
+  }
+  return `${result}>`;
+}
+
 function stripActivePreviewMarkup(value) {
-  return String(value)
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "")
-    .replace(/<script\b[^>]*\/?\s*>/gi, "")
-    .replace(/<\s*(?:meta|base|link|iframe|object|embed)\b[^>]*>/gi, "")
-    .replace(
-      /\s(?:src|href|xlink:href|action|formaction|poster|ping)\s*=\s*(["'])\s*(?:https?:|\/\/|file:|ftp:|javascript:)[\s\S]*?\1/gi,
-      "",
-    )
-    .replace(
-      /\s(?:src|href|xlink:href|action|formaction|poster|ping)\s*=\s*(?:https?:|\/\/|file:|ftp:|javascript:)[^\s>]*/gi,
-      "",
-    );
+  const source = String(value);
+  let result = "";
+  let cursor = 0;
+  const knownUnclosedRawTextElements = new Set();
+  while (cursor < source.length) {
+    const tagStart = source.indexOf("<", cursor);
+    if (tagStart === -1) {
+      result += source.slice(cursor);
+      break;
+    }
+    result += source.slice(cursor, tagStart);
+    const tag = scanHtmlTag(source, tagStart);
+    if (tag === null) {
+      result += "&lt;";
+      cursor = tagStart + 1;
+      continue;
+    }
+    if (tag.comment) {
+      if (tag.closed) {
+        result += source.slice(tagStart, tag.end);
+        cursor = tag.end;
+      } else {
+        // An unterminated comment would keep the browser in comment state and
+        // swallow the fixed wrapper/helper appended after this fragment. Escape
+        // only its opener, then sanitize the remaining fragment normally.
+        result += "&lt;!--";
+        cursor = tagStart + 4;
+      }
+      continue;
+    }
+    if (tag.name === "script" && !tag.closing) {
+      cursor = tag.end;
+      while (cursor < source.length) {
+        const candidateStart = source.indexOf("<", cursor);
+        if (candidateStart === -1) {
+          cursor = source.length;
+          break;
+        }
+        const candidate = scanHtmlTag(source, candidateStart);
+        if (candidate && candidate.closing && candidate.name === "script") {
+          cursor = candidate.end;
+          break;
+        }
+        cursor = candidate ? candidate.end : candidateStart + 1;
+      }
+      continue;
+    }
+    if (RAW_TEXT_PREVIEW_ELEMENTS.has(tag.name) && !tag.closing) {
+      const closing = knownUnclosedRawTextElements.has(tag.name)
+        ? null
+        : findClosingTag(source, tag.end, tag.name);
+      if (closing === null) {
+        // Flatten malformed raw-text markup into the surrounding fragment. Its
+        // contents will continue through the normal sanitizer instead of
+        // swallowing the wrapper that follows the fragment.
+        knownUnclosedRawTextElements.add(tag.name);
+        cursor = tag.end;
+        continue;
+      }
+      result += withoutNetworkAttributes(source.slice(tagStart, tag.end));
+      result += source.slice(tag.end, closing.start);
+      result += source.slice(closing.start, closing.end);
+      cursor = closing.end;
+      continue;
+    }
+    if (FORBIDDEN_PREVIEW_ELEMENTS.has(tag.name)) {
+      cursor = tag.end;
+      continue;
+    }
+    result += withoutNetworkAttributes(source.slice(tagStart, tag.end));
+    cursor = tag.end;
+  }
+  return result;
 }
 
 function newestContent() {

@@ -3,12 +3,10 @@ description: "Internal independent reviewer for a complete task-scoped diff, its
 mode: subagent
 hidden: true
 permission:
-  "*": deny
-  read: allow
-  glob: allow
-  grep: allow
-  list: allow
-  lsp: allow
+  "doom_loop": deny
+  todowrite: deny
+  webfetch: deny
+  websearch: deny
   bash: ask
   edit: deny
   question: deny

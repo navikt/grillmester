@@ -3,12 +3,10 @@ description: "Designhjelp for Nav-designere — utforsking med Aksel, Visual Com
 mode: primary
 hidden: false
 permission:
-  "*": ask
-  read: allow
-  glob: allow
-  grep: allow
-  list: allow
-  lsp: allow
+  edit: ask
+  webfetch: ask
+  websearch: ask
+  todowrite: ask
   question: allow
   bash:
     "*": deny

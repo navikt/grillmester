@@ -3,16 +3,10 @@ description: "Internal implementer for one complete, independently testable vert
 mode: subagent
 hidden: true
 permission:
-  "*": deny
-  read: allow
-  glob: allow
-  grep: allow
-  list: allow
-  lsp: allow
+  "doom_loop": deny
+  todowrite: deny
   edit: ask
   bash: ask
-  webfetch: allow
-  websearch: allow
   question: deny
   skill:
     "*": allow

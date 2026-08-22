@@ -1,0 +1,360 @@
+{
+  "schemaVersion": 1,
+  "opencode": {
+    "version": "1.18.20",
+    "registry": "https://registry.npmjs.org",
+    "artifacts": [
+      {
+        "platform": "darwin",
+        "architecture": "arm64",
+        "libc": "none",
+        "variant": "default",
+        "package": "opencode-darwin-arm64",
+        "url": "https://registry.npmjs.org/opencode-darwin-arm64/-/opencode-darwin-arm64-1.18.20.tgz",
+        "archive": {
+          "size": 45912069,
+          "sha512": "7e010126cc31f75380b44989cbb8934f6da262c69d0b29f8629eeb574f60fae7f9968c995e49f238b62620b6080ebbc43fa16b50bacf6160635a65aa22beae80",
+          "integrity": "sha512-fgEBJswx91OAtEmJy7iTT22iYsadCyn4Yp7rV09g+uf5loyZXknyOLYmILYIDrvEP6FrULrPYWBjWmWqIr6ugA==",
+          "integrityEvidence": {
+            "type": "npm-registry-dist-integrity",
+            "metadataUrl": "https://registry.npmjs.org/opencode-darwin-arm64/1.18.20"
+          },
+          "roster": [
+            "package/package.json",
+            "package/bin/opencode"
+          ]
+        },
+        "executable": {
+          "path": "package/bin/opencode",
+          "size": 143925602,
+          "sha256": "9598c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952"
+        }
+      },
+      {
+        "platform": "darwin",
+        "architecture": "x86_64",
+        "libc": "none",
+        "variant": "default",
+        "package": "opencode-darwin-x64",
+        "url": "https://registry.npmjs.org/opencode-darwin-x64/-/opencode-darwin-x64-1.18.20.tgz",
+        "archive": {
+          "size": 48089366,
+          "sha512": "cbade5db7d9d2cf3175a66155aba13c5b77bc1f602b1178f05a5ec8bb9f77983cd7bb29ea3aacc97170db266c187173c3a609eaf4c83f4391a492e7230b83dc1",
+          "integrity": "sha512-y63l232dLPMXWmYVWroTxbd7wfYCsRePBaXsi7n3eYPNe7Keo6rMlxcNsmbBhxc8OmCer0yD9DkaSS5yMLg9wQ==",
+          "integrityEvidence": {
+            "type": "npm-registry-dist-integrity",
+            "metadataUrl": "https://registry.npmjs.org/opencode-darwin-x64/1.18.20"
+          },
+          "roster": [
+            "package/package.json",
+            "package/bin/opencode"
+          ]
+        },
+        "executable": {
+          "path": "package/bin/opencode",
+          "size": 149405776,
+          "sha256": "96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60"
+        }
+      },
+      {
+        "platform": "darwin",
+        "architecture": "x86_64",
+        "libc": "none",
+        "variant": "baseline",
+        "package": "opencode-darwin-x64-baseline",
+        "url": "https://registry.npmjs.org/opencode-darwin-x64-baseline/-/opencode-darwin-x64-baseline-1.18.20.tgz",
+        "archive": {
+          "size": 48089428,
+          "sha512": "f8a179f6efd24a3532686aadae3724cb0b151b2a8170ece444970ed5cdc2af1fc8295f94d9accdb8867f4b6da78047d77f8bbd7f1793fc2a2199cceadacf1509",
+          "integrity": "sha512-+KF59u/SSjUyaGqtrjckywsVGyqBcOzkRJcO1c3Crx/IKV+U2azNuIZ/S22ngEfXf4u9fxeT/Cohmczq2s8VCQ==",
+          "integrityEvidence": {
+            "type": "npm-registry-dist-integrity",
+            "metadataUrl": "https://registry.npmjs.org/opencode-darwin-x64-baseline/1.18.20"
+          },
+          "roster": [
+            "package/package.json",
+            "package/bin/opencode"
+          ]
+        },
+        "executable": {
+          "path": "package/bin/opencode",
+          "size": 149405776,
+          "sha256": "96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60"
+        }
+      },
+      {
+        "platform": "linux",
+        "architecture": "arm64",
+        "libc": "glibc",
+        "variant": "default",
+        "package": "opencode-linux-arm64",
+        "url": "https://registry.npmjs.org/opencode-linux-arm64/-/opencode-linux-arm64-1.18.20.tgz",
+        "archive": {
+          "size": 59925735,
+          "sha512": "0dbc50798b4401b514131b853f9be1fa3cf178a4309d0d679c05bbbf1e27a19aa8c9e32a8f9f32e729f0912ce05fcf3aca20a2d5622b37b8da65d9a262966ecc",
+          "integrity": "sha512-DbxQeYtEAbUUExuFP5vh+jzxeKQwnQ1nnAW7vx4noZqoyeMqj58y5ynwkSzgX886yiCi1WIrN7jaZdmiYpZuzA==",
+          "integrityEvidence": {
+            "type": "npm-registry-dist-integrity",
+            "metadataUrl": "https://registry.npmjs.org/opencode-linux-arm64/1.18.20"
+          },
+          "roster": [
+            "package/package.json",
+            "package/bin/opencode"
+          ]
+        },
+        "executable": {
+          "path": "package/bin/opencode",
+          "size": 184002704,
+          "sha256": "cc9923aa75f8817261326e81fc56f9cb8203d282c0fab9bff7845cae9f6fe740"
+        }
+      },
+      {
+        "platform": "linux",
+        "architecture": "arm64",
+        "libc": "musl",
+        "variant": "default",
+        "package": "opencode-linux-arm64-musl",
+        "url": "https://registry.npmjs.org/opencode-linux-arm64-musl/-/opencode-linux-arm64-musl-1.18.20.tgz",
+        "archive": {
+          "size": 62037034,
+          "sha512": "aa94687da7732b94ac01107dbb8b9a64afcb91a7fea75ce5b974cdf01a8e60087308b9052e98acc8fefab3537133464b3cf5eccef3aca22e10ad77d58aef2999",
+          "integrity": "sha512-qpRofadzK5SsARB9u4uaZK/Lkaf+p1zluXTN8BqOYAhzCLkFLpisyP76s1NxM0ZLPPXszvOsoi4QrXfViu8pmQ==",
+          "integrityEvidence": {
+            "type": "npm-registry-dist-integrity",
+            "metadataUrl": "https://registry.npmjs.org/opencode-linux-arm64-musl/1.18.20"
+          },
+          "roster": [
+            "package/package.json",
+            "package/bin/opencode"
+          ]
+        },
+        "executable": {
+          "path": "package/bin/opencode",
+          "size": 193507192,
+          "sha256": "556ca2125cba1c1508052d055ee87ada1f28dde8a501986edbdbdf476083e4a6"
+        }
+      },
+      {
+        "platform": "linux",
+        "architecture": "x86_64",
+        "libc": "glibc",
+        "variant": "default",
+        "package": "opencode-linux-x64",
+        "url": "https://registry.npmjs.org/opencode-linux-x64/-/opencode-linux-x64-1.18.20.tgz",
+        "archive": {
+          "size": 60135211,
+          "sha512": "1fe5e153b35b7d306df98135cdab1876e9637ef79941b6adc3bda00d485629f9c4f3781df4a67cbb96e209fed364472c8bd40979b1606b6513ade6ec8afcd0ba",
+          "integrity": "sha512-H+XhU7NbfTBt+YE1zasYduljfveZQbatw72gDUhWKfnE83gd9KZ8u5biCf7TZEcsi9QJebFga2UTrebsivzQug==",
+          "integrityEvidence": {
+            "type": "npm-registry-dist-integrity",
+            "metadataUrl": "https://registry.npmjs.org/opencode-linux-x64/1.18.20"
+          },
+          "roster": [
+            "package/package.json",
+            "package/bin/opencode"
+          ]
+        },
+        "executable": {
+          "path": "package/bin/opencode",
+          "size": 184490112,
+          "sha256": "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16"
+        }
+      },
+      {
+        "platform": "linux",
+        "architecture": "x86_64",
+        "libc": "glibc",
+        "variant": "baseline",
+        "package": "opencode-linux-x64-baseline",
+        "url": "https://registry.npmjs.org/opencode-linux-x64-baseline/-/opencode-linux-x64-baseline-1.18.20.tgz",
+        "archive": {
+          "size": 60135211,
+          "sha512": "bb951dea3ca3f3779bc53b961b2a2026c5920fd0591fbf8dd567a3b4820556420adac8e089ee28e9565a6d0517432d452c2bd17e95bc1d99088e201185e6d8f6",
+          "integrity": "sha512-u5Ud6jyj83ebxTuWGyogJsWSD9BZH7+N1WejtIIFVkIK2sjgie4o6VZabQUXQy1FLCvRfpW8HZkIjiARhebY9g==",
+          "integrityEvidence": {
+            "type": "npm-registry-dist-integrity",
+            "metadataUrl": "https://registry.npmjs.org/opencode-linux-x64-baseline/1.18.20"
+          },
+          "roster": [
+            "package/package.json",
+            "package/bin/opencode"
+          ]
+        },
+        "executable": {
+          "path": "package/bin/opencode",
+          "size": 184490112,
+          "sha256": "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16"
+        }
+      },
+      {
+        "platform": "linux",
+        "architecture": "x86_64",
+        "libc": "musl",
+        "variant": "default",
+        "package": "opencode-linux-x64-musl",
+        "url": "https://registry.npmjs.org/opencode-linux-x64-musl/-/opencode-linux-x64-musl-1.18.20.tgz",
+        "archive": {
+          "size": 62488134,
+          "sha512": "3dd9427a59bf12f20a07a535c36dd66f7067bf6262cee258ccce5107dbb6943b2e17535283d7461d381cb3ca44bbfc46e1bb1ca98ea958faeec5b529d84de967",
+          "integrity": "sha512-PdlCelm/EvIKB6U1w23Wb3Bnv2JizuJYzM5RB9u2lDsuF1NSg9dGHTgcs8pEu/xG4bscqY6pWPruxbUp2E3pZw==",
+          "integrityEvidence": {
+            "type": "npm-registry-dist-integrity",
+            "metadataUrl": "https://registry.npmjs.org/opencode-linux-x64-musl/1.18.20"
+          },
+          "roster": [
+            "package/package.json",
+            "package/bin/opencode"
+          ]
+        },
+        "executable": {
+          "path": "package/bin/opencode",
+          "size": 194906400,
+          "sha256": "ca872f52047dd9e56b0a7a14da5cda064c3249a4a1116e71b31cab11864a3967"
+        }
+      },
+      {
+        "platform": "linux",
+        "architecture": "x86_64",
+        "libc": "musl",
+        "variant": "baseline",
+        "package": "opencode-linux-x64-baseline-musl",
+        "url": "https://registry.npmjs.org/opencode-linux-x64-baseline-musl/-/opencode-linux-x64-baseline-musl-1.18.20.tgz",
+        "archive": {
+          "size": 62488178,
+          "sha512": "7a75554ab436440a131d36c1456c2617515598ff1f99651618719b24cb07ebd471905beb0279a81eaf456a8adc2a54d296a7c8e20a45e0d8262f4e77c8ee31e3",
+          "integrity": "sha512-enVVSrQ2RAoTHTbBRWwmF1FVmP8fmWUWGHGbJMsH69RxkFvrAnmoHq9FaorcKlTSlqfI4gpF4NgmL053yO4x4w==",
+          "integrityEvidence": {
+            "type": "npm-registry-dist-integrity",
+            "metadataUrl": "https://registry.npmjs.org/opencode-linux-x64-baseline-musl/1.18.20"
+          },
+          "roster": [
+            "package/package.json",
+            "package/bin/opencode"
+          ]
+        },
+        "executable": {
+          "path": "package/bin/opencode",
+          "size": 194906400,
+          "sha256": "ca872f52047dd9e56b0a7a14da5cda064c3249a4a1116e71b31cab11864a3967"
+        }
+      }
+    ]
+  },
+  "cplt": {
+    "release": "2026.08.17-062831-1008a92",
+    "targetCommit": "1008a92188cc39fb17e0c9afc098f68050aff19a",
+    "releaseUrl": "https://github.com/navikt/cplt/releases/tag/2026.08.17-062831-1008a92",
+    "releaseApiUrl": "https://api.github.com/repos/navikt/cplt/releases/371561671",
+    "upstreamReleaseImmutable": false,
+    "checksumManifest": {
+      "asset": "SHA256SUMS",
+      "url": "https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/SHA256SUMS",
+      "assetApiUrl": "https://api.github.com/repos/navikt/cplt/releases/assets/517725071",
+      "size": 404,
+      "sha256": "ec1f96427a90230afc1df685c237750b1f4d98c5ce5abcb18ec097c8e706b3fd",
+      "content": "fb1fd69f5ff42deb1cf2e510d97a58ff5f7ddf913e1cd4f7533815a16588eeda  cplt-aarch64-apple-darwin.tar.gz\n7f3b499ac200ead28ff04f9a50dfe45ee7c11ecbc7fb26d67d0021883ea3a653  cplt-aarch64-unknown-linux-gnu.tar.gz\ne60687724df8a2fdb6f99654cc80f1a0dccb215263c2d984c222ff99ce56f8ea  cplt-x86_64-apple-darwin.tar.gz\n3e6607db8ed2f361bb4e8a43246d38acc7e63e5d956de96c3319fffbd3be3eb4  cplt-x86_64-unknown-linux-gnu.tar.gz\n"
+    },
+    "artifacts": [
+      {
+        "platform": "darwin",
+        "architecture": "arm64",
+        "libc": "none",
+        "variant": "default",
+        "asset": "cplt-aarch64-apple-darwin.tar.gz",
+        "url": "https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-aarch64-apple-darwin.tar.gz",
+        "archive": {
+          "size": 1480572,
+          "sha256": "fb1fd69f5ff42deb1cf2e510d97a58ff5f7ddf913e1cd4f7533815a16588eeda",
+          "digestEvidence": {
+            "type": "github-release-api-asset-digest",
+            "assetApiUrl": "https://api.github.com/repos/navikt/cplt/releases/assets/517725074",
+            "reportedDigest": "sha256:fb1fd69f5ff42deb1cf2e510d97a58ff5f7ddf913e1cd4f7533815a16588eeda"
+          },
+          "roster": [
+            "cplt"
+          ]
+        },
+        "executable": {
+          "path": "cplt",
+          "size": 3122208,
+          "sha256": "423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2"
+        }
+      },
+      {
+        "platform": "darwin",
+        "architecture": "x86_64",
+        "libc": "none",
+        "variant": "default",
+        "asset": "cplt-x86_64-apple-darwin.tar.gz",
+        "url": "https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-x86_64-apple-darwin.tar.gz",
+        "archive": {
+          "size": 1613282,
+          "sha256": "e60687724df8a2fdb6f99654cc80f1a0dccb215263c2d984c222ff99ce56f8ea",
+          "digestEvidence": {
+            "type": "github-release-api-asset-digest",
+            "assetApiUrl": "https://api.github.com/repos/navikt/cplt/releases/assets/517725073",
+            "reportedDigest": "sha256:e60687724df8a2fdb6f99654cc80f1a0dccb215263c2d984c222ff99ce56f8ea"
+          },
+          "roster": [
+            "cplt"
+          ]
+        },
+        "executable": {
+          "path": "cplt",
+          "size": 3546896,
+          "sha256": "36592c1b2bcfd7ab2d9083842b0aa7f51737cdf12ec1752d351bd9467dab5c02"
+        }
+      },
+      {
+        "platform": "linux",
+        "architecture": "arm64",
+        "libc": "glibc",
+        "variant": "default",
+        "asset": "cplt-aarch64-unknown-linux-gnu.tar.gz",
+        "url": "https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-aarch64-unknown-linux-gnu.tar.gz",
+        "archive": {
+          "size": 1549626,
+          "sha256": "7f3b499ac200ead28ff04f9a50dfe45ee7c11ecbc7fb26d67d0021883ea3a653",
+          "digestEvidence": {
+            "type": "github-release-api-asset-digest",
+            "assetApiUrl": "https://api.github.com/repos/navikt/cplt/releases/assets/517725072",
+            "reportedDigest": "sha256:7f3b499ac200ead28ff04f9a50dfe45ee7c11ecbc7fb26d67d0021883ea3a653"
+          },
+          "roster": [
+            "cplt"
+          ]
+        },
+        "executable": {
+          "path": "cplt",
+          "size": 3208176,
+          "sha256": "56715bc8c63d4dd7323d17a48d3c8d64fdfa3450848651a9ac360f6124d12789"
+        }
+      },
+      {
+        "platform": "linux",
+        "architecture": "x86_64",
+        "libc": "glibc",
+        "variant": "default",
+        "asset": "cplt-x86_64-unknown-linux-gnu.tar.gz",
+        "url": "https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-x86_64-unknown-linux-gnu.tar.gz",
+        "archive": {
+          "size": 1680011,
+          "sha256": "3e6607db8ed2f361bb4e8a43246d38acc7e63e5d956de96c3319fffbd3be3eb4",
+          "digestEvidence": {
+            "type": "github-release-api-asset-digest",
+            "assetApiUrl": "https://api.github.com/repos/navikt/cplt/releases/assets/517725077",
+            "reportedDigest": "sha256:3e6607db8ed2f361bb4e8a43246d38acc7e63e5d956de96c3319fffbd3be3eb4"
+          },
+          "roster": [
+            "cplt"
+          ]
+        },
+        "executable": {
+          "path": "cplt",
+          "size": 3807496,
+          "sha256": "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5"
+        }
+      }
+    ]
+  }
+}

@@ -130,8 +130,9 @@ Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjø
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-Noen fagområder overlapper med `navikt/copilot`. Alle runtime-ID-er har
-`grillmester-`-prefiks, men semantisk overlapp kan fortsatt finnes. Bruk
+Noen fagområder overlapper med `navikt/copilot`. Canonical skill- og command-
+ID-er har `grillmester-`-prefiks, men de reviewede agent-ID-ene er bevart.
+Agentkollisjoner og semantisk overlapp kan derfor fortsatt finnes. Bruk
 `/grillmester-doctor` når et team vil se hva repoet allerede får fra andre
 kilder.
 

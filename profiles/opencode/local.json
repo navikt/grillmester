@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "local",
+  "description": "Use a local OpenAI-compatible inference endpoint while retaining cplt's audited OpenCode infrastructure allowlist.",
+  "cpltPolicy": "strict",
+  "cpltRelease": "2026.08.17-062831-1008a92",
+  "localPorts": "required",
+  "providerDomains": "forbidden",
+  "environment": {
+    "OPENCODE_CONFIG_CONTENT": "{\"autoupdate\":false,\"share\":\"disabled\"}",
+    "OPENCODE_DISABLE_AUTOUPDATE": "true",
+    "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "true",
+    "OPENCODE_DISABLE_CLAUDE_CODE_PROMPT": "true",
+    "OPENCODE_DISABLE_DEFAULT_PLUGINS": "true",
+    "OPENCODE_DISABLE_EXTERNAL_SKILLS": "true",
+    "OPENCODE_DISABLE_SHARE": "true",
+    "OPENCODE_DISABLE_MODELS_FETCH": "true",
+    "OPENCODE_DISABLE_LSP_DOWNLOAD": "true",
+    "OPENCODE_DISABLE_PROJECT_CONFIG": "true",
+    "OPENCODE_DB": ":memory:",
+    "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER": "true",
+    "OPENCODE_EXPERIMENTAL": "false",
+    "OPENCODE_EXPERIMENTAL_CODE_MODE": "false",
+    "OPENCODE_PURE": "true"
+  }
+}

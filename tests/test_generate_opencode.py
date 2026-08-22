@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -34,6 +35,65 @@ class OpenCodeGenerationTest(unittest.TestCase):
         files, _ = GENERATOR.build_projection(ROOT)
         return files[relative][0].decode("utf-8")
 
+    def test_json_loading_rejects_duplicate_keys_and_nonstandard_constants(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = Path(directory) / "candidate.json"
+            cases = (
+                ('{"field": 1, "field": 2}', "duplicate JSON key"),
+                ('{"field": NaN}', "non-standard JSON constant"),
+                ('{"field": Infinity}', "non-standard JSON constant"),
+                ('{"field": -Infinity}', "non-standard JSON constant"),
+            )
+            for content, pattern in cases:
+                with self.subTest(content=content):
+                    candidate.write_text(content, encoding="utf-8")
+                    with self.assertRaisesRegex(GENERATOR.ProjectionError, pattern):
+                        GENERATOR.load_object(candidate, label="test JSON")
+            candidate.write_bytes(b'{"field":"\xff"}')
+            with self.assertRaisesRegex(GENERATOR.ProjectionError, "not UTF-8"):
+                GENERATOR.load_object(candidate, label="test JSON")
+
+    def test_json_loading_rejects_excessive_nesting_without_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = Path(directory) / "deep.json"
+            nested: object = "leaf"
+            for _ in range(GENERATOR.MAX_JSON_DEPTH + 2):
+                nested = {"child": nested}
+            candidate.write_text(json.dumps({"root": nested}), encoding="utf-8")
+
+            with self.assertRaisesRegex(GENERATOR.ProjectionError, "nesting limit"):
+                GENERATOR.load_object(candidate, label="deep JSON")
+
+    def test_policy_top_level_fields_are_exact(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            policy_path = root / "policy/opencode-v1.json"
+            original = json.loads(policy_path.read_text(encoding="utf-8"))
+            cases = (
+                (
+                    {**original, "forbiddenRuntimeToken": []},
+                    "unexpected.*forbiddenRuntimeToken",
+                ),
+                (
+                    {
+                        key: value
+                        for key, value in original.items()
+                        if key != "forbiddenRuntimeTokens"
+                    },
+                    "missing.*forbiddenRuntimeTokens",
+                ),
+            )
+            for policy, pattern in cases:
+                with self.subTest(pattern=pattern):
+                    policy_path.write_text(
+                        json.dumps(policy, indent=2, ensure_ascii=False) + "\n",
+                        encoding="utf-8",
+                    )
+                    with self.assertRaisesRegex(GENERATOR.ProjectionError, pattern):
+                        GENERATOR.build_projection(root)
+        finally:
+            temporary.cleanup()
+
     def test_committed_projection_is_current(self) -> None:
         expected, policy = GENERATOR.build_projection(ROOT)
         output = ROOT / policy["output"]
@@ -44,7 +104,11 @@ class OpenCodeGenerationTest(unittest.TestCase):
         manifest = json.loads(files["manifest.json"][0])
 
         self.assertEqual(
-            {"$schema": "https://opencode.ai/config.json"},
+            {
+                "$schema": "https://opencode.ai/config.json",
+                "autoupdate": False,
+                "share": "disabled",
+            },
             json.loads(files["opencode.json"][0]),
         )
         self.assertEqual(7, manifest["counts"]["agents"])
@@ -58,7 +122,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
             42,
             sum(path.startswith("skills/") and path.endswith("/SKILL.md") for path in files),
         )
-        self.assertIn("node_modules/", files[".gitignore"][0].decode("utf-8"))
+        self.assertNotIn(".gitignore", files)
         self.assertIn("opencode.json", manifest["files"])
 
     def test_agents_use_native_frontmatter_and_inherit_the_selected_model(self) -> None:
@@ -73,7 +137,8 @@ class OpenCodeGenerationTest(unittest.TestCase):
         self.assertNotRegex(kokk.split("---", 2)[1], r"(?m)^model:")
         self.assertIn("  edit: ask\n  bash: ask", kokk)
         self.assertIn("  bash: ask\n  edit: deny", inspector)
-        self.assertIn("  webfetch: allow\n  websearch: allow", researcher)
+        self.assertNotRegex(researcher.split("---", 2)[1], r"(?m)^  webfetch:")
+        self.assertNotRegex(researcher.split("---", 2)[1], r"(?m)^  websearch:")
         self.assertIn("    kokk: allow", grillmester)
         self.assertIn("    grill-inspektor: allow", grillmester)
         self.assertIn("    researcher: allow", grillmester)
@@ -99,6 +164,124 @@ class OpenCodeGenerationTest(unittest.TestCase):
             bash_policy.index('    "node scripts/server.js * --cleanup-all*": deny'),
         )
         self.assertNotIn("kill *", bash_policy)
+
+    def test_agents_leave_runtime_read_and_external_guards_unshadowed(self) -> None:
+        files, _ = GENERATOR.build_projection(ROOT)
+
+        for agent_id in (
+            "barista",
+            "designer",
+            "doctor-who",
+            "grill-inspektor",
+            "grillmester",
+            "kokk",
+            "researcher",
+        ):
+            with self.subTest(agent=agent_id):
+                frontmatter = files[f"agents/{agent_id}.md"][0].decode("utf-8").split(
+                    "---", 2
+                )[1]
+                self.assertNotRegex(frontmatter, r'(?m)^  "\*":')
+                self.assertNotRegex(frontmatter, r"(?m)^  read:")
+                self.assertNotRegex(frontmatter, r"(?m)^  external_directory:")
+
+    def test_policy_cannot_shadow_runtime_read_rules(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            policy_path = root / "policy/opencode-v1.json"
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            policy["agents"]["barista"]["permission"]["read"] = "allow"
+            policy_path.write_text(
+                json.dumps(policy, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                GENERATOR.ProjectionError, "must leave read to OpenCode"
+            ):
+                GENERATOR.build_projection(root)
+        finally:
+            temporary.cleanup()
+
+    def test_policy_cannot_shadow_runtime_guards_with_a_permission_wildcard(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            policy_path = root / "policy/opencode-v1.json"
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            policy["agents"]["kokk"]["permission"]["*"] = "deny"
+            policy_path.write_text(
+                json.dumps(policy, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                GENERATOR.ProjectionError,
+                "must not use a wildcard that shadows OpenCode runtime guards",
+            ):
+                GENERATOR.build_projection(root)
+        finally:
+            temporary.cleanup()
+
+    def test_policy_cannot_replace_dynamic_external_directory_guards(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            policy_path = root / "policy/opencode-v1.json"
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            policy["agents"]["researcher"]["permission"][
+                "external_directory"
+            ] = "allow"
+            policy_path.write_text(
+                json.dumps(policy, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                GENERATOR.ProjectionError,
+                "must leave external_directory to OpenCode",
+            ):
+                GENERATOR.build_projection(root)
+        finally:
+            temporary.cleanup()
+
+    def test_policy_permission_patterns_cannot_be_nested(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            policy_path = root / "policy/opencode-v1.json"
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            policy["agents"]["barista"]["permission"]["bash"] = {
+                "git *": {"status": "allow"}
+            }
+            policy_path.write_text(
+                json.dumps(policy, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                GENERATOR.ProjectionError, "git \\*.*must be one of"
+            ):
+                GENERATOR.build_projection(root)
+        finally:
+            temporary.cleanup()
+
+    def test_policy_rejects_unknown_and_generator_owned_permission_tools(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            policy_path = root / "policy/opencode-v1.json"
+            original = json.loads(policy_path.read_text(encoding="utf-8"))
+            for tool, pattern in (
+                ("webftech", "unsupported permission tools.*webftech"),
+                ("skill", "skill policy through skillAccess"),
+            ):
+                with self.subTest(tool=tool):
+                    policy = json.loads(json.dumps(original))
+                    policy["agents"]["barista"]["permission"][tool] = "allow"
+                    policy_path.write_text(
+                        json.dumps(policy, indent=2) + "\n", encoding="utf-8"
+                    )
+                    with self.assertRaisesRegex(GENERATOR.ProjectionError, pattern):
+                        GENERATOR.build_projection(root)
+        finally:
+            temporary.cleanup()
 
     def test_runtime_vocabulary_is_adapted_fail_closed(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
@@ -221,7 +404,30 @@ class OpenCodeGenerationTest(unittest.TestCase):
         finally:
             temporary.cleanup()
 
-    def test_runtime_dependency_artifacts_are_ignored_and_preserved(self) -> None:
+    def test_check_detects_exact_mode_drift_and_special_nodes(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            output = root / "targets/opencode-v1"
+            expected, _ = GENERATOR.build_projection(root)
+            target = output / "agents/grillmester.md"
+            target.chmod(0o600)
+            differences = GENERATOR.compare_projection(output, expected)
+            self.assertTrue(
+                any("mode differs" in item and "0600" in item for item in differences)
+            )
+
+            if not hasattr(os, "mkfifo"):
+                self.skipTest("FIFO fixture is not supported on this platform")
+            fifo = output / "unexpected.fifo"
+            os.mkfifo(fifo)
+            differences = GENERATOR.compare_projection(output, expected)
+            self.assertTrue(any("non-regular node" in item for item in differences))
+            with self.assertRaisesRegex(GENERATOR.ProjectionError, "non-regular nodes"):
+                GENERATOR.update_projection(output, expected)
+        finally:
+            temporary.cleanup()
+
+    def test_runtime_dependency_artifacts_are_rejected_and_removed(self) -> None:
         temporary, root = self.copy_repository()
         try:
             output = root / "targets/opencode-v1"
@@ -232,12 +438,19 @@ class OpenCodeGenerationTest(unittest.TestCase):
             dependency.write_text("runtime\n", encoding="utf-8")
 
             expected, policy = GENERATOR.build_projection(root)
-            self.assertEqual(
-                [], GENERATOR.compare_projection(root / policy["output"], expected)
+            differences = GENERATOR.compare_projection(
+                root / policy["output"], expected
             )
-            self.assertFalse(GENERATOR.update_projection(output, expected))
-            self.assertTrue(dependency.is_file())
-            self.assertTrue((output / "package.json").is_file())
+            self.assertTrue(any("package.json" in item for item in differences))
+            self.assertTrue(any("bun.lock" in item for item in differences))
+            self.assertTrue(any("node_modules" in item for item in differences))
+
+            self.assertTrue(GENERATOR.update_projection(output, expected))
+            self.assertFalse(dependency.exists())
+            self.assertFalse((output / "node_modules").exists())
+            self.assertFalse((output / "package.json").exists())
+            self.assertFalse((output / "bun.lock").exists())
+            self.assertEqual([], GENERATOR.compare_projection(output, expected))
         finally:
             temporary.cleanup()
 
@@ -261,6 +474,32 @@ class OpenCodeGenerationTest(unittest.TestCase):
         GENERATOR.add_file(files, casefolded, "agents/Kokk.md", b"one")
         with self.assertRaisesRegex(GENERATOR.ProjectionError, "collision"):
             GENERATOR.add_file(files, casefolded, "agents/kokk.md", b"two")
+
+    def test_unicode_normalized_target_collision_is_rejected(self) -> None:
+        files: dict[str, tuple[bytes, int]] = {}
+        casefolded: dict[str, str] = {}
+        GENERATOR.add_file(files, casefolded, "skills/caf\u00e9/SKILL.md", b"one")
+        with self.assertRaisesRegex(GENERATOR.ProjectionError, "collision"):
+            GENERATOR.add_file(
+                files,
+                casefolded,
+                "skills/cafe\u0301/SKILL.md",
+                b"two",
+            )
+
+    def test_unicode_normalized_path_index_can_be_removed_and_reused(self) -> None:
+        files: dict[str, tuple[bytes, int]] = {}
+        casefolded: dict[str, str] = {}
+        decomposed = "skills/cafe\u0301/reference.md"
+        precomposed = "skills/caf\u00e9/reference.md"
+
+        GENERATOR.add_file(files, casefolded, decomposed, b"first")
+        GENERATOR.remove_file(files, casefolded, decomposed)
+        self.assertEqual({}, files)
+        self.assertEqual({}, casefolded)
+
+        GENERATOR.add_file(files, casefolded, precomposed, b"replacement")
+        self.assertEqual(precomposed, casefolded[GENERATOR.portable_path_key(decomposed)])
 
     def test_overlay_classification_cannot_silently_drift(self) -> None:
         temporary, root = self.copy_repository()

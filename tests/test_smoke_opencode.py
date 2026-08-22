@@ -80,7 +80,39 @@ class OpenCodeSmokeTest(unittest.TestCase):
                 if not (Path.cwd() / ".git").is_dir():
                     raise SystemExit(94)
 
-                permission = {{"read": "allow", "skill": "allow"}}
+                declared_permission = {{"skill": "allow"}}
+
+                def resolved_permissions():
+                    rules = [
+                        {{"permission": "*", "pattern": "*", "action": "allow"}},
+                        {{"permission": "external_directory", "pattern": "*", "action": "ask"}},
+                    ]
+                    rules.extend(
+                        {{
+                            "permission": "external_directory",
+                            "pattern": str(path / "*"),
+                            "action": "allow",
+                        }}
+                        for path in (config / "skills").glob("*")
+                    )
+                    rules.extend([
+                        {{"permission": "read", "pattern": "*", "action": "allow"}},
+                        {{"permission": "read", "pattern": "*.env", "action": "ask"}},
+                        {{"permission": "read", "pattern": "*.env.*", "action": "ask"}},
+                        {{"permission": "read", "pattern": "*.env.example", "action": "allow"}},
+                    ])
+                    if user_config.is_file():
+                        rules.append({{
+                            "permission": "read",
+                            "pattern": {SMOKE.USER_DENIED_READ_PATTERN!r},
+                            "action": "deny",
+                        }})
+                    rules.append({{
+                        "permission": "skill",
+                        "pattern": "*",
+                        "action": "allow",
+                    }})
+                    return rules
 
                 if args == ["--version"]:
                     print({SMOKE.EXPECTED_OPENCODE_VERSION!r})
@@ -99,12 +131,18 @@ class OpenCodeSmokeTest(unittest.TestCase):
                             "description": name,
                             "mode": "primary" if name in PRIMARY else "subagent",
                             "hidden": name in SUBAGENTS,
-                            "permission": permission,
+                            "permission": declared_permission,
                             "prompt": f"Prompt for {{name}}.",
                         }}
                         for name in AGENTS
                     }}
-                    print(json.dumps({{"agent": agents, "command": commands, "plugin": []}}))
+                    print(json.dumps({{
+                        "agent": agents,
+                        "command": commands,
+                        "plugin": [],
+                        "share": "disabled",
+                        "autoupdate": False,
+                    }}))
                     raise SystemExit(0)
 
                 if args[:2] == ["agent", "list"]:
@@ -124,15 +162,11 @@ class OpenCodeSmokeTest(unittest.TestCase):
                             "result": {{"output": f"<path>{{path}}</path>\\n" + path.read_text()}},
                         }}))
                         raise SystemExit(0)
-                    rules = [
-                        {{"permission": key, "pattern": "*", "action": action}}
-                        for key, action in permission.items()
-                    ]
                     payload = {{
                         "name": name,
                         "description": name,
                         "options": {{}},
-                        "permission": rules,
+                        "permission": resolved_permissions(),
                         "mode": "primary" if name in PRIMARY else "subagent",
                         "native": False,
                         "tools": {{"read": True, "skill": True}},
@@ -220,6 +254,150 @@ class OpenCodeSmokeTest(unittest.TestCase):
                 1, SMOKE.main(["--opencode", missing, "--require-binary"])
             )
         self.assertIn("ERROR:", stderr.getvalue())
+
+    def test_agent_detail_rejects_an_effective_env_allow(self) -> None:
+        config_agent = {
+            "permission": {
+                "*": "ask",
+                "read": "allow",
+            }
+        }
+        detail = {
+            "name": "grillmester",
+            "mode": "primary",
+            "native": False,
+            "permission": [
+                {"permission": "*", "pattern": "*", "action": "allow"},
+                {"permission": "read", "pattern": "*", "action": "allow"},
+                {"permission": "read", "pattern": "*.env", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.*", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.example", "action": "allow"},
+                {"permission": "*", "pattern": "*", "action": "ask"},
+                {"permission": "read", "pattern": "*", "action": "allow"},
+            ],
+        }
+
+        with self.assertRaisesRegex(
+            SMOKE.SmokeError, "must not allow environment files"
+        ):
+            SMOKE.validate_agent_detail(
+                detail,
+                agent_id="grillmester",
+                config_agent=config_agent,
+            )
+
+    def test_agent_detail_rejects_a_denied_bundled_skill_path(self) -> None:
+        config_dir = Path("/tmp/grillmester-opencode-permission-fixture")
+        skill_glob = str(config_dir / "skills/grillmester-doctor/*")
+        config_agent = {
+            "permission": {
+                "*": "deny",
+                "read": {
+                    "*": "allow",
+                    "*.env": "ask",
+                    "*.env.*": "ask",
+                    "*.env.example": "allow",
+                },
+            }
+        }
+        detail = {
+            "name": "kokk",
+            "mode": "subagent",
+            "native": False,
+            "permission": [
+                {"permission": "*", "pattern": "*", "action": "allow"},
+                {"permission": "external_directory", "pattern": "*", "action": "ask"},
+                {
+                    "permission": "external_directory",
+                    "pattern": skill_glob,
+                    "action": "allow",
+                },
+                {"permission": "read", "pattern": "*", "action": "allow"},
+                {"permission": "read", "pattern": "*.env", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.*", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.example", "action": "allow"},
+                {"permission": "*", "pattern": "*", "action": "deny"},
+                {"permission": "read", "pattern": "*", "action": "allow"},
+                {"permission": "read", "pattern": "*.env", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.*", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.example", "action": "allow"},
+            ],
+        }
+
+        with self.assertRaisesRegex(
+            SMOKE.SmokeError, "must allow bundled skill paths"
+        ):
+            SMOKE.validate_agent_detail(
+                detail,
+                agent_id="kokk",
+                config_agent=config_agent,
+                config_dir=config_dir,
+                skill_ids=frozenset({"grillmester-doctor"}),
+            )
+
+    def test_agent_detail_requires_environment_examples_to_remain_readable(self) -> None:
+        config_agent = {
+            "permission": {
+                "read": {
+                    "*.env": "ask",
+                    "*.env.*": "ask",
+                    "*.env.example": "ask",
+                }
+            }
+        }
+        detail = {
+            "name": "grillmester",
+            "mode": "primary",
+            "native": False,
+            "permission": [
+                {"permission": "*", "pattern": "*", "action": "allow"},
+                {"permission": "read", "pattern": "*", "action": "allow"},
+                {"permission": "read", "pattern": "*.env", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.*", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.example", "action": "allow"},
+                {"permission": "read", "pattern": "*.env", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.*", "action": "ask"},
+                {"permission": "read", "pattern": "*.env.example", "action": "ask"},
+            ],
+        }
+
+        with self.assertRaisesRegex(
+            SMOKE.SmokeError, "must allow environment examples"
+        ):
+            SMOKE.validate_agent_detail(
+                detail,
+                agent_id="grillmester",
+                config_agent=config_agent,
+            )
+
+    def test_hybrid_override_rejects_an_expanded_top_level_read_deny(self) -> None:
+        denied_rule = {
+            "permission": "read",
+            "pattern": "*.user-denied",
+            "action": "deny",
+        }
+        kokk = {
+            "model": {
+                "providerID": SMOKE.HYBRID_PROVIDER_ID,
+                "modelID": SMOKE.HYBRID_MODEL_ID,
+            },
+            "permission": [
+                denied_rule,
+                {"permission": "*", "pattern": "*", "action": "deny"},
+                {"permission": "read", "pattern": "*", "action": "allow"},
+            ],
+        }
+        grillmester = {
+            "permission": [
+                denied_rule,
+                {"permission": "*", "pattern": "*", "action": "ask"},
+            ]
+        }
+
+        with self.assertRaisesRegex(
+            SMOKE.SmokeError, "top-level read deny was expanded"
+        ):
+            SMOKE.validate_hybrid_override(kokk, grillmester)
 
     @unittest.skipUnless(os.name == "posix", "fake executable fixture is POSIX-only")
     def test_full_offline_discovery_with_fake_binary(self) -> None:

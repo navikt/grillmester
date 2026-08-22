@@ -33,7 +33,11 @@ FIGMA_KEY_PATHS = {
     "targets/opencode-v1/skills/grillmester-design-prototype/references/aksel-figma-katalog.json",
 }
 OPENCODE_MANIFEST_PATH = "targets/opencode-v1/manifest.json"
+CLIENT_ARTIFACTS_PATH = "policy/client-artifacts.json"
 SHA256_DIGEST = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
+ARTIFACT_HEX_DIGEST = re.compile(
+    r"(?<![0-9a-f])(?:[0-9a-f]{128}|[0-9a-f]{64})(?![0-9a-f])"
+)
 MAX_DISCOVERY_TEXT_BYTES = 13 * 1024
 FORBIDDEN_RUNTIME_IDS = re.compile(
     r"\b(?:hovmester|souschef|konditor|inspektor-claude|inspektor-gpt)\b",
@@ -850,12 +854,14 @@ def validate_content(
         if national_id_matches and (
             relative_path in FIGMA_KEY_PATHS
             or relative_path == OPENCODE_MANIFEST_PATH
+            or relative_path == CLIENT_ARTIFACTS_PATH
         ):
-            digest_pattern = (
-                SHA256_DIGEST
-                if relative_path == OPENCODE_MANIFEST_PATH
-                else FIGMA_COMPONENT_KEY
-            )
+            if relative_path == OPENCODE_MANIFEST_PATH:
+                digest_pattern = SHA256_DIGEST
+            elif relative_path == CLIENT_ARTIFACTS_PATH:
+                digest_pattern = ARTIFACT_HEX_DIGEST
+            else:
+                digest_pattern = FIGMA_COMPONENT_KEY
             key_spans = [match.span() for match in digest_pattern.finditer(text)]
             national_id_matches = [
                 match

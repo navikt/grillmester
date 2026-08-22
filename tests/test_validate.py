@@ -509,6 +509,17 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("looks like a national ID")
 
+    def test_client_artifact_digests_are_not_mistaken_for_national_ids(self) -> None:
+        path = self.root / "policy/client-artifacts.json"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("99651" + "618719", text)
+        self.assertEqual([], self.errors())
+
+        artifact_lock = json.loads(text)
+        artifact_lock["unsafeExample"] = "12345" + "678901"
+        path.write_text(json.dumps(artifact_lock), encoding="utf-8")
+        self.assert_error("looks like a national ID")
+
     def test_plugin_file_symlink_is_rejected_before_reading_target(self) -> None:
         outside = Path(self.temp.name) / "invalid-agent.md"
         outside.write_bytes(b"---\nname: barista\n---\n\xff")

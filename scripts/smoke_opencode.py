@@ -19,7 +19,7 @@ from typing import Any, Mapping, NamedTuple, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGET = ROOT / "targets/opencode-v1"
-EXPECTED_OPENCODE_VERSION = "1.18.19"
+EXPECTED_OPENCODE_VERSION = "1.18.20"
 PRIMARY_AGENTS = frozenset({"grillmester", "barista", "designer", "doctor-who"})
 SUBAGENTS = frozenset({"kokk", "grill-inspektor", "researcher"})
 EXPECTED_AGENTS = PRIMARY_AGENTS | SUBAGENTS
@@ -27,6 +27,8 @@ EXPECTED_SKILLS = 42
 EXPECTED_COMMANDS = 42
 HYBRID_PROVIDER_ID = "lmstudio"
 HYBRID_MODEL_ID = "grillmester-smoke"
+USER_DENIED_READ_PATTERN = "*.user-denied"
+USER_DENIED_READ_SAMPLE = "consumer.user-denied"
 SKILL_DEBUG_BATCH_BYTES = 28 * 1024
 CONSUMER_CONTEXT_MARKER = "GRILLMESTER_OPENCODE_SMOKE_CONSUMER_CONTEXT"
 AGENT_LIST_ENTRY = re.compile(
@@ -53,6 +55,13 @@ NATIVE_PERMISSION_KEYS = frozenset(
     }
 )
 PERMISSION_ACTIONS = frozenset({"allow", "ask", "deny"})
+PROTECTED_ENV_PATHS = (
+    ".env",
+    ".env.local",
+    "service.env",
+    "service.env.local",
+)
+ENV_EXAMPLE_PATHS = (".env.example", "service.env.example")
 SAFE_ENV_PASSTHROUGH = frozenset(
     {
         "COMSPEC",
@@ -249,7 +258,7 @@ def make_tree_writable(root: Path) -> None:
 
 
 def prepare_debug_config_probe(source: Path, destination: Path) -> None:
-    """Preserve frontmatter while avoiding OpenCode's 64 KiB config debug cap."""
+    """Preserve frontmatter below pinned 1.18.20/Bun's pipe-flush boundary."""
 
     shutil.copytree(source, destination)
     make_tree_writable(destination)
@@ -342,6 +351,50 @@ def declared_permission_rules(permission: Any) -> list[tuple[str, str, str]]:
     return rules
 
 
+def wildcard_matches(value: str, pattern: str) -> bool:
+    """Match one OpenCode v1 permission wildcard exactly."""
+
+    normalized = value.replace("\\", "/")
+    source = pattern.replace("\\", "/")
+    special = frozenset(".+^${}()|[]\\")
+    escaped = "".join(f"\\{char}" if char in special else char for char in source)
+    escaped = escaped.replace("*", ".*").replace("?", ".")
+    if escaped.endswith(" .*"):
+        escaped = escaped[:-3] + "( .*)?"
+    return re.fullmatch(f"^{escaped}$", normalized, flags=re.DOTALL) is not None
+
+
+def effective_permission_action(
+    rules: Sequence[tuple[str, str, str]], permission: str, pattern: str
+) -> str:
+    matching = [
+        action
+        for rule_permission, rule_pattern, action in rules
+        if wildcard_matches(permission, rule_permission)
+        and wildcard_matches(pattern, rule_pattern)
+    ]
+    return matching[-1] if matching else "ask"
+
+
+def resolved_permission_rules(
+    value: Any, *, label: str
+) -> list[tuple[str, str, str]]:
+    permissions = value.get("permission") if isinstance(value, dict) else None
+    if not isinstance(permissions, list) or not permissions:
+        raise SmokeError(f"{label} has no resolved permissions")
+    rules: list[tuple[str, str, str]] = []
+    for rule in permissions:
+        if not isinstance(rule, dict):
+            raise SmokeError(f"{label} has an invalid resolved permission")
+        permission_name = rule.get("permission")
+        pattern = rule.get("pattern")
+        action = rule.get("action")
+        if not all(isinstance(item, str) for item in (permission_name, pattern, action)):
+            raise SmokeError(f"{label} has an invalid resolved permission")
+        rules.append((permission_name, pattern, action))
+    return rules
+
+
 def validate_resolved_config(
     value: Any, inventory: TargetInventory
 ) -> dict[str, dict[str, Any]]:
@@ -355,6 +408,10 @@ def validate_resolved_config(
         raise SmokeError("resolved config did not discover exactly 42 Grillmester commands")
     if value.get("plugin") != []:
         raise SmokeError("external plugins were not disabled for the OpenCode smoke")
+    if value.get("share") != "disabled":
+        raise SmokeError("resolved OpenCode config must disable session sharing")
+    if value.get("autoupdate") is not False:
+        raise SmokeError("resolved OpenCode config must disable automatic updates")
 
     model_paths = nested_key_paths({"agent": agents, "command": commands}, "model")
     if model_paths:
@@ -410,7 +467,12 @@ def validate_agent_list(output: str) -> None:
 
 
 def validate_agent_detail(
-    value: Any, *, agent_id: str, config_agent: dict[str, Any]
+    value: Any,
+    *,
+    agent_id: str,
+    config_agent: dict[str, Any],
+    config_dir: Path | None = None,
+    skill_ids: frozenset[str] | None = None,
 ) -> None:
     if not isinstance(value, dict) or value.get("name") != agent_id:
         raise SmokeError(f"debug agent returned the wrong payload for {agent_id}")
@@ -421,19 +483,7 @@ def validate_agent_detail(
         raise SmokeError(f"debug agent did not resolve {agent_id} as a custom agent")
     if nested_key_paths(value, "model"):
         raise SmokeError(f"debug agent resolved a hardcoded model for {agent_id}")
-    permissions = value.get("permission")
-    if not isinstance(permissions, list) or not permissions:
-        raise SmokeError(f"debug agent returned no native permissions for {agent_id}")
-    resolved_rules: list[tuple[str, str, str]] = []
-    for rule in permissions:
-        if not isinstance(rule, dict):
-            raise SmokeError(f"debug agent returned an invalid permission for {agent_id}")
-        permission_name = rule.get("permission")
-        pattern = rule.get("pattern")
-        action = rule.get("action")
-        if not all(isinstance(item, str) for item in (permission_name, pattern, action)):
-            raise SmokeError(f"debug agent returned an invalid permission for {agent_id}")
-        resolved_rules.append((permission_name, pattern, action))
+    resolved_rules = resolved_permission_rules(value, label=f"debug agent {agent_id}")
 
     declared = declared_permission_rules(config_agent.get("permission"))
     cursor = 0
@@ -446,6 +496,46 @@ def validate_agent_detail(
                 f"{agent_id}: missing {declared_rule!r} after rule {cursor}"
             ) from exc
         cursor = index + 1
+
+    unsafe_env = [
+        path
+        for path in PROTECTED_ENV_PATHS
+        if effective_permission_action(resolved_rules, "read", path) == "allow"
+    ]
+    if unsafe_env:
+        raise SmokeError(
+            f"resolved agent {agent_id} must not allow environment files: "
+            + ", ".join(unsafe_env)
+        )
+
+    blocked_examples = [
+        path
+        for path in ENV_EXAMPLE_PATHS
+        if effective_permission_action(resolved_rules, "read", path) != "allow"
+    ]
+    if blocked_examples:
+        raise SmokeError(
+            f"resolved agent {agent_id} must allow environment examples: "
+            + ", ".join(blocked_examples)
+        )
+
+    if agent_id in SUBAGENTS and config_dir is not None and skill_ids is not None:
+        blocked_skill_paths = []
+        for skill_id in sorted(skill_ids):
+            bundled_reference_glob = str(
+                config_dir / f"skills/{skill_id}/references/*"
+            )
+            external_action = effective_permission_action(
+                resolved_rules, "external_directory", bundled_reference_glob
+            )
+            if external_action != "allow":
+                blocked_skill_paths.append((bundled_reference_glob, external_action))
+        if blocked_skill_paths:
+            bundled_reference_glob, external_action = blocked_skill_paths[0]
+            raise SmokeError(
+                f"resolved agent {agent_id} must allow bundled skill paths; "
+                f"got {external_action!r} for {bundled_reference_glob}"
+            )
 
 
 def validate_skills(
@@ -528,6 +618,7 @@ def hybrid_user_config() -> dict[str, Any]:
         "agent": {
             "kokk": {"model": f"{HYBRID_PROVIDER_ID}/{HYBRID_MODEL_ID}"}
         },
+        "permission": {"read": {USER_DENIED_READ_PATTERN: "deny"}},
     }
 
 
@@ -539,6 +630,17 @@ def validate_hybrid_override(kokk: Any, grillmester: Any) -> None:
         raise SmokeError("user config did not apply the local model override to Kokk")
     if nested_key_paths(grillmester, "model"):
         raise SmokeError("Kokk's user-owned model override leaked into Grillmester")
+    for agent_id, value in (("kokk", kokk), ("grillmester", grillmester)):
+        rules = resolved_permission_rules(value, label=f"hybrid agent {agent_id}")
+        if (
+            effective_permission_action(
+                rules, "read", USER_DENIED_READ_SAMPLE
+            )
+            != "deny"
+        ):
+            raise SmokeError(
+                f"top-level read deny was expanded by resolved agent {agent_id}"
+            )
 
 
 def smoke(
@@ -623,7 +725,11 @@ def smoke(
                 timeout_seconds=timeout_seconds,
             )
             validate_agent_detail(
-                detail, agent_id=agent_id, config_agent=config_agents[agent_id]
+                detail,
+                agent_id=agent_id,
+                config_agent=config_agents[agent_id],
+                config_dir=config_dir,
+                skill_ids=inventory.skills,
             )
 
         discovered_skills: set[str] = set()

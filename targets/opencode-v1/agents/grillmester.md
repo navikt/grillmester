@@ -3,12 +3,11 @@ description: "Select Grillmester for non-trivial work that benefits from clarifi
 mode: primary
 hidden: false
 permission:
-  "*": ask
-  read: allow
-  glob: allow
-  grep: allow
-  list: allow
-  lsp: allow
+  edit: ask
+  bash: ask
+  webfetch: ask
+  websearch: ask
+  todowrite: ask
   question: allow
   skill:
     "*": allow

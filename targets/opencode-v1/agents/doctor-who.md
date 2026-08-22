@@ -3,12 +3,10 @@ description: "Choose Doctor Who as a product partner for team status, prioritisa
 mode: primary
 hidden: false
 permission:
-  "*": ask
-  read: allow
-  glob: allow
-  grep: allow
-  list: allow
-  lsp: allow
+  edit: ask
+  webfetch: ask
+  websearch: ask
+  todowrite: ask
   question: allow
   bash: deny
   skill:

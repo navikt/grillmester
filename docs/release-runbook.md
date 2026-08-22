@@ -7,10 +7,13 @@ Grillmester has an immutable, two-step release identity:
 2. Its only package is `grillmester` from `plugin`. The catalog's `source.sha`
    points to the exact source commit reachable from `main`.
 
-The tag identifies the catalog, not the source tree. GitHub's source archive
-for the release therefore contains only `.github/plugin/marketplace.json`.
-Install through the Grillmester marketplace; do not use the release archive.
-Never move, replace, delete, or force-update a release tag.
+The tag identifies the catalog, not the source tree. GitHub's automatically
+generated source archive for the release therefore contains only
+`.github/plugin/marketplace.json`; it is not an installation artifact. Install
+the Copilot plugin through the Grillmester marketplace. Install OpenCode from
+the separately attached, deterministic `tar.gz` and its detached `.sha256` from
+the same GitHub Release. Never move, replace, delete, or force-update a release
+tag or replace an existing release asset.
 
 ## Workflows and trust boundary
 
@@ -32,16 +35,61 @@ Three workflows have deliberately separate jobs:
 - **Publish reviewed release request** is the only release publisher. It runs
   when a reviewed `.github/release-request.json` change lands on `main`,
   validates the complete chain and stages the exact catalog bytes and
-  source-pinned payload in an isolated local smoke, then waits at the protected
-  `grillmester-release` environment. Its only write-capable job contains one
-  fixed inline publication step with no checkout, action, package install, or
-  repository-script execution. After publication, a read-only job verifies the
-  tag target and installs from the actual remote `v<version>` ref.
+  source-pinned payload in an isolated local smoke. The read-only validation
+  job also builds the OpenCode bundle twice, requires byte identity, verifies
+  `DISTRIBUTION-MANIFEST.json`, and seals the exact `tar.gz`, detached checksum
+  and release notes. A separate read-only job retrieves the exact immutable
+  artifact ID and uses fixed workflow-owned code to match every archive file,
+  mode, manifest entry, and canonical archive property to immutable Git blobs
+  at the selected source SHA. Separate Copilot and genuine macOS compatibility
+  jobs must also pass. The macOS job verifies the pinned native OpenCode and
+  cplt archives and executables before their first execution, runs the native
+  and cplt runtime smokes, proves allowed-loopback/blocked-host raw sockets under
+  forced proxy policy, and launches the installed manager through `local-only`
+  with an explicit local provider, exact loopback base URL, model ID, and
+  positive context/output limits.
+  Only after all of those jobs succeed does the workflow wait at the protected
+  `grillmester-release` environment. The two asset files cross
+  that boundary in one immutable
+  Actions artifact; only its exact artifact ID, server digest, file digests,
+  sizes and names cross as scalar outputs. Its write-capable job contains two
+  fixed inline steps with no checkout, action, package install, or repository-
+  script execution. The first uses the environment's Administration:read token
+  only to require that immutable GitHub Releases are enabled. The second alone
+  receives the ordinary contents-write token, fetches only the sealed artifact
+  ID, binds it back to the same workflow run and digest, requires exactly the
+  two expected files, and may therefore only publish the already source-bound
+  sealed bytes without executing selected-source code. It finally requires the
+  published release object (and an RC used for stable promotion) to report
+  `immutable: true`. After
+  publication, a read-only job verifies the tag target, installs from the
+  actual remote `v<version>` marketplace ref, downloads and checksum-verifies
+  the attached OpenCode asset, and exercises its install contract.
 
 The source reachability control relies on the current linear/squash `main`
 history. If merge commits are enabled, strengthen it to require first-parent
 membership. If `main` advances during validation or before an idempotent rerun,
 the current-main guard fails closed; dispatch a fresh run from current `main`.
+
+### OpenCode asset contract
+
+The asset's `DISTRIBUTION-MANIFEST.json` must bind the selected source SHA,
+OpenCode `1.18.20`, cplt `2026.08.17-062831-1008a92`, the inner target manifest
+digest, and the complete distribution inventory. Every cplt-backed profile
+requires that exact cplt release. The manager and native agents have no runtime
+dependency on `nav-pilot-agent`, the Copilot plugin installation, or a Copilot
+agent. `--direct` remains an explicit opt-out from cplt sandbox and egress
+policy; it is not the default or a `local-only` mode. Passing this release gate
+proves the packaged surface and deterministic runtime contract, not quality
+parity for an arbitrary local or cloud model.
+
+The committed npm integrity, GitHub Release asset digest, and cplt
+`SHA256SUMS` values bind the bytes accepted by the gate. They are not a
+separately verified maintainer signature or artifact attestation. The pinned
+cplt release is marked mutable upstream, so any later byte replacement fails
+against the committed archive and executable digests. Managed Linux cplt is
+gated only with its GNU/glibc assets; OpenCode's musl assets do not create a
+managed-musl support claim without a corresponding cplt asset.
 
 The release-request PR, protected `main`, rulesets, and environment approval
 are process and accidental-misdispatch controls. A normal repository
@@ -108,10 +156,20 @@ An administrator must maintain and verify these current active controls:
   GitHub's PATCH Git reference endpoint permits a fast-forward reference update
   with `force: false`. No ruleset bypass is needed for either normal publisher
   operation.
-- Enable immutable GitHub Releases if the repository setting is available.
+- Enable immutable GitHub Releases. The publisher fails closed against
+  `GET /repos/navikt/grillmester/immutable-releases` with API version
+  `2026-03-10` unless `enabled` is exactly `true`, and it requires the final
+  release readback to contain `immutable: true`. On 2026-08-21 the live setting
+  read back as `enabled: false`; publication is therefore intentionally blocked
+  until an authorized administrator enables it. The workflow never changes the
+  setting itself.
 - Create the `grillmester-release` environment, restrict deployments to
   `main`, require a reviewer other than the request author, enable
-  prevent-self-review, and disable administrator bypass.
+  prevent-self-review, and disable administrator bypass. Store a dedicated
+  fine-grained credential named `IMMUTABLE_RELEASES_ADMIN_READ_TOKEN` in that
+  environment with Administration **read-only** access to this repository. Do
+  not grant it contents write and do not reuse the release publisher token;
+  the workflow exposes it only to the read-only immutable-setting preflight.
 
 Merely naming an environment in YAML is not an approval gate: GitHub can create
 an unconfigured environment automatically. Verify the settings in GitHub
@@ -245,9 +303,9 @@ strict writer separation.
    `0.3.0-rc.1`. Build metadata is not accepted, and a version must never be
    reused for different payload bytes.
 2. Merge that source change normally. From current `main`, explicitly dispatch
-   **Publish marketplace catalog** with the exact lowercase 40-character source
-   SHA to promote. Wait for it to complete, then resolve the exact catalog-only
-   commit containing the version:
+   **Publish marketplace catalog** with `channel=rc`, the exact lowercase
+   40-character `source_sha` to promote, and an empty `rc_tag`. Wait for it to
+   complete, then resolve the exact catalog-only commit containing the version:
 
    ```bash
    git fetch origin main marketplace
@@ -281,19 +339,34 @@ strict writer separation.
    requires an exact catalog-only tree, and regenerates the one-entry catalog
    byte-for-byte from the release contract and plugin manifest at that source.
    It then stages and verifies those exact catalog bytes and the source-pinned
-   Grillmester payload locally before seeking environment approval. A raw
+   Grillmester payload locally, builds the deterministic OpenCode bundle twice,
+   and uploads the bundle and detached checksum as one immutable, digest-bound
+   workflow artifact before seeking environment approval. A raw
    catalog SHA is not passed to Copilot as a marketplace ref; the CLI accepts a
-   branch or tag there.
+   branch or tag there. OpenCode does not install from that catalog path; its
+   release asset is bound to the same source SHA by
+   `DISTRIBUTION-MANIFEST.json`.
 6. The environment reviewer compares the request, run summary, catalog SHA,
-   source SHA, and derived `v<manifest-semver>` tag before approving.
+   source SHA, OpenCode asset SHA-256, and derived `v<manifest-semver>` tag
+   before approving.
 
-The write step fetches and revalidates the refs again immediately before it
-mutates GitHub. It creates an annotated tag at the catalog commit and a GitHub
-prerelease with `--verify-tag` and `latest=false`. The following read-only
+The read-only asset verifier checks the archive's bounded gzip/tar structure,
+canonical manifest, complete inventory, modes, and file bytes against immutable
+Git blobs. The write step then fetches and revalidates the refs again immediately
+before it mutates GitHub. It resolves the same sealed artifact ID through the
+Actions API, requires the expected workflow-run ID and server digest, and checks
+the exact inner bytes and detached checksum again. It creates an annotated tag at the catalog commit,
+then stages a draft GitHub Release with `--verify-tag`. Only an unpublished
+draft may have the two sealed asset names retried with `--clobber`; unexpected
+draft assets fail closed. The step downloads and byte-verifies both staged
+assets before publishing the draft (`prerelease` and `latest=false` for an RC).
+Published assets are never replaced. The following read-only
 `remote-smoke` job peels the published tag back to the expected catalog commit,
 installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/42-skill
-payload, and uninstalls it. A failed post-publication smoke stops promotion and
-requires a new corrective version; tags are never moved.
+Copilot payload, downloads both OpenCode assets, verifies the detached checksum
+before safe extraction, and runs the manager's install verification. A failed
+post-publication smoke stops promotion and requires a new corrective version;
+tags and assets are never replaced.
 
 The floating `marketplace` branch is also the personal CLI auto-update channel.
 It advances only after a maintainer explicitly promotes an exact validated
@@ -312,8 +385,18 @@ it is never a second label on the RC catalog. Create a source commit whose
 plugin manifest uses the stable version, such as `0.3.0`. Apart from the exact
 `version` value in `plugin/plugin.json`, the package payload and manifest format
 must be byte-identical to the named candidate. The release contract must also
-be byte-identical. Explicitly promote its exact source SHA through the catalog
-publisher to create the new stable-versioned catalog.
+be byte-identical. OpenCode distribution inputs — manager, profiles, generated
+target and bundle-builder contract — must also be byte-identical between RC and
+stable; the outer bundle manifest and checksum are expected to change because
+they bind the new stable source SHA. Before either validation or publication can
+promote stable, the workflow also downloads the named RC's two public assets,
+requires their API and detached digests, rebuilds the RC archive from its exact
+source SHA, and requires byte identity. Explicitly dispatch **Publish
+marketplace catalog** from current `main` with `channel=stable`, the new stable
+source commit as `source_sha`, and the exact reviewed prerelease tag (for
+example `v0.3.0-rc.1`) as `rc_tag`. That publisher revalidates the public RC
+release, rights approval, source parity, rebuilt RC bundle, API asset digests,
+and detached checksum before it creates the new stable-versioned catalog.
 
 Optionally run the read-only validator with `channel=stable`, the new catalog
 SHA, and the reviewed prerelease tag. Then merge a separate request-file PR:
@@ -338,9 +421,15 @@ stable tag and release. Never retag the RC catalog.
 The publisher never moves an existing tag:
 
 - no tag and no release: create both;
-- correct tag but no release: keep the tag and create the missing release;
-- exact tag and exact release metadata: succeed as a no-op;
-- an existing tag at another catalog, or mismatched release metadata: fail.
+- correct tag but no release: keep the tag, create a draft, stage and verify the
+  two assets, then publish;
+- correct tag and an exact or partially uploaded draft containing no unexpected
+  asset names: retry the two sealed names, byte-verify them, then publish;
+- exact tag, release metadata, OpenCode assets and checksums: succeed as a
+  no-op;
+- an existing tag at another catalog, mismatched draft metadata, unexpected
+  draft assets, or any missing, extra or different asset on an already
+  published release: fail.
 
 Rerun the failed push workflow while its request commit is still current
 `origin/main`. If `main` has moved, open a new request-only PR with the same
@@ -359,6 +448,12 @@ Do not rewrite a bad release. Stop adoption and:
 3. Publish a new version containing the correction. Catalog version reuse is
    rejected, including reuse of an older historical version.
 
+For an OpenCode installation, run `rollback` with the manager from the
+checksum-verified, extracted release bundle after stopping the active session.
+It re-verifies `active` and `previous` before atomically swapping them; do not
+recover by editing state, copying a target from a checkout, or replacing a
+published asset.
+
 Normal recovery is roll-forward. Any temporary ruleset enforcement change must
 be authorized by a repository administrator, recorded in the incident, returned
 to `active` immediately, and followed by fresh readback.
@@ -369,6 +464,7 @@ as incident evidence, fix the publisher on `main`, and use a reviewed recovery
 through the protected automation identity. Re-enable it only after generator,
 validator, remote install smoke, and history/version guards pass.
 
-Record the catalog SHA, source SHA, tags, consumer refs, request ID, and recovery
-actions in the incident. Repinning does not make an already-started agent
-session forget loaded content; restart the affected Copilot session.
+Record the catalog SHA, source SHA, OpenCode asset SHA-256, tags, consumer refs,
+request ID, and recovery actions in the incident. Repinning or manager rollback
+does not make an already-started agent session forget loaded content; restart
+the affected Copilot or OpenCode session.

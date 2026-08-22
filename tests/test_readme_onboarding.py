@@ -36,7 +36,8 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertNotIn("strukturert designunderlag", self.text)
 
     def test_cli_install_and_auto_update_are_copyable(self) -> None:
-        install = re.search(r"```bash\n(.*?)\n```", self.text, re.DOTALL)
+        copilot = self.text.split("## Installer med Copilot", 1)[1]
+        install = re.search(r"```bash\n(.*?)\n```", copilot, re.DOTALL)
         self.assertIsNotNone(install)
         self.assertEqual(
             install.group(1).splitlines(),
@@ -72,7 +73,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             "Tilgang og tillatt bruk styres av Navs gjeldende policy.",
             " ".join(self.text.splitlines()),
         )
-        self.assertIn("### Klientstatus", self.text)
+        self.assertIn("## Klientstatus", self.text)
         for marker in (
             "Valgfri automatisk oppdatering i Copilot CLI",
             "Oppdater en installert plugin manuelt med **Update**",
