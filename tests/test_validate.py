@@ -69,6 +69,11 @@ class PackageValidationTest(unittest.TestCase):
     def test_actual_package_is_valid(self) -> None:
         self.assertEqual([], VALIDATE.validate_repo(ROOT))
 
+    def test_stale_opencode_projection_is_rejected(self) -> None:
+        path = self.root / "targets/opencode-v1/agents/grillmester.md"
+        path.write_text("stale\n", encoding="utf-8")
+        self.assert_error("OpenCode target is stale")
+
     def test_boolean_agent_description_is_rejected(self) -> None:
         self.replace_frontmatter(
             "plugin/agents/designer.agent.md", "description", "true"
@@ -502,6 +507,17 @@ class PackageValidationTest(unittest.TestCase):
             path.read_text(encoding="utf-8") + f"\nExample: {shaped_value}\n",
             encoding="utf-8",
         )
+        self.assert_error("looks like a national ID")
+
+    def test_client_artifact_digests_are_not_mistaken_for_national_ids(self) -> None:
+        path = self.root / "policy/client-artifacts.json"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("99651" + "618719", text)
+        self.assertEqual([], self.errors())
+
+        artifact_lock = json.loads(text)
+        artifact_lock["unsafeExample"] = "12345" + "678901"
+        path.write_text(json.dumps(artifact_lock), encoding="utf-8")
         self.assert_error("looks like a national ID")
 
     def test_plugin_file_symlink_is_rejected_before_reading_target(self) -> None:

@@ -2,21 +2,21 @@
 """Validate and describe Grillmester's immutable release chain.
 
 The public release tag identifies a catalog-only commit. The catalog then
-identifies the plugin payload with one exact GitHub commit SHA. Stable
-releases are new, stable-versioned catalogs whose payloads are identical to a
-named RC apart from each manifest's version; an RC tag is never moved or
-re-used.
+identifies every target payload with one exact GitHub commit SHA. Stable
+releases are new, stable-versioned catalogs whose Copilot and OpenCode
+payloads are identical to a named RC apart from the Copilot manifest's
+version; an RC tag is never moved or re-used.
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import hashlib
 import json
 import re
 import subprocess
 import sys
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
@@ -24,15 +24,52 @@ from typing import Any, Sequence
 
 PLUGIN_NAMES = ("grillmester",)
 PLUGIN_PATHS = {"grillmester": "plugin"}
+NATIVE_TARGET_PATHS = ("targets/opencode-v1",)
+OPENCODE_DISTRIBUTION_DIRECTORIES = (
+    "targets/opencode-v1",
+    "profiles/opencode",
+)
+OPENCODE_DISTRIBUTION_FILES = (
+    "LICENSE",
+    "PROVENANCE.md",
+    "plugin/THIRD_PARTY_NOTICES.md",
+    "policy/client-artifacts.json",
+    "policy/content-lock.json",
+    "scripts/build_opencode_bundle.py",
+    "scripts/compose_opencode_permissions.py",
+    "scripts/manage_opencode.py",
+    "scripts/release_contract.py",
+    "scripts/verify_client_artifact.py",
+)
+STABLE_GATE_HARNESS_FILES = (
+    "scripts/smoke_plugin_install.py",
+    "scripts/smoke_opencode.py",
+    "scripts/smoke_opencode_runtime.py",
+)
+SUPPORTED_OPENCODE_VERSION = "1.18.20"
+SUPPORTED_CPLT_RELEASE = "2026.08.17-062831-1008a92"
 PLUGIN_REPOSITORY = "navikt/grillmester"
 CATALOG_PATH = ".github/plugin/marketplace.json"
+CONTENT_LOCK_PATH = "policy/content-lock.json"
+PROVENANCE_PATH = "PROVENANCE.md"
+STABLE_RIGHTS_APPROVAL_PATH = "policy/stable-rights-approval.json"
+HOVMESTER_REPOSITORY = "navikt/hovmester"
+HOVMESTER_REVISION = "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+APPROVAL_DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+PLACEHOLDER_APPROVAL_TEXT = re.compile(
+    r"(?:unverified|unknown|pending|placeholder|example|todo|tbd|replace[-_ ]?me)",
+    re.IGNORECASE,
+)
 SEMVER = re.compile(
     r"^(?P<major>0|[1-9][0-9]*)\."
     r"(?P<minor>0|[1-9][0-9]*)\."
     r"(?P<patch>0|[1-9][0-9]*)"
     r"(?:-(?P<prerelease>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
+MAX_VERSION_LENGTH = 64
+MAX_JSON_DEPTH = 40
 
 
 class ReleaseContractError(ValueError):
@@ -59,6 +96,10 @@ class Catalog:
 def parse_version(value: object) -> Version:
     if not isinstance(value, str):
         raise ReleaseContractError("version must be a SemVer string")
+    if len(value) > MAX_VERSION_LENGTH:
+        raise ReleaseContractError(
+            f"version must not exceed {MAX_VERSION_LENGTH} characters"
+        )
     match = SEMVER.fullmatch(value)
     if match is None:
         raise ReleaseContractError(
@@ -82,14 +123,46 @@ def parse_version(value: object) -> Version:
 
 
 def read_object(path: Path) -> dict[str, Any]:
+    def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ReleaseContractError(f"duplicate JSON key in {path}: {key!r}")
+            result[key] = value
+        return result
+
+    def reject_nonstandard_constant(value: str) -> None:
+        raise ReleaseContractError(
+            f"non-standard JSON constant in {path}: {value}"
+        )
+
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=reject_duplicate_keys,
+            parse_constant=reject_nonstandard_constant,
+        )
     except FileNotFoundError as exc:
         raise ReleaseContractError(f"required file is missing: {path}") from exc
+    except UnicodeDecodeError as exc:
+        raise ReleaseContractError(f"JSON file is not UTF-8: {path}") from exc
+    except RecursionError as exc:
+        raise ReleaseContractError(f"JSON in {path} exceeds the nesting limit") from exc
     except json.JSONDecodeError as exc:
         raise ReleaseContractError(f"invalid JSON in {path}: {exc}") from exc
+    except OSError as exc:
+        raise ReleaseContractError(f"could not read JSON file {path}: {exc}") from exc
     if not isinstance(value, dict):
         raise ReleaseContractError(f"expected a JSON object in {path}")
+    pending: list[tuple[object, int]] = [(value, 0)]
+    while pending:
+        item, depth = pending.pop()
+        if depth > MAX_JSON_DEPTH:
+            raise ReleaseContractError(f"JSON in {path} exceeds the nesting limit")
+        if isinstance(item, dict):
+            pending.extend((child, depth + 1) for child in item.values())
+        elif isinstance(item, list):
+            pending.extend((child, depth + 1) for child in item)
     return value
 
 
@@ -200,47 +273,90 @@ def validate_source_checkout(
         if manifest.get("repository") != f"https://github.com/{PLUGIN_REPOSITORY}":
             raise ReleaseContractError(f"source manifest has the wrong repository for {name}")
         manifests[name] = manifest
+    for directory in OPENCODE_DISTRIBUTION_DIRECTORIES:
+        payload_manifest(repo / directory)
+    for relative in OPENCODE_DISTRIBUTION_FILES:
+        distribution_file_digest(repo / relative)
     return manifests
 
 
 def validate_regenerated_catalog(
     *, catalog_path: Path, source_repo: Path, source_sha: str
 ) -> None:
-    generator = source_repo / "scripts/generate_marketplace.py"
-    if not generator.is_file():
-        raise ReleaseContractError("source checkout has no marketplace generator")
-    with tempfile.TemporaryDirectory(prefix="grillmester-release-contract-") as temp:
-        generated = Path(temp) / "marketplace.json"
-        result = subprocess.run(
-            [
-                sys.executable,
-                str(generator),
-                "--mode",
-                "release",
-                "--sha",
-                source_sha,
-                "--output",
-                str(generated),
-            ],
-            cwd=source_repo,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
+    def required_text(value: object, *, label: str) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ReleaseContractError(f"{label} must be a non-empty string")
+        return value.strip()
+
+    if FULL_SHA.fullmatch(source_sha) is None:
+        raise ReleaseContractError("catalog regeneration needs an exact source SHA")
+    package_manifest = read_object(source_repo / "package-manifest.json")
+    marketplace = package_manifest.get("marketplace")
+    packages = package_manifest.get("packages")
+    if package_manifest.get("schemaVersion") != 1 or not isinstance(marketplace, dict):
+        raise ReleaseContractError("package manifest identity is invalid")
+    if (
+        not isinstance(packages, list)
+        or len(packages) != len(PLUGIN_NAMES)
+        or not all(isinstance(entry, dict) for entry in packages)
+        or [(entry.get("name"), entry.get("path")) for entry in packages]
+        != list(zip(PLUGIN_NAMES, (PLUGIN_PATHS[name] for name in PLUGIN_NAMES)))
+    ):
+        raise ReleaseContractError("package manifest has the wrong package roster")
+
+    owner = required_text(marketplace.get("owner"), label="marketplace owner")
+    plugin_entries: list[dict[str, Any]] = []
+    versions: set[str] = set()
+    for name in PLUGIN_NAMES:
+        path = PLUGIN_PATHS[name]
+        manifest = read_object(source_repo / path / "plugin.json")
+        author = manifest.get("author")
+        if not isinstance(author, dict) or required_text(
+            author.get("name"), label="plugin author"
+        ) != owner:
+            raise ReleaseContractError("plugin author must match marketplace owner")
+        if manifest.get("repository") != f"https://github.com/{PLUGIN_REPOSITORY}":
+            raise ReleaseContractError("plugin repository is not canonical")
+        version = required_text(manifest.get("version"), label="plugin version")
+        versions.add(version)
+        plugin_entries.append(
+            {
+                "name": name,
+                "description": required_text(
+                    manifest.get("description"), label="plugin description"
+                ),
+                "version": version,
+                "source": {
+                    "source": "github",
+                    "repo": PLUGIN_REPOSITORY,
+                    "path": path,
+                    "sha": source_sha,
+                },
+            }
         )
-        if result.returncode != 0:
-            raise ReleaseContractError(
-                "failed to regenerate catalog from the source checkout: "
-                + result.stdout.strip()
-            )
-        if generated.read_bytes() != catalog_path.read_bytes():
-            raise ReleaseContractError(
-                "catalog commit is not byte-identical to regeneration from source.sha"
-            )
+    if len(versions) != 1:
+        raise ReleaseContractError("plugin versions differ")
+    version = next(iter(versions))
+    expected = {
+        "name": required_text(marketplace.get("name"), label="marketplace name"),
+        "owner": {"name": owner},
+        "metadata": {
+            "description": required_text(
+                marketplace.get("description"), label="marketplace description"
+            ),
+            "version": version,
+        },
+        "plugins": plugin_entries,
+    }
+    generated = (json.dumps(expected, indent=2, ensure_ascii=False) + "\n").encode()
+    if generated != catalog_path.read_bytes():
+        raise ReleaseContractError(
+            "catalog commit is not byte-identical to trusted regeneration from source.sha"
+        )
 
 
 def payload_manifest(plugin: Path, *, exclude_manifest: bool = False) -> dict[str, str]:
-    if not plugin.is_dir():
+    if plugin.is_symlink() or not plugin.is_dir():
         raise ReleaseContractError(f"plugin payload is missing: {plugin}")
     result: dict[str, str] = {}
     for path in sorted(plugin.rglob("*")):
@@ -255,6 +371,194 @@ def payload_manifest(plugin: Path, *, exclude_manifest: bool = False) -> dict[st
     if not result:
         raise ReleaseContractError(f"plugin payload contains no files: {plugin}")
     return result
+
+
+def distribution_file_digest(path: Path) -> str:
+    """Hash one required regular distribution input without following symlinks."""
+
+    if path.is_symlink() or not path.is_file():
+        raise ReleaseContractError(
+            f"OpenCode distribution input is not a regular file: {path}"
+        )
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _exact_keys(value: object, expected: set[str], *, label: str) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != expected:
+        raise ReleaseContractError(
+            f"{label} must be an object with exactly {sorted(expected)}"
+        )
+    return value
+
+
+def _component_digest(path: Path) -> str:
+    """Bind one imported component, including its complete regular-file roster."""
+
+    if path.is_symlink():
+        raise ReleaseContractError(f"rights-scoped component is a symlink: {path}")
+    if path.is_file():
+        return distribution_file_digest(path)
+    manifest = payload_manifest(path)
+    canonical = json.dumps(
+        manifest, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _hovmester_component_digests(source_repo: Path) -> dict[str, dict[str, str]]:
+    content_lock = read_object(source_repo / CONTENT_LOCK_PATH)
+    sources = content_lock.get("sources")
+    if not isinstance(sources, dict):
+        raise ReleaseContractError("content-lock sources must be an object")
+    hovmester = _exact_keys(
+        sources.get("hovmester"),
+        {"repository", "revision"},
+        label="content-lock Hovmester source",
+    )
+    if hovmester["repository"] != HOVMESTER_REPOSITORY:
+        raise ReleaseContractError("content lock has no canonical Hovmester source")
+    if hovmester["revision"] != HOVMESTER_REVISION:
+        raise ReleaseContractError("content lock Hovmester revision is not release-approved")
+
+    result: dict[str, dict[str, str]] = {"agents": {}, "skills": {}}
+    for kind in ("agents", "skills"):
+        contracts = content_lock.get(kind)
+        if not isinstance(contracts, dict):
+            raise ReleaseContractError(f"content lock {kind} must be an object")
+        for component_id, contract in sorted(contracts.items()):
+            if not isinstance(component_id, str) or not isinstance(contract, dict):
+                raise ReleaseContractError(f"content lock {kind} entry is invalid")
+            source_ids = {contract.get("source")}
+            lineage = contract.get("lineage", [])
+            if not isinstance(lineage, list):
+                raise ReleaseContractError(
+                    f"content lock {kind} {component_id} lineage must be a list"
+                )
+            source_ids.update(
+                entry.get("source")
+                for entry in lineage
+                if isinstance(entry, dict)
+            )
+            if "hovmester" not in source_ids:
+                continue
+            component_path = (
+                source_repo / "plugin/agents" / f"{component_id}.agent.md"
+                if kind == "agents"
+                else source_repo / "plugin/skills" / component_id
+            )
+            result[kind][component_id] = _component_digest(component_path)
+    if set(result["agents"]) != {"designer", "doctor-who"}:
+        raise ReleaseContractError(
+            "rights scope must contain exactly the imported Designer and Doctor Who agents"
+        )
+    if not result["skills"]:
+        raise ReleaseContractError("rights scope contains no Hovmester-imported skills")
+    return result
+
+
+def _validate_approval_decision(
+    value: object, *, label: str, allowed_statuses: set[str]
+) -> str:
+    decision = _exact_keys(
+        value,
+        {"status", "decisionReference", "authority", "date"},
+        label=label,
+    )
+    status = decision["status"]
+    if status not in allowed_statuses:
+        raise ReleaseContractError(
+            f"{label}.status must be one of {sorted(allowed_statuses)}"
+        )
+    authority = _exact_keys(
+        decision["authority"], {"role", "team"}, label=f"{label}.authority"
+    )
+    for field, text in (
+        ("decisionReference", decision["decisionReference"]),
+        ("authority.role", authority["role"]),
+        ("authority.team", authority["team"]),
+    ):
+        if (
+            not isinstance(text, str)
+            or not text.strip()
+            or len(text) > 256
+            or PLACEHOLDER_APPROVAL_TEXT.search(text)
+        ):
+            raise ReleaseContractError(f"{label}.{field} is missing or a placeholder")
+    date_text = decision["date"]
+    if not isinstance(date_text, str) or APPROVAL_DATE.fullmatch(date_text) is None:
+        raise ReleaseContractError(f"{label}.date must be an ISO calendar date")
+    try:
+        decision_date = dt.date.fromisoformat(date_text)
+    except ValueError as exc:
+        raise ReleaseContractError(f"{label}.date is not a real calendar date") from exc
+    if decision_date > dt.date.today():
+        raise ReleaseContractError(f"{label}.date must not be in the future")
+    return status
+
+
+def validate_stable_rights_approval(source_repo: Path) -> None:
+    """Require a reviewed, content-bound legal/rights record for stable only."""
+
+    approval_path = source_repo / STABLE_RIGHTS_APPROVAL_PATH
+    approval = read_object(approval_path)
+    approval = _exact_keys(
+        approval, {"schemaVersion", "scope", "decisions"}, label="stable rights approval"
+    )
+    if approval["schemaVersion"] != 1:
+        raise ReleaseContractError("stable rights approval schemaVersion must be 1")
+
+    scope = _exact_keys(
+        approval["scope"],
+        {"hovmester", "contentLockSha256", "provenanceSha256", "components"},
+        label="stable rights approval scope",
+    )
+    hovmester = _exact_keys(
+        scope["hovmester"], {"repository", "revision"}, label="approval Hovmester scope"
+    )
+    if hovmester != {
+        "repository": HOVMESTER_REPOSITORY,
+        "revision": HOVMESTER_REVISION,
+    }:
+        raise ReleaseContractError("stable rights approval has the wrong Hovmester scope")
+
+    expected_content_lock = distribution_file_digest(source_repo / CONTENT_LOCK_PATH)
+    expected_provenance = distribution_file_digest(source_repo / PROVENANCE_PATH)
+    if scope["contentLockSha256"] != expected_content_lock:
+        raise ReleaseContractError("stable rights approval does not bind content-lock.json")
+    if scope["provenanceSha256"] != expected_provenance:
+        raise ReleaseContractError("stable rights approval does not bind PROVENANCE.md")
+    for field in ("contentLockSha256", "provenanceSha256"):
+        if not isinstance(scope[field], str) or SHA256.fullmatch(scope[field]) is None:
+            raise ReleaseContractError(f"stable rights approval {field} is not SHA-256")
+
+    components = _exact_keys(
+        scope["components"], {"agents", "skills"}, label="stable rights component scope"
+    )
+    expected_components = _hovmester_component_digests(source_repo)
+    if components != expected_components:
+        raise ReleaseContractError(
+            "stable rights approval does not bind the exact imported component IDs and digests"
+        )
+
+    decisions = _exact_keys(
+        approval["decisions"],
+        {"organizationalRights", "doctorWhoBrand"},
+        label="stable rights decisions",
+    )
+    _validate_approval_decision(
+        decisions["organizationalRights"],
+        label="organizationalRights",
+        allowed_statuses={"approved"},
+    )
+    brand_status = _validate_approval_decision(
+        decisions["doctorWhoBrand"],
+        label="doctorWhoBrand",
+        allowed_statuses={"approved", "renamed"},
+    )
+    if brand_status == "renamed" and "doctor-who" in expected_components["agents"]:
+        raise ReleaseContractError(
+            "doctorWhoBrand cannot be 'renamed' while the Doctor Who agent remains in scope"
+        )
 
 
 def validate_stable_promotion(
@@ -332,6 +636,45 @@ def validate_stable_promotion(
                 + (f"; {detail}" if detail else "")
             )
 
+    for directory in OPENCODE_DISTRIBUTION_DIRECTORIES:
+        stable_payload = payload_manifest(stable_source / directory)
+        rc_payload = payload_manifest(rc_source / directory)
+        if stable_payload != rc_payload:
+            missing = sorted(rc_payload.keys() - stable_payload.keys())
+            added = sorted(stable_payload.keys() - rc_payload.keys())
+            changed = sorted(
+                path
+                for path in stable_payload.keys() & rc_payload.keys()
+                if stable_payload[path] != rc_payload[path]
+            )
+            detail = "; ".join(
+                f"{label}: {', '.join(paths[:5])}"
+                for label, paths in (("missing", missing), ("added", added), ("changed", changed))
+                if paths
+            )
+            raise ReleaseContractError(
+                f"stable {directory} payload differs from the reviewed RC"
+                + (f"; {detail}" if detail else "")
+            )
+
+    for relative in OPENCODE_DISTRIBUTION_FILES:
+        stable_digest = distribution_file_digest(stable_source / relative)
+        rc_digest = distribution_file_digest(rc_source / relative)
+        if stable_digest != rc_digest:
+            raise ReleaseContractError(
+                f"stable {relative} differs from the reviewed RC"
+            )
+
+    for relative in STABLE_GATE_HARNESS_FILES:
+        stable_digest = distribution_file_digest(stable_source / relative)
+        rc_digest = distribution_file_digest(rc_source / relative)
+        if stable_digest != rc_digest:
+            raise ReleaseContractError(
+                f"stable release-gate harness {relative} differs from the reviewed RC"
+            )
+
+    validate_stable_rights_approval(stable_source)
+
 
 def write_outputs(path: Path, values: dict[str, str]) -> None:
     with path.open("a", encoding="utf-8") as output:
@@ -388,7 +731,8 @@ This is a **{status}** with an immutable, two-step provenance chain.{promoted}
 | Layer | Immutable identity |
 | --- | --- |
 | Release tag | `{tag}` → catalog commit `{catalog_sha}` |
-| Plugin payload | catalog source → `{source_sha}` |
+| Source payloads | catalog source → `{source_sha}` |
+| OpenCode {SUPPORTED_OPENCODE_VERSION} bundle | release asset built from `{source_sha}` |
 
 The tag points to a catalog-only commit. It never points at `main` and is never
 moved after publication.
@@ -401,10 +745,186 @@ copilot plugin install grillmester@grillmester
 copilot --agent=grillmester:grillmester
 ```
 
-### Verify
+### Run with OpenCode {SUPPORTED_OPENCODE_VERSION}
+
+Only OpenCode `{SUPPORTED_OPENCODE_VERSION}` and cplt
+`{SUPPORTED_CPLT_RELEASE}` are release-gated for this payload; other versions
+are unverified. Download the release asset and its detached checksum, verify it,
+extract it, and use the bundled immutable target. The primary compatibility
+path is cplt's native OpenCode support: `cplt --agent opencode` receives the
+bundle's config directory directly, so no Grillmester lifecycle manager is
+required. Declare the exact provider and model in the user's normal OpenCode
+config before launch. This source-pinned
+[local-provider example](https://github.com/navikt/grillmester/blob/{source_sha}/docs/local-models.md#koble-opencode-til-den-lokale-serveren)
+shows the complete OpenAI-compatible shape; OpenCode's built-in GitHub Copilot
+provider instead uses its normal `/connect` flow. cplt's `standard` profile
+works with that flow as shown. If `--preset strict`, `--default-allowlist`, or
+an equivalent global setting is active, OpenCode's infrastructure allowlist
+does not automatically include the Copilot-provider domains. Add the pinned,
+reviewed domain list with `--allowed-domains`, never `--allow-all-domains`; the
+source-pinned
+[native cplt notes](https://github.com/navikt/grillmester/blob/{source_sha}/docs/opencode.md#native-cplt-kom-raskt-i-gang)
+contain the exact list for this cplt release.
+
+The optional managed path adds checksum-authenticated client staging and a
+narrower provider contract. In managed cplt mode it checksum-authenticates the
+official OpenCode and cplt platform bytes, stages byte-identical copies in a
+sealed private `trusted-bin`, and runs only those copies. The original
+caller-resolved OpenCode executable is read but not launched. `--direct`
+instead runs that original executable and is an explicit trusted-code opt-out
+from the official checksum, private staging, cplt sandbox, and egress policy.
+Neither path depends on a NAV pilot agent. Python 3.11 or newer is required for
+the optional lifecycle manager. The consumer repository's own `AGENTS.md`
+remains in force.
+
+OpenCode `{SUPPORTED_OPENCODE_VERSION}`'s core V2 loader ignores
+`OPENCODE_DISABLE_PROJECT_CONFIG`. The manager compensates by admitting only
+restriction-only project config (`ask`/`deny` permissions and disabled tools)
+and by resolving its bounded baseline in an empty probe project and test home.
+This is not a same-UID isolation boundary: cplt has no sealed repo-config mode
+and can reread `HEAD:.cplt.toml` after the manager's last snapshot, while a
+concurrent process owned by the same user can still mutate project inputs in a
+final check/use window.
+
+The npm integrity values, GitHub Release asset digests, and cplt `SHA256SUMS`
+bind the reviewed bytes, but they are not a separately verified maintainer
+signature or artifact attestation. The pinned cplt upstream release is mutable;
+the release gate detects byte drift against the committed lock instead of
+claiming stronger upstream provenance.
+
+For the release-gated path, do not bootstrap either client through an npm
+postinstall or an unpinned package-manager formula. After extracting the
+Grillmester bundle, select the exact host row in
+`grillmester-opencode-v1/policy/client-artifacts.json`; verify its archive size,
+archive digest, exact member roster, executable size, and executable digest
+before the client's first execution. Download each client archive from the URL
+in that exact row, then use the bundled offline verifier to publish the two
+verified executables into a private directory. Use those absolute paths in the
+native command or optional manager. Convenience installs are outside this
+release gate.
+Managed cplt on Linux is gated only for the GNU/glibc assets. OpenCode's musl
+rows remain available for native/unmanaged use, but this release has no cplt
+musl asset and therefore makes no managed-musl claim.
+
+```bash
+python3 -c 'import sys; assert sys.version_info >= (3, 11)'
+tag={tag}
+asset="grillmester-opencode-${{tag}}.tar.gz"
+curl --config /dev/null --fail-with-body --silent --show-error --location \
+  --proto '=https' --tlsv1.2 --proto-redir '=https' --max-filesize 61000000 \
+  --output "${{asset}}" \
+  "https://github.com/navikt/grillmester/releases/download/${{tag}}/${{asset}}"
+curl --config /dev/null --fail-with-body --silent --show-error --location \
+  --proto '=https' --tlsv1.2 --proto-redir '=https' --max-filesize 1024 \
+  --output "${{asset}}.sha256" \
+  "https://github.com/navikt/grillmester/releases/download/${{tag}}/${{asset}}.sha256"
+shasum -a 256 -c "${{asset}}.sha256"
+tar -xzf "${{asset}}"
+bundle_root="$(pwd -P)/grillmester-opencode-v1"
+host_os=darwin       # darwin or linux
+host_arch=arm64      # arm64 or x86_64
+opencode_libc=none   # none on macOS; glibc or musl on Linux
+cplt_libc=none       # none on macOS; glibc on managed Linux
+opencode_variant=default
+cplt_variant=default
+OPENCODE_ARCHIVE=/absolute/path/to/downloaded/opencode-client.tgz
+CPLT_ARCHIVE=/absolute/path/to/downloaded/cplt-client.tar.gz
+verified_bin="$PWD/verified-bin"
+mkdir -m 700 "${{verified_bin}}"
+python3 -I -S "${{bundle_root}}/scripts/verify_client_artifact.py" \
+  --client opencode --os "${{host_os}}" --arch "${{host_arch}}" \
+  --libc "${{opencode_libc}}" --variant "${{opencode_variant}}" \
+  --archive "${{OPENCODE_ARCHIVE}}" --output-dir "${{verified_bin}}"
+python3 -I -S "${{bundle_root}}/scripts/verify_client_artifact.py" \
+  --client cplt --os "${{host_os}}" --arch "${{host_arch}}" \
+  --libc "${{cplt_libc}}" --variant "${{cplt_variant}}" \
+  --archive "${{CPLT_ARCHIVE}}" --output-dir "${{verified_bin}}"
+OPENCODE_BIN="${{verified_bin}}/opencode"
+CPLT_BIN="${{verified_bin}}/cplt"
+CONFIG_DIR="${{bundle_root}}/targets/opencode-v1"
+cd /absolute/path/to/consumer-repo
+PATH="${{verified_bin}}:/usr/local/bin:/usr/bin:/bin" \
+OPENCODE_CONFIG_DIR="${{CONFIG_DIR}}" \
+  "${{CPLT_BIN}}" --agent opencode \
+    --project-dir "$PWD" \
+    --allow-read "${{CONFIG_DIR}}" \
+    --pass-env OPENCODE_CONFIG_DIR \
+    --allow-localhost 1234 \
+    -- --agent grillmester
+```
+
+The command above is the primary native cplt path and assumes the selected
+local provider is already running on port `1234`. Replace that port and choose
+the declared model with `/models` when the provider uses another endpoint.
+For a cloud provider, follow the source-pinned
+[cloud-provider example](https://github.com/navikt/grillmester/blob/{source_sha}/docs/opencode.md#åpen-modell-i-cloud)
+and pass only the credential environment variable named by that config.
+
+#### Optional managed hardening
+
+The manager is not required for cplt compatibility. Its model catalog is empty
+by design, so a managed launch must explicitly bind a provider ID, exact base
+URL, and at least one model already declared in the user's OpenCode config.
+Replace the example model ID below with the real ID from the linked local
+provider config:
+
+```bash
+python3 -I -S "${{bundle_root}}/scripts/manage_opencode.py" install \
+  --source "${{bundle_root}}"
+cd /absolute/path/to/consumer-repo
+python3 -I -S "${{bundle_root}}/scripts/manage_opencode.py" launch \
+  --profile local \
+  --provider-id lmstudio \
+  --provider-base-url lmstudio=http://127.0.0.1:1234/v1 \
+  --provider-model lmstudio/replace-with-id-from-v1-models \
+  --local-port 1234 \
+  --opencode "${{OPENCODE_BIN}}" --cplt "${{CPLT_BIN}}"
+```
+
+`local` enables an explicit localhost port but retains OpenCode infrastructure
+and compatibility-safe cplt settings such as an upstream proxy; it does not
+attest that the active model is local. The audited launcher rejects extra
+access, environment, and network relaxations. `cloud-open-weight` describes
+routing intent, not verified weights or license. It accepts public hostnames
+only and rejects localhost, IP literals, and `--private-provider-domain`;
+private or internal providers must use `hybrid` with the same hostname in
+`--provider-domain HOST` and `--private-provider-domain HOST`. Managed hostname
+isolation uses implicit HTTPS port 443 only. A custom provider port requires
+native unmanaged cplt (or an upstream cplt improvement) and does not receive
+this managed hostname-isolation guarantee. The manager does no DNS preflight:
+cplt guards public/private and loopback routing when the connection is made,
+avoiding a DNS TOCTOU gap.
+
+Managed cplt profiles point `OPENCODE_MODELS_PATH` at a manager-owned, read-only
+empty catalog. Only explicitly configured provider/model pairs using exactly
+the npm package `@ai-sdk/openai-compatible` are admitted. This narrower
+executable-provider surface is a Grillmester hardening tradeoff, not a cplt
+requirement; unmanaged cplt retains OpenCode's ambient catalog and broader
+provider support. The profile config is only a baseline because managed/MDM
+config can merge later. The manager validates the effective resolved config,
+and `OPENCODE_DISABLE_SHARE=true` blocks sharing independently of merge order.
+
+The macOS-only `local-only` profile isolates cplt policy and external egress.
+Seatbelt treats every address assigned to the Mac as localhost, while the
+manager binds the selected provider URL separately to loopback; other host-local
+services on the selected port and the provider itself remain separate trust and
+egress boundaries. Model quality is gated separately from this deterministic
+runtime contract.
+
+### Verify Copilot
 
 ```bash
 copilot plugin list
+```
+
+### Verify OpenCode
+
+This is a discovery-only check; it does not contact the selected model:
+
+```bash
+test "$("${{OPENCODE_BIN}}" --version)" = "{SUPPORTED_OPENCODE_VERSION}"
+OPENCODE_CONFIG_DIR="${{CONFIG_DIR}}" \
+  "${{OPENCODE_BIN}}" agent list --pure | grep -Fx 'grillmester (primary)'
 ```
 
 ### Roll back
@@ -414,6 +934,14 @@ reviewed tag. For a personal installation, uninstall Grillmester, add/update
 the marketplace at the previous tag, and reinstall the plugin. Tags are
 immutable; never retag an older or
 newer catalog.
+
+For the primary native cplt path, stop the active session; it creates no
+Grillmester lifecycle installation to roll back. If the optional manager was
+installed, use that same retained, checksum-verified release bundle:
+
+```bash
+python3 -I -S "${{bundle_root}}/scripts/manage_opencode.py" rollback
+```
 """
 
 
@@ -440,6 +968,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     validate.add_argument("--rc-catalog-repo", type=Path)
     validate.add_argument("--rc-catalog-sha")
     validate.add_argument("--rc-source-repo", type=Path)
+
+    validate_source = commands.add_parser(
+        "validate-source-promotion",
+        help="validate a prospective catalog and its source before catalog publication",
+    )
+    add_common_inspect_arguments(validate_source)
+    validate_source.add_argument("--source-repo", type=Path, required=True)
+    validate_source.add_argument("--rc-tag")
+    validate_source.add_argument("--rc-catalog", type=Path)
+    validate_source.add_argument("--rc-source-repo", type=Path)
 
     notes = commands.add_parser("notes", help="render deterministic release notes")
     notes.add_argument("--channel", choices=("rc", "stable"), required=True)
@@ -523,6 +1061,49 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(
                 f"Validated {args.channel} chain: {catalog.version.tag} -> "
                 f"{args.catalog_sha} -> {catalog.source_sha}"
+            )
+            return 0
+
+        if args.command == "validate-source-promotion":
+            catalog = inspect_catalog(args.catalog, channel=args.channel)
+            validate_source_checkout(args.source_repo, catalog)
+            validate_regenerated_catalog(
+                catalog_path=args.catalog,
+                source_repo=args.source_repo,
+                source_sha=catalog.source_sha,
+            )
+            rc_values = (args.rc_tag, args.rc_catalog, args.rc_source_repo)
+            if args.channel == "rc":
+                if any(value is not None for value in rc_values):
+                    raise ReleaseContractError(
+                        "RC source promotion must not specify an RC parent"
+                    )
+            else:
+                if any(value is None for value in rc_values):
+                    raise ReleaseContractError(
+                        "stable source promotion requires --rc-tag, --rc-catalog, "
+                        "and --rc-source-repo"
+                    )
+                assert args.rc_tag is not None
+                assert args.rc_catalog is not None
+                assert args.rc_source_repo is not None
+                rc = inspect_catalog(args.rc_catalog, channel="rc")
+                validate_source_checkout(args.rc_source_repo, rc)
+                validate_regenerated_catalog(
+                    catalog_path=args.rc_catalog,
+                    source_repo=args.rc_source_repo,
+                    source_sha=rc.source_sha,
+                )
+                validate_stable_promotion(
+                    catalog,
+                    args.source_repo,
+                    args.rc_tag,
+                    rc,
+                    args.rc_source_repo,
+                )
+            print(
+                f"Validated prospective {args.channel} source: "
+                f"{catalog.version.tag} -> {catalog.source_sha}"
             )
             return 0
 

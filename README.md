@@ -4,117 +4,102 @@
   <img src="docs/assets/grillmester-hero.jpg" alt="En retro robotgrillmester ved en kullgrill i et norsk landskap" width="100%">
 </p>
 
-Grillmester er en GitHub Copilot-plugin med agenter og skills for utvikling,
-design og produktarbeid i Nav. Tilgang og tillatt bruk styres av Navs gjeldende
-policy.
+Grillmester er et agentteam for utvikling, design og produktarbeid i Nav. Det
+leveres som plugin for GitHub Copilot og som et eget target for OpenCode, med
+fire agenter du kan velge, tre interne roller og 42 skills. Tilgang og tillatt
+bruk styres av Navs gjeldende policy.
 
-## Agentene
+## Kom i gang
 
-Velg agent ut fra hva du skal gjøre:
+Velg klienten du allerede bruker. Begge gir tilgang til det samme agentteamet
+og de samme arbeidsmetodene.
 
-| Agent | Bruk når |
-| --- | --- |
-| **Grillmester** 🔥 | Oppgaven er uklar, viktig eller tverrgående. Grillmester avklarer valg og risiko før en avgrenset løsning implementeres og vurderes. |
-| **Barista** ☕ | Målet er tydelig og oppgaven kan løses som vanlig repoarbeid. Barista forstår, implementerer og verifiserer i en lett flyt. |
-| **Designer** 🎨 | Du vil utforske brukerflyt, konsepter, Aksel, Visual Companion eller Figma. Designer utforsker alternativer og lager en designleveranse, men implementerer ikke produktkode. |
-| **Doctor Who** 🕰️ | Du trenger støtte til discovery, mål, prioritering, workshops, teamhelse, produktfag eller Nav-arkitektur. |
+### GitHub Copilot
 
-Kokk, Grill-inspektør og Researcher er interne roller som agentene bruker ved
-behov. [Se alle agenter og skills](docs/agents-and-skills.md).
-
-Når designoppgaven trenger det, kan Designer bruke Aksel, Figma og Playwright.
-Se [valgfritt MCP-oppsett](docs/mcp-setup.md) for capabilities og oppsett.
-
-## Installer
-
-Kjør dette én gang:
+**Installer:**
 
 ```bash
 copilot plugin marketplace add navikt/grillmester#marketplace
 copilot plugin install grillmester@grillmester
 ```
 
-Start en ny Copilot-sesjon, åpne `/agent`, og velg en agent under
-`grillmester`.
+**Start:** Åpne en ny Copilot-sesjon, bruk `/agent`, og velg
+`grillmester:grillmester` eller en av de andre Grillmester-agentene.
 
-### Valgfri automatisk oppdatering i Copilot CLI
+Se [installasjonsguiden](docs/installation.md) for automatisk oppdatering,
+Copilot app, fast versjon og aktivering i et teamrepo.
 
-For personlig bruk i Copilot CLI kan du selv velge automatisk oppdatering. Legg
-Grillmester til i `~/.copilot/settings.json`, og behold eventuelle andre
-innstillinger i filen:
+### OpenCode via cplt
 
-```json
-{
-  "extraKnownMarketplaces": {
-    "grillmester": {
-      "source": {
-        "source": "github",
-        "repo": "navikt/grillmester",
-        "ref": "marketplace"
-      },
-      "autoUpdate": true
-    }
-  },
-  "enabledPlugins": {
-    "grillmester@grillmester": true
-  }
-}
+**Forutsetninger:** Installer OpenCode `1.18.20` og cplt
+`2026.08.17-062831-1008a92` som beskrevet i
+[klientguiden](docs/opencode.md#installer-eksakte-klienter).
+
+**Hent Grillmester:** Last ned, verifiser og pakk ut OpenCode-bundle-en fra en
+reviewet [Grillmester-release](https://github.com/navikt/grillmester/releases).
+Bruk en release som inneholder både `tar.gz`- og `.sha256`-asseten, og følg
+[verifiseringsstegene](docs/opencode.md#hent-og-verifiser-en-grillmester-bundle).
+
+**Velg modell:** For lokale og cloudbaserte providere bruker du det tilhørende
+oppsettet og startkommandoen i
+[providerguiden](docs/opencode.md#native-cplt-kom-raskt-i-gang). De legger til
+port- eller credential-tilgangen cplt trenger. OpenCodes GitHub Copilot-provider
+kobles i stedet til med `/connect` etter oppstart.
+
+**Start med GitHub Copilot-provider:** Start OpenCode gjennom cplt med den
+utpakkede Grillmester-pakken, og bruk deretter `/connect` i OpenCode:
+
+```bash
+GRILLMESTER_ROOT=/absolute/path/to/extracted/grillmester-opencode-v1
+CONFIG_DIR="$GRILLMESTER_ROOT/targets/opencode-v1"
+cd /path/to/consumer-repo
+OPENCODE_CONFIG_DIR="$CONFIG_DIR" \
+  cplt --agent opencode --project-dir "$PWD" \
+    --allow-read "$CONFIG_DIR" --pass-env OPENCODE_CONFIG_DIR \
+    -- --agent grillmester
 ```
 
-Copilot CLI sjekker da etter nye versjoner når en ny sesjon starter.
+Grillmester velger ikke provider eller modell. Trenger du en kontrollert,
+immutable installasjon med profiler og rollback, kan du velge den [avanserte
+lifecycle-flyten](docs/opencode.md#valgfri-lifecycle-manager). Den er ikke
+nødvendig for vanlig cplt-bruk.
 
-### Klientstatus
+## Velg agent
 
-- **Copilot CLI:** Referanseklient med valgfri personlig auto-oppdatering.
-- **Copilot app:** Oppdater en installert plugin manuelt med **Update**.
-- **VS Code:** Egen oppdateringsmekanisme; custom-marketplace-oppdatering er
-  ikke verifisert.
+| Agent | Bruk når |
+| --- | --- |
+| **Grillmester** 🔥 | Oppgaven er uklar, viktig eller tverrgående. Grillmester avklarer valg og risiko før en avgrenset løsning implementeres og vurderes. |
+| **Barista** ☕ | Målet er tydelig og oppgaven kan løses som vanlig repoarbeid. Barista forstår, implementerer og verifiserer i en lett flyt. |
+| **Designer** 🎨 | Du vil utforske brukerflyt, konsepter, Aksel, Visual Companion eller Figma. Designer lager en designleveranse, men implementerer ikke produktkode. |
+| **Doctor Who** 🕰️ | Du trenger støtte til discovery, mål, prioritering, workshops, teamhelse, produktfag eller Nav-arkitektur. |
 
-Se [installasjonsguiden](docs/installation.md) for manuell oppdatering, fast
-versjon, Copilot-appen og aktivering i et teamrepo.
+Beskriv ønsket resultat, relevant kontekst og avgrensninger. Agenten laster
+normalt riktige skills selv. Kokk, Grill-inspektør og Researcher er interne
+roller som agentteamet bruker ved behov. [Se alle agenter og
+skills](docs/agents-and-skills.md).
 
-## Bruk
+## Støtte og avgrensninger
 
-Velg agent med `/agent`, og beskriv ønsket resultat, relevant kontekst og
-eventuelle avgrensninger. Du trenger vanligvis ikke velge skills selv; agenten
-laster dem ved behov.
+GitHub Copilot CLI er best testet. Copilot app støtter personlig
+plugininstallasjon; VS Code er ikke fullt verifisert. OpenCode-støtten gjelder
+den eksakte klientkombinasjonen over, og hver konkret lokal eller cloudbasert
+modell må kvalitetsvalideres separat. Se [klientstatus og tekniske
+releasegater](docs/trust-and-client-support.md).
 
-Eksempel med Grillmester:
+Grillmester kan brukes sammen med `navikt/copilot`. Se hvordan [repo-eid
+kontekst, overlapp og eventuelle
+kollisjoner](docs/repository-context.md#samspill-med-naviktcopilot) håndteres.
 
-> Kartlegg hva som må avklares før vi endrer denne flyten. Skill mellom fakta,
-> antakelser og reelle beslutninger. Ikke implementer før retningen er
-> godkjent.
+## Dokumentasjon
 
-Eksempel med Barista:
+- **Installere:** [GitHub Copilot](docs/installation.md) · [OpenCode via cplt](docs/opencode.md)
+- **Velge modeller:** [Lokale og cloudbaserte modeller](docs/local-models.md)
+- **Bruke agentteamet:** [Agenter og skills](docs/agents-and-skills.md) · [valgfritt MCP-oppsett](docs/mcp-setup.md)
+- **Forstå og bidra:** [Repo-kontekst](docs/repository-context.md) · [utvikling](docs/development.md)
 
-> Gjør denne valideringsfeilen tydelig for brukeren. Hold endringen liten, følg
-> repoets mønstre og kjør relevante tester.
-
-## Samspill med `navikt/copilot`
-
-Noen skills overlapper faglig med `navikt/copilot`, men har
-`grillmester-`-prefiks og kan installeres side om side. Kjør
-`/grillmester-doctor` for å kontrollere overlapp og lokale kollisjoner.
-Repoets `AGENTS.md`, instructions og PR-/issue-maler beholdes som før.
-
-## Hvis agentene ikke dukker opp
-
-1. Kjør `copilot plugin list`.
-2. Start en ny Copilot-sesjon og åpne `/agent`.
-3. Kjør `/grillmester-doctor`.
-
-Fortsatt problemer? [Opprett et issue](https://github.com/navikt/grillmester/issues/new/choose).
+Problemer eller forslag? [Opprett et issue](https://github.com/navikt/grillmester/issues/new/choose).
 Ikke legg secrets, personopplysninger eller sårbarhetsdetaljer i et offentlig
 issue; bruk [private vulnerability reporting](SECURITY.md) for sårbarheter.
 
-## Mer dokumentasjon
-
-- [Installasjon](docs/installation.md) og [macOS-klientvalidering](docs/macos-client-validation-protocol.md)
-- [Agenter og skills](docs/agents-and-skills.md)
-- [Repo-eid kontekst, instructions og templates](docs/repository-context.md)
-- [Utvikling og bidrag](docs/development.md)
-
 Grillmester vedlikeholdes av Team eSyfo for Nav og er tilgjengelig under
-[MIT-lisensen](LICENSE). Grillmønsteret bygger på Matt Pococks
-[`grill-me`- og `grilling`-skills](https://github.com/mattpocock/skills/tree/2ab958093e83e0ec752e6c1c5932da465bf23e0c/skills/productivity).
-Se [proveniens og tredjepartslisenser](PROVENANCE.md).
+[MIT-lisensen](LICENSE). Se [proveniens og tredjepartslisenser](PROVENANCE.md).

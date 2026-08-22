@@ -1,0 +1,568 @@
+name: Verify pinned OpenCode and cplt on macOS
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact Grillmester source commit to verify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  macos-live-compatibility:
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+    steps:
+      - name: Check out exact immutable source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download and verify native Darwin clients before first execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+
+          machine="$(uname -m)"
+          case "${machine}" in
+            arm64)
+              opencode_url="https://registry.npmjs.org/opencode-darwin-arm64/-/opencode-darwin-arm64-1.18.20.tgz"
+              opencode_archive_size=45912069
+              opencode_archive_sha512="7e010126cc31f75380b44989cbb8934f6da262c69d0b29f8629eeb574f60fae7f9968c995e49f238b62620b6080ebbc43fa16b50bacf6160635a65aa22beae80"
+              opencode_binary_size=143925602
+              opencode_binary_sha256="9598c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952"
+              cplt_url="https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-aarch64-apple-darwin.tar.gz"
+              cplt_archive_size=1480572
+              cplt_archive_sha256="fb1fd69f5ff42deb1cf2e510d97a58ff5f7ddf913e1cd4f7533815a16588eeda"
+              cplt_binary_size=3122208
+              cplt_binary_sha256="423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2"
+              ;;
+            x86_64)
+              # The baseline archive is byte-equivalent at the executable layer
+              # and keeps this gate honest on older hosted Intel CPUs.
+              opencode_url="https://registry.npmjs.org/opencode-darwin-x64-baseline/-/opencode-darwin-x64-baseline-1.18.20.tgz"
+              opencode_archive_size=48089428
+              opencode_archive_sha512="f8a179f6efd24a3532686aadae3724cb0b151b2a8170ece444970ed5cdc2af1fc8295f94d9accdb8867f4b6da78047d77f8bbd7f1793fc2a2199cceadacf1509"
+              opencode_binary_size=149405776
+              opencode_binary_sha256="96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60"
+              cplt_url="https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-x86_64-apple-darwin.tar.gz"
+              cplt_archive_size=1613282
+              cplt_archive_sha256="e60687724df8a2fdb6f99654cc80f1a0dccb215263c2d984c222ff99ce56f8ea"
+              cplt_binary_size=3546896
+              cplt_binary_sha256="36592c1b2bcfd7ab2d9083842b0aa7f51737cdf12ec1752d351bd9467dab5c02"
+              ;;
+            *)
+              echo "Unsupported macOS runner architecture: ${machine}" >&2
+              exit 1
+              ;;
+          esac
+
+          downloads="${RUNNER_TEMP}/darwin-client-archives"
+          verified_bin="${RUNNER_TEMP}/verified-darwin-bin"
+          mkdir -m 700 "${downloads}" "${verified_bin}"
+          opencode_archive="${downloads}/opencode.tgz"
+          cplt_archive="${downloads}/cplt.tar.gz"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 50000000 --output "${opencode_archive}" "${opencode_url}"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 10000000 --output "${cplt_archive}" "${cplt_url}"
+
+          python3 -I -S - \
+            "${opencode_archive}" "${opencode_archive_size}" \
+            "${opencode_archive_sha512}" "${opencode_binary_size}" \
+            "${opencode_binary_sha256}" \
+            "${cplt_archive}" "${cplt_archive_size}" \
+            "${cplt_archive_sha256}" "${cplt_binary_size}" \
+            "${cplt_binary_sha256}" "${verified_bin}" <<'PY'
+          import hashlib
+          import os
+          import stat
+          import sys
+          import tarfile
+          from pathlib import Path
+
+          (
+              opencode_archive,
+              opencode_archive_size,
+              opencode_archive_sha512,
+              opencode_binary_size,
+              opencode_binary_sha256,
+              cplt_archive,
+              cplt_archive_size,
+              cplt_archive_sha256,
+              cplt_binary_size,
+              cplt_binary_sha256,
+              output_directory,
+          ) = sys.argv[1:]
+
+          def fail(message: str) -> None:
+              raise SystemExit(f"Darwin client verification failed: {message}")
+
+          def read_archive(path_value: str, expected_size: int, algorithm: str, digest: str) -> bytes:
+              path = Path(path_value)
+              flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+              descriptor = os.open(path, flags)
+              try:
+                  observed = os.fstat(descriptor)
+                  if not stat.S_ISREG(observed.st_mode) or observed.st_size != expected_size:
+                      fail(f"archive size or type differs for {path.name}")
+                  with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                      content = stream.read(expected_size + 1)
+              finally:
+                  os.close(descriptor)
+              if len(content) != expected_size:
+                  fail(f"archive changed while reading {path.name}")
+              if hashlib.new(algorithm, content).hexdigest() != digest:
+                  fail(f"archive digest differs for {path.name}")
+              return content
+
+          def publish_binary(
+              archive: bytes,
+              expected_roster: list[str],
+              binary_member: str,
+              expected_size: int,
+              expected_digest: str,
+              output_name: str,
+          ) -> None:
+              import io
+
+              with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as package:
+                  if package.pax_headers:
+                      fail(f"global PAX headers are forbidden in {output_name}")
+                  members = package.getmembers()
+                  if [member.name for member in members] != expected_roster:
+                      fail(f"archive roster differs for {output_name}")
+                  selected = None
+                  for member in members:
+                      if not member.isfile() or member.pax_headers or member.linkname:
+                          fail(f"archive contains a link or special member for {output_name}")
+                      if member.name == binary_member:
+                          selected = member
+                  if selected is None or selected.size != expected_size:
+                      fail(f"executable size differs for {output_name}")
+                  extracted = package.extractfile(selected)
+                  if extracted is None:
+                      fail(f"cannot read executable member for {output_name}")
+                  executable = extracted.read(expected_size + 1)
+              if len(executable) != expected_size:
+                  fail(f"executable changed while reading {output_name}")
+              if hashlib.sha256(executable).hexdigest() != expected_digest:
+                  fail(f"executable digest differs for {output_name}")
+
+              destination = Path(output_directory) / output_name
+              flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
+              descriptor = os.open(destination, flags, 0o500)
+              try:
+                  with os.fdopen(descriptor, "wb", closefd=False) as target:
+                      target.write(executable)
+                      target.flush()
+                      os.fsync(descriptor)
+                  os.fchmod(descriptor, 0o555)
+              finally:
+                  os.close(descriptor)
+
+          opencode_bytes = read_archive(
+              opencode_archive,
+              int(opencode_archive_size),
+              "sha512",
+              opencode_archive_sha512,
+          )
+          cplt_bytes = read_archive(
+              cplt_archive,
+              int(cplt_archive_size),
+              "sha256",
+              cplt_archive_sha256,
+          )
+          publish_binary(
+              opencode_bytes,
+              ["package/package.json", "package/bin/opencode"],
+              "package/bin/opencode",
+              int(opencode_binary_size),
+              opencode_binary_sha256,
+              "opencode",
+          )
+          publish_binary(
+              cplt_bytes,
+              ["cplt"],
+              "cplt",
+              int(cplt_binary_size),
+              cplt_binary_sha256,
+              "cplt",
+          )
+          PY
+
+          [[ "$(stat -f '%Lp:%u' "${verified_bin}/opencode")" == "555:$(id -u)" ]]
+          [[ "$(stat -f '%Lp:%u' "${verified_bin}/cplt")" == "555:$(id -u)" ]]
+          [[ "$(shasum -a 256 "${verified_bin}/opencode" | cut -d' ' -f1)" == \
+             "${opencode_binary_sha256}" ]]
+          [[ "$(shasum -a 256 "${verified_bin}/cplt" | cut -d' ' -f1)" == \
+             "${cplt_binary_sha256}" ]]
+
+          # These are the first client executions in this job.
+          [[ "$("${verified_bin}/opencode" --version)" == "1.18.20" ]]
+          [[ "$("${verified_bin}/cplt" --version)" == \
+             "cplt 2026.08.17-062831-1008a92" ]]
+          {
+            echo "OPENCODE_BIN=${verified_bin}/opencode"
+            echo "CPLT_BIN=${verified_bin}/cplt"
+            echo "OPENCODE_BINARY_SHA256=${opencode_binary_sha256}"
+            echo "CPLT_BINARY_SHA256=${cplt_binary_sha256}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Prove strict native OpenCode Copilot-provider network policy without auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy="${RUNNER_TEMP}/native-opencode-copilot-policy"
+          mkdir -m 700 "${policy}"
+          : > "${policy}/cplt-config.toml"
+          printf '%s\n' \
+            githubcopilot.com \
+            api.github.com \
+            github.com \
+            copilot-proxy.githubusercontent.com \
+            actions.githubusercontent.com \
+            default.exp2.cds.s9ch.io \
+            > "${policy}/allowed-domains.txt"
+          chmod 0400 "${policy}/cplt-config.toml" "${policy}/allowed-domains.txt"
+
+          policy_command=(
+            "${CPLT_BIN}"
+            --agent opencode
+            --preset strict
+            --no-scratch-dir
+            --allowed-domains "${policy}/allowed-domains.txt"
+          )
+          expectations=(
+            "github.com:443" "allowed"
+            "api.githubcopilot.com:443" "allowed"
+            "exfiltration.invalid:443" "blocked"
+          )
+          for ((index = 0; index < ${#expectations[@]}; index += 2)); do
+            target="${expectations[index]}"
+            decision="${expectations[index + 1]}"
+            result="${policy}/result-${index}.json"
+            CPLT_CONFIG="${policy}/cplt-config.toml" \
+              "${policy_command[@]}" check net --no-connect --json "${target}" \
+              > "${result}"
+            jq -e --arg target "${target}" --arg decision "${decision}" '
+              .agent == "OpenCode" and .preset == "strict" and
+              .battery == false and (.items | length) == 1 and
+              .items[0].category == "network" and
+              .items[0].target == $target and
+              .items[0].decision == $decision
+            ' "${result}" >/dev/null
+          done
+
+      - name: Run native Darwin discovery and deterministic runtime smokes
+        shell: bash
+        env:
+          PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+        run: |
+          set -euo pipefail
+          [[ "$(stat -f '%Lp:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
+          [[ "$(stat -f '%Lp:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
+          [[ "$(shasum -a 256 "${OPENCODE_BIN}" | cut -d' ' -f1)" == \
+             "${OPENCODE_BINARY_SHA256}" ]]
+          [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
+             "${CPLT_BINARY_SHA256}" ]]
+          python3 -I -S scripts/smoke_opencode.py \
+            --require-binary --opencode "${OPENCODE_BIN}"
+          python3 -I -S scripts/smoke_opencode_runtime.py \
+            --require-binary --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"
+
+      - name: Build and extract the exact distributable bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle="${RUNNER_TEMP}/macos-opencode-bundle.tar.gz"
+          repeated="${RUNNER_TEMP}/macos-opencode-bundle-repeated.tar.gz"
+          python3 -I -S scripts/build_opencode_bundle.py \
+            --source-root "${GITHUB_WORKSPACE}" --source-sha "${SOURCE_SHA}" \
+            --output "${bundle}"
+          python3 -I -S scripts/build_opencode_bundle.py \
+            --source-root "${GITHUB_WORKSPACE}" --source-sha "${SOURCE_SHA}" \
+            --output "${repeated}"
+          cmp -s "${bundle}" "${repeated}"
+
+          extraction="${RUNNER_TEMP}/macos-bundle-extraction"
+          mkdir -m 700 "${extraction}"
+          python3 -I -S - "${bundle}" "${extraction}" <<'PY'
+          import os
+          import stat
+          import sys
+          import tarfile
+          from pathlib import Path, PurePosixPath
+
+          archive = Path(sys.argv[1])
+          root = Path(sys.argv[2]).resolve(strict=True)
+          directories: list[tuple[Path, int]] = []
+          with tarfile.open(archive, mode="r:gz") as bundle:
+              members = bundle.getmembers()
+              if not members or len(members) > 10_000 or bundle.pax_headers:
+                  raise SystemExit("bundle has an invalid member roster")
+              for member in members:
+                  path = PurePosixPath(member.name)
+                  if (
+                      path.is_absolute()
+                      or any(part in ("", ".", "..") for part in path.parts)
+                      or not path.parts
+                      or path.parts[0] != "grillmester-opencode-v1"
+                      or member.pax_headers
+                  ):
+                      raise SystemExit(f"unsafe bundle path: {member.name!r}")
+                  destination = root.joinpath(*path.parts)
+                  if member.isdir():
+                      destination.mkdir(mode=0o700, exist_ok=False)
+                      directories.append((destination, stat.S_IMODE(member.mode)))
+                      continue
+                  if not member.isfile() or member.linkname or member.size > 5_000_000:
+                      raise SystemExit(f"unsafe bundle member: {member.name!r}")
+                  extracted = bundle.extractfile(member)
+                  if extracted is None:
+                      raise SystemExit(f"cannot read bundle member: {member.name!r}")
+                  content = extracted.read(member.size + 1)
+                  if len(content) != member.size:
+                      raise SystemExit(f"bundle member size changed: {member.name!r}")
+                  flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+                  descriptor = os.open(destination, flags, 0o400)
+                  try:
+                      with os.fdopen(descriptor, "wb", closefd=False) as output:
+                          output.write(content)
+                          output.flush()
+                          os.fsync(descriptor)
+                      os.fchmod(descriptor, stat.S_IMODE(member.mode))
+                  finally:
+                      os.close(descriptor)
+          for directory, mode in reversed(directories):
+              directory.chmod(mode)
+          PY
+          bundle_root="${extraction}/grillmester-opencode-v1"
+          [[ -f "${bundle_root}/DISTRIBUTION-MANIFEST.json" ]]
+          echo "BUNDLE_ROOT=${bundle_root}" >> "${GITHUB_ENV}"
+
+      - name: Prove cplt local-only policy and host-local socket semantics
+        shell: bash
+        env:
+          PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+        run: |
+          set -euo pipefail
+          [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
+             "${CPLT_BINARY_SHA256}" ]]
+          project="${RUNNER_TEMP}/empty-consumer"
+          policy="${RUNNER_TEMP}/local-only-policy"
+          mkdir -m 700 "${project}" "${policy}"
+          git -C "${project}" init --quiet
+          : > "${policy}/cplt-config.toml"
+          printf '%s\n' 'grillmester-local-only.invalid' > "${policy}/allowed-domains.txt"
+          printf '%s\n' \
+            registry.npmjs.org registry.yarnpkg.com repo.maven.apache.org \
+            plugins.gradle.org crates.io static.crates.io pypi.org \
+            files.pythonhosted.org opencode.ai models.dev \
+            grillmester-local-only.invalid > "${policy}/blocked-domains.txt"
+          chmod 0400 "${policy}"/*
+
+          listener_info="${RUNNER_TEMP}/listener-port"
+          python3 -I -S - "${listener_info}" <<'PY' &
+          import socket
+          import sys
+          from pathlib import Path
+
+          server = socket.socket()
+          server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+          server.bind(("0.0.0.0", 0))
+          server.listen(16)
+          Path(sys.argv[1]).write_text(f"{server.getsockname()[1]}\n", encoding="ascii")
+          while True:
+              connection, _address = server.accept()
+              connection.close()
+          PY
+          listener_pid=$!
+          trap 'kill "${listener_pid}" 2>/dev/null || true' EXIT
+          for _attempt in {1..100}; do
+            [[ -s "${listener_info}" ]] && break
+            sleep 0.1
+          done
+          [[ -s "${listener_info}" ]]
+          listener_port="$(<"${listener_info}")"
+          [[ "${listener_port}" =~ ^[1-9][0-9]{1,4}$ ]]
+
+          policy_command=(
+            "${CPLT_BIN}"
+            --yes --scratch-dir --deny-clipboard --no-audit --no-quiet
+            --agent opencode --project-dir "${project}" --preset strict
+            --with-proxy --proxy-forced --default-allowlist
+            --gh-guard --git-guard --no-allow-localhost-any
+            --no-allow-env-files --no-allow-tmp-exec --no-allow-docker
+            --no-allow-lifecycle-scripts
+            --allow-localhost "${listener_port}"
+            --allowed-domains "${policy}/allowed-domains.txt"
+            --blocked-domains "${policy}/blocked-domains.txt"
+          )
+
+          battery="${RUNNER_TEMP}/cplt-check-battery.json"
+          check_status=0
+          CPLT_CONFIG="${policy}/cplt-config.toml" \
+            "${policy_command[@]}" check --json > "${battery}" || check_status=$?
+          # local-only is deliberately stricter than cplt's generic battery: it
+          # blocks OpenCode's normal allowed domains, so inspect every probe and
+          # require that single intentional mismatch instead of trusting exit 0.
+          [[ "${check_status}" == "1" ]]
+          jq -e '
+            .platform == "macos (Seatbelt)" and .battery == true and .enforcing == false and
+            (.items | length) == 7 and .verified == 4 and
+            ([.items[] | select(.category == "filesystem")] | length) == 4 and
+            ([.items[] | select(.category == "exec")] | length) == 1 and
+            ([.items[] | select(.category == "network")] | length) == 2 and
+            all(.items[]; .expected != null) and
+            all(.items[] | select((.category == "filesystem" or .category == "exec") and .expected != null);
+                .decision == .expected) and
+            any(.items[]; .category == "network" and .target == "opencode.ai:443" and
+                .expected == "allowed" and .decision == "blocked") and
+            any(.items[]; .category == "network" and .target == "169.254.169.254:443" and
+                .expected == "blocked" and .decision == "blocked")
+          ' "${battery}" >/dev/null
+
+          allowed="${RUNNER_TEMP}/cplt-check-allowed.json"
+          CPLT_CONFIG="${policy}/cplt-config.toml" \
+            "${policy_command[@]}" check --json net \
+            "127.0.0.1:${listener_port}" --no-connect > "${allowed}"
+          jq -e --arg target "127.0.0.1:${listener_port}" '
+            .platform == "macos (Seatbelt)" and .battery == false and
+            (.items | length) == 1 and .items[0].target == $target and
+            .items[0].decision == "allowed"
+          ' "${allowed}" >/dev/null
+
+          blocked="${RUNNER_TEMP}/cplt-check-blocked.json"
+          CPLT_CONFIG="${policy}/cplt-config.toml" \
+            "${policy_command[@]}" check --json net opencode.ai:443 \
+            --no-connect > "${blocked}"
+          jq -e '
+            .platform == "macos (Seatbelt)" and .battery == false and
+            (.items | length) == 1 and .items[0].target == "opencode.ai:443" and
+            .items[0].decision == "blocked"
+          ' "${blocked}" >/dev/null
+
+          CPLT_CONFIG="${policy}/cplt-config.toml" \
+            "${policy_command[@]}" exec -- \
+            /usr/bin/nc -z -G 2 127.0.0.1 "${listener_port}"
+          runner_ip="$(/sbin/ifconfig | awk '$1 == "inet" && $2 !~ /^127\./ {print $2; exit}')"
+          python3 -I -S - "${runner_ip}" <<'PY'
+          import ipaddress
+          import sys
+
+          address = ipaddress.ip_address(sys.argv[1])
+          if address.is_loopback or address.is_unspecified:
+              raise SystemExit("no non-loopback runner address was found")
+          PY
+          # Seatbelt's `localhost` selector covers every address assigned to
+          # this Mac, not only 127.0.0.1. The manager still binds the provider
+          # base URL to loopback; this probe records the pinned cplt semantics.
+          CPLT_CONFIG="${policy}/cplt-config.toml" \
+            "${policy_command[@]}" exec -- \
+            /usr/bin/nc -z -G 2 "${runner_ip}" "${listener_port}"
+
+          remote_same_port="198.51.100.1:${listener_port}"
+          remote_result="${RUNNER_TEMP}/cplt-check-remote-same-port.json"
+          CPLT_CONFIG="${policy}/cplt-config.toml" \
+            "${policy_command[@]}" check --json net \
+            "${remote_same_port}" --no-connect > "${remote_result}"
+          jq -e --arg target "${remote_same_port}" '
+            .platform == "macos (Seatbelt)" and .battery == false and
+            (.items | length) == 1 and .items[0].target == $target and
+            .items[0].decision == "blocked"
+          ' "${remote_result}" >/dev/null
+          {
+            echo "LOCAL_PROVIDER_PORT=${listener_port}"
+            echo "MACOS_CONSUMER=${project}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Exercise the installed manager through genuine local-only cplt
+        shell: bash
+        env:
+          PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+        run: |
+          set -euo pipefail
+          [[ "$(shasum -a 256 "${OPENCODE_BIN}" | cut -d' ' -f1)" == \
+             "${OPENCODE_BINARY_SHA256}" ]]
+          [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
+             "${CPLT_BINARY_SHA256}" ]]
+          account_home="$(python3 -I -S -c 'import os,pwd; print(pwd.getpwuid(os.geteuid()).pw_dir)')"
+          lifecycle="${account_home}/.local/share/grillmester/opencode"
+          [[ ! -e "${lifecycle}" && ! -L "${lifecycle}" ]]
+          config_home="${RUNNER_TEMP}/macos-opencode-user-config"
+          mkdir -m 700 "${config_home}" "${config_home}/opencode"
+          jq -n --arg base_url "http://127.0.0.1:${LOCAL_PROVIDER_PORT}/v1" '
+            {provider: {"ci-local": {
+              npm: "@ai-sdk/openai-compatible",
+              options: {baseURL: $base_url},
+              models: {"ci-model": {
+                tool_call: true,
+                modalities: {input: ["text"], output: ["text"]},
+                limit: {context: 32768, output: 8192}
+              }}
+            }}}
+          ' > "${config_home}/opencode/opencode.json"
+          chmod 0400 "${config_home}/opencode/opencode.json"
+          export XDG_CONFIG_HOME="${config_home}"
+          # Re-open the exact host-pinned port for the manager invocation. The
+          # previous step deliberately tears its listener down at the step
+          # boundary, so this is a fresh live endpoint rather than stale state.
+          python3 -I -S - "${LOCAL_PROVIDER_PORT}" <<'PY' &
+          import socket
+          import sys
+
+          server = socket.socket()
+          server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+          server.bind(("127.0.0.1", int(sys.argv[1])))
+          server.listen(16)
+          while True:
+              connection, _address = server.accept()
+              connection.close()
+          PY
+          listener_pid=$!
+          trap 'kill "${listener_pid}" 2>/dev/null || true' EXIT
+          listener_ready=false
+          for _attempt in {1..100}; do
+            if /usr/bin/nc -z -G 2 127.0.0.1 "${LOCAL_PROVIDER_PORT}"
+            then
+              listener_ready=true
+              break
+            fi
+            sleep 0.1
+          done
+          [[ "${listener_ready}" == true ]]
+          python3 -I -S "${BUNDLE_ROOT}/scripts/manage_opencode.py" install \
+            --source "${BUNDLE_ROOT}"
+          cd "${MACOS_CONSUMER}"
+          manager_output="${RUNNER_TEMP}/macos-manager-local-provider.txt"
+          if ! python3 -I -S "${BUNDLE_ROOT}/scripts/manage_opencode.py" launch \
+            --profile local-only --local-port "${LOCAL_PROVIDER_PORT}" \
+            --provider-id ci-local \
+            --provider-base-url "ci-local=http://127.0.0.1:${LOCAL_PROVIDER_PORT}/v1" \
+            --provider-model ci-local/ci-model \
+            --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}" -- \
+            models ci-local --verbose \
+            > "${manager_output}" 2>&1
+          then
+            sed -n '1,200p' "${manager_output}" >&2
+            exit 1
+          fi
+          # Verbose mode emits bounded model metadata so this final cplt launch
+          # independently confirms the selected ID and capacity limits.
+          grep -F 'ci-local/ci-model' "${manager_output}" >/dev/null
+          grep -F '"context": 32768' "${manager_output}" >/dev/null
+          grep -F '"output": 8192' "${manager_output}" >/dev/null

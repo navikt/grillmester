@@ -19,6 +19,27 @@ Et verktøy i en agentprofil gir ikke OAuth-scope, installerer ikke en MCP og
 omgår ikke klientens godkjenninger. Motsatt er en promptregel som «ikke skriv»
 ikke en teknisk blokkering dersom klienten faktisk tilbyr write.
 
+## Bootstrap-tillit for OpenCode og cplt
+
+Managerens klientchecksum gjelder først når manageren får lese de ferdige
+binærene. En vanlig `npm install --global opencode-ai@1.18.20` har allerede
+kjørt npm-pakkens installkode: `postinstall` kjører `verifyBinary` før denne
+kontrollen. Tilsvarende er Homebrew en bekvemmelighetsinstallasjon av cplt, ikke
+selvstendig høy-assurance-evidens.
+
+En høy-assurance bootstrap henter den eksakte npm-plattformpakken og den eksakte
+cplt-releaseasseten, verifiserer upstream-arkivchecksum og forventet inventar,
+pakker ut uten å kjøre installkode og verifiserer den reviewede binærdigesten
+før første kjøring. Deretter kan manageren reautentisere og kopiere de samme
+bytene til `trusted-bin`. Den kontrollen kan ikke retroaktivt sikre bootstrapen
+eller kode som npm, Homebrew eller en annen package manager allerede har kjørt.
+
+Npm-integriteten, GitHub Release API-ens asset-digest og cplts `SHA256SUMS`
+binder de reviewede bytene, men er ikke en separat verifisert maintainer-signatur
+eller artifact-attestation. Den pinnede cplt-releasen er eksplisitt registrert
+som mutable oppstrøms; en senere byteendring skal derfor feile mot den committed
+arkiv- og binærlåsen, ikke omtales som kryptografisk publisher-provenance.
+
 ## Toolstrategi
 
 Grillmester, Barista, Designer og Doctor Who er offentlige, interaktive roller
@@ -54,10 +75,44 @@ tool calls, godkjent write og avvist write før stabil release.
 | Klient | Nåstatus | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
 | **Copilot CLI** | Referanseklient. Lokal mount, install-/oppgraderings-/rollbackflyt, personlig installasjon, deklarativ auto-install og oppdatering ved sesjonsstart er bekreftet i reelle sesjoner for den tidligere pakken med 7 agenter og 44 skills. | Den nye pakken med 42 skills, immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
-| **Copilot app** | Plugins-UI-installasjon og discovery er bekreftet i en reell sesjon for den tidligere pakken med 7 agenter og 44 skills. | Discovery av den nye pakken med 42 skills, custom-marketplace-oppdatering, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. |
+| **Copilot app** | Plugins-UI-installasjon og discovery er bekreftet i en reell sesjon for den tidligere pakken med 7 agenter og 44 skills. Appen tilbyr også BYOK mot blant annet LM Studio og OpenAI-kompatible endepunkter i public preview. | Discovery av den nye pakken med 42 skills, custom-marketplace-oppdatering, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. Grillmester + lokal BYOK-modell og appens nettverkstrafikk er `UNVERIFIED`; app-guiden lover ikke CLI-ens offline-modus. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær kompatibilitetsflate. VS Code dokumenterer update-sjekk hver 24. time når `extensions.autoUpdate` er aktivert. | Verifiser faktisk custom-marketplace-oppdatering med to Grillmester-versjoner; den styrer ikke første Nav-release. |
-| **OpenCode** | Skills-only eksperiment. | Hver skill må portabilitetsauditeres. Agentteam, marketplace og felles agentkontrakt følger ikke med. |
+| **OpenCode 1.18.20 + cplt 2026.08.17-062831-1008a92** | Eget, deterministisk generert target med 7 native agenter, 42 skills og 42 slash commands. Isolert discovery-smoke bekrefter resolved config og katalog. En separat deterministisk runtime-smoke gjennom ekte OpenCode og eksakt cplt bekrefter delegering, blokkert `.env`, progressiv skill-reference, avvist write og eksplisitt godkjent write uten ekstern modell. På en ekte macOS-runner verifiseres de native Darwin-arkivene og binærene før første kjøring; cplt-policy, rå-socket-hostpin og managerens faktiske `local-only`-launch gates deretter Seatbelt-flyten. I managerens cplt-modus checksum-autentiseres offisielle klientbytes og kjøres fra en privat `trusted-bin`; den opprinnelige OpenCode-binæren startes ikke. Managed Linux er GNU/glibc-only i denne releasen; OpenCode-musl uten en cplt-musl-asset er bare native/unmanaged. Targetet pinner ingen provider eller modell og krever ikke `nav-pilot-agent` eller Copilot-agentene. | Samme checksummede, immutable bundle må fortsatt prøves med den konkrete lokale eller eksterne modellen før akkurat den modellprofilen kan kalles kvalitetsverifisert. |
+| **OpenCode 2 beta** | Oppstrøms forventer V1-kompatibilitet for støttede agent-, command- og skillfiler. Grillmester bruker ingen OpenCode-plugin. | Full runtimeparitet er `UNVERIFIED`. V2-permissions og provider/model-adferd må testes separat; betaen styrer ikke OpenCode 1-release. |
+| **Copilot CLI + lokal BYOK** | GitHub dokumenterer OpenAI-kompatible lokale providers, tool calling/streaming-krav og `COPILOT_OFFLINE=true`. Grillmesters agentpin kan overstyres eksplisitt med `subagents.agents.<name>.model: "inherit"`. | Den eksakte lokale modellen, kvantiseringen, contextprofilen, tool calls, delegeringen og permissionadferden må gjennom samme capability-smoke. 32k laptop-context er under GitHubs anbefalte 128k og skal rapporteres som en begrensning. |
+
+Discovery-smoken kontakter ingen modell. Runtime-smoken kjører derimot den ekte
+OpenCode-toolkjeden mot en deterministisk loopback-provider, slik at permission-
+og delegeringskontrakten gates uten ekstern modell eller modellvarians. Den slår
+av forventede remote OpenCode-flyter, men cplt strict beholder agentens
+innebygde domeneallowlist; smoken er derfor ikke kernel-evidens for null ekstern
+trafikk. Den beviser heller ikke kvaliteten til en konkret lokal eller ekstern
+modell.
+
+CI-gaten `macos-live-compatibility` bruker de eksakte pinnede Darwin-assetene.
+Den verifiserer arkivstørrelse, upstream-digest, eksakt tar-roster,
+binærstørrelse og binærdigest før første klientkjøring. Deretter kjører den
+native discovery/runtime-smoke, cplts virkelige `check --json`-prober med
+managerens `local-only`-nettverksflagg, targeted allow/block-klassifisering og
+rå `/usr/bin/nc`-målinger: samme listenerport må være nåbar både via loopback
+og en annen adresse som tilhører runneren, fordi Seatbelts `localhost`-selector
+betyr samme host. En dokumentasjonsadresse på samme port må samtidig
+klassifiseres som blokkert. Manageren binder fortsatt modell-providerens
+base-URL til eksakt loopback. Til slutt installerer den den
+deterministiske bundle-en og kjører den ekte managerflyten
+`local-only ... -- models ci-local --verbose` gjennom cplt med en eksplisitt lokal
+OpenAI-kompatibel provider, eksakt loopback-base-URL, modell-ID og positive
+context-/outputgrenser. Managerens fail-closed preflight validerer den eksakte
+provider-/modellbindingen før exec. Den avsluttende provider-filtrerte kommandoen
+bruker verbose metadata og validerer modell-ID samt context-/outputgrensene på
+nytt. Workflowen venter avgrenset på at den ferske lokale listeneren er klar før
+installasjon og launch. Den generiske cplt-batterien forventer
+at OpenCodes standarddomene er tillatt; `local-only` blokkerer det med vilje, så
+gaten validerer hvert JSON-item og den ene strengere mismatchen eksplisitt i
+stedet for å tolke exit code alene. Dette er konkret Seatbelt-/proxy-/host-
+evidens for den pinnede macOS-runneren, ikke modellkvalitet, providerprosessens
+egress eller en garanti for andre OS-/klientversjoner.
 
 GitHub dokumenterer at Copilot app kan installere plugins via **Settings →
 Plugins**, og at CLI-konfigurerte skills/MCP-er kan bli tilgjengelige i appen.
@@ -72,6 +127,41 @@ dokumentert tilsvarende garanti. VS Code har en egen
 Disse tre mekanismene må derfor rapporteres separat, ikke som én felles
 «Copilot auto-update»-status.
 
+OpenCode-targetet og Copilot BYOK løser modellvalg på ulike måter. OpenCode-
+agentene har ingen modellpin og arver session/provider. Copilot-pluginen
+beholder sin reviewede pin; Copilot CLI faller tilbake til sessionmodellen hvis
+en deklarert agentmodell ikke kan brukes, men en lokal pilot bør sette
+`inherit` eksplisitt i brukerens subagentsettings fremfor å være avhengig av
+fallback. Se [lokale modeller og capability-smoke](local-models.md).
+
+«Lokal modell» betyr bare at inferensen går til det lokale endepunktet.
+Webtools, MCP-er, telemetry og update-/modellkatalogkall vurderes separat.
+Copilot CLI har en dokumentert offline-modus. Grillmesters vanlige OpenCode-
+target er ikke i seg selv en local-only-profil; en slik profil må i tillegg
+deny-e remote capabilities og håndheve egress. Ikke rapporter en session som
+lokal-only bare fordi valgt modell kjører på `127.0.0.1`.
+
+Grillmesters `local`-profil er lokal-kapabel, men beholder cplts innebygde
+OpenCode-infrastruktur og attesterer ikke sessionens aktive modell.
+`cloud-open-weight` attesterer heller ikke modellvekter eller lisens og godtar
+bare offentlige hostnavn, ikke localhost, IP-litteraler eller privat-domene-
+opt-in. Private og interne providernavn hører hjemme i `hybrid`. Manageren gjør
+ingen DNS-preflight; den pinnede cplt-proxyen håndhever private-/loopbackgrensen
+når forbindelsen opprettes for å unngå DNS-TOCTOU. Den fulle `local-only`-
+grensen gjelder harnesset på macOS med den pinnede cplt-releasen. Linux har en
+dokumentert restkanal fordi Landlock-reglene er portbaserte, også med kernel
+`6.7` eller nyere, og profilen skal derfor feile lukket der. Providerprosessen
+på localhost er en separat tillits- og egressgrense.
+
+I managerens herdede cplt-profiler peker `OPENCODE_MODELS_PATH` på en manager-
+eid, read-only tom katalog. Bare eksplisitt konfigurerte provider-/modellpar med
+nøyaktig npm-pakke `@ai-sdk/openai-compatible` godtas. Det reduserer ambient
+modellkatalog og eksekverbar providerkode, men er en Grillmester-tradeoff, ikke
+et cplt-krav; unmanaged cplt beholder OpenCodes bredere provider- og modellflate.
+Profilconfigen er dessuten bare en baseline fordi managed/MDM-config kan merge
+senere. Manageren validerer derfor effektivt resolved config før launch, mens
+`OPENCODE_DISABLE_SHARE=true` blokkerer sharing uavhengig av merge-rekkefølgen.
+
 Den flytende `marketplace`-branchen er oppdateringskanalen. Når en maintainer
 har eksplisitt promotert en eksakt validert source-SHA fra `main`, kan
 CLI-brukere som har valgt `autoUpdate: true`, hente endringen ved neste trusted
@@ -80,7 +170,44 @@ CLI-sesjon. En vanlig merge til `main` flytter ikke `marketplace`. CI,
 Auto-update-testen er derfor post-deploy-evidens; en separat godkjenningsport
 krever en immutable release-tag i stedet.
 
-## Gate fra RC til stabil release
+## Gate for release-verifisert OpenCode 1.18.20
+
+Et generert target er støttet kildekode, men er ikke alene bevis på at en
+konkret runtime, provider og modell oppfører seg riktig. Den publiserte,
+deterministiske `tar.gz`-en med detached SHA-256 er installasjonsartefakten; en
+source-checkout er ikke release-evidens. For samme immutable source-SHA:
+
+1. Kjør `python3 scripts/generate_opencode.py --check`, validatoren og hele
+   testpakken uten drift. Bygg bundle-en to ganger og krev byte-identiske
+   `tar.gz`-filer, korrekt `DISTRIBUTION-MANIFEST.json` og detached SHA-256.
+2. Kjør `python3 scripts/smoke_opencode.py --require-binary` med den pinnede
+   OpenCode 1.18.20-binæren. Bekreft eksakt roster, commands, skills,
+   fravær av modellpin, deklarerte native permissionregler og consumerens
+   `AGENTS.md` i isolert config. Denne smoken er med vilje uten modell.
+3. Krev eksakt `cplt 2026.08.17-062831-1008a92`, og kjør
+   `python3 scripts/smoke_opencode_runtime.py --require-binary --cplt cplt`
+   mot samme OpenCode-binær. Den deterministiske provideren må bevise
+   delegering, `.env`-deny, skill-reference, godkjent write og avvist write
+   gjennom cplt uten ekstern modell. Ingen forventet remote flyt skal observeres,
+   men null ekstern egress krever en separat fail-closed nettverksmåling. Alle
+   cplt-baserte profiler deler denne versjonspinnen.
+4. Kjør managerkontrakten og krev at offisielle OpenCode- og cplt-bytes
+   checksum-autentiseres, kopieres byte-identisk til en forseglet privat
+   `trusted-bin`, og at den opprinnelige OpenCode-binæren ikke startes. Bekreft
+   også den tomme manager-eide modellkatalogen, resolved-config-valideringen og
+   `OPENCODE_DISABLE_SHARE=true`. `--direct` er et eksplisitt trusted opt-out og
+   teller ikke som denne evidensen.
+5. Gjenta en representativ oppgave med provider-/modellprofilen som skal
+   omtales som støttet. For en lokal modell må også
+   [capability-smoken](local-models.md#capability-smoke-før-modellen-får-bakgrunnsarbeid)
+   bestås.
+
+Rapporter OpenCode 2, andre OpenCode 1-versjoner og uprøvde modeller som
+`UNVERIFIED`; filkompatibilitet eller et vellykket chat-svar oppgraderer ikke
+statusen alene. Surface/runtime-kompatibilitet er aldri i seg selv et krav om
+eller bevis på modellkvalitetsparitet med Copilot.
+
+## Gate fra RC til stabil Copilot-release
 
 Bruk den versjonerte
 [macOS-klientvalideringsprotokollen](macos-client-validation-protocol.md) og

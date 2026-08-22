@@ -20,12 +20,23 @@ jobs:
     timeout-minutes: 15
     outputs:
       before-sha: ${{ steps.contract.outputs.before_sha }}
+      bundle-artifact-digest: ${{ steps.bundle-upload.outputs.artifact-digest }}
+      bundle-artifact-id: ${{ steps.bundle-upload.outputs.artifact-id }}
+      bundle-artifact-name: ${{ steps.bundle.outputs.bundle_artifact_name }}
+      bundle-checksum-name: ${{ steps.bundle.outputs.bundle_checksum_name }}
+      bundle-name: ${{ steps.bundle.outputs.bundle_name }}
+      bundle-sha256: ${{ steps.bundle.outputs.bundle_sha256 }}
+      bundle-size: ${{ steps.bundle.outputs.bundle_size }}
       catalog-sha: ${{ steps.contract.outputs.catalog_sha }}
       channel: ${{ steps.contract.outputs.channel }}
       main-sha: ${{ steps.contract.outputs.main_sha }}
       notes-base64: ${{ steps.contract.outputs.notes_base64 }}
       notes-sha256: ${{ steps.contract.outputs.notes_sha256 }}
       rc-catalog-sha: ${{ steps.contract.outputs.rc_catalog_sha }}
+      rc-bundle-checksum-name: ${{ steps.contract.outputs.rc_bundle_checksum_name }}
+      rc-bundle-checksum-sha256: ${{ steps.contract.outputs.rc_bundle_checksum_sha256 }}
+      rc-bundle-name: ${{ steps.contract.outputs.rc_bundle_name }}
+      rc-bundle-sha256: ${{ steps.contract.outputs.rc_bundle_sha256 }}
       rc-source-sha: ${{ steps.contract.outputs.rc_source_sha }}
       rc-tag: ${{ steps.contract.outputs.rc_tag }}
       request-id: ${{ steps.contract.outputs.request_id }}
@@ -131,9 +142,14 @@ jobs:
             --source-repo "${source_repo}"
           )
           rc_catalog_sha=""
+          rc_bundle_checksum_name=""
+          rc_bundle_checksum_sha256=""
+          rc_bundle_name=""
+          rc_bundle_sha256=""
           rc_source_sha=""
           if [[ "${channel}" == "stable" ]]; then
             git fetch --no-tags origin "refs/tags/${rc_tag}:refs/tags/${rc_tag}"
+            [[ "$(git cat-file -t "refs/tags/${rc_tag}")" == "tag" ]]
             rc_catalog_sha="$(git rev-parse "refs/tags/${rc_tag}^{}")"
             git merge-base --is-ancestor \
               "${rc_catalog_sha}" refs/remotes/origin/marketplace
@@ -151,13 +167,6 @@ jobs:
               "${rc_source_sha}" refs/remotes/origin/main
             rc_source_repo="${RUNNER_TEMP}/rc-source"
             git worktree add --detach "${rc_source_repo}" "${rc_source_sha}"
-            rc_release="$(curl --fail-with-body --silent --show-error \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${rc_tag}")"
-            [[ "$(jq -r '.tag_name' <<<"${rc_release}")" == "${rc_tag}" ]]
-            [[ "$(jq -r '.draft' <<<"${rc_release}")" == "false" ]]
-            [[ "$(jq -r '.prerelease' <<<"${rc_release}")" == "true" ]]
             contract_args+=(
               --rc-tag "${rc_tag}"
               --rc-catalog "${rc_catalog}"
@@ -165,8 +174,76 @@ jobs:
               --rc-catalog-sha "${rc_catalog_sha}"
               --rc-source-repo "${rc_source_repo}"
             )
+            # Complete the workflow-owned, read-only contract before executing
+            # the selected RC source's bundle builder.
+            python3 scripts/release_contract.py "${contract_args[@]}"
+            rc_release="$(curl --config /dev/null --fail-with-body --silent --show-error \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${rc_tag}")"
+            [[ "$(jq -r '.tag_name' <<<"${rc_release}")" == "${rc_tag}" ]]
+            [[ "$(jq -r '.draft' <<<"${rc_release}")" == "false" ]]
+            [[ "$(jq -r '.prerelease' <<<"${rc_release}")" == "true" ]]
+            [[ "$(jq -r '.immutable' <<<"${rc_release}")" == "true" ]]
+            rc_bundle_name="grillmester-opencode-${rc_tag}.tar.gz"
+            rc_bundle_checksum_name="${rc_bundle_name}.sha256"
+            jq -e \
+              --arg bundle "${rc_bundle_name}" \
+              --arg checksum "${rc_bundle_checksum_name}" \
+              '(.assets | length) == 2 and
+               ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
+               all(.assets[];
+                 .state == "uploaded" and
+                 (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")) and
+                 (.browser_download_url | type == "string" and
+                   startswith("https://github.com/"))) and
+               any(.assets[];
+                 .name == $bundle and .label == "Grillmester OpenCode bundle") and
+               any(.assets[];
+                 .name == $checksum and .label == "SHA-256 checksum")' \
+              <<<"${rc_release}" >/dev/null
+
+            rc_assets="${RUNNER_TEMP}/rc-assets"
+            mkdir -p "${rc_assets}"
+            rc_published_bundle="${rc_assets}/${rc_bundle_name}"
+            rc_published_checksum="${rc_assets}/${rc_bundle_checksum_name}"
+            rc_bundle_url="$(jq -er --arg name "${rc_bundle_name}" \
+              '.assets[] | select(.name == $name) | .browser_download_url' \
+              <<<"${rc_release}")"
+            rc_checksum_url="$(jq -er --arg name "${rc_bundle_checksum_name}" \
+              '.assets[] | select(.name == $name) | .browser_download_url' \
+              <<<"${rc_release}")"
+            curl --config /dev/null --fail-with-body --silent --show-error --location \
+              --proto '=https' --tlsv1.2 --proto-redir '=https' \
+              --max-filesize 61000000 \
+              "${rc_bundle_url}" --output "${rc_published_bundle}"
+            curl --config /dev/null --fail-with-body --silent --show-error --location \
+              --proto '=https' --tlsv1.2 --proto-redir '=https' \
+              --max-filesize 1024 \
+              "${rc_checksum_url}" --output "${rc_published_checksum}"
+
+            rc_rebuilt_bundle="${RUNNER_TEMP}/rebuilt-${rc_bundle_name}"
+            python3 "${rc_source_repo}/scripts/build_opencode_bundle.py" \
+              --source-root "${rc_source_repo}" --source-sha "${rc_source_sha}" \
+              --output "${rc_rebuilt_bundle}"
+            cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"
+            rc_bundle_sha256="$(sha256sum "${rc_published_bundle}" | cut -d' ' -f1)"
+            rc_bundle_checksum_sha256="$(sha256sum "${rc_published_checksum}" | cut -d' ' -f1)"
+            [[ "$(jq -er --arg name "${rc_bundle_name}" \
+              '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
+              "sha256:${rc_bundle_sha256}" ]]
+            [[ "$(jq -er --arg name "${rc_bundle_checksum_name}" \
+              '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
+              "sha256:${rc_bundle_checksum_sha256}" ]]
+            rc_expected_checksum="${RUNNER_TEMP}/expected-${rc_bundle_checksum_name}"
+            printf '%s  %s\n' \
+              "${rc_bundle_sha256}" "${rc_bundle_name}" > "${rc_expected_checksum}"
+            cmp -s "${rc_expected_checksum}" "${rc_published_checksum}"
+            (cd "${rc_assets}" && \
+              sha256sum --check --strict "${rc_bundle_checksum_name}")
+          else
+            python3 scripts/release_contract.py "${contract_args[@]}"
           fi
-          python3 scripts/release_contract.py "${contract_args[@]}"
 
           values="${RUNNER_TEMP}/values"
           python3 scripts/release_contract.py inspect \
@@ -192,6 +269,10 @@ jobs:
             echo "notes_base64=$(base64 -w0 "${notes}")"
             echo "notes_sha256=$(sha256sum "${notes}" | cut -d' ' -f1)"
             echo "rc_catalog_sha=${rc_catalog_sha}"
+            echo "rc_bundle_checksum_name=${rc_bundle_checksum_name}"
+            echo "rc_bundle_checksum_sha256=${rc_bundle_checksum_sha256}"
+            echo "rc_bundle_name=${rc_bundle_name}"
+            echo "rc_bundle_sha256=${rc_bundle_sha256}"
             echo "rc_source_sha=${rc_source_sha}"
             echo "rc_tag=${rc_tag}"
             echo "request_id=${request_id}"
@@ -202,7 +283,174 @@ jobs:
             echo "CATALOG_PATH=${catalog}"
             echo "SOURCE_ROOT=${source_repo}"
             echo "SOURCE_SHA=${source_sha}"
+            echo "TAG=${tag}"
           } >> "${GITHUB_ENV}"
+
+      - name: Build and seal deterministic OpenCode release assets
+        id: bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
+          bundle_name="grillmester-opencode-${TAG}.tar.gz"
+          bundle_checksum_name="${bundle_name}.sha256"
+          bundle_artifact_name="sealed-${bundle_name}-${SOURCE_SHA}"
+          bundle="${RUNNER_TEMP}/${bundle_name}"
+          repeated="${RUNNER_TEMP}/repeated-${bundle_name}"
+          checksum="${RUNNER_TEMP}/${bundle_checksum_name}"
+          python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py" \
+            --source-root "${SOURCE_ROOT}" --source-sha "${SOURCE_SHA}" \
+            --output "${bundle}"
+          python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py" \
+            --source-root "${SOURCE_ROOT}" --source-sha "${SOURCE_SHA}" \
+            --output "${repeated}"
+          cmp -s "${bundle}" "${repeated}"
+          bundle_sha256="$(sha256sum "${bundle}" | cut -d' ' -f1)"
+          bundle_size="$(wc -c < "${bundle}" | tr -d ' ')"
+          [[ "${bundle_sha256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${bundle_size}" =~ ^[1-9][0-9]*$ ]]
+          printf '%s  %s\n' \
+            "${bundle_sha256}" "${bundle_name}" > "${checksum}"
+          {
+            echo "bundle_artifact_name=${bundle_artifact_name}"
+            echo "bundle_checksum_name=${bundle_checksum_name}"
+            echo "bundle_name=${bundle_name}"
+            echo "bundle_sha256=${bundle_sha256}"
+            echo "bundle_size=${bundle_size}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Upload exact sealed OpenCode assets
+        id: bundle-upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.bundle.outputs.bundle_artifact_name }}
+          path: |
+            ${{ runner.temp }}/${{ steps.bundle.outputs.bundle_name }}
+            ${{ runner.temp }}/${{ steps.bundle.outputs.bundle_checksum_name }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+          overwrite: false
+          include-hidden-files: false
+
+      - name: Install checksum-pinned OpenCode CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/opencode-linux-x64-1.18.20.tgz"
+          binary_dir="${RUNNER_TEMP}/opencode-bin"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 70000000 \
+            "https://registry.npmjs.org/opencode-linux-x64/-/opencode-linux-x64-1.18.20.tgz" \
+            --output "${archive}"
+          echo "1fe5e153b35b7d306df98135cdab1876e9637ef79941b6adc3bda00d485629f9c4f3781df4a67cbb96e209fed364472c8bd40979b1606b6513ade6ec8afcd0ba  ${archive}" \
+            | sha512sum --check --strict
+          mapfile -t opencode_entries < <(tar -tzf "${archive}")
+          [[ "${#opencode_entries[@]}" == "2" ]]
+          [[ "${opencode_entries[0]}" == "package/package.json" ]]
+          [[ "${opencode_entries[1]}" == "package/bin/opencode" ]]
+          mkdir -p "${binary_dir}"
+          tar -xzf "${archive}" -C "${binary_dir}" --strip-components=2 \
+            --no-same-owner --no-same-permissions -- "package/bin/opencode"
+          chmod 0555 "${binary_dir}/opencode"
+          [[ -f "${binary_dir}/opencode" && -x "${binary_dir}/opencode" && ! -L "${binary_dir}/opencode" ]]
+          echo "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16  ${binary_dir}/opencode" \
+            | sha256sum --check --strict
+          echo "OPENCODE_BIN=${binary_dir}/opencode" >> "${GITHUB_ENV}"
+
+      - name: Install checksum-pinned cplt
+        shell: bash
+        run: |
+          set -euo pipefail
+          release="2026.08.17-062831-1008a92"
+          archive="${RUNNER_TEMP}/cplt-x86_64-unknown-linux-gnu.tar.gz"
+          binary_dir="${RUNNER_TEMP}/cplt-bin"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 10000000 \
+            "https://github.com/navikt/cplt/releases/download/${release}/cplt-x86_64-unknown-linux-gnu.tar.gz" \
+            --output "${archive}"
+          echo "3e6607db8ed2f361bb4e8a43246d38acc7e63e5d956de96c3319fffbd3be3eb4  ${archive}" \
+            | sha256sum --check --strict
+          mapfile -t cplt_entries < <(tar -tzf "${archive}")
+          [[ "${#cplt_entries[@]}" == "1" && "${cplt_entries[0]}" == "cplt" ]]
+          mkdir -p "${binary_dir}"
+          tar -xzf "${archive}" -C "${binary_dir}" \
+            --no-same-owner --no-same-permissions -- cplt
+          chmod 0555 "${binary_dir}/cplt"
+          [[ -f "${binary_dir}/cplt" && ! -L "${binary_dir}/cplt" ]]
+          echo "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5  ${binary_dir}/cplt" \
+            | sha256sum --check --strict
+          [[ "$("${binary_dir}/cplt" --version)" == "cplt ${release}" ]]
+          echo "CPLT_BIN=${binary_dir}/cplt" >> "${GITHUB_ENV}"
+
+      - name: Smoke-test exact immutable OpenCode target locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${OPENCODE_BIN}" == "${RUNNER_TEMP}/opencode-bin/opencode" ]]
+          [[ "${CPLT_BIN}" == "${RUNNER_TEMP}/cplt-bin/cplt" ]]
+          [[ -f "${OPENCODE_BIN}" && -x "${OPENCODE_BIN}" && ! -L "${OPENCODE_BIN}" ]]
+          [[ -f "${CPLT_BIN}" && -x "${CPLT_BIN}" && ! -L "${CPLT_BIN}" ]]
+          [[ "$(stat -c '%a:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
+          [[ "$(stat -c '%a:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
+          echo "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16  ${OPENCODE_BIN}" | sha256sum --check --strict
+          echo "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5  ${CPLT_BIN}" | sha256sum --check --strict
+          python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py" \
+            --require-binary --opencode "${OPENCODE_BIN}"
+
+      - name: Smoke-test exact immutable OpenCode runtime contracts locally
+        shell: bash
+        env:
+          PATH: ${{ runner.temp }}/opencode-bin:${{ runner.temp }}/cplt-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        run: |
+          set -euo pipefail
+          [[ "${OPENCODE_BIN}" == "${RUNNER_TEMP}/opencode-bin/opencode" ]]
+          [[ "${CPLT_BIN}" == "${RUNNER_TEMP}/cplt-bin/cplt" ]]
+          [[ -f "${OPENCODE_BIN}" && -x "${OPENCODE_BIN}" && ! -L "${OPENCODE_BIN}" ]]
+          [[ -f "${CPLT_BIN}" && -x "${CPLT_BIN}" && ! -L "${CPLT_BIN}" ]]
+          [[ "$(stat -c '%a:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
+          [[ "$(stat -c '%a:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
+          echo "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16  ${OPENCODE_BIN}" | sha256sum --check --strict
+          echo "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5  ${CPLT_BIN}" | sha256sum --check --strict
+          python3 "${SOURCE_ROOT}/scripts/smoke_opencode_runtime.py" \
+            --require-binary --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"
+
+  copilot-compatibility:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      CATALOG_SHA: ${{ needs.validate.outputs.catalog-sha }}
+      SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
+    steps:
+      - name: Check out exact immutable source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.validate.outputs.source-sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Restore exact catalog commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin "refs/heads/marketplace:refs/remotes/origin/marketplace"
+          git merge-base --is-ancestor "${CATALOG_SHA}" refs/remotes/origin/marketplace
+          catalog="${RUNNER_TEMP}/marketplace.json"
+          git show "${CATALOG_SHA}:.github/plugin/marketplace.json" > "${catalog}"
+          echo "CATALOG_PATH=${catalog}" >> "${GITHUB_ENV}"
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
 
       - name: Install pinned GitHub Copilot CLI
         run: npm install --global @github/copilot@1.0.79
@@ -211,31 +459,690 @@ jobs:
         run: >-
           python3 scripts/smoke_plugin_install.py
           --catalog "${CATALOG_PATH}"
-          --source-root "${SOURCE_ROOT}"
+          --source-root "${GITHUB_WORKSPACE}"
           --source-sha "${SOURCE_SHA}"
           --expect-release-sha "${SOURCE_SHA}"
 
-  release:
+  macos-live-compatibility:
+    needs: validate
+    uses: ./.github/workflows/macos-opencode-compatibility.yml
+    with:
+      source_sha: ${{ needs.validate.outputs.source-sha }}
+    permissions:
+      contents: read
+
+  verify-release-assets:
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    permissions:
+      actions: read # Authenticate and download this run's exact artifact by ID.
+      contents: read
+    env:
+      BUNDLE_ARTIFACT_DIGEST: ${{ needs.validate.outputs.bundle-artifact-digest }}
+      BUNDLE_ARTIFACT_ID: ${{ needs.validate.outputs.bundle-artifact-id }}
+      BUNDLE_ARTIFACT_NAME: ${{ needs.validate.outputs.bundle-artifact-name }}
+      BUNDLE_CHECKSUM_NAME: ${{ needs.validate.outputs.bundle-checksum-name }}
+      BUNDLE_NAME: ${{ needs.validate.outputs.bundle-name }}
+      BUNDLE_SHA256: ${{ needs.validate.outputs.bundle-sha256 }}
+      BUNDLE_SIZE: ${{ needs.validate.outputs.bundle-size }}
+      CHANNEL: ${{ needs.validate.outputs.channel }}
+      MAIN_SHA: ${{ needs.validate.outputs.main-sha }}
+      RUN_ID: ${{ github.run_id }}
+      SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
+      TAG: ${{ needs.validate.outputs.tag }}
+    steps:
+      - name: Independently bind sealed assets to immutable source
+        shell: bash
+        env:
+          READ_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "${MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${BUNDLE_ARTIFACT_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${BUNDLE_ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
+          (( BUNDLE_SIZE <= 61000000 ))
+          [[ "${RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
+          [[ "${BUNDLE_NAME}" == "grillmester-opencode-${TAG}.tar.gz" ]]
+          [[ "${BUNDLE_ARTIFACT_NAME}" == "sealed-${BUNDLE_NAME}-${SOURCE_SHA}" ]]
+          [[ "${BUNDLE_CHECKSUM_NAME}" == "${BUNDLE_NAME}.sha256" ]]
+          artifact_zip="${RUNNER_TEMP}/sealed-opencode-assets.zip"
+          bundle="${RUNNER_TEMP}/${BUNDLE_NAME}"
+          checksum="${RUNNER_TEMP}/${BUNDLE_CHECKSUM_NAME}"
+
+          artifact="$(GH_TOKEN="${READ_TOKEN}" gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${REPOSITORY}/actions/artifacts/${BUNDLE_ARTIFACT_ID}")"
+          artifact_size="$(jq -er '.size_in_bytes' <<<"${artifact}")"
+          [[ "${artifact_size}" =~ ^[1-9][0-9]*$ ]]
+          (( artifact_size <= 62000000 ))
+          jq -e \
+            --arg digest "sha256:${BUNDLE_ARTIFACT_DIGEST}" \
+            --arg id "${BUNDLE_ARTIFACT_ID}" \
+            --arg main_sha "${MAIN_SHA}" \
+            --arg name "${BUNDLE_ARTIFACT_NAME}" \
+            --arg run_id "${RUN_ID}" \
+            '.id == ($id | tonumber) and
+             .name == $name and
+             .expired == false and
+             .digest == $digest and
+             .workflow_run.id == ($run_id | tonumber) and
+             .workflow_run.head_sha == $main_sha' \
+            <<<"${artifact}" >/dev/null
+          GH_TOKEN="${READ_TOKEN}" gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${REPOSITORY}/actions/artifacts/${BUNDLE_ARTIFACT_ID}/zip" \
+            > "${artifact_zip}"
+          [[ "$(wc -c < "${artifact_zip}" | tr -d ' ')" == "${artifact_size}" ]]
+          [[ "$(sha256sum "${artifact_zip}" | cut -d' ' -f1)" == \
+             "${BUNDLE_ARTIFACT_DIGEST}" ]]
+          mapfile -t artifact_entries < <(unzip -Z1 "${artifact_zip}")
+          [[ "${#artifact_entries[@]}" == "2" ]]
+          [[ "$(printf '%s\n' "${artifact_entries[@]}" | LC_ALL=C sort)" == \
+             "$(printf '%s\n' "${BUNDLE_CHECKSUM_NAME}" "${BUNDLE_NAME}" | LC_ALL=C sort)" ]]
+          unzip -p "${artifact_zip}" "${BUNDLE_NAME}" > "${bundle}"
+          unzip -p "${artifact_zip}" "${BUNDLE_CHECKSUM_NAME}" > "${checksum}"
+          [[ "$(wc -c < "${bundle}" | tr -d ' ')" == "${BUNDLE_SIZE}" ]]
+          [[ "$(sha256sum "${bundle}" | cut -d' ' -f1)" == "${BUNDLE_SHA256}" ]]
+          expected_checksum="${RUNNER_TEMP}/expected-${BUNDLE_CHECKSUM_NAME}"
+          printf '%s  %s\n' \
+            "${BUNDLE_SHA256}" "${BUNDLE_NAME}" > "${expected_checksum}"
+          cmp -s "${expected_checksum}" "${checksum}"
+
+          git init --quiet
+          git remote add origin "https://github.com/${REPOSITORY}.git"
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          [[ "${MAIN_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]]
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git merge-base --is-ancestor "${SOURCE_SHA}" refs/remotes/origin/main
+          # This verifier is workflow-owned code, not code from SOURCE_SHA. It
+          # independently binds every archive byte to immutable Git blobs before
+          # the write token can create a public release.
+          python3 - "${bundle}" "${SOURCE_SHA}" <<'PY'
+          import hashlib
+          import io
+          import json
+          import re
+          import stat
+          import subprocess
+          import sys
+          import tarfile
+          import unicodedata
+          import zlib
+          from pathlib import Path, PurePosixPath
+
+          archive_path = Path(sys.argv[1])
+          source_sha = sys.argv[2]
+          archive_root = PurePosixPath("grillmester-opencode-v1")
+          outer_manifest = PurePosixPath("DISTRIBUTION-MANIFEST.json")
+          max_archive_bytes = 61_000_000
+          max_tar_bytes = 61_000_000
+          max_file_bytes = 5_000_000
+          max_distribution_bytes = 50_000_000
+          digest_pattern = re.compile(r"^[0-9a-f]{64}$")
+
+          def fail(message):
+              raise SystemExit(f"sealed OpenCode archive verification failed: {message}")
+
+          def duplicate_keys(pairs):
+              value = {}
+              for key, item in pairs:
+                  if key in value:
+                      fail(f"duplicate JSON key {key!r}")
+                  value[key] = item
+              return value
+
+          def reject_constant(value):
+              fail(f"non-standard JSON constant {value!r}")
+
+          def json_object(content, label):
+              try:
+                  value = json.loads(
+                      content.decode("utf-8"),
+                      object_pairs_hook=duplicate_keys,
+                      parse_constant=reject_constant,
+                  )
+              except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                  fail(f"{label} is invalid JSON: {error}")
+              if not isinstance(value, dict):
+                  fail(f"{label} must be an object")
+              return value
+
+          def safe_path(value, label):
+              if not isinstance(value, str) or not value:
+                  fail(f"{label} must be a non-empty string")
+              if "\\" in value or any(ord(character) < 32 or ord(character) == 127 for character in value):
+                  fail(f"{label} is not portable: {value!r}")
+              path = PurePosixPath(value)
+              if (
+                  path.is_absolute()
+                  or path.as_posix() != value
+                  or any(part in ("", ".", "..") for part in path.parts)
+              ):
+                  fail(f"{label} is not a normalized relative path: {value!r}")
+              return path
+
+          def run_git(*arguments):
+              completed = subprocess.run(
+                  ["git", *arguments],
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+                  check=False,
+              )
+              if completed.returncode != 0:
+                  fail(f"git {' '.join(arguments[:2])} could not inspect immutable source")
+              return completed.stdout
+
+          def git_tree(prefix):
+              result = {}
+              raw = run_git("ls-tree", "-rz", source_sha, "--", prefix)
+              for record in raw.split(b"\0"):
+                  if not record:
+                      continue
+                  try:
+                      metadata, encoded_path = record.split(b"\t", 1)
+                      mode, kind, object_id = metadata.decode("ascii").split(" ")
+                      path = encoded_path.decode("utf-8")
+                  except (UnicodeDecodeError, ValueError):
+                      fail(f"Git tree for {prefix!r} is not canonical UTF-8")
+                  if kind != "blob" or mode not in ("100644", "100755"):
+                      fail(f"unsupported Git node at {path!r}")
+                  if path in result:
+                      fail(f"duplicate Git path {path!r}")
+                  result[path] = (mode, object_id)
+              return result
+
+          def git_blob(node):
+              return run_git("cat-file", "blob", node[1])
+
+          if archive_path.stat().st_size > max_archive_bytes:
+              fail("compressed archive exceeds the safety limit")
+          with archive_path.open("rb") as stream:
+              header = stream.read(10)
+              if header != bytes.fromhex("1f8b08000000000002ff"):
+                  fail("gzip header is not canonical")
+              stream.seek(0)
+              decompressor = zlib.decompressobj(wbits=31)
+              uncompressed = bytearray()
+              while chunk := stream.read(1024 * 1024):
+                  pending = chunk
+                  while pending:
+                      remaining = max_tar_bytes + 1 - len(uncompressed)
+                      if remaining <= 0:
+                          fail("archive expands beyond the safety limit")
+                      uncompressed.extend(decompressor.decompress(pending, remaining))
+                      if len(uncompressed) > max_tar_bytes:
+                          fail("archive expands beyond the safety limit")
+                      pending = decompressor.unconsumed_tail
+              uncompressed.extend(decompressor.flush(max_tar_bytes + 1 - len(uncompressed)))
+              if len(uncompressed) > max_tar_bytes:
+                  fail("archive expands beyond the safety limit")
+              if not decompressor.eof or decompressor.unused_data:
+                  fail("gzip stream is truncated, concatenated, or has trailing data")
+          if len(uncompressed) % 10240 != 0:
+              fail("tar blocking is not canonical")
+
+          archive_files = {}
+          archive_directories = set()
+          portable_paths = {}
+          aggregate_size = 0
+          cursor = 0
+          with tarfile.open(fileobj=io.BytesIO(uncompressed), mode="r:") as archive:
+              if archive.pax_headers:
+                  fail("global PAX headers are forbidden")
+              members = archive.getmembers()
+              if not members or len(members) > 10000:
+                  fail("archive member count is invalid")
+              normalized_names = []
+              for member in members:
+                  raw_name = member.name[:-1] if member.isdir() and member.name.endswith("/") else member.name
+                  relative = safe_path(raw_name, "archive member")
+                  if not relative.parts or relative.parts[0] != archive_root.as_posix():
+                      fail(f"archive member is outside {archive_root}: {relative}")
+                  if member.offset != cursor or member.offset_data != member.offset + 512:
+                      fail(f"archive uses non-canonical headers before {relative}")
+                  cursor = member.offset_data + ((member.size + 511) // 512) * 512
+                  if member.pax_headers:
+                      fail(f"PAX headers are forbidden for {relative}")
+                  if (
+                      member.uid != 0
+                      or member.gid != 0
+                      or member.uname != ""
+                      or member.gname != ""
+                      or member.mtime != 0
+                  ):
+                      fail(f"archive metadata is not canonical for {relative}")
+                  collision_key = unicodedata.normalize("NFC", relative.as_posix()).casefold()
+                  if collision_key in portable_paths:
+                      fail(f"portable archive path collision at {relative}")
+                  portable_paths[collision_key] = relative
+                  normalized_names.append(relative.as_posix())
+                  mode = stat.S_IMODE(member.mode)
+                  if member.isdir():
+                      if mode != 0o755 or member.size != 0:
+                          fail(f"directory metadata is invalid for {relative}")
+                      archive_directories.add(relative)
+                      continue
+                  if not member.isreg() or mode not in (0o644, 0o755):
+                      fail(f"links and special nodes are forbidden: {relative}")
+                  if len(relative.parts) == 1 or member.size > max_file_bytes:
+                      fail(f"archive file is invalid or too large: {relative}")
+                  aggregate_size += member.size
+                  if aggregate_size > max_distribution_bytes:
+                      fail("distribution files exceed the safety limit")
+                  extracted = archive.extractfile(member)
+                  if extracted is None:
+                      fail(f"cannot read archive file {relative}")
+                  content = extracted.read(max_file_bytes + 1)
+                  if len(content) != member.size:
+                      fail(f"archive file size changed for {relative}")
+                  path = PurePosixPath(*relative.parts[1:])
+                  if path in archive_files:
+                      fail(f"duplicate archive file {path}")
+                  archive_files[path] = (content, mode)
+              if normalized_names != sorted(normalized_names):
+                  fail("archive members are not sorted")
+          if len(uncompressed) - cursor < 1024 or any(uncompressed[cursor:]):
+              fail("tar end padding is not canonical")
+
+          manager_path = "scripts/manage_opencode.py"
+          composer_path = "scripts/compose_opencode_permissions.py"
+          artifact_verifier_path = "scripts/verify_client_artifact.py"
+          legal_source_to_archive = {
+              "LICENSE": "LICENSE",
+              "PROVENANCE.md": "PROVENANCE.md",
+              "plugin/THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
+              "policy/content-lock.json": "policy/content-lock.json",
+              "policy/client-artifacts.json": "policy/client-artifacts.json",
+          }
+          profile_paths = {
+              f"profiles/opencode/{profile}.json"
+              for profile in ("cloud-open-weight", "hybrid", "local", "local-only")
+          }
+          manager_nodes = git_tree(manager_path)
+          composer_nodes = git_tree(composer_path)
+          artifact_verifier_nodes = git_tree(artifact_verifier_path)
+          profile_nodes = git_tree("profiles/opencode")
+          target_nodes = git_tree("targets/opencode-v1")
+          legal_nodes = {}
+          for source_path in legal_source_to_archive:
+              nodes = git_tree(source_path)
+              if set(nodes) != {source_path} or nodes[source_path][0] != "100644":
+                  fail(f"immutable source has no regular legal artifact {source_path}")
+              legal_nodes[source_path] = nodes[source_path]
+          if (
+              set(manager_nodes) != {manager_path}
+              or manager_nodes[manager_path][0] != "100644"
+          ):
+              fail("immutable source has no regular lifecycle manager")
+          if set(composer_nodes) != {composer_path} or composer_nodes[composer_path][0] != "100644":
+              fail("immutable source has no regular permission composer")
+          if (
+              set(artifact_verifier_nodes) != {artifact_verifier_path}
+              or artifact_verifier_nodes[artifact_verifier_path][0] != "100644"
+          ):
+              fail("immutable source has no regular client artifact verifier")
+          if set(profile_nodes) != profile_paths:
+              fail("immutable source does not have exactly four runtime profiles")
+          if any(node[0] != "100644" for node in profile_nodes.values()):
+              fail("runtime profiles must have source mode 0644")
+
+          target_manifest_path = "targets/opencode-v1/manifest.json"
+          if target_manifest_path not in target_nodes or target_nodes[target_manifest_path][0] != "100644":
+              fail("immutable source has no mode-0644 target manifest")
+          target_manifest_bytes = git_blob(target_nodes[target_manifest_path])
+          target_manifest = json_object(target_manifest_bytes, "target manifest")
+          if target_manifest.get("schemaVersion") != 1 or target_manifest.get("target") != "opencode-v1":
+              fail("target manifest identity is invalid")
+          target_entries = target_manifest.get("files")
+          if not isinstance(target_entries, dict) or not target_entries:
+              fail("target manifest file inventory is invalid")
+
+          expected_content = {
+              PurePosixPath(manager_path): (git_blob(manager_nodes[manager_path]), 0o755),
+              PurePosixPath(composer_path): (git_blob(composer_nodes[composer_path]), 0o644),
+              PurePosixPath(artifact_verifier_path): (
+                  git_blob(artifact_verifier_nodes[artifact_verifier_path]), 0o755
+              ),
+              PurePosixPath(target_manifest_path): (target_manifest_bytes, 0o644),
+          }
+          for source_path, archive_path in legal_source_to_archive.items():
+              expected_content[PurePosixPath(archive_path)] = (
+                  git_blob(legal_nodes[source_path]), 0o644
+              )
+          for path in sorted(profile_paths):
+              expected_content[PurePosixPath(path)] = (git_blob(profile_nodes[path]), 0o644)
+          expected_target_paths = {target_manifest_path}
+          seen_target_paths = set()
+          for raw_relative, entry in target_entries.items():
+              relative = safe_path(raw_relative, "target manifest path")
+              if relative == PurePosixPath("manifest.json") or relative in seen_target_paths:
+                  fail(f"invalid target manifest path {relative}")
+              seen_target_paths.add(relative)
+              if not isinstance(entry, dict) or set(entry) != {"sha256", "mode"}:
+                  fail(f"invalid target manifest entry for {relative}")
+              digest = entry.get("sha256")
+              raw_mode = entry.get("mode")
+              if not isinstance(digest, str) or digest_pattern.fullmatch(digest) is None:
+                  fail(f"invalid target digest for {relative}")
+              if not isinstance(raw_mode, str) or re.fullmatch(r"0[0-7]{3}", raw_mode) is None:
+                  fail(f"invalid target mode for {relative}")
+              mode = int(raw_mode, 8)
+              if mode not in (0o644, 0o755):
+                  fail(f"unsupported target mode for {relative}")
+              source_path = f"targets/opencode-v1/{relative.as_posix()}"
+              expected_target_paths.add(source_path)
+              node = target_nodes.get(source_path)
+              if node is None or node[0] != f"100{mode:03o}":
+                  fail(f"target source node or mode does not match for {relative}")
+              content = git_blob(node)
+              if hashlib.sha256(content).hexdigest() != digest:
+                  fail(f"target source digest does not match for {relative}")
+              expected_content[PurePosixPath(source_path)] = (content, mode)
+          if set(target_nodes) != expected_target_paths:
+              fail("target source tree differs from its manifest inventory")
+
+          manifest_entry = archive_files.pop(outer_manifest, None)
+          if manifest_entry is None or manifest_entry[1] != 0o644:
+              fail("distribution manifest is missing or has the wrong mode")
+          if set(archive_files) != set(expected_content):
+              fail("archive file roster differs from immutable source")
+          for path, expected in expected_content.items():
+              if archive_files[path] != expected:
+                  fail(f"archive bytes or mode differ from immutable source for {path}")
+
+          file_manifest = {
+              path.as_posix(): {
+                  "sha256": hashlib.sha256(content).hexdigest(),
+                  "mode": f"{mode:04o}",
+              }
+              for path, (content, mode) in sorted(expected_content.items(), key=lambda item: item[0].as_posix())
+          }
+          expected_manifest = {
+              "schemaVersion": 1,
+              "sourceSha": source_sha,
+              "target": "opencode-v1",
+              "opencodeVersion": "1.18.20",
+              "cpltRelease": "2026.08.17-062831-1008a92",
+              "targetManifestSha256": hashlib.sha256(target_manifest_bytes).hexdigest(),
+              "files": file_manifest,
+          }
+          expected_manifest_bytes = (json.dumps(expected_manifest, indent=2, sort_keys=True) + "\n").encode()
+          if manifest_entry[0] != expected_manifest_bytes:
+              fail("distribution manifest is not the canonical immutable-source manifest")
+
+          expected_directories = {archive_root}
+          for path in (*expected_content, outer_manifest):
+              parent = archive_root / path.parent
+              while parent != archive_root.parent:
+                  expected_directories.add(parent)
+                  parent = parent.parent
+          if archive_directories != expected_directories:
+              fail("archive directory roster differs from immutable source")
+          PY
+
+      - name: Independently enforce stable rights approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${CHANNEL}" != "stable" ]]; then
+            [[ "${CHANNEL}" == "rc" ]]
+            exit 0
+          fi
+          python3 - "${SOURCE_SHA}" <<'PY'
+          import datetime as dt
+          import hashlib
+          import json
+          import re
+          import subprocess
+          import sys
+
+          source_sha = sys.argv[1]
+          hovmester_repo = "navikt/hovmester"
+          hovmester_revision = "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
+          placeholder = re.compile(
+              r"unverified|unknown|pending|placeholder|example|todo|tbd|replace[-_ ]?me",
+              re.IGNORECASE,
+          )
+
+          def fail(message):
+              raise SystemExit(message)
+
+          def git(*arguments):
+              result = subprocess.run(
+                  ["git", *arguments],
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+                  check=False,
+              )
+              if result.returncode != 0:
+                  fail(f"cannot read immutable source object: {' '.join(arguments[:2])}")
+              return result.stdout
+
+          def object_from_bytes(raw, label):
+              def no_duplicates(pairs):
+                  value = {}
+                  for key, item in pairs:
+                      if key in value:
+                          fail(f"duplicate key in {label}: {key!r}")
+                      value[key] = item
+                  return value
+              try:
+                  value = json.loads(raw.decode("utf-8"), object_pairs_hook=no_duplicates)
+              except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                  fail(f"invalid JSON in {label}: {error}")
+              if not isinstance(value, dict):
+                  fail(f"{label} must be an object")
+              return value
+
+          def blob(path):
+              if not re.fullmatch(r"[A-Za-z0-9_./-]+", path) or ".." in path.split("/"):
+                  fail(f"unsafe source path: {path!r}")
+              return git("show", f"{source_sha}:{path}")
+
+          def exact(value, keys, label):
+              if not isinstance(value, dict) or set(value) != set(keys):
+                  fail(f"{label} has the wrong exact schema")
+              return value
+
+          def component_digest(kind, component_id):
+              if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", component_id) is None:
+                  fail(f"unsafe component id: {component_id!r}")
+              if kind == "agents":
+                  return hashlib.sha256(
+                      blob(f"plugin/agents/{component_id}.agent.md")
+                  ).hexdigest()
+              prefix = f"plugin/skills/{component_id}"
+              manifest = {}
+              for record in git("ls-tree", "-rz", source_sha, "--", prefix).split(b"\0"):
+                  if not record:
+                      continue
+                  try:
+                      metadata, encoded_path = record.split(b"\t", 1)
+                      mode, node_type, object_id = metadata.decode("ascii").split(" ")
+                      path = encoded_path.decode("utf-8")
+                  except (UnicodeDecodeError, ValueError):
+                      fail(f"invalid Git tree for {prefix}")
+                  if node_type != "blob" or mode not in ("100644", "100755"):
+                      fail(f"unsupported Git node for {path}")
+                  relative = path.removeprefix(prefix + "/")
+                  if not relative or relative == path or relative in manifest:
+                      fail(f"invalid component path for {path}")
+                  manifest[relative] = hashlib.sha256(
+                      git("cat-file", "blob", object_id)
+                  ).hexdigest()
+              if not manifest:
+                  fail(f"empty imported skill: {component_id}")
+              canonical = json.dumps(
+                  manifest, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+              ).encode()
+              return hashlib.sha256(canonical).hexdigest()
+
+          approval = object_from_bytes(
+              blob("policy/stable-rights-approval.json"), "stable rights approval"
+          )
+          content_lock_bytes = blob("policy/content-lock.json")
+          content_lock = object_from_bytes(content_lock_bytes, "content lock")
+          provenance_bytes = blob("PROVENANCE.md")
+          exact(approval, {"schemaVersion", "scope", "decisions"}, "approval")
+          if approval["schemaVersion"] != 1:
+              fail("approval schemaVersion must be 1")
+          scope = exact(
+              approval["scope"],
+              {"hovmester", "contentLockSha256", "provenanceSha256", "components"},
+              "approval scope",
+          )
+          if scope["hovmester"] != {
+              "repository": hovmester_repo,
+              "revision": hovmester_revision,
+          }:
+              fail("approval Hovmester scope differs")
+          if scope["contentLockSha256"] != hashlib.sha256(content_lock_bytes).hexdigest():
+              fail("approval does not bind the content lock")
+          if scope["provenanceSha256"] != hashlib.sha256(provenance_bytes).hexdigest():
+              fail("approval does not bind provenance")
+
+          expected_components = {"agents": {}, "skills": {}}
+          sources = content_lock.get("sources")
+          if not isinstance(sources, dict) or sources.get("hovmester") != {
+              "repository": hovmester_repo,
+              "revision": hovmester_revision,
+          }:
+              fail("content lock Hovmester source differs")
+          for kind in ("agents", "skills"):
+              contracts = content_lock.get(kind)
+              if not isinstance(contracts, dict):
+                  fail(f"content lock {kind} is invalid")
+              for component_id, contract in sorted(contracts.items()):
+                  if not isinstance(contract, dict):
+                      fail(f"content lock {kind} contract is invalid")
+                  source_ids = {contract.get("source")}
+                  lineage = contract.get("lineage", [])
+                  if not isinstance(lineage, list) or not all(
+                      isinstance(entry, dict) for entry in lineage
+                  ):
+                      fail(f"content lock {kind} lineage is invalid")
+                  source_ids.update(entry.get("source") for entry in lineage)
+                  if "hovmester" in source_ids:
+                      expected_components[kind][component_id] = component_digest(
+                          kind, component_id
+                      )
+          if set(expected_components["agents"]) != {"designer", "doctor-who"}:
+              fail("imported agent rights scope differs")
+          if not expected_components["skills"] or scope["components"] != expected_components:
+              fail("approval does not bind exact imported component IDs and digests")
+
+          decisions = exact(
+              approval["decisions"],
+              {"organizationalRights", "doctorWhoBrand"},
+              "approval decisions",
+          )
+          for name, statuses in (
+              ("organizationalRights", {"approved"}),
+              ("doctorWhoBrand", {"approved", "renamed"}),
+          ):
+              decision = exact(
+                  decisions[name],
+                  {"status", "decisionReference", "authority", "date"},
+                  name,
+              )
+              if decision["status"] not in statuses:
+                  fail(f"{name} status is not approved")
+              authority = exact(decision["authority"], {"role", "team"}, f"{name} authority")
+              for value in (
+                  decision["decisionReference"], authority["role"], authority["team"]
+              ):
+                  if (
+                      not isinstance(value, str)
+                      or not value.strip()
+                      or len(value) > 256
+                      or placeholder.search(value)
+                  ):
+                      fail(f"{name} contains a missing or placeholder decision field")
+              if not isinstance(decision["date"], str) or re.fullmatch(
+                  r"[0-9]{4}-[0-9]{2}-[0-9]{2}", decision["date"]
+              ) is None:
+                  fail(f"{name} has no ISO decision date")
+              try:
+                  decision_date = dt.date.fromisoformat(decision["date"])
+              except (TypeError, ValueError):
+                  fail(f"{name} has no real ISO decision date")
+              if decision_date > dt.date.today():
+                  fail(f"{name} decision date is in the future")
+          if decisions["doctorWhoBrand"]["status"] == "renamed":
+              fail("Doctor Who remains in scope but brand status says renamed")
+          PY
+
+
+  release:
+    needs:
+      - validate
+      - copilot-compatibility
+      - macos-live-compatibility
+      - verify-release-assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: grillmester-release
     permissions:
-      contents: write
+      actions: read # Re-authenticate this run's exact staged artifact by ID.
+      contents: write # Create the GitHub release and upload its assets.
     env:
       BEFORE_SHA: ${{ needs.validate.outputs.before-sha }}
+      BUNDLE_ARTIFACT_DIGEST: ${{ needs.validate.outputs.bundle-artifact-digest }}
+      BUNDLE_ARTIFACT_ID: ${{ needs.validate.outputs.bundle-artifact-id }}
+      BUNDLE_ARTIFACT_NAME: ${{ needs.validate.outputs.bundle-artifact-name }}
+      BUNDLE_CHECKSUM_NAME: ${{ needs.validate.outputs.bundle-checksum-name }}
+      BUNDLE_NAME: ${{ needs.validate.outputs.bundle-name }}
+      BUNDLE_SHA256: ${{ needs.validate.outputs.bundle-sha256 }}
+      BUNDLE_SIZE: ${{ needs.validate.outputs.bundle-size }}
       CATALOG_SHA: ${{ needs.validate.outputs.catalog-sha }}
       CHANNEL: ${{ needs.validate.outputs.channel }}
       MAIN_SHA: ${{ needs.validate.outputs.main-sha }}
       NOTES_BASE64: ${{ needs.validate.outputs.notes-base64 }}
       NOTES_SHA256: ${{ needs.validate.outputs.notes-sha256 }}
+      RC_BUNDLE_CHECKSUM_NAME: ${{ needs.validate.outputs.rc-bundle-checksum-name }}
+      RC_BUNDLE_CHECKSUM_SHA256: ${{ needs.validate.outputs.rc-bundle-checksum-sha256 }}
+      RC_BUNDLE_NAME: ${{ needs.validate.outputs.rc-bundle-name }}
+      RC_BUNDLE_SHA256: ${{ needs.validate.outputs.rc-bundle-sha256 }}
       RC_CATALOG_SHA: ${{ needs.validate.outputs.rc-catalog-sha }}
       RC_SOURCE_SHA: ${{ needs.validate.outputs.rc-source-sha }}
       RC_TAG: ${{ needs.validate.outputs.rc-tag }}
       REQUEST_ID: ${{ needs.validate.outputs.request-id }}
+      RUN_ID: ${{ github.run_id }}
       SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
       TAG: ${{ needs.validate.outputs.tag }}
     steps:
+      - name: Require immutable GitHub Releases before publication
+        shell: bash
+        env:
+          IMMUTABLE_RELEASES_ADMIN_READ_TOKEN: ${{ secrets.IMMUTABLE_RELEASES_ADMIN_READ_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ -n "${IMMUTABLE_RELEASES_ADMIN_READ_TOKEN}" ]] || {
+            echo "The protected environment lacks its Administration:read token." >&2
+            exit 1
+          }
+          immutable_policy="$(curl --config /dev/null \
+            --fail-with-body --silent --show-error \
+            --proto '=https' --tlsv1.2 --max-filesize 4096 \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            -H "Authorization: Bearer ${IMMUTABLE_RELEASES_ADMIN_READ_TOKEN}" \
+            "https://api.github.com/repos/${REPOSITORY}/immutable-releases")"
+          jq -e '
+            type == "object" and
+            (.enabled | type) == "boolean" and .enabled == true and
+            (.enforced_by_owner | type) == "boolean"
+          ' <<<"${immutable_policy}" >/dev/null
+
       - name: Publish exact reviewed release idempotently
         shell: bash
         env:
@@ -250,12 +1157,67 @@ jobs:
           [[ "${CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${NOTES_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${BUNDLE_ARTIFACT_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${BUNDLE_ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
+          (( BUNDLE_SIZE <= 61000000 ))
+          [[ "${RUN_ID}" =~ ^[1-9][0-9]*$ ]]
           [[ "${REQUEST_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]]
           [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
           [[ "${CHANNEL}" == "rc" || "${CHANNEL}" == "stable" ]]
+          [[ "${BUNDLE_NAME}" == "grillmester-opencode-${TAG}.tar.gz" ]]
+          [[ "${BUNDLE_NAME}" =~ ^grillmester-opencode-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
+          [[ "${BUNDLE_ARTIFACT_NAME}" == "sealed-${BUNDLE_NAME}-${SOURCE_SHA}" ]]
+          [[ "${BUNDLE_CHECKSUM_NAME}" == "${BUNDLE_NAME}.sha256" ]]
           notes="${RUNNER_TEMP}/release-notes.md"
+          artifact_zip="${RUNNER_TEMP}/sealed-opencode-assets.zip"
+          bundle="${RUNNER_TEMP}/${BUNDLE_NAME}"
+          checksum="${RUNNER_TEMP}/${BUNDLE_CHECKSUM_NAME}"
           printf '%s' "${NOTES_BASE64}" | base64 --decode > "${notes}"
           [[ "$(sha256sum "${notes}" | cut -d' ' -f1)" == "${NOTES_SHA256}" ]]
+
+          artifact="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${REPOSITORY}/actions/artifacts/${BUNDLE_ARTIFACT_ID}")"
+          artifact_size="$(jq -er '.size_in_bytes' <<<"${artifact}")"
+          [[ "${artifact_size}" =~ ^[1-9][0-9]*$ ]]
+          (( artifact_size <= 62000000 ))
+          jq -e \
+            --arg digest "sha256:${BUNDLE_ARTIFACT_DIGEST}" \
+            --arg id "${BUNDLE_ARTIFACT_ID}" \
+            --arg main_sha "${MAIN_SHA}" \
+            --arg name "${BUNDLE_ARTIFACT_NAME}" \
+            --arg run_id "${RUN_ID}" \
+            '.id == ($id | tonumber) and
+             .name == $name and
+             .expired == false and
+             .digest == $digest and
+             .workflow_run.id == ($run_id | tonumber) and
+             .workflow_run.head_sha == $main_sha' \
+            <<<"${artifact}" >/dev/null
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${REPOSITORY}/actions/artifacts/${BUNDLE_ARTIFACT_ID}/zip" \
+            > "${artifact_zip}"
+          [[ "$(wc -c < "${artifact_zip}" | tr -d ' ')" == "${artifact_size}" ]]
+          [[ "$(sha256sum "${artifact_zip}" | cut -d' ' -f1)" == \
+             "${BUNDLE_ARTIFACT_DIGEST}" ]]
+          mapfile -t artifact_entries < <(unzip -Z1 "${artifact_zip}")
+          [[ "${#artifact_entries[@]}" == "2" ]]
+          [[ "$(printf '%s\n' "${artifact_entries[@]}" | LC_ALL=C sort)" == \
+             "$(printf '%s\n' "${BUNDLE_CHECKSUM_NAME}" "${BUNDLE_NAME}" | LC_ALL=C sort)" ]]
+          unzip -p "${artifact_zip}" "${BUNDLE_NAME}" > "${bundle}"
+          unzip -p "${artifact_zip}" "${BUNDLE_CHECKSUM_NAME}" > "${checksum}"
+          [[ "$(wc -c < "${bundle}" | tr -d ' ')" == "${BUNDLE_SIZE}" ]]
+          [[ "$(sha256sum "${bundle}" | cut -d' ' -f1)" == "${BUNDLE_SHA256}" ]]
+          expected_checksum="${RUNNER_TEMP}/expected-${BUNDLE_CHECKSUM_NAME}"
+          printf '%s  %s\n' \
+            "${BUNDLE_SHA256}" "${BUNDLE_NAME}" > "${expected_checksum}"
+          cmp -s "${expected_checksum}" "${checksum}"
+          (cd "${RUNNER_TEMP}" && sha256sum --check --strict "${BUNDLE_CHECKSUM_NAME}")
 
           git init --quiet
           git config user.name "github-actions[bot]"
@@ -320,6 +1282,10 @@ jobs:
           standard_manifest_file="${RUNNER_TEMP}/grillmester-plugin.json"
           git show "${SOURCE_SHA}:package-manifest.json" > "${package_manifest_file}"
           git show "${SOURCE_SHA}:plugin/plugin.json" > "${standard_manifest_file}"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/opencode.json"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/agents/grillmester.md"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/skills/grillmester-grilling/SKILL.md"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/commands/grillmester-grilling.md"
           jq -e '
             .schemaVersion == 1 and
             (keys | sort) == ["marketplace", "packages", "schemaVersion"] and
@@ -347,8 +1313,6 @@ jobs:
               .repository == "https://github.com/navikt/grillmester" and
               .agents == "agents/" and .skills == "skills/"
             ' "${standard_manifest_file}" >/dev/null
-          # Recreate the generator's complete release catalog without running
-          # repository code under the write token, then require exact bytes.
           regenerated_catalog="${RUNNER_TEMP}/regenerated-marketplace.json"
           jq -n \
             --arg marketplace_name "$(jq -er '.marketplace.name' "${package_manifest_file}")" \
@@ -358,32 +1322,25 @@ jobs:
             --arg standard_description "$(jq -er '.description' "${standard_manifest_file}")" \
             --arg version "${version}" \
             --arg source_sha "${SOURCE_SHA}" \
-            '{
-              name: $marketplace_name,
-              owner: {name: $owner},
-              metadata: {
-                description: $marketplace_description,
-                version: $version
-              },
-              plugins: [{
-                name: $standard_name,
-                description: $standard_description,
-                version: $version,
-                source: {
-                  source: "github",
-                  repo: "navikt/grillmester",
-                  path: "plugin",
-                  sha: $source_sha
-                }
-              }]
-            }' > "${regenerated_catalog}"
+            '{name: $marketplace_name, owner: {name: $owner}, metadata: {
+              description: $marketplace_description, version: $version
+            }, plugins: [{name: $standard_name,
+              description: $standard_description, version: $version,
+              source: {source: "github", repo: "navikt/grillmester",
+                path: "plugin", sha: $source_sha}}]}' > "${regenerated_catalog}"
           cmp -s "${regenerated_catalog}" "${catalog_file}"
 
           if [[ "${CHANNEL}" == "stable" ]]; then
+            git cat-file -e "${SOURCE_SHA}:policy/stable-rights-approval.json"
             [[ "${RC_TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
             [[ "${RC_CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
             [[ "${RC_SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            [[ "${RC_BUNDLE_NAME}" == "grillmester-opencode-${RC_TAG}.tar.gz" ]]
+            [[ "${RC_BUNDLE_CHECKSUM_NAME}" == "${RC_BUNDLE_NAME}.sha256" ]]
+            [[ "${RC_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+            [[ "${RC_BUNDLE_CHECKSUM_SHA256}" =~ ^[0-9a-f]{64}$ ]]
             git fetch --no-tags origin "refs/tags/${RC_TAG}:refs/tags/${RC_TAG}"
+            [[ "$(git cat-file -t "refs/tags/${RC_TAG}")" == "tag" ]]
             [[ "$(git rev-parse "refs/tags/${RC_TAG}^{}")" == "${RC_CATALOG_SHA}" ]]
             git merge-base --is-ancestor \
               "${RC_CATALOG_SHA}" refs/remotes/origin/marketplace
@@ -426,9 +1383,15 @@ jobs:
                "$(jq -cS 'del(.version)' "${rc_standard_manifest_file}")" ]]
             [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
               -- plugin ':(exclude)plugin/plugin.json')" ]]
+            [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
+              -- LICENSE PROVENANCE.md plugin/THIRD_PARTY_NOTICES.md \
+                 policy/content-lock.json policy/client-artifacts.json \
+                 targets/opencode-v1 profiles/opencode \
+                 scripts/build_opencode_bundle.py scripts/manage_opencode.py \
+                 scripts/compose_opencode_permissions.py scripts/release_contract.py \
+                 scripts/verify_client_artifact.py scripts/smoke_plugin_install.py \
+                 scripts/smoke_opencode.py scripts/smoke_opencode_runtime.py)" ]]
 
-            # Preserve the stronger byte contract too: replacing the stable
-            # version value must reproduce the reviewed RC manifest.
             stable_version_pattern="${version//./\\.}"
             [[ "$(grep -Ec "\"version\"[[:space:]]*:[[:space:]]*\"${stable_version_pattern}\"" \
               "${standard_manifest_file}")" == "1" ]]
@@ -447,38 +1410,69 @@ jobs:
               --arg standard_description "$(jq -er '.description' "${rc_standard_manifest_file}")" \
               --arg version "${rc_version}" \
               --arg source_sha "${RC_SOURCE_SHA}" \
-              '{
-                name: $marketplace_name,
-                owner: {name: $owner},
-                metadata: {
-                  description: $marketplace_description,
-                  version: $version
-                },
-                plugins: [{
-                  name: $standard_name,
-                  description: $standard_description,
-                  version: $version,
-                  source: {
-                    source: "github",
-                    repo: "navikt/grillmester",
-                    path: "plugin",
-                    sha: $source_sha
-                  }
-                }]
-              }' > "${regenerated_rc_catalog}"
+              '{name: $marketplace_name, owner: {name: $owner}, metadata: {
+                description: $marketplace_description, version: $version
+              }, plugins: [{name: $standard_name,
+                description: $standard_description, version: $version,
+                source: {source: "github", repo: "navikt/grillmester",
+                  path: "plugin", sha: $source_sha}}]}' > "${regenerated_rc_catalog}"
             cmp -s "${regenerated_rc_catalog}" "${rc_catalog_file}"
-            rc_release="$(gh api "repos/${REPOSITORY}/releases/tags/${RC_TAG}")"
+            rc_release="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/${REPOSITORY}/releases/tags/${RC_TAG}")"
             [[ "$(jq -r '.tag_name' <<<"${rc_release}")" == "${RC_TAG}" ]]
             [[ "$(jq -r '.draft' <<<"${rc_release}")" == "false" ]]
             [[ "$(jq -r '.prerelease' <<<"${rc_release}")" == "true" ]]
+            [[ "$(jq -r '.immutable' <<<"${rc_release}")" == "true" ]]
+            jq -e \
+              --arg bundle "${RC_BUNDLE_NAME}" \
+              --arg bundle_digest "sha256:${RC_BUNDLE_SHA256}" \
+              --arg checksum "${RC_BUNDLE_CHECKSUM_NAME}" \
+              --arg checksum_digest "sha256:${RC_BUNDLE_CHECKSUM_SHA256}" \
+              '(.assets | length) == 2 and
+               ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
+               all(.assets[]; .state == "uploaded") and
+               any(.assets[];
+                 .name == $bundle and
+                 .label == "Grillmester OpenCode bundle" and
+                 .digest == $bundle_digest) and
+               any(.assets[];
+                 .name == $checksum and
+                 .label == "SHA-256 checksum" and
+                 .digest == $checksum_digest)' \
+              <<<"${rc_release}" >/dev/null
+            current_rc_assets="${RUNNER_TEMP}/current-rc-assets"
+            mkdir -p "${current_rc_assets}"
+            gh release download "${RC_TAG}" --repo "${REPOSITORY}" \
+              --dir "${current_rc_assets}" \
+              --pattern "${RC_BUNDLE_NAME}" \
+              --pattern "${RC_BUNDLE_CHECKSUM_NAME}"
+            [[ "$(sha256sum "${current_rc_assets}/${RC_BUNDLE_NAME}" | cut -d' ' -f1)" == \
+               "${RC_BUNDLE_SHA256}" ]]
+            [[ "$(sha256sum "${current_rc_assets}/${RC_BUNDLE_CHECKSUM_NAME}" | cut -d' ' -f1)" == \
+               "${RC_BUNDLE_CHECKSUM_SHA256}" ]]
+            expected_rc_checksum="${RUNNER_TEMP}/expected-${RC_BUNDLE_CHECKSUM_NAME}"
+            printf '%s  %s\n' \
+              "${RC_BUNDLE_SHA256}" "${RC_BUNDLE_NAME}" > "${expected_rc_checksum}"
+            cmp -s \
+              "${expected_rc_checksum}" \
+              "${current_rc_assets}/${RC_BUNDLE_CHECKSUM_NAME}"
           else
             [[ -z "${RC_TAG}" && -z "${RC_CATALOG_SHA}" && -z "${RC_SOURCE_SHA}" ]]
+            [[ -z "${RC_BUNDLE_NAME}" && -z "${RC_BUNDLE_CHECKSUM_NAME}" ]]
+            [[ -z "${RC_BUNDLE_SHA256}" && -z "${RC_BUNDLE_CHECKSUM_SHA256}" ]]
           fi
 
           verify_remote_tag() {
-            local target
+            local object target
             git fetch --no-tags origin \
               "refs/tags/${TAG}:refs/tags/${TAG}" >/dev/null 2>&1 || return 1
+            object="$(git rev-parse "refs/tags/${TAG}")"
+            [[ "$(git cat-file -t "${object}")" == "tag" ]] || {
+              echo "Refusing non-annotated release tag ${TAG}." >&2
+              exit 1
+            }
             target="$(git rev-parse "refs/tags/${TAG}^{}")"
             [[ "${target}" == "${CATALOG_SHA}" ]] || {
               echo "Refusing to move ${TAG}; it identifies another catalog." >&2
@@ -497,27 +1491,141 @@ jobs:
             fi
           fi
 
-          if release="$(gh api "repos/${REPOSITORY}/releases/tags/${TAG}" 2>/dev/null)"; then
+          expected_prerelease="false"
+          [[ "${CHANNEL}" == "rc" ]] && expected_prerelease="true"
+          verify_release_metadata() {
+            local expected_draft="$1"
             [[ "$(jq -r '.tag_name' <<<"${release}")" == "${TAG}" ]]
-            [[ "$(jq -r '.draft' <<<"${release}")" == "false" ]]
+            [[ "$(jq -r '.draft' <<<"${release}")" == "${expected_draft}" ]]
             [[ "$(jq -r '.name' <<<"${release}")" == "Grillmester ${TAG}" ]]
-            expected_prerelease="false"
-            [[ "${CHANNEL}" == "rc" ]] && expected_prerelease="true"
             [[ "$(jq -r '.prerelease' <<<"${release}")" == "${expected_prerelease}" ]]
             [[ "$(jq -r '.body' <<<"${release}")" == "$(<"${notes}")" ]]
-            echo "Release ${TAG} already exists exactly; no-op."
-            exit 0
-          fi
-          release_args=(
-            release create "${TAG}" --verify-tag
-            --title "Grillmester ${TAG}" --notes-file "${notes}"
-          )
-          if [[ "${CHANNEL}" == "rc" ]]; then
-            release_args+=(--prerelease --latest=false)
+            if [[ "${expected_draft}" == "false" ]]; then
+              [[ "$(jq -r '.immutable' <<<"${release}")" == "true" ]]
+            fi
+          }
+          verify_release_asset_roster() {
+            jq -e \
+              --arg bundle "${BUNDLE_NAME}" \
+              --arg bundle_digest "sha256:${BUNDLE_SHA256}" \
+              --arg checksum "${BUNDLE_CHECKSUM_NAME}" \
+              --arg checksum_digest "sha256:$(sha256sum "${checksum}" | cut -d' ' -f1)" \
+              '(.assets | length) == 2 and
+               ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
+               all(.assets[]; .state == "uploaded") and
+               any(.assets[];
+                 .name == $bundle and
+                 .label == "Grillmester OpenCode bundle" and
+                 .digest == $bundle_digest) and
+               any(.assets[];
+                 .name == $checksum and
+                 .label == "SHA-256 checksum" and
+                 .digest == $checksum_digest)' \
+              <<<"${release}" >/dev/null
+          }
+          find_release() {
+            local pages
+            pages="$(gh api --paginate --slurp \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/${REPOSITORY}/releases?per_page=100")" || return 10
+            jq -cer \
+              --arg tag "${TAG}" \
+              '[.[][] | select(.tag_name == $tag)] |
+               if length == 0 then empty
+               elif length == 1 then .[0]
+               else error("multiple releases use the requested tag")
+               end' \
+              <<<"${pages}"
+          }
+          download_asset_from_release() {
+            local destination="$2"
+            local name="$1"
+            local asset_id
+            asset_id="$(jq -er --arg name "${name}" \
+              '.assets[] | select(.name == $name) | .id' <<<"${release}")"
+            [[ "${asset_id}" =~ ^[1-9][0-9]*$ ]]
+            gh api \
+              -H 'Accept: application/octet-stream' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/${REPOSITORY}/releases/assets/${asset_id}" \
+              > "${destination}"
+          }
+
+          release_already_published="false"
+          release_lookup_status=0
+          release="$(find_release)" || release_lookup_status=$?
+          if [[ "${release_lookup_status}" == "0" ]]; then
+            if [[ "$(jq -r '.draft' <<<"${release}")" == "false" ]]; then
+              release_already_published="true"
+            fi
+          elif [[ "${release_lookup_status}" == "4" ]]; then
+            create_args=(
+              release create "${TAG}" --verify-tag --draft --latest=false
+              --title "Grillmester ${TAG}" --notes-file "${notes}"
+            )
+            [[ "${CHANNEL}" == "rc" ]] && create_args+=(--prerelease)
+            gh "${create_args[@]}"
+            release="$(find_release)"
           else
-            release_args+=(--latest)
+            echo "Could not unambiguously inspect an existing release for ${TAG}." >&2
+            exit 1
           fi
-          gh "${release_args[@]}"
+
+          if [[ "${release_already_published}" == "false" ]]; then
+            verify_release_metadata "true"
+            jq -e \
+              --arg bundle "${BUNDLE_NAME}" \
+              --arg checksum "${BUNDLE_CHECKSUM_NAME}" \
+              '([.assets[].name] | unique | length) == (.assets | length) and
+               all(.assets[]; .name == $bundle or .name == $checksum)' \
+              <<<"${release}" >/dev/null
+            gh release upload "${TAG}" --repo "${REPOSITORY}" --clobber \
+              "${bundle}#Grillmester OpenCode bundle" \
+              "${checksum}#SHA-256 checksum"
+            release="$(find_release)"
+            verify_release_metadata "true"
+            verify_release_asset_roster
+
+            staged_assets="${RUNNER_TEMP}/staged-release-assets"
+            mkdir -p "${staged_assets}"
+            download_asset_from_release \
+              "${BUNDLE_NAME}" "${staged_assets}/${BUNDLE_NAME}"
+            download_asset_from_release \
+              "${BUNDLE_CHECKSUM_NAME}" "${staged_assets}/${BUNDLE_CHECKSUM_NAME}"
+            cmp -s "${bundle}" "${staged_assets}/${BUNDLE_NAME}"
+            cmp -s "${checksum}" "${staged_assets}/${BUNDLE_CHECKSUM_NAME}"
+
+            publish_args=(
+              release edit "${TAG}" --verify-tag --draft=false
+              --title "Grillmester ${TAG}" --notes-file "${notes}"
+            )
+            if [[ "${CHANNEL}" == "rc" ]]; then
+              publish_args+=(--prerelease=true --latest=false)
+            else
+              publish_args+=(--prerelease=false --latest)
+            fi
+            gh "${publish_args[@]}"
+            release="$(find_release)"
+          fi
+
+          verify_release_metadata "false"
+          verify_release_asset_roster
+          published_assets="${RUNNER_TEMP}/published-assets"
+          mkdir -p "${published_assets}"
+          download_asset_from_release \
+            "${BUNDLE_NAME}" "${published_assets}/${BUNDLE_NAME}"
+          download_asset_from_release \
+            "${BUNDLE_CHECKSUM_NAME}" "${published_assets}/${BUNDLE_CHECKSUM_NAME}"
+          cmp -s "${bundle}" "${published_assets}/${BUNDLE_NAME}"
+          cmp -s "${checksum}" "${published_assets}/${BUNDLE_CHECKSUM_NAME}"
+          [[ "$(sha256sum "${published_assets}/${BUNDLE_NAME}" | cut -d' ' -f1)" == \
+             "${BUNDLE_SHA256}" ]]
+          if [[ "${release_already_published}" == "true" ]]; then
+            echo "Release ${TAG} and its sealed OpenCode assets already exist exactly; no-op."
+          else
+            echo "Published ${TAG} with sealed OpenCode archive ${BUNDLE_NAME}."
+          fi
 
   remote-smoke:
     needs:
@@ -528,6 +1636,9 @@ jobs:
     permissions:
       contents: read
     env:
+      BUNDLE_CHECKSUM_NAME: ${{ needs.validate.outputs.bundle-checksum-name }}
+      BUNDLE_NAME: ${{ needs.validate.outputs.bundle-name }}
+      BUNDLE_SHA256: ${{ needs.validate.outputs.bundle-sha256 }}
       CATALOG_SHA: ${{ needs.validate.outputs.catalog-sha }}
       SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
       TAG: ${{ needs.validate.outputs.tag }}
@@ -550,6 +1661,7 @@ jobs:
             "refs/heads/main:refs/remotes/origin/main" \
             "refs/heads/marketplace:refs/remotes/origin/marketplace" \
             "refs/tags/${TAG}:refs/tags/${TAG}"
+          [[ "$(git cat-file -t "refs/tags/${TAG}")" == "tag" ]]
           [[ "${CATALOG_SHA}" == "$(git rev-parse "refs/tags/${TAG}^{}")" ]]
           git merge-base --is-ancestor \
             "${CATALOG_SHA}" refs/remotes/origin/marketplace
@@ -563,6 +1675,180 @@ jobs:
             echo "CATALOG_PATH=${catalog_root}/.github/plugin/marketplace.json"
             echo "SOURCE_ROOT=${source_root}"
           } >> "${GITHUB_ENV}"
+
+      - name: Download, verify, safely extract, and install OpenCode asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${BUNDLE_NAME}" == "grillmester-opencode-${TAG}.tar.gz" ]]
+          [[ "${BUNDLE_NAME}" =~ ^grillmester-opencode-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
+          [[ "${BUNDLE_CHECKSUM_NAME}" == "${BUNDLE_NAME}.sha256" ]]
+          download_root="${RUNNER_TEMP}/opencode-download"
+          extract_root="${RUNNER_TEMP}/opencode-extract"
+          install_home="${RUNNER_TEMP}/opencode-install"
+          mkdir -p "${download_root}" "${extract_root}"
+          bundle="${download_root}/${BUNDLE_NAME}"
+          checksum="${download_root}/${BUNDLE_CHECKSUM_NAME}"
+          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 61000000 \
+            "${release_url}/${BUNDLE_NAME}" --output "${bundle}"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 1024 \
+            "${release_url}/${BUNDLE_CHECKSUM_NAME}" --output "${checksum}"
+          expected_checksum="${download_root}/expected.sha256"
+          printf '%s  %s\n' \
+            "${BUNDLE_SHA256}" "${BUNDLE_NAME}" > "${expected_checksum}"
+          cmp -s "${expected_checksum}" "${checksum}"
+          (cd "${download_root}" && \
+            sha256sum --check --strict "${BUNDLE_CHECKSUM_NAME}")
+
+          python3 - "${bundle}" "${extract_root}" "${SOURCE_SHA}" <<'PY'
+          import hashlib
+          import json
+          import shutil
+          import stat
+          import sys
+          import tarfile
+          from pathlib import Path, PurePosixPath
+
+          archive_path = Path(sys.argv[1])
+          destination = Path(sys.argv[2])
+          expected_source = sys.argv[3]
+          archive_root = PurePosixPath("grillmester-opencode-v1")
+
+          def duplicate_keys(pairs):
+              value = {}
+              for key, item in pairs:
+                  if key in value:
+                      raise SystemExit(f"duplicate manifest key: {key!r}")
+                  value[key] = item
+              return value
+
+          with tarfile.open(archive_path, mode="r:gz") as archive:
+              if archive.pax_headers:
+                  raise SystemExit("archive must not use global PAX headers")
+              members = archive.getmembers()
+              if not members or len(members) > 10000:
+                  raise SystemExit("archive member count is invalid")
+              seen = set()
+              total_size = 0
+              normalized = []
+              for member in members:
+                  raw = member.name[:-1] if member.isdir() and member.name.endswith("/") else member.name
+                  if "\\" in raw or any(
+                      ord(character) < 32 or ord(character) == 127
+                      for character in raw
+                  ):
+                      raise SystemExit(f"unsafe archive member: {member.name!r}")
+                  relative = PurePosixPath(raw)
+                  if (
+                      relative.is_absolute()
+                      or relative.as_posix() != raw
+                      or not relative.parts
+                      or relative.parts[0] != archive_root.as_posix()
+                      or any(part in ("", ".", "..") for part in relative.parts)
+                  ):
+                      raise SystemExit(f"unsafe archive path: {member.name!r}")
+                  if relative in seen:
+                      raise SystemExit(f"duplicate archive path: {relative}")
+                  seen.add(relative)
+                  if member.pax_headers or member.uid != 0 or member.gid != 0 or member.mtime != 0:
+                      raise SystemExit(f"non-canonical archive metadata: {relative}")
+                  mode = stat.S_IMODE(member.mode)
+                  if member.isdir():
+                      if mode != 0o755 or member.size != 0:
+                          raise SystemExit(f"invalid directory metadata: {relative}")
+                  elif member.isreg():
+                      if mode not in (0o644, 0o755) or member.size > 5_000_000:
+                          raise SystemExit(f"invalid file metadata: {relative}")
+                      total_size += member.size
+                      if total_size > 50_000_000:
+                          raise SystemExit("archive expands beyond the safety limit")
+                  else:
+                      raise SystemExit(f"links and special archive nodes are forbidden: {relative}")
+                  normalized.append((relative, member))
+              member_by_path = dict(normalized)
+              if archive_root not in member_by_path or not member_by_path[archive_root].isdir():
+                  raise SystemExit("archive root directory is missing")
+
+              destination_resolved = destination.resolve()
+              for relative, member in sorted(normalized, key=lambda item: (len(item[0].parts), str(item[0]))):
+                  target = destination.joinpath(*relative.parts)
+                  if not target.resolve().is_relative_to(destination_resolved):
+                      raise SystemExit(f"archive member escapes extraction root: {relative}")
+                  if member.isdir():
+                      target.mkdir(mode=0o755, exist_ok=True)
+                  else:
+                      target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+                      source = archive.extractfile(member)
+                      if source is None:
+                          raise SystemExit(f"cannot read archive member: {relative}")
+                      with source, target.open("xb") as output:
+                          shutil.copyfileobj(source, output)
+                      target.chmod(stat.S_IMODE(member.mode))
+
+          bundle_root = destination / archive_root.as_posix()
+          manifest_path = bundle_root / "DISTRIBUTION-MANIFEST.json"
+          manifest = json.loads(
+              manifest_path.read_text(encoding="utf-8"),
+              object_pairs_hook=duplicate_keys,
+          )
+          required_keys = {
+              "schemaVersion", "sourceSha", "target", "opencodeVersion",
+              "cpltRelease", "targetManifestSha256", "files",
+          }
+          if not isinstance(manifest, dict) or set(manifest) != required_keys:
+              raise SystemExit("distribution manifest shape is invalid")
+          if manifest["schemaVersion"] != 1 or manifest["sourceSha"] != expected_source:
+              raise SystemExit("distribution manifest provenance does not match the release")
+          if (
+              manifest["target"] != "opencode-v1"
+              or manifest["opencodeVersion"] != "1.18.20"
+              or manifest["cpltRelease"] != "2026.08.17-062831-1008a92"
+          ):
+              raise SystemExit("distribution manifest client contract is invalid")
+          declared = manifest["files"]
+          if not isinstance(declared, dict) or not declared:
+              raise SystemExit("distribution manifest file inventory is invalid")
+          actual = {}
+          for path in sorted(bundle_root.rglob("*")):
+              if path.is_symlink():
+                  raise SystemExit(f"extracted bundle contains a symlink: {path}")
+              if not path.is_file() or path == manifest_path:
+                  continue
+              relative = path.relative_to(bundle_root).as_posix()
+              actual[relative] = {
+                  "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                  "mode": f"{stat.S_IMODE(path.stat().st_mode):04o}",
+              }
+          if actual != declared:
+              raise SystemExit("extracted files do not match the distribution manifest")
+          target_manifest = bundle_root / "targets/opencode-v1/manifest.json"
+          if hashlib.sha256(target_manifest.read_bytes()).hexdigest() != manifest["targetManifestSha256"]:
+              raise SystemExit("target manifest digest does not match distribution manifest")
+          PY
+
+          bundle_root="${extract_root}/grillmester-opencode-v1"
+          python3 -I -S "${bundle_root}/scripts/manage_opencode.py" install \
+            --source "${bundle_root}" \
+            --home "${install_home}"
+          jq -e '
+            .schemaVersion == 1 and
+            (.active | type == "string" and test("^[0-9a-f]{64}$")) and
+            (.previous == null or (.previous | test("^[0-9a-f]{64}$")))
+          ' "${install_home}/state.json" >/dev/null
+          active="$(jq -er '.active' "${install_home}/state.json")"
+          test -d "${install_home}/releases/${active}"
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
 
       - name: Install pinned GitHub Copilot CLI
         run: npm install --global @github/copilot@1.0.79

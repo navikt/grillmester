@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import re
 import sys
@@ -28,7 +29,15 @@ FIGMA_COMPONENT_KEY = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
 FIGMA_KEY_PATHS = {
     "plugin/skills/grillmester-design-prototype/references/aksel-figma-katalog.md",
     "plugin/skills/grillmester-design-prototype/references/aksel-figma-katalog.json",
+    "targets/opencode-v1/skills/grillmester-design-prototype/references/aksel-figma-katalog.md",
+    "targets/opencode-v1/skills/grillmester-design-prototype/references/aksel-figma-katalog.json",
 }
+OPENCODE_MANIFEST_PATH = "targets/opencode-v1/manifest.json"
+CLIENT_ARTIFACTS_PATH = "policy/client-artifacts.json"
+SHA256_DIGEST = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
+ARTIFACT_HEX_DIGEST = re.compile(
+    r"(?<![0-9a-f])(?:[0-9a-f]{128}|[0-9a-f]{64})(?![0-9a-f])"
+)
 MAX_DISCOVERY_TEXT_BYTES = 13 * 1024
 FORBIDDEN_RUNTIME_IDS = re.compile(
     r"\b(?:hovmester|souschef|konditor|inspektor-claude|inspektor-gpt)\b",
@@ -842,8 +851,18 @@ def validate_content(
             continue
         relative_path = path.relative_to(root).as_posix()
         national_id_matches = list(REALISTIC_NATIONAL_ID.finditer(text))
-        if national_id_matches and relative_path in FIGMA_KEY_PATHS:
-            key_spans = [match.span() for match in FIGMA_COMPONENT_KEY.finditer(text)]
+        if national_id_matches and (
+            relative_path in FIGMA_KEY_PATHS
+            or relative_path == OPENCODE_MANIFEST_PATH
+            or relative_path == CLIENT_ARTIFACTS_PATH
+        ):
+            if relative_path == OPENCODE_MANIFEST_PATH:
+                digest_pattern = SHA256_DIGEST
+            elif relative_path == CLIENT_ARTIFACTS_PATH:
+                digest_pattern = ARTIFACT_HEX_DIGEST
+            else:
+                digest_pattern = FIGMA_COMPONENT_KEY
+            key_spans = [match.span() for match in digest_pattern.finditer(text)]
             national_id_matches = [
                 match
                 for match in national_id_matches
@@ -927,6 +946,35 @@ def validate_assets(root: Path, errors: list[str]) -> None:
         errors.append("README must render the reviewed Grillmester hero asset")
 
 
+def validate_opencode_projection(root: Path, errors: list[str]) -> None:
+    generator_path = root / "scripts/generate_opencode.py"
+    if not generator_path.is_file():
+        errors.append("missing OpenCode target generator: scripts/generate_opencode.py")
+        return
+    spec = importlib.util.spec_from_file_location(
+        f"grillmester_generate_opencode_{abs(hash(root))}", generator_path
+    )
+    if spec is None or spec.loader is None:
+        errors.append("cannot load OpenCode target generator")
+        return
+    generator = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(generator)
+        expected, policy = generator.build_projection(root)
+        output = root / generator.relative_path(
+            policy["output"], label="policy output"
+        )
+        differences = generator.compare_projection(output, expected)
+    except (OSError, ValueError) as exc:
+        errors.append(f"OpenCode target validation failed: {exc}")
+        return
+    if differences:
+        summary = "; ".join(differences[:3])
+        if len(differences) > 3:
+            summary += f"; and {len(differences) - 3} more differences"
+        errors.append(f"OpenCode target is stale: {summary}")
+
+
 def validate_repo(root: Path) -> list[str]:
     root = root.resolve()
     plugin_root = root / "plugin"
@@ -936,6 +984,7 @@ def validate_repo(root: Path) -> list[str]:
     validate_layout(root, errors)
     validate_assets(root, errors)
     validate_manifests(root, errors)
+    validate_opencode_projection(root, errors)
     sources, agent_contracts, skill_contracts = load_content_lock(root, errors)
     validate_attribution(root, sources, errors)
     agent_ids = validate_agents(plugin_root, agent_contracts, errors)
