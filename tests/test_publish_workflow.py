@@ -202,9 +202,17 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "Install and test the generated Homebrew formula", maxsplit=1
         )[1]
         self.assertEqual(2, gate.count("scripts/build_opencode_bundle.py"))
+        self.assertNotIn("brew install --overwrite", gate)
+        self.assertNotIn("brew install --ignore-dependencies", gate)
 
         for marker in (
             'cmp -s "${bundle}" "${repeated}"',
+            "prepare_hosted_intel_python_links",
+            "restore_hosted_intel_python_links",
+            'readlink "${target}"',
+            'brew uninstall --formula python@3.13',
+            'mv "${target}" "${backup}"',
+            'mv "${backup}" "${target}"',
             "scripts/generate_homebrew_formula.py",
             'ruby -c "${formula}"',
             'brew tap-new --no-git "${tap_name}"',

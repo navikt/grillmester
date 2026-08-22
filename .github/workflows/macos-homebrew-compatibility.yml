@@ -198,11 +198,60 @@ jobs:
               output.write("\n".join(lines) + "\n")
           PY
 
+          python_dependency_preinstalled=false
+          if brew list --versions python@3.13 >/dev/null 2>&1; then
+            python_dependency_preinstalled=true
+          fi
+          runner_link_backup="${qa_root}/runner-python-links"
+          runner_python_links=(
+            idle3.13 pip3.13 pydoc3.13 python3.13 python3.13-config
+          )
+          prepare_hosted_intel_python_links() {
+            [[ "${machine}" == "x86_64" ]] || return 0
+            [[ "${python_dependency_preinstalled}" == "false" ]] || return 0
+            mkdir -m 700 "${runner_link_backup}"
+            for name in "${runner_python_links[@]}"; do
+              target="/usr/local/bin/${name}"
+              backup="${runner_link_backup}/${name}"
+              if [[ ! -e "${target}" && ! -L "${target}" ]]; then
+                continue
+              fi
+              [[ -L "${target}" ]]
+              [[ "$(readlink "${target}")" == \
+                 "/Library/Frameworks/Python.framework/Versions/3.13/bin/${name}" ]]
+              [[ ! -e "${backup}" && ! -L "${backup}" ]]
+              mv "${target}" "${backup}"
+            done
+          }
+          restore_hosted_intel_python_links() {
+            [[ "${machine}" == "x86_64" ]] || return 0
+            [[ "${python_dependency_preinstalled}" == "false" ]] || return 0
+            restore_status=0
+            if brew list --versions python@3.13 >/dev/null 2>&1; then
+              brew uninstall --formula python@3.13 >/dev/null || restore_status=1
+            fi
+            for name in "${runner_python_links[@]}"; do
+              target="/usr/local/bin/${name}"
+              backup="${runner_link_backup}/${name}"
+              [[ -L "${backup}" ]] || continue
+              if [[ -e "${target}" || -L "${target}" ]]; then
+                echo "Cannot restore hosted runner link over ${target}." >&2
+                restore_status=1
+                continue
+              fi
+              mv "${backup}" "${target}" || restore_status=1
+            done
+            return "${restore_status}"
+          }
           cleanup() {
+            cleanup_status=$?
             brew uninstall --formula "${formula_name}" >/dev/null 2>&1 || true
+            restore_hosted_intel_python_links || cleanup_status=1
             brew untap "${tap_name}" >/dev/null 2>&1 || true
+            return "${cleanup_status}"
           }
           trap cleanup EXIT
+          prepare_hosted_intel_python_links
           cp "${install_formula}" "${tap_formula}"
           brew install --formula "${formula_name}"
           prefix="$(brew --prefix "${formula_name}")"
