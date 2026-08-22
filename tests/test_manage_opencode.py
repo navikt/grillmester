@@ -556,6 +556,52 @@ pathlib.Path(os.environ["FAKE_CAPTURE"]).write_text(json.dumps(capture))
         self.assertEqual(release.stat().st_ino, inode_before)
         self.assertEqual((self.home / "state.json").read_bytes(), state_before)
 
+    def test_install_renames_a_writable_stage_then_seals_the_release_root(self) -> None:
+        self.make_bundle()
+        real_replace = os.replace
+        observed_stage_modes: list[int] = []
+
+        def require_writable_stage(source: object, destination: object) -> None:
+            source_path = Path(source)
+            if source_path.name.startswith(".install-"):
+                observed_stage_modes.append(
+                    stat.S_IMODE(source_path.stat().st_mode)
+                )
+                self.assertTrue(observed_stage_modes[-1] & stat.S_IWUSR)
+            real_replace(source, destination)
+
+        with mock.patch.object(
+            MANAGER.os, "replace", side_effect=require_writable_stage
+        ):
+            release_id = self.install()
+
+        self.assertEqual(len(observed_stage_modes), 1)
+        release_root = self.home / "releases" / release_id
+        self.assertEqual(0o555, stat.S_IMODE(release_root.stat().st_mode))
+
+    def test_install_publish_failure_is_clean_and_has_no_traceback(self) -> None:
+        self.make_bundle()
+        real_replace = os.replace
+
+        def fail_release_publish(source: object, destination: object) -> None:
+            if Path(source).name.startswith(".install-"):
+                raise PermissionError("synthetic release publish denial")
+            real_replace(source, destination)
+
+        with mock.patch.object(
+            MANAGER.os, "replace", side_effect=fail_release_publish
+        ):
+            result, _, stderr = self.run_cli(
+                "install", "--source", str(self.source), "--home", str(self.home)
+            )
+
+        self.assertEqual(result, 2)
+        self.assertIn("could not publish installed release", stderr)
+        self.assertNotIn("Traceback", stderr)
+        self.assertFalse((self.home / "state.json").exists())
+        releases = self.home / "releases"
+        self.assertEqual([], list(releases.iterdir()))
+
     def test_install_rejects_tampering_extras_and_symlinks_without_state(self) -> None:
         self.make_bundle()
         (self.target / "agents/grillmester.md").write_text("tampered\n")

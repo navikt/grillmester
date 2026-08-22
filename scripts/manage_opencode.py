@@ -2082,6 +2082,7 @@ def install(source: Path, home: Path) -> tuple[str, bool]:
             _release_distribution(home, release_id)
         else:
             stage_root = Path(tempfile.mkdtemp(prefix=".install-", dir=releases))
+            published = False
             try:
                 _copy_distribution(
                     verified_source, stage_root / "distribution", immutable=True
@@ -2091,12 +2092,23 @@ def install(source: Path, home: Path) -> tuple[str, bool]:
                 )
                 if installed.release_id != release_id:  # pragma: no cover
                     raise LifecycleError("staged release ID changed during installation")
-                stage_root.chmod(0o555)
+                # Keep the source directory owner-writable for the rename.
+                # Darwin can reject renaming a 0555 directory even when its
+                # parent is writable. The verified distribution below it is
+                # already sealed; seal the release root immediately after the
+                # atomic publication.
                 os.replace(stage_root, destination_root)
+                published = True
+                destination_root.chmod(0o555)
                 _fsync_directory(releases)
-            except Exception:
-                if stage_root.exists():
-                    _remove_private_tree(stage_root)
+            except Exception as exc:
+                cleanup_root = destination_root if published else stage_root
+                if cleanup_root.exists():
+                    _remove_private_tree(cleanup_root)
+                if isinstance(exc, OSError):
+                    raise LifecycleError(
+                        f"could not publish installed release {release_id}: {exc}"
+                    ) from exc
                 raise
             changed = True
 
