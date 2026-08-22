@@ -47,12 +47,14 @@ python3 scripts/generate_homebrew_formula.py \
   --tag v0.0.0-test \
   --bundle-name grillmester-opencode-v0.0.0-test.tar.gz \
   --bundle-sha256 "$(shasum -a 256 /tmp/grillmester-opencode-v1.tar.gz | cut -d' ' -f1)" \
+  --client-artifacts policy/client-artifacts.json \
   --output /tmp/grillmester.rb
 ruby -c /tmp/grillmester.rb
 ```
 
 Et releasebygg skal kjøres to ganger og gi byte-identiske arkiver før den
-detached checksumfilen publiseres.
+detached checksumfilen publiseres. Release-workflowen publiserer bundle,
+checksum og den byte-eksakte formelen som tre immutable assets.
 
 Kjør den lokale hovedgaten:
 

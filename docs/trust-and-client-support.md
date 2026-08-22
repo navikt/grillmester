@@ -93,10 +93,13 @@ innebygde domeneallowlist; smoken er derfor ikke kernel-evidens for null ekstern
 trafikk. Den beviser heller ikke kvaliteten til en konkret lokal eller ekstern
 modell.
 
-CI-gaten `macos-live-compatibility` bruker de eksakte pinnede Darwin-assetene.
-Den verifiserer arkivstørrelse, upstream-digest, eksakt tar-roster,
+CI-gaten `macos-live-compatibility` kjører samme formel og de eksakte pinnede
+Darwin-assetene på Apple Silicon og GitHubs hostede Intel-miljø. Intel-pinnen
+er Haswell/AVX2-basert; eldre Intel-Macer er `UNVERIFIED`. Gaten verifiserer
+arkivstørrelse, upstream-digest, eksakt tar-roster,
 binærstørrelse og binærdigest før første klientkjøring. Deretter kjører den
-native discovery/runtime-smoke, cplts virkelige `check --json`-prober med
+strict Homebrew-audit, installasjon, `brew test`, launcher-doctor og avinstallasjon
+før native discovery/runtime-smoke og cplts virkelige `check --json`-prober med
 managerens `local-only`-nettverksflagg, targeted allow/block-klassifisering og
 rå `/usr/bin/nc`-målinger: samme listenerport må være nåbar både via loopback
 og en annen adresse som tilhører runneren, fordi Seatbelts `localhost`-selector

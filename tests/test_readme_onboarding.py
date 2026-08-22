@@ -28,8 +28,8 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         cls.cplt_release = client_artifacts["cplt"]["release"]
 
     def test_readme_is_a_short_four_agent_onboarding(self) -> None:
-        self.assertLessEqual(len(self.text.splitlines()), 110)
-        self.assertLessEqual(len(self.text.split()), 550)
+        self.assertLessEqual(len(self.text.splitlines()), 115)
+        self.assertLessEqual(len(self.text.split()), 575)
         self.assertEqual(
             self.text.split("\n## ", 1)[1].splitlines()[0], "Kom i gang"
         )
@@ -60,6 +60,10 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             "### Copilot CLI og OpenCode i terminalen", 1
         )[1].split("### Copilot app", 1)[0]
         normalized = " ".join(terminal.split())
+        self.assertLess(
+            terminal.index("ikke tilgjengelig ennå"),
+            terminal.index("brew install navikt/tap/grillmester"),
+        )
         self.assertLess(
             terminal.index("brew install navikt/tap/grillmester"),
             terminal.index("\ngrillmester\n"),

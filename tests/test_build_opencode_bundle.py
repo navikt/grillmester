@@ -102,6 +102,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             ("policy/content-lock.json", "policy/content-lock.json"),
             ("LICENSE", "LICENSE"),
             ("PROVENANCE.md", "PROVENANCE.md"),
+            ("THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES.md"),
         ):
             destination = source / destination_relative
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -849,7 +850,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             )
 
         missing_notices = self.make_source("missing-notices")
-        (missing_notices / "plugin/THIRD_PARTY_NOTICES.md").unlink()
+        (missing_notices / "THIRD_PARTY_NOTICES.md").unlink()
         with self.assertRaisesRegex(BUILDER.BundleBuildError, "third-party notices"):
             BUILDER.build_bundle(
                 missing_notices,

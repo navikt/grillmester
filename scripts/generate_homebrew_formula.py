@@ -93,7 +93,6 @@ def render_formula(
         raise FormulaError("bundle name must be derived exactly from the release tag")
     if DIGEST.fullmatch(bundle_sha256) is None:
         raise FormulaError("bundle SHA-256 must be 64 lowercase hex characters")
-    version = tag.removeprefix("v")
     url = (
         f"https://github.com/navikt/grillmester/releases/download/{tag}/"
         f"{bundle_name}"
@@ -120,7 +119,6 @@ def render_formula(
   desc "Agent team for software delivery, design, and product work in Nav"
   homepage "https://github.com/navikt/grillmester"
   url "{url}"
-  version "{version}"
   sha256 "{bundle_sha256}"
   license "MIT"
 
@@ -137,7 +135,7 @@ def render_formula(
       clients.install "cplt"
     end
     resource("grillmester-opencode").stage do
-      clients.install "package/bin/opencode"
+      clients.install "bin/opencode"
     end
     python = formula_opt_bin("python@3.13")/"python3.13"
     (bin/"grillmester").write <<~SH
@@ -161,7 +159,8 @@ def render_formula(
   end
 
   test do
-    assert_match "grillmester {version}", shell_output("#{{bin}}/grillmester --version")
+    assert_match "grillmester #{{version}}", shell_output("#{{bin}}/grillmester --version")
+    assert_match "ok  opencode", shell_output("#{{bin}}/grillmester doctor --client opencode")
   end
 end
 '''

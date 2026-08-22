@@ -7,17 +7,67 @@ on:
         description: Exact Grillmester source commit to verify
         required: true
         type: string
+      release_artifact_digest:
+        description: Optional sealed release artifact SHA-256
+        required: false
+        type: string
+        default: ""
+      release_artifact_id:
+        description: Optional sealed release artifact ID
+        required: false
+        type: string
+        default: ""
+      release_artifact_name:
+        description: Optional sealed release artifact name
+        required: false
+        type: string
+        default: ""
+      release_bundle_name:
+        description: Bundle name inside the optional sealed artifact
+        required: false
+        type: string
+        default: ""
+      release_bundle_sha256:
+        description: Bundle SHA-256 inside the optional sealed artifact
+        required: false
+        type: string
+        default: ""
+      release_formula_sha256:
+        description: Formula SHA-256 inside the optional sealed artifact
+        required: false
+        type: string
+        default: ""
+      release_main_sha:
+        description: Workflow head SHA that created the optional sealed artifact
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 jobs:
   macos-live-compatibility:
-    runs-on: macos-15
+    name: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - macos-15
+          - macos-15-intel
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     permissions:
+      actions: read
       contents: read
     env:
+      RELEASE_ARTIFACT_DIGEST: ${{ inputs.release_artifact_digest }}
+      RELEASE_ARTIFACT_ID: ${{ inputs.release_artifact_id }}
+      RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
+      RELEASE_BUNDLE_NAME: ${{ inputs.release_bundle_name }}
+      RELEASE_BUNDLE_SHA256: ${{ inputs.release_bundle_sha256 }}
+      RELEASE_FORMULA_SHA256: ${{ inputs.release_formula_sha256 }}
+      RELEASE_MAIN_SHA: ${{ inputs.release_main_sha }}
       SOURCE_SHA: ${{ inputs.source_sha }}
     steps:
       - name: Check out exact immutable source
@@ -26,6 +76,81 @@ jobs:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Acquire exact sealed release formula when provided
+        shell: bash
+        env:
+          READ_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          values=(
+            "${RELEASE_ARTIFACT_DIGEST}"
+            "${RELEASE_ARTIFACT_ID}"
+            "${RELEASE_ARTIFACT_NAME}"
+            "${RELEASE_BUNDLE_NAME}"
+            "${RELEASE_BUNDLE_SHA256}"
+            "${RELEASE_FORMULA_SHA256}"
+            "${RELEASE_MAIN_SHA}"
+          )
+          populated=0
+          for value in "${values[@]}"; do
+            [[ -z "${value}" ]] || populated=$((populated + 1))
+          done
+          if (( populated == 0 )); then
+            echo "SEALED_RELEASE_FORMULA=" >> "${GITHUB_ENV}"
+            exit 0
+          fi
+          (( populated == ${#values[@]} )) || {
+            echo "sealed release formula inputs must be all present or all absent" >&2
+            exit 1
+          }
+          [[ "${RELEASE_ARTIFACT_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${RELEASE_ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${RELEASE_ARTIFACT_NAME}" == "sealed-${RELEASE_BUNDLE_NAME}-${SOURCE_SHA}" ]]
+          [[ "${RELEASE_BUNDLE_NAME}" =~ ^grillmester-opencode-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
+          [[ "${RELEASE_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${RELEASE_FORMULA_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${RELEASE_MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+
+          artifact_zip="${RUNNER_TEMP}/sealed-release-assets.zip"
+          sealed_formula="${RUNNER_TEMP}/sealed-grillmester.rb"
+          artifact="$(GH_TOKEN="${READ_TOKEN}" gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${REPOSITORY}/actions/artifacts/${RELEASE_ARTIFACT_ID}")"
+          artifact_size="$(jq -er '.size_in_bytes' <<<"${artifact}")"
+          [[ "${artifact_size}" =~ ^[1-9][0-9]*$ ]]
+          (( artifact_size <= 62100000 ))
+          jq -e \
+            --arg digest "sha256:${RELEASE_ARTIFACT_DIGEST}" \
+            --arg id "${RELEASE_ARTIFACT_ID}" \
+            --arg main_sha "${RELEASE_MAIN_SHA}" \
+            --arg name "${RELEASE_ARTIFACT_NAME}" \
+            --arg run_id "${RUN_ID}" \
+            '.id == ($id | tonumber) and .name == $name and .expired == false and
+             .digest == $digest and .workflow_run.id == ($run_id | tonumber) and
+             .workflow_run.head_sha == $main_sha' <<<"${artifact}" >/dev/null
+          GH_TOKEN="${READ_TOKEN}" gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${REPOSITORY}/actions/artifacts/${RELEASE_ARTIFACT_ID}/zip" \
+            > "${artifact_zip}"
+          [[ "$(wc -c < "${artifact_zip}" | tr -d ' ')" == "${artifact_size}" ]]
+          [[ "$(shasum -a 256 "${artifact_zip}" | cut -d' ' -f1)" == \
+             "${RELEASE_ARTIFACT_DIGEST}" ]]
+          checksum_name="${RELEASE_BUNDLE_NAME}.sha256"
+          artifact_entries="$(unzip -Z1 "${artifact_zip}")"
+          [[ "$(printf '%s\n' "${artifact_entries}" | wc -l | tr -d ' ')" == "3" ]]
+          [[ "$(printf '%s\n' "${artifact_entries}" | LC_ALL=C sort)" == \
+             "$(printf '%s\n' "${RELEASE_BUNDLE_NAME}" "${checksum_name}" \
+               "grillmester.rb" | LC_ALL=C sort)" ]]
+          unzip -p "${artifact_zip}" grillmester.rb > "${sealed_formula}"
+          [[ "$(shasum -a 256 "${sealed_formula}" | cut -d' ' -f1)" == \
+             "${RELEASE_FORMULA_SHA256}" ]]
+          echo "SEALED_RELEASE_FORMULA=${sealed_formula}" >> "${GITHUB_ENV}"
 
       - name: Download and verify native Darwin clients before first execution
         shell: bash
@@ -49,11 +174,9 @@ jobs:
               cplt_binary_sha256="423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2"
               ;;
             x86_64)
-              # The baseline archive is byte-equivalent at the executable layer
-              # and keeps this gate honest on older hosted Intel CPUs.
-              opencode_url="https://registry.npmjs.org/opencode-darwin-x64-baseline/-/opencode-darwin-x64-baseline-1.18.20.tgz"
-              opencode_archive_size=48089428
-              opencode_archive_sha512="f8a179f6efd24a3532686aadae3724cb0b151b2a8170ece444970ed5cdc2af1fc8295f94d9accdb8867f4b6da78047d77f8bbd7f1793fc2a2199cceadacf1509"
+              opencode_url="https://registry.npmjs.org/opencode-darwin-x64/-/opencode-darwin-x64-1.18.20.tgz"
+              opencode_archive_size=48089366
+              opencode_archive_sha512="cbade5db7d9d2cf3175a66155aba13c5b77bc1f602b1178f05a5ec8bb9f77983cd7bb29ea3aacc97170db266c187173c3a609eaf4c83f4391a492e7230b83dc1"
               opencode_binary_size=149405776
               opencode_binary_sha256="96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60"
               cplt_url="https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-x86_64-apple-darwin.tar.gz"
@@ -352,7 +475,105 @@ jobs:
           PY
           bundle_root="${extraction}/grillmester-opencode-v1"
           [[ -f "${bundle_root}/DISTRIBUTION-MANIFEST.json" ]]
-          echo "BUNDLE_ROOT=${bundle_root}" >> "${GITHUB_ENV}"
+          {
+            echo "BUNDLE_ARCHIVE=${bundle}"
+            echo "BUNDLE_ROOT=${bundle_root}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Install and test the generated Homebrew formula
+        shell: bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          set -euo pipefail
+          version="$(jq -er '.version' plugin/plugin.json)"
+          [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+          tag="v${version}"
+          bundle_name="grillmester-opencode-${tag}.tar.gz"
+          qa_root="${RUNNER_TEMP}/homebrew-formula-qa"
+          mkdir -m 700 "${qa_root}"
+          qa_bundle="${qa_root}/${bundle_name}"
+          formula="${qa_root}/grillmester.rb"
+          expected_formula="${qa_root}/expected-grillmester.rb"
+          install_formula="${qa_root}/install-grillmester.rb"
+          tap_name="grillmester/formula-qa"
+          formula_name="${tap_name}/grillmester"
+          cp "${BUNDLE_ARCHIVE}" "${qa_bundle}"
+          bundle_sha256="$(shasum -a 256 "${qa_bundle}" | cut -d' ' -f1)"
+          if [[ -n "${SEALED_RELEASE_FORMULA:-}" ]]; then
+            [[ "${bundle_name}" == "${RELEASE_BUNDLE_NAME}" ]]
+            [[ "${bundle_sha256}" == "${RELEASE_BUNDLE_SHA256}" ]]
+            cp "${SEALED_RELEASE_FORMULA}" "${formula}"
+          fi
+          python3 -I -S scripts/generate_homebrew_formula.py \
+            --tag "${tag}" --bundle-name "${bundle_name}" \
+            --bundle-sha256 "${bundle_sha256}" \
+            --client-artifacts policy/client-artifacts.json \
+            --output "${expected_formula}"
+          if [[ -z "${SEALED_RELEASE_FORMULA:-}" ]]; then
+            cp "${expected_formula}" "${formula}"
+          fi
+          cmp -s "${expected_formula}" "${formula}"
+          ruby -c "${formula}"
+          brew tap-new --no-git "${tap_name}"
+          tap_root="$(brew --repository "${tap_name}")"
+          tap_formula="${tap_root}/Formula/grillmester.rb"
+          cp "${formula}" "${tap_formula}"
+          brew style "${formula_name}"
+          brew audit --strict "${formula_name}"
+
+          local_url="file://${qa_bundle}"
+          python3 -I -S - "${formula}" "${install_formula}" "${local_url}" <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          source = Path(sys.argv[1]).read_text(encoding="utf-8")
+          destination = Path(sys.argv[2])
+          local_url = sys.argv[3]
+          expected_prefix = '  url "https://github.com/navikt/grillmester/releases/download/'
+          lines = source.splitlines()
+          matches = [index for index, line in enumerate(lines) if line.startswith(expected_prefix)]
+          if len(matches) != 1:
+              raise SystemExit("generated formula has an unexpected primary URL roster")
+          lines[matches[0]] = f'  url "{local_url}"'
+          descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+          with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as output:
+              output.write("\n".join(lines) + "\n")
+          PY
+
+          cleanup() {
+            brew uninstall --formula "${formula_name}" >/dev/null 2>&1 || true
+            brew untap "${tap_name}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          cp "${install_formula}" "${tap_formula}"
+          brew install --formula "${formula_name}"
+          prefix="$(brew --prefix "${formula_name}")"
+          linked_launcher="$(brew --prefix)/bin/grillmester"
+          [[ -x "${prefix}/bin/grillmester" ]]
+          [[ -x "${prefix}/libexec/clients/cplt" ]]
+          [[ -x "${prefix}/libexec/clients/opencode" ]]
+          [[ ! -L "${prefix}/libexec/clients/cplt" ]]
+          [[ ! -L "${prefix}/libexec/clients/opencode" ]]
+          [[ "$(shasum -a 256 "${prefix}/libexec/clients/cplt" | cut -d' ' -f1)" == \
+             "${CPLT_BINARY_SHA256}" ]]
+          [[ "$(shasum -a 256 "${prefix}/libexec/clients/opencode" | cut -d' ' -f1)" == \
+             "${OPENCODE_BINARY_SHA256}" ]]
+          grep -F 'anomalyco/opencode' "${prefix}/libexec/THIRD_PARTY_NOTICES.md" >/dev/null
+          grep -F 'navikt/cplt' "${prefix}/libexec/THIRD_PARTY_NOTICES.md" >/dev/null
+          brew test --verbose "${formula_name}"
+          PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
+            "${prefix}/bin/grillmester" doctor --client opencode
+          cleanup
+          trap - EXIT
+          if brew list --versions "${formula_name}" >/dev/null 2>&1; then
+            echo "grillmester remains installed after uninstall" >&2
+            exit 1
+          fi
+          [[ ! -e "${linked_launcher}" && ! -L "${linked_launcher}" ]]
+          [[ ! -e "${prefix}" && ! -L "${prefix}" ]]
 
       - name: Prove cplt local-only policy and host-local socket semantics
         shell: bash

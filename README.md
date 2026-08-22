@@ -13,8 +13,8 @@ bruk styres av Navs gjeldende policy.
 
 ### Copilot CLI og OpenCode i terminalen
 
-På macOS installerer du den felles terminalinngangen. Homebrew installerer også den
-release-gatede OpenCode-klienten og cplt:
+Homebrew-oppføringen aktiveres etter stabil release og reviewet tap-bootstrap. Kommandoen er **ikke tilgjengelig ennå**; bruk Copilot app eller [native Copilot-installasjon](docs/installation.md#alternativ-native-copilot-cli-installasjon-med-automatisk-oppdatering).
+Når tapen er live, installeres Grillmester, OpenCode og cplt:
 
 ```bash
 brew install navikt/tap/grillmester
@@ -45,9 +45,9 @@ grillmester --client opencode --role barista
 grillmester doctor
 ```
 
-Begge terminalklientene startes alltid gjennom cplt. Grillmester velger ikke
-provider eller modell. Flagg før `--` går til cplt; flagg etter `--` går til
-klienten. For eksempel kan en lokal OpenCode-provider på port `1234` startes
+Når du bruker `grillmester`, startes begge terminalklientene alltid gjennom
+cplt. Launcheren velger ikke provider eller modell. Flagg før `--` går til cplt; flagg
+etter `--` går til klienten. En lokal OpenCode-provider på port `1234` startes
 slik:
 
 ```bash

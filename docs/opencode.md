@@ -8,7 +8,10 @@ det er ikke Copilot-pluginen pakket inn på nytt. Andre OpenCode 1-versjoner er
 
 ## Kom i gang
 
-På macOS installerer du den felles terminalinngangen:
+Den felles macOS-launcheren er ferdig, men Homebrew-oppføringen publiseres først
+etter første stabile release og en reviewet bootstrap i `navikt/homebrew-tap`.
+Kommandoen under er derfor foreløpig **ikke tilgjengelig**. Bruk den bare når
+installasjonsguiden markerer tap-bootstrapen som aktiv:
 
 ```bash
 brew install navikt/tap/grillmester
@@ -113,9 +116,10 @@ fail-closed domenegrensen.
 | Grillmester-binding | Automatisk gjennom `grillmester` | Immutable installasjon og kortlivet stage |
 | Sikkerhetsprofil | cplts vanlige policy + eksplisitte grants | Checksums, resolved-config-gate og deklarative profiler |
 
-Homebrew-launcheren over er den normale kompatibilitetsflyten. Når et team eller en
-runtimeeier eksplisitt krever den strengere assurance-kontrakten, kan de velge
-en manifestverifisert installasjon i brukerdata og en kortlivet runtime-stage gjennom
+Etter tap-aktivering er Homebrew-launcheren over den normale
+kompatibilitetsflyten. Når et team eller en runtimeeier eksplisitt krever den
+strengere assurance-kontrakten, kan de velge en manifestverifisert installasjon
+i brukerdata og en kortlivet runtime-stage gjennom
 [cplt](https://github.com/navikt/cplt). Configen er read-only, mens checksummede
 OpenCode- og cplt-bytes kjøres fra en privat, forseglet `trusted-bin`. Verken
 installasjon eller staging skriver i consumer-repoet, og ingen OpenCode-prosess

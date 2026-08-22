@@ -37,7 +37,7 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
             content,
         )
         self.assertIn(f'sha256 "{digest}"', content)
-        self.assertIn('version "1.2.3-rc.4"', content)
+        self.assertNotIn('version "1.2.3-rc.4"', content)
         self.assertNotIn('depends_on "navikt/tap/cplt"', content)
         self.assertNotIn('depends_on "opencode"', content)
         self.assertIn('depends_on "python@3.13"', content)
@@ -53,8 +53,9 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
             'export PATH="#{libexec}/clients:$PATH"', content
         )
         self.assertIn('clients.install "cplt"', content)
-        self.assertIn('clients.install "package/bin/opencode"', content)
+        self.assertIn('clients.install "bin/opencode"', content)
         self.assertIn('libexec.install Dir["*"]', content)
+        self.assertIn("grillmester doctor --client opencode", content)
         self.assertIn("Copilot app uses its own Plugins UI", content)
 
     def test_formula_resources_cover_both_macos_architectures(self) -> None:

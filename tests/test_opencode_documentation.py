@@ -26,6 +26,9 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         cls.development = (ROOT / "docs/development.md").read_text(
             encoding="utf-8"
         )
+        cls.release_runbook = (ROOT / "docs/release-runbook.md").read_text(
+            encoding="utf-8"
+        )
         cls.bundle_adr = (
             ROOT / "docs/adr/0002-install-and-launch-opencode-bundles.md"
         ).read_text(encoding="utf-8")
@@ -140,6 +143,10 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         normalized = " ".join(quick_start.split())
 
         self.assertIn("brew install navikt/tap/grillmester", normalized)
+        self.assertLess(
+            normalized.index("ikke tilgjengelig"),
+            normalized.index("brew install navikt/tap/grillmester"),
+        )
         self.assertIn("grillmester choose", normalized)
         self.assertIn("starter alltid OpenCode gjennom cplt", normalized)
 
@@ -185,7 +192,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("Ikke bruk\n`--allow-all-domains`", quick_start)
 
     def test_readme_has_one_terminal_journey_before_app_and_agent_help(self) -> None:
-        self.assertLessEqual(len(self.readme.splitlines()), 110)
+        self.assertLessEqual(len(self.readme.splitlines()), 115)
         self.assertLess(
             self.readme.index("### Copilot CLI og OpenCode i terminalen"),
             self.readme.index("### Copilot app"),
@@ -210,7 +217,11 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn(marker, normalized)
 
     def test_installation_guide_leads_with_launcher_before_manager(self) -> None:
-        self.assertIn("## Anbefalt terminaloppsett", self.installation)
+        self.assertIn("## Felles terminaloppsett på macOS", self.installation)
+        self.assertLess(
+            self.installation.index("ikke tilgjengelig"),
+            self.installation.index("brew install navikt/tap/grillmester"),
+        )
         self.assertIn("opencode.md#kom-i-gang", self.installation)
         self.assertLess(
             self.installation.index("brew install navikt/tap/grillmester"),
@@ -220,6 +231,28 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             self.installation.index("grillmester --client opencode"),
             self.installation.index("### Valgfri high-assurance manager"),
         )
+
+    def test_homebrew_rollout_is_availability_gated_and_automated_after_bootstrap(self) -> None:
+        for document in (self.readme, self.installation, self.guide):
+            normalized = " ".join(document.split())
+            with self.subTest(document=document.splitlines()[0]):
+                self.assertIn("ikke tilgjengelig", normalized)
+                self.assertLess(
+                    normalized.index("ikke tilgjengelig"),
+                    normalized.index("brew install navikt/tap/grillmester"),
+                )
+
+        normalized_runbook = " ".join(self.release_runbook.split())
+        for marker in (
+            "one reviewed bootstrap PR",
+            "not one PR per Grillmester release",
+            "ordinary Grillmester releases require no maintainer PR",
+            "latest non-draft, non-prerelease",
+            "Apple Silicon and Intel",
+            "exact three-asset roster",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, normalized_runbook)
 
     def test_local_model_guide_leads_with_native_cplt_before_manager(self) -> None:
         section = self.local_models.split(

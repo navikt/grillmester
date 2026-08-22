@@ -6,7 +6,9 @@ enterprise-policy.
 
 ## Før du begynner
 
-- Terminalflyten er macOS-first og krever Homebrew.
+- Den felles terminalflyten er macOS-first og krever Homebrew. Formelen er
+  ferdig, men installasjonskommandoen aktiveres først etter første stabile
+  release og bootstrap av `navikt/homebrew-tap`.
 - GitHub Copilot CLI er en separat klient. Installer den bare hvis du vil bruke
   Copilot i terminalen; OpenCode-brukere trenger den ikke.
 - Copilot app bruker sin egen Plugins-UI og startes ikke gjennom cplt.
@@ -27,9 +29,16 @@ installasjonen skal være reproduserbar.
 interne roller og 42 kuraterte skills for metode, design, produktarbeid,
 levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
-## Anbefalt terminaloppsett
+## Felles terminaloppsett på macOS
 
-Installer Grillmester fra Navs Homebrew-tap:
+Homebrew-oppføringen er foreløpig **ikke tilgjengelig**. Ikke annonser eller
+automatiser kommandoen under før release-runbookens tap-bootstrap og clean
+install er fullført. Frem til da kan Copilot CLI bruke den native
+plugininstallasjonen i neste seksjon. OpenCode kan valideres fra en checkout;
+når en kandidat-release er publisert, kan den også releaseverifiseres gjennom
+den manuelle bundle-en i [OpenCode-guiden](opencode.md#hent-og-verifiser-en-grillmester-bundle).
+
+Etter aktivering installerer du Grillmester fra Navs Homebrew-tap:
 
 ```bash
 brew install navikt/tap/grillmester
@@ -37,8 +46,14 @@ brew install navikt/tap/grillmester
 
 Formelen installerer den checksummede Grillmester-distribusjonen, cplt, den
 release-gatede OpenCode-klienten og Python-runtimen launcheren bruker. Den
-kanoniske Copilot-pluginen og det genererte OpenCode-targetet oppdateres dermed
-atomisk med `brew upgrade grillmester`.
+bundle-inkluderte Copilot-pluginen som launcheren bruker, og det genererte
+OpenCode-targetet, oppdateres dermed atomisk med `brew upgrade grillmester`.
+
+Releasegaten krever samme formeltest på Apple Silicon og GitHubs hostede
+Intel-miljø. Den pinnede Intel-klienten krever Haswell/AVX2 eller nyere; eldre
+Intel-Macer er `UNVERIFIED`. Installering og oppgradering krever nettverk for å hente de
+checksummede releaseassetene. Etter installasjon kan selve runtime-en være
+offline når valgt klient, modell og cplt-policy støtter det.
 
 Installer Copilot CLI hvis du vil bruke Copilot i terminalen:
 
@@ -55,7 +70,7 @@ grillmester
 Første gang velger du klient og offentlig agent. Valget lagres i
 `~/.config/grillmester/preferences.json` eller under `XDG_CONFIG_HOME`, og
 neste kjøring tilbyr samme kombinasjon som default. Filen inneholder bare
-`client` og `role`. Bruk `grillmester choose` for å endre den.
+skjemaversjon, `client` og `role`. Bruk `grillmester choose` for å endre den.
 
 For scripts eller en enkelt avvikende sesjon kan valget oppgis eksplisitt:
 
@@ -72,6 +87,11 @@ Kontroller installasjonen uten å starte en agentsesjon:
 grillmester doctor
 grillmester doctor --client opencode
 ```
+
+`brew uninstall grillmester` fjerner formelen og de private klientbinærene, men
+bevarer det brukereide defaultvalget i
+`~/.config/grillmester/preferences.json` (eller `XDG_CONFIG_HOME`). Slett den
+filen eksplisitt hvis du også vil nullstille valget.
 
 Flagg før `--` videresendes til cplt, mens flagg etter `--` videresendes til
 klienten. `--client`, `--role`, `--project-dir` og klientens agent-/pluginbinding
@@ -330,9 +350,9 @@ ikke skal påvirke resultatet.
 Grillmester har et deterministisk generert, native target for den release-
 gatede OpenCode-klienten `1.18.20`. Det gir hele flaten med 7 agenter, 42
 skills, 42 slash commands, native delegering og native permissions. Andre
-OpenCode 1-versjoner er `UNVERIFIED`. Homebrew-formelen installerer den eksakte
-klienten og cplt-releasen sammen med Grillmester. Start den lagrede defaulten
-eller oppgi OpenCode eksplisitt:
+OpenCode 1-versjoner er `UNVERIFIED`. Når tap-bootstrapen er aktiv, installerer
+Homebrew-formelen den eksakte klienten og cplt-releasen sammen med Grillmester.
+Start den lagrede defaulten eller oppgi OpenCode eksplisitt:
 
 ```bash
 grillmester
