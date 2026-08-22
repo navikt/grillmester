@@ -34,7 +34,9 @@ Three workflows have deliberately separate jobs:
   floating `marketplace` ref.
 - **Validate immutable release** is an optional, read-only manual preflight.
   Dispatch it from `main` with an exact catalog SHA. It cannot create a tag or
-  release.
+  release. It reruns native macOS client and manager compatibility, but has no
+  structural path to the Homebrew package-manager gate: revision input from a
+  manual dispatch must never precede a cache-capable package-manager step.
 - **Publish reviewed release request** is the only release publisher. It runs
   when a reviewed `.github/release-request.json` change lands on `main`,
   validates the complete chain and stages the exact catalog bytes and
@@ -47,15 +49,17 @@ Three workflows have deliberately separate jobs:
   exact immutable
   artifact ID and uses fixed workflow-owned code to match every archive file,
   mode, manifest entry, and canonical archive property to immutable Git blobs
-  at the selected source SHA. Separate Copilot and genuine macOS compatibility
-  jobs must also pass. The macOS matrix runs on Apple Silicon and hosted Intel,
-  verifies the pinned native OpenCode and cplt archives and executables before
-  their first execution, audits, installs and tests the generated Homebrew
-  formula, runs the native and cplt runtime smokes, proves Seatbelt's same-host
-  localhost semantics plus blocked remote-host classification under forced
-  proxy policy, and launches the installed manager through `local-only`
-  with an explicit local provider, exact loopback base URL, model ID, and
-  positive context/output limits.
+  at the selected source SHA. Separate Copilot, native macOS and Homebrew macOS
+  compatibility jobs must also pass. Both macOS matrices run on Apple Silicon
+  and hosted Intel. The native matrix verifies the pinned OpenCode and cplt
+  archives and executables before their first execution, runs the native and
+  cplt runtime smokes, proves Seatbelt's same-host localhost semantics plus
+  blocked remote-host classification under forced proxy policy, and launches
+  the installed manager through `local-only` with an explicit local provider,
+  exact loopback base URL, model ID, and positive context/output limits. The
+  structurally separate Homebrew matrix rebuilds the deterministic bundle,
+  consumes the independently verified release formula when publishing, then
+  audits, installs, tests and uninstalls the formula.
   Only after all of those jobs succeed does the workflow wait at the protected
   `grillmester-release` environment. The three asset files cross
   that boundary in one immutable

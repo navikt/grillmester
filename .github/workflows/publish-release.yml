@@ -555,26 +555,34 @@ jobs:
           --source-sha "${SOURCE_SHA}"
           --expect-release-sha "${SOURCE_SHA}"
 
+  macos-homebrew-compatibility:
+    needs:
+      - validate
+      - verify-release-assets
+    uses: ./.github/workflows/macos-homebrew-compatibility.yml
+    with:
+      release_bundle_name: ${{ needs.validate.outputs.bundle-name }}
+      release_bundle_sha256: ${{ needs.validate.outputs.bundle-sha256 }}
+      release_formula_sha256: ${{ needs.validate.outputs.formula-sha256 }}
+      sealed_formula_base64: ${{ needs.verify-release-assets.outputs.formula-base64 }}
+      source_sha: ${{ needs.validate.outputs.source-sha }}
+    permissions:
+      contents: read
+
   macos-live-compatibility:
     needs: validate
     uses: ./.github/workflows/macos-opencode-compatibility.yml
     with:
-      release_artifact_digest: ${{ needs.validate.outputs.bundle-artifact-digest }}
-      release_artifact_id: ${{ needs.validate.outputs.bundle-artifact-id }}
-      release_artifact_name: ${{ needs.validate.outputs.bundle-artifact-name }}
-      release_bundle_name: ${{ needs.validate.outputs.bundle-name }}
-      release_bundle_sha256: ${{ needs.validate.outputs.bundle-sha256 }}
-      release_formula_sha256: ${{ needs.validate.outputs.formula-sha256 }}
-      release_main_sha: ${{ needs.validate.outputs.main-sha }}
       source_sha: ${{ needs.validate.outputs.source-sha }}
     permissions:
-      actions: read
       contents: read
 
   verify-release-assets:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      formula-base64: ${{ steps.macos-formula.outputs.formula_base64 }}
     permissions:
       actions: read # Authenticate and download this run's exact artifact by ID.
       contents: read
@@ -1060,6 +1068,36 @@ jobs:
              "${FORMULA_SHA256}" ]]
           cmp -s "${expected_formula}" "${RUNNER_TEMP}/${FORMULA_NAME}"
 
+      - name: Export independently verified formula for macOS
+        id: macos-formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -S - <<'PY'
+          import base64
+          import hashlib
+          import os
+          import stat
+          from pathlib import Path
+
+          formula = Path(os.environ["RUNNER_TEMP"]) / os.environ["FORMULA_NAME"]
+          observed = formula.lstat()
+          if not stat.S_ISREG(observed.st_mode) or observed.st_size <= 0:
+              raise SystemExit("verified release formula is not a nonempty regular file")
+          if observed.st_size > 100_000:
+              raise SystemExit("verified release formula is too large")
+          content = formula.read_bytes()
+          if len(content) != observed.st_size:
+              raise SystemExit("verified release formula changed while reading")
+          if hashlib.sha256(content).hexdigest() != os.environ["FORMULA_SHA256"]:
+              raise SystemExit("verified release formula digest changed")
+          encoded = base64.b64encode(content).decode("ascii")
+          if len(encoded) > 140_000:
+              raise SystemExit("verified release formula encoding is too large")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"formula_base64={encoded}\n")
+          PY
+
       - name: Independently enforce stable rights approval
         shell: bash
         run: |
@@ -1257,6 +1295,7 @@ jobs:
     needs:
       - validate
       - copilot-compatibility
+      - macos-homebrew-compatibility
       - macos-live-compatibility
       - verify-release-assets
     runs-on: ubuntu-latest

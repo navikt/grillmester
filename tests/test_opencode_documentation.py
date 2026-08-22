@@ -479,8 +479,12 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
     def test_macos_live_gate_uses_pinned_native_seatbelt_evidence(self) -> None:
         trust = " ".join(self.trust.split())
 
+        self.assertIn("`macos-homebrew-compatibility`", trust)
         self.assertIn("`macos-live-compatibility`", trust)
-        self.assertIn("eksakte pinnede Darwin-assetene", trust)
+        self.assertIn("uavhengige CI-gatene", trust)
+        self.assertIn("hver sin matrise", trust)
+        self.assertIn("byteidentiske, uavhengig verifiserte releaseformelen", trust)
+        self.assertIn("eksakte pinnede Darwin-ressursene", trust)
         self.assertIn("rå `/usr/bin/nc`-målinger", trust)
         self.assertIn("Seatbelts `localhost`-selector", trust)
         self.assertIn("dokumentasjonsadresse på samme port", trust)

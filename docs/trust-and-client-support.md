@@ -93,20 +93,24 @@ innebygde domeneallowlist; smoken er derfor ikke kernel-evidens for null ekstern
 trafikk. Den beviser heller ikke kvaliteten til en konkret lokal eller ekstern
 modell.
 
-CI-gaten `macos-live-compatibility` kjører samme formel og de eksakte pinnede
-Darwin-assetene på Apple Silicon og GitHubs hostede Intel-miljø. Intel-pinnen
-er Haswell/AVX2-basert; eldre Intel-Macer er `UNVERIFIED`. Gaten verifiserer
-arkivstørrelse, upstream-digest, eksakt tar-roster,
-binærstørrelse og binærdigest før første klientkjøring. Deretter kjører den
-strict Homebrew-audit, installasjon, `brew test`, launcher-doctor og avinstallasjon
-før native discovery/runtime-smoke og cplts virkelige `check --json`-prober med
-managerens `local-only`-nettverksflagg, targeted allow/block-klassifisering og
-rå `/usr/bin/nc`-målinger: samme listenerport må være nåbar både via loopback
-og en annen adresse som tilhører runneren, fordi Seatbelts `localhost`-selector
-betyr samme host. En dokumentasjonsadresse på samme port må samtidig
-klassifiseres som blokkert. Manageren binder fortsatt modell-providerens
-base-URL til eksakt loopback. Til slutt installerer den den
-deterministiske bundle-en og kjører den ekte managerflyten
+De uavhengige CI-gatene `macos-homebrew-compatibility` og
+`macos-live-compatibility` har hver sin matrise på Apple Silicon og GitHubs
+hostede Intel-miljø. Intel-pinnen er Haswell/AVX2-basert; eldre Intel-Macer er
+`UNVERIFIED`. Homebrew-gaten bygger bundle-en deterministisk to ganger og
+kjører strict audit, installasjon, `brew test`, launcher-doctor og
+avinstallasjon med de eksakte pinnede Darwin-ressursene. I releaseflyten må
+formelen dessuten være den byteidentiske, uavhengig verifiserte releaseformelen.
+
+Den native gaten verifiserer arkivstørrelse, upstream-digest, eksakt tar-roster,
+binærstørrelse og binærdigest før første klientkjøring. Den kjører native
+discovery/runtime-smoke og cplts virkelige `check --json`-prober med managerens
+`local-only`-nettverksflagg, targeted allow/block-klassifisering og rå
+`/usr/bin/nc`-målinger: samme listenerport må være nåbar både via loopback og en
+annen adresse som tilhører runneren, fordi Seatbelts `localhost`-selector betyr
+samme host. En dokumentasjonsadresse på samme port må samtidig klassifiseres som
+blokkert. Manageren binder fortsatt modell-providerens base-URL til eksakt
+loopback. Til slutt installerer gaten den deterministiske bundle-en og kjører
+den ekte managerflyten
 `local-only ... -- models ci-local --verbose` gjennom cplt med en eksplisitt lokal
 OpenAI-kompatibel provider, eksakt loopback-base-URL, modell-ID og positive
 context-/outputgrenser. Managerens fail-closed preflight validerer den eksakte
