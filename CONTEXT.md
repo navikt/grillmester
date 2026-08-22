@@ -23,8 +23,9 @@ Det deterministisk genererte klienttargetet for den release-gatede OpenCode
 _Avoid_: OpenCode-plugin, håndskrevet target
 
 **Release-bundle**:
-Det immutable, checksumverifiserbare sluttbrukerartefaktet som pakker OpenCode
-1-targetet og den valgfrie lifecycle-manageren.
+Det immutable, checksumverifiserbare sluttbrukerartefaktet som pakker den
+kanoniske pluginen, OpenCode 1-targetet, terminal-launcheren og den valgfrie
+lifecycle-manageren.
 _Avoid_: source-arkiv, checkout
 
 ### Ownership
@@ -41,9 +42,20 @@ _Avoid_: plugininnhold, genererte instructions
 ### Runtime
 
 **Native cplt-flyt**:
-Den normale OpenCode-integrasjonen der cplt starter OpenCode og Grillmester bare
-bindes inn som et klienttarget.
-_Avoid_: Grillmester-wrapper, managerflyt
+Den normale terminalintegrasjonen der cplt starter valgt klient og klienten
+laster sin native Grillmester-representasjon. `grillmester` kan binde den
+distribuerte pathen, men gjør ingen managed staging eller configsynk.
+_Avoid_: managerflyt, direkte klientstart
+
+**Terminal-launcher**:
+Den tynne `grillmester`-adapteren som velger Copilot CLI eller OpenCode, binder
+riktig klientpayload og starter den gjennom cplt.
+_Avoid_: agentruntime, universell app-installer, cplt-erstatning
+
+**Launcherpreferanse**:
+Brukerens valg av default terminalklient og offentlig Grillmester-rolle. Den
+inneholder aldri provider, modell, credentials, consumer-path eller policy.
+_Avoid_: runtimeprofil, managed config
 
 **Lifecycle-manager**:
 Den valgfrie high-assurance-flyten for verifisert installasjon, launch og

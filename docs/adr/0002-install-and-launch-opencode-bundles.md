@@ -9,6 +9,11 @@ Denne beslutningen superseder aktiverings- og rollbackdelen av
 [ADR 0001](0001-native-opencode-v1-target.md), men ikke beslutningen om et
 generert native target.
 
+Normal terminaldistribusjon og native cplt-launch er videreutviklet av
+[ADR 0003](0003-one-terminal-entrypoint-through-cplt.md). Beslutningen om den
+valgfrie high-assurance-manageren, dens installasjon, staging og rollback
+gjelder fortsatt.
+
 ## Kontekst
 
 ADR 0001 valgte et deterministisk generert OpenCode-target utenfor consumerens
@@ -65,6 +70,8 @@ En publisert OpenCode-asset beholder samme relative layout som repositoryet:
 
 ```text
 grillmester-opencode-v1/
+├── plugin/**
+├── scripts/grillmester.py
 ├── scripts/manage_opencode.py
 ├── scripts/compose_opencode_permissions.py
 ├── scripts/verify_client_artifact.py
@@ -77,6 +84,10 @@ grillmester-opencode-v1/
 ├── THIRD_PARTY_NOTICES.md
 └── DISTRIBUTION-MANIFEST.json
 ```
+
+ADR 0003 utvider dermed den opprinnelige OpenCode-bundle-en med den kanoniske
+Copilot-pluginen og den felles terminallauncheren. Assetnavnet og den
+deterministiske rotmappen beholdes for bakoverkompatibilitet.
 
 Den publiserte `tar.gz`-asseten og dens detached checksum er primær
 sluttbrukerinstallasjon; en source-checkout eller GitHubs automatisk genererte

@@ -30,10 +30,11 @@ Ikke håndrediger `targets/opencode-v1/`. CI verifiserer blant annet
 katalogpinning, innholdslås, agent-/skillroster, OpenCode-projeksjon,
 progressive lenker og install–oppgradering–rollback–avinstallering.
 
-OpenCode-sluttbrukere skal installere den deterministiske release-`tar.gz`-en
-med detached SHA-256, ikke en source-checkout. Checkout-installasjon er bare
-utviklingsinput. Bundlebygget verifiserer target, profiler og manager og binder
-dem til eksakt source-SHA i `DISTRIBUTION-MANIFEST.json`:
+Terminalbrukere skal installere den deterministiske release-`tar.gz`-en gjennom
+den genererte Homebrew-formelen, ikke en source-checkout. Checkout-installasjon
+er bare utviklingsinput. Bundlebygget verifiserer Copilot-pluginen, launcheren,
+OpenCode-targetet, profiler og manager og binder dem til eksakt source-SHA i
+`DISTRIBUTION-MANIFEST.json`:
 
 ```bash
 python3 scripts/build_opencode_bundle.py \
@@ -41,6 +42,13 @@ python3 scripts/build_opencode_bundle.py \
   --source-sha "$(git rev-parse HEAD)" \
   --output /tmp/grillmester-opencode-v1.tar.gz
 shasum -a 256 /tmp/grillmester-opencode-v1.tar.gz
+
+python3 scripts/generate_homebrew_formula.py \
+  --tag v0.0.0-test \
+  --bundle-name grillmester-opencode-v0.0.0-test.tar.gz \
+  --bundle-sha256 "$(shasum -a 256 /tmp/grillmester-opencode-v1.tar.gz | cut -d' ' -f1)" \
+  --output /tmp/grillmester.rb
+ruby -c /tmp/grillmester.rb
 ```
 
 Et releasebygg skal kjøres to ganger og gi byte-identiske arkiver før den
@@ -50,6 +58,7 @@ Kjør den lokale hovedgaten:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
+python3 -m py_compile scripts/grillmester.py scripts/generate_homebrew_formula.py
 python3 scripts/generate_opencode.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v

@@ -55,62 +55,38 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertNotIn("Copilot app — to bekreftelser", self.text)
         self.assertNotIn("strukturert designunderlag", self.text)
 
-    def test_client_journeys_install_before_start(self) -> None:
-        copilot = self.text.split("### GitHub Copilot", 1)[1].split(
-            "### OpenCode via cplt", 1
-        )[0]
-        install = re.search(r"```bash\n(.*?)\n```", copilot, re.DOTALL)
-        self.assertIsNotNone(install)
-        self.assertEqual(
-            install.group(1).splitlines(),
-            [
-                "copilot plugin marketplace add navikt/grillmester#marketplace",
-                "copilot plugin install grillmester@grillmester",
-            ],
-        )
+    def test_terminal_install_precedes_the_single_start_flow(self) -> None:
+        terminal = self.text.split(
+            "### Copilot CLI og OpenCode i terminalen", 1
+        )[1].split("### Copilot app", 1)[0]
+        normalized = " ".join(terminal.split())
         self.assertLess(
-            copilot.index("**Installer:**"), copilot.index("**Start:**")
+            terminal.index("brew install navikt/tap/grillmester"),
+            terminal.index("\ngrillmester\n"),
         )
-        self.assertIn("`/agent`", copilot)
-        self.assertIn("`grillmester:grillmester`", copilot)
-
-        opencode = self.text.split("### OpenCode via cplt", 1)[1].split(
-            "## Velg agent", 1
-        )[0]
-        normalized_opencode = " ".join(opencode.split())
-        journey_markers = (
-            "**Forutsetninger:**",
-            "**Hent Grillmester:**",
-            "**Velg modell:**",
-            "**Start med GitHub Copilot-provider:**",
-            "lifecycle-flyten",
-        )
-        positions = [
-            normalized_opencode.index(marker) for marker in journey_markers
-        ]
-        self.assertEqual(sorted(positions), positions)
         for marker in (
-            f"OpenCode `{self.opencode_version}`",
-            f"cplt `{self.cplt_release}`",
-            "docs/opencode.md#installer-eksakte-klienter",
-            "docs/opencode.md#hent-og-verifiser-en-grillmester-bundle",
-            "docs/opencode.md#valgfri-lifecycle-manager",
-            "port- eller credential-tilgangen cplt trenger",
-            'OPENCODE_CONFIG_DIR="$CONFIG_DIR"',
-            "cplt --agent opencode",
+            "brew install --cask copilot-cli",
+            "GitHub Copilot CLI",
+            "OpenCode",
+            "grillmester choose",
+            "--client copilot --role grillmester",
+            "--client opencode --role barista",
+            "grillmester doctor",
+            "alltid gjennom cplt",
+            "--allow-localhost 1234",
         ):
             with self.subTest(marker=marker):
-                self.assertIn(marker, normalized_opencode)
+                self.assertIn(marker, normalized)
 
         self.assertNotIn('"autoUpdate"', self.text)
         self.assertIn('"autoUpdate"', self.installation)
 
         self.assertLess(
-            self.opencode_guide.index("## Hent og verifiser en Grillmester-bundle"),
+            self.opencode_guide.index("### Hent og verifiser en Grillmester-bundle"),
             self.opencode_guide.index("## Valgfri lifecycle-manager"),
         )
         native_bundle = self.opencode_guide.split(
-            "## Hent og verifiser en Grillmester-bundle", 1
+            "### Hent og verifiser en Grillmester-bundle", 1
         )[1].split("## Valgfri lifecycle-manager", 1)[0]
         self.assertIn(
             "For vanlig, native cplt-bruk er bundle-en nå klar", native_bundle
@@ -118,8 +94,8 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertNotIn("manage_opencode.py install", native_bundle)
 
         client_install = self.opencode_guide.split(
-            "## Installer eksakte klienter", 1
-        )[1].split("## Hent og verifiser en Grillmester-bundle", 1)[0]
+            "### Installer eksakte klienter manuelt", 1
+        )[1].split("### Hent og verifiser en Grillmester-bundle", 1)[0]
         manager = self.opencode_guide.split("## Valgfri lifecycle-manager", 1)[1]
         self.assertNotIn("Python `3.11`", client_install)
         self.assertNotIn("verify_client_artifact.py", client_install)
@@ -138,8 +114,9 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertIn("## Støtte og avgrensninger", self.text)
         normalized = " ".join(self.text.split())
         for marker in (
-            "GitHub Copilot CLI er best testet",
-            "OpenCode-støtten gjelder den eksakte klientkombinasjonen",
+            "GitHub Copilot CLI er referanseklienten",
+            "OpenCode-støtten gjelder den release-gatede klientkombinasjonen",
+            "VS Code er ikke en del av første onboarding",
             "docs/trust-and-client-support.md",
             "docs/repository-context.md#samspill-med-naviktcopilot",
             "valgfritt MCP-oppsett",

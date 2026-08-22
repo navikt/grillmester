@@ -10,10 +10,12 @@ Grillmester has an immutable, two-step release identity:
 The tag identifies the catalog, not the source tree. GitHub's automatically
 generated source archive for the release therefore contains only
 `.github/plugin/marketplace.json`; it is not an installation artifact. Install
-the Copilot plugin through the Grillmester marketplace. Install OpenCode from
-the separately attached, deterministic `tar.gz` and its detached `.sha256` from
-the same GitHub Release. Never move, replace, delete, or force-update a release
-tag or replace an existing release asset.
+the Copilot plugin through the Grillmester marketplace. The same GitHub Release
+also attaches a deterministic terminal bundle and detached `.sha256`; the
+generated Homebrew formula installs that bundle together with its exact macOS
+OpenCode and cplt resources. Direct archive extraction is the manual path.
+Never move, replace, delete, or force-update a release tag or replace an
+existing release asset.
 
 ## Workflows and trust boundary
 
@@ -36,9 +38,12 @@ Three workflows have deliberately separate jobs:
   when a reviewed `.github/release-request.json` change lands on `main`,
   validates the complete chain and stages the exact catalog bytes and
   source-pinned payload in an isolated local smoke. The read-only validation
-  job also builds the OpenCode bundle twice, requires byte identity, verifies
+  job also builds the terminal bundle twice, requires byte identity, verifies
   `DISTRIBUTION-MANIFEST.json`, and seals the exact `tar.gz`, detached checksum
-  and release notes. A separate read-only job retrieves the exact immutable
+  and release notes. It generates and syntax-checks a Homebrew formula bound to
+  the same bundle checksum and the committed macOS client artifacts; the
+  formula is a workflow artifact for the later tap PR, not a GitHub Release
+  asset. A separate read-only job retrieves the exact immutable
   artifact ID and uses fixed workflow-owned code to match every archive file,
   mode, manifest entry, and canonical archive property to immutable Git blobs
   at the selected source SHA. Separate Copilot and genuine macOS compatibility
@@ -65,18 +70,19 @@ Three workflows have deliberately separate jobs:
   `immutable: true`. After
   publication, a read-only job verifies the tag target, installs from the
   actual remote `v<version>` marketplace ref, downloads and checksum-verifies
-  the attached OpenCode asset, and exercises its install contract.
+  the attached terminal bundle, and exercises its install contract.
 
 The source reachability control relies on the current linear/squash `main`
 history. If merge commits are enabled, strengthen it to require first-parent
 membership. If `main` advances during validation or before an idempotent rerun,
 the current-main guard fails closed; dispatch a fresh run from current `main`.
 
-### OpenCode asset contract
+### Terminal asset contract
 
 The asset's `DISTRIBUTION-MANIFEST.json` must bind the selected source SHA,
 OpenCode `1.18.20`, cplt `2026.08.17-062831-1008a92`, the inner target manifest
-digest, and the complete distribution inventory. Every cplt-backed profile
+digest, the canonical Copilot plugin, the common launcher, and the complete
+distribution inventory. Every cplt-backed profile
 requires that exact cplt release. The manager and native agents have no runtime
 dependency on `nav-pilot-agent`, the Copilot plugin installation, or a Copilot
 agent. `--direct` remains an explicit opt-out from cplt sandbox and egress
@@ -378,6 +384,28 @@ This is post-deployment evidence and is separate from the immutable-tag smoke.
 Use an immutable release tag when rollout must wait for a separate approval.
 Record App and VS Code behavior separately; neither may be inferred from the
 CLI result.
+
+### Publish the Homebrew entrypoint
+
+Only after the immutable GitHub Release and remote smoke have succeeded,
+download the generated `grillmester.rb` workflow artifact and open a reviewed
+PR against `navikt/homebrew-tap`. Regenerate it from the exact release source
+and compare byte-for-byte before merge:
+
+```bash
+python3 scripts/generate_homebrew_formula.py \
+  --tag vREPLACE_WITH_VERSION \
+  --bundle-name grillmester-opencode-vREPLACE_WITH_VERSION.tar.gz \
+  --bundle-sha256 REPLACE_WITH_RELEASE_BUNDLE_SHA256 \
+  --output /tmp/grillmester.rb
+```
+
+The formula downloads the checksummed Grillmester bundle and the exact macOS
+OpenCode and cplt archives from `policy/client-artifacts.json`. It prepends the
+two clients to `PATH` only for `grillmester`, so global upgrades cannot drift an
+installed release. Users who select that client install Copilot CLI separately.
+Do not announce `brew install navikt/tap/grillmester` as available until the tap
+PR has merged and a clean install passes `grillmester doctor` for OpenCode.
 
 ## Promote a reviewed candidate to stable
 

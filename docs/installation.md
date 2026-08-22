@@ -1,21 +1,20 @@
-# Installere og aktivere Grillmester
+# Installere og starte Grillmester
 
-Denne guiden skiller mellom personlig installasjon, repoaktivering og
-enterprise-policy. De tre nivåene løser ulike behov.
+Denne guiden starter med den anbefalte terminalflyten og skiller deretter
+mellom Copilot app, native plugininstallasjon, repoaktivering og
+enterprise-policy.
 
 ## Før du begynner
 
-- For Copilot-seksjonene: installer en versjon av GitHub Copilot CLI som
-  støtter plugins.
-- Bruk `marketplace`-branchen for løpende oppdateringer, eller velg en reviewet tag fra
-  [Grillmester Releases](https://github.com/navikt/grillmester/releases) når
-  en kandidat er publisert.
+- Terminalflyten er macOS-first og krever Homebrew.
+- GitHub Copilot CLI er en separat klient. Installer den bare hvis du vil bruke
+  Copilot i terminalen; OpenCode-brukere trenger den ikke.
+- Copilot app bruker sin egen Plugins-UI og startes ikke gjennom cplt.
 
-OpenCode-brukere trenger ikke Copilot CLI eller `nav-pilot-agent`: cplt støtter
-OpenCode direkte out of the box. Start med den
-[native unmanaged quick-starten](opencode.md#native-cplt-kom-raskt-i-gang).
-Lifecycle-manageren i [OpenCode-seksjonen](#opencode) er valgfri hardening for
-immutable installasjon, klientautentisering og deklarative profiler.
+Bruk `marketplace`-branchen for løpende native Copilot-oppdateringer, eller velg
+en reviewet tag fra
+[Grillmester Releases](https://github.com/navikt/grillmester/releases) når en
+kandidat er publisert.
 
 En release-tag har formen `v<plugin-versjon>`. Taggen peker på en reviewet,
 catalog-only commit; pakkeoppføringen i katalogen peker videre på eksakt
@@ -28,11 +27,61 @@ installasjonen skal være reproduserbar.
 interne roller og 42 kuraterte skills for metode, design, produktarbeid,
 levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
-## Anbefalt personlig oppsett med automatisk oppdatering
+## Anbefalt terminaloppsett
 
-For en personlig CLI-installasjon er det anbefalte oppsettet en flytende
-marketplace-kanal med automatisk oppdatering ved sesjonsstart. Merge dette i
-din egen `~/.copilot/settings.json`:
+Installer Grillmester fra Navs Homebrew-tap:
+
+```bash
+brew install navikt/tap/grillmester
+```
+
+Formelen installerer den checksummede Grillmester-distribusjonen, cplt, den
+release-gatede OpenCode-klienten og Python-runtimen launcheren bruker. Den
+kanoniske Copilot-pluginen og det genererte OpenCode-targetet oppdateres dermed
+atomisk med `brew upgrade grillmester`.
+
+Installer Copilot CLI hvis du vil bruke Copilot i terminalen:
+
+```bash
+brew install --cask copilot-cli
+```
+
+Start den interaktive velgeren:
+
+```bash
+grillmester
+```
+
+Første gang velger du klient og offentlig agent. Valget lagres i
+`~/.config/grillmester/preferences.json` eller under `XDG_CONFIG_HOME`, og
+neste kjøring tilbyr samme kombinasjon som default. Filen inneholder bare
+`client` og `role`. Bruk `grillmester choose` for å endre den.
+
+For scripts eller en enkelt avvikende sesjon kan valget oppgis eksplisitt:
+
+```bash
+grillmester --client copilot --role designer
+grillmester --client opencode --role doctor-who
+```
+
+Begge kommandoene starter den valgte terminalklienten gjennom cplt. Manglende
+cplt er en hard feil; launcheren faller aldri tilbake til direkte kjøring.
+Kontroller installasjonen uten å starte en agentsesjon:
+
+```bash
+grillmester doctor
+grillmester doctor --client opencode
+```
+
+Flagg før `--` videresendes til cplt, mens flagg etter `--` videresendes til
+klienten. `--client`, `--role`, `--project-dir` og klientens agent-/pluginbinding
+eies av launcheren og kan ikke overstyres gjennom passthrough.
+
+## Alternativ: native Copilot CLI-installasjon med automatisk oppdatering
+
+Hvis du ikke vil bruke Homebrew-launcheren, kan Copilot CLI installere pluginen
+direkte fra en flytende marketplace-kanal og oppdatere ved sesjonsstart. Merge
+dette i din egen `~/.copilot/settings.json`:
 
 ```json
 {
@@ -281,22 +330,26 @@ ikke skal påvirke resultatet.
 Grillmester har et deterministisk generert, native target for den release-
 gatede OpenCode-klienten `1.18.20`. Det gir hele flaten med 7 agenter, 42
 skills, 42 slash commands, native delegering og native permissions. Andre
-OpenCode 1-versjoner er `UNVERIFIED`. Den normale cplt-veien trenger ingen
-lifecycle-installasjon i brukerdata; bind targetet fra en checkout eller
-utpakket release-bundle direkte:
+OpenCode 1-versjoner er `UNVERIFIED`. Homebrew-formelen installerer den eksakte
+klienten og cplt-releasen sammen med Grillmester. Start den lagrede defaulten
+eller oppgi OpenCode eksplisitt:
 
 ```bash
-GRILLMESTER_ROOT=/absolute/path/to/checkout-or-extracted-bundle
-CONFIG_DIR="$GRILLMESTER_ROOT/targets/opencode-v1"
-cd /path/to/consumer-repo
-OPENCODE_CONFIG_DIR="$CONFIG_DIR" \
-  cplt --agent opencode --project-dir "$PWD" \
-    --allow-read "$CONFIG_DIR" --pass-env OPENCODE_CONFIG_DIR \
-    -- --agent grillmester
+grillmester
+grillmester --client opencode --role grillmester
 ```
 
-Se [native quick-start](opencode.md#native-cplt-kom-raskt-i-gang) for lokal
-provider, cloud-provider og GitHub Copilot via OpenCodes `/connect`.
+Launcheren setter targetpath og cplt-binding automatisk. For en lokal provider
+på port `1234`:
+
+```bash
+grillmester --client opencode --allow-localhost 1234 \
+  -- --model lmstudio/replace-with-id-from-v1-models
+```
+
+Se [OpenCode-guiden](opencode.md#kom-i-gang) for lokal provider,
+cloud-provider, GitHub Copilot via OpenCodes `/connect` og manuell binding for
+utvikling.
 
 ### Valgfri high-assurance manager
 
@@ -310,8 +363,10 @@ Copilot-provider.
 Installer eksakt klient og den reviewede
 [cplt-releasen](https://github.com/navikt/cplt/releases/tag/2026.08.17-062831-1008a92).
 Ved normal npm-installasjon kjører pakkens installkode: `postinstall` kjører
-`verifyBinary` før manageren kan hashe OpenCode-binæren. Homebrew er en
-bekvemmelighetsinstallasjon for cplt og må faktisk resolve den eksakte pinnen.
+`verifyBinary` før manageren kan hashe OpenCode-binæren. Den separate, globale
+Homebrew-formelen for cplt er en bekvemmelighetsinstallasjon og må faktisk
+resolve den eksakte pinnen. Grillmesters normale formel bruker i stedet den
+eksakte checksummede cplt-ressursen som hører til releasen.
 
 Lifecycle-manageren krever Python `3.11` eller nyere i tillegg til de pinnede
 klientene:

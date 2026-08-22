@@ -6,7 +6,8 @@ date: 2026-08-21
 # Generer et eget, native OpenCode 1-target
 
 Installasjons- og aktiveringsdelen er supersedert av
-[ADR 0002](0002-install-and-launch-opencode-bundles.md). Beslutningen om et
+[ADR 0002](0002-install-and-launch-opencode-bundles.md) og deretter
+[ADR 0003](0003-one-terminal-entrypoint-through-cplt.md). Beslutningen om et
 generert native target gjelder fortsatt.
 
 ## Kontekst
