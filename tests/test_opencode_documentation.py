@@ -22,12 +22,27 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         cls.trust = (ROOT / "docs/trust-and-client-support.md").read_text(
             encoding="utf-8"
         )
+        cls.context = (ROOT / "CONTEXT.md").read_text(encoding="utf-8")
+        cls.development = (ROOT / "docs/development.md").read_text(
+            encoding="utf-8"
+        )
         cls.bundle_adr = (
-            ROOT / "docs/decisions/0002-install-and-launch-opencode-bundles.md"
+            ROOT / "docs/adr/0002-install-and-launch-opencode-bundles.md"
         ).read_text(encoding="utf-8")
         cls.target_adr = (
-            ROOT / "docs/decisions/0001-native-opencode-v1-target.md"
+            ROOT / "docs/adr/0001-native-opencode-v1-target.md"
         ).read_text(encoding="utf-8")
+
+    def test_domain_documentation_follows_the_repository_convention(self) -> None:
+        self.assertFalse((ROOT / "docs/decisions").exists())
+        self.assertIn("**Native cplt-flyt**", self.context)
+        self.assertIn("**Lifecycle-manager**", self.context)
+        self.assertIn("**`local-only`**", self.context)
+        self.assertIn("[CONTEXT.md](../CONTEXT.md)", self.development)
+        self.assertIn("[`docs/adr/`](adr/)", self.development)
+        for adr in (self.target_adr, self.bundle_adr):
+            with self.subTest(title=adr.splitlines()[5]):
+                self.assertTrue(adr.startswith("---\nstatus: accepted\ndate: "))
 
     def test_runtime_prerequisites_include_python_311(self) -> None:
         for name, document in (

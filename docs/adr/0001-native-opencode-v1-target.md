@@ -1,8 +1,13 @@
-# ADR 0001: Generer et eget, native OpenCode 1-target
+---
+status: accepted
+date: 2026-08-21
+---
 
-- **Status:** Akseptert; installasjon og aktivering er supersedert av
-  [ADR 0002](0002-install-and-launch-opencode-bundles.md)
-- **Dato:** 2026-08-21
+# Generer et eget, native OpenCode 1-target
+
+Installasjons- og aktiveringsdelen er supersedert av
+[ADR 0002](0002-install-and-launch-opencode-bundles.md). Beslutningen om et
+generert native target gjelder fortsatt.
 
 ## Kontekst
 

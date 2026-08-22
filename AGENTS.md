@@ -20,7 +20,9 @@ repository.
   instructions, PR templates, or issue templates as plugin components.
 - Do not add a second file-sync lifecycle, managed consumer manifest, install
   hook, MCP server, or executable hook without an explicit architecture
-  decision.
+  decision. Record a qualifying decision as a sequentially numbered ADR in
+  `docs/adr/`; use `CONTEXT.md` for canonical project language rather than
+  implementation detail.
 - Preserve the reviewed pilot agent IDs. Canonical runtime skill IDs use the
   `grillmester-` prefix to reduce accidental collisions. A project- or
   user-level component with the same exact ID still wins and can silently

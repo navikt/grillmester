@@ -843,6 +843,6 @@ versjons-, cplt- eller local-only-garanti for `opencode2`. Se den offisielle
 [V1-til-V2-guiden](https://opencode.ai/v2/docs/migrate-v1).
 
 Arkitekturbegrunnelsen ligger i
-[ADR 0001](decisions/0001-native-opencode-v1-target.md) for targetformatet og
-[ADR 0002](decisions/0002-install-and-launch-opencode-bundles.md) for
+[ADR 0001](adr/0001-native-opencode-v1-target.md) for targetformatet og
+[ADR 0002](adr/0002-install-and-launch-opencode-bundles.md) for
 installasjon, staging, cplt og profiler.

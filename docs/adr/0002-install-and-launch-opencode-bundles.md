@@ -1,10 +1,13 @@
-# ADR 0002: Installer og start OpenCode fra verifiserte brukerartefakter
+---
+status: accepted
+date: 2026-08-21
+---
 
-- **Status:** Akseptert
-- **Dato:** 2026-08-21
-- **Superseder:** Aktiverings- og rollbackdelen av
-  [ADR 0001](0001-native-opencode-v1-target.md), men ikke beslutningen om et
-  generert native target
+# Installer og start OpenCode fra verifiserte brukerartefakter
+
+Denne beslutningen superseder aktiverings- og rollbackdelen av
+[ADR 0001](0001-native-opencode-v1-target.md), men ikke beslutningen om et
+generert native target.
 
 ## Kontekst
 

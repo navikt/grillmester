@@ -100,6 +100,14 @@ tokenisering. Kort ned discoverytekst før grensen eventuelt økes.
 
 ## Dokumentasjonskontrakt
 
+Bruk [CONTEXT.md](../CONTEXT.md) som kanonisk ordliste for prosjektspesifikke
+begreper. Arkitekturbeslutninger som er vanskelige å reversere, overraskende
+uten kontekst **og** resultat av en reell trade-off, hører hjemme som
+sekvensielt nummererte ADR-er i [`docs/adr/`](adr/). Hold hver ADR fokusert på
+beslutningen og hvorfor den ble tatt, men ta med kontekst, alternativer og
+konsekvenser når de trengs. Operasjonelle prosedyrer og detaljerte kontrakter
+kan ligge i egne guider og runbooks.
+
 Når du endrer agenter, skills eller pakkeinndeling:
 
 - oppdater [agent- og skillkartet](agents-and-skills.md)
