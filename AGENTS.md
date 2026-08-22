@@ -36,6 +36,7 @@ Run before publishing a change:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
+python3 -m py_compile scripts/grillmester.py scripts/generate_homebrew_formula.py
 python3 scripts/generate_opencode.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v

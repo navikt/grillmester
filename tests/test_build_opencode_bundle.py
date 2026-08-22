@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import stat
 import sys
 import tarfile
@@ -90,13 +91,17 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             (ROOT / "scripts/verify_client_artifact.py").read_bytes()
         )
         verifier.chmod(0o644)
+        launcher = source / "scripts/grillmester.py"
+        launcher.write_bytes((ROOT / "scripts/grillmester.py").read_bytes())
+        launcher.chmod(0o644)
+
+        shutil.copytree(ROOT / "plugin", source / "plugin")
 
         for source_relative, destination_relative in (
             ("policy/client-artifacts.json", "policy/client-artifacts.json"),
             ("policy/content-lock.json", "policy/content-lock.json"),
             ("LICENSE", "LICENSE"),
             ("PROVENANCE.md", "PROVENANCE.md"),
-            ("plugin/THIRD_PARTY_NOTICES.md", "plugin/THIRD_PARTY_NOTICES.md"),
         ):
             destination = source / destination_relative
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -260,6 +265,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 f"{ARCHIVE_ROOT}/policy/client-artifacts.json",
                 f"{ARCHIVE_ROOT}/policy/content-lock.json",
                 f"{ARCHIVE_ROOT}/scripts/manage_opencode.py",
+                f"{ARCHIVE_ROOT}/scripts/grillmester.py",
                 f"{ARCHIVE_ROOT}/scripts/compose_opencode_permissions.py",
                 f"{ARCHIVE_ROOT}/scripts/verify_client_artifact.py",
                 f"{ARCHIVE_ROOT}/profiles/opencode/cloud-open-weight.json",
@@ -276,6 +282,11 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             expected_files.update(
                 f"{ARCHIVE_ROOT}/targets/opencode-v1/{relative}"
                 for relative in target_manifest["files"]
+            )
+            expected_files.update(
+                f"{ARCHIVE_ROOT}/{path.relative_to(source).as_posix()}"
+                for path in (source / "plugin").rglob("*")
+                if path.is_file()
             )
             self.assertEqual(set(files), expected_files)
 
@@ -317,6 +328,9 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
 
             self.assertEqual(
                 files[f"{ARCHIVE_ROOT}/scripts/manage_opencode.py"].mode, 0o755
+            )
+            self.assertEqual(
+                files[f"{ARCHIVE_ROOT}/scripts/grillmester.py"].mode, 0o755
             )
             self.assertEqual(
                 files[f"{ARCHIVE_ROOT}/scripts/verify_client_artifact.py"].mode,
@@ -364,6 +378,46 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(BUILDER.BundleBuildError, "symlink"):
                 BUILDER.build_bundle(linked, SOURCE_SHA, self.root / "linked.tar.gz")
+
+    def test_rejects_plugin_roster_drift_and_symlinks(self) -> None:
+        missing_agent = self.make_source("missing-plugin-agent")
+        (missing_agent / f"plugin/agents/{AGENT_IDS[0]}.agent.md").unlink()
+        with self.assertRaisesRegex(BUILDER.BundleBuildError, "plugin agent roster"):
+            BUILDER.build_bundle(
+                missing_agent,
+                SOURCE_SHA,
+                self.root / "missing-plugin-agent.tar.gz",
+            )
+
+        if hasattr(os, "symlink"):
+            linked = self.make_source("linked-plugin")
+            os.symlink(
+                linked / "plugin/plugin.json",
+                linked / "plugin/linked.json",
+            )
+            with self.assertRaisesRegex(BUILDER.BundleBuildError, "symlinked Copilot plugin"):
+                BUILDER.build_bundle(
+                    linked,
+                    SOURCE_SHA,
+                    self.root / "linked-plugin.tar.gz",
+                )
+
+    def test_rejects_launcher_client_pin_drift(self) -> None:
+        source = self.make_source("launcher-pin-drift")
+        launcher = source / "scripts/grillmester.py"
+        launcher.write_text(
+            launcher.read_text(encoding="utf-8").replace("1.18.20", "1.18.21"),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError, "launcher must pin SUPPORTED_OPENCODE_VERSION"
+        ):
+            BUILDER.build_bundle(
+                source,
+                SOURCE_SHA,
+                self.root / "launcher-pin-drift.tar.gz",
+            )
 
     def test_rejects_re_manifested_agent_skill_and_command_roster_drift(self) -> None:
         cases = (
@@ -728,6 +782,18 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 mismatched_integrity,
                 SOURCE_SHA,
                 self.root / "mismatched-integrity.tar.gz",
+            )
+
+        missing_homebrew_digest = self.make_source("missing-homebrew-digest")
+        artifacts_path = missing_homebrew_digest / "policy/client-artifacts.json"
+        artifacts = json.loads(artifacts_path.read_text(encoding="utf-8"))
+        artifacts["opencode"]["artifacts"][0]["archive"].pop("sha256")
+        artifacts_path.write_text(json.dumps(artifacts), encoding="utf-8")
+        with self.assertRaisesRegex(BUILDER.BundleBuildError, "contain exactly"):
+            BUILDER.build_bundle(
+                missing_homebrew_digest,
+                SOURCE_SHA,
+                self.root / "missing-homebrew-digest.tar.gz",
             )
 
         false_github_evidence = self.make_source("false-github-evidence")

@@ -286,7 +286,7 @@ jobs:
             echo "TAG=${tag}"
           } >> "${GITHUB_ENV}"
 
-      - name: Build and seal deterministic OpenCode release assets
+      - name: Build and seal deterministic terminal release assets
         id: bundle
         shell: bash
         run: |
@@ -299,6 +299,7 @@ jobs:
           bundle="${RUNNER_TEMP}/${bundle_name}"
           repeated="${RUNNER_TEMP}/repeated-${bundle_name}"
           checksum="${RUNNER_TEMP}/${bundle_checksum_name}"
+          formula="${RUNNER_TEMP}/grillmester.rb"
           python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py" \
             --source-root "${SOURCE_ROOT}" --source-sha "${SOURCE_SHA}" \
             --output "${bundle}"
@@ -312,6 +313,12 @@ jobs:
           [[ "${bundle_size}" =~ ^[1-9][0-9]*$ ]]
           printf '%s  %s\n' \
             "${bundle_sha256}" "${bundle_name}" > "${checksum}"
+          python3 "${SOURCE_ROOT}/scripts/generate_homebrew_formula.py" \
+            --tag "${TAG}" --bundle-name "${bundle_name}" \
+            --bundle-sha256 "${bundle_sha256}" \
+            --client-artifacts "${SOURCE_ROOT}/policy/client-artifacts.json" \
+            --output "${formula}"
+          ruby -c "${formula}"
           {
             echo "bundle_artifact_name=${bundle_artifact_name}"
             echo "bundle_checksum_name=${bundle_checksum_name}"
@@ -320,7 +327,7 @@ jobs:
             echo "bundle_size=${bundle_size}"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Upload exact sealed OpenCode assets
+      - name: Upload exact sealed terminal assets
         id: bundle-upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -333,6 +340,15 @@ jobs:
           retention-days: 30
           overwrite: false
           include-hidden-files: false
+
+      - name: Upload generated Homebrew formula for tap rollout
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: homebrew-formula-${{ steps.bundle.outputs.bundle_name }}
+          path: ${{ runner.temp }}/grillmester.rb
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: false
 
       - name: Install checksum-pinned OpenCode CLI
         shell: bash
@@ -753,6 +769,7 @@ jobs:
               fail("tar end padding is not canonical")
 
           manager_path = "scripts/manage_opencode.py"
+          launcher_path = "scripts/grillmester.py"
           composer_path = "scripts/compose_opencode_permissions.py"
           artifact_verifier_path = "scripts/verify_client_artifact.py"
           legal_source_to_archive = {
@@ -767,8 +784,10 @@ jobs:
               for profile in ("cloud-open-weight", "hybrid", "local", "local-only")
           }
           manager_nodes = git_tree(manager_path)
+          launcher_nodes = git_tree(launcher_path)
           composer_nodes = git_tree(composer_path)
           artifact_verifier_nodes = git_tree(artifact_verifier_path)
+          plugin_nodes = git_tree("plugin")
           profile_nodes = git_tree("profiles/opencode")
           target_nodes = git_tree("targets/opencode-v1")
           legal_nodes = {}
@@ -782,6 +801,11 @@ jobs:
               or manager_nodes[manager_path][0] != "100644"
           ):
               fail("immutable source has no regular lifecycle manager")
+          if (
+              set(launcher_nodes) != {launcher_path}
+              or launcher_nodes[launcher_path][0] != "100644"
+          ):
+              fail("immutable source has no regular Grillmester launcher")
           if set(composer_nodes) != {composer_path} or composer_nodes[composer_path][0] != "100644":
               fail("immutable source has no regular permission composer")
           if (
@@ -806,6 +830,7 @@ jobs:
               fail("target manifest file inventory is invalid")
 
           expected_content = {
+              PurePosixPath(launcher_path): (git_blob(launcher_nodes[launcher_path]), 0o755),
               PurePosixPath(manager_path): (git_blob(manager_nodes[manager_path]), 0o755),
               PurePosixPath(composer_path): (git_blob(composer_nodes[composer_path]), 0o644),
               PurePosixPath(artifact_verifier_path): (
@@ -819,6 +844,16 @@ jobs:
               )
           for path in sorted(profile_paths):
               expected_content[PurePosixPath(path)] = (git_blob(profile_nodes[path]), 0o644)
+          if not plugin_nodes or "plugin/plugin.json" not in plugin_nodes:
+              fail("immutable source has no Copilot plugin tree")
+          for path, node in sorted(plugin_nodes.items()):
+              source_mode = node[0]
+              if source_mode not in ("100644", "100755"):
+                  fail(f"unsupported Copilot plugin source mode for {path}")
+              expected_content[PurePosixPath(path)] = (
+                  git_blob(node),
+                  0o755 if source_mode == "100755" else 0o644,
+              )
           expected_target_paths = {target_manifest_path}
           seen_target_paths = set()
           for raw_relative, entry in target_entries.items():
@@ -1387,7 +1422,9 @@ jobs:
               -- LICENSE PROVENANCE.md plugin/THIRD_PARTY_NOTICES.md \
                  policy/content-lock.json policy/client-artifacts.json \
                  targets/opencode-v1 profiles/opencode \
-                 scripts/build_opencode_bundle.py scripts/manage_opencode.py \
+                 scripts/build_opencode_bundle.py scripts/grillmester.py \
+                 scripts/generate_homebrew_formula.py \
+                 scripts/manage_opencode.py \
                  scripts/compose_opencode_permissions.py scripts/release_contract.py \
                  scripts/verify_client_artifact.py scripts/smoke_plugin_install.py \
                  scripts/smoke_opencode.py scripts/smoke_opencode_runtime.py)" ]]

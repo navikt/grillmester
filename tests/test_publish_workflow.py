@@ -803,7 +803,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertIn('verify_release_metadata "false"', write_job)
 
-    def test_release_seals_deterministic_opencode_assets_before_write(self) -> None:
+    def test_release_seals_deterministic_terminal_assets_before_write(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         # GitHub rejects workflow files larger than 500 KB.
         self.assertLessEqual(len(text.encode("utf-8")), 500_000)
@@ -816,7 +816,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
             "\n  remote-smoke:\n", maxsplit=1
         )[0]
-        self.assertIn("Build and seal deterministic OpenCode release assets", validate_job)
+        self.assertIn("Build and seal deterministic terminal release assets", validate_job)
         self.assertIn(
             'python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py"',
             validate_job,
@@ -825,6 +825,16 @@ class PublishWorkflowContractTest(unittest.TestCase):
         # rebuild that binds stable promotion to the published candidate asset.
         self.assertEqual(3, validate_job.count("scripts/build_opencode_bundle.py"))
         self.assertIn('cmp -s "${bundle}" "${repeated}"', validate_job)
+        self.assertIn(
+            'python3 "${SOURCE_ROOT}/scripts/generate_homebrew_formula.py"',
+            validate_job,
+        )
+        self.assertIn(
+            '--client-artifacts "${SOURCE_ROOT}/policy/client-artifacts.json"',
+            validate_job,
+        )
+        self.assertIn('ruby -c "${formula}"', validate_job)
+        self.assertIn("Upload generated Homebrew formula for tap rollout", validate_job)
         for output in (
             "bundle_artifact_name",
             "bundle_checksum_name",
@@ -966,17 +976,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
             for name in (
                 "build_opencode_bundle.py",
                 "compose_opencode_permissions.py",
+                "grillmester.py",
                 "manage_opencode.py",
                 "verify_client_artifact.py",
             ):
                 shutil.copy2(ROOT / "scripts" / name, source / "scripts" / name)
             shutil.copy2(ROOT / "LICENSE", source / "LICENSE")
             shutil.copy2(ROOT / "PROVENANCE.md", source / "PROVENANCE.md")
-            (source / "plugin").mkdir(parents=True)
-            shutil.copy2(
-                ROOT / "plugin/THIRD_PARTY_NOTICES.md",
-                source / "plugin/THIRD_PARTY_NOTICES.md",
-            )
+            shutil.copytree(ROOT / "plugin", source / "plugin")
             (source / "policy").mkdir(parents=True)
             for name in ("client-artifacts.json", "content-lock.json"):
                 shutil.copy2(ROOT / "policy" / name, source / "policy" / name)
@@ -1055,7 +1062,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn('--source "${bundle_root}/targets/opencode-v1"', remote)
         self.assertIn('--home "${install_home}"', remote)
 
-    def test_stable_release_cannot_drift_opencode_distribution_inputs(self) -> None:
+    def test_stable_release_cannot_drift_terminal_distribution_inputs(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
             "\n  remote-smoke:\n", maxsplit=1
@@ -1065,6 +1072,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "scripts/compose_opencode_permissions.py scripts/release_contract.py",
             write_job,
         )
+        self.assertIn("scripts/generate_homebrew_formula.py", write_job)
         for harness in (
             "scripts/smoke_plugin_install.py",
             "scripts/smoke_opencode.py",

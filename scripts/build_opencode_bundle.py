@@ -27,6 +27,8 @@ from typing import Any, Sequence
 ARCHIVE_ROOT = PurePosixPath("grillmester-opencode-v1")
 TARGET_NAME = "opencode-v1"
 TARGET_DIRECTORY = PurePosixPath("targets/opencode-v1")
+PLUGIN_DIRECTORY = PurePosixPath("plugin")
+LAUNCHER_PATH = PurePosixPath("scripts/grillmester.py")
 MANAGER_PATH = PurePosixPath("scripts/manage_opencode.py")
 PERMISSION_COMPOSER_PATH = PurePosixPath("scripts/compose_opencode_permissions.py")
 ARTIFACT_VERIFIER_PATH = PurePosixPath("scripts/verify_client_artifact.py")
@@ -375,12 +377,26 @@ def _validate_opencode_artifacts(value: object) -> None:
         if artifact["url"] != expected_url:
             raise BundleBuildError(f"{label} has an invalid immutable tarball URL")
 
+        archive_fields = {
+            "size",
+            "sha512",
+            "integrity",
+            "integrityEvidence",
+            "roster",
+        }
+        if key[0] == "darwin" and key[3] == "default":
+            archive_fields.add("sha256")
         archive = _require_exact_fields(
-            artifact["archive"],
-            {"size", "sha512", "integrity", "integrityEvidence", "roster"},
-            label=f"{label} archive",
+            artifact["archive"], archive_fields, label=f"{label} archive"
         )
         _require_positive_integer(archive["size"], label=f"{label} archive size")
+        if "sha256" in archive:
+            _require_digest(
+                archive["sha256"],
+                DIGEST,
+                algorithm="SHA-256",
+                label=f"{label} archive sha256",
+            )
         sha512 = _require_digest(
             archive["sha512"],
             SHA512_DIGEST,
@@ -998,6 +1014,159 @@ def _profile_files(source_root: Path) -> list[BundleFile]:
     return result
 
 
+def _portable_tree_files(root: Path, *, destination: PurePosixPath, label: str) -> list[BundleFile]:
+    """Read one symlink-free portable tree without following directory aliases."""
+
+    _require_directory(root, label=label)
+    result: list[BundleFile] = []
+    stack: list[tuple[Path, PurePosixPath]] = [(root, PurePosixPath())]
+    portable_paths: dict[str, PurePosixPath] = {}
+    while stack:
+        directory, relative_directory = stack.pop()
+        try:
+            children = sorted(directory.iterdir(), key=lambda path: path.name, reverse=True)
+        except OSError as exc:
+            raise BundleBuildError(f"could not list {label} {directory}: {exc}") from exc
+        for child in children:
+            relative_name = _safe_relative_path(child.name, label=f"{label} path")
+            relative = relative_directory / relative_name
+            collision_key = _portable_collision_key(relative)
+            previous = portable_paths.get(collision_key)
+            if previous is not None and previous != relative:
+                raise BundleBuildError(
+                    f"portable {label} path collision: {previous}, {relative}"
+                )
+            portable_paths[collision_key] = relative
+            try:
+                observed = child.lstat()
+            except OSError as exc:
+                raise BundleBuildError(f"could not inspect {label} entry {child}: {exc}") from exc
+            if stat.S_ISLNK(observed.st_mode):
+                raise BundleBuildError(f"refusing symlinked {label} entry: {child}")
+            if stat.S_ISDIR(observed.st_mode):
+                stack.append((child, relative))
+                continue
+            if not stat.S_ISREG(observed.st_mode):
+                raise BundleBuildError(f"{label} entry is not a regular file: {child}")
+            content, mode = _read_regular(child, label=f"{label} file {relative}")
+            if mode not in ALLOWED_FILE_MODES:
+                raise BundleBuildError(
+                    f"{label} file {relative} has unsupported mode {mode:04o}"
+                )
+            result.append(BundleFile(destination / relative, content, mode))
+    result.sort(key=lambda entry: entry.path.as_posix())
+    return result
+
+
+def _plugin_files(
+    source_root: Path,
+    *,
+    expected_agents: frozenset[str],
+    expected_skills: frozenset[str],
+) -> list[BundleFile]:
+    files = _portable_tree_files(
+        source_root.joinpath(*PLUGIN_DIRECTORY.parts),
+        destination=PLUGIN_DIRECTORY,
+        label="Copilot plugin",
+    )
+    relative_files = {
+        entry.path.relative_to(PLUGIN_DIRECTORY): entry for entry in files
+    }
+    manifest_entry = relative_files.get(PurePosixPath("plugin.json"))
+    if manifest_entry is None:
+        raise BundleBuildError("Copilot plugin has no plugin.json")
+    manifest = _parse_json_object(
+        manifest_entry.content, label="Copilot plugin manifest"
+    )
+    if manifest.get("name") != "grillmester":
+        raise BundleBuildError("Copilot plugin manifest must name grillmester")
+    if not isinstance(manifest.get("version"), str) or not manifest["version"].strip():
+        raise BundleBuildError("Copilot plugin manifest needs a version")
+    observed_agents = {
+        path.name.removesuffix(".agent.md")
+        for path in relative_files
+        if len(path.parts) == 2
+        and path.parts[0] == "agents"
+        and path.name.endswith(".agent.md")
+    }
+    observed_agent_entries = {
+        path for path in relative_files if path.parts[:1] == ("agents",)
+    }
+    expected_agent_entries = {
+        PurePosixPath("agents") / f"{agent_id}.agent.md"
+        for agent_id in expected_agents
+    }
+    if observed_agents != expected_agents or observed_agent_entries != expected_agent_entries:
+        raise BundleBuildError(
+            "Copilot plugin agent roster differs from policy/content-lock.json"
+        )
+    observed_skill_ids = {
+        path.parts[1]
+        for path in relative_files
+        if len(path.parts) >= 2 and path.parts[0] == "skills"
+    }
+    observed_skill_manifests = {
+        path
+        for path in relative_files
+        if len(path.parts) == 3
+        and path.parts[0] == "skills"
+        and path.name == "SKILL.md"
+    }
+    expected_skill_manifests = {
+        PurePosixPath("skills") / skill_id / "SKILL.md"
+        for skill_id in expected_skills
+    }
+    if (
+        observed_skill_ids != expected_skills
+        or observed_skill_manifests != expected_skill_manifests
+    ):
+        raise BundleBuildError(
+            "Copilot plugin skill roster differs from policy/content-lock.json"
+        )
+    return files
+
+
+def _launcher_file(source_root: Path) -> BundleFile:
+    content, mode = _read_regular(
+        source_root.joinpath(*LAUNCHER_PATH.parts), label="Grillmester launcher"
+    )
+    if mode != 0o644:
+        raise BundleBuildError(
+            f"Grillmester launcher source mode must be 0644; observed {mode:04o}"
+        )
+    try:
+        tree = ast.parse(content.decode("utf-8"), filename=LAUNCHER_PATH.as_posix())
+    except (UnicodeDecodeError, SyntaxError) as exc:
+        raise BundleBuildError(f"Grillmester launcher is not valid UTF-8 Python: {exc}") from exc
+    observed: dict[str, list[object]] = {
+        "SUPPORTED_OPENCODE_VERSION": [],
+        "SUPPORTED_CPLT_RELEASE": [],
+    }
+    for statement in tree.body:
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id in observed
+        ):
+            try:
+                observed[statement.targets[0].id].append(ast.literal_eval(statement.value))
+            except (ValueError, TypeError) as exc:
+                raise BundleBuildError(
+                    f"Grillmester launcher {statement.targets[0].id} must be a literal"
+                ) from exc
+    expected = {
+        "SUPPORTED_OPENCODE_VERSION": OPENCODE_VERSION,
+        "SUPPORTED_CPLT_RELEASE": CPLT_RELEASE,
+    }
+    for name, expected_value in expected.items():
+        if observed[name] != [expected_value]:
+            raise BundleBuildError(
+                f"Grillmester launcher must pin {name}={expected_value!r}"
+            )
+    return BundleFile(LAUNCHER_PATH, content, 0o755)
+
+
 def _artifact_binary_digest_maps(
     artifact_lock: dict[str, Any],
 ) -> tuple[dict[tuple[str, str], str], dict[tuple[str, str, str], str]]:
@@ -1210,12 +1379,20 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
         expected_skills=expected_skills,
     )
     files = [
+        _launcher_file(source_root),
         BundleFile(MANAGER_PATH, manager_content, 0o755),
         BundleFile(PERMISSION_COMPOSER_PATH, composer_content, 0o644),
         BundleFile(ARTIFACT_VERIFIER_PATH, verifier_content, 0o755),
     ]
     files.extend(support_files)
     files.extend(_profile_files(source_root))
+    files.extend(
+        _plugin_files(
+            source_root,
+            expected_agents=expected_agents,
+            expected_skills=expected_skills,
+        )
+    )
     files.extend(target_files)
     files.sort(key=lambda entry: entry.path.as_posix())
     aggregate_size = sum(len(entry.content) for entry in files)
