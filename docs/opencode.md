@@ -590,7 +590,11 @@ provider-ID-er, launcher-eide base-URL-er, modell-ID-er og reviewet
 capabilitymetadata med enum-avgrensede modalities i den manager-eide configen.
 Kosmetiske navn, `{file:...}`-
 verdier og agent-variants kopieres ikke. XDG config/data/state/cache erstattes så
-med private per-process-kataloger. Det
+med private per-process-kataloger. Under resolved-config-proben får cplt bare
+read-only-tilgang til den eksakte, forhåndsskannede
+`$XDG_CONFIG_HOME/opencode`-katalogen, også når en custom XDG-rot ligger utenfor
+brukerens hjem; flaten fingerprints før proben og kontrolleres på nytt før
+launch. Det
 hindrer OpenCode i å skrive tilbake til ambient auth, legacy-auth, MCP-auth,
 sessions, TUI-config eller cache, og katalogene fjernes ved exit.
 Launcher-kontrollerte verdier kan ikke legges tilbake via `--pass-env`.

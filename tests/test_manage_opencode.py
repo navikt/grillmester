@@ -274,6 +274,18 @@ if executable == "cplt" and client_args[:1] == ["debug"]:
     if project.name != "preflight-project":
         print("debug probe used the writable consumer project", file=sys.stderr)
         raise SystemExit(16)
+    if config.name == "permission-input":
+        ambient_config = (
+            pathlib.Path(os.environ["XDG_CONFIG_HOME"]) / "opencode"
+        ).resolve()
+        allowed_reads = [
+            pathlib.Path(sys.argv[index + 1]).resolve()
+            for index, argument in enumerate(sys.argv[:-1])
+            if argument == "--allow-read"
+        ]
+        if ambient_config.is_dir() and ambient_config not in allowed_reads:
+            print("ambient XDG config was not readable in baseline probe", file=sys.stderr)
+            raise SystemExit(22)
     try:
         observed_gitignore = (config / ".gitignore").read_text()
     except OSError as exc:
@@ -963,6 +975,11 @@ pathlib.Path(os.environ["FAKE_CAPTURE"]).write_text(json.dumps(capture))
         capture = self.root / "cplt-capture.json"
         consumer = self.root / "consumer"
         consumer.mkdir()
+        custom_xdg = self.root / "runner-temp/xdg-config"
+        (custom_xdg / "opencode").mkdir(parents=True)
+        (custom_xdg / "opencode/opencode.json").write_text(
+            '{"autoupdate":false,"share":"disabled"}\n', encoding="utf-8"
+        )
         ambient_auth = self.account_home / ".local/share/opencode/auth.json"
         ambient_auth.parent.mkdir(parents=True)
         ambient_auth.write_text(
@@ -1006,6 +1023,7 @@ pathlib.Path(os.environ["FAKE_CAPTURE"]).write_text(json.dumps(capture))
                 environment=self.client_environment(
                     FAKE_CAPTURE=str(capture),
                     TEST_PROVIDER_TOKEN="secret-not-written-to-bundle",
+                    XDG_CONFIG_HOME=str(custom_xdg),
                     GIT_DIR=str(unrelated / ".git"),
                     GIT_WORK_TREE=str(unrelated),
                 ),

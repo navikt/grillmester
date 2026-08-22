@@ -5535,6 +5535,14 @@ def launch(
             empty_opencode.chmod(0o400)
             _stage_opencode_runtime_support(empty_config)
             empty_config.chmod(0o500)
+            ambient_opencode_config = _resolved(
+                Path(child_environment["XDG_CONFIG_HOME"]) / "opencode"
+            )
+            if not _inspect_owned_directory(
+                ambient_opencode_config,
+                label="ambient OpenCode XDG config root",
+            ):
+                ambient_opencode_config = None
             baseline_output = _run_cplt_json_probe(
                 command,
                 config=empty_config,
@@ -5542,6 +5550,11 @@ def launch(
                 client_arguments=("debug", "config"),
                 environment=child_environment,
                 label="sandboxed baseline OpenCode config probe",
+                # OPENCODE_CONFIG_DIR is additive in pinned OpenCode: its
+                # resolved-config path still reads $XDG_CONFIG_HOME/opencode.
+                # Grant that exact, pre-scanned directory read-only so custom
+                # XDG roots outside cplt's normal home reads work as intended.
+                additional_read=ambient_opencode_config,
             )
             resolved_config = _composer_call(
                 permission_composer, "parse_resolved_config", baseline_output

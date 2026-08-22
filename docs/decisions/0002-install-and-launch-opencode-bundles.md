@@ -275,9 +275,13 @@ Ingen provider, modell eller credential ligger i den distribuerte bundle-en.
 `--direct` arver eksisterende absolutte XDG-røtter etter overlap-validering.
 Managed profiler leser bare eksplisitt valgte API-authoppføringer, setter ellers
 `OPENCODE_AUTH_CONTENT={}`, og erstatter XDG config/data/state/cache med private
-per-process-kataloger. Bare de launcher-valgte, sanitiserte provider- og
-modelloppføringene rekonstrueres i sessionconfigen; ambient XDG-config kopieres
-ikke. Launcher-kontrollerte OpenCode-verdier kan ikke erstattes med `--pass-env`.
+per-process-kataloger. Den innledende resolved-config-proben gir cplt read-only-
+tilgang til nøyaktig den forhåndsskannede `$XDG_CONFIG_HOME/opencode`-katalogen,
+også for en custom XDG-rot utenfor brukerens hjem, før denne ambient-flaten
+erstattes og kontrolleres på nytt. Bare de launcher-valgte, sanitiserte provider-
+og modelloppføringene rekonstrueres i sessionconfigen; ambient XDG-config
+kopieres ikke. Launcher-kontrollerte OpenCode-verdier kan ikke erstattes med
+`--pass-env`.
 Validerte absolutte toolchain-røtter kan videreføres, men en tool-rootvariabel
 utelates i sin helhet dersom én verdi overlapper en manager-eid eller kjent
 ambient-skrivbar rot; listevariabler delbeholdes ikke. Dette unngår at standard
