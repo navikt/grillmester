@@ -275,16 +275,21 @@ if executable == "cplt" and client_args[:1] == ["debug"]:
         print("debug probe used the writable consumer project", file=sys.stderr)
         raise SystemExit(16)
     if config.name == "permission-input":
-        ambient_config = (
-            pathlib.Path(os.environ["XDG_CONFIG_HOME"]) / "opencode"
-        ).resolve()
+        baseline_config_home = pathlib.Path(os.environ["XDG_CONFIG_HOME"]).resolve()
+        ambient_config = baseline_config_home / "opencode"
         allowed_reads = [
             pathlib.Path(sys.argv[index + 1]).resolve()
             for index, argument in enumerate(sys.argv[:-1])
             if argument == "--allow-read"
         ]
-        if ambient_config.is_dir() and ambient_config not in allowed_reads:
-            print("ambient XDG config was not readable in baseline probe", file=sys.stderr)
+        if baseline_config_home.parent != config.parent:
+            print("baseline XDG config was not manager-owned", file=sys.stderr)
+            raise SystemExit(22)
+        if baseline_config_home not in allowed_reads:
+            print("baseline XDG snapshot was not readable in probe", file=sys.stderr)
+            raise SystemExit(22)
+        if not ambient_config.is_dir():
+            print("baseline XDG snapshot omitted OpenCode config", file=sys.stderr)
             raise SystemExit(22)
     try:
         observed_gitignore = (config / ".gitignore").read_text()
@@ -3454,6 +3459,37 @@ pathlib.Path({str(capture)!r}).write_text(
             )
         finally:
             os.chdir(previous)
+
+    def test_ambient_xdg_probe_uses_a_sealed_declarative_snapshot(self) -> None:
+        xdg = self.root / "runner-temp/xdg-config"
+        ambient = xdg / "opencode"
+        ambient.mkdir(parents=True)
+        expected = {
+            "config.json": b'{"share":"disabled"}\n',
+            "opencode.json": b'{"autoupdate":false}\n',
+            "opencode.jsonc": b'{/* reviewed */ "provider":{}}\n',
+        }
+        for filename, content in expected.items():
+            (ambient / filename).write_bytes(content)
+        (ambient / "unrelated.txt").write_text("must not be staged\n")
+
+        destination = self.root / "session/permission-xdg-config/opencode"
+        destination.parent.mkdir(parents=True)
+        files = MANAGER._stage_ambient_xdg_config_snapshot(
+            {"XDG_CONFIG_HOME": str(xdg)}, destination
+        )
+
+        self.assertEqual(
+            {*expected, ".gitignore"},
+            {relative.as_posix() for relative in files},
+        )
+        for filename, content in expected.items():
+            staged = destination / filename
+            self.assertEqual(content, staged.read_bytes())
+            self.assertEqual(0o444, stat.S_IMODE(staged.stat().st_mode))
+        self.assertFalse((destination / "unrelated.txt").exists())
+        self.assertEqual(0o500, stat.S_IMODE(destination.stat().st_mode))
+        MANAGER._validate_staged_config_extras(destination, files)
 
     def test_bounded_config_probe_preserves_frontmatter_and_is_sealed(self) -> None:
         bundle = MANAGER.verify_bundle(

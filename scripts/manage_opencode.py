@@ -1619,6 +1619,48 @@ def _stage_opencode_runtime_support(config: Path) -> dict[PurePosixPath, str]:
     return {OPENCODE_RUNTIME_GITIGNORE_PATH: _sha256(content)}
 
 
+def _stage_ambient_xdg_config_snapshot(
+    environment: Mapping[str, str], destination: Path
+) -> dict[PurePosixPath, str]:
+    """Copy only OpenCode's three declarative global config files for probing."""
+
+    source_root = _resolved(
+        Path(environment["XDG_CONFIG_HOME"]) / "opencode"
+    )
+    try:
+        destination.mkdir(mode=0o700)
+    except OSError as exc:
+        raise LifecycleError("could not create ambient XDG config snapshot") from exc
+    staged: dict[PurePosixPath, str] = {}
+    if _inspect_owned_directory(source_root, label="ambient OpenCode XDG config root"):
+        for filename in ("config.json", "opencode.json", "opencode.jsonc"):
+            source = source_root / filename
+            if not source.exists() and not source.is_symlink():
+                continue
+            content = _regular_file_bytes(
+                source,
+                label="ambient OpenCode XDG config",
+                max_bytes=MAX_FILE_BYTES,
+            )
+            relative = PurePosixPath(filename)
+            target = destination / filename
+            try:
+                with target.open("xb") as output:
+                    output.write(content)
+                target.chmod(0o444)
+            except OSError as exc:
+                raise LifecycleError(
+                    "could not stage ambient OpenCode XDG config snapshot"
+                ) from exc
+            staged[relative] = _sha256(content)
+    staged.update(_stage_opencode_runtime_support(destination))
+    try:
+        destination.chmod(0o500)
+    except OSError as exc:
+        raise LifecycleError("could not seal ambient XDG config snapshot") from exc
+    return staged
+
+
 def _shorten_agent_for_config_probe(content: bytes, relative: PurePosixPath) -> bytes:
     """Keep exact frontmatter while bounding OpenCode's resolved-config output."""
 
@@ -5535,27 +5577,63 @@ def launch(
             empty_opencode.chmod(0o400)
             _stage_opencode_runtime_support(empty_config)
             empty_config.chmod(0o500)
-            ambient_opencode_config = _resolved(
-                Path(child_environment["XDG_CONFIG_HOME"]) / "opencode"
+            baseline_config_home = session / "permission-xdg-config"
+            try:
+                baseline_config_home.mkdir(mode=0o700)
+            except OSError as exc:
+                raise LifecycleError(
+                    "could not create resolved-config XDG snapshot home"
+                ) from exc
+            baseline_opencode_config = baseline_config_home / "opencode"
+            baseline_config_files = _stage_ambient_xdg_config_snapshot(
+                child_environment,
+                baseline_opencode_config,
             )
-            if not _inspect_owned_directory(
-                ambient_opencode_config,
-                label="ambient OpenCode XDG config root",
+            baseline_config_fingerprint = _validate_staged_config_extras(
+                baseline_opencode_config,
+                baseline_config_files,
+            )
+            try:
+                baseline_config_home.chmod(0o500)
+            except OSError as exc:
+                raise LifecycleError(
+                    "could not seal resolved-config XDG snapshot home"
+                ) from exc
+            if (
+                _scan_managed_opencode_extensions(
+                    project_root, extension_scan_environment
+                )
+                != extension_fingerprint
             ):
-                ambient_opencode_config = None
+                raise LifecycleError(
+                    "OpenCode config/plugin surface changed while staging the "
+                    "resolved-config snapshot"
+                )
+            baseline_environment = dict(child_environment)
+            baseline_environment["XDG_CONFIG_HOME"] = str(baseline_config_home)
             baseline_output = _run_cplt_json_probe(
                 command,
                 config=empty_config,
                 preflight_project=preflight_project,
                 client_arguments=("debug", "config"),
-                environment=child_environment,
+                environment=baseline_environment,
                 label="sandboxed baseline OpenCode config probe",
-                # OPENCODE_CONFIG_DIR is additive in pinned OpenCode: its
-                # resolved-config path still reads $XDG_CONFIG_HOME/opencode.
-                # Grant that exact, pre-scanned directory read-only so custom
-                # XDG roots outside cplt's normal home reads work as intended.
-                additional_read=ambient_opencode_config,
+                # OPENCODE_CONFIG_DIR is additive in pinned OpenCode. Resolve
+                # the three pre-scanned ambient config files from a sealed,
+                # manager-owned XDG snapshot instead of granting cplt access to
+                # an arbitrary custom XDG parent outside its normal home reads.
+                additional_read=baseline_config_home,
             )
+            if (
+                _validate_staged_config_extras(
+                    baseline_opencode_config,
+                    baseline_config_files,
+                )
+                != baseline_config_fingerprint
+            ):
+                raise LifecycleError(
+                    "ambient OpenCode XDG config snapshot changed during probe"
+                )
             resolved_config = _composer_call(
                 permission_composer, "parse_resolved_config", baseline_output
             )
