@@ -66,9 +66,7 @@ def _environment(
         value = str(directory)
         if value not in path_entries:
             path_entries.append(value)
-    path_entries.extend(
-        ("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin")
-    )
+    path_entries.extend(("/usr/bin", "/bin", "/usr/sbin", "/sbin"))
     return {
         "HOME": str(home),
         "XDG_CONFIG_HOME": str(config),

@@ -22,6 +22,26 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
         self.assertFalse(SMOKE._is_ready(b"Ask anything Grillmester"))
         self.assertFalse(SMOKE._is_ready(b"Unexpected server error"))
 
+    def test_environment_excludes_ambient_homebrew_prefixes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binaries = root / "bin"
+            state = root / "state"
+            binaries.mkdir()
+            state.mkdir()
+            environment = SMOKE._environment(
+                state,
+                launcher=binaries / "grillmester",
+                opencode=binaries / "opencode",
+                cplt=binaries / "cplt",
+            )
+
+        path = environment["PATH"].split(":")
+        self.assertEqual(str(binaries), path[0])
+        self.assertNotIn("/opt/homebrew/bin", path)
+        self.assertNotIn("/usr/local/bin", path)
+        self.assertEqual(["/usr/bin", "/bin", "/usr/sbin", "/sbin"], path[-4:])
+
     def test_pty_smoke_stops_a_ready_session_and_checks_runtime_support(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
