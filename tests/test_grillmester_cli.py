@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import json
 import os
 import sys
 import tempfile
@@ -352,6 +353,24 @@ class GrillmesterCliTests(unittest.TestCase):
                 load.assert_not_called()
                 check_client.assert_not_called()
 
+    def test_update_commands_reject_arguments_before_preferences_or_brew(self) -> None:
+        for command in ("update", "upgrade"):
+            with self.subTest(command=command):
+                stderr = io.StringIO()
+                with mock.patch.object(
+                    CLI, "load_preferences"
+                ) as load, mock.patch.object(
+                    CLI, "update_installation"
+                ) as update, redirect_stdout(io.StringIO()), redirect_stderr(stderr):
+                    result = CLI.main([command, "--greedy"])
+
+                self.assertEqual(2, result)
+                self.assertIn(
+                    f"grillmester {command} takes no arguments", stderr.getvalue()
+                )
+                load.assert_not_called()
+                update.assert_not_called()
+
     def test_failed_homebrew_refresh_never_attempts_the_upgrade(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             brew = Path(directory) / "brew"
@@ -570,6 +589,38 @@ class GrillmesterCliTests(unittest.TestCase):
                 CLI.load_preferences(preferences),
             )
 
+    def test_choose_replaces_unshipped_role_preferences_with_agent_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config_home = Path(directory) / "config"
+            preferences = config_home / "grillmester/preferences.json"
+            preferences.parent.mkdir(parents=True)
+            preferences.write_text(
+                '{"schemaVersion":1,"client":"copilot","role":"barista"}\n',
+                encoding="utf-8",
+            )
+            stderr = io.StringIO()
+            with mock.patch.dict(
+                os.environ, {"XDG_CONFIG_HOME": str(config_home)}
+            ), mock.patch.object(
+                CLI.sys, "stdin", TtyBuffer()
+            ), mock.patch.object(
+                CLI.sys, "stdout", TtyBuffer()
+            ), mock.patch.object(
+                CLI, "input", side_effect=["2", "3"], create=True
+            ), redirect_stderr(stderr):
+                result = CLI.main(["choose"])
+
+            self.assertEqual(0, result)
+            self.assertIn("unexpected or missing fields", stderr.getvalue())
+            self.assertEqual(
+                {
+                    "schemaVersion": 1,
+                    "client": "opencode",
+                    "agent": "designer",
+                },
+                json.loads(preferences.read_text(encoding="utf-8")),
+            )
+
     def test_invalid_preferences_error_points_to_choose_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config_home = Path(directory) / "config"
@@ -591,9 +642,14 @@ class GrillmesterCliTests(unittest.TestCase):
             preferences = CLI.Preferences("opencode", "doctor-who")
             self.assertEqual(path, CLI.save_preferences(preferences, path))
             self.assertEqual(preferences, CLI.load_preferences(path))
-            content = path.read_text(encoding="utf-8")
-            self.assertIn('"agent": "doctor-who"', content)
-            self.assertNotIn('"role"', content)
+            self.assertEqual(
+                {
+                    "schemaVersion": 1,
+                    "client": "opencode",
+                    "agent": "doctor-who",
+                },
+                json.loads(path.read_text(encoding="utf-8")),
+            )
             self.assertEqual(0o600, path.stat().st_mode & 0o777)
             self.assertEqual(0o700, path.parent.stat().st_mode & 0o777)
 

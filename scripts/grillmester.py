@@ -801,7 +801,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
         if arguments in (["--help"], ["-h"], ["help"]):
             parse_invocation(["--help"])
             return 0
-        if arguments in (["update"], ["upgrade"]):
+        if arguments[:1] in (["update"], ["upgrade"]):
+            if len(arguments) != 1:
+                raise LauncherError(
+                    f"grillmester {arguments[0]} takes no arguments"
+                )
             update_installation()
             return 0
         if arguments == ["--version"] or arguments == ["version"]:
