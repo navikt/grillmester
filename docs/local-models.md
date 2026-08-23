@@ -223,7 +223,7 @@ Start deretter den normale native cplt-veien og velg `lmstudio/<model-id>` eller
 
 ```bash
 cd /path/to/consumer-repo
-grillmester --client opencode --role grillmester \
+grillmester --client opencode --agent grillmester \
   --allow-localhost 1234 \
   -- --model lmstudio/replace-with-id-from-v1-models
 ```

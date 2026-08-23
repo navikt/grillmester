@@ -32,7 +32,7 @@ Kombinasjonen kan lagres som default. Neste gang holder det å trykke Enter;
 `grillmester choose` åpner begge valgene på nytt. For en eksplisitt sesjon:
 
 ```bash
-grillmester --client opencode --role grillmester
+grillmester --client opencode --agent grillmester
 ```
 
 Launcheren binder det distribuerte targetet og starter alltid OpenCode gjennom
@@ -51,7 +51,7 @@ grillmester doctor --client opencode
 Gi cplt tilgang til den eksakte localhost-porten og velg modellen i OpenCode:
 
 ```bash
-grillmester --client opencode --role grillmester \
+grillmester --client opencode --agent grillmester \
   --allow-localhost 1234 \
   -- --model lmstudio/replace-with-id-from-v1-models
 ```
@@ -67,7 +67,7 @@ Videresend bare credentialvariabelen som providerconfigen faktisk bruker:
 
 ```bash
 export MODEL_PROVIDER_API_KEY='set-locally-never-in-the-bundle'
-grillmester --client opencode --role grillmester \
+grillmester --client opencode --agent grillmester \
   --pass-env MODEL_PROVIDER_API_KEY \
   -- --model provider/model-id
 ```
@@ -152,6 +152,18 @@ binde targetet uten Homebrew-launcheren:
 ```bash
 GRILLMESTER_ROOT=/absolute/path/to/grillmester
 CONFIG_DIR="$GRILLMESTER_ROOT/targets/opencode-v1"
+USER_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+SUPPORT_FILE="$USER_CONFIG_DIR/.gitignore"
+mkdir -p "$USER_CONFIG_DIR"
+if [[ -L "$SUPPORT_FILE" || ( -e "$SUPPORT_FILE" && ! -f "$SUPPORT_FILE" ) ]]; then
+  echo "OpenCode runtime support must be a regular file: $SUPPORT_FILE" >&2
+  exit 1
+fi
+if [[ ! -e "$SUPPORT_FILE" ]]; then
+  printf 'node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n' \
+    > "$SUPPORT_FILE"
+  chmod 600 "$SUPPORT_FILE"
+fi
 cd /path/to/disposable-test-repo
 OPENCODE_CONFIG_DIR="$CONFIG_DIR" \
   cplt --agent opencode --project-dir "$PWD" \
@@ -159,8 +171,10 @@ OPENCODE_CONFIG_DIR="$CONFIG_DIR" \
     -- --agent grillmester
 ```
 
-Dette er utviklingsinput, ikke immutable release-evidens. Ingen custom wrapper
-eller lifecycle-manager er nødvendig for selve cplt-kompatibiliteten.
+Dette er utviklingsinput, ikke immutable release-evidens. Ingen custom
+sandboxwrapper eller lifecycle-manager er nødvendig for selve cplt-
+kompatibiliteten. Den vanlige `grillmester`-launcheren håndterer støttefilen
+over automatisk og avviser symlinker eller andre ikke-regulære filer.
 
 ### Installer eksakte klienter manuelt
 
@@ -209,6 +223,10 @@ asset="grillmester-opencode-${tag}.tar.gz"
 shasum -a 256 -c "${asset}.sha256"
 tar -xzf "${asset}" -C /path/to/user-owned/extraction
 ```
+
+Pakk ut til en vanlig, brukereid arbeidskatalog. cplt tillater med vilje ikke
+prosesskjøring fra macOS-katalogene `/private/tmp` eller
+`/private/var/folders`, så de er ikke egnede som launchplassering.
 
 Bundle-en inneholder Copilot-pluginen, terminallauncheren, manageren, profilene
 og OpenCode-targetet under roten `grillmester-opencode-v1/`. Inspiser at
@@ -672,14 +690,19 @@ OPENCODE_CONFIG_DIR="$CONFIG_DIR" \
     -- --agent grillmester
 ```
 
-Ingen custom wrapper er nødvendig for denne native integrasjonen. Lifecycle-
-manageren er valgfri hardening oppå den: immutable installasjon og rollback,
-offisielle klientchecksums, private binærkopier, resolved-config- og
-permissionvalidering, en tom modellkatalog og deklarative nettverksprofiler.
-I både den forseglede, kortlivede config-stagen og den isolerte XDG-configen
-pre-seeder manageren også den eksakte `.gitignore`-filen OpenCode 1.18.20 ellers
-forsøker å opprette ved oppstart; det gir kompatibilitet uten write-tilgang til
-agent- og permissionfilene.
+Ingen custom sandboxwrapper er nødvendig for denne native integrasjonen.
+OpenCode 1.18.20 forsøker likevel å opprette `.gitignore` i både targetet og
+brukerconfigen før TUI-en vises. Release-targetet inneholder derfor den eksakte
+targetfilen. Ved manuell binding må en eksisterende, regulær
+`$XDG_CONFIG_HOME/opencode/.gitignore` også finnes; den felles `grillmester`-
+launcheren oppretter den bare når den mangler og endrer aldri en eksisterende
+fil. Dette løser oppstarten uten generell write-tilgang til configen.
+
+Lifecycle-manageren er valgfri hardening oppå den native flyten: immutable
+installasjon og rollback, offisielle klientchecksums, private binærkopier,
+resolved-config- og permissionvalidering, en tom modellkatalog og deklarative
+nettverksprofiler. Den validerer og forsegler targetfilen og pre-seeder samme
+eksakte støttefil i den isolerte XDG-configen.
 Unmanaged cplt-kommandoen arver OpenCodes vanlige config-, plugin-, provider- og
 modellflate og har ingen av disse managergarantiene.
 
@@ -804,7 +827,7 @@ anbefalt normalflyt, og kan ikke brukes med `local-only`.
 ## Agenter, commands og forwarding
 
 Launch uten ekstra argumenter starter TUI med `grillmester`. Velg en annen
-offentlig rolle med `--runtime-agent barista`, `designer` eller `doctor-who`.
+offentlig agent med `--runtime-agent barista`, `designer` eller `doctor-who`.
 Kokk, Grill-inspektør og Researcher er skjulte subagenter for native `task`-
 delegering.
 

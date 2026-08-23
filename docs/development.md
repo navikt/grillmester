@@ -15,6 +15,16 @@ Start Copilot slik du vanligvis gjør i Nav, last
 og velg agent med `/agent`. En lokal mount gjelder bare prosessen du starter.
 Den endrer ikke den vanlige personlige installasjonen.
 
+For å inspisere terminalbindingen uten å starte en klient kan du bruke den
+bundled launcheren med eksplisitt klient og agent:
+
+```bash
+grillmester --client opencode --agent grillmester --print-command
+```
+
+Kommandoen skriver den eksakte cplt-invokasjonen og endrer ingen OpenCode-
+runtimefiler.
+
 ## Verifikasjon
 
 Releasekatalogen genereres fra pluginmanifestene. Det native OpenCode 1-

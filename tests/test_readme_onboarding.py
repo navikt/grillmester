@@ -73,11 +73,12 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             "GitHub Copilot CLI",
             "OpenCode",
             "grillmester choose",
-            "--client copilot --role grillmester",
-            "--client opencode --role barista",
+            "--client copilot --agent grillmester",
+            "--client opencode --agent barista",
             "grillmester doctor",
             "alltid gjennom cplt",
             "--allow-localhost 1234",
+            "grillmester update",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, normalized)

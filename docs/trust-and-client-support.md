@@ -45,12 +45,12 @@ arkiv- og binærlåsen, ikke omtales som kryptografisk publisher-provenance.
 
 ## Toolstrategi
 
-Grillmester, Barista, Designer og Doctor Who er offentlige, interaktive roller
+Grillmester, Barista, Designer og Doctor Who er offentlige, interaktive agenter
 som må kunne virke på tvers av Copilot CLI, app og cloud. De utelater derfor
 `tools` og arver hele runtimeflaten. Dette er samme enkle modell som de
 piloterte agentene i Hovmester og Budstikka, og unngår en stor aliasmatrise som
 drifter mellom klienter og Navs MCP Registry. Det gir også en bredere teknisk
-flate: rolleprompten er arbeidsmåte, ikke kapabilitetsisolasjon.
+flate: agentprompten er arbeidsmåte, ikke kapabilitetsisolasjon.
 
 Navs MCP Registry og enterprise-policy bestemmer hvilke MCP-servere og tools
 som faktisk kan være tilgjengelige. Manglende GitHub Projects- eller Figma-
@@ -81,7 +81,7 @@ tool calls, godkjent write og avvist write før stabil release.
 | **Copilot app** | Plugins-UI-installasjon og discovery er bekreftet i en reell sesjon for den tidligere pakken med 7 agenter og 44 skills. Appen tilbyr også BYOK mot blant annet LM Studio og OpenAI-kompatible endepunkter i public preview. | Discovery av den nye pakken med 42 skills, custom-marketplace-oppdatering, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. Grillmester + lokal BYOK-modell og appens nettverkstrafikk er `UNVERIFIED`; app-guiden lover ikke CLI-ens offline-modus. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær, ikke-verifisert kompatibilitetsflate utenfor første onboarding og release-løfte. VS Code dokumenterer update-sjekk hver 24. time når `extensions.autoUpdate` er aktivert. | Verifiser faktisk installasjon og custom-marketplace-oppdatering med to Grillmester-versjoner før flaten flyttes inn i normal bruk. |
-| **OpenCode 1.18.20 + cplt 2026.08.17-062831-1008a92** | Eget, deterministisk generert target med 7 native agenter, 42 skills og 42 slash commands. Isolert discovery-smoke bekrefter resolved config og katalog. En separat deterministisk runtime-smoke gjennom ekte OpenCode og eksakt cplt bekrefter delegering, blokkert `.env`, progressiv skill-reference, avvist write og eksplisitt godkjent write uten ekstern modell. På en ekte macOS-runner verifiseres de native Darwin-arkivene og binærene før første kjøring; cplt-policy, rå-socket-hostpin og managerens faktiske `local-only`-launch gates deretter Seatbelt-flyten. I managerens cplt-modus checksum-autentiseres offisielle klientbytes og kjøres fra en privat `trusted-bin`; den opprinnelige OpenCode-binæren startes ikke. Managed Linux er GNU/glibc-only i denne releasen; OpenCode-musl uten en cplt-musl-asset er bare native/unmanaged. Targetet pinner ingen provider eller modell og krever ikke `nav-pilot-agent` eller Copilot-agentene. | Samme checksummede, immutable bundle må fortsatt prøves med den konkrete lokale eller eksterne modellen før akkurat den modellprofilen kan kalles kvalitetsverifisert. |
+| **OpenCode 1.18.20 + cplt 2026.08.17-062831-1008a92** | Eget, deterministisk generert target med 7 native agenter, 42 skills og 42 slash commands. Isolert discovery-smoke bekrefter resolved config og katalog. En separat deterministisk runtime-smoke gjennom ekte OpenCode og eksakt cplt bekrefter delegering, blokkert `.env`, progressiv skill-reference, avvist write og eksplisitt godkjent write uten ekstern modell. Homebrew-matrisen starter i tillegg den installerte launcheren gjennom de private klientbinærene i en PTY og krever at Grillmester-TUI-en rendres før kontrollert avslutning uten modellkall. På en ekte macOS-runner verifiseres de native Darwin-arkivene og binærene før første kjøring; cplt-policy, rå-socket-hostpin og managerens faktiske `local-only`-launch gates deretter Seatbelt-flyten. I managerens cplt-modus checksum-autentiseres offisielle klientbytes og kjøres fra en privat `trusted-bin`; den opprinnelige OpenCode-binæren startes ikke. Managed Linux er GNU/glibc-only i denne releasen; OpenCode-musl uten en cplt-musl-asset er bare native/unmanaged. Targetet pinner ingen provider eller modell og krever ikke `nav-pilot-agent` eller Copilot-agentene. | Samme checksummede, immutable bundle må fortsatt prøves med den konkrete lokale eller eksterne modellen før akkurat den modellprofilen kan kalles kvalitetsverifisert. |
 | **OpenCode 2 beta** | Oppstrøms forventer V1-kompatibilitet for støttede agent-, command- og skillfiler. Grillmester bruker ingen OpenCode-plugin. | Full runtimeparitet er `UNVERIFIED`. V2-permissions og provider/model-adferd må testes separat; betaen styrer ikke OpenCode 1-release. |
 | **Copilot CLI + lokal BYOK** | GitHub dokumenterer OpenAI-kompatible lokale providers, tool calling/streaming-krav og `COPILOT_OFFLINE=true`. Grillmesters agentpin kan overstyres eksplisitt med `subagents.agents.<name>.model: "inherit"`. | Den eksakte lokale modellen, kvantiseringen, contextprofilen, tool calls, delegeringen og permissionadferden må gjennom samme capability-smoke. 32k laptop-context er under GitHubs anbefalte 128k og skal rapporteres som en begrensning. |
 
@@ -97,9 +97,11 @@ De uavhengige CI-gatene `macos-homebrew-compatibility` og
 `macos-live-compatibility` har hver sin matrise på Apple Silicon og GitHubs
 hostede Intel-miljø. Intel-pinnen er Haswell/AVX2-basert; eldre Intel-Macer er
 `UNVERIFIED`. Homebrew-gaten bygger bundle-en deterministisk to ganger og
-kjører strict audit, installasjon, `brew test`, launcher-doctor og
-avinstallasjon med de eksakte pinnede Darwin-ressursene. I releaseflyten må
-formelen dessuten være den byteidentiske, uavhengig verifiserte releaseformelen.
+kjører strict audit, installasjon, `brew test`, launcher-doctor, en avgrenset
+PTY-oppstart av den installerte OpenCode-TUI-en gjennom cplt og avinstallasjon
+med de eksakte pinnede Darwin-ressursene. PTY-en avsluttes før prompt eller
+modellkall. I releaseflyten må formelen dessuten være den byteidentiske,
+uavhengig verifiserte releaseformelen.
 
 Den native gaten verifiserer arkivstørrelse, upstream-digest, eksakt tar-roster,
 binærstørrelse og binærdigest før første klientkjøring. Den kjører native

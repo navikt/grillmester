@@ -1598,10 +1598,23 @@ def _stage_opencode_runtime_support(config: Path) -> dict[PurePosixPath, str]:
     """Pre-seed OpenCode's write-if-absent metadata without making policy writable."""
 
     path = config.joinpath(*OPENCODE_RUNTIME_GITIGNORE_PATH.parts)
+    created = False
     try:
-        with path.open("xb") as output:
-            output.write(OPENCODE_RUNTIME_GITIGNORE)
+        if path.exists() or path.is_symlink():
+            content, _observed = _regular_file(
+                path,
+                label="staged OpenCode runtime support file",
+                max_bytes=MAX_FILE_BYTES,
+            )
+            if content != OPENCODE_RUNTIME_GITIGNORE:
+                raise LifecycleError("OpenCode runtime support file content differs")
+        else:
+            with path.open("xb") as output:
+                output.write(OPENCODE_RUNTIME_GITIGNORE)
+            created = True
         path.chmod(0o444)
+    except LifecycleError:
+        raise
     except OSError as exc:
         raise LifecycleError(
             f"could not stage OpenCode runtime support file: {exc}"
@@ -1616,6 +1629,8 @@ def _stage_opencode_runtime_support(config: Path) -> dict[PurePosixPath, str]:
         or stat.S_IMODE(observed.st_mode) != 0o444
     ):
         raise LifecycleError("OpenCode runtime support file changed while staging")
+    if not created:
+        return {}
     return {OPENCODE_RUNTIME_GITIGNORE_PATH: _sha256(content)}
 
 

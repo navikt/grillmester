@@ -45,26 +45,28 @@ Kommandoen gjør bare klientbindingen som må være lik og repeterbar:
   `--plugin-dir`-flagget
 - setter og videresender `OPENCODE_CONFIG_DIR`, samt gir eksakt read-tilgang til
   targetet, for OpenCode
-- velger den samme offentlige Grillmester-rollen i begge klienter
+- velger den samme offentlige Grillmester-agenten i begge klienter
 - videresender eksplisitte cplt-flagg før `--` og klientflagg etter `--`
 - tilbyr en modellfri `doctor` som kontrollerer payload, klienter og release-
   gatede versjoner uten å starte en agentsesjon
 
 Når `grillmester` kjøres uten argumenter i en interaktiv terminal, viser den en
-liten klient- og rollevelger. Første valg kan lagres som en brukerpreferanse;
+liten klient- og agentvelger. Første valg kan lagres som en brukerpreferanse;
 senere kjøringer tilbyr lagret kombinasjon som ett-Enter-default og
 `grillmester choose` åpner hele velgeren igjen. Preferansen inneholder bare
-`client` og `role`, aldri provider, modell, credentials, cplt-policy eller
-consumer-path. Eksplisitte `--client`- og `--role`-flagg overstyrer preferansen
+`client` og `agent`, aldri provider, modell, credentials, cplt-policy eller
+consumer-path. Eksplisitte `--client`- og `--agent`-flagg overstyrer preferansen
 for den ene kjøringen uten å endre den.
 
 Launcheren velger ikke provider, modell, credentials, MCP-er eller consumer-
-policy. Den skriver ikke til consumer-repoet, `~/.config/opencode`, Copilots
-pluginlager eller cplts konfigurasjon. Den eneste brukerfilen den kan skrive er
-den eksplisitt valgte klient-/rollepreferansen under brukerens vanlige config-
-område. Flagg som kunne bytte bort fra den valgte
-Grillmester-rollen eller erstatte den distribuerte pluginpathen avvises; brukeren
-kan velge en annen offentlig Grillmester-rolle med launcherens `--role`.
+policy. Den skriver ikke til consumer-repoet, Copilots pluginlager eller cplts
+konfigurasjon. Brukerfilene er avgrenset til klient-/agentpreferansen og, bare
+når den mangler, OpenCode 1.18.20s eksakte `.gitignore`-markør under brukerens
+OpenCode-config. Markøren pre-seedes også i targetet, slik at cplt kan holde
+begge configflatene read-only når OpenCode starter; en eksisterende regulær fil
+endres aldri. Flagg som kunne bytte bort fra den valgte Grillmester-agenten
+eller erstatte den distribuerte pluginpathen avvises. `--role` beholdes som
+kompatibelt alias for det kanoniske `--agent`.
 
 Den deterministiske release-bundle-en utvides med den kanoniske `plugin/`-flaten
 og launcheren. OpenCode-manageren fra ADR 0002 forblir den eneste valgfrie,
@@ -80,6 +82,13 @@ senere oppstrøms Homebrew-oppdatering den installerte releasekombinasjonen.
 GitHub Copilot CLI er fortsatt en separat, valgfri klientinstallasjon fordi den
 ikke inngår i Grillmesters distribusjonsartefakter. `grillmester doctor` feiler
 tydelig dersom den faktiske kombinasjonen ikke er støttet.
+
+Vanlig launch gjør ingen oppdaterings- eller nettverkskontroll utenfor cplt.
+`grillmester update` er den eksplisitte mutasjonen: den kjører `brew update` og
+erstatter deretter formelen med `brew upgrade grillmester`. Automatisk
+fleetoppgradering tilhører organisasjonens maskinforvaltning, ikke launcheren.
+En eventuell fremtidig update-notifier med egen egress må vurderes som en ny
+tillitsbeslutning.
 
 Copilot app installerer den samme publiserte pluginreleasen gjennom appens
 native Plugins-UI. Homebrew og cplt påstås ikke å installere, starte eller

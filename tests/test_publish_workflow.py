@@ -145,6 +145,23 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("scripts/smoke_opencode_runtime.py", text)
         self.assertIn('cmp -s "${bundle}" "${repeated}"', text)
 
+    def test_macos_gate_reaches_the_installed_opencode_tui_through_cplt(self) -> None:
+        workflow = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
+        gate = workflow.split('          tui_consumer="${qa_root}/tui-consumer"', 1)[
+            1
+        ].split("          cleanup", 1)[0]
+
+        self.assertIn("scripts/smoke_grillmester_tui.py", gate)
+        self.assertIn('--launcher "${prefix}/bin/grillmester"', gate)
+        self.assertIn('--opencode "${prefix}/libexec/clients/opencode"', gate)
+        self.assertIn('--cplt "${prefix}/libexec/clients/cplt"', gate)
+        self.assertIn('--project-dir "${tui_consumer}"', gate)
+        self.assertLess(
+            workflow.index('brew install --formula "${formula_name}"'),
+            workflow.index("scripts/smoke_grillmester_tui.py"),
+        )
+        self.assertNotIn("COPILOT", gate)
+
     def test_macos_gate_is_bound_to_the_reviewed_darwin_artifact_lock(self) -> None:
         text = MACOS_WORKFLOW.read_text(encoding="utf-8")
         homebrew = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
@@ -1198,6 +1215,17 @@ class PublishWorkflowContractTest(unittest.TestCase):
             shutil.copytree(ROOT / "targets", source / "targets")
             subprocess.run(["git", "init", "--quiet", str(source)], check=True)
             subprocess.run(["git", "-C", str(source), "add", "--all"], check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(source),
+                    "add",
+                    "--force",
+                    "targets/opencode-v1/.gitignore",
+                ],
+                check=True,
+            )
             subprocess.run(
                 [
                     "git",

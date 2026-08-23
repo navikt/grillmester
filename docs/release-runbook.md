@@ -400,8 +400,9 @@ CLI result.
 Homebrew needs one reviewed bootstrap PR in `navikt/homebrew-tap`, not one PR
 per Grillmester release. Do not open that PR until an immutable stable release
 exists and the exact published `grillmester.rb` has passed the Apple Silicon
-and Intel matrix, strict audit, clean install, `brew test`, launcher doctor and
-uninstall checks.
+and Intel matrix, strict audit, clean install, `brew test`, launcher doctor,
+installed OpenCode-TUI startup through cplt without a model call, and uninstall
+checks.
 
 For the bootstrap, download `grillmester.rb` from the immutable stable release,
 regenerate it from the exact release source, and compare byte-for-byte:

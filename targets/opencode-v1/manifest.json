@@ -80,6 +80,10 @@
     ]
   },
   "files": {
+    ".gitignore": {
+      "sha256": "2112e764c5bff9772492998e8ef894845f4208681f9a3a6d29fc6ff71ec2050e",
+      "mode": "0644"
+    },
     "agents/barista.md": {
       "sha256": "c3956cf6900bf37693faf65c4108f26726e7b9ec93ae0588983db70dee59bb5e",
       "mode": "0644"

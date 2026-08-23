@@ -53,9 +53,15 @@ riktig klientpayload og starter den gjennom cplt.
 _Avoid_: agentruntime, universell app-installer, cplt-erstatning
 
 **Launcherpreferanse**:
-Brukerens valg av default terminalklient og offentlig Grillmester-rolle. Den
+Brukerens valg av default terminalklient og offentlig Grillmester-agent. Den
 inneholder aldri provider, modell, credentials, consumer-path eller policy.
 _Avoid_: runtimeprofil, managed config
+
+**OpenCode runtime-støttefil**:
+Den eksakte `.gitignore`-markøren OpenCode 1.18.20 skriver hvis den mangler.
+Targetet inkluderer den, og terminal-launcheren oppretter bare den manglende
+brukerfilen før cplt gjør OpenCode-configen read-only.
+_Avoid_: configsynk, managed OpenCode-config
 
 **Lifecycle-manager**:
 Den valgfrie high-assurance-flyten for verifisert installasjon, launch og

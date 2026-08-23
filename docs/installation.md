@@ -49,6 +49,21 @@ release-gatede OpenCode-klienten og Python-runtimen launcheren bruker. Den
 bundle-inkluderte Copilot-pluginen som launcheren bruker, og det genererte
 OpenCode-targetet, oppdateres dermed atomisk med `brew upgrade grillmester`.
 
+Terminalkanalen oppdaterer ikke automatisk. Hent tap-oppdateringer og installer
+en ny reviewet Grillmester-/klientkombinasjon med:
+
+```bash
+grillmester update
+```
+
+Kommandoen kjører eksplisitt `brew update` og deretter
+`brew upgrade grillmester`; `grillmester upgrade` er et alias. Ingen
+pakkeoperasjon eller oppdateringsforespørsel skjer under vanlig launch. Nye
+versjoner annonseres som [Grillmester
+Releases](https://github.com/navikt/grillmester/releases). Hver
+OpenCode- eller cplt-bump krever en ny Grillmester-release og de samme
+releasegatene; terminalkanalen lover ingen flytende klientoppdatering.
+
 Releasegaten krever samme formeltest på Apple Silicon og GitHubs hostede
 Intel-miljø. Den pinnede Intel-klienten krever Haswell/AVX2 eller nyere; eldre
 Intel-Macer er `UNVERIFIED`. Installering og oppgradering krever nettverk for å hente de
@@ -70,13 +85,14 @@ grillmester
 Første gang velger du klient og offentlig agent. Valget lagres i
 `~/.config/grillmester/preferences.json` eller under `XDG_CONFIG_HOME`, og
 neste kjøring tilbyr samme kombinasjon som default. Filen inneholder bare
-skjemaversjon, `client` og `role`. Bruk `grillmester choose` for å endre den.
+skjemaversjon, `client` og `agent`. Bruk `grillmester choose` for å endre og
+lagre defaulten uten å starte en klientsesjon.
 
 For scripts eller en enkelt avvikende sesjon kan valget oppgis eksplisitt:
 
 ```bash
-grillmester --client copilot --role designer
-grillmester --client opencode --role doctor-who
+grillmester --client copilot --agent designer
+grillmester --client opencode --agent doctor-who
 ```
 
 Begge kommandoene starter den valgte terminalklienten gjennom cplt. Manglende
@@ -88,14 +104,28 @@ grillmester doctor
 grillmester doctor --client opencode
 ```
 
+Uten `--client` sjekker `doctor` cplt én gang og alle installerte klienter;
+en valgfri klient som ikke er installert rapporteres som `skip`. Et eksplisitt
+klientvalg gjør fravær eller feil versjon til en feil.
+
+OpenCode 1.18.20 forsøker ellers å opprette `.gitignore` i både targetet og
+brukerens OpenCode-config ved første TUI-start, mens cplt med vilje holder
+configen read-only. Distribusjonen inneholder derfor den eksakte targetfilen,
+og launcheren oppretter `~/.config/opencode/.gitignore` (eller tilsvarende under
+`XDG_CONFIG_HOME`) bare når filen mangler. En eksisterende regulær fil blir
+aldri endret, og ingen generell write-tilgang gis til OpenCode-configen.
+
 `brew uninstall grillmester` fjerner formelen og de private klientbinærene, men
 bevarer det brukereide defaultvalget i
-`~/.config/grillmester/preferences.json` (eller `XDG_CONFIG_HOME`). Slett den
-filen eksplisitt hvis du også vil nullstille valget.
+`~/.config/grillmester/preferences.json` (eller `XDG_CONFIG_HOME`) og en
+eventuell OpenCode-`.gitignore` som allerede kan være i bruk. Slett
+preferansefilen eksplisitt hvis du også vil nullstille valget.
 
 Flagg før `--` videresendes til cplt, mens flagg etter `--` videresendes til
-klienten. `--client`, `--role`, `--project-dir` og klientens agent-/pluginbinding
-eies av launcheren og kan ikke overstyres gjennom passthrough.
+klienten. `--client`, `--agent`, `--project-dir` og klientens agent-/pluginbinding
+eies av launcheren og kan ikke overstyres gjennom passthrough. `--role` er et
+kompatibelt alias for `--agent`. Bruk `--print-command` for å se den eksakte
+cplt-kommandoen uten å starte en klient eller endre runtime-støttefiler.
 
 ## Alternativ: native Copilot CLI-installasjon med automatisk oppdatering
 
@@ -356,7 +386,7 @@ Start den lagrede defaulten eller oppgi OpenCode eksplisitt:
 
 ```bash
 grillmester
-grillmester --client opencode --role grillmester
+grillmester --client opencode --agent grillmester
 ```
 
 Launcheren setter targetpath og cplt-binding automatisk. For en lokal provider
@@ -425,6 +455,10 @@ asset="grillmester-opencode-${tag}.tar.gz"
 shasum -a 256 -c "${asset}.sha256"
 tar -xzf "${asset}" -C /path/to/user-owned/extraction
 ```
+
+Pakk ut til en vanlig, brukereid arbeidskatalog. cplt tillater med vilje ikke
+prosesskjøring fra macOS-katalogene `/private/tmp` eller
+`/private/var/folders`, så de er ikke egnede som launchplassering.
 
 Kontroller deretter at `DISTRIBUTION-MANIFEST.json` oppgir forventet source-SHA,
 OpenCode `1.18.20` og cplt `2026.08.17-062831-1008a92`, og installer:

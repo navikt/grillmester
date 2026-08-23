@@ -5,9 +5,8 @@
 </p>
 
 Grillmester er et agentteam for utvikling, design og produktarbeid i Nav. Det
-leveres som plugin for GitHub Copilot og som et eget target for OpenCode, med
-fire agenter du kan velge, tre interne roller og 42 skills. Tilgang og tillatt
-bruk styres av Navs gjeldende policy.
+leveres for GitHub Copilot og OpenCode, med fire valgbare agenter, tre interne
+roller og 42 skills. Tilgang og tillatt bruk styres av Navs gjeldende policy.
 
 ## Kom i gang
 
@@ -40,8 +39,8 @@ kombinasjon. Bruk `grillmester choose` for å velge på nytt.
 Du kan også være eksplisitt:
 
 ```bash
-grillmester --client copilot --role grillmester
-grillmester --client opencode --role barista
+grillmester --client copilot --agent grillmester
+grillmester --client opencode --agent barista
 grillmester doctor
 ```
 
@@ -51,12 +50,18 @@ etter `--` går til klienten. En lokal OpenCode-provider på port `1234` startes
 slik:
 
 ```bash
-grillmester --client opencode --allow-localhost 1234 \
+grillmester --client opencode --agent grillmester --allow-localhost 1234 \
   -- --model lmstudio/your-model
 ```
 
 Se [terminalinstallasjon og alternativer](docs/installation.md) og
 [provideroppsett for OpenCode](docs/opencode.md).
+
+### Oppdatere terminalinstallasjonen
+
+Brew-kanalen oppdaterer ikke automatisk. Kjør `grillmester update` for å hente
+en ny reviewet Grillmester- og klientkombinasjon. Native Copilot-installasjoner
+kan i stedet følge marketplace med opt-in auto-update.
 
 ### Copilot app
 
@@ -78,10 +83,9 @@ Copilot-alternativer](docs/installation.md#copilot-app).
 | **Designer** 🎨 | Du vil utforske brukerflyt, konsepter, Aksel, Visual Companion eller Figma. Designer lager en designleveranse, men implementerer ikke produktkode. |
 | **Doctor Who** 🕰️ | Du trenger støtte til discovery, mål, prioritering, workshops, teamhelse, produktfag eller Nav-arkitektur. |
 
-Beskriv ønsket resultat, relevant kontekst og avgrensninger. Agenten laster
-normalt riktige skills selv. Kokk, Grill-inspektør og Researcher er interne
-roller som agentteamet bruker ved behov. [Se alle agenter og
-skills](docs/agents-and-skills.md).
+Beskriv ønsket resultat, kontekst og avgrensninger. Agenten laster normalt
+riktige skills selv. Kokk, Grill-inspektør og Researcher er interne roller som
+brukes ved behov. [Se alle agenter og skills](docs/agents-and-skills.md).
 
 ## Støtte og avgrensninger
 

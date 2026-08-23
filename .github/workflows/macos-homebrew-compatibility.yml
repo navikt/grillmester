@@ -270,6 +270,15 @@ jobs:
           brew test --verbose "${formula_name}"
           PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
             "${prefix}/bin/grillmester" doctor --client opencode
+          tui_consumer="${qa_root}/tui-consumer"
+          mkdir -m 700 "${tui_consumer}"
+          git -C "${tui_consumer}" init --quiet
+          python3 -I -S scripts/smoke_grillmester_tui.py \
+            --launcher "${prefix}/bin/grillmester" \
+            --opencode "${prefix}/libexec/clients/opencode" \
+            --cplt "${prefix}/libexec/clients/cplt" \
+            --project-dir "${tui_consumer}" \
+            --state-parent "${qa_root}"
           cleanup
           trap - EXIT
           if brew list --versions "${formula_name}" >/dev/null 2>&1; then

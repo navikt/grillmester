@@ -111,7 +111,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
 
     def test_docs_distinguish_native_cplt_from_lifecycle_hardening(self) -> None:
         self.assertIn("cplt støtter allerede OpenCode direkte", self.guide)
-        self.assertIn("Ingen custom wrapper er nødvendig", self.guide)
+        self.assertIn("Ingen custom\nsandboxwrapper", self.guide)
         self.assertIn("manageren er valgfri hardening", self.guide)
         self.assertIn("beholder bare kompatibilitetssikre", self.guide)
         self.assertIn("`sandbox.inherit_env`", self.guide)
@@ -131,6 +131,18 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         )
         self.assertIn("Native unmanaged cplt kan fortsatt binde", bundle_adr)
         self.assertIn("påstår ikke managerens lifecycle-", bundle_adr)
+
+    def test_native_cplt_documents_opencodes_startup_support_files(self) -> None:
+        guide = " ".join(self.guide.split())
+        installation = " ".join(self.installation.split())
+        adr = " ".join(self.bundle_adr.split())
+
+        self.assertIn("USER_CONFIG_DIR", self.guide)
+        self.assertIn("endrer aldri en eksisterende fil", guide)
+        self.assertIn("uten generell write-tilgang", guide)
+        self.assertIn("den eksakte targetfilen", installation)
+        self.assertIn("validerer og forsegler den `0444`", adr)
+        self.assertIn("`/private/tmp`", self.guide)
 
     def test_opencode_guide_starts_with_the_homebrew_launcher(self) -> None:
         self.assertLess(
@@ -350,6 +362,14 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("uten ekstern modell", self.trust)
         self.assertIn("ikke kernel-evidens for null ekstern\ntrafikk", self.trust)
         self.assertIn("separat fail-closed nettverksmåling", self.trust)
+
+    def test_homebrew_gate_documents_a_real_tui_start_without_model_use(self) -> None:
+        trust = " ".join(self.trust.split())
+        runbook = " ".join(self.release_runbook.split())
+
+        self.assertIn("installerte OpenCode-TUI-en gjennom cplt", trust)
+        self.assertIn("avsluttes før prompt eller modellkall", trust)
+        self.assertIn("OpenCode-TUI startup through cplt without a model call", runbook)
 
     def test_managed_cplt_authenticates_and_stages_official_clients(self) -> None:
         guide = " ".join(self.guide.split())

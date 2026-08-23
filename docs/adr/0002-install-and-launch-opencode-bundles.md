@@ -119,14 +119,12 @@ endre inputen mens den etablerer release, lock og state.
 ### Launch og staging
 
 `launch` verifiserer aktiv release på nytt og kopierer configen til en unik
-per-prosess-stage under `<lifecycle-home>/runtime/sessions/`. Configen
-verifiseres og forsegles `0444`/`0555` før ordinær launch. I cplt-modus
-pre-seedes en managerkontrollert, digestverifisert, transient `.gitignore` med
-det eksakte innholdet OpenCode 1.18.20 ellers forsøker å skrive ved
-config-resolusjon. Den finnes både i runtime-configen og i den isolerte
-XDG-configen, inngår i de forseglede runtime-inventarene og gir ingen generell
-write-grant. Den pinnede OpenCode 1.18.20/Bun-prosessen kan i tillegg miste
-halen av en stor enkeltstående stdout-write gjennom en pipe. Resolved-
+per-prosess-stage under `<lifecycle-home>/runtime/sessions/`. Det genererte
+targetet inneholder den digestbundne `.gitignore`-filen OpenCode 1.18.20 trenger
+før TUI-start. Manageren validerer og forsegler den `0444` sammen med configen
+og pre-seeder samme eksakte fil i den isolerte XDG-configen; dette gir ingen
+generell write-grant. Den pinnede OpenCode 1.18.20/Bun-prosessen kan i tillegg
+miste halen av en stor enkeltstående stdout-write gjennom en pipe. Resolved-
 structure-proben bruker derfor en forseglet, digestbundet projeksjon med
 forkortede agent- og skilltekster og uten generert permission-bulk; frontmatter,
 kommandoer, skill-assets og resten av strukturen bevares eksakt. Hver full

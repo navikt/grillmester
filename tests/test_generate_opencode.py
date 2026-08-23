@@ -122,7 +122,11 @@ class OpenCodeGenerationTest(unittest.TestCase):
             42,
             sum(path.startswith("skills/") and path.endswith("/SKILL.md") for path in files),
         )
-        self.assertNotIn(".gitignore", files)
+        self.assertIn(".gitignore", files)
+        self.assertEqual(
+            b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n",
+            files[".gitignore"][0],
+        )
         self.assertIn("opencode.json", manifest["files"])
 
     def test_agents_use_native_frontmatter_and_inherit_the_selected_model(self) -> None:
