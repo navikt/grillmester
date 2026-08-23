@@ -43,6 +43,7 @@ def catalog(version: str, sha: str) -> dict[str, object]:
 def write_opencode_distribution_inputs(root: Path, content: str = "reviewed\n") -> None:
     (root / "LICENSE").write_text(content)
     (root / "PROVENANCE.md").write_text(content)
+    (root / "THIRD_PARTY_NOTICES.md").write_text(content)
     notices = root / "plugin/THIRD_PARTY_NOTICES.md"
     notices.parent.mkdir(parents=True, exist_ok=True)
     notices.write_text(content)

@@ -9,6 +9,11 @@ Denne beslutningen superseder aktiverings- og rollbackdelen av
 [ADR 0001](0001-native-opencode-v1-target.md), men ikke beslutningen om et
 generert native target.
 
+Normal terminaldistribusjon og native cplt-launch er videreutviklet av
+[ADR 0003](0003-one-terminal-entrypoint-through-cplt.md). Beslutningen om den
+valgfrie high-assurance-manageren, dens installasjon, staging og rollback
+gjelder fortsatt.
+
 ## Kontekst
 
 ADR 0001 valgte et deterministisk generert OpenCode-target utenfor consumerens
@@ -65,6 +70,8 @@ En publisert OpenCode-asset beholder samme relative layout som repositoryet:
 
 ```text
 grillmester-opencode-v1/
+├── plugin/**
+├── scripts/grillmester.py
 ├── scripts/manage_opencode.py
 ├── scripts/compose_opencode_permissions.py
 ├── scripts/verify_client_artifact.py
@@ -77,6 +84,10 @@ grillmester-opencode-v1/
 ├── THIRD_PARTY_NOTICES.md
 └── DISTRIBUTION-MANIFEST.json
 ```
+
+ADR 0003 utvider dermed den opprinnelige OpenCode-bundle-en med den kanoniske
+Copilot-pluginen og den felles terminallauncheren. Assetnavnet og den
+deterministiske rotmappen beholdes for bakoverkompatibilitet.
 
 Den publiserte `tar.gz`-asseten og dens detached checksum er primær
 sluttbrukerinstallasjon; en source-checkout eller GitHubs automatisk genererte
@@ -108,14 +119,12 @@ endre inputen mens den etablerer release, lock og state.
 ### Launch og staging
 
 `launch` verifiserer aktiv release på nytt og kopierer configen til en unik
-per-prosess-stage under `<lifecycle-home>/runtime/sessions/`. Configen
-verifiseres og forsegles `0444`/`0555` før ordinær launch. I cplt-modus
-pre-seedes en managerkontrollert, digestverifisert, transient `.gitignore` med
-det eksakte innholdet OpenCode 1.18.20 ellers forsøker å skrive ved
-config-resolusjon. Den finnes både i runtime-configen og i den isolerte
-XDG-configen, inngår i de forseglede runtime-inventarene og gir ingen generell
-write-grant. Den pinnede OpenCode 1.18.20/Bun-prosessen kan i tillegg miste
-halen av en stor enkeltstående stdout-write gjennom en pipe. Resolved-
+per-prosess-stage under `<lifecycle-home>/runtime/sessions/`. Det genererte
+targetet inneholder den digestbundne `.gitignore`-filen OpenCode 1.18.20 trenger
+før TUI-start. Manageren validerer og forsegler den `0444` sammen med configen
+og pre-seeder samme eksakte fil i den isolerte XDG-configen; dette gir ingen
+generell write-grant. Den pinnede OpenCode 1.18.20/Bun-prosessen kan i tillegg
+miste halen av en stor enkeltstående stdout-write gjennom en pipe. Resolved-
 structure-proben bruker derfor en forseglet, digestbundet projeksjon med
 forkortede agent- og skilltekster og uten generert permission-bulk; frontmatter,
 kommandoer, skill-assets og resten av strukturen bevares eksakt. Hver full

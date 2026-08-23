@@ -24,8 +24,11 @@ ikke en teknisk blokkering dersom klienten faktisk tilbyr write.
 Managerens klientchecksum gjelder først når manageren får lese de ferdige
 binærene. En vanlig `npm install --global opencode-ai@1.18.20` har allerede
 kjørt npm-pakkens installkode: `postinstall` kjører `verifyBinary` før denne
-kontrollen. Tilsvarende er Homebrew en bekvemmelighetsinstallasjon av cplt, ikke
-selvstendig høy-assurance-evidens.
+kontrollen. Grillmesters Homebrew-formel laster ned cplt og OpenCode som eksakte
+arkivressurser med committede SHA-256-verdier og kjører dem privat for den
+installerte Grillmester-releasen. Det hindrer uavhengig klientdrift, men er
+fortsatt ikke en separat maintainer-signatur eller full supply-chain-
+attestasjon.
 
 En høy-assurance bootstrap henter den eksakte npm-plattformpakken og den eksakte
 cplt-releaseasseten, verifiserer upstream-arkivchecksum og forventet inventar,
@@ -42,12 +45,12 @@ arkiv- og binærlåsen, ikke omtales som kryptografisk publisher-provenance.
 
 ## Toolstrategi
 
-Grillmester, Barista, Designer og Doctor Who er offentlige, interaktive roller
+Grillmester, Barista, Designer og Doctor Who er offentlige, interaktive agenter
 som må kunne virke på tvers av Copilot CLI, app og cloud. De utelater derfor
 `tools` og arver hele runtimeflaten. Dette er samme enkle modell som de
 piloterte agentene i Hovmester og Budstikka, og unngår en stor aliasmatrise som
 drifter mellom klienter og Navs MCP Registry. Det gir også en bredere teknisk
-flate: rolleprompten er arbeidsmåte, ikke kapabilitetsisolasjon.
+flate: agentprompten er arbeidsmåte, ikke kapabilitetsisolasjon.
 
 Navs MCP Registry og enterprise-policy bestemmer hvilke MCP-servere og tools
 som faktisk kan være tilgjengelige. Manglende GitHub Projects- eller Figma-
@@ -74,11 +77,11 @@ tool calls, godkjent write og avvist write før stabil release.
 
 | Klient | Nåstatus | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
-| **Copilot CLI** | Referanseklient. Lokal mount, install-/oppgraderings-/rollbackflyt, personlig installasjon, deklarativ auto-install og oppdatering ved sesjonsstart er bekreftet i reelle sesjoner for den tidligere pakken med 7 agenter og 44 skills. | Den nye pakken med 42 skills, immutable kandidat, resolved modell, delegering og runtime-toolbruk på representativt repo. |
+| **Copilot CLI** | Referanseklient. Native marketplace-installasjon er bevart; den felles Homebrew-launcheren laster den samme pluginpayloaden med `--plugin-dir` og starter CLI gjennom cplt. Lokal mount, install-/oppgraderings-/rollbackflyt, personlig installasjon, deklarativ auto-install og oppdatering ved sesjonsstart er bekreftet i reelle sesjoner for den tidligere pakken med 7 agenter og 44 skills. | Den nye pakken med 42 skills, immutable kandidat, launcherbinding, resolved modell, delegering og runtime-toolbruk på representativt repo. |
 | **Copilot app** | Plugins-UI-installasjon og discovery er bekreftet i en reell sesjon for den tidligere pakken med 7 agenter og 44 skills. Appen tilbyr også BYOK mot blant annet LM Studio og OpenAI-kompatible endepunkter i public preview. | Discovery av den nye pakken med 42 skills, custom-marketplace-oppdatering, eksakt resolved katalog/source, delegering, tilgjengelige MCP-tools og godkjent/avvist write. Grillmester + lokal BYOK-modell og appens nettverkstrafikk er `UNVERIFIED`; app-guiden lover ikke CLI-ens offline-modus. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
-| **VS Code** | Sekundær kompatibilitetsflate. VS Code dokumenterer update-sjekk hver 24. time når `extensions.autoUpdate` er aktivert. | Verifiser faktisk custom-marketplace-oppdatering med to Grillmester-versjoner; den styrer ikke første Nav-release. |
-| **OpenCode 1.18.20 + cplt 2026.08.17-062831-1008a92** | Eget, deterministisk generert target med 7 native agenter, 42 skills og 42 slash commands. Isolert discovery-smoke bekrefter resolved config og katalog. En separat deterministisk runtime-smoke gjennom ekte OpenCode og eksakt cplt bekrefter delegering, blokkert `.env`, progressiv skill-reference, avvist write og eksplisitt godkjent write uten ekstern modell. På en ekte macOS-runner verifiseres de native Darwin-arkivene og binærene før første kjøring; cplt-policy, rå-socket-hostpin og managerens faktiske `local-only`-launch gates deretter Seatbelt-flyten. I managerens cplt-modus checksum-autentiseres offisielle klientbytes og kjøres fra en privat `trusted-bin`; den opprinnelige OpenCode-binæren startes ikke. Managed Linux er GNU/glibc-only i denne releasen; OpenCode-musl uten en cplt-musl-asset er bare native/unmanaged. Targetet pinner ingen provider eller modell og krever ikke `nav-pilot-agent` eller Copilot-agentene. | Samme checksummede, immutable bundle må fortsatt prøves med den konkrete lokale eller eksterne modellen før akkurat den modellprofilen kan kalles kvalitetsverifisert. |
+| **VS Code** | Sekundær, ikke-verifisert kompatibilitetsflate utenfor første onboarding og release-løfte. VS Code dokumenterer update-sjekk hver 24. time når `extensions.autoUpdate` er aktivert. | Verifiser faktisk installasjon og custom-marketplace-oppdatering med to Grillmester-versjoner før flaten flyttes inn i normal bruk. |
+| **OpenCode 1.18.20 + cplt 2026.08.17-062831-1008a92** | Eget, deterministisk generert target med 7 native agenter, 42 skills og 42 slash commands. Isolert discovery-smoke bekrefter resolved config og katalog. En separat deterministisk runtime-smoke gjennom ekte OpenCode og eksakt cplt bekrefter delegering, blokkert `.env`, progressiv skill-reference, avvist write og eksplisitt godkjent write uten ekstern modell. Homebrew-matrisen starter i tillegg den installerte launcheren gjennom de private klientbinærene i en PTY og krever at Grillmester-TUI-en rendres før kontrollert avslutning uten modellkall. På en ekte macOS-runner verifiseres de native Darwin-arkivene og binærene før første kjøring; cplt-policy, rå-socket-hostpin og managerens faktiske `local-only`-launch gates deretter Seatbelt-flyten. I managerens cplt-modus checksum-autentiseres offisielle klientbytes og kjøres fra en privat `trusted-bin`; den opprinnelige OpenCode-binæren startes ikke. Managed Linux er GNU/glibc-only i denne releasen; OpenCode-musl uten en cplt-musl-asset er bare native/unmanaged. Targetet pinner ingen provider eller modell og krever ikke `nav-pilot-agent` eller Copilot-agentene. | Samme checksummede, immutable bundle må fortsatt prøves med den konkrete lokale eller eksterne modellen før akkurat den modellprofilen kan kalles kvalitetsverifisert. |
 | **OpenCode 2 beta** | Oppstrøms forventer V1-kompatibilitet for støttede agent-, command- og skillfiler. Grillmester bruker ingen OpenCode-plugin. | Full runtimeparitet er `UNVERIFIED`. V2-permissions og provider/model-adferd må testes separat; betaen styrer ikke OpenCode 1-release. |
 | **Copilot CLI + lokal BYOK** | GitHub dokumenterer OpenAI-kompatible lokale providers, tool calling/streaming-krav og `COPILOT_OFFLINE=true`. Grillmesters agentpin kan overstyres eksplisitt med `subagents.agents.<name>.model: "inherit"`. | Den eksakte lokale modellen, kvantiseringen, contextprofilen, tool calls, delegeringen og permissionadferden må gjennom samme capability-smoke. 32k laptop-context er under GitHubs anbefalte 128k og skal rapporteres som en begrensning. |
 
@@ -90,17 +93,26 @@ innebygde domeneallowlist; smoken er derfor ikke kernel-evidens for null ekstern
 trafikk. Den beviser heller ikke kvaliteten til en konkret lokal eller ekstern
 modell.
 
-CI-gaten `macos-live-compatibility` bruker de eksakte pinnede Darwin-assetene.
-Den verifiserer arkivstørrelse, upstream-digest, eksakt tar-roster,
-binærstørrelse og binærdigest før første klientkjøring. Deretter kjører den
-native discovery/runtime-smoke, cplts virkelige `check --json`-prober med
-managerens `local-only`-nettverksflagg, targeted allow/block-klassifisering og
-rå `/usr/bin/nc`-målinger: samme listenerport må være nåbar både via loopback
-og en annen adresse som tilhører runneren, fordi Seatbelts `localhost`-selector
-betyr samme host. En dokumentasjonsadresse på samme port må samtidig
-klassifiseres som blokkert. Manageren binder fortsatt modell-providerens
-base-URL til eksakt loopback. Til slutt installerer den den
-deterministiske bundle-en og kjører den ekte managerflyten
+De uavhengige CI-gatene `macos-homebrew-compatibility` og
+`macos-live-compatibility` har hver sin matrise på Apple Silicon og GitHubs
+hostede Intel-miljø. Intel-pinnen er Haswell/AVX2-basert; eldre Intel-Macer er
+`UNVERIFIED`. Homebrew-gaten bygger bundle-en deterministisk to ganger og
+kjører strict audit, installasjon, `brew test`, launcher-doctor, en avgrenset
+PTY-oppstart av den installerte OpenCode-TUI-en gjennom cplt og avinstallasjon
+med de eksakte pinnede Darwin-ressursene. PTY-en avsluttes før prompt eller
+modellkall. I releaseflyten må formelen dessuten være den byteidentiske,
+uavhengig verifiserte releaseformelen.
+
+Den native gaten verifiserer arkivstørrelse, upstream-digest, eksakt tar-roster,
+binærstørrelse og binærdigest før første klientkjøring. Den kjører native
+discovery/runtime-smoke og cplts virkelige `check --json`-prober med managerens
+`local-only`-nettverksflagg, targeted allow/block-klassifisering og rå
+`/usr/bin/nc`-målinger: samme listenerport må være nåbar både via loopback og en
+annen adresse som tilhører runneren, fordi Seatbelts `localhost`-selector betyr
+samme host. En dokumentasjonsadresse på samme port må samtidig klassifiseres som
+blokkert. Manageren binder fortsatt modell-providerens base-URL til eksakt
+loopback. Til slutt installerer gaten den deterministiske bundle-en og kjører
+den ekte managerflyten
 `local-only ... -- models ci-local --verbose` gjennom cplt med en eksplisitt lokal
 OpenAI-kompatibel provider, eksakt loopback-base-URL, modell-ID og positive
 context-/outputgrenser. Managerens fail-closed preflight validerer den eksakte
@@ -211,7 +223,8 @@ eller bevis på modellkvalitetsparitet med Copilot.
 
 Bruk den versjonerte
 [macOS-klientvalideringsprotokollen](macos-client-validation-protocol.md) og
-evidensmalen for den repeterbare CLI-, App- og VS Code-delen av gaten. Resten av
+evidensmalen for den repeterbare CLI- og App-delen av gaten. VS Code-observasjon
+er separat og styrer ikke denne første releasen. Resten av
 denne gaten dekker bredere organisasjons- og releaseavklaringer.
 
 1. Installer den eksakte, immutable RC-ref-en og bekreft modelloppløsning i

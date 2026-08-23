@@ -7,7 +7,7 @@ OpenCode-eksemplene på denne siden forutsetter den release-gatede klienten
 `1.18.20` og, for alle cplt-baserte profiler, eksakt cplt
 `2026.08.17-062831-1008a92`. Lifecycle-manageren krever dessuten Python `3.11`
 eller nyere; installer og versjonskontroller alle tre som beskrevet i
-[OpenCode-guiden](opencode.md#installer-eksakte-klienter).
+[OpenCode-guiden](opencode.md#avansert-manuell-binding-og-verifisering).
 
 | Behov | Anbefalt inngang |
 | --- | --- |
@@ -222,14 +222,10 @@ Start deretter den normale native cplt-veien og velg `lmstudio/<model-id>` eller
 `llamacpp/qwen3.8-27b-local` i `/models`:
 
 ```bash
-GRILLMESTER_ROOT=/absolute/path/to/checkout-or-extracted-bundle
-CONFIG_DIR="$GRILLMESTER_ROOT/targets/opencode-v1"
 cd /path/to/consumer-repo
-OPENCODE_CONFIG_DIR="$CONFIG_DIR" \
-  cplt --agent opencode --project-dir "$PWD" \
-    --allow-read "$CONFIG_DIR" --pass-env OPENCODE_CONFIG_DIR \
-    --allow-localhost 1234 \
-    -- --agent grillmester
+grillmester --client opencode --agent grillmester \
+  --allow-localhost 1234 \
+  -- --model lmstudio/replace-with-id-from-v1-models
 ```
 
 Bruk `--allow-localhost 8080` for `llama-server`. Dette er nok for vanlig

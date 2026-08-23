@@ -13,7 +13,14 @@ permissions:
 
 jobs:
   macos-live-compatibility:
-    runs-on: macos-15
+    name: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - macos-15
+          - macos-15-intel
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -49,11 +56,9 @@ jobs:
               cplt_binary_sha256="423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2"
               ;;
             x86_64)
-              # The baseline archive is byte-equivalent at the executable layer
-              # and keeps this gate honest on older hosted Intel CPUs.
-              opencode_url="https://registry.npmjs.org/opencode-darwin-x64-baseline/-/opencode-darwin-x64-baseline-1.18.20.tgz"
-              opencode_archive_size=48089428
-              opencode_archive_sha512="f8a179f6efd24a3532686aadae3724cb0b151b2a8170ece444970ed5cdc2af1fc8295f94d9accdb8867f4b6da78047d77f8bbd7f1793fc2a2199cceadacf1509"
+              opencode_url="https://registry.npmjs.org/opencode-darwin-x64/-/opencode-darwin-x64-1.18.20.tgz"
+              opencode_archive_size=48089366
+              opencode_archive_sha512="cbade5db7d9d2cf3175a66155aba13c5b77bc1f602b1178f05a5ec8bb9f77983cd7bb29ea3aacc97170db266c187173c3a609eaf4c83f4391a492e7230b83dc1"
               opencode_binary_size=149405776
               opencode_binary_sha256="96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60"
               cplt_url="https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-x86_64-apple-darwin.tar.gz"
@@ -352,7 +357,10 @@ jobs:
           PY
           bundle_root="${extraction}/grillmester-opencode-v1"
           [[ -f "${bundle_root}/DISTRIBUTION-MANIFEST.json" ]]
-          echo "BUNDLE_ROOT=${bundle_root}" >> "${GITHUB_ENV}"
+          {
+            echo "BUNDLE_ARCHIVE=${bundle}"
+            echo "BUNDLE_ROOT=${bundle_root}"
+          } >> "${GITHUB_ENV}"
 
       - name: Prove cplt local-only policy and host-local socket semantics
         shell: bash

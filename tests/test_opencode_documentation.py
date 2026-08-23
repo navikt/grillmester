@@ -26,23 +26,44 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         cls.development = (ROOT / "docs/development.md").read_text(
             encoding="utf-8"
         )
+        cls.release_runbook = (ROOT / "docs/release-runbook.md").read_text(
+            encoding="utf-8"
+        )
         cls.bundle_adr = (
             ROOT / "docs/adr/0002-install-and-launch-opencode-bundles.md"
         ).read_text(encoding="utf-8")
         cls.target_adr = (
             ROOT / "docs/adr/0001-native-opencode-v1-target.md"
         ).read_text(encoding="utf-8")
+        cls.launcher_adr = (
+            ROOT / "docs/adr/0003-one-terminal-entrypoint-through-cplt.md"
+        ).read_text(encoding="utf-8")
 
     def test_domain_documentation_follows_the_repository_convention(self) -> None:
         self.assertFalse((ROOT / "docs/decisions").exists())
         self.assertIn("**Native cplt-flyt**", self.context)
         self.assertIn("**Lifecycle-manager**", self.context)
+        self.assertIn("**Terminal-launcher**", self.context)
+        self.assertIn("**Launcherpreferanse**", self.context)
         self.assertIn("**`local-only`**", self.context)
         self.assertIn("[CONTEXT.md](../CONTEXT.md)", self.development)
         self.assertIn("[`docs/adr/`](adr/)", self.development)
-        for adr in (self.target_adr, self.bundle_adr):
+        for adr in (self.target_adr, self.bundle_adr, self.launcher_adr):
             with self.subTest(title=adr.splitlines()[5]):
                 self.assertTrue(adr.startswith("---\nstatus: accepted\ndate: "))
+
+    def test_launcher_update_policy_stays_explicit_and_off_the_launch_path(self) -> None:
+        normalized = " ".join(self.launcher_adr.split())
+        for marker in (
+            "Vanlig launch gjør ingen oppdaterings- eller nettverkskontroll utenfor cplt",
+            "Homebrew-pakken bare på macOS",
+            "Linux er ikke en del av pakkens release-løfte",
+            "observert versjonsspredning uten produkttelemetri",
+            "grillmester doctor --check-updates",
+            "En passiv oppdateringssjekk under vanlig launch inngår ikke",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, normalized)
 
     def test_runtime_prerequisites_include_python_311(self) -> None:
         for name, document in (
@@ -103,7 +124,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
 
     def test_docs_distinguish_native_cplt_from_lifecycle_hardening(self) -> None:
         self.assertIn("cplt støtter allerede OpenCode direkte", self.guide)
-        self.assertIn("Ingen custom wrapper er nødvendig", self.guide)
+        self.assertIn("Ingen custom\nsandboxwrapper", self.guide)
         self.assertIn("manageren er valgfri hardening", self.guide)
         self.assertIn("beholder bare kompatibilitetssikre", self.guide)
         self.assertIn("`sandbox.inherit_env`", self.guide)
@@ -124,46 +145,58 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("Native unmanaged cplt kan fortsatt binde", bundle_adr)
         self.assertIn("påstår ikke managerens lifecycle-", bundle_adr)
 
-    def test_opencode_guide_starts_with_native_cplt_quick_start(self) -> None:
+    def test_native_cplt_documents_opencodes_startup_support_files(self) -> None:
+        guide = " ".join(self.guide.split())
+        installation = " ".join(self.installation.split())
+        adr = " ".join(self.bundle_adr.split())
+
+        self.assertIn("USER_CONFIG_DIR", self.guide)
+        self.assertIn("endrer aldri en eksisterende fil", guide)
+        self.assertIn("uten generell write-tilgang", guide)
+        self.assertIn("den eksakte targetfilen", installation)
+        self.assertIn("validerer og forsegler den `0444`", adr)
+        self.assertIn("`/private/tmp`", self.guide)
+
+    def test_opencode_guide_starts_with_the_homebrew_launcher(self) -> None:
         self.assertLess(
-            self.guide.index("## Native cplt: kom raskt i gang"),
-            self.guide.index("## Installer eksakte klienter"),
+            self.guide.index("## Kom i gang"),
+            self.guide.index("## Avansert: manuell binding og verifisering"),
         )
         quick_start = self.guide.split(
-            "## Native cplt: kom raskt i gang", 1
-        )[1].split("## Installer eksakte klienter", 1)[0]
+            "## Kom i gang", 1
+        )[1].split("## Avansert: manuell binding og verifisering", 1)[0]
         normalized = " ".join(quick_start.split())
 
-        self.assertIn("cplt støtter OpenCode out of the box", normalized)
-        self.assertIn("Grillmester legger bare til én config-dir-binding", normalized)
+        self.assertIn("brew install navikt/tap/grillmester", normalized)
+        self.assertLess(
+            normalized.index("ikke tilgjengelig"),
+            normalized.index("brew install navikt/tap/grillmester"),
+        )
+        self.assertIn("grillmester choose", normalized)
+        self.assertIn("starter alltid OpenCode gjennom cplt", normalized)
 
-    def test_native_quick_start_covers_unmanaged_local_and_cloud(self) -> None:
+    def test_launcher_quick_start_covers_unmanaged_local_and_cloud(self) -> None:
         quick_start = self.guide.split(
-            "## Native cplt: kom raskt i gang", 1
-        )[1].split("## Installer eksakte klienter", 1)[0]
+            "## Kom i gang", 1
+        )[1].split("## Avansert: manuell binding og verifisering", 1)[0]
         normalized = " ".join(quick_start.split())
 
         self.assertIn("### Lokal modell på macOS", quick_start)
         self.assertIn("--allow-localhost 1234", quick_start)
-        self.assertIn("port `8080`", normalized)
+        self.assertIn("`--allow-localhost 8080`", normalized)
         self.assertIn("### Cloud-provider", quick_start)
-        self.assertGreaterEqual(
-            quick_start.count('OPENCODE_CONFIG_DIR="$CONFIG_DIR"'), 2
-        )
-        self.assertGreaterEqual(
-            quick_start.count("--pass-env OPENCODE_CONFIG_DIR"), 2
-        )
+        self.assertGreaterEqual(quick_start.count("grillmester --client opencode"), 3)
         self.assertIn("--pass-env MODEL_PROVIDER_API_KEY", quick_start)
         self.assertIn("HTTPS-port `443` er standard", normalized)
         self.assertIn(
-            "managerpolicy eller en eksplisitt, custom cplt-proxypolicy",
+            "managerpolicy eller en eksplisitt custom cplt-proxypolicy",
             normalized,
         )
 
     def test_native_copilot_provider_documents_cplt_allowlist_composition(self) -> None:
         quick_start = self.guide.split(
-            "## Native cplt: kom raskt i gang", 1
-        )[1].split("## Installer eksakte klienter", 1)[0]
+            "## Kom i gang", 1
+        )[1].split("## Avansert: manuell binding og verifisering", 1)[0]
         normalized = " ".join(quick_start.split())
 
         self.assertIn("`standard`-profil", normalized)
@@ -183,68 +216,75 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn(domain, quick_start)
         self.assertIn("Ikke bruk\n`--allow-all-domains`", quick_start)
 
-    def test_readme_has_complete_client_journeys_before_optional_hardening(self) -> None:
-        self.assertLessEqual(len(self.readme.splitlines()), 110)
+    def test_readme_has_one_terminal_journey_before_app_and_agent_help(self) -> None:
+        self.assertLessEqual(len(self.readme.splitlines()), 115)
         self.assertLess(
-            self.readme.index("### GitHub Copilot"),
-            self.readme.index("### OpenCode via cplt"),
+            self.readme.index("### Copilot CLI og OpenCode i terminalen"),
+            self.readme.index("### Copilot app"),
         )
-        section = self.readme.split("### OpenCode via cplt", 1)[1].split(
-            "## Velg agent", 1
-        )[0]
+        section = self.readme.split(
+            "### Copilot CLI og OpenCode i terminalen", 1
+        )[1].split("### Copilot app", 1)[0]
         normalized = " ".join(section.split())
 
-        journey_markers = (
-            "**Forutsetninger:**",
-            "**Hent Grillmester:**",
-            "**Velg modell:**",
-            "**Start med GitHub Copilot-provider:**",
-        )
+        journey_markers = ("brew install navikt/tap/grillmester", "grillmester")
         positions = [normalized.index(marker) for marker in journey_markers]
         self.assertEqual(sorted(positions), positions)
-        self.assertLess(
-            normalized.index("cplt --agent opencode"),
-            normalized.index("lifecycle-flyten"),
-        )
         for marker in (
-            "docs/opencode.md#installer-eksakte-klienter",
-            "docs/opencode.md#hent-og-verifiser-en-grillmester-bundle",
-            "docs/opencode.md#valgfri-lifecycle-manager",
-            "OPENCODE_CONFIG_DIR",
-            "cplt --agent opencode",
-            "cd /path/to/consumer-repo",
-            "--allow-read",
-            "--pass-env OPENCODE_CONFIG_DIR",
-            "docs/opencode.md#native-cplt-kom-raskt-i-gang",
-            "port- eller credential-tilgangen cplt trenger",
-            "ikke nødvendig for vanlig cplt-bruk",
+            "brew install --cask copilot-cli",
+            "--client copilot",
+            "--client opencode",
+            "grillmester choose",
+            "alltid gjennom cplt",
+            "docs/opencode.md",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, normalized)
 
-    def test_installation_guide_links_native_quick_start_before_manager(self) -> None:
-        introduction = self.installation.split("## Innhold", 1)[0]
-        normalized = " ".join(introduction.split())
-
-        self.assertIn("cplt støtter OpenCode direkte out of the box", normalized)
-        self.assertIn(
-            "opencode.md#native-cplt-kom-raskt-i-gang", introduction
-        )
+    def test_installation_guide_leads_with_launcher_before_manager(self) -> None:
+        self.assertIn("## Felles terminaloppsett på macOS", self.installation)
         self.assertLess(
-            self.installation.index("opencode.md#native-cplt-kom-raskt-i-gang"),
+            self.installation.index("ikke tilgjengelig"),
+            self.installation.index("brew install navikt/tap/grillmester"),
+        )
+        self.assertIn("opencode.md#kom-i-gang", self.installation)
+        self.assertLess(
+            self.installation.index("brew install navikt/tap/grillmester"),
             self.installation.index("scripts/manage_opencode.py install"),
         )
         self.assertLess(
-            self.installation.index("cplt --agent opencode"),
+            self.installation.index("grillmester --client opencode"),
             self.installation.index("### Valgfri high-assurance manager"),
         )
+
+    def test_homebrew_rollout_is_availability_gated_and_automated_after_bootstrap(self) -> None:
+        for document in (self.readme, self.installation, self.guide):
+            normalized = " ".join(document.split())
+            with self.subTest(document=document.splitlines()[0]):
+                self.assertIn("ikke tilgjengelig", normalized)
+                self.assertLess(
+                    normalized.index("ikke tilgjengelig"),
+                    normalized.index("brew install navikt/tap/grillmester"),
+                )
+
+        normalized_runbook = " ".join(self.release_runbook.split())
+        for marker in (
+            "one reviewed bootstrap PR",
+            "not one PR per Grillmester release",
+            "ordinary Grillmester releases require no maintainer PR",
+            "latest non-draft, non-prerelease",
+            "Apple Silicon and Intel",
+            "exact three-asset roster",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, normalized_runbook)
 
     def test_local_model_guide_leads_with_native_cplt_before_manager(self) -> None:
         section = self.local_models.split(
             "## Koble OpenCode til den lokale serveren", 1
         )[1].split("## Hybrid:", 1)[0]
         self.assertLess(
-            section.index("cplt --agent opencode"),
+            section.index("grillmester --client opencode"),
             section.index("scripts/manage_opencode.py launch"),
         )
         self.assertIn("ingen lifecycle-manager eller nav-pilot-agent", section)
@@ -336,6 +376,14 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("ikke kernel-evidens for null ekstern\ntrafikk", self.trust)
         self.assertIn("separat fail-closed nettverksmåling", self.trust)
 
+    def test_homebrew_gate_documents_a_real_tui_start_without_model_use(self) -> None:
+        trust = " ".join(self.trust.split())
+        runbook = " ".join(self.release_runbook.split())
+
+        self.assertIn("installerte OpenCode-TUI-en gjennom cplt", trust)
+        self.assertIn("avsluttes før prompt eller modellkall", trust)
+        self.assertIn("OpenCode-TUI startup through cplt without a model call", runbook)
+
     def test_managed_cplt_authenticates_and_stages_official_clients(self) -> None:
         guide = " ".join(self.guide.split())
         installation = " ".join(self.installation.split())
@@ -366,7 +414,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             with self.subTest(document=name):
                 self.assertIn("`postinstall` kjører `verifyBinary`", normalized)
                 self.assertIn("før manageren kan hashe", normalized)
-                self.assertIn("Homebrew er en bekvemmelighetsinstallasjon", normalized)
+                self.assertIn("Homebrew-formelen for cplt er en bekvemmelighetsinstallasjon", normalized)
                 self.assertIn("eksakte npm-plattformpakken", normalized)
                 self.assertIn("eksakte cplt-releaseasseten", normalized)
                 self.assertIn("upstream-arkivchecksummen", normalized)
@@ -464,8 +512,12 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
     def test_macos_live_gate_uses_pinned_native_seatbelt_evidence(self) -> None:
         trust = " ".join(self.trust.split())
 
+        self.assertIn("`macos-homebrew-compatibility`", trust)
         self.assertIn("`macos-live-compatibility`", trust)
-        self.assertIn("eksakte pinnede Darwin-assetene", trust)
+        self.assertIn("uavhengige CI-gatene", trust)
+        self.assertIn("hver sin matrise", trust)
+        self.assertIn("byteidentiske, uavhengig verifiserte releaseformelen", trust)
+        self.assertIn("eksakte pinnede Darwin-ressursene", trust)
         self.assertIn("rå `/usr/bin/nc`-målinger", trust)
         self.assertIn("Seatbelts `localhost`-selector", trust)
         self.assertIn("dokumentasjonsadresse på samme port", trust)

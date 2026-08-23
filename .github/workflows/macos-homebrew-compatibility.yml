@@ -1,0 +1,289 @@
+name: Verify Grillmester Homebrew formula on macOS
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact Grillmester source commit to verify
+        required: true
+        type: string
+      sealed_formula_base64:
+        description: Optional independently verified release formula
+        required: false
+        type: string
+        default: ""
+      release_bundle_name:
+        description: Bundle name bound to the optional verified formula
+        required: false
+        type: string
+        default: ""
+      release_bundle_sha256:
+        description: Bundle SHA-256 bound to the optional verified formula
+        required: false
+        type: string
+        default: ""
+      release_formula_sha256:
+        description: SHA-256 of the optional independently verified formula
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  macos-homebrew-compatibility:
+    name: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - macos-15
+          - macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      RELEASE_BUNDLE_NAME: ${{ inputs.release_bundle_name }}
+      RELEASE_BUNDLE_SHA256: ${{ inputs.release_bundle_sha256 }}
+      RELEASE_FORMULA_SHA256: ${{ inputs.release_formula_sha256 }}
+      SEALED_FORMULA_BASE64: ${{ inputs.sealed_formula_base64 }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+    steps:
+      - name: Check out exact immutable source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install and test the generated Homebrew formula
+        shell: bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+
+          machine="$(uname -m)"
+          case "${machine}" in
+            arm64)
+              opencode_binary_sha256="9598c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952"
+              cplt_binary_sha256="423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2"
+              ;;
+            x86_64)
+              opencode_binary_sha256="96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60"
+              cplt_binary_sha256="36592c1b2bcfd7ab2d9083842b0aa7f51737cdf12ec1752d351bd9467dab5c02"
+              ;;
+            *)
+              echo "Unsupported macOS runner architecture: ${machine}" >&2
+              exit 1
+              ;;
+          esac
+
+          bundle="${RUNNER_TEMP}/macos-homebrew-bundle.tar.gz"
+          repeated="${RUNNER_TEMP}/macos-homebrew-bundle-repeated.tar.gz"
+          python3 -I -S scripts/build_opencode_bundle.py \
+            --source-root "${GITHUB_WORKSPACE}" --source-sha "${SOURCE_SHA}" \
+            --output "${bundle}"
+          python3 -I -S scripts/build_opencode_bundle.py \
+            --source-root "${GITHUB_WORKSPACE}" --source-sha "${SOURCE_SHA}" \
+            --output "${repeated}"
+          cmp -s "${bundle}" "${repeated}"
+
+          version="$(jq -er '.version' plugin/plugin.json)"
+          [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+          tag="v${version}"
+          bundle_name="grillmester-opencode-${tag}.tar.gz"
+          qa_root="${RUNNER_TEMP}/homebrew-formula-qa"
+          mkdir -m 700 "${qa_root}"
+          qa_bundle="${qa_root}/${bundle_name}"
+          formula="${qa_root}/grillmester.rb"
+          expected_formula="${qa_root}/expected-grillmester.rb"
+          install_formula="${qa_root}/install-grillmester.rb"
+          sealed_formula="${qa_root}/sealed-grillmester.rb"
+          tap_name="grillmester/formula-qa"
+          formula_name="${tap_name}/grillmester"
+          cp "${bundle}" "${qa_bundle}"
+          bundle_sha256="$(shasum -a 256 "${qa_bundle}" | cut -d' ' -f1)"
+          sealed_values=(
+            "${SEALED_FORMULA_BASE64}"
+            "${RELEASE_BUNDLE_NAME}"
+            "${RELEASE_BUNDLE_SHA256}"
+            "${RELEASE_FORMULA_SHA256}"
+          )
+          populated=0
+          for value in "${sealed_values[@]}"; do
+            [[ -z "${value}" ]] || populated=$((populated + 1))
+          done
+          if (( populated > 0 )); then
+            (( populated == ${#sealed_values[@]} )) || {
+              echo "verified release formula inputs must be all present or all absent" >&2
+              exit 1
+            }
+            [[ "${RELEASE_BUNDLE_NAME}" =~ ^grillmester-opencode-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
+            [[ "${RELEASE_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+            [[ "${RELEASE_FORMULA_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+            [[ "${bundle_name}" == "${RELEASE_BUNDLE_NAME}" ]]
+            [[ "${bundle_sha256}" == "${RELEASE_BUNDLE_SHA256}" ]]
+            python3 -I -S - "${sealed_formula}" "${RELEASE_FORMULA_SHA256}" <<'PY'
+          import base64
+          import binascii
+          import hashlib
+          import os
+          import sys
+
+          destination, expected_digest = sys.argv[1:]
+          encoded = os.environ["SEALED_FORMULA_BASE64"]
+          if not encoded or len(encoded) > 140_000:
+              raise SystemExit("verified release formula encoding has an invalid size")
+          try:
+              content = base64.b64decode(encoded, validate=True)
+          except binascii.Error as error:
+              raise SystemExit("verified release formula encoding is invalid") from error
+          if not content or len(content) > 100_000:
+              raise SystemExit("verified release formula has an invalid size")
+          if hashlib.sha256(content).hexdigest() != expected_digest:
+              raise SystemExit("verified release formula digest differs")
+          flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+          descriptor = os.open(destination, flags, 0o400)
+          try:
+              with os.fdopen(descriptor, "wb", closefd=False) as output:
+                  output.write(content)
+                  output.flush()
+                  os.fsync(descriptor)
+              os.fchmod(descriptor, 0o400)
+          finally:
+              os.close(descriptor)
+          PY
+            cp "${sealed_formula}" "${formula}"
+          fi
+          python3 -I -S scripts/generate_homebrew_formula.py \
+            --tag "${tag}" --bundle-name "${bundle_name}" \
+            --bundle-sha256 "${bundle_sha256}" \
+            --client-artifacts policy/client-artifacts.json \
+            --output "${expected_formula}"
+          if (( populated == 0 )); then
+            cp "${expected_formula}" "${formula}"
+          fi
+          cmp -s "${expected_formula}" "${formula}"
+          ruby -c "${formula}"
+          brew tap-new --no-git "${tap_name}"
+          tap_root="$(brew --repository "${tap_name}")"
+          tap_formula="${tap_root}/Formula/grillmester.rb"
+          cp "${formula}" "${tap_formula}"
+          brew style "${formula_name}"
+          brew audit --strict "${formula_name}"
+
+          local_url="file://${qa_bundle}"
+          python3 -I -S - "${formula}" "${install_formula}" "${local_url}" <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          source = Path(sys.argv[1]).read_text(encoding="utf-8")
+          destination = Path(sys.argv[2])
+          local_url = sys.argv[3]
+          expected_prefix = '  url "https://github.com/navikt/grillmester/releases/download/'
+          lines = source.splitlines()
+          matches = [index for index, line in enumerate(lines) if line.startswith(expected_prefix)]
+          if len(matches) != 1:
+              raise SystemExit("generated formula has an unexpected primary URL roster")
+          lines[matches[0]] = f'  url "{local_url}"'
+          descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+          with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as output:
+              output.write("\n".join(lines) + "\n")
+          PY
+
+          python_dependency_preinstalled=false
+          if brew list --versions python@3.13 >/dev/null 2>&1; then
+            python_dependency_preinstalled=true
+          fi
+          runner_link_backup="${qa_root}/runner-python-links"
+          runner_python_links=(
+            idle3.13 pip3.13 pydoc3.13 python3.13 python3.13-config
+          )
+          prepare_hosted_intel_python_links() {
+            [[ "${machine}" == "x86_64" ]] || return 0
+            [[ "${python_dependency_preinstalled}" == "false" ]] || return 0
+            mkdir -m 700 "${runner_link_backup}"
+            for name in "${runner_python_links[@]}"; do
+              target="/usr/local/bin/${name}"
+              backup="${runner_link_backup}/${name}"
+              if [[ ! -e "${target}" && ! -L "${target}" ]]; then
+                continue
+              fi
+              [[ -L "${target}" ]]
+              [[ "$(readlink "${target}")" == \
+                 "/Library/Frameworks/Python.framework/Versions/3.13/bin/${name}" ]]
+              [[ ! -e "${backup}" && ! -L "${backup}" ]]
+              mv "${target}" "${backup}"
+            done
+          }
+          restore_hosted_intel_python_links() {
+            [[ "${machine}" == "x86_64" ]] || return 0
+            [[ "${python_dependency_preinstalled}" == "false" ]] || return 0
+            restore_status=0
+            if brew list --versions python@3.13 >/dev/null 2>&1; then
+              brew uninstall --formula python@3.13 >/dev/null || restore_status=1
+            fi
+            for name in "${runner_python_links[@]}"; do
+              target="/usr/local/bin/${name}"
+              backup="${runner_link_backup}/${name}"
+              [[ -L "${backup}" ]] || continue
+              if [[ -e "${target}" || -L "${target}" ]]; then
+                echo "Cannot restore hosted runner link over ${target}." >&2
+                restore_status=1
+                continue
+              fi
+              mv "${backup}" "${target}" || restore_status=1
+            done
+            return "${restore_status}"
+          }
+          cleanup() {
+            cleanup_status=$?
+            brew uninstall --formula "${formula_name}" >/dev/null 2>&1 || true
+            restore_hosted_intel_python_links || cleanup_status=1
+            brew untap "${tap_name}" >/dev/null 2>&1 || true
+            return "${cleanup_status}"
+          }
+          trap cleanup EXIT
+          prepare_hosted_intel_python_links
+          cp "${install_formula}" "${tap_formula}"
+          brew install --formula "${formula_name}"
+          prefix="$(brew --prefix "${formula_name}")"
+          linked_launcher="$(brew --prefix)/bin/grillmester"
+          [[ -x "${prefix}/bin/grillmester" ]]
+          [[ -x "${prefix}/libexec/clients/cplt" ]]
+          [[ -x "${prefix}/libexec/clients/opencode" ]]
+          [[ ! -L "${prefix}/libexec/clients/cplt" ]]
+          [[ ! -L "${prefix}/libexec/clients/opencode" ]]
+          [[ "$(shasum -a 256 "${prefix}/libexec/clients/cplt" | cut -d' ' -f1)" == \
+             "${cplt_binary_sha256}" ]]
+          [[ "$(shasum -a 256 "${prefix}/libexec/clients/opencode" | cut -d' ' -f1)" == \
+             "${opencode_binary_sha256}" ]]
+          grep -F 'anomalyco/opencode' "${prefix}/libexec/THIRD_PARTY_NOTICES.md" >/dev/null
+          grep -F 'navikt/cplt' "${prefix}/libexec/THIRD_PARTY_NOTICES.md" >/dev/null
+          brew test --verbose "${formula_name}"
+          PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
+            "${prefix}/bin/grillmester" doctor --client opencode
+          tui_consumer="${qa_root}/tui-consumer"
+          mkdir -m 700 "${tui_consumer}"
+          git -C "${tui_consumer}" init --quiet
+          python3 -I -S scripts/smoke_grillmester_tui.py \
+            --launcher "${prefix}/bin/grillmester" \
+            --opencode "${prefix}/libexec/clients/opencode" \
+            --cplt "${prefix}/libexec/clients/cplt" \
+            --project-dir "${tui_consumer}" \
+            --state-parent "${qa_root}"
+          cleanup
+          trap - EXIT
+          if brew list --versions "${formula_name}" >/dev/null 2>&1; then
+            echo "grillmester remains installed after uninstall" >&2
+            exit 1
+          fi
+          [[ ! -e "${linked_launcher}" && ! -L "${linked_launcher}" ]]
+          [[ ! -e "${prefix}" && ! -L "${prefix}" ]]

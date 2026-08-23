@@ -32,7 +32,7 @@ OPENCODE_DISTRIBUTION_DIRECTORIES = (
 OPENCODE_DISTRIBUTION_FILES = (
     "LICENSE",
     "PROVENANCE.md",
-    "plugin/THIRD_PARTY_NOTICES.md",
+    "THIRD_PARTY_NOTICES.md",
     "policy/client-artifacts.json",
     "policy/content-lock.json",
     "scripts/build_opencode_bundle.py",

@@ -13,6 +13,7 @@
         "url": "https://registry.npmjs.org/opencode-darwin-arm64/-/opencode-darwin-arm64-1.18.20.tgz",
         "archive": {
           "size": 45912069,
+          "sha256": "5091c1188dc99026c066ae1e31451d6893409d807f14aca3f66928d1a44c55f7",
           "sha512": "7e010126cc31f75380b44989cbb8934f6da262c69d0b29f8629eeb574f60fae7f9968c995e49f238b62620b6080ebbc43fa16b50bacf6160635a65aa22beae80",
           "integrity": "sha512-fgEBJswx91OAtEmJy7iTT22iYsadCyn4Yp7rV09g+uf5loyZXknyOLYmILYIDrvEP6FrULrPYWBjWmWqIr6ugA==",
           "integrityEvidence": {
@@ -39,6 +40,7 @@
         "url": "https://registry.npmjs.org/opencode-darwin-x64/-/opencode-darwin-x64-1.18.20.tgz",
         "archive": {
           "size": 48089366,
+          "sha256": "345a6684759fa78e2e9d11e3a8dd53bf7b963c60f303d8a7f8ca547999389104",
           "sha512": "cbade5db7d9d2cf3175a66155aba13c5b77bc1f602b1178f05a5ec8bb9f77983cd7bb29ea3aacc97170db266c187173c3a609eaf4c83f4391a492e7230b83dc1",
           "integrity": "sha512-y63l232dLPMXWmYVWroTxbd7wfYCsRePBaXsi7n3eYPNe7Keo6rMlxcNsmbBhxc8OmCer0yD9DkaSS5yMLg9wQ==",
           "integrityEvidence": {

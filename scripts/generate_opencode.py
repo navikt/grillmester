@@ -59,6 +59,9 @@ TARGET_CONFIG = {
     "autoupdate": False,
     "share": "disabled",
 }
+OPENCODE_RUNTIME_GITIGNORE = (
+    b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n"
+)
 TARGET_INVOCATION_NOTE = (
     "> **OpenCode v1:** Backticked `grillmester-*` names below are skill IDs, "
     "not slash commands. Load them with the native `skill` tool. Slash commands "
@@ -680,6 +683,12 @@ def build_projection(
     files: dict[str, GeneratedFile] = {}
     casefolded: dict[str, str] = {}
     replacement_hits: dict[str, int] = {}
+    add_file(
+        files,
+        casefolded,
+        ".gitignore",
+        OPENCODE_RUNTIME_GITIGNORE,
+    )
     add_file(
         files,
         casefolded,

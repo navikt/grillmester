@@ -37,11 +37,15 @@ jobs:
       rc-bundle-checksum-sha256: ${{ steps.contract.outputs.rc_bundle_checksum_sha256 }}
       rc-bundle-name: ${{ steps.contract.outputs.rc_bundle_name }}
       rc-bundle-sha256: ${{ steps.contract.outputs.rc_bundle_sha256 }}
+      rc-formula-sha256: ${{ steps.contract.outputs.rc_formula_sha256 }}
       rc-source-sha: ${{ steps.contract.outputs.rc_source_sha }}
       rc-tag: ${{ steps.contract.outputs.rc_tag }}
       request-id: ${{ steps.contract.outputs.request_id }}
       source-sha: ${{ steps.contract.outputs.source_sha }}
       tag: ${{ steps.contract.outputs.tag }}
+      formula-name: ${{ steps.bundle.outputs.formula_name }}
+      formula-sha256: ${{ steps.bundle.outputs.formula_sha256 }}
+      formula-size: ${{ steps.bundle.outputs.formula_size }}
     steps:
       - name: Check out reviewed request and trusted tooling
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -146,6 +150,7 @@ jobs:
           rc_bundle_checksum_sha256=""
           rc_bundle_name=""
           rc_bundle_sha256=""
+          rc_formula_sha256=""
           rc_source_sha=""
           if [[ "${channel}" == "stable" ]]; then
             git fetch --no-tags origin "refs/tags/${rc_tag}:refs/tags/${rc_tag}"
@@ -187,11 +192,13 @@ jobs:
             [[ "$(jq -r '.immutable' <<<"${rc_release}")" == "true" ]]
             rc_bundle_name="grillmester-opencode-${rc_tag}.tar.gz"
             rc_bundle_checksum_name="${rc_bundle_name}.sha256"
+            rc_formula_name="grillmester.rb"
             jq -e \
               --arg bundle "${rc_bundle_name}" \
               --arg checksum "${rc_bundle_checksum_name}" \
-              '(.assets | length) == 2 and
-               ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
+              --arg formula "${rc_formula_name}" \
+              '(.assets | length) == 3 and
+               ([.assets[].name] | sort) == ([$bundle, $checksum, $formula] | sort) and
                all(.assets[];
                  .state == "uploaded" and
                  (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")) and
@@ -200,17 +207,23 @@ jobs:
                any(.assets[];
                  .name == $bundle and .label == "Grillmester OpenCode bundle") and
                any(.assets[];
-                 .name == $checksum and .label == "SHA-256 checksum")' \
+                 .name == $checksum and .label == "SHA-256 checksum") and
+               any(.assets[];
+                 .name == $formula and .label == "Homebrew formula")' \
               <<<"${rc_release}" >/dev/null
 
             rc_assets="${RUNNER_TEMP}/rc-assets"
             mkdir -p "${rc_assets}"
             rc_published_bundle="${rc_assets}/${rc_bundle_name}"
             rc_published_checksum="${rc_assets}/${rc_bundle_checksum_name}"
+            rc_published_formula="${rc_assets}/${rc_formula_name}"
             rc_bundle_url="$(jq -er --arg name "${rc_bundle_name}" \
               '.assets[] | select(.name == $name) | .browser_download_url' \
               <<<"${rc_release}")"
             rc_checksum_url="$(jq -er --arg name "${rc_bundle_checksum_name}" \
+              '.assets[] | select(.name == $name) | .browser_download_url' \
+              <<<"${rc_release}")"
+            rc_formula_url="$(jq -er --arg name "${rc_formula_name}" \
               '.assets[] | select(.name == $name) | .browser_download_url' \
               <<<"${rc_release}")"
             curl --config /dev/null --fail-with-body --silent --show-error --location \
@@ -221,6 +234,10 @@ jobs:
               --proto '=https' --tlsv1.2 --proto-redir '=https' \
               --max-filesize 1024 \
               "${rc_checksum_url}" --output "${rc_published_checksum}"
+            curl --config /dev/null --fail-with-body --silent --show-error --location \
+              --proto '=https' --tlsv1.2 --proto-redir '=https' \
+              --max-filesize 100000 \
+              "${rc_formula_url}" --output "${rc_published_formula}"
 
             rc_rebuilt_bundle="${RUNNER_TEMP}/rebuilt-${rc_bundle_name}"
             python3 "${rc_source_repo}/scripts/build_opencode_bundle.py" \
@@ -229,18 +246,30 @@ jobs:
             cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"
             rc_bundle_sha256="$(sha256sum "${rc_published_bundle}" | cut -d' ' -f1)"
             rc_bundle_checksum_sha256="$(sha256sum "${rc_published_checksum}" | cut -d' ' -f1)"
+            rc_formula_sha256="$(sha256sum "${rc_published_formula}" | cut -d' ' -f1)"
             [[ "$(jq -er --arg name "${rc_bundle_name}" \
               '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
               "sha256:${rc_bundle_sha256}" ]]
             [[ "$(jq -er --arg name "${rc_bundle_checksum_name}" \
               '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
               "sha256:${rc_bundle_checksum_sha256}" ]]
+            [[ "$(jq -er --arg name "${rc_formula_name}" \
+              '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
+              "sha256:${rc_formula_sha256}" ]]
             rc_expected_checksum="${RUNNER_TEMP}/expected-${rc_bundle_checksum_name}"
             printf '%s  %s\n' \
               "${rc_bundle_sha256}" "${rc_bundle_name}" > "${rc_expected_checksum}"
             cmp -s "${rc_expected_checksum}" "${rc_published_checksum}"
             (cd "${rc_assets}" && \
               sha256sum --check --strict "${rc_bundle_checksum_name}")
+            rc_expected_formula="${RUNNER_TEMP}/expected-rc-grillmester.rb"
+            python3 "${rc_source_repo}/scripts/generate_homebrew_formula.py" \
+              --tag "${rc_tag}" --bundle-name "${rc_bundle_name}" \
+              --bundle-sha256 "${rc_bundle_sha256}" \
+              --client-artifacts "${rc_source_repo}/policy/client-artifacts.json" \
+              --output "${rc_expected_formula}"
+            ruby -c "${rc_expected_formula}"
+            cmp -s "${rc_expected_formula}" "${rc_published_formula}"
           else
             python3 scripts/release_contract.py "${contract_args[@]}"
           fi
@@ -273,6 +302,7 @@ jobs:
             echo "rc_bundle_checksum_sha256=${rc_bundle_checksum_sha256}"
             echo "rc_bundle_name=${rc_bundle_name}"
             echo "rc_bundle_sha256=${rc_bundle_sha256}"
+            echo "rc_formula_sha256=${rc_formula_sha256}"
             echo "rc_source_sha=${rc_source_sha}"
             echo "rc_tag=${rc_tag}"
             echo "request_id=${request_id}"
@@ -286,7 +316,7 @@ jobs:
             echo "TAG=${tag}"
           } >> "${GITHUB_ENV}"
 
-      - name: Build and seal deterministic OpenCode release assets
+      - name: Build and seal deterministic terminal release assets
         id: bundle
         shell: bash
         run: |
@@ -299,6 +329,8 @@ jobs:
           bundle="${RUNNER_TEMP}/${bundle_name}"
           repeated="${RUNNER_TEMP}/repeated-${bundle_name}"
           checksum="${RUNNER_TEMP}/${bundle_checksum_name}"
+          formula="${RUNNER_TEMP}/grillmester.rb"
+          formula_name="grillmester.rb"
           python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py" \
             --source-root "${SOURCE_ROOT}" --source-sha "${SOURCE_SHA}" \
             --output "${bundle}"
@@ -312,15 +344,29 @@ jobs:
           [[ "${bundle_size}" =~ ^[1-9][0-9]*$ ]]
           printf '%s  %s\n' \
             "${bundle_sha256}" "${bundle_name}" > "${checksum}"
+          python3 "${SOURCE_ROOT}/scripts/generate_homebrew_formula.py" \
+            --tag "${TAG}" --bundle-name "${bundle_name}" \
+            --bundle-sha256 "${bundle_sha256}" \
+            --client-artifacts "${SOURCE_ROOT}/policy/client-artifacts.json" \
+            --output "${formula}"
+          ruby -c "${formula}"
+          formula_sha256="$(sha256sum "${formula}" | cut -d' ' -f1)"
+          formula_size="$(wc -c < "${formula}" | tr -d ' ')"
+          [[ "${formula_sha256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${formula_size}" =~ ^[1-9][0-9]*$ ]]
+          (( formula_size <= 100000 ))
           {
             echo "bundle_artifact_name=${bundle_artifact_name}"
             echo "bundle_checksum_name=${bundle_checksum_name}"
             echo "bundle_name=${bundle_name}"
             echo "bundle_sha256=${bundle_sha256}"
             echo "bundle_size=${bundle_size}"
+            echo "formula_name=${formula_name}"
+            echo "formula_sha256=${formula_sha256}"
+            echo "formula_size=${formula_size}"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Upload exact sealed OpenCode assets
+      - name: Upload exact sealed terminal assets
         id: bundle-upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -328,11 +374,57 @@ jobs:
           path: |
             ${{ runner.temp }}/${{ steps.bundle.outputs.bundle_name }}
             ${{ runner.temp }}/${{ steps.bundle.outputs.bundle_checksum_name }}
+            ${{ runner.temp }}/${{ steps.bundle.outputs.formula_name }}
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
           overwrite: false
           include-hidden-files: false
+
+      - name: Write protected-environment approval summary
+        shell: bash
+        env:
+          ARTIFACT_DIGEST: ${{ steps.bundle-upload.outputs.artifact-digest }}
+          ARTIFACT_ID: ${{ steps.bundle-upload.outputs.artifact-id }}
+          BUNDLE_NAME: ${{ steps.bundle.outputs.bundle_name }}
+          BUNDLE_SHA256: ${{ steps.bundle.outputs.bundle_sha256 }}
+          BUNDLE_SIZE: ${{ steps.bundle.outputs.bundle_size }}
+          CATALOG_SHA: ${{ steps.contract.outputs.catalog_sha }}
+          CHANNEL: ${{ steps.contract.outputs.channel }}
+          FORMULA_SHA256: ${{ steps.bundle.outputs.formula_sha256 }}
+          FORMULA_SIZE: ${{ steps.bundle.outputs.formula_size }}
+          REQUEST_ID: ${{ steps.contract.outputs.request_id }}
+          SOURCE_SHA: ${{ steps.contract.outputs.source_sha }}
+          TAG: ${{ steps.contract.outputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "${ARTIFACT_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${BUNDLE_NAME}" == "grillmester-opencode-${TAG}.tar.gz" ]]
+          [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${CHANNEL}" == "rc" || "${CHANNEL}" == "stable" ]]
+          [[ "${FORMULA_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${FORMULA_SIZE}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${REQUEST_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]]
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
+          {
+            echo "### Grillmester release approval"
+            echo
+            echo "| Field | Sealed value |"
+            echo "| --- | --- |"
+            echo "| Request | \`${REQUEST_ID}\` |"
+            echo "| Channel | \`${CHANNEL}\` |"
+            echo "| Tag | \`${TAG}\` |"
+            echo "| Catalog SHA | \`${CATALOG_SHA}\` |"
+            echo "| Source SHA | \`${SOURCE_SHA}\` |"
+            echo "| Bundle | \`${BUNDLE_NAME}\` (${BUNDLE_SIZE} bytes) |"
+            echo "| Bundle SHA-256 | \`${BUNDLE_SHA256}\` |"
+            echo "| Formula SHA-256 | \`${FORMULA_SHA256}\` (${FORMULA_SIZE} bytes) |"
+            echo "| Actions artifact | ID \`${ARTIFACT_ID}\`, SHA-256 \`${ARTIFACT_DIGEST}\` |"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Install checksum-pinned OpenCode CLI
         shell: bash
@@ -463,6 +555,20 @@ jobs:
           --source-sha "${SOURCE_SHA}"
           --expect-release-sha "${SOURCE_SHA}"
 
+  macos-homebrew-compatibility:
+    needs:
+      - validate
+      - verify-release-assets
+    uses: ./.github/workflows/macos-homebrew-compatibility.yml
+    with:
+      release_bundle_name: ${{ needs.validate.outputs.bundle-name }}
+      release_bundle_sha256: ${{ needs.validate.outputs.bundle-sha256 }}
+      release_formula_sha256: ${{ needs.validate.outputs.formula-sha256 }}
+      sealed_formula_base64: ${{ needs.verify-release-assets.outputs.formula-base64 }}
+      source_sha: ${{ needs.validate.outputs.source-sha }}
+    permissions:
+      contents: read
+
   macos-live-compatibility:
     needs: validate
     uses: ./.github/workflows/macos-opencode-compatibility.yml
@@ -475,10 +581,13 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      formula-base64: ${{ steps.macos-formula.outputs.formula_base64 }}
     permissions:
       actions: read # Authenticate and download this run's exact artifact by ID.
       contents: read
     env:
+      BEFORE_SHA: ${{ needs.validate.outputs.before-sha }}
       BUNDLE_ARTIFACT_DIGEST: ${{ needs.validate.outputs.bundle-artifact-digest }}
       BUNDLE_ARTIFACT_ID: ${{ needs.validate.outputs.bundle-artifact-id }}
       BUNDLE_ARTIFACT_NAME: ${{ needs.validate.outputs.bundle-artifact-name }}
@@ -491,6 +600,9 @@ jobs:
       RUN_ID: ${{ github.run_id }}
       SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
       TAG: ${{ needs.validate.outputs.tag }}
+      FORMULA_NAME: ${{ needs.validate.outputs.formula-name }}
+      FORMULA_SHA256: ${{ needs.validate.outputs.formula-sha256 }}
+      FORMULA_SIZE: ${{ needs.validate.outputs.formula-size }}
     steps:
       - name: Independently bind sealed assets to immutable source
         shell: bash
@@ -503,9 +615,13 @@ jobs:
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${BUNDLE_ARTIFACT_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]
-          [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
-          [[ "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ && \
+             "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
           (( BUNDLE_SIZE <= 61000000 ))
+          [[ "${FORMULA_NAME}" == "grillmester.rb" ]]
+          [[ "${FORMULA_SHA256}" =~ ^[0-9a-f]{64}$ && \
+             "${FORMULA_SIZE}" =~ ^[1-9][0-9]*$ ]]
+          (( FORMULA_SIZE <= 100000 ))
           [[ "${RUN_ID}" =~ ^[1-9][0-9]*$ ]]
           [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
           [[ "${BUNDLE_NAME}" == "grillmester-opencode-${TAG}.tar.gz" ]]
@@ -514,6 +630,7 @@ jobs:
           artifact_zip="${RUNNER_TEMP}/sealed-opencode-assets.zip"
           bundle="${RUNNER_TEMP}/${BUNDLE_NAME}"
           checksum="${RUNNER_TEMP}/${BUNDLE_CHECKSUM_NAME}"
+          formula="${RUNNER_TEMP}/${FORMULA_NAME}"
 
           artifact="$(GH_TOKEN="${READ_TOKEN}" gh api \
             -H 'Accept: application/vnd.github+json' \
@@ -521,17 +638,15 @@ jobs:
             "repos/${REPOSITORY}/actions/artifacts/${BUNDLE_ARTIFACT_ID}")"
           artifact_size="$(jq -er '.size_in_bytes' <<<"${artifact}")"
           [[ "${artifact_size}" =~ ^[1-9][0-9]*$ ]]
-          (( artifact_size <= 62000000 ))
+          (( artifact_size <= 62100000 ))
           jq -e \
             --arg digest "sha256:${BUNDLE_ARTIFACT_DIGEST}" \
             --arg id "${BUNDLE_ARTIFACT_ID}" \
             --arg main_sha "${MAIN_SHA}" \
             --arg name "${BUNDLE_ARTIFACT_NAME}" \
             --arg run_id "${RUN_ID}" \
-            '.id == ($id | tonumber) and
-             .name == $name and
-             .expired == false and
-             .digest == $digest and
+            '.id == ($id | tonumber) and .name == $name and
+             .expired == false and .digest == $digest and
              .workflow_run.id == ($run_id | tonumber) and
              .workflow_run.head_sha == $main_sha' \
             <<<"${artifact}" >/dev/null
@@ -544,17 +659,22 @@ jobs:
           [[ "$(sha256sum "${artifact_zip}" | cut -d' ' -f1)" == \
              "${BUNDLE_ARTIFACT_DIGEST}" ]]
           mapfile -t artifact_entries < <(unzip -Z1 "${artifact_zip}")
-          [[ "${#artifact_entries[@]}" == "2" ]]
+          [[ "${#artifact_entries[@]}" == "3" ]]
           [[ "$(printf '%s\n' "${artifact_entries[@]}" | LC_ALL=C sort)" == \
-             "$(printf '%s\n' "${BUNDLE_CHECKSUM_NAME}" "${BUNDLE_NAME}" | LC_ALL=C sort)" ]]
+             "$(printf '%s\n' "${BUNDLE_CHECKSUM_NAME}" "${BUNDLE_NAME}" \
+               "${FORMULA_NAME}" | LC_ALL=C sort)" ]]
           unzip -p "${artifact_zip}" "${BUNDLE_NAME}" > "${bundle}"
           unzip -p "${artifact_zip}" "${BUNDLE_CHECKSUM_NAME}" > "${checksum}"
+          unzip -p "${artifact_zip}" "${FORMULA_NAME}" > "${formula}"
           [[ "$(wc -c < "${bundle}" | tr -d ' ')" == "${BUNDLE_SIZE}" ]]
           [[ "$(sha256sum "${bundle}" | cut -d' ' -f1)" == "${BUNDLE_SHA256}" ]]
           expected_checksum="${RUNNER_TEMP}/expected-${BUNDLE_CHECKSUM_NAME}"
           printf '%s  %s\n' \
             "${BUNDLE_SHA256}" "${BUNDLE_NAME}" > "${expected_checksum}"
           cmp -s "${expected_checksum}" "${checksum}"
+          [[ "$(wc -c < "${formula}" | tr -d ' ')" == "${FORMULA_SIZE}" ]]
+          [[ "$(sha256sum "${formula}" | cut -d' ' -f1)" == "${FORMULA_SHA256}" ]]
+          ruby -c "${formula}"
 
           git init --quiet
           git remote add origin "https://github.com/${REPOSITORY}.git"
@@ -753,12 +873,13 @@ jobs:
               fail("tar end padding is not canonical")
 
           manager_path = "scripts/manage_opencode.py"
+          launcher_path = "scripts/grillmester.py"
           composer_path = "scripts/compose_opencode_permissions.py"
           artifact_verifier_path = "scripts/verify_client_artifact.py"
           legal_source_to_archive = {
               "LICENSE": "LICENSE",
               "PROVENANCE.md": "PROVENANCE.md",
-              "plugin/THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
+              "THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
               "policy/content-lock.json": "policy/content-lock.json",
               "policy/client-artifacts.json": "policy/client-artifacts.json",
           }
@@ -767,8 +888,10 @@ jobs:
               for profile in ("cloud-open-weight", "hybrid", "local", "local-only")
           }
           manager_nodes = git_tree(manager_path)
+          launcher_nodes = git_tree(launcher_path)
           composer_nodes = git_tree(composer_path)
           artifact_verifier_nodes = git_tree(artifact_verifier_path)
+          plugin_nodes = git_tree("plugin")
           profile_nodes = git_tree("profiles/opencode")
           target_nodes = git_tree("targets/opencode-v1")
           legal_nodes = {}
@@ -782,6 +905,11 @@ jobs:
               or manager_nodes[manager_path][0] != "100644"
           ):
               fail("immutable source has no regular lifecycle manager")
+          if (
+              set(launcher_nodes) != {launcher_path}
+              or launcher_nodes[launcher_path][0] != "100644"
+          ):
+              fail("immutable source has no regular Grillmester launcher")
           if set(composer_nodes) != {composer_path} or composer_nodes[composer_path][0] != "100644":
               fail("immutable source has no regular permission composer")
           if (
@@ -806,6 +934,7 @@ jobs:
               fail("target manifest file inventory is invalid")
 
           expected_content = {
+              PurePosixPath(launcher_path): (git_blob(launcher_nodes[launcher_path]), 0o755),
               PurePosixPath(manager_path): (git_blob(manager_nodes[manager_path]), 0o755),
               PurePosixPath(composer_path): (git_blob(composer_nodes[composer_path]), 0o644),
               PurePosixPath(artifact_verifier_path): (
@@ -819,6 +948,16 @@ jobs:
               )
           for path in sorted(profile_paths):
               expected_content[PurePosixPath(path)] = (git_blob(profile_nodes[path]), 0o644)
+          if not plugin_nodes or "plugin/plugin.json" not in plugin_nodes:
+              fail("immutable source has no Copilot plugin tree")
+          for path, node in sorted(plugin_nodes.items()):
+              source_mode = node[0]
+              if source_mode not in ("100644", "100755"):
+                  fail(f"unsupported Copilot plugin source mode for {path}")
+              expected_content[PurePosixPath(path)] = (
+                  git_blob(node),
+                  0o755 if source_mode == "100755" else 0o644,
+              )
           expected_target_paths = {target_manifest_path}
           seen_target_paths = set()
           for raw_relative, entry in target_entries.items():
@@ -886,6 +1025,77 @@ jobs:
                   parent = parent.parent
           if archive_directories != expected_directories:
               fail("archive directory roster differs from immutable source")
+          PY
+
+      - name: Independently bind formula with trusted release tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ && \
+             "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]
+          [[ "${MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
+          [[ "${BUNDLE_NAME}" == "grillmester-opencode-${TAG}.tar.gz" ]]
+          [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${FORMULA_NAME}" == "grillmester.rb" ]]
+
+          # The push that invoked this workflow may only change the reviewed
+          # release request, so tooling read from MAIN_SHA is workflow-owned.
+          git cat-file -e "${BEFORE_SHA}^{commit}"
+          git cat-file -e "${MAIN_SHA}^{commit}"
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git merge-base --is-ancestor "${BEFORE_SHA}" "${MAIN_SHA}"
+          [[ "$(git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}")" == \
+             ".github/release-request.json" ]]
+
+          trusted_root="${RUNNER_TEMP}/trusted-formula-renderer"
+          mkdir -m 700 "${trusted_root}"
+          trusted_generator="${trusted_root}/generate_homebrew_formula.py"
+          client_lock="${trusted_root}/client-artifacts.json"
+          expected_formula="${trusted_root}/grillmester.rb"
+          git show "${MAIN_SHA}:scripts/generate_homebrew_formula.py" \
+            > "${trusted_generator}"
+          git show "${SOURCE_SHA}:policy/client-artifacts.json" > "${client_lock}"
+          chmod 0400 "${trusted_generator}" "${client_lock}"
+          python3 -I -S "${trusted_generator}" \
+            --tag "${TAG}" --bundle-name "${BUNDLE_NAME}" \
+            --bundle-sha256 "${BUNDLE_SHA256}" \
+            --client-artifacts "${client_lock}" \
+            --output "${expected_formula}"
+          [[ -f "${expected_formula}" && ! -L "${expected_formula}" ]]
+          [[ "$(sha256sum "${expected_formula}" | cut -d' ' -f1)" == \
+             "${FORMULA_SHA256}" ]]
+          cmp -s "${expected_formula}" "${RUNNER_TEMP}/${FORMULA_NAME}"
+
+      - name: Export independently verified formula for macOS
+        id: macos-formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -S - <<'PY'
+          import base64
+          import hashlib
+          import os
+          import stat
+          from pathlib import Path
+
+          formula = Path(os.environ["RUNNER_TEMP"]) / os.environ["FORMULA_NAME"]
+          observed = formula.lstat()
+          if not stat.S_ISREG(observed.st_mode) or observed.st_size <= 0:
+              raise SystemExit("verified release formula is not a nonempty regular file")
+          if observed.st_size > 100_000:
+              raise SystemExit("verified release formula is too large")
+          content = formula.read_bytes()
+          if len(content) != observed.st_size:
+              raise SystemExit("verified release formula changed while reading")
+          if hashlib.sha256(content).hexdigest() != os.environ["FORMULA_SHA256"]:
+              raise SystemExit("verified release formula digest changed")
+          encoded = base64.b64encode(content).decode("ascii")
+          if len(encoded) > 140_000:
+              raise SystemExit("verified release formula encoding is too large")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"formula_base64={encoded}\n")
           PY
 
       - name: Independently enforce stable rights approval
@@ -1085,6 +1295,7 @@ jobs:
     needs:
       - validate
       - copilot-compatibility
+      - macos-homebrew-compatibility
       - macos-live-compatibility
       - verify-release-assets
     runs-on: ubuntu-latest
@@ -1111,6 +1322,7 @@ jobs:
       RC_BUNDLE_CHECKSUM_SHA256: ${{ needs.validate.outputs.rc-bundle-checksum-sha256 }}
       RC_BUNDLE_NAME: ${{ needs.validate.outputs.rc-bundle-name }}
       RC_BUNDLE_SHA256: ${{ needs.validate.outputs.rc-bundle-sha256 }}
+      RC_FORMULA_SHA256: ${{ needs.validate.outputs.rc-formula-sha256 }}
       RC_CATALOG_SHA: ${{ needs.validate.outputs.rc-catalog-sha }}
       RC_SOURCE_SHA: ${{ needs.validate.outputs.rc-source-sha }}
       RC_TAG: ${{ needs.validate.outputs.rc-tag }}
@@ -1118,6 +1330,9 @@ jobs:
       RUN_ID: ${{ github.run_id }}
       SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
       TAG: ${{ needs.validate.outputs.tag }}
+      FORMULA_NAME: ${{ needs.validate.outputs.formula-name }}
+      FORMULA_SHA256: ${{ needs.validate.outputs.formula-sha256 }}
+      FORMULA_SIZE: ${{ needs.validate.outputs.formula-size }}
     steps:
       - name: Require immutable GitHub Releases before publication
         shell: bash
@@ -1159,21 +1374,25 @@ jobs:
           [[ "${NOTES_SHA256}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_ARTIFACT_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]
-          [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
-          [[ "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ && \
+             "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
           (( BUNDLE_SIZE <= 61000000 ))
+          [[ "${FORMULA_NAME}" == "grillmester.rb" && \
+             "${FORMULA_SHA256}" =~ ^[0-9a-f]{64}$ && \
+             "${FORMULA_SIZE}" =~ ^[1-9][0-9]*$ ]]
+          (( FORMULA_SIZE <= 100000 ))
           [[ "${RUN_ID}" =~ ^[1-9][0-9]*$ ]]
           [[ "${REQUEST_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]]
           [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
           [[ "${CHANNEL}" == "rc" || "${CHANNEL}" == "stable" ]]
           [[ "${BUNDLE_NAME}" == "grillmester-opencode-${TAG}.tar.gz" ]]
-          [[ "${BUNDLE_NAME}" =~ ^grillmester-opencode-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
           [[ "${BUNDLE_ARTIFACT_NAME}" == "sealed-${BUNDLE_NAME}-${SOURCE_SHA}" ]]
           [[ "${BUNDLE_CHECKSUM_NAME}" == "${BUNDLE_NAME}.sha256" ]]
           notes="${RUNNER_TEMP}/release-notes.md"
           artifact_zip="${RUNNER_TEMP}/sealed-opencode-assets.zip"
           bundle="${RUNNER_TEMP}/${BUNDLE_NAME}"
           checksum="${RUNNER_TEMP}/${BUNDLE_CHECKSUM_NAME}"
+          formula="${RUNNER_TEMP}/${FORMULA_NAME}"
           printf '%s' "${NOTES_BASE64}" | base64 --decode > "${notes}"
           [[ "$(sha256sum "${notes}" | cut -d' ' -f1)" == "${NOTES_SHA256}" ]]
 
@@ -1183,7 +1402,7 @@ jobs:
             "repos/${REPOSITORY}/actions/artifacts/${BUNDLE_ARTIFACT_ID}")"
           artifact_size="$(jq -er '.size_in_bytes' <<<"${artifact}")"
           [[ "${artifact_size}" =~ ^[1-9][0-9]*$ ]]
-          (( artifact_size <= 62000000 ))
+          (( artifact_size <= 62100000 ))
           jq -e \
             --arg digest "sha256:${BUNDLE_ARTIFACT_DIGEST}" \
             --arg id "${BUNDLE_ARTIFACT_ID}" \
@@ -1206,11 +1425,13 @@ jobs:
           [[ "$(sha256sum "${artifact_zip}" | cut -d' ' -f1)" == \
              "${BUNDLE_ARTIFACT_DIGEST}" ]]
           mapfile -t artifact_entries < <(unzip -Z1 "${artifact_zip}")
-          [[ "${#artifact_entries[@]}" == "2" ]]
+          [[ "${#artifact_entries[@]}" == "3" ]]
           [[ "$(printf '%s\n' "${artifact_entries[@]}" | LC_ALL=C sort)" == \
-             "$(printf '%s\n' "${BUNDLE_CHECKSUM_NAME}" "${BUNDLE_NAME}" | LC_ALL=C sort)" ]]
+             "$(printf '%s\n' "${BUNDLE_CHECKSUM_NAME}" "${BUNDLE_NAME}" \
+               "${FORMULA_NAME}" | LC_ALL=C sort)" ]]
           unzip -p "${artifact_zip}" "${BUNDLE_NAME}" > "${bundle}"
           unzip -p "${artifact_zip}" "${BUNDLE_CHECKSUM_NAME}" > "${checksum}"
+          unzip -p "${artifact_zip}" "${FORMULA_NAME}" > "${formula}"
           [[ "$(wc -c < "${bundle}" | tr -d ' ')" == "${BUNDLE_SIZE}" ]]
           [[ "$(sha256sum "${bundle}" | cut -d' ' -f1)" == "${BUNDLE_SHA256}" ]]
           expected_checksum="${RUNNER_TEMP}/expected-${BUNDLE_CHECKSUM_NAME}"
@@ -1218,6 +1439,8 @@ jobs:
             "${BUNDLE_SHA256}" "${BUNDLE_NAME}" > "${expected_checksum}"
           cmp -s "${expected_checksum}" "${checksum}"
           (cd "${RUNNER_TEMP}" && sha256sum --check --strict "${BUNDLE_CHECKSUM_NAME}")
+          [[ "$(wc -c < "${formula}" | tr -d ' ')" == "${FORMULA_SIZE}" ]]
+          [[ "$(sha256sum "${formula}" | cut -d' ' -f1)" == "${FORMULA_SHA256}" ]]
 
           git init --quiet
           git config user.name "github-actions[bot]"
@@ -1243,6 +1466,28 @@ jobs:
           [[ "$(jq -r '.rcTag' <<<"${request}")" == "${RC_TAG}" ]]
           [[ "$(jq -r '.requestId' <<<"${request}")" == "${REQUEST_ID}" ]]
 
+          validate_catalog() {
+            jq -e --arg v "$2" --arg s "$3" \
+              '.name == "grillmester" and .metadata.version == $v and
+               (.plugins | length) == 1 and [.plugins[].name] == ["grillmester"] and
+               [.plugins[].version] == [$v] and .plugins[0].source ==
+               {source: "github", repo: "navikt/grillmester", path: "plugin", sha: $s}' \
+              "$1" >/dev/null
+          }
+          regenerate_catalog() {
+            jq -n \
+              --arg n "$(jq -er '.marketplace.name' "$1")" \
+              --arg o "$(jq -er '.marketplace.owner' "$1")" \
+              --arg d "$(jq -er '.marketplace.description' "$1")" \
+              --arg pn "$(jq -er '.name' "$2")" \
+              --arg pd "$(jq -er '.description' "$2")" \
+              --arg v "$3" --arg s "$4" \
+              '{name: $n, owner: {name: $o}, metadata: {description: $d, version: $v},
+                plugins: [{name: $pn, description: $pd, version: $v,
+                  source: {source: "github", repo: "navikt/grillmester",
+                    path: "plugin", sha: $s}}]}' > "$5"
+          }
+
           git cat-file -e "${CATALOG_SHA}^{commit}"
           git cat-file -e "${SOURCE_SHA}^{commit}"
           git merge-base --is-ancestor \
@@ -1261,22 +1506,7 @@ jobs:
           else
             [[ "${version}" != *-* ]]
           fi
-          jq -e \
-            --arg version "${version}" \
-            --arg source_sha "${SOURCE_SHA}" \
-            '
-              .name == "grillmester" and
-              .metadata.version == $version and
-              (.plugins | length) == 1 and
-              [.plugins[].name] == ["grillmester"] and
-              [.plugins[].version] == [$version] and
-              .plugins[0].source == {
-                source: "github",
-                repo: "navikt/grillmester",
-                path: "plugin",
-                sha: $source_sha
-              }
-            ' "${catalog_file}" >/dev/null
+          validate_catalog "${catalog_file}" "${version}" "${SOURCE_SHA}"
 
           package_manifest_file="${RUNNER_TEMP}/package-manifest.json"
           standard_manifest_file="${RUNNER_TEMP}/grillmester-plugin.json"
@@ -1312,22 +1542,10 @@ jobs:
               .author.name == $owner and
               .repository == "https://github.com/navikt/grillmester" and
               .agents == "agents/" and .skills == "skills/"
-            ' "${standard_manifest_file}" >/dev/null
+          ' "${standard_manifest_file}" >/dev/null
           regenerated_catalog="${RUNNER_TEMP}/regenerated-marketplace.json"
-          jq -n \
-            --arg marketplace_name "$(jq -er '.marketplace.name' "${package_manifest_file}")" \
-            --arg owner "$(jq -er '.marketplace.owner' "${package_manifest_file}")" \
-            --arg marketplace_description "$(jq -er '.marketplace.description' "${package_manifest_file}")" \
-            --arg standard_name "$(jq -er '.name' "${standard_manifest_file}")" \
-            --arg standard_description "$(jq -er '.description' "${standard_manifest_file}")" \
-            --arg version "${version}" \
-            --arg source_sha "${SOURCE_SHA}" \
-            '{name: $marketplace_name, owner: {name: $owner}, metadata: {
-              description: $marketplace_description, version: $version
-            }, plugins: [{name: $standard_name,
-              description: $standard_description, version: $version,
-              source: {source: "github", repo: "navikt/grillmester",
-                path: "plugin", sha: $source_sha}}]}' > "${regenerated_catalog}"
+          regenerate_catalog "${package_manifest_file}" "${standard_manifest_file}" \
+            "${version}" "${SOURCE_SHA}" "${regenerated_catalog}"
           cmp -s "${regenerated_catalog}" "${catalog_file}"
 
           if [[ "${CHANNEL}" == "stable" ]]; then
@@ -1339,6 +1557,7 @@ jobs:
             [[ "${RC_BUNDLE_CHECKSUM_NAME}" == "${RC_BUNDLE_NAME}.sha256" ]]
             [[ "${RC_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
             [[ "${RC_BUNDLE_CHECKSUM_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+            [[ "${RC_FORMULA_SHA256}" =~ ^[0-9a-f]{64}$ ]]
             git fetch --no-tags origin "refs/tags/${RC_TAG}:refs/tags/${RC_TAG}"
             [[ "$(git cat-file -t "refs/tags/${RC_TAG}")" == "tag" ]]
             [[ "$(git rev-parse "refs/tags/${RC_TAG}^{}")" == "${RC_CATALOG_SHA}" ]]
@@ -1351,22 +1570,8 @@ jobs:
             git show "${RC_CATALOG_SHA}:.github/plugin/marketplace.json" > "${rc_catalog_file}"
             rc_catalog_version="$(jq -er '.metadata.version' "${rc_catalog_file}")"
             [[ "v${rc_catalog_version}" == "${RC_TAG}" ]]
-            jq -e \
-              --arg version "${rc_catalog_version}" \
-              --arg source_sha "${RC_SOURCE_SHA}" \
-              '
-                .name == "grillmester" and
-                .metadata.version == $version and
-                (.plugins | length) == 1 and
-                [.plugins[].name] == ["grillmester"] and
-                [.plugins[].version] == [$version] and
-                .plugins[0].source == {
-                  source: "github",
-                  repo: "navikt/grillmester",
-                  path: "plugin",
-                  sha: $source_sha
-                }
-              ' "${rc_catalog_file}" >/dev/null
+            validate_catalog \
+              "${rc_catalog_file}" "${rc_catalog_version}" "${RC_SOURCE_SHA}"
             git merge-base --is-ancestor \
               "${RC_SOURCE_SHA}" refs/remotes/origin/main
             rc_package_manifest_file="${RUNNER_TEMP}/rc-package-manifest.json"
@@ -1384,10 +1589,12 @@ jobs:
             [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
               -- plugin ':(exclude)plugin/plugin.json')" ]]
             [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
-              -- LICENSE PROVENANCE.md plugin/THIRD_PARTY_NOTICES.md \
+              -- LICENSE PROVENANCE.md THIRD_PARTY_NOTICES.md \
                  policy/content-lock.json policy/client-artifacts.json \
                  targets/opencode-v1 profiles/opencode \
-                 scripts/build_opencode_bundle.py scripts/manage_opencode.py \
+                 scripts/build_opencode_bundle.py scripts/grillmester.py \
+                 scripts/generate_homebrew_formula.py \
+                 scripts/manage_opencode.py \
                  scripts/compose_opencode_permissions.py scripts/release_contract.py \
                  scripts/verify_client_artifact.py scripts/smoke_plugin_install.py \
                  scripts/smoke_opencode.py scripts/smoke_opencode_runtime.py)" ]]
@@ -1402,20 +1609,9 @@ jobs:
             cmp -s "${normalized_standard_manifest}" "${rc_standard_manifest_file}"
 
             regenerated_rc_catalog="${RUNNER_TEMP}/regenerated-rc-marketplace.json"
-            jq -n \
-              --arg marketplace_name "$(jq -er '.marketplace.name' "${rc_package_manifest_file}")" \
-              --arg owner "$(jq -er '.marketplace.owner' "${rc_package_manifest_file}")" \
-              --arg marketplace_description "$(jq -er '.marketplace.description' "${rc_package_manifest_file}")" \
-              --arg standard_name "$(jq -er '.name' "${rc_standard_manifest_file}")" \
-              --arg standard_description "$(jq -er '.description' "${rc_standard_manifest_file}")" \
-              --arg version "${rc_version}" \
-              --arg source_sha "${RC_SOURCE_SHA}" \
-              '{name: $marketplace_name, owner: {name: $owner}, metadata: {
-                description: $marketplace_description, version: $version
-              }, plugins: [{name: $standard_name,
-                description: $standard_description, version: $version,
-                source: {source: "github", repo: "navikt/grillmester",
-                  path: "plugin", sha: $source_sha}}]}' > "${regenerated_rc_catalog}"
+            regenerate_catalog \
+              "${rc_package_manifest_file}" "${rc_standard_manifest_file}" \
+              "${rc_version}" "${RC_SOURCE_SHA}" "${regenerated_rc_catalog}"
             cmp -s "${regenerated_rc_catalog}" "${rc_catalog_file}"
             rc_release="$(gh api \
               -H 'Accept: application/vnd.github+json' \
@@ -1430,8 +1626,10 @@ jobs:
               --arg bundle_digest "sha256:${RC_BUNDLE_SHA256}" \
               --arg checksum "${RC_BUNDLE_CHECKSUM_NAME}" \
               --arg checksum_digest "sha256:${RC_BUNDLE_CHECKSUM_SHA256}" \
-              '(.assets | length) == 2 and
-               ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
+              --arg formula "grillmester.rb" \
+              --arg formula_digest "sha256:${RC_FORMULA_SHA256}" \
+              '(.assets | length) == 3 and
+               ([.assets[].name] | sort) == ([$bundle, $checksum, $formula] | sort) and
                all(.assets[]; .state == "uploaded") and
                any(.assets[];
                  .name == $bundle and
@@ -1440,18 +1638,25 @@ jobs:
                any(.assets[];
                  .name == $checksum and
                  .label == "SHA-256 checksum" and
-                 .digest == $checksum_digest)' \
+                 .digest == $checksum_digest) and
+               any(.assets[];
+                 .name == $formula and
+                 .label == "Homebrew formula" and
+                 .digest == $formula_digest)' \
               <<<"${rc_release}" >/dev/null
             current_rc_assets="${RUNNER_TEMP}/current-rc-assets"
             mkdir -p "${current_rc_assets}"
             gh release download "${RC_TAG}" --repo "${REPOSITORY}" \
               --dir "${current_rc_assets}" \
               --pattern "${RC_BUNDLE_NAME}" \
-              --pattern "${RC_BUNDLE_CHECKSUM_NAME}"
+              --pattern "${RC_BUNDLE_CHECKSUM_NAME}" \
+              --pattern "grillmester.rb"
             [[ "$(sha256sum "${current_rc_assets}/${RC_BUNDLE_NAME}" | cut -d' ' -f1)" == \
                "${RC_BUNDLE_SHA256}" ]]
             [[ "$(sha256sum "${current_rc_assets}/${RC_BUNDLE_CHECKSUM_NAME}" | cut -d' ' -f1)" == \
                "${RC_BUNDLE_CHECKSUM_SHA256}" ]]
+            [[ "$(sha256sum "${current_rc_assets}/grillmester.rb" | cut -d' ' -f1)" == \
+               "${RC_FORMULA_SHA256}" ]]
             expected_rc_checksum="${RUNNER_TEMP}/expected-${RC_BUNDLE_CHECKSUM_NAME}"
             printf '%s  %s\n' \
               "${RC_BUNDLE_SHA256}" "${RC_BUNDLE_NAME}" > "${expected_rc_checksum}"
@@ -1462,6 +1667,7 @@ jobs:
             [[ -z "${RC_TAG}" && -z "${RC_CATALOG_SHA}" && -z "${RC_SOURCE_SHA}" ]]
             [[ -z "${RC_BUNDLE_NAME}" && -z "${RC_BUNDLE_CHECKSUM_NAME}" ]]
             [[ -z "${RC_BUNDLE_SHA256}" && -z "${RC_BUNDLE_CHECKSUM_SHA256}" ]]
+            [[ -z "${RC_FORMULA_SHA256}" ]]
           fi
 
           verify_remote_tag() {
@@ -1510,17 +1716,17 @@ jobs:
               --arg bundle_digest "sha256:${BUNDLE_SHA256}" \
               --arg checksum "${BUNDLE_CHECKSUM_NAME}" \
               --arg checksum_digest "sha256:$(sha256sum "${checksum}" | cut -d' ' -f1)" \
-              '(.assets | length) == 2 and
-               ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
+              --arg formula "${FORMULA_NAME}" \
+              --arg formula_digest "sha256:${FORMULA_SHA256}" \
+              '(.assets | length) == 3 and
+               ([.assets[].name] | sort) == ([$bundle, $checksum, $formula] | sort) and
                all(.assets[]; .state == "uploaded") and
-               any(.assets[];
-                 .name == $bundle and
-                 .label == "Grillmester OpenCode bundle" and
-                 .digest == $bundle_digest) and
-               any(.assets[];
-                 .name == $checksum and
-                 .label == "SHA-256 checksum" and
-                 .digest == $checksum_digest)' \
+               any(.assets[]; .name == $bundle and
+                 .label == "Grillmester OpenCode bundle" and .digest == $bundle_digest) and
+               any(.assets[]; .name == $checksum and
+                 .label == "SHA-256 checksum" and .digest == $checksum_digest) and
+               any(.assets[]; .name == $formula and
+                 .label == "Homebrew formula" and .digest == $formula_digest)' \
               <<<"${release}" >/dev/null
           }
           find_release() {
@@ -1539,9 +1745,7 @@ jobs:
               <<<"${pages}"
           }
           download_asset_from_release() {
-            local destination="$2"
-            local name="$1"
-            local asset_id
+            local name="$1" destination="$2" asset_id
             asset_id="$(jq -er --arg name "${name}" \
               '.assets[] | select(.name == $name) | .id' <<<"${release}")"
             [[ "${asset_id}" =~ ^[1-9][0-9]*$ ]]
@@ -1556,9 +1760,8 @@ jobs:
           release_lookup_status=0
           release="$(find_release)" || release_lookup_status=$?
           if [[ "${release_lookup_status}" == "0" ]]; then
-            if [[ "$(jq -r '.draft' <<<"${release}")" == "false" ]]; then
+            [[ "$(jq -r '.draft' <<<"${release}")" != "false" ]] || \
               release_already_published="true"
-            fi
           elif [[ "${release_lookup_status}" == "4" ]]; then
             create_args=(
               release create "${TAG}" --verify-tag --draft --latest=false
@@ -1577,12 +1780,15 @@ jobs:
             jq -e \
               --arg bundle "${BUNDLE_NAME}" \
               --arg checksum "${BUNDLE_CHECKSUM_NAME}" \
+              --arg formula "${FORMULA_NAME}" \
               '([.assets[].name] | unique | length) == (.assets | length) and
-               all(.assets[]; .name == $bundle or .name == $checksum)' \
+               all(.assets[];
+                 .name == $bundle or .name == $checksum or .name == $formula)' \
               <<<"${release}" >/dev/null
             gh release upload "${TAG}" --repo "${REPOSITORY}" --clobber \
               "${bundle}#Grillmester OpenCode bundle" \
-              "${checksum}#SHA-256 checksum"
+              "${checksum}#SHA-256 checksum" \
+              "${formula}#Homebrew formula"
             release="$(find_release)"
             verify_release_metadata "true"
             verify_release_asset_roster
@@ -1593,8 +1799,11 @@ jobs:
               "${BUNDLE_NAME}" "${staged_assets}/${BUNDLE_NAME}"
             download_asset_from_release \
               "${BUNDLE_CHECKSUM_NAME}" "${staged_assets}/${BUNDLE_CHECKSUM_NAME}"
+            download_asset_from_release \
+              "${FORMULA_NAME}" "${staged_assets}/${FORMULA_NAME}"
             cmp -s "${bundle}" "${staged_assets}/${BUNDLE_NAME}"
             cmp -s "${checksum}" "${staged_assets}/${BUNDLE_CHECKSUM_NAME}"
+            cmp -s "${formula}" "${staged_assets}/${FORMULA_NAME}"
 
             publish_args=(
               release edit "${TAG}" --verify-tag --draft=false
@@ -1617,8 +1826,11 @@ jobs:
             "${BUNDLE_NAME}" "${published_assets}/${BUNDLE_NAME}"
           download_asset_from_release \
             "${BUNDLE_CHECKSUM_NAME}" "${published_assets}/${BUNDLE_CHECKSUM_NAME}"
+          download_asset_from_release \
+            "${FORMULA_NAME}" "${published_assets}/${FORMULA_NAME}"
           cmp -s "${bundle}" "${published_assets}/${BUNDLE_NAME}"
           cmp -s "${checksum}" "${published_assets}/${BUNDLE_CHECKSUM_NAME}"
+          cmp -s "${formula}" "${published_assets}/${FORMULA_NAME}"
           [[ "$(sha256sum "${published_assets}/${BUNDLE_NAME}" | cut -d' ' -f1)" == \
              "${BUNDLE_SHA256}" ]]
           if [[ "${release_already_published}" == "true" ]]; then
@@ -1642,6 +1854,8 @@ jobs:
       CATALOG_SHA: ${{ needs.validate.outputs.catalog-sha }}
       SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
       TAG: ${{ needs.validate.outputs.tag }}
+      FORMULA_NAME: ${{ needs.validate.outputs.formula-name }}
+      FORMULA_SHA256: ${{ needs.validate.outputs.formula-sha256 }}
     steps:
       - name: Check out trusted smoke tooling
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1685,12 +1899,15 @@ jobs:
           [[ "${BUNDLE_NAME}" == "grillmester-opencode-${TAG}.tar.gz" ]]
           [[ "${BUNDLE_NAME}" =~ ^grillmester-opencode-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
           [[ "${BUNDLE_CHECKSUM_NAME}" == "${BUNDLE_NAME}.sha256" ]]
+          [[ "${FORMULA_NAME}" == "grillmester.rb" ]]
+          [[ "${FORMULA_SHA256}" =~ ^[0-9a-f]{64}$ ]]
           download_root="${RUNNER_TEMP}/opencode-download"
           extract_root="${RUNNER_TEMP}/opencode-extract"
           install_home="${RUNNER_TEMP}/opencode-install"
           mkdir -p "${download_root}" "${extract_root}"
           bundle="${download_root}/${BUNDLE_NAME}"
           checksum="${download_root}/${BUNDLE_CHECKSUM_NAME}"
+          formula="${download_root}/${FORMULA_NAME}"
           release_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
           curl --config /dev/null --fail-with-body --silent --show-error --location \
             --proto '=https' --tlsv1.2 --proto-redir '=https' \
@@ -1700,12 +1917,25 @@ jobs:
             --proto '=https' --tlsv1.2 --proto-redir '=https' \
             --max-filesize 1024 \
             "${release_url}/${BUNDLE_CHECKSUM_NAME}" --output "${checksum}"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 100000 \
+            "${release_url}/${FORMULA_NAME}" --output "${formula}"
           expected_checksum="${download_root}/expected.sha256"
           printf '%s  %s\n' \
             "${BUNDLE_SHA256}" "${BUNDLE_NAME}" > "${expected_checksum}"
           cmp -s "${expected_checksum}" "${checksum}"
           (cd "${download_root}" && \
             sha256sum --check --strict "${BUNDLE_CHECKSUM_NAME}")
+          [[ "$(sha256sum "${formula}" | cut -d' ' -f1)" == "${FORMULA_SHA256}" ]]
+          expected_formula="${download_root}/expected-grillmester.rb"
+          python3 "${SOURCE_ROOT}/scripts/generate_homebrew_formula.py" \
+            --tag "${TAG}" --bundle-name "${BUNDLE_NAME}" \
+            --bundle-sha256 "${BUNDLE_SHA256}" \
+            --client-artifacts "${SOURCE_ROOT}/policy/client-artifacts.json" \
+            --output "${expected_formula}"
+          ruby -c "${formula}"
+          cmp -s "${expected_formula}" "${formula}"
 
           python3 - "${bundle}" "${extract_root}" "${SOURCE_SHA}" <<'PY'
           import hashlib

@@ -17,6 +17,9 @@ PROMOTE_WORKFLOW = ROOT / ".github/workflows/promote-release.yml"
 RELEASE_WORKFLOW = ROOT / ".github/workflows/publish-release.yml"
 VALIDATE_WORKFLOW = ROOT / ".github/workflows/validate.yml"
 MACOS_WORKFLOW = ROOT / ".github/workflows/macos-opencode-compatibility.yml"
+MACOS_HOMEBREW_WORKFLOW = (
+    ROOT / ".github/workflows/macos-homebrew-compatibility.yml"
+)
 
 
 class PublishWorkflowContractTest(unittest.TestCase):
@@ -84,7 +87,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
     def test_macos_gate_verifies_and_runs_pinned_native_clients(self) -> None:
         text = MACOS_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("workflow_call:", text)
-        self.assertIn("runs-on: macos-15", text)
+        self.assertIn("runs-on: ${{ matrix.runner }}", text)
+        self.assertIn("- macos-15", text)
+        self.assertIn("- macos-15-intel", text)
         self.assertIn("timeout-minutes: 30", text)
         self.assertIn("persist-credentials: false", text)
         self.assertIn('ref: ${{ inputs.source_sha }}', text)
@@ -99,9 +104,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 "9598c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952",
             ),
             (
-                "opencode-darwin-x64-baseline-1.18.20.tgz",
-                "f8a179f6efd24a3532686aadae3724cb0b151b2a8170ece444970ed5cdc2af1f"
-                "c8295f94d9accdb8867f4b6da78047d77f8bbd7f1793fc2a2199cceadacf1509",
+                "opencode-darwin-x64-1.18.20.tgz",
+                "cbade5db7d9d2cf3175a66155aba13c5b77bc1f602b1178f05a5ec8bb9f77983"
+                "cd7bb29ea3aacc97170db266c187173c3a609eaf4c83f4391a492e7230b83dc1",
                 "96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60",
             ),
             (
@@ -140,14 +145,32 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("scripts/smoke_opencode_runtime.py", text)
         self.assertIn('cmp -s "${bundle}" "${repeated}"', text)
 
+    def test_macos_gate_reaches_the_installed_opencode_tui_through_cplt(self) -> None:
+        workflow = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
+        gate = workflow.split('          tui_consumer="${qa_root}/tui-consumer"', 1)[
+            1
+        ].split("          cleanup", 1)[0]
+
+        self.assertIn("scripts/smoke_grillmester_tui.py", gate)
+        self.assertIn('--launcher "${prefix}/bin/grillmester"', gate)
+        self.assertIn('--opencode "${prefix}/libexec/clients/opencode"', gate)
+        self.assertIn('--cplt "${prefix}/libexec/clients/cplt"', gate)
+        self.assertIn('--project-dir "${tui_consumer}"', gate)
+        self.assertLess(
+            workflow.index('brew install --formula "${formula_name}"'),
+            workflow.index("scripts/smoke_grillmester_tui.py"),
+        )
+        self.assertNotIn("COPILOT", gate)
+
     def test_macos_gate_is_bound_to_the_reviewed_darwin_artifact_lock(self) -> None:
         text = MACOS_WORKFLOW.read_text(encoding="utf-8")
+        homebrew = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
         artifact_lock = json.loads(
             (ROOT / "policy/client-artifacts.json").read_text(encoding="utf-8")
         )
         selections = (
             ("opencode", "arm64", "default"),
-            ("opencode", "x86_64", "baseline"),
+            ("opencode", "x86_64", "default"),
             ("cplt", "arm64", "default"),
             ("cplt", "x86_64", "default"),
         )
@@ -183,6 +206,88 @@ class PublishWorkflowContractTest(unittest.TestCase):
                     value=value,
                 ):
                     self.assertIn(value, text)
+            self.assertIn(artifact["executable"]["sha256"], homebrew)
+
+    def test_macos_gate_installs_and_tests_the_generated_homebrew_formula(self) -> None:
+        text = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("runs-on: ${{ matrix.runner }}", text)
+        self.assertIn("- macos-15", text)
+        self.assertIn("- macos-15-intel", text)
+        self.assertIn("persist-credentials: false", text)
+        self.assertIn("contents: read", text)
+        gate = text.split(
+            "Install and test the generated Homebrew formula", maxsplit=1
+        )[1]
+        self.assertEqual(2, gate.count("scripts/build_opencode_bundle.py"))
+        self.assertNotIn("brew install --overwrite", gate)
+        self.assertNotIn("brew install --ignore-dependencies", gate)
+
+        for marker in (
+            'cmp -s "${bundle}" "${repeated}"',
+            "prepare_hosted_intel_python_links",
+            "restore_hosted_intel_python_links",
+            'readlink "${target}"',
+            'brew uninstall --formula python@3.13',
+            'mv "${target}" "${backup}"',
+            'mv "${backup}" "${target}"',
+            "scripts/generate_homebrew_formula.py",
+            'ruby -c "${formula}"',
+            'brew tap-new --no-git "${tap_name}"',
+            'brew style "${formula_name}"',
+            'brew audit --strict "${formula_name}"',
+            'brew install --formula "${formula_name}"',
+            'brew test --verbose "${formula_name}"',
+            "doctor --client opencode",
+            "libexec/clients/cplt",
+            "libexec/clients/opencode",
+            "cplt_binary_sha256",
+            "opencode_binary_sha256",
+            "anomalyco/opencode",
+            "navikt/cplt",
+            'brew uninstall --formula "${formula_name}"',
+            '[[ ! -e "${linked_launcher}" && ! -L "${linked_launcher}" ]]',
+            '[[ ! -e "${prefix}" && ! -L "${prefix}" ]]',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, gate)
+
+    def test_release_macos_gate_tests_the_exact_sealed_formula(self) -> None:
+        macos = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
+        install = macos.split(
+            "Install and test the generated Homebrew formula", maxsplit=1
+        )[1]
+
+        for marker in (
+            'encoded = os.environ["SEALED_FORMULA_BASE64"]',
+            "base64.b64decode(encoded, validate=True)",
+            "hashlib.sha256(content).hexdigest() != expected_digest",
+            'cp "${sealed_formula}" "${formula}"',
+        ):
+            self.assertIn(marker, install)
+        self.assertIn('cmp -s "${expected_formula}" "${formula}"', install)
+        self.assertLess(
+            install.index('cmp -s "${expected_formula}" "${formula}"'),
+            install.index('brew install --formula "${formula_name}"'),
+        )
+
+        release = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        verify_job = release.split(
+            "\n  verify-release-assets:\n", maxsplit=1
+        )[1].split("\n  release:\n", maxsplit=1)[0]
+        export = verify_job.split(
+            "Export independently verified formula for macOS", maxsplit=1
+        )[1].split("Independently enforce stable rights approval", maxsplit=1)[0]
+        for marker in (
+            'Path(os.environ["RUNNER_TEMP"]) / os.environ["FORMULA_NAME"]',
+            'hashlib.sha256(content).hexdigest() != os.environ["FORMULA_SHA256"]',
+            "base64.b64encode(content).decode(\"ascii\")",
+            'output.write(f"formula_base64={encoded}\\n")',
+        ):
+            self.assertIn(marker, export)
+        self.assertLess(
+            verify_job.index("Independently bind formula with trusted release tooling"),
+            verify_job.index("Export independently verified formula for macOS"),
+        )
 
     def test_macos_gate_proves_strict_native_copilot_domain_composition_without_auth(self) -> None:
         text = MACOS_WORKFLOW.read_text(encoding="utf-8")
@@ -324,7 +429,48 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 workflow.name,
             )
             self.assertIn(f"source_sha: {source}", job, workflow.name)
-            self.assertIn("permissions:\n      contents: read", job, workflow.name)
+            self.assertIn("contents: read", job, workflow.name)
+            self.assertNotIn("actions: read", job, workflow.name)
+
+    def test_homebrew_gate_is_structurally_unreachable_from_manual_inputs(self) -> None:
+        core = MACOS_WORKFLOW.read_text(encoding="utf-8")
+        homebrew = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertNotIn("Install and test the generated Homebrew formula", core)
+        self.assertNotIn("brew install", core)
+        self.assertIn("Install and test the generated Homebrew formula", homebrew)
+        self.assertNotIn("workflow_dispatch", homebrew)
+        self.assertNotIn("actions: read", homebrew)
+        self.assertNotIn("github.token", homebrew)
+        self.assertNotIn("/actions/artifacts/", homebrew)
+
+        reusable = "uses: ./.github/workflows/macos-homebrew-compatibility.yml"
+        for workflow in (WORKFLOW, PROMOTE_WORKFLOW):
+            self.assertNotIn(reusable, workflow.read_text(encoding="utf-8"))
+
+        expected_sources = {
+            VALIDATE_WORKFLOW: "${{ github.sha }}",
+            RELEASE_WORKFLOW: "${{ needs.validate.outputs.source-sha }}",
+        }
+        for workflow, source in expected_sources.items():
+            text = workflow.read_text(encoding="utf-8")
+            job = text.split("\n  macos-homebrew-compatibility:\n", maxsplit=1)[1]
+            job = re.split(r"(?m)^  [a-z0-9-]+:\n", job, maxsplit=1)[0]
+            self.assertIn(reusable, job, workflow.name)
+            self.assertIn(f"source_sha: {source}", job, workflow.name)
+            self.assertIn("contents: read", job, workflow.name)
+            self.assertNotIn("actions: read", job, workflow.name)
+
+        release = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        verify_job = release.split(
+            "\n  verify-release-assets:\n", maxsplit=1
+        )[1].split("\n  release:\n", maxsplit=1)[0]
+        release_job = release.split(
+            "\n  macos-homebrew-compatibility:\n", maxsplit=1
+        )[1].split("\n  macos-live-compatibility:\n", maxsplit=1)[0]
+        self.assertIn("formula-base64:", verify_job)
+        self.assertIn("needs.verify-release-assets.outputs.formula-base64", release_job)
+        self.assertNotIn("release_artifact_", release_job)
 
     def test_every_release_gate_uses_the_pinned_native_opencode_smoke(self) -> None:
         workflows = {
@@ -514,11 +660,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
             '--rc-source-repo "${rc_source_repo}"',
             'policy/stable-rights-approval.json',
             'git cat-file -t "refs/tags/${RC_TAG}"',
-            '(.assets | length) == 2',
+            '(.assets | length) == 3',
             "'.immutable'",
             'python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"',
             'cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"',
             'sha256sum --check --strict',
+            '.label == "Homebrew formula"',
+            'scripts/generate_homebrew_formula.py',
+            'cmp -s "${rc_expected_formula}" "${rc_published_formula}"',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, validate_job)
@@ -675,11 +824,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("request_id=${request_id}", text)
         self.assertIn('BEFORE_SHA: ${{ github.event.before }}', text)
         self.assertEqual(
-            2,
+            3,
             text.count('git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}"'),
         )
         self.assertEqual(
-            2,
+            3,
             text.count('git merge-base --is-ancestor "${BEFORE_SHA}" "${MAIN_SHA}"'),
         )
 
@@ -770,6 +919,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "needs:\n"
             "      - validate\n"
             "      - copilot-compatibility\n"
+            "      - macos-homebrew-compatibility\n"
             "      - macos-live-compatibility\n"
             "      - verify-release-assets",
             write_job,
@@ -783,10 +933,20 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("github.token", release_candidate)
         self.assertNotIn("IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", release_candidate)
 
-        for workflow in (PROMOTE_WORKFLOW, MACOS_WORKFLOW):
-            text = workflow.read_text(encoding="utf-8")
-            self.assertNotIn("github.token", text, workflow.name)
-            self.assertNotIn("IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", text, workflow.name)
+        promote = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("github.token", promote, PROMOTE_WORKFLOW.name)
+        self.assertNotIn(
+            "IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", promote, PROMOTE_WORKFLOW.name
+        )
+
+        macos = MACOS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", macos)
+        self.assertNotIn("github.token", macos)
+        self.assertNotIn("/actions/artifacts/", macos)
+        homebrew = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", homebrew)
+        self.assertNotIn("github.token", homebrew)
+        self.assertNotIn("/actions/artifacts/", homebrew)
 
     def test_published_release_must_read_back_as_immutable(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
@@ -803,7 +963,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertIn('verify_release_metadata "false"', write_job)
 
-    def test_release_seals_deterministic_opencode_assets_before_write(self) -> None:
+    def test_release_seals_deterministic_terminal_assets_before_write(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         # GitHub rejects workflow files larger than 500 KB.
         self.assertLessEqual(len(text.encode("utf-8")), 500_000)
@@ -816,7 +976,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
             "\n  remote-smoke:\n", maxsplit=1
         )[0]
-        self.assertIn("Build and seal deterministic OpenCode release assets", validate_job)
+        self.assertIn("Build and seal deterministic terminal release assets", validate_job)
         self.assertIn(
             'python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py"',
             validate_job,
@@ -825,12 +985,24 @@ class PublishWorkflowContractTest(unittest.TestCase):
         # rebuild that binds stable promotion to the published candidate asset.
         self.assertEqual(3, validate_job.count("scripts/build_opencode_bundle.py"))
         self.assertIn('cmp -s "${bundle}" "${repeated}"', validate_job)
+        self.assertIn(
+            'python3 "${SOURCE_ROOT}/scripts/generate_homebrew_formula.py"',
+            validate_job,
+        )
+        self.assertIn(
+            '--client-artifacts "${SOURCE_ROOT}/policy/client-artifacts.json"',
+            validate_job,
+        )
+        self.assertIn('ruby -c "${formula}"', validate_job)
         for output in (
             "bundle_artifact_name",
             "bundle_checksum_name",
             "bundle_name",
             "bundle_sha256",
             "bundle_size",
+            "formula_name",
+            "formula_sha256",
+            "formula_size",
         ):
             self.assertIn(f"echo \"{output}=", validate_job)
             self.assertIn(f"steps.bundle.outputs.{output}", text)
@@ -875,7 +1047,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         for mapping in (
             '"LICENSE": "LICENSE"',
             '"PROVENANCE.md": "PROVENANCE.md"',
-            '"plugin/THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"',
+            '"THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"',
             '"policy/content-lock.json": "policy/content-lock.json"',
             '"policy/client-artifacts.json": "policy/client-artifacts.json"',
         ):
@@ -896,8 +1068,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
             self.assertIn(
                 'unzip -p "${artifact_zip}" "${BUNDLE_NAME}"', boundary
             )
+            self.assertIn(
+                'unzip -p "${artifact_zip}" "${FORMULA_NAME}"', boundary
+            )
             self.assertIn("(( BUNDLE_SIZE <= 61000000 ))", boundary)
-            self.assertIn("(( artifact_size <= 62000000 ))", boundary)
+            self.assertIn("(( artifact_size <= 62100000 ))", boundary)
         self.assertIn("max_file_bytes = 5_000_000", verify_job)
         self.assertIn("max_distribution_bytes = 50_000_000", verify_job)
         self.assertIn("len(members) > 10000", verify_job)
@@ -907,6 +1082,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertIn('cmp -s "${expected_checksum}" "${checksum}"', write_job)
         self.assertIn("sha256sum --check --strict", write_job)
+        self.assertIn(
+            '[[ "$(sha256sum "${formula}" | cut -d\' \' -f1)" == "${FORMULA_SHA256}" ]]',
+            write_job,
+        )
 
         # GitHub rejects an individual run command above 21,000 characters.
         for job in (verify_job, write_job):
@@ -914,19 +1093,65 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 raw_script = raw_script.split("\n      - name:", maxsplit=1)[0]
                 self.assertLessEqual(len(textwrap.dedent(raw_script)), 21_000)
 
+    def test_release_independently_rebuilds_formula_with_trusted_tooling(self) -> None:
+        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        verify_job = text.split(
+            "\n  verify-release-assets:\n", maxsplit=1
+        )[1].split("\n  release:\n", maxsplit=1)[0]
+        step = verify_job.split(
+            "Independently bind formula with trusted release tooling", maxsplit=1
+        )[1].split(
+            "Independently enforce stable rights approval", maxsplit=1
+        )[0]
+
+        for marker in (
+            'git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}"',
+            'git show "${MAIN_SHA}:scripts/generate_homebrew_formula.py"',
+            'git show "${SOURCE_SHA}:policy/client-artifacts.json"',
+            'python3 -I -S "${trusted_generator}"',
+            '--bundle-sha256 "${BUNDLE_SHA256}"',
+            '"${FORMULA_SHA256}"',
+            'cmp -s "${expected_formula}" "${RUNNER_TEMP}/${FORMULA_NAME}"',
+        ):
+            self.assertIn(marker, step)
+        self.assertNotIn("github.token", step)
+
+    def test_release_approval_summary_shows_exact_sealed_values(self) -> None:
+        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        summary = text.split(
+            "Write protected-environment approval summary", maxsplit=1
+        )[1].split("Install checksum-pinned OpenCode CLI", maxsplit=1)[0]
+        for value in (
+            "REQUEST_ID",
+            "CHANNEL",
+            "TAG",
+            "CATALOG_SHA",
+            "SOURCE_SHA",
+            "BUNDLE_NAME",
+            "BUNDLE_SHA256",
+            "BUNDLE_SIZE",
+            "FORMULA_SHA256",
+            "FORMULA_SIZE",
+            "ARTIFACT_ID",
+            "ARTIFACT_DIGEST",
+        ):
+            self.assertIn(value, summary)
+        self.assertIn('>> "${GITHUB_STEP_SUMMARY}"', summary)
+
     def test_release_asset_idempotency_requires_exact_remote_bytes(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
             "\n  remote-smoke:\n", maxsplit=1
         )[0]
-        self.assertIn("(.assets | length) == 2", write_job)
+        self.assertIn("(.assets | length) == 3", write_job)
         self.assertIn(
-            '([.assets[].name] | sort) == ([$bundle, $checksum] | sort)',
+            '([.assets[].name] | sort) == ([$bundle, $checksum, $formula] | sort)',
             write_job,
         )
         self.assertIn('all(.assets[]; .state == "uploaded")', write_job)
         self.assertIn("verify_release_asset_roster", write_job)
         self.assertIn(".label == \"Grillmester OpenCode bundle\"", write_job)
+        self.assertIn(".label == \"Homebrew formula\"", write_job)
         self.assertIn(".digest == $bundle_digest", write_job)
         self.assertIn("find_release()", write_job)
         self.assertIn('release_lookup_status}" == "4"', write_job)
@@ -940,8 +1165,13 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'cmp -s "${checksum}" "${published_assets}/${BUNDLE_CHECKSUM_NAME}"',
             write_job,
         )
+        self.assertIn(
+            'cmp -s "${formula}" "${published_assets}/${FORMULA_NAME}"',
+            write_job,
+        )
         self.assertIn('"${bundle}#Grillmester OpenCode bundle"', write_job)
         self.assertIn('"${checksum}#SHA-256 checksum"', write_job)
+        self.assertIn('"${formula}#Homebrew formula"', write_job)
         self.assertIn("--draft --latest=false", write_job)
         self.assertIn('verify_release_metadata "true"', write_job)
         self.assertIn('gh release upload "${TAG}"', write_job)
@@ -966,17 +1196,18 @@ class PublishWorkflowContractTest(unittest.TestCase):
             for name in (
                 "build_opencode_bundle.py",
                 "compose_opencode_permissions.py",
+                "grillmester.py",
                 "manage_opencode.py",
                 "verify_client_artifact.py",
             ):
                 shutil.copy2(ROOT / "scripts" / name, source / "scripts" / name)
             shutil.copy2(ROOT / "LICENSE", source / "LICENSE")
             shutil.copy2(ROOT / "PROVENANCE.md", source / "PROVENANCE.md")
-            (source / "plugin").mkdir(parents=True)
             shutil.copy2(
-                ROOT / "plugin/THIRD_PARTY_NOTICES.md",
-                source / "plugin/THIRD_PARTY_NOTICES.md",
+                ROOT / "THIRD_PARTY_NOTICES.md",
+                source / "THIRD_PARTY_NOTICES.md",
             )
+            shutil.copytree(ROOT / "plugin", source / "plugin")
             (source / "policy").mkdir(parents=True)
             for name in ("client-artifacts.json", "content-lock.json"):
                 shutil.copy2(ROOT / "policy" / name, source / "policy" / name)
@@ -984,6 +1215,17 @@ class PublishWorkflowContractTest(unittest.TestCase):
             shutil.copytree(ROOT / "targets", source / "targets")
             subprocess.run(["git", "init", "--quiet", str(source)], check=True)
             subprocess.run(["git", "-C", str(source), "add", "--all"], check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(source),
+                    "add",
+                    "--force",
+                    "targets/opencode-v1/.gitignore",
+                ],
+                check=True,
+            )
             subprocess.run(
                 [
                     "git",
@@ -1041,8 +1283,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("--proto-redir '=https'", remote)
         self.assertIn("--max-filesize 61000000", remote)
         self.assertIn("--max-filesize 1024", remote)
+        self.assertIn("--max-filesize 100000", remote)
         self.assertIn('cmp -s "${expected_checksum}" "${checksum}"', remote)
         self.assertIn("sha256sum --check --strict", remote)
+        self.assertIn("scripts/generate_homebrew_formula.py", remote)
+        self.assertIn('cmp -s "${expected_formula}" "${formula}"', remote)
         self.assertIn("links and special archive nodes are forbidden", remote)
         self.assertIn("archive member escapes extraction root", remote)
         self.assertIn("archive expands beyond the safety limit", remote)
@@ -1055,7 +1300,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn('--source "${bundle_root}/targets/opencode-v1"', remote)
         self.assertIn('--home "${install_home}"', remote)
 
-    def test_stable_release_cannot_drift_opencode_distribution_inputs(self) -> None:
+    def test_stable_release_cannot_drift_terminal_distribution_inputs(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
             "\n  remote-smoke:\n", maxsplit=1
@@ -1065,6 +1310,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "scripts/compose_opencode_permissions.py scripts/release_contract.py",
             write_job,
         )
+        self.assertIn("scripts/generate_homebrew_formula.py", write_job)
         for harness in (
             "scripts/smoke_plugin_install.py",
             "scripts/smoke_opencode.py",
@@ -1074,7 +1320,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         for path in (
             "LICENSE",
             "PROVENANCE.md",
-            "plugin/THIRD_PARTY_NOTICES.md",
+            "THIRD_PARTY_NOTICES.md",
             "policy/content-lock.json",
             "policy/client-artifacts.json",
         ):
@@ -1118,6 +1364,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "rc_bundle_sha256",
             "rc_bundle_checksum_name",
             "rc_bundle_checksum_sha256",
+            "rc_formula_sha256",
         ):
             self.assertIn(f"steps.contract.outputs.{output}", text)
         self.assertIn('.digest == $bundle_digest', write_job)
@@ -1128,21 +1375,28 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn('git cat-file -t "refs/tags/${RC_TAG}"', preflight)
         self.assertIn('git cat-file -t "refs/tags/${RC_TAG}"', write_job)
         for workflow in (validate_job, preflight):
-            self.assertIn("(.assets | length) == 2", workflow)
+            self.assertIn("(.assets | length) == 3", workflow)
             self.assertIn('[[ "$(jq -r \'.immutable\' <<<"${rc_release}")" == "true" ]]', workflow)
             self.assertIn('.label == "Grillmester OpenCode bundle"', workflow)
             self.assertIn('.label == "SHA-256 checksum"', workflow)
+            self.assertIn('.label == "Homebrew formula"', workflow)
             self.assertIn(".browser_download_url", workflow)
             self.assertIn('--proto \'=https\' --tlsv1.2', workflow)
             self.assertIn("--proto-redir '=https'", workflow)
             self.assertIn("--max-filesize 61000000", workflow)
             self.assertIn("--max-filesize 1024", workflow)
+            self.assertIn("--max-filesize 100000", workflow)
             self.assertIn(
                 'python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"',
                 workflow,
             )
             self.assertIn(
                 'cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"',
+                workflow,
+            )
+            self.assertIn("scripts/generate_homebrew_formula.py", workflow)
+            self.assertIn(
+                'cmp -s "${rc_expected_formula}" "${rc_published_formula}"',
                 workflow,
             )
             self.assertLess(
@@ -1158,7 +1412,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("--source-plugin", text)
         self.assertGreaterEqual(
             text.count('[.plugins[].name] == ["grillmester"]'),
-            3,
+            2,
         )
         self.assertNotIn('path: "plugin-nav"', text)
         self.assertIn(

@@ -10,10 +10,13 @@ Grillmester has an immutable, two-step release identity:
 The tag identifies the catalog, not the source tree. GitHub's automatically
 generated source archive for the release therefore contains only
 `.github/plugin/marketplace.json`; it is not an installation artifact. Install
-the Copilot plugin through the Grillmester marketplace. Install OpenCode from
-the separately attached, deterministic `tar.gz` and its detached `.sha256` from
-the same GitHub Release. Never move, replace, delete, or force-update a release
-tag or replace an existing release asset.
+the Copilot plugin through the Grillmester marketplace. The same GitHub Release
+also attaches a deterministic terminal bundle and detached `.sha256`; the
+generated Homebrew formula installs that bundle together with its exact macOS
+OpenCode and cplt resources. Direct archive extraction is the manual path.
+Never move, replace, delete, or force-update a release tag or replace an
+existing release asset. Each release has exactly three maintained assets: the
+terminal bundle, its detached checksum, and `grillmester.rb`.
 
 ## Workflows and trust boundary
 
@@ -31,26 +34,34 @@ Three workflows have deliberately separate jobs:
   floating `marketplace` ref.
 - **Validate immutable release** is an optional, read-only manual preflight.
   Dispatch it from `main` with an exact catalog SHA. It cannot create a tag or
-  release.
+  release. It reruns native macOS client and manager compatibility, but has no
+  structural path to the Homebrew package-manager gate: revision input from a
+  manual dispatch must never precede a cache-capable package-manager step.
 - **Publish reviewed release request** is the only release publisher. It runs
   when a reviewed `.github/release-request.json` change lands on `main`,
   validates the complete chain and stages the exact catalog bytes and
   source-pinned payload in an isolated local smoke. The read-only validation
-  job also builds the OpenCode bundle twice, requires byte identity, verifies
+  job also builds the terminal bundle twice, requires byte identity, verifies
   `DISTRIBUTION-MANIFEST.json`, and seals the exact `tar.gz`, detached checksum
-  and release notes. A separate read-only job retrieves the exact immutable
+  and release notes. It generates and syntax-checks `grillmester.rb`, bound to
+  the same bundle checksum and committed macOS client artifacts, and seals it
+  as the third GitHub Release asset. A separate read-only job retrieves the
+  exact immutable
   artifact ID and uses fixed workflow-owned code to match every archive file,
   mode, manifest entry, and canonical archive property to immutable Git blobs
-  at the selected source SHA. Separate Copilot and genuine macOS compatibility
-  jobs must also pass. The macOS job verifies the pinned native OpenCode and
-  cplt archives and executables before their first execution, runs the native
-  and cplt runtime smokes, proves Seatbelt's same-host localhost semantics plus
+  at the selected source SHA. Separate Copilot, native macOS and Homebrew macOS
+  compatibility jobs must also pass. Both macOS matrices run on Apple Silicon
+  and hosted Intel. The native matrix verifies the pinned OpenCode and cplt
+  archives and executables before their first execution, runs the native and
+  cplt runtime smokes, proves Seatbelt's same-host localhost semantics plus
   blocked remote-host classification under forced proxy policy, and launches
-  the installed manager through `local-only`
-  with an explicit local provider, exact loopback base URL, model ID, and
-  positive context/output limits.
+  the installed manager through `local-only` with an explicit local provider,
+  exact loopback base URL, model ID, and positive context/output limits. The
+  structurally separate Homebrew matrix rebuilds the deterministic bundle,
+  consumes the independently verified release formula when publishing, then
+  audits, installs, tests and uninstalls the formula.
   Only after all of those jobs succeed does the workflow wait at the protected
-  `grillmester-release` environment. The two asset files cross
+  `grillmester-release` environment. The three asset files cross
   that boundary in one immutable
   Actions artifact; only its exact artifact ID, server digest, file digests,
   sizes and names cross as scalar outputs. Its write-capable job contains two
@@ -59,24 +70,26 @@ Three workflows have deliberately separate jobs:
   only to require that immutable GitHub Releases are enabled. The second alone
   receives the ordinary contents-write token, fetches only the sealed artifact
   ID, binds it back to the same workflow run and digest, requires exactly the
-  two expected files, and may therefore only publish the already source-bound
+  three expected files, and may therefore only publish the already source-bound
   sealed bytes without executing selected-source code. It finally requires the
   published release object (and an RC used for stable promotion) to report
   `immutable: true`. After
   publication, a read-only job verifies the tag target, installs from the
-  actual remote `v<version>` marketplace ref, downloads and checksum-verifies
-  the attached OpenCode asset, and exercises its install contract.
+  actual remote `v<version>` marketplace ref, downloads all three assets,
+  checksum-verifies the bundle, regenerates the formula from the tagged source
+  and bundle digest, and exercises the terminal bundle's install contract.
 
 The source reachability control relies on the current linear/squash `main`
 history. If merge commits are enabled, strengthen it to require first-parent
 membership. If `main` advances during validation or before an idempotent rerun,
 the current-main guard fails closed; dispatch a fresh run from current `main`.
 
-### OpenCode asset contract
+### Terminal asset contract
 
 The asset's `DISTRIBUTION-MANIFEST.json` must bind the selected source SHA,
 OpenCode `1.18.20`, cplt `2026.08.17-062831-1008a92`, the inner target manifest
-digest, and the complete distribution inventory. Every cplt-backed profile
+digest, the canonical Copilot plugin, the common launcher, and the complete
+distribution inventory. Every cplt-backed profile
 requires that exact cplt release. The manager and native agents have no runtime
 dependency on `nav-pilot-agent`, the Copilot plugin installation, or a Copilot
 agent. `--direct` remains an explicit opt-out from cplt sandbox and egress
@@ -341,15 +354,16 @@ strict writer separation.
    byte-for-byte from the release contract and plugin manifest at that source.
    It then stages and verifies those exact catalog bytes and the source-pinned
    Grillmester payload locally, builds the deterministic OpenCode bundle twice,
-   and uploads the bundle and detached checksum as one immutable, digest-bound
-   workflow artifact before seeking environment approval. A raw
+   generates `grillmester.rb`, and uploads the bundle, detached checksum and
+   formula as one immutable, digest-bound workflow artifact before seeking
+   environment approval. A raw
    catalog SHA is not passed to Copilot as a marketplace ref; the CLI accepts a
    branch or tag there. OpenCode does not install from that catalog path; its
    release asset is bound to the same source SHA by
    `DISTRIBUTION-MANIFEST.json`.
 6. The environment reviewer compares the request, run summary, catalog SHA,
-   source SHA, OpenCode asset SHA-256, and derived `v<manifest-semver>` tag
-   before approving.
+   source SHA, bundle and formula SHA-256 values, and derived
+   `v<manifest-semver>` tag before approving.
 
 The read-only asset verifier checks the archive's bounded gzip/tar structure,
 canonical manifest, complete inventory, modes, and file bytes against immutable
@@ -358,14 +372,16 @@ before it mutates GitHub. It resolves the same sealed artifact ID through the
 Actions API, requires the expected workflow-run ID and server digest, and checks
 the exact inner bytes and detached checksum again. It creates an annotated tag at the catalog commit,
 then stages a draft GitHub Release with `--verify-tag`. Only an unpublished
-draft may have the two sealed asset names retried with `--clobber`; unexpected
-draft assets fail closed. The step downloads and byte-verifies both staged
-assets before publishing the draft (`prerelease` and `latest=false` for an RC).
+draft may have the three sealed asset names retried with `--clobber`; unexpected
+draft assets fail closed. The step downloads and byte-verifies all three staged
+assets before publishing the draft (`prerelease` and
+`latest=false` for an RC).
 Published assets are never replaced. The following read-only
 `remote-smoke` job peels the published tag back to the expected catalog commit,
 installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/42-skill
-Copilot payload, downloads both OpenCode assets, verifies the detached checksum
-before safe extraction, and runs the manager's install verification. A failed
+Copilot payload, downloads the exact three-asset roster, verifies the detached
+checksum before safe extraction, regenerates and byte-compares the formula,
+and runs the manager's install verification. A failed
 post-publication smoke stops promotion and requires a new corrective version;
 tags and assets are never replaced.
 
@@ -379,6 +395,55 @@ Use an immutable release tag when rollout must wait for a separate approval.
 Record App and VS Code behavior separately; neither may be inferred from the
 CLI result.
 
+### Publish the Homebrew entrypoint
+
+Homebrew needs one reviewed bootstrap PR in `navikt/homebrew-tap`, not one PR
+per Grillmester release. Do not open that PR until an immutable stable release
+exists and the exact published `grillmester.rb` has passed the Apple Silicon
+and Intel matrix, strict audit, clean install, `brew test`, launcher doctor,
+installed OpenCode-TUI startup through cplt without a model call, and uninstall
+checks.
+
+For the bootstrap, download `grillmester.rb` from the immutable stable release,
+regenerate it from the exact release source, and compare byte-for-byte:
+
+```bash
+python3 scripts/generate_homebrew_formula.py \
+  --tag vREPLACE_WITH_VERSION \
+  --bundle-name grillmester-opencode-vREPLACE_WITH_VERSION.tar.gz \
+  --bundle-sha256 REPLACE_WITH_RELEASE_BUNDLE_SHA256 \
+  --client-artifacts policy/client-artifacts.json \
+  --output /tmp/grillmester.rb
+```
+
+The formula downloads the checksummed Grillmester bundle and the exact macOS
+OpenCode and cplt archives from `policy/client-artifacts.json`. It prepends the
+two clients to `PATH` only for `grillmester`, so global upgrades cannot drift an
+installed release. Users who select that client install Copilot CLI separately.
+
+The same bootstrap PR adds one tap-owned scheduled updater. It polls GitHub's
+latest non-draft, non-prerelease Grillmester release and accepts only a newer
+stable SemVer with immutable release metadata, the exact three-asset roster and
+matching API digests. Read-only Apple Silicon and Intel jobs test the candidate
+formula. Only a final minimal job with `contents: write` may copy those already
+verified bytes to `Formula/grillmester.rb` and commit the update. It must share
+the tap's existing formula-update concurrency lock and must never regenerate or
+execute candidate code while holding write permission.
+
+Consequently, ordinary Grillmester releases require no maintainer PR in the
+tap. A new tap PR is required only when the updater contract, workflow
+permissions, formula location or distribution shape changes. Manual edits to
+the generated formula are not supported; make formula changes in Grillmester,
+publish a new immutable release, and let the updater carry the reviewed bytes.
+
+Before the bootstrap PR is opened, prove clean install on both architectures,
+install-to-upgrade between two immutable test releases, preference retention,
+checksum failure with the previous keg left active, and documented uninstall
+behavior. Do not announce `brew install navikt/tap/grillmester` as available
+until the tap PR has merged and a clean install from the real tap passes
+`grillmester doctor --client opencode`. The PR that enables the public command
+in README is the final rollout step.
+
 ## Promote a reviewed candidate to stable
 
 Stable is a new version, source commit, catalog commit, tag, and GitHub Release;
@@ -390,9 +455,10 @@ be byte-identical. OpenCode distribution inputs — manager, profiles, generated
 target and bundle-builder contract — must also be byte-identical between RC and
 stable; the outer bundle manifest and checksum are expected to change because
 they bind the new stable source SHA. Before either validation or publication can
-promote stable, the workflow also downloads the named RC's two public assets,
-requires their API and detached digests, rebuilds the RC archive from its exact
-source SHA, and requires byte identity. Explicitly dispatch **Publish
+promote stable, the workflow also downloads the named RC's three public assets,
+requires their API and detached digests, rebuilds the RC archive and regenerates
+its formula from the exact source SHA, and requires byte identity. Explicitly
+dispatch **Publish
 marketplace catalog** from current `main` with `channel=stable`, the new stable
 source commit as `source_sha`, and the exact reviewed prerelease tag (for
 example `v0.3.0-rc.1`) as `rc_tag`. That publisher revalidates the public RC
@@ -423,10 +489,10 @@ The publisher never moves an existing tag:
 
 - no tag and no release: create both;
 - correct tag but no release: keep the tag, create a draft, stage and verify the
-  two assets, then publish;
+  three assets, then publish;
 - correct tag and an exact or partially uploaded draft containing no unexpected
-  asset names: retry the two sealed names, byte-verify them, then publish;
-- exact tag, release metadata, OpenCode assets and checksums: succeed as a
+  asset names: retry the three sealed names, byte-verify them, then publish;
+- exact tag, release metadata, bundle, checksum and formula: succeed as a
   no-op;
 - an existing tag at another catalog, mismatched draft metadata, unexpected
   draft assets, or any missing, extra or different asset on an already
