@@ -95,10 +95,11 @@ eksplisitt, brukerinitiert `grillmester doctor --check-updates` vurderes som et
 senere, separat tiltak. En passiv oppdateringssjekk under vanlig launch inngår
 ikke i denne beslutningen og ville kreve en ny tillitsbeslutning.
 
-Copilot app installerer den samme publiserte pluginreleasen gjennom appens
-native Plugins-UI. Homebrew og cplt påstås ikke å installere, starte eller
-sandboxe appen. VS Code tas ut av normal onboarding og omtales bare som en
-ikke-verifisert kompatibilitetsflate til en separat løsning er testet.
+Copilot app installerer Grillmester gjennom appens native Plugins-UI. Katalog-
+og source-identiteten appen faktisk resolver, må verifiseres separat. Homebrew
+og cplt påstås ikke å installere, starte eller sandboxe appen. VS Code tas ut
+av normal onboarding og omtales bare som en ikke-verifisert kompatibilitetsflate
+til en separat løsning er testet.
 
 ## Konsekvenser
 
