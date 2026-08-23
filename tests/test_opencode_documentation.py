@@ -52,6 +52,19 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             with self.subTest(title=adr.splitlines()[5]):
                 self.assertTrue(adr.startswith("---\nstatus: accepted\ndate: "))
 
+    def test_launcher_update_policy_stays_explicit_and_off_the_launch_path(self) -> None:
+        normalized = " ".join(self.launcher_adr.split())
+        for marker in (
+            "Vanlig launch gjør ingen oppdaterings- eller nettverkskontroll utenfor cplt",
+            "Homebrew-pakken bare på macOS",
+            "Linux er ikke en del av pakkens release-løfte",
+            "observert versjonsspredning uten produkttelemetri",
+            "grillmester doctor --check-updates",
+            "En passiv oppdateringssjekk under vanlig launch inngår ikke",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, normalized)
+
     def test_runtime_prerequisites_include_python_311(self) -> None:
         for name, document in (
             ("OpenCode guide", self.guide),

@@ -6,9 +6,9 @@ enterprise-policy.
 
 ## Før du begynner
 
-- Den felles terminalflyten er macOS-first og krever Homebrew. Formelen er
-  ferdig, men installasjonskommandoen aktiveres først etter første stabile
-  release og bootstrap av `navikt/homebrew-tap`.
+- Den felles Homebrew-terminalflyten støttes bare på macOS i denne releasen.
+  Formelen er ferdig, men installasjonskommandoen aktiveres først etter første
+  stabile release og bootstrap av `navikt/homebrew-tap`.
 - GitHub Copilot CLI er en separat klient. Installer den bare hvis du vil bruke
   Copilot i terminalen; OpenCode-brukere trenger den ikke.
 - Copilot app bruker sin egen Plugins-UI og startes ikke gjennom cplt.

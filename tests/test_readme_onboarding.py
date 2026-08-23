@@ -120,8 +120,10 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         normalized = " ".join(self.text.split())
         for marker in (
             "GitHub Copilot CLI er referanseklienten",
+            "Homebrew-pakken støttes bare på macOS",
+            "Linux er utenfor pakkens release-løfte",
+            "VS Code er utenfor første onboarding og release-løftet",
             "OpenCode-støtten gjelder den release-gatede klientkombinasjonen",
-            "VS Code er ikke en del av første onboarding",
             "docs/trust-and-client-support.md",
             "docs/repository-context.md#samspill-med-naviktcopilot",
             "valgfritt MCP-oppsett",
@@ -154,6 +156,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
 
     def test_advanced_installation_details_remain_in_the_guide(self) -> None:
         for marker in (
+            "Homebrew-terminalflyten støttes bare på macOS i denne releasen",
             "Copilot app",
             "velge **Update** under\n**Settings → Plugins**",
             ".github/copilot/settings.json",

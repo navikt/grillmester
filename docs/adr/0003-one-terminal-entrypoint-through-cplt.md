@@ -79,6 +79,8 @@ og OpenCode-binærene og eksponerer `grillmester`-kommandoen. De private
 klientbinærene velges per macOS-arkitektur fra den committede artefaktlåsen og
 legges først på `PATH` bare for Grillmester-launcheren. Dermed endrer ikke en
 senere oppstrøms Homebrew-oppdatering den installerte releasekombinasjonen.
+I denne releasen støttes Homebrew-pakken bare på macOS; Linux er ikke en del av
+pakkens release-løfte.
 GitHub Copilot CLI er fortsatt en separat, valgfri klientinstallasjon fordi den
 ikke inngår i Grillmesters distribusjonsartefakter. `grillmester doctor` feiler
 tydelig dersom den faktiske kombinasjonen ikke er støttet.
@@ -87,8 +89,11 @@ Vanlig launch gjør ingen oppdaterings- eller nettverkskontroll utenfor cplt.
 `grillmester update` er den eksplisitte mutasjonen: den kjører `brew update` og
 erstatter deretter formelen med `brew upgrade grillmester`. Automatisk
 fleetoppgradering tilhører organisasjonens maskinforvaltning, ikke launcheren.
-En eventuell fremtidig update-notifier med egen egress må vurderes som en ny
-tillitsbeslutning.
+Etter piloten vurderes observert versjonsspredning uten produkttelemetri. Bare
+dersom representative installasjoner faktisk blir hengende etter, kan en
+eksplisitt, brukerinitiert `grillmester doctor --check-updates` vurderes som et
+senere, separat tiltak. En passiv oppdateringssjekk under vanlig launch inngår
+ikke i denne beslutningen og ville kreve en ny tillitsbeslutning.
 
 Copilot app installerer den samme publiserte pluginreleasen gjennom appens
 native Plugins-UI. Homebrew og cplt påstås ikke å installere, starte eller

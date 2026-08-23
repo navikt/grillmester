@@ -89,10 +89,11 @@ brukes ved behov. [Se alle agenter og skills](docs/agents-and-skills.md).
 
 ## Støtte og avgrensninger
 
-GitHub Copilot CLI er referanseklienten. Copilot app har en separat, native
-plugininstallasjon. VS Code er ikke en del av første onboarding eller
-release-løftet. OpenCode-støtten gjelder den release-gatede klientkombinasjonen,
-og hver konkret lokal eller cloudbasert modell må kvalitetsvalideres separat.
+GitHub Copilot CLI er referanseklienten. Copilot app har egen plugininstallasjon.
+Homebrew-pakken støttes bare på macOS; Linux er utenfor pakkens release-løfte.
+VS Code er utenfor første onboarding og release-løftet. OpenCode-støtten gjelder
+den release-gatede klientkombinasjonen, og hver lokal eller cloudbasert modell
+må kvalitetsvalideres separat.
 Se [klientstatus og tekniske releasegater](docs/trust-and-client-support.md).
 
 Grillmester kan brukes sammen med `navikt/copilot`. Se hvordan [repo-eid
