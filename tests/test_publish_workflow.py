@@ -166,7 +166,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'doctor --client copilot',
             '"${prefix}/bin/grillmester" --client copilot',
             '--agent grillmester --project-dir "${tui_consumer}"',
-            '--yes --quiet --no-audit -- --help',
+            '--yes --quiet -- --help',
             "Usage: copilot ",
             'git -C "${tui_consumer}" status --porcelain',
         ):
@@ -174,6 +174,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 self.assertIn(marker, gate)
         self.assertNotIn("--prompt", gate)
         self.assertNotIn(" -p ", gate)
+        self.assertNotIn("--yes --quiet --no-audit", gate)
         self.assertNotIn("opencode_candidate", gate)
         self.assertNotIn('dirname "${copilot_candidate}"', gate)
         self.assertLess(

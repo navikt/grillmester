@@ -411,7 +411,7 @@ jobs:
           PATH="${copilot_client_path}" \
             "${prefix}/bin/grillmester" --client copilot \
               --agent grillmester --project-dir "${tui_consumer}" \
-              --yes --quiet --no-audit -- --help \
+              --yes --quiet -- --help \
               >"${copilot_help_stdout}" 2>"${copilot_help_stderr}"
           grep -F 'Usage: copilot ' "${copilot_help_stdout}"
           grep -F 'Launching Grillmester (grillmester) in copilot through cplt...' \
