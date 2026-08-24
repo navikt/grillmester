@@ -280,7 +280,19 @@ class PublishWorkflowContractTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, gate)
         self.assertIn('provider_pid=$!', gate)
+        for startup_marker in (
+            'provider_root="$(mktemp -d "${RUNNER_TEMP}/copilot-provider.XXXXXX")"',
+            '2>"${provider_stderr}"',
+            "for _attempt in {1..300}",
+            'kill -0 "${provider_pid}"',
+            '[[ "${provider_ready}" != true ]]',
+            "Loopback provider did not publish its port within 30 seconds.",
+            "sed -n '1,120p' \"${provider_stderr}\"",
+        ):
+            with self.subTest(startup_marker=startup_marker):
+                self.assertIn(startup_marker, gate)
         self.assertIn('kill "${provider_pid}"', workflow)
+        self.assertIn('rm -rf "${provider_root}"', workflow)
         self.assertNotIn("api.github.com", gate)
         self.assertNotIn("githubcopilot.com", gate)
         self.assertLess(gate.index('local setup'), gate.index("-p 'FOCUSED-GATE:"))

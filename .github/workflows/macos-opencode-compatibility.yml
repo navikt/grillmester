@@ -880,13 +880,17 @@ jobs:
           PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
         run: |
           set -euo pipefail
+          umask 077
           [[ "$(shasum -a 256 "${COPILOT_BIN}" | cut -d' ' -f1)" == \
              "${COPILOT_BINARY_SHA256}" ]]
           [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
              "${CPLT_BINARY_SHA256}" ]]
-          provider_info="${RUNNER_TEMP}/copilot-provider-port"
-          provider_log="${RUNNER_TEMP}/copilot-provider-requests.jsonl"
-          python3 -I -S - "${provider_info}" "${provider_log}" <<'PY' &
+          provider_root="$(mktemp -d "${RUNNER_TEMP}/copilot-provider.XXXXXX")"
+          provider_info="${provider_root}/port"
+          provider_log="${provider_root}/requests.jsonl"
+          provider_stderr="${provider_root}/stderr.log"
+          python3 -I -S - "${provider_info}" "${provider_log}" \
+            2>"${provider_stderr}" <<'PY' &
           import json
           import os
           import sys
@@ -1005,12 +1009,29 @@ jobs:
           server.serve_forever()
           PY
           provider_pid=$!
-          trap 'kill "${provider_pid}" 2>/dev/null || true' EXIT
-          for _attempt in {1..100}; do
-            [[ -s "${provider_info}" ]] && break
+          cleanup_provider() {
+            kill "${provider_pid}" 2>/dev/null || true
+            rm -rf "${provider_root}"
+          }
+          trap cleanup_provider EXIT
+          provider_ready=false
+          for _attempt in {1..300}; do
+            if [[ -s "${provider_info}" ]]; then
+              provider_ready=true
+              break
+            fi
+            if ! kill -0 "${provider_pid}" 2>/dev/null; then
+              echo "Loopback provider exited before publishing its port." >&2
+              sed -n '1,120p' "${provider_stderr}" >&2
+              exit 1
+            fi
             sleep 0.1
           done
-          [[ -s "${provider_info}" ]]
+          if [[ "${provider_ready}" != true ]]; then
+            echo "Loopback provider did not publish its port within 30 seconds." >&2
+            sed -n '1,120p' "${provider_stderr}" >&2
+            exit 1
+          fi
           provider_port="$(<"${provider_info}")"
           [[ "${provider_port}" =~ ^[1-9][0-9]{1,4}$ ]]
           /usr/bin/nc -z -G 2 127.0.0.1 "${provider_port}"
