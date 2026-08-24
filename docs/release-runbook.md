@@ -52,7 +52,10 @@ Three workflows have deliberately separate jobs:
   artifact ID and uses fixed workflow-owned code to match every archive file,
   mode, manifest entry, and canonical archive property to immutable Git blobs
   at the selected source SHA. Separate Copilot, native macOS and Homebrew macOS
-  compatibility jobs must also pass. Both macOS matrices run on Apple Silicon
+  compatibility jobs must also pass. The Copilot compatibility job requires
+  the supported minimum Copilot CLI 1.0.79 to advertise the complete local-run
+  flag surface in `--help`, without authentication or a model request. The
+  exact local smoke executes those flags with the release-test client. Both macOS matrices run on Apple Silicon
   and hosted Intel. The native matrix verifies the exact OpenCode, Copilot CLI
   and cplt release-test artifacts before their first execution, runs the native and
   cplt runtime smokes, and launches all four local-model combinations
@@ -411,8 +414,10 @@ Intel jobs must run the bundled `scripts/smoke_grillmester_local.py` with
 `--require-binaries`. The gate uses checksum-verified cplt, OpenCode and
 Copilot CLI binaries, one deterministic loopback provider and no GitHub Copilot
 cloud model. It fails if the wrong focused/full payload loads, the consumer
-repository changes, a credential canary leaks, or any of Copilot's three
-delegation requests uses another model ID.
+repository changes, a credential or caller-PATH canary leaks, any of Copilot's
+three delegation requests uses another model ID, or the fake-`gh` matrix cannot
+allow a current-repository issue while blocking cross-repository, destructive
+and token-extraction commands. The fake CLI never contacts GitHub.
 
 The protocol smoke is not model quality. Before stable promotion, run the same
 immutable RC against at least one actually permitted local model in both

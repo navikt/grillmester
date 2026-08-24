@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -40,6 +41,31 @@ class PackageValidationTest(unittest.TestCase):
             self.root,
             ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"),
         )
+
+    def test_projection_loader_supports_standard_import_time_introspection(
+        self,
+    ) -> None:
+        script = self.root / "scripts/dataclass_projection.py"
+        script.write_text(
+            "from dataclasses import dataclass\n"
+            "@dataclass\n"
+            "class Projection:\n"
+            "    name: str\n",
+            encoding="utf-8",
+        )
+        errors: list[str] = []
+
+        module = VALIDATE._load_projection_generator(
+            self.root,
+            errors,
+            script="scripts/dataclass_projection.py",
+            label="dataclass projection",
+        )
+
+        self.assertEqual([], errors)
+        self.assertIsNotNone(module)
+        self.assertEqual("projection", module.Projection("projection").name)
+        self.assertNotIn(module.__name__, sys.modules)
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -348,6 +374,17 @@ class PackageValidationTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.assert_error("unexpected agent unreviewed")
+
+    def test_launcher_public_agent_roster_drift_is_rejected(self) -> None:
+        path = self.root / "scripts/grillmester_local.py"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                '"doctor-who"})', '"doctor-who", "researcher"})', 1
+            ),
+            encoding="utf-8",
+        )
+
+        self.assert_error("PUBLIC_AGENTS differs from the reviewed user-invocable roster")
 
     def test_skill_roster_drift_is_rejected(self) -> None:
         source = self.root / "plugin/skills/grillmester-grilling"

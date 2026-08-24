@@ -97,8 +97,11 @@ python3 scripts/smoke_grillmester_local.py \
 ```
 
 Plugin-smoken skal bekrefte 7 agenter, 42 skills og byte-eksakt installasjon,
-oppgradering, rollback og avinstallering. OpenCode-smoken bruker OpenCode
-`1.18.20`, kopierer targetet til en skrivbar tempmappe og bekrefter native
+oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
+minimumsklienten Copilot CLI `1.0.79` annonserer hele flaggrosteren som local-run
+eier i `--help`, uten modell- eller nettverkskall. Den eksakte local-smoken
+kjører flaggene med release-testklienten. OpenCode-smoken bruker
+OpenCode `1.18.20`, kopierer targetet til en skrivbar tempmappe og bekrefter native
 discovery av 7 agenter, 42 skills, 42 commands, fravær av modellpin,
 deklarerte permissionregler og at native `read` løser consumerens `AGENTS.md`
 fra riktig repo uten å kontakte en modell. Den beviser derfor ikke
@@ -130,10 +133,14 @@ python3 scripts/smoke_grillmester_local.py \
 
 Runtime-smoken bruker en deterministisk provider og beviser ikke kvaliteten til
 en lokal eller ekstern modell. Local-smoken kjører focused/full i begge
-klienter, krever eksakt lokal modell i hvert request og tvinger normal Copilot-
-delegering til Grill-inspektøren. Den kontakter ingen cloudmodell og erstatter
-ikke en separat kvalitetspilot med den konkrete lokale modellen. Bundle-en har
-ingen avhengighet til `nav-pilot-agent` eller en installert Copilot-agent.
+klienter gjennom den offentlige `local run`-flaten, krever eksakt lokal modell
+i hvert request, tester syntetiske ambient credentials og caller-PATH-verktøy,
+og tvinger normal Copilot-delegering til Grill-inspektøren. En separat fake-`gh`
+beviser current-repo issue-opprettelse med eksplisitt token og cplt-blokkering av
+cross-repo, destruktive og tokenuttrekkende kommandoer. Ingen GitHub-request eller
+cloudmodell brukes. Smoken erstatter ikke en separat kvalitetspilot med den
+konkrete lokale modellen. Bundle-en har ingen avhengighet til `nav-pilot-agent`
+eller en installert Copilot-agent.
 
 Launcher- og formeltestene skal i tillegg bevise systemklientkontrakten: en
 manglende OpenCode-installasjon gir `brew install opencode`, installert Copilot

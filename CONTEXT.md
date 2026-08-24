@@ -68,6 +68,14 @@ runtimegrenser.
 _Avoid_: local-only-launcher, offlineprofil, modellserver, bundled klient,
 auto-detektert BYOK
 
+**Avgrenset kjøring**:
+Den eksplisitte `grillmester local run`-formen for én ferdig spesifisert,
+non-interaktiv oppgave. Prosessen kjører i foreground, mens klienten
+auto-godkjenner tools, prosjektwrites og URL-er innenfor cplts effektive
+runtimepolicy. Kjøringen hører hjemme i et rent, dedikert worktree og krever
+menneskelig kontroll av sluttsvar, diff og tester.
+_Avoid_: bakgrunnsjobb, unattended run, autonom køarbeider
+
 **Systemklient**:
 En separat bruker- eller organisasjonsinstallert OpenCode- eller Copilot CLI-
 binær som standardlauncheren resolver fra `PATH`. Klientens installasjon og

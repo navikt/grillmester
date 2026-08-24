@@ -150,6 +150,14 @@ De to produktene har ulike, men overlappende roller:
 - `grillmester@grillmester` leverer agentteamet og alle 42 skills i den
   kuraterte arbeidsflyten
 
+Sameksistensløftet gjelder standardlauncheren og pluginflyten. Copilot CLI har
+ingen komplett av-knapp for repo-lokal agent-/skill-discovery, så
+`grillmester local --client copilot` feiler lukket når repoet inneholder
+ikke-tomme `.github/agents`, `.github/skills`, `.agents/skills` eller
+`.claude/skills`-røtter — også når navnene ikke kolliderer. Bruk OpenCode-local,
+eller en eksplisitt pilotbranch/fixture uten disse røttene, når et
+nav-pilot-synket repo skal testes med lokal modell.
+
 Grillmester-skills bruker `grillmester-`-prefiks. Det gjør eksakte kollisjoner
 mindre sannsynlige, men semantisk overlapp kan fortsatt finnes. Installer bare
 én Grillmester-plugin, og bruk `/grillmester-doctor` til å synliggjøre overlapp

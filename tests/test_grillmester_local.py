@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import http.client
 import importlib.util
 import io
 import json
@@ -92,8 +94,24 @@ class LocalModeTests(unittest.TestCase):
             "targets/copilot-cli-focused-v1",
         ):
             (self.distribution / payload).mkdir(parents=True)
-        (self.distribution / "plugin/plugin.json").write_text(
-            json.dumps({"name": "grillmester"}), encoding="utf-8"
+        plugin_manifest = json.dumps({"name": "grillmester"}).encode("utf-8")
+        plugin_path = self.distribution / "plugin/plugin.json"
+        plugin_path.write_bytes(plugin_manifest)
+        plugin_path.chmod(0o644)
+        (self.distribution / "plugin/manifest.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "target": "copilot-full-v1",
+                    "files": {
+                        "plugin.json": {
+                            "sha256": hashlib.sha256(plugin_manifest).hexdigest(),
+                            "mode": "0644",
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
         )
         for payload, target in (
             ("targets/opencode-v1", "opencode-v1"),
@@ -113,6 +131,22 @@ class LocalModeTests(unittest.TestCase):
         self.copilot = self._binary("copilot")
         self.ripgrep = self._binary("rg")
         self.gh = self._binary("gh")
+        self.system_tools = {
+            name: self._binary(name)
+            for name in ("git", "sandbox-exec", "uname", "which")
+        }
+        trusted_tool_patcher = mock.patch.object(
+            LOCAL,
+            "_trusted_macos_executable",
+            side_effect=lambda name: self.system_tools[name].resolve(strict=True),
+        )
+        trusted_tool_patcher.start()
+        self.addCleanup(trusted_tool_patcher.stop)
+        state_path_patcher = mock.patch.object(
+            LOCAL, "_ensure_cplt_executable_state_path", return_value=None
+        )
+        state_path_patcher.start()
+        self.addCleanup(state_path_patcher.stop)
         self.environment = {
             "PATH": str(self.bin),
             "HOME": str(self.root / "home"),
@@ -352,21 +386,48 @@ class LocalModeTests(unittest.TestCase):
             )
         self.assertNotIn("do-not-print", str(raised.exception))
 
+    def test_api_key_requires_visible_ascii_before_http_or_state(self) -> None:
+        config = self._config(client="copilot", api_key_env="LOCAL_MODEL_TOKEN")
+        for token in ("bad😀key", "bad key", "bad\tkey"):
+            with self.subTest(token=token), self.assertRaisesRegex(
+                LOCAL.LocalModeError, "visible ASCII"
+            ):
+                LOCAL._read_secret(
+                    config,
+                    {**self.environment, "LOCAL_MODEL_TOKEN": token},
+                )
+
+    def test_probe_maps_malformed_http_to_a_bounded_local_error(self) -> None:
+        malformed = "NOT HTTP secret-looking-response"
+        opener = mock.Mock()
+        opener.open.side_effect = http.client.BadStatusLine(malformed)
+
+        with mock.patch.object(
+            LOCAL.urllib.request, "build_opener", return_value=opener
+        ), self.assertRaisesRegex(
+            LOCAL.LocalModeError, "invalid HTTP response"
+        ) as raised:
+            LOCAL.probe_model(self._config(), environment=self.environment)
+
+        self.assertNotIn(malformed, str(raised.exception))
+
     def test_opencode_launch_uses_cplt_connected_policy_and_focused_payload(self) -> None:
         launch = self._launch()
         command = list(launch.command)
         separator = command.index("--")
 
         self.assertEqual(str(self.cplt.resolve(strict=True)), command[0])
-        self.assertEqual(str(self.bin.resolve(strict=True)), launch.environment["PATH"].split(os.pathsep)[0])
+        self.assertEqual(
+            str(launch.runtime.trusted_bin),
+            launch.environment["PATH"].split(os.pathsep)[0],
+        )
         self.assertEqual(
             self.opencode.resolve(strict=True),
             Path(shutil.which("opencode", path=launch.environment["PATH"])).resolve(strict=True),
         )
-        self.assertEqual(
-            self.gh.resolve(strict=True),
-            Path(shutil.which("gh", path=launch.environment["PATH"])).resolve(strict=True),
-        )
+        trusted_gh = Path(shutil.which("gh", path=launch.environment["PATH"]))
+        self.assertEqual(launch.runtime.trusted_bin / "gh", trusted_gh)
+        self.assertNotEqual(0, subprocess.run([trusted_gh], check=False).returncode)
         self.assertEqual(["--agent", "opencode"], command[command.index("--agent") : command.index("--agent") + 2])
         for flag in (
             "--proxy-forced",
@@ -392,6 +453,35 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(
             (self.distribution / "targets/opencode-v1-focused").resolve(strict=True),
             launch.payload,
+        )
+
+    def test_homebrew_opencode_alias_may_resolve_to_opencode_exe(self) -> None:
+        cellar = self.root / "Cellar/opencode/1.18.20/libexec"
+        cellar.mkdir(parents=True)
+        executable = cellar / "opencode.exe"
+        executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        executable.chmod(0o700)
+        aliases = self.root / "homebrew-bin"
+        aliases.mkdir()
+        (aliases / "opencode").symlink_to(executable)
+        environment = {
+            **self.environment,
+            "PATH": os.pathsep.join((str(aliases), str(self.bin))),
+        }
+
+        launch = LOCAL.build_local_launch(
+            self._config(),
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            cplt=self.cplt,
+            client=executable,
+            environment=environment,
+            platform="darwin",
+        )
+
+        self.assertEqual(
+            executable.resolve(strict=True),
+            (launch.runtime.trusted_bin / "opencode").resolve(strict=True),
         )
 
     def test_network_and_sandbox_policy_are_delegated_to_cplt(self) -> None:
@@ -422,7 +512,9 @@ class LocalModeTests(unittest.TestCase):
 
         launch = self._launch()
 
-        self.assertEqual(str(policy), launch.environment["CPLT_CONFIG"])
+        self.assertEqual(
+            str(policy.resolve(strict=False)), launch.environment["CPLT_CONFIG"]
+        )
         command = list(launch.command)
         passed = {
             command[index + 1]
@@ -712,10 +804,14 @@ class LocalModeTests(unittest.TestCase):
                     if value == "--pass-env"
                 }
 
+                private_github_config = launch.runtime.xdg_config / "gh"
                 self.assertEqual(
-                    str(custom.resolve(strict=True)),
+                    str(private_github_config.resolve(strict=True)),
                     launch.environment["GH_CONFIG_DIR"],
                 )
+                self.assertTrue(private_github_config.is_dir())
+                self.assertEqual(0o700, stat.S_IMODE(private_github_config.stat().st_mode))
+                self.assertEqual([], list(private_github_config.iterdir()))
                 self.assertTrue(
                     {
                         str(custom.resolve(strict=True)),
@@ -759,8 +855,14 @@ class LocalModeTests(unittest.TestCase):
             self.assertIn("GH_TOKEN", launch.secret_environment)
             self.assertIn("GH_TOKEN", launch.command)
             self.assertNotIn("must-not-cross", repr(launch))
+            command = list(launch.command)
+            allowed_reads = {
+                command[index + 1]
+                for index, value in enumerate(command)
+                if value == "--allow-read"
+            }
+            self.assertIn(str(self.gh.resolve(strict=True)), allowed_reads)
             if client == "copilot":
-                command = list(launch.command)
                 passed = {
                     command[index + 1]
                     for index, value in enumerate(command)
@@ -769,7 +871,8 @@ class LocalModeTests(unittest.TestCase):
                 child = command[command.index("--") + 1 :]
                 self.assertIn("GH_TOKEN", passed)
                 self.assertIn(
-                    "--secret-env-vars=COPILOT_PROVIDER_API_KEY", child
+                    "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN",
+                    child,
                 )
                 self.assertNotIn(
                     "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN", child
@@ -821,6 +924,228 @@ class LocalModeTests(unittest.TestCase):
                 )
             self.assertFalse(state.exists())
 
+    def test_early_trust_roots_fail_before_config_read_or_binary_resolution(self) -> None:
+        cases = (
+            (
+                "local-config",
+                {**self.environment, "XDG_CONFIG_HOME": str(self.project / "config")},
+                "Grillmester local config",
+            ),
+            (
+                "local-state",
+                {**self.environment, "XDG_STATE_HOME": str(self.project / "state")},
+                "Grillmester local state",
+            ),
+            (
+                "explicit-cplt-config",
+                {**self.environment, "CPLT_CONFIG": str(self.project / "cplt.toml")},
+                "cplt config",
+            ),
+            (
+                "default-cplt-config",
+                {**self.environment, "HOME": str(self.project)},
+                "cplt config",
+            ),
+        )
+        for label, environment, expected in cases:
+            with self.subTest(label=label), mock.patch.object(
+                LOCAL, "load_config", side_effect=AssertionError("must not read config")
+            ) as load, mock.patch.object(
+                LOCAL,
+                "_resolve_path_executable",
+                side_effect=AssertionError("must not resolve a client"),
+            ) as resolve:
+                stderr = io.StringIO()
+                with redirect_stderr(stderr):
+                    result = LOCAL.main(
+                        ["launch", "--project-dir", str(self.project)],
+                        distribution_root=self.distribution,
+                        binary_resolver=lambda *_arguments: (_ for _ in ()).throw(
+                            AssertionError("must not resolve binaries")
+                        ),
+                        environment=environment,
+                    )
+
+            self.assertEqual(2, result)
+            self.assertIn(expected, stderr.getvalue())
+            load.assert_not_called()
+            resolve.assert_not_called()
+
+    def test_version_probe_rejects_project_state_before_preparing_tools(self) -> None:
+        state = self.project / "state"
+        environment = {**self.environment, "XDG_STATE_HOME": str(state)}
+
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "Grillmester local state"):
+            LOCAL.prepare_client_version_probe(
+                client_name="opencode",
+                cplt=self.cplt,
+                client=self.opencode,
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                environment=environment,
+                platform="darwin",
+            )
+
+        self.assertFalse(state.exists())
+
+    def test_build_rejects_distribution_and_executables_inside_project(self) -> None:
+        project_cplt = self.project / "cplt"
+        project_client = self.project / "opencode"
+        for executable in (project_cplt, project_client):
+            executable.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
+            executable.chmod(0o700)
+        cases = (
+            ("distribution", self.project, self.cplt, self.opencode),
+            ("cplt executable", self.distribution, project_cplt, self.opencode),
+            ("opencode executable", self.distribution, self.cplt, project_client),
+        )
+        for index, (expected, distribution, cplt, client) in enumerate(cases):
+            state = self.root / f"rejected-trust-state-{index}"
+            environment = {**self.environment, "XDG_STATE_HOME": str(state)}
+            with self.subTest(expected=expected), self.assertRaisesRegex(
+                LOCAL.LocalModeError, expected
+            ):
+                LOCAL.build_local_launch(
+                    self._config(),
+                    distribution_root=distribution,
+                    project_dir=self.project,
+                    cplt=cplt,
+                    client=client,
+                    environment=environment,
+                    platform="darwin",
+                )
+            self.assertFalse(state.exists())
+
+    def test_build_rejects_a_project_nested_inside_the_distribution(self) -> None:
+        state = self.root / "rejected-nested-project-state"
+        environment = {**self.environment, "XDG_STATE_HOME": str(state)}
+
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "Grillmester distribution"):
+            LOCAL.build_local_launch(
+                self._config(),
+                distribution_root=self.distribution,
+                project_dir=self.distribution / "plugin",
+                cplt=self.cplt,
+                client=self.opencode,
+                environment=environment,
+                platform="darwin",
+            )
+
+        self.assertFalse(state.exists())
+
+    def test_build_rejects_opt_in_github_cli_inside_project(self) -> None:
+        project_bin = self.project / "bin"
+        project_bin.mkdir()
+        project_gh = project_bin / "gh"
+        project_gh.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
+        project_gh.chmod(0o700)
+        state = self.root / "rejected-github-state"
+        environment = {
+            **self.environment,
+            "PATH": os.pathsep.join((str(project_bin), str(self.bin))),
+            "XDG_STATE_HOME": str(state),
+        }
+
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "GitHub CLI executable"):
+            LOCAL.build_local_launch(
+                self._config(),
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                cplt=self.cplt,
+                client=self.opencode,
+                environment=environment,
+                github_access=True,
+                platform="darwin",
+            )
+
+        self.assertFalse(state.exists())
+
+    def test_external_cplt_config_is_canonical_and_project_alias_is_rejected(self) -> None:
+        policy = self.root / "managed-cplt.toml"
+        policy.write_text("[proxy]\nforced = true\n", encoding="utf-8")
+        external_alias = self.root / "managed-cplt-link.toml"
+        external_alias.symlink_to(policy)
+        environment = {**self.environment, "CPLT_CONFIG": str(external_alias)}
+        launch = LOCAL.build_local_launch(
+            self._config(),
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            cplt=self.cplt,
+            client=self.opencode,
+            environment=environment,
+            platform="darwin",
+        )
+        self.assertEqual(str(policy.resolve()), launch.environment["CPLT_CONFIG"])
+
+        project_alias = self.project / "cplt-config.toml"
+        project_alias.symlink_to(policy)
+        rejected_state = self.root / "rejected-cplt-config-state"
+        rejected_environment = {
+            **self.environment,
+            "CPLT_CONFIG": str(project_alias),
+            "XDG_STATE_HOME": str(rejected_state),
+        }
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "cplt config"):
+            LOCAL.build_local_launch(
+                self._config(),
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                cplt=self.cplt,
+                client=self.opencode,
+                environment=rejected_environment,
+                platform="darwin",
+            )
+        self.assertFalse(rejected_state.exists())
+
+    def test_cplt_trust_symlink_into_project_is_rejected_before_state(self) -> None:
+        policy_root = self.root / "managed-cplt"
+        policy_root.mkdir()
+        policy = policy_root / "config.toml"
+        policy.write_text("[proxy]\nforced = true\n", encoding="utf-8")
+        project_trust = self.project / "trust"
+        project_trust.mkdir()
+        (policy_root / "trust").symlink_to(project_trust, target_is_directory=True)
+        state = self.root / "rejected-cplt-trust-state"
+        environment = {
+            **self.environment,
+            "CPLT_CONFIG": str(policy),
+            "XDG_STATE_HOME": str(state),
+        }
+
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "cplt trust directory"):
+            LOCAL.build_local_launch(
+                self._config(),
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                cplt=self.cplt,
+                client=self.opencode,
+                environment=environment,
+                platform="darwin",
+            )
+
+        self.assertFalse(state.exists())
+
+    def test_actual_runtime_overlap_is_rejected_before_parent_tools_are_staged(self) -> None:
+        runtime = LOCAL._runtime_paths(self.project / "runtime")
+        with mock.patch.object(
+            LOCAL, "_prepare_runtime", return_value=runtime
+        ), mock.patch.object(
+            LOCAL,
+            "_prepare_trusted_parent_tools",
+            side_effect=AssertionError("must not stage parent tools"),
+        ) as stage, self.assertRaisesRegex(LOCAL.LocalModeError, "Grillmester runtime"):
+            LOCAL.build_local_launch(
+                self._config(),
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                cplt=self.cplt,
+                client=self.opencode,
+                environment=self.environment,
+                platform="darwin",
+            )
+
+        stage.assert_not_called()
+
     def test_execute_rejects_invalid_run_inputs_before_probe_or_state(self) -> None:
         without_token = {**self.environment}
         without_token.pop("GH_TOKEN", None)
@@ -869,19 +1194,22 @@ class LocalModeTests(unittest.TestCase):
             command[command.index("--") + 1 :],
         )
 
-        run = self._launch(arguments=("run", "fix the test"))
-        command = list(run.command)
-        self.assertEqual(
-            [
-                "run",
-                "--agent",
-                "barista",
-                "--model",
-                "llamacpp/qwen3.8-local",
-                "fix the test",
-            ],
-            command[command.index("--") + 1 :],
+        run = LOCAL.build_local_launch(
+            config,
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            cplt=self.cplt,
+            client=self.opencode,
+            run_prompt="fix the test",
+            environment=self.environment,
+            platform="darwin",
         )
+        command = list(run.command)
+        client = command[command.index("--") + 1 :]
+        self.assertEqual("run", client[0])
+        self.assertIn("--auto", client)
+        self.assertIn("grillmester", client)
+        self.assertEqual("fix the test", client[-1])
 
         for arguments in (("--help",), ("-v",)):
             with self.subTest(arguments=arguments):
@@ -892,7 +1220,7 @@ class LocalModeTests(unittest.TestCase):
 
         for arguments in (("models", "llamacpp"), ("subdir",), ("plugin", "list")):
             with self.subTest(arguments=arguments), self.assertRaisesRegex(
-                LOCAL.LocalModeError, "accepts the TUI, 'run'"
+                LOCAL.LocalModeError, "grillmester local run"
             ):
                 self._launch(arguments=arguments)
 
@@ -963,7 +1291,10 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("--no-remote", client)
         self.assertIn("--no-remote-export", client)
         self.assertIn("--disable-builtin-mcps", client)
-        self.assertIn("--secret-env-vars=COPILOT_PROVIDER_API_KEY", client)
+        self.assertIn(
+            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN",
+            client,
+        )
         self.assertNotIn("COPILOT_OFFLINE", launch.environment)
         self.assertEqual("false", launch.environment["COPILOT_AUTO_UPDATE"])
         self.assertEqual("false", launch.environment["COPILOT_OTEL_ENABLED"])
@@ -1012,9 +1343,116 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("--allow-all-urls", client)
         self.assertIn("--no-ask-user", client)
         self.assertIn("--deny-tool=shell(gh:*)", client)
+        self.assertIn(
+            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN",
+            client,
+        )
         self.assertNotIn("--allow-all-paths", client)
         self.assertNotIn("GH_TOKEN", launch.environment)
         self.assertNotIn("GH_TOKEN", launch.secret_environment)
+        passed_environment = {
+            command[index + 1]
+            for index, value in enumerate(command)
+            if value == "--pass-env"
+        }
+        self.assertNotIn("GH_TOKEN", passed_environment)
+        trusted_gh = Path(
+            shutil.which("gh", path=launch.environment["PATH"])
+        )
+        self.assertEqual(launch.runtime.trusted_bin / "gh", trusted_gh)
+        self.assertEqual(0o500, stat.S_IMODE(trusted_gh.stat().st_mode))
+        self.assertNotEqual(0, subprocess.run([trusted_gh], check=False).returncode)
+        trusted_git = Path(
+            shutil.which("git", path=launch.environment["PATH"])
+        )
+        self.assertEqual(
+            self.system_tools["git"].resolve(strict=True),
+            trusted_git.resolve(strict=True),
+        )
+
+    def test_local_version_probe_scrubs_credentials_and_stages_exact_parent_tools(
+        self,
+    ) -> None:
+        environment = {
+            **self.environment,
+            "CUSTOM_LOCAL_SECRET": "must-not-cross",
+            "HTTPS_PROXY": "http://must-not-cross.invalid",
+            "CPLT_CONFIG": str(self.root / "managed-cplt.toml"),
+        }
+
+        probe = LOCAL.prepare_client_version_probe(
+            client_name="copilot",
+            cplt=SimpleNamespace(path=str(self.cplt), version="reviewed"),
+            client=SimpleNamespace(path=str(self.copilot), version="reviewed"),
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            environment=environment,
+            platform="darwin",
+        )
+
+        rendered = json.dumps(dict(probe.environment), sort_keys=True)
+        self.assertNotIn("must-not-cross", rendered)
+        self.assertNotIn("HTTPS_PROXY", probe.environment)
+        self.assertEqual(
+            probe.trusted_bin,
+            Path(probe.environment["PATH"].split(os.pathsep)[0]),
+        )
+        self.assertEqual(
+            self.copilot.resolve(strict=True),
+            (probe.trusted_bin / "copilot").resolve(strict=True),
+        )
+        self.assertEqual(
+            self.system_tools["git"].resolve(strict=True),
+            (probe.trusted_bin / "git").resolve(strict=True),
+        )
+        self.assertEqual(0o500, stat.S_IMODE((probe.trusted_bin / "gh").stat().st_mode))
+        self.assertEqual(
+            str(Path(environment["CPLT_CONFIG"]).resolve(strict=False)),
+            probe.environment["CPLT_CONFIG"],
+        )
+        self.assertEqual(str(probe.trusted_bin), probe.cplt_arguments[
+            probe.cplt_arguments.index("--allow-read") + 1
+        ])
+        self.assertIn("--proxy-forced", probe.cplt_arguments)
+        self.assertIn("--gh-guard", probe.cplt_arguments)
+        self.assertIn("--git-guard", probe.cplt_arguments)
+        passed = {
+            probe.cplt_arguments[index + 1]
+            for index, value in enumerate(probe.cplt_arguments[:-1])
+            if value == "--pass-env"
+        }
+        self.assertIn("COPILOT_HOME", passed)
+        self.assertIn("COPILOT_AUTO_UPDATE", passed)
+        self.assertIn("COPILOT_OTEL_ENABLED", passed)
+        probe_root = probe.root
+        LOCAL.cleanup_client_version_probe(probe)
+        self.assertFalse(probe_root.exists())
+
+    def test_local_version_probe_cleans_session_when_private_settings_fail(
+        self,
+    ) -> None:
+        with mock.patch.object(
+            LOCAL, "_copilot_settings", side_effect=RuntimeError("fixture failure")
+        ), self.assertRaisesRegex(RuntimeError, "fixture failure"):
+            LOCAL.prepare_client_version_probe(
+                client_name="copilot",
+                cplt=self.cplt,
+                client=self.copilot,
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                environment=self.environment,
+                platform="darwin",
+            )
+
+        sessions = LOCAL.state_root(self.environment) / "sessions"
+        self.assertEqual(
+            [],
+            [
+                path
+                for path in sessions.iterdir()
+                if path.is_dir() and path.name.startswith("copilot-")
+            ],
+        )
 
     def test_copilot_run_with_explicit_github_access_passes_redacted_token_and_removes_gh_deny(
         self,
@@ -1082,7 +1520,7 @@ class LocalModeTests(unittest.TestCase):
         plugin.parent.mkdir(parents=True)
         plugin.write_text("throw new Error('executed')", encoding="utf-8")
 
-        with self.assertRaisesRegex(LOCAL.LocalModeError, "accepts the TUI, 'run'"):
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "grillmester local run"):
             self._launch(arguments=("subdir",))
 
     def test_project_copilot_hook_and_settings_surfaces_fail_closed(self) -> None:
@@ -1286,12 +1724,10 @@ class LocalModeTests(unittest.TestCase):
             ):
                 self._launch(self._config(client="copilot"), arguments=arguments)
 
-    def test_opencode_hidden_auto_aliases_are_rejected_in_tui_and_run(self) -> None:
+    def test_opencode_hidden_auto_aliases_are_rejected_in_tui(self) -> None:
         for arguments in (
             ("--yolo",),
             ("--dangerously-skip-permissions=true",),
-            ("run", "--yolo=true", "review"),
-            ("run", "--dangerously-skip-permissions", "review"),
         ):
             with self.subTest(arguments=arguments), self.assertRaisesRegex(
                 LOCAL.LocalModeError, "owned by local mode"
@@ -1299,9 +1735,20 @@ class LocalModeTests(unittest.TestCase):
                 self._launch(arguments=arguments)
 
     def test_opencode_unknown_long_options_fail_closed(self) -> None:
-        for arguments in (("--future-mode",), ("run", "--future-mode=true", "review")):
+        for arguments in (("--future-mode",),):
             with self.subTest(arguments=arguments), self.assertRaisesRegex(
                 LOCAL.LocalModeError, "not supported by local mode"
+            ):
+                self._launch(arguments=arguments)
+
+    def test_raw_opencode_run_requires_the_public_local_run_command(self) -> None:
+        for arguments in (
+            ("run", "review"),
+            ("run", "--future-mode=true", "review"),
+        ):
+            with self.subTest(arguments=arguments), self.assertRaisesRegex(
+                LOCAL.LocalModeError,
+                "grillmester local run.*auto-approves tools and project writes",
             ):
                 self._launch(arguments=arguments)
 
@@ -1315,38 +1762,34 @@ class LocalModeTests(unittest.TestCase):
             ("--replay-limit", "10", "acp"),
         ):
             with self.subTest(arguments=arguments), self.assertRaisesRegex(
-                LOCAL.LocalModeError, "accepts the TUI, 'run'"
+                LOCAL.LocalModeError, "grillmester local run"
             ):
                 self._launch(arguments=arguments)
 
-    def test_opencode_short_value_options_do_not_leave_positional_residue(
+    def test_opencode_run_only_options_are_rejected_for_interactive_launch(
         self,
     ) -> None:
         for arguments in (
-            ("-f", "notes.txt"),
-            ("-if", "notes.txt"),
-            ("-fnotes.txt",),
+            ("--file", "notes.txt"),
+            ("--format", "json"),
+            ("--interactive",),
+            ("--thinking",),
+            ("--title", "task"),
+            ("--variant", "fast"),
         ):
-            with self.subTest(arguments=arguments):
-                launch = self._launch(arguments=arguments)
-                self.assertTrue(set(arguments).issubset(set(launch.command)))
+            with self.subTest(arguments=arguments), self.assertRaisesRegex(
+                LOCAL.LocalModeError, "not supported by local mode"
+            ):
+                self._launch(arguments=arguments)
+        for arguments in (("-f", "notes.txt"), ("-i",), ("-if", "notes.txt")):
+            with self.subTest(arguments=arguments), self.assertRaisesRegex(
+                LOCAL.LocalModeError, "unknown short option"
+            ):
+                self._launch(arguments=arguments)
 
-    def test_opencode_reviewed_tui_and_run_options_remain_available(self) -> None:
+    def test_opencode_reviewed_tui_options_remain_available(self) -> None:
         for arguments in (
             ("--mini", "--no-replay", "--replay-limit", "10"),
-            (
-                "run",
-                "--format",
-                "json",
-                "--title=local-review",
-                "--variant",
-                "high",
-                "--thinking",
-                "-i",
-                "-f",
-                "fixture.txt",
-                "review",
-            ),
         ):
             with self.subTest(arguments=arguments):
                 launch = self._launch(arguments=arguments)
@@ -1424,7 +1867,6 @@ class LocalModeTests(unittest.TestCase):
 
     def test_value_taking_short_options_do_not_parse_their_values_as_clusters(self) -> None:
         for client, arguments in (
-            ("opencode", ("run", "-fVALUE-with-m-and-C", "hello")),
             ("copilot", ("-pVALUE-with-m-and-C",)),
             ("copilot", ("-iVALUE-with-m-and-C",)),
         ):
@@ -1453,8 +1895,6 @@ class LocalModeTests(unittest.TestCase):
 
     def test_value_taking_short_options_require_a_value(self) -> None:
         for client, option in (
-            ("opencode", "-f"),
-            ("opencode", "-vf"),
             ("copilot", "-p"),
             ("copilot", "-sp"),
         ):
@@ -1475,6 +1915,13 @@ class LocalModeTests(unittest.TestCase):
         (payload / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         with self.assertRaisesRegex(LOCAL.LocalModeError, "digest mismatch"):
             self._launch()
+
+    def test_full_copilot_payload_tampering_fails_closed(self) -> None:
+        plugin = self.distribution / "plugin/plugin.json"
+        plugin.write_text('{"name":"tampered"}', encoding="utf-8")
+
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "digest mismatch"):
+            self._launch(self._config(client="copilot", context="full"))
 
     def test_copilot_preserves_host_home_but_denies_raw_gh_state(self) -> None:
         account_home = Path(self.environment["HOME"])
@@ -1505,7 +1952,7 @@ class LocalModeTests(unittest.TestCase):
         )
         self.assertEqual(str(account_home), launch.environment["HOME"])
         self.assertEqual(
-            str(expected_gh_config.resolve(strict=False)),
+            str(launch.runtime.github_config.resolve(strict=True)),
             launch.environment["GH_CONFIG_DIR"],
         )
         command = list(launch.command)
@@ -1784,7 +2231,8 @@ class LocalModeTests(unittest.TestCase):
         LOCAL.save_config(self._config(), environment=self.environment)
         resolutions: list[str] = []
 
-        def resolve(client: str, checked: bool) -> tuple[object, object]:
+        def resolve(client: str, checked: bool, project: Path) -> tuple[object, object]:
+            self.assertEqual(self.project.resolve(), project)
             resolutions.append(f"{client}:{checked}")
             return (
                 SimpleNamespace(path=str(self.cplt), version="reviewed"),
@@ -1830,7 +2278,8 @@ class LocalModeTests(unittest.TestCase):
         )
         resolutions: list[tuple[str, bool]] = []
 
-        def resolve(client: str, checked: bool) -> tuple[object, object]:
+        def resolve(client: str, checked: bool, project: Path) -> tuple[object, object]:
+            self.assertEqual(self.project.resolve(), project)
             resolutions.append((client, checked))
             return (
                 SimpleNamespace(path=str(self.cplt), version="reviewed"),
@@ -1881,7 +2330,8 @@ class LocalModeTests(unittest.TestCase):
                 self._config(base_url=server.base_url), environment=self.environment
             )
 
-            def resolve(client: str, checked: bool) -> tuple[object, object]:
+            def resolve(client: str, checked: bool, project: Path) -> tuple[object, object]:
+                self.assertEqual(self.project.resolve(), project)
                 self.assertEqual("opencode", client)
                 self.assertTrue(checked)
                 return (
@@ -1919,14 +2369,15 @@ class LocalModeTests(unittest.TestCase):
         self.assertFalse((self.root / "state").exists())
 
     @mock.patch.object(LOCAL.sys, "platform", "darwin")
-    def test_doctor_reports_native_cplt_auth_for_copilot(self) -> None:
+    def test_doctor_reports_copilot_keychain_residual(self) -> None:
         with ProbeServer() as server:
             LOCAL.save_config(
                 self._config(client="copilot", base_url=server.base_url),
                 environment=self.environment,
             )
 
-            def resolve(client: str, checked: bool) -> tuple[object, object]:
+            def resolve(client: str, checked: bool, project: Path) -> tuple[object, object]:
+                self.assertEqual(self.project.resolve(), project)
                 self.assertEqual("copilot", client)
                 self.assertTrue(checked)
                 return (
@@ -1946,12 +2397,65 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(0, result)
         output = stdout.getvalue()
         self.assertIn(
-            "info github cplt may mediate native Copilot authentication; "
-            "credential not probed",
+            "warn github env/config credential not exposed; cplt's Copilot "
+            "profile can still access macOS Keychain",
             output,
         )
-        self.assertNotIn("skip github credential not exposed", output)
         self.assertFalse((self.root / "state").exists())
+
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
+    def test_doctor_aggregates_explicit_github_capability_errors(self) -> None:
+        for label, environment, expected in (
+            (
+                "missing-token",
+                {key: value for key, value in self.environment.items() if key != "GH_TOKEN"},
+                "GH_TOKEN",
+            ),
+            (
+                "missing-gh",
+                {**self.environment, "PATH": str(self.bin / "without-gh")},
+                "GitHub CLI (gh)",
+            ),
+        ):
+            with self.subTest(label=label), ProbeServer() as server:
+                LOCAL.save_config(
+                    self._config(base_url=server.base_url), environment=environment
+                )
+
+                def resolve(client: str, checked: bool, project: Path) -> tuple[object, object]:
+                    self.assertEqual(self.project.resolve(), project)
+                    self.assertEqual("opencode", client)
+                    self.assertTrue(checked)
+                    return (
+                        SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
+                        SimpleNamespace(path=str(self.opencode), version="1.18.20"),
+                    )
+
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    result = LOCAL.main(
+                        [
+                            "doctor",
+                            "--github-access",
+                            "--project-dir",
+                            str(self.project),
+                        ],
+                        distribution_root=self.distribution,
+                        binary_resolver=resolve,
+                        environment=environment,
+                    )
+
+            self.assertEqual(1, result)
+            output = stdout.getvalue()
+            self.assertIn("ok  cplt", output)
+            self.assertIn("ok  client opencode", output)
+            self.assertIn("ok  model qwen3.8-local", output)
+            self.assertIn("ok  payload", output)
+            self.assertIn("error github", output)
+            self.assertIn(expected, output)
+            self.assertEqual("", stderr.getvalue())
+            self.assertFalse((self.root / "state").exists())
 
     @mock.patch.object(LOCAL.sys, "platform", "darwin")
     def test_remainder_print_token_cannot_disable_checked_binary_resolution(self) -> None:
@@ -1962,7 +2466,8 @@ class LocalModeTests(unittest.TestCase):
             resolutions: list[tuple[str, bool]] = []
             executions: list[tuple[str, ...]] = []
 
-            def resolve(client: str, checked: bool) -> tuple[object, object]:
+            def resolve(client: str, checked: bool, project: Path) -> tuple[object, object]:
+                self.assertEqual(self.project.resolve(), project)
                 resolutions.append((client, checked))
                 return (
                     SimpleNamespace(path=str(self.cplt), version="reviewed"),
@@ -2046,6 +2551,63 @@ class LocalModeTests(unittest.TestCase):
                 LOCAL._parser().parse_args(arguments)
             self.assertEqual(2, raised.exception.code)
 
+    def test_local_argument_normalizer_and_run_parser_share_one_option_surface(
+        self,
+    ) -> None:
+        parser = LOCAL._parser()
+        subparsers = next(
+            action
+            for action in parser._actions
+            if getattr(action, "choices", None) is not None
+            and "run" in action.choices
+        )
+        run_options = {
+            option
+            for action in subparsers.choices["run"]._actions
+            for option in action.option_strings
+            if option not in {"-h", "--help"}
+        }
+        self.assertEqual(
+            set(LOCAL.LOCAL_ROUTABLE_VALUE_OPTIONS)
+            | set(LOCAL.LOCAL_ROUTABLE_FLAG_OPTIONS),
+            run_options,
+        )
+
+        cases = (
+            (
+                [
+                    "--project-dir",
+                    "/tmp/project",
+                    "--client=opencode",
+                    "--agent",
+                    "barista",
+                    "--full",
+                    "--print-command",
+                    "--github-access",
+                    "run",
+                    "task",
+                ],
+                [
+                    "run",
+                    "--project-dir",
+                    "/tmp/project",
+                    "--client=opencode",
+                    "--agent",
+                    "barista",
+                    "--full",
+                    "--print-command",
+                    "--github-access",
+                    "task",
+                ],
+            ),
+            (["--client", "opencode"], ["launch", "--client", "opencode"]),
+            (["help"], ["--help"]),
+            ([], ["launch"]),
+        )
+        for arguments, expected in cases:
+            with self.subTest(arguments=arguments):
+                self.assertEqual(expected, LOCAL.normalize_cli_arguments(arguments))
+
     def test_launch_rejects_raw_run_remainder_with_actionable_syntax(self) -> None:
         LOCAL.save_config(self._config(), environment=self.environment)
         stderr = io.StringIO()
@@ -2060,7 +2622,7 @@ class LocalModeTests(unittest.TestCase):
                     "Fix the failing test",
                 ],
                 distribution_root=self.distribution,
-                binary_resolver=lambda _client, _checked: (
+                binary_resolver=lambda _client, _checked, _project: (
                     SimpleNamespace(path=str(self.cplt), version="reviewed"),
                     SimpleNamespace(path=str(self.opencode), version="reviewed"),
                 ),

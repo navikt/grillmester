@@ -49,6 +49,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "**Launcherpreferanse**",
             "**Systemklient**",
             "**Local-model-launcher**",
+            "**Avgrenset kjøring**",
         ):
             with self.subTest(term=term):
                 self.assertIn(term, self.context)
@@ -208,7 +209,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("ingen offlinegaranti", decision)
         self.assertIn("cplt er eneste runtimeeier", decision)
 
-    def test_local_github_contract_matches_each_native_client_profile(self) -> None:
+    def test_local_github_contract_is_explicit_and_client_neutral(self) -> None:
         local_models = normalized(self.local_models)
         trust = normalized(self.trust)
         decision = normalized(self.adrs["0006"])
@@ -219,14 +220,22 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn("child-", document)
                 self.assertIn("myk", document)
                 self.assertIn("lese", document)
+                self.assertIn("session-eid", document)
+                self.assertIn("ambient", document)
+                self.assertIn("macOS Keychain", document)
+                self.assertIn("OpenCode", document)
+
+        self.assertIn("hard isolasjon", local_models)
+        self.assertIn("lover derfor ikke hard ambient-kontoisolasjon", trust)
+        self.assertIn("lover derfor ikke samme garanti", decision)
 
         self.assertIn(
-            "Launcheren skriver ikke caller-tokenet til config, sessionstate eller preview",
+            "Launcheren skriver ikke tokenet til config, sessionstate eller preview",
             local_models,
         )
-        self.assertIn("innebygde GitHub MCP er fortsatt av", local_models)
-        self.assertIn("guarded `gh`", local_models)
-        self.assertIn("Git push forblir under Git-guard", local_models)
+        self.assertIn("innebygde GitHub MCP er av", local_models)
+        self.assertIn("`gh issue create`", local_models)
+        self.assertIn("Git push går gjennom Git-guard", local_models)
         self.assertIn("OpenCodes websearch er aktiv", local_models)
         self.assertIn("interaktiv launch krever klientgodkjenning", local_models)
         self.assertIn("`local run` auto-godkjenner", local_models)
@@ -236,20 +245,18 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("Exa", trust)
         self.assertIn("Exa", decision)
         self.assertIn("`brew install gh`", local_models)
-        self.assertIn("cplts native Copilot-tokenbro", trust)
         self.assertIn("rå credentialstore", trust)
         self.assertIn("eksplisitte cplt `--deny-path`", trust)
         self.assertIn("`--no-audit`", trust)
         self.assertIn("parent-side Git-audit", decision)
-        self.assertIn("`cplt --agent copilot`", decision)
-        self.assertIn("GitHub CLI eller Keychain", trust)
-        self.assertIn("OpenCode får ingen GitHub-credential som default", local_models)
-        self.assertIn("også uten `--github-access`", local_models)
-        self.assertIn("eksplisitt kontooverride", decision)
+        self.assertIn("tom, session-eid `GH_CONFIG_DIR`", decision)
+        self.assertIn("begge klienter", local_models)
+        self.assertIn("Ingen av klientene får GitHub-token", trust)
+        self.assertIn("defense-in-depth", trust)
         for document in (local_models, trust, decision):
             with self.subTest(explicit_github=document[:60]):
                 self.assertIn("`--github-access`", document)
-                self.assertIn("uten å kjøre `gh`", document)
+                self.assertIn("uten å starte", document)
                 self.assertRegex(document, r"persistere")
 
     def test_opencode_guide_starts_with_the_homebrew_launcher(self) -> None:
@@ -324,7 +331,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("binder inferensen til én eksplisitt loopbackprovider", normalized(self.local_models))
         self.assertIn("Grillmester eier ikke serveren", normalized(self.local_models))
 
-    def test_local_run_documents_the_unattended_worktree_and_github_boundary(
+    def test_local_run_documents_the_bounded_worktree_and_github_boundary(
         self,
     ) -> None:
         value = normalized(self.local_models)
@@ -360,6 +367,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "grillmester local --client opencode --agent barista -- run",
             value,
         )
+        self.assertNotIn("bakgrunn", value.casefold())
         trust = normalized(self.trust)
         for marker in (
             "`grillmester local run`",
@@ -462,7 +470,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         for marker in (
             "cplt-guardede `gh issue`-kommandoer",
             "Det krever ikke en egen write-MCP",
-            "repo-scope, `gh`-guard",
+            "repo-scope og `gh`-guard",
             "gjelder ikke automatisk Copilot app, cloud agent",
         ):
             with self.subTest(marker=marker):

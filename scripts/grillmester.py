@@ -164,7 +164,6 @@ class CheckedBinary:
     label: str
     path: str
     version: str | None = None
-    sha256: str | None = None
 
     @property
     def detail(self) -> str:
@@ -854,6 +853,8 @@ def _client_probe(
     cplt: CheckedBinary,
     distribution: Distribution,
     probe_dir: Path,
+    environment: Mapping[str, str] | None = None,
+    cplt_arguments: Sequence[str] = (),
 ) -> tuple[list[str], dict[str, str]]:
     invocation = Invocation(
         client=client,
@@ -863,11 +864,20 @@ def _client_probe(
         client_args=("--version",),
         print_command=False,
     )
-    command, environment = build_launch_command(
+    command, launch_environment = build_launch_command(
         invocation, distribution, cplt=cplt.path
     )
+    if environment is not None:
+        launch_environment = dict(environment)
+        if client == "opencode":
+            launch_environment.setdefault(
+                "OPENCODE_CONFIG_DIR", str(distribution.opencode_target)
+            )
+    if cplt_arguments:
+        separator = command.index("--")
+        command[separator:separator] = list(cplt_arguments)
     command[1:1] = ["--yes", "--quiet"]
-    return command, environment
+    return command, launch_environment
 
 
 def _sandboxed_client_version(
@@ -875,6 +885,8 @@ def _sandboxed_client_version(
     *,
     cplt: CheckedBinary,
     distribution: Distribution,
+    environment: Mapping[str, str] | None = None,
+    cplt_arguments: Sequence[str] = (),
 ) -> str:
     with tempfile.TemporaryDirectory(prefix="grillmester-client-probe-") as directory:
         probe_dir = Path(directory)
@@ -884,6 +896,8 @@ def _sandboxed_client_version(
             cplt=cplt,
             distribution=distribution,
             probe_dir=probe_dir,
+            environment=environment,
+            cplt_arguments=cplt_arguments,
         )
         returncode, stdout, stderr = _bounded_command_output(
             command,
@@ -970,9 +984,17 @@ def _cplt_release(output: str) -> tuple[str, dt.datetime]:
     return match.group("release"), stamp
 
 
-def check_cplt() -> CheckedBinary:
-    cplt = _resolve_binary("cplt")
-    cplt_version = _trusted_cplt_version_output(cplt)
+def check_cplt(
+    *,
+    binary: str | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> CheckedBinary:
+    cplt = _resolve_binary("cplt") if binary is None else binary
+    cplt_version = (
+        _trusted_cplt_version_output(cplt)
+        if environment is None
+        else _trusted_cplt_version_output(cplt, environment=environment)
+    )
     release, stamp = _cplt_release(cplt_version)
     if release != SUPPORTED_CPLT_RELEASE and stamp <= MINIMUM_CPLT_STAMP:
         raise LauncherError(
@@ -987,14 +1009,19 @@ def check_client_runtime(
     *,
     cplt: CheckedBinary | None = None,
     distribution: Distribution | None = None,
+    binary: str | None = None,
+    probe_environment: Mapping[str, str] | None = None,
+    probe_cplt_arguments: Sequence[str] = (),
 ) -> CheckedBinary:
-    binary = _resolve_binary(client)
+    binary = _resolve_binary(client) if binary is None else binary
     cplt = check_cplt() if cplt is None else cplt
     distribution = load_distribution() if distribution is None else distribution
     version = _sandboxed_client_version(
         client,
         cplt=cplt,
         distribution=distribution,
+        environment=probe_environment,
+        cplt_arguments=probe_cplt_arguments,
     )
     if client == "opencode":
         observed = _opencode_semver(version)
@@ -1344,51 +1371,16 @@ def _doctor_arguments(arguments: Sequence[str]) -> argparse.Namespace:
     return parser.parse_args(arguments)
 
 
-def _has_explicit_selection(arguments: Sequence[str], option: str) -> bool:
-    wrapper, _ = _split_separator(arguments)
-    if option == "--client" and wrapper[:1] and wrapper[0] in CLIENTS:
-        return True
-    return _contains_option(wrapper, option)
-
-
 def _run_local_mode(arguments: Sequence[str]) -> int:
     local_mode = _load_local_mode_module()
-    local_arguments = list(arguments)
-    if local_arguments == ["help"]:
-        local_arguments = ["--help"]
-    elif not local_arguments:
-        local_arguments = ["launch"]
-    elif local_arguments[0].startswith("-") and local_arguments[0] not in (
-        "-h",
-        "--help",
+    normalize = getattr(local_mode, "normalize_cli_arguments", None)
+    if not callable(normalize):
+        raise LauncherError("bundled local launcher exposes no argument normalizer")
+    local_arguments = normalize(arguments)
+    if not isinstance(local_arguments, list) or not all(
+        isinstance(argument, str) for argument in local_arguments
     ):
-        value_options = {"--project-dir", "--client", "--agent"}
-        flag_options = {"--full", "--print-command", "--github-access"}
-        index = 0
-        run_index: int | None = None
-        while index < len(local_arguments):
-            value = local_arguments[index]
-            if value == "run":
-                run_index = index
-                break
-            if value in value_options:
-                index += 2
-                continue
-            if any(value.startswith(f"{option}=") for option in value_options):
-                index += 1
-                continue
-            if value in flag_options:
-                index += 1
-                continue
-            break
-        if run_index is None:
-            local_arguments.insert(0, "launch")
-        else:
-            local_arguments = [
-                "run",
-                *local_arguments[:run_index],
-                *local_arguments[run_index + 1 :],
-            ]
+        raise LauncherError("bundled local launcher returned invalid arguments")
 
     command = local_arguments[0] if local_arguments else ""
     distribution: Distribution | None = None
@@ -1397,7 +1389,7 @@ def _run_local_mode(arguments: Sequence[str]) -> int:
         distribution = load_distribution()
 
         def resolve_local_binaries(
-            client: str, checked: bool
+            client: str, checked: bool, project_dir: Path
         ) -> tuple[CheckedBinary, CheckedBinary]:
             assert distribution is not None
             if not checked:
@@ -1405,8 +1397,56 @@ def _run_local_mode(arguments: Sequence[str]) -> int:
                     CheckedBinary("cplt", _resolve_binary("cplt")),
                     CheckedBinary(client, _resolve_binary(client)),
                 )
-            checks = check_client(client, distribution=distribution)
-            return checks.cplt, checks.client
+            cplt_path = _resolve_binary("cplt")
+            client_path = _resolve_binary(client)
+            prepare_probe = getattr(
+                local_mode, "prepare_client_version_probe", None
+            )
+            if not callable(prepare_probe):
+                raise LauncherError(
+                    "bundled local launcher exposes no safe version-probe builder"
+                )
+            cleanup_probe = getattr(
+                local_mode, "cleanup_client_version_probe", None
+            )
+            if not callable(cleanup_probe):
+                raise LauncherError(
+                    "bundled local launcher exposes no safe version-probe cleanup"
+                )
+            probe = prepare_probe(
+                client_name=client,
+                cplt=cplt_path,
+                client=client_path,
+                distribution_root=distribution.root,
+                project_dir=project_dir,
+                environment=os.environ,
+            )
+            try:
+                probe_environment = getattr(probe, "environment", None)
+                probe_cplt_arguments = getattr(probe, "cplt_arguments", None)
+                if not isinstance(probe_environment, Mapping) or not isinstance(
+                    probe_cplt_arguments, tuple
+                ) or not all(
+                    isinstance(argument, str) for argument in probe_cplt_arguments
+                ):
+                    raise LauncherError(
+                        "bundled local launcher returned an invalid version-probe context"
+                    )
+                cplt = check_cplt(
+                    binary=cplt_path,
+                    environment=probe_environment,
+                )
+                runtime = check_client_runtime(
+                    client,
+                    cplt=cplt,
+                    distribution=distribution,
+                    binary=client_path,
+                    probe_environment=probe_environment,
+                    probe_cplt_arguments=probe_cplt_arguments,
+                )
+                return cplt, runtime
+            finally:
+                cleanup_probe(probe)
 
         binary_resolver = resolve_local_binaries
 

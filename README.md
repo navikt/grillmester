@@ -10,29 +10,25 @@ Grillmester er Navs agentteam for GitHub Copilot og OpenCode: fire agenter, tre 
 
 ### Copilot CLI og OpenCode i terminalen
 
-Homebrew er **ikke tilgjengelig ennå**. Fra consumer-repoet, med cplt og én
-klient på `PATH`, kjører du checkouten direkte:
+Grillmester-formelen er **ikke tilgjengelig ennå**. Installer cplt og én klient,
+og kjør checkouten fra consumer-repoet:
 
 ```bash
+brew install navikt/tap/cplt
+brew install opencode
+# eller: brew install --cask copilot-cli
 cd /path/to/consumer-repo
 python3 /absolute/path/to/grillmester/scripts/grillmester.py
 python3 /absolute/path/to/grillmester/scripts/grillmester.py doctor
 ```
 
-[Copilot app eller native Copilot](docs/installation.md#alternativ-native-copilot-cli-installasjon-med-automatisk-oppdatering) kan brukes frem til tap-review. Da installeres terminalflyten med ekstern cplt:
+[Native GitHub Copilot CLI](docs/installation.md#alternativ-native-copilot-cli-installasjon-med-automatisk-oppdatering) kan i stedet installere pluginen direkte. Etter tap-review blir terminalinstallasjonen:
 
 ```bash
 brew install navikt/tap/cplt navikt/tap/grillmester
 ```
 
-Installer OpenCode og/eller GitHub Copilot CLI separat. Grillmester bruker dem fra `PATH` uten å endre dem:
-
-```bash
-brew install opencode
-brew install --cask copilot-cli
-```
-
-Start så Grillmester:
+Start deretter den installerte launcheren:
 
 ```bash
 grillmester
@@ -55,11 +51,11 @@ consumer-repoet:
 ```bash
 cd /path/to/consumer-repo
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup
-python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
-python3 /absolute/path/to/grillmester/scripts/grillmester.py local run "Fiks den avgrensede oppgaven og kjør testene"
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch  # interaktivt
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local run "Fiks den avgrensede oppgaven og kjør testene"  # alternativt
 ```
 
-`launch` er interaktiv; `run` er alternativet for én bakgrunnsoppgave i et eget worktree. Web/GitHub følger cplt-policy. Se [lokale modeller](docs/local-models.md).
+`launch` og `run` er alternativer. `run` krever eget, rent worktree. Web/GitHub følger cplt-policy. Uten opt-in sendes ingen støttet `GH_TOKEN`. OpenCode isolerer ambient GitHub-konto; Copilot kan mediere native credential via macOS Keychain. Se [lokale modeller](docs/local-models.md).
 
 ### Oppdatere terminalinstallasjonen
 

@@ -770,10 +770,10 @@ jobs:
             exit 1
           fi
           focused_output="${local_root}/focused.stdout"
-          env "${local_environment[@]}" "${launcher[@]}" local launch \
-            --client copilot --agent barista --project-dir "${MACOS_CONSUMER}" -- \
-            -p 'FOCUSED-GATE: return the provider sentinel without using tools.' \
-            -s --no-ask-user --no-color > "${focused_output}"
+          env "${local_environment[@]}" "${launcher[@]}" local run \
+            --client copilot --agent barista --project-dir "${MACOS_CONSUMER}" \
+            'FOCUSED-GATE: return the provider sentinel without using tools.' \
+            > "${focused_output}"
           grep -F 'GRILLMESTER_LOCAL_GATE_OK' "${focused_output}"
 
           full_doctor="$(env "${local_environment[@]}" "${launcher[@]}" \
@@ -787,11 +787,11 @@ jobs:
           grep -F -- "${BUNDLE_ROOT}/plugin" <<<"${full_command}"
           grep -F -- '--model ci-grillmester-local' <<<"${full_command}"
           full_output="${local_root}/full.stdout"
-          env "${local_environment[@]}" "${launcher[@]}" local launch \
+          env "${local_environment[@]}" "${launcher[@]}" local run \
             --client copilot --agent barista --full \
-            --project-dir "${MACOS_CONSUMER}" -- \
-            -p 'FULL-GATE: return the provider sentinel without using tools.' \
-            -s --no-ask-user --no-color > "${full_output}"
+            --project-dir "${MACOS_CONSUMER}" \
+            'FULL-GATE: return the provider sentinel without using tools.' \
+            > "${full_output}"
           grep -F 'GRILLMESTER_LOCAL_GATE_OK' "${full_output}"
 
           python3 -I -S - "${provider_log}" <<'PY'
@@ -859,9 +859,9 @@ jobs:
           grep -F "ok  payload ${BUNDLE_ROOT}/targets/opencode-v1-focused" \
             <<<"${opencode_doctor}"
           opencode_output="${opencode_root}/focused.stdout"
-          env "${opencode_environment[@]}" "${launcher[@]}" local launch \
+          env "${opencode_environment[@]}" "${launcher[@]}" local run \
             --client opencode --agent barista \
-            --project-dir "${MACOS_CONSUMER}" -- run --format json \
+            --project-dir "${MACOS_CONSUMER}" \
             'OPENCODE-LOCAL-GATE: return the provider sentinel without using tools.' \
             > "${opencode_output}"
           grep -F 'GRILLMESTER_LOCAL_GATE_OK' "${opencode_output}"

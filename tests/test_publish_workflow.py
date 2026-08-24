@@ -253,11 +253,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
             '--context focused',
             'local doctor',
             'targets/copilot-cli-focused-v1',
-            'local launch',
-            "-p 'FOCUSED-GATE:",
+            'local run',
+            "'FOCUSED-GATE:",
             '--full',
             '"${BUNDLE_ROOT}/plugin"',
-            "-p 'FULL-GATE:",
+            "'FULL-GATE:",
             'record.get("model") != "ci-grillmester-local"',
             'record.get("stream") is not True',
             'endswith("/chat/completions")',
@@ -282,8 +282,8 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn('rm -rf "${provider_root}"', workflow)
         self.assertNotIn("api.github.com", gate)
         self.assertNotIn("githubcopilot.com", gate)
-        self.assertLess(gate.index('local setup'), gate.index("-p 'FOCUSED-GATE:"))
-        self.assertLess(gate.index("-p 'FOCUSED-GATE:"), gate.index("-p 'FULL-GATE:"))
+        self.assertLess(gate.index('local setup'), gate.index("'FOCUSED-GATE:"))
+        self.assertLess(gate.index("'FOCUSED-GATE:"), gate.index("'FULL-GATE:"))
 
     def test_macos_gate_is_bound_to_the_executable_release_test_baseline(self) -> None:
         text = MACOS_WORKFLOW.read_text(encoding="utf-8")
@@ -303,6 +303,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertEqual(3, install_gate.count("shasum -a 256"))
         for client in ("opencode", "copilot", "cplt"):
             self.assertIn(f"--client {client} --platform darwin", install_gate)
+
         for architecture in ("arm64", "x86_64"):
             for client in ("opencode", "copilot", "cplt"):
                 artifact = BASELINE.artifact(client, "darwin", architecture)
@@ -319,6 +320,19 @@ class PublishWorkflowContractTest(unittest.TestCase):
                         value=value,
                     ):
                         self.assertNotIn(value, install_gate)
+
+    def test_macos_live_gate_uses_the_public_local_run_contract(self) -> None:
+        text = MACOS_WORKFLOW.read_text(encoding="utf-8")
+        gate = text.split(
+            "Exercise focused and full Copilot through exact cplt and loopback BYOK",
+            1,
+        )[1]
+
+        self.assertEqual(3, gate.count('"${launcher[@]}" local run'))
+        self.assertIn('--client copilot --agent barista', gate)
+        self.assertIn('--client opencode --agent barista', gate)
+        self.assertNotIn("-- \\\n            -p 'FOCUSED-GATE:", gate)
+        self.assertNotIn("-- \\\n            -p 'FULL-GATE:", gate)
 
     def test_macos_gate_installs_and_tests_the_generated_homebrew_formula(self) -> None:
         text = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")

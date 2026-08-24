@@ -34,6 +34,9 @@ class TtyBuffer(io.StringIO):
 class GrillmesterCliTests(unittest.TestCase):
     def setUp(self) -> None:
         self.distribution = CLI.load_distribution(ROOT)
+        self.local_normalize = (
+            CLI._load_local_mode_module().normalize_cli_arguments
+        )
 
     @staticmethod
     def _write_version_binary(directory: Path, name: str, version: str) -> Path:
@@ -1686,11 +1689,12 @@ class GrillmesterCliTests(unittest.TestCase):
         def local_main(arguments, *, distribution_root, binary_resolver):
             observed["arguments"] = list(arguments)
             observed["root"] = distribution_root
-            observed["binaries"] = binary_resolver("opencode", False)
+            observed["binaries"] = binary_resolver("opencode", False, ROOT)
             return 0
 
         local_module = mock.Mock()
         local_module.main = local_main
+        local_module.normalize_cli_arguments = self.local_normalize
         with (
             mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
             mock.patch.object(CLI, "load_distribution", return_value=self.distribution),
@@ -1732,6 +1736,7 @@ class GrillmesterCliTests(unittest.TestCase):
 
         local_module = mock.Mock()
         local_module.main = local_main
+        local_module.normalize_cli_arguments = self.local_normalize
         with (
             mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
             mock.patch.object(
@@ -1755,11 +1760,12 @@ class GrillmesterCliTests(unittest.TestCase):
         def local_main(arguments, *, distribution_root, binary_resolver):
             observed["arguments"] = list(arguments)
             observed["root"] = distribution_root
-            observed["binaries"] = binary_resolver("opencode", False)
+            observed["binaries"] = binary_resolver("opencode", False, ROOT)
             return 0
 
         local_module = mock.Mock()
         local_module.main = local_main
+        local_module.normalize_cli_arguments = self.local_normalize
         with (
             mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
             mock.patch.object(CLI, "load_distribution", return_value=self.distribution),
@@ -1811,6 +1817,7 @@ class GrillmesterCliTests(unittest.TestCase):
 
         local_module = mock.Mock()
         local_module.main = local_main
+        local_module.normalize_cli_arguments = self.local_normalize
         with (
             mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
             mock.patch.object(CLI, "load_distribution", return_value=self.distribution),
@@ -1834,24 +1841,37 @@ class GrillmesterCliTests(unittest.TestCase):
 
         def local_main(arguments, *, distribution_root, binary_resolver):
             observed["arguments"] = list(arguments)
-            observed["binaries"] = binary_resolver("opencode", True)
+            observed["binaries"] = binary_resolver("opencode", True, ROOT)
             return 0
 
         local_module = mock.Mock()
         local_module.main = local_main
+        local_module.normalize_cli_arguments = self.local_normalize
+        probe = mock.Mock(environment={}, cplt_arguments=())
+        local_module.prepare_client_version_probe = mock.Mock(return_value=probe)
+        local_module.cleanup_client_version_probe = mock.Mock()
         with (
             mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
             mock.patch.object(CLI, "load_distribution", return_value=self.distribution),
-            mock.patch.object(CLI, "check_client", return_value=checks) as check_client,
+            mock.patch.object(
+                CLI,
+                "_resolve_binary",
+                side_effect=lambda name: f"/checked/{name}",
+            ),
+            mock.patch.object(CLI, "check_cplt", return_value=checks.cplt),
+            mock.patch.object(
+                CLI, "check_client_runtime", return_value=checks.client
+            ) as check_runtime,
         ):
             result = CLI._run_local_mode(["--client", "opencode"])
 
         self.assertEqual(0, result)
         self.assertEqual(["launch", "--client", "opencode"], observed["arguments"])
         self.assertEqual((checks.cplt, checks.client), observed["binaries"])
-        check_client.assert_called_once_with(
-            "opencode", distribution=self.distribution
-        )
+        self.assertEqual("/checked/cplt", local_module.prepare_client_version_probe.call_args.kwargs["cplt"])
+        check_runtime.assert_called_once()
+        self.assertEqual("opencode", check_runtime.call_args.args[0])
+        local_module.cleanup_client_version_probe.assert_called_once_with(probe)
 
     def test_local_run_uses_the_standard_compatible_client_gate(self) -> None:
         observed: dict[str, object] = {}
@@ -1862,15 +1882,27 @@ class GrillmesterCliTests(unittest.TestCase):
 
         def local_main(arguments, *, distribution_root, binary_resolver):
             observed["arguments"] = list(arguments)
-            observed["binaries"] = binary_resolver("opencode", True)
+            observed["binaries"] = binary_resolver("opencode", True, ROOT)
             return 0
 
         local_module = mock.Mock()
         local_module.main = local_main
+        local_module.normalize_cli_arguments = self.local_normalize
+        probe = mock.Mock(environment={}, cplt_arguments=())
+        local_module.prepare_client_version_probe = mock.Mock(return_value=probe)
+        local_module.cleanup_client_version_probe = mock.Mock()
         with (
             mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
             mock.patch.object(CLI, "load_distribution", return_value=self.distribution),
-            mock.patch.object(CLI, "check_client", return_value=checks) as check_client,
+            mock.patch.object(
+                CLI,
+                "_resolve_binary",
+                side_effect=lambda name: f"/checked/{name}",
+            ),
+            mock.patch.object(CLI, "check_cplt", return_value=checks.cplt),
+            mock.patch.object(
+                CLI, "check_client_runtime", return_value=checks.client
+            ) as check_runtime,
         ):
             result = CLI._run_local_mode(
                 ["run", "--client", "opencode", "Fix the failing test"]
@@ -1882,9 +1914,9 @@ class GrillmesterCliTests(unittest.TestCase):
             observed["arguments"],
         )
         self.assertEqual((checks.cplt, checks.client), observed["binaries"])
-        check_client.assert_called_once_with(
-            "opencode", distribution=self.distribution
-        )
+        check_runtime.assert_called_once()
+        self.assertEqual("opencode", check_runtime.call_args.args[0])
+        local_module.cleanup_client_version_probe.assert_called_once_with(probe)
 
 
 if __name__ == "__main__":

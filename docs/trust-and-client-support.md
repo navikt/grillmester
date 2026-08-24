@@ -62,7 +62,7 @@ tekniske grensen.
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær, ikke-verifisert kompatibilitetsflate utenfor første release-løfte. | Faktisk installasjon og oppdatering med to Grillmester-versjoner. |
 | **OpenCode 1.x fra 1.18.20** | Deterministisk target med 7 agenter, 42 skills og 42 commands. Brukerinstallert klient startes gjennom cplt. | Hver konkret modell må kvalitetsvalideres; nyere 1.x er kompatibilitetsflate, ikke de eksakte testbytene. |
-| **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en eksplisitt unattended flate med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web og GitHub avhenger av cplt-policy; `run` krever et separat worktree og etterkontroll. cplts native Copilot-mediering, OpenCodes opt-in-token og modellserveren er separate trustgrenser. |
+| **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en avgrenset kjøring med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web avhenger av cplt-policy; eksplisitt `GH_TOKEN` krever opt-in. OpenCode isolerer ambient GitHub-konto, mens Copilot-profilen kan mediere en native Keychain-credential. `run` krever et separat worktree og etterkontroll. |
 | **OpenCode 2 beta** | Forventet filkompatibilitet, men ingen støttet runtimeflate. | Permissions, provider/model-adferd og full runtimeparitet må testes separat. |
 
 Discovery-smoken kontakter ingen modell. OpenCodes runtime-smoke bruker en
@@ -74,8 +74,9 @@ cplt og klienter for focused og full kontekst. Den krever riktig payload,
 eksakt loopbackmodell, scrubbet credential-canary og urørt consumer-repo. For
 Copilot tvinger provideren delegering til Grill-inspektøren og krever samme
 lokale modell i hovedkall, underagent og retur. Dette beviser protokoll og
-binding, ikke modellkvalitet eller fravær av ekstern egress. Normal local-launch
-godtar kompatible klientversjoner.
+binding, ikke modellkvalitet eller fravær av ekstern egress. En syntetisk
+ambient `gh`-konto gir bare et canary-token dersom session-isolasjonen
+regresserer. Normal local-launch godtar kompatible klientversjoner.
 
 ## Lokal inference og GitHub
 
@@ -86,27 +87,32 @@ dokumentasjon og GitHub kan fungere når policyen og klientens godkjenninger
 tillater det. Grillmester tilbyr ingen egen `local-only`-profil; strengere
 egress eies og verifiseres i cplt eller organisasjonens runtimepolicy.
 
-Local-launcheren deaktiverer Copilots innebygde GitHub MCP. Copilot-local bruker
-cplts native Copilot-profil; cplt kan da hente brukerens vanlige GitHub-
-credential fra GitHub CLI eller Keychain og mediere den til
-guarded `gh`. OpenCode får ingen GitHub-credential som default. Bare når
-brukeren både setter `GH_TOKEN` i caller-miljøet og velger `--github-access`,
-validerer Grillmester verdien uten å kjøre `gh` og sender den til valgt child-
-miljø. Flagget kan også brukes som eksplisitt kontooverride for Copilot.
+Local-launcheren deaktiverer Copilots innebygde GitHub MCP. For begge klienter
+får cplt-parenten en tom, session-eid `GH_CONFIG_DIR`, child får session-eid
+XDG-config, eksisterende host-config deny-es, og en privat trusted-bin hindrer
+caller-PATH-varianter av `gh`, `git`, `which` og `sandbox-exec` fra å bli
+parent-verktøy. OpenCode gir dermed hard isolasjon fra den ambient GitHub-kontoen.
+Copilots cplt-profil tillater fortsatt macOS Keychain og kan mediere en native
+credential; Copilot-local lover derfor ikke hard ambient-kontoisolasjon. Bare
+når brukeren både setter `GH_TOKEN` i caller-miljøet og velger
+`--github-access`, validerer Grillmester tokenet og at `gh` finnes uten å starte
+det, og sender tokenet til valgt child-miljø. Dette trekker ikke tilbake
+Copilot-profilens Keychain-tilgang.
 
 Grillmester skriver ikke caller-tokenet til config, sessionstate eller preview.
 Klienten og godkjente tool-subprosesser kan likevel lese og eventuelt persistere
 det i skrivbar sessionstate, skrive det til terminaloutput/klientlogger eller
 bruke det utenom `gh`-guarden. cplt kan ikke redigere modellens output i
-etterkant. cplts native
-Copilot-tokenbro og Grillmesters eksplisitte OpenCode-bro er derfor begge myke,
+etterkant. Det eksplisitte tokenet og cplts `gh`-guard er derfor myke,
 best-effort-grenser. Bruk riktig konto og minst mulig scope, og godkjenn
-sideeffekter bevisst. Uten OpenCode-opt-in virker offentlig web fortsatt.
+sideeffekter bevisst. Uten opt-in virker offentlig web fortsatt når den
+effektive cplt-policyen tillater det.
 
 `grillmester local run` er bevisst annerledes enn den interaktive reisen:
 OpenCode og Copilot auto-godkjenner prosjektwrites, shelltools og URLs.
-Copilot-run legger inn `shell(gh:*)`-deny, og OpenCode får ingen GitHub-token,
-med mindre brukeren eksplisitt velger `--github-access`. Med opt-in kan
+Ingen av klientene får GitHub-token med mindre brukeren eksplisitt velger
+`--github-access`. Copilot-run legger i tillegg inn `shell(gh:*)`-deny som
+defense-in-depth; andre shellformer kan omgå den. Med opt-in kan
 GitHub-skrivinger som er autorisert i prompten skje uten en ny dialog. Bruk et
 dedikert, fine-grained token med minst mulig scope. Child kan lese tokenet, og
 direkte API-kall kan omgå cplts `gh`-wrapper; repo-guard og credentialbro er
@@ -121,8 +127,10 @@ auto-godkjenner tool-et. Dette er en tredjeparts datagrense og skal ikke omtales
 som lokal-only selv om modellinferensen går til loopback.
 
 Eksisterende host-paths som GitHub CLI kan bruke som rå credentialstore er
-eksplisitte cplt `--deny-path`-er for child-klientene. cplt-parenten beholder
-likevel nødvendig hostkontekst for den native Copilot-medieringen.
+eksplisitte cplt `--deny-path`-er for child-klientene. Den session-eide
+`GH_CONFIG_DIR` og private `gh`-stubben hindrer cplt-parentens CLI-baserte
+tokenbro fra å slå opp den ambient `gh`-kontoen. Det trekker ikke tilbake
+Copilot-profilens Keychain-tilgang.
 Local-launcheren bruker samtidig `--no-audit`
 fordi den pinnede cplt-releasens parent-side Git-audit kan kjøre repo-eide Git-
 helpers utenfor sandboxen. Sandbox, forced proxy og Git-guard gjelder fortsatt;

@@ -67,6 +67,22 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         normalized = " ".join(terminal.split())
         self.assertLess(
             terminal.index("ikke tilgjengelig ennå"),
+            terminal.index("brew install navikt/tap/cplt"),
+        )
+        self.assertLess(
+            terminal.index("brew install navikt/tap/cplt"),
+            terminal.index("brew install opencode"),
+        )
+        self.assertLess(
+            terminal.index("brew install opencode"),
+            terminal.index(
+                "python3 /absolute/path/to/grillmester/scripts/grillmester.py"
+            ),
+        )
+        self.assertLess(
+            terminal.index(
+                "python3 /absolute/path/to/grillmester/scripts/grillmester.py"
+            ),
             terminal.index(
                 "brew install navikt/tap/cplt navikt/tap/grillmester"
             ),
@@ -75,15 +91,11 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             terminal.index(
                 "brew install navikt/tap/cplt navikt/tap/grillmester"
             ),
-            terminal.index("brew install opencode"),
-        )
-        self.assertLess(
-            terminal.index("brew install opencode"),
             terminal.index("\ngrillmester\n"),
         )
         for marker in (
-            "med ekstern cplt",
-            "fra `PATH` uten å endre dem",
+            "Grillmester-formelen er **ikke tilgjengelig ennå**",
+            "Launcheren viser klienter fra `PATH`",
             "brew install opencode",
             "brew install --cask copilot-cli",
             "GitHub Copilot CLI",
@@ -95,6 +107,9 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             "grillmester doctor",
             "Alle terminalsesjoner går gjennom cplt",
             "grillmester update",
+            "`launch` og `run` er alternativer",
+            "Uten opt-in sendes ingen støttet `GH_TOKEN`",
+            "Copilot kan mediere native credential via macOS Keychain",
             "python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup",
             "python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch",
             "starter du først en OpenAI-kompatibel modellserver",

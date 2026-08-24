@@ -9,11 +9,13 @@ request made by each client for contract validation.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import math
 import os
 import selectors
+import shlex
 import shutil
 import signal
 import stat
@@ -57,6 +59,9 @@ MAX_REQUEST_BYTES = 2 * 1024 * 1024
 MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 DEFAULT_TIMEOUT = 45.0
 CREDENTIAL_CANARY_PREFIX = "GRILLMESTER_LOCAL_SMOKE_CREDENTIAL_"
+AMBIENT_GITHUB_TOKEN_CANARY = "GRILLMESTER_LOCAL_SMOKE_AMBIENT_GITHUB_TOKEN"
+GITHUB_GUARD_TOKEN = "GRILLMESTER_LOCAL_SMOKE_EXPLICIT_TOKEN"
+GITHUB_GUARD_SENTINEL = "GRILLMESTER_LOCAL_GITHUB_GUARD_OK"
 CREDENTIAL_ENVIRONMENT = (
     "ANTHROPIC_API_KEY",
     "AWS_ACCESS_KEY_ID",
@@ -73,6 +78,12 @@ CREDENTIAL_ENVIRONMENT = (
     "NPM_TOKEN",
     "OPENAI_API_KEY",
 )
+GITHUB_CREDENTIAL_ENVIRONMENT = (
+    "COPILOT_GITHUB_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+)
+PARENT_TOOL_CANARIES = ("git", "which", "sandbox-exec", "uname", "mise", "asdf")
 
 
 class LocalSmokeError(RuntimeError):
@@ -309,16 +320,21 @@ def _bash_stream_body(scenario: Scenario) -> bytes:
     ) + b"data: [DONE]\n\n"
 
 
-def _exposes_function_tool(record: CompletionRecord, name: str) -> bool:
+def _function_tool_names(record: CompletionRecord) -> tuple[str, ...]:
     tools = record.payload.get("tools")
     if not isinstance(tools, list):
-        return False
-    return any(
-        isinstance(tool, dict)
-        and isinstance(tool.get("function"), dict)
-        and tool["function"].get("name") == name
+        return ()
+    return tuple(
+        name
         for tool in tools
+        if isinstance(tool, dict)
+        and isinstance(tool.get("function"), dict)
+        and isinstance((name := tool["function"].get("name")), str)
     )
+
+
+def _exposes_function_tool(record: CompletionRecord, name: str) -> bool:
+    return name in _function_tool_names(record)
 
 
 def _stream_body(state: ProviderState) -> bytes:
@@ -597,6 +613,16 @@ def validate_provider_state(state: ProviderState) -> None:
             f"{state.scenario.name} provider protocol violation: "
             + "; ".join(state.violations)
         )
+    if (
+        state.scenario == Scenario("opencode", "focused")
+        and state.completions
+        and not _exposes_function_tool(state.completions[0], "bash")
+    ):
+        advertised = ", ".join(_function_tool_names(state.completions[0])) or "none"
+        raise LocalSmokeError(
+            f"{state.scenario.name} did not expose the required 'bash' tool; "
+            f"advertised function tools: {advertised}"
+        )
     expected_completions = (
         3
         if state.scenario.client == "copilot"
@@ -697,7 +723,16 @@ def _tree_snapshot(root: Path) -> tuple[tuple[str, str, int, str], ...]:
         elif stat.S_ISDIR(observed.st_mode):
             entries.append((relative, "directory", mode, ""))
         elif stat.S_ISREG(observed.st_mode):
-            entries.append((relative, "file", mode, str(observed.st_size)))
+            digest = hashlib.sha256()
+            try:
+                with path.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(chunk)
+            except OSError as exc:
+                raise LocalSmokeError(
+                    f"could not hash consumer file {path}: {exc}"
+                ) from exc
+            entries.append((relative, "file", mode, digest.hexdigest()))
         else:
             entries.append((relative, "other", mode, ""))
     return tuple(entries)
@@ -753,8 +788,13 @@ def _scenario_environment(
         {
             name: f"{CREDENTIAL_CANARY_PREFIX}{name}"
             for name in CREDENTIAL_ENVIRONMENT
+            if name not in GITHUB_CREDENTIAL_ENVIRONMENT
         }
     )
+    # Leave every GitHub token variable absent so cplt must consult `gh` if
+    # either the top-level preflight or actual launch sees caller PATH state.
+    for name in GITHUB_CREDENTIAL_ENVIRONMENT:
+        environment.pop(name, None)
     home = scenario_root / "home"
     xdg = scenario_root / "xdg"
     for directory in (home, xdg / "config", xdg / "cache", xdg / "data", xdg / "state"):
@@ -769,15 +809,41 @@ def _scenario_environment(
         alias.symlink_to(binary)
         if alias.resolve(strict=True) != binary:
             raise LocalSmokeError(f"could not stage exact {name} binary for cplt")
-    # Native cplt Copilot authentication may ask the parent-side gh executable
-    # for a token. A release smoke must never consult the runner's real gh
-    # config or Keychain, so put a deterministic failing gh first on PATH and
-    # point the parent at an empty, scenario-owned config directory.
+    # Simulate an ambient gh account without consulting the runner's real gh
+    # config or Keychain. The fixture yields a token only if cplt sees the
+    # ambient config. A correct launcher replaces it with a private session
+    # config before cplt can mediate native Copilot authentication.
+    ambient_github_config = scenario_root / "ambient-github-config"
+    ambient_github_config.mkdir(mode=0o700)
+    (ambient_github_config / "hosts.yml").write_text(
+        "github.com:\n  user: smoke-only\n", encoding="utf-8"
+    )
+    gh_invocations = scenario_root / "gh-invocations.log"
     guarded_gh = client_bin / "gh"
-    guarded_gh.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    guarded_gh.write_text(
+        "#!/bin/sh\n"
+        f"printf '%s\\n' \"${{GH_CONFIG_DIR-}}\" >> "
+        f"{shlex.quote(str(gh_invocations))}\n"
+        f"if [ \"${{GH_CONFIG_DIR-}}\" = "
+        f"{shlex.quote(str(ambient_github_config))} ]; then\n"
+        f"  printf '%s\\n' {shlex.quote(AMBIENT_GITHUB_TOKEN_CANARY)}\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
     guarded_gh.chmod(0o500)
-    github_config = scenario_root / "github-config"
-    github_config.mkdir(mode=0o700)
+    parent_tool_invocations = scenario_root / "parent-tool-invocations.log"
+    for name in PARENT_TOOL_CANARIES:
+        canary = client_bin / name
+        canary.write_text(
+            "#!/bin/sh\n"
+            f"printf '%s\\n' {shlex.quote(name)} >> "
+            f"{shlex.quote(str(parent_tool_invocations))}\n"
+            "exit 97\n",
+            encoding="utf-8",
+        )
+        canary.chmod(0o500)
     path_entries: list[str] = [str(client_bin)]
     for binary in (cplt, client):
         parent = str(binary.parent)
@@ -791,26 +857,13 @@ def _scenario_environment(
             "XDG_CACHE_HOME": str(xdg / "cache"),
             "XDG_DATA_HOME": str(xdg / "data"),
             "XDG_STATE_HOME": str(xdg / "state"),
-            "GH_CONFIG_DIR": str(github_config),
+            "GH_CONFIG_DIR": str(ambient_github_config),
             "PATH": os.pathsep.join(dict.fromkeys(path_entries)),
             "LANG": environment.get("LANG", "en_US.UTF-8"),
             "TERM": "dumb",
         }
     )
     return environment
-
-
-def _scenario_client_arguments(scenario: Scenario) -> tuple[str, ...]:
-    if scenario.client == "opencode":
-        return (
-            "run",
-            "--format",
-            "json",
-            "--title",
-            f"Grillmester local smoke {scenario.context}",
-            PROMPT,
-        )
-    return ("--output-format", "json", "--stream", "on", "-p", PROMPT)
 
 
 def _run_scenario(
@@ -866,7 +919,10 @@ def _run_scenario(
         client_name=scenario.client,
         ripgrep=ripgrep,
     )
-    canaries = _credential_values(scenario_environment)
+    canaries = (
+        *_credential_values(scenario_environment),
+        AMBIENT_GITHUB_TOKEN_CANARY,
+    )
     with LoopbackProvider(scenario) as provider:
         config = LOCAL.LocalConfig(
             client=scenario.client,
@@ -876,20 +932,20 @@ def _run_scenario(
             base_url=provider.base_url,
             model_id=MODEL_ID,
         )
-        LOCAL.probe_model(config, environment=scenario_environment, timeout=5)
+        LOCAL.save_config(config, environment=scenario_environment)
+        # Keep a side-effect-free preview for payload/env assertions, but run
+        # the actual gate through the public top-level CLI below.
         launch = LOCAL.build_local_launch(
             config,
             distribution_root=distribution_root,
             project_dir=consumer,
             cplt=cplt,
             client=client,
-            client_arguments=(
-                ()
-                if scenario.context == "focused"
-                else _scenario_client_arguments(scenario)
-            ),
-            run_prompt=PROMPT if scenario.context == "focused" else None,
+            client_arguments=(),
+            run_prompt=PROMPT,
             environment=scenario_environment,
+            resolve_credentials=False,
+            prepare_state=False,
             platform="darwin",
         )
         expected_payload = (distribution_root / scenario.relative_payload).resolve(
@@ -899,39 +955,25 @@ def _run_scenario(
             raise LocalSmokeError(
                 f"{scenario.name} selected {launch.payload}, expected {expected_payload}"
             )
-        execution_environment = dict(launch.environment)
-        staged_bin = scenario_root / "client-bin"
-        execution_environment["PATH"] = os.pathsep.join(
-            dict.fromkeys(
-                (
-                    str(staged_bin),
-                    *execution_environment.get("PATH", "").split(os.pathsep),
-                )
-            )
-        )
-        discovered_gh = shutil.which("gh", path=execution_environment["PATH"])
-        if discovered_gh is None or Path(discovered_gh).resolve(strict=True) != (
-            staged_bin / "gh"
-        ).resolve(strict=True):
-            raise LocalSmokeError(
-                f"{scenario.name} did not keep the deterministic failing gh first on PATH"
-            )
-        if scenario.client == "opencode":
-            try:
-                discovered = shutil.which("rg", path=execution_environment["PATH"])
-                discovered_path = (
-                    Path(discovered).resolve(strict=True) if discovered else None
-                )
-            except OSError as exc:
-                raise LocalSmokeError(
-                    f"{scenario.name} could not resolve ripgrep from PATH: {exc}"
-                ) from exc
-            if discovered_path != ripgrep.resolve(strict=True):
-                raise LocalSmokeError(
-                    f"{scenario.name} did not preserve the selected ripgrep on PATH"
-                )
+        public_command = [
+            sys.executable,
+            "-I",
+            "-S",
+            str(distribution_root / "scripts/grillmester.py"),
+            "local",
+            "run",
+            "--client",
+            scenario.client,
+            "--agent",
+            "barista",
+            "--project-dir",
+            str(consumer),
+        ]
+        if scenario.context == "full":
+            public_command.append("--full")
+        public_command.append(PROMPT)
         result = run_process(
-            tuple(launch.command), consumer, execution_environment, timeout
+            tuple(public_command), consumer, dict(scenario_environment), timeout
         )
     if audit_marker.exists():
         raise LocalSmokeError(
@@ -941,6 +983,17 @@ def _run_scenario(
     if result.returncode != 0:
         raise LocalSmokeError(
             f"{scenario.name} exited {result.returncode}: {result.output[-4000:]}"
+        )
+    gh_invocations = scenario_root / "gh-invocations.log"
+    if gh_invocations.exists():
+        raise LocalSmokeError(
+            f"{scenario.name} let cplt or the client execute caller-PATH gh outside "
+            "the explicit GitHub opt-in"
+        )
+    if (scenario_root / "parent-tool-invocations.log").exists():
+        raise LocalSmokeError(
+            f"{scenario.name} let cplt or the client execute a caller-PATH "
+            "parent tool"
         )
     if sentinel_for(scenario) not in result.output:
         raise LocalSmokeError(
@@ -954,7 +1007,9 @@ def _run_scenario(
             f"{scenario.name} changed the consumer tree: before={before!r}, after={after!r}"
         )
     command_text = json.dumps(list(launch.command), ensure_ascii=False)
-    environment_text = json.dumps(execution_environment, ensure_ascii=False, sort_keys=True)
+    environment_text = json.dumps(
+        launch.environment, ensure_ascii=False, sort_keys=True
+    )
     provider_text = _record_text(provider.state)
     for canary in canaries:
         if any(
@@ -1022,6 +1077,186 @@ def run_matrix(
                 )
             )
     return tuple(reports)
+
+
+def run_github_guard_matrix(
+    *,
+    distribution_root: Path,
+    cplt: Path,
+    opencode: Path,
+    environment: Mapping[str, str] | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
+    run_process: RunCommand = run_command,
+    platform: str | None = None,
+) -> None:
+    """Prove explicit-token issue creation and cplt's blocking decisions locally."""
+
+    platform = sys.platform if platform is None else platform
+    if platform != "darwin":
+        raise LocalSmokeError("the GitHub guard smoke is supported only on macOS")
+    source = os.environ if environment is None else environment
+    home_value = source.get("HOME")
+    if not home_value:
+        raise LocalSmokeError("HOME is required for the GitHub guard smoke")
+    home = Path(home_value).expanduser().resolve(strict=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".grillmester-github-guard-smoke-", dir=home
+    ) as directory:
+        root = Path(directory).resolve(strict=True)
+        consumer = root / "consumer"
+        fake_bin = root / "fake-bin"
+        isolated_home = root / "home"
+        xdg = root / "xdg"
+        for path in (
+            consumer,
+            fake_bin,
+            isolated_home,
+            xdg / "config",
+            xdg / "cache",
+            xdg / "data",
+            xdg / "state",
+        ):
+            path.mkdir(parents=True, mode=0o700)
+        git = Path("/usr/bin/git")
+        try:
+            subprocess.run(
+                (str(git), "init", "-q"),
+                cwd=consumer,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                timeout=10,
+                check=True,
+            )
+            subprocess.run(
+                (
+                    str(git),
+                    "remote",
+                    "add",
+                    "origin",
+                    "https://github.com/navikt/grillmester-local-smoke.git",
+                ),
+                cwd=consumer,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                timeout=10,
+                check=True,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise LocalSmokeError(f"could not prepare GitHub guard fixture: {exc}") from exc
+
+        fake_gh = fake_bin / "gh"
+        fake_gh.write_text(
+            "#!/bin/sh\n"
+            f"[ \"${{GH_TOKEN-}}\" = {shlex.quote(GITHUB_GUARD_TOKEN)} ] || exit 96\n"
+            f"printf '%s:%s\\n' {shlex.quote(GITHUB_GUARD_SENTINEL)} \"$*\"\n",
+            encoding="utf-8",
+        )
+        fake_gh.chmod(0o500)
+        (fake_bin / "opencode").symlink_to(opencode)
+        scenario_environment = dict(source)
+        scenario_environment.pop("CPLT_CONFIG", None)
+        scenario_environment.update(
+            {
+                "HOME": str(isolated_home),
+                "XDG_CONFIG_HOME": str(xdg / "config"),
+                "XDG_CACHE_HOME": str(xdg / "cache"),
+                "XDG_DATA_HOME": str(xdg / "data"),
+                "XDG_STATE_HOME": str(xdg / "state"),
+                "GH_TOKEN": GITHUB_GUARD_TOKEN,
+                "PATH": os.pathsep.join(
+                    dict.fromkeys(
+                        (
+                            str(fake_bin),
+                            str(cplt.parent),
+                            str(opencode.parent),
+                            "/usr/bin",
+                            "/bin",
+                            "/usr/sbin",
+                            "/sbin",
+                        )
+                    )
+                ),
+                "LANG": source.get("LANG", "en_US.UTF-8"),
+                "TERM": "dumb",
+            }
+        )
+        config = LOCAL.LocalConfig(
+            client="opencode",
+            agent="barista",
+            context="focused",
+            provider_id=PROVIDER_ID,
+            base_url="http://127.0.0.1:9/v1",
+            model_id=MODEL_ID,
+        )
+        launch = LOCAL.build_local_launch(
+            config,
+            distribution_root=distribution_root,
+            project_dir=consumer,
+            cplt=cplt,
+            client=opencode,
+            environment=scenario_environment,
+            github_access=True,
+            platform="darwin",
+        )
+        prefix = list(launch.command[: launch.command.index("--")])
+        agent_index = prefix.index("--agent")
+        del prefix[agent_index : agent_index + 2]
+
+        def guarded(*arguments: str) -> CommandResult:
+            # cplt resolves `exec -- gh ...` to an absolute binary before it
+            # installs the sandbox PATH wrappers. Resolve through the shell
+            # inside the sandbox instead; this is the same PATH lookup used
+            # when OpenCode or Copilot invokes gh.
+            return run_process(
+                tuple((*prefix, "exec", "-c", shlex.join(("gh", *arguments)))),
+                consumer,
+                dict(launch.environment),
+                timeout,
+            )
+
+        allowed = guarded(
+            "issue",
+            "create",
+            "--title",
+            "Smoke only",
+            "--body",
+            "No GitHub request is made",
+        )
+        if (
+            allowed.returncode != 0
+            or f"{GITHUB_GUARD_SENTINEL}:issue create" not in allowed.output
+        ):
+            raise LocalSmokeError(
+                "cplt did not allow the current-repository fake issue creation: "
+                f"{allowed.output[-2000:]}"
+            )
+
+        for label, arguments in (
+            (
+                "cross-repo issue",
+                (
+                    "issue",
+                    "create",
+                    "--repo",
+                    "other-org/other-repo",
+                    "--title",
+                    "blocked",
+                    "--body",
+                    "blocked",
+                ),
+            ),
+            ("destructive issue", ("issue", "delete", "1")),
+            ("token extraction", ("auth", "token")),
+        ):
+            blocked = guarded(*arguments)
+            if blocked.returncode == 0:
+                raise LocalSmokeError(
+                    f"cplt unexpectedly allowed {label}: {blocked.output[-2000:]}"
+                )
+            if GITHUB_GUARD_SENTINEL in blocked.output:
+                raise LocalSmokeError(f"cplt forwarded blocked {label} to fake gh")
 
 
 def _regular_executable(
@@ -1124,12 +1359,15 @@ def inspect_prerequisites(
         except LocalSmokeError as exc:
             problems.append(f"could not inspect {name} version: {exc}")
             continue
-        lines = tuple(line.strip() for line in version.output.splitlines() if line.strip())
-        observed = lines[0] if lines else ""
-        if version.returncode != 0 or observed != expected[name]:
+        lines = tuple(
+            line.strip() for line in version.output.splitlines() if line.strip()
+        )
+        matches = tuple(line for line in lines if line == expected[name])
+        if version.returncode != 0 or len(matches) != 1:
+            preview = " | ".join(lines[:3]) if lines else "<no output>"
             problems.append(
-                f"expected {name} version {expected[name]!r}, found {observed!r} "
-                f"(exit {version.returncode})"
+                f"expected exactly one {name} version line {expected[name]!r}, "
+                f"found {len(matches)} in {preview!r} (exit {version.returncode})"
             )
     return PrerequisiteResult(
         resolved["cplt"],
@@ -1269,6 +1507,14 @@ def main(
             timeout=arguments.timeout,
             platform=platform,
         )
+        run_github_guard_matrix(
+            distribution_root=distribution_root,
+            cplt=prerequisites.cplt,
+            opencode=prerequisites.opencode,
+            environment=source,
+            timeout=arguments.timeout,
+            platform=platform,
+        )
     except (LocalSmokeError, LOCAL.LocalModeError, OSError) as exc:
         print(f"Grillmester local smoke failed: {exc}", file=sys.stderr)
         return 1
@@ -1280,7 +1526,9 @@ def main(
     print(
         "Grillmester local smoke passed: 4/4 focused/full OpenCode/Copilot "
         "scenarios through the release-test cplt baseline; ripgrep available on "
-        "PATH; cplt audit escape blocked; consumer clean; credentials scrubbed."
+        "PATH; cplt audit escape and caller-PATH parent tools blocked; explicit "
+        "fake-gh current-repo issue allowed while cross-repo, destructive and "
+        "token-extraction calls were blocked; consumer clean; credentials scrubbed."
     )
     return 0
 

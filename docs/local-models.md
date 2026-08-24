@@ -52,8 +52,10 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
 ```
 
-OpenCode får ikke GitHub-credential som default. Gjør tilgangen eksplisitt når
-sesjonen trenger autentiserte GitHub-operasjoner:
+Uten opt-in sender launcheren ingen støttet GitHub-tokenvariabel til child.
+OpenCode starter uten ambient GitHub-konto; Copilot kan likevel mediere en
+native credential via macOS Keychain som beskrevet nedenfor. Gjør et eksplisitt
+token tilgjengelig når sesjonen trenger autentiserte GitHub-operasjoner:
 
 ```bash
 cd /path/to/consumer-repo
@@ -62,12 +64,13 @@ GH_TOKEN="$(gh auth token)" \
   local launch --client opencode --github-access
 ```
 
-Her kjører du selv `gh auth token` i skallet før launcheren starter; Grillmester-
-launcheren resolver eller kjører ikke `gh`. GitHub CLI må finnes på `PATH`;
-installer den ved behov med `brew install gh`. Copilot-local bruker i stedet
-cplts native Copilot-profil og kan normalt bruke kontoen cplt medierer. Bruk
-samme `--github-access`-form med `--client copilot` bare når du vil velge tokenet
-eksplisitt.
+Her kjører du selv `gh auth token` i skallet før launcheren starter. Grillmester
+verifiserer at `gh` finnes på `PATH`, men starter det ikke. Installer GitHub CLI
+ved behov med `brew install gh`. Samme `--github-access`-form brukes med
+`--client copilot`. For begge klienter skjermer launcheren ambient tokenvariabler,
+rå `gh`-config og caller-kontrollerte PATH-verktøy. Copilots cplt-profil tillater
+likevel macOS Keychain; velg OpenCode dersom hard isolasjon fra en ambient
+GitHub-konto er et krav.
 
 `setup` finner OpenCode og Copilot CLI på `PATH` uten å starte dem. Finnes én
 klient, velges den automatisk; finnes begge, spør launcheren. OpenCode-sessions
@@ -103,7 +106,7 @@ nøkkelen, skrive sessionstate eller kjøre klientprober. Previewen er bevisst
 ikke en copy/paste-kommando fordi kortlivede policyfiler og secret-miljø ikke
 materialiseres. Kjør `setup` på nytt for å endre lagret default.
 
-### Avgrensede bakgrunnsoppgaver
+### Avgrenset kjøring
 
 `run` kjører én prompt non-interaktivt med lagret klient og modell, focused
 Barista som default og automatiske tool-godkjenninger:
@@ -113,9 +116,9 @@ cd /path/to/clean-dedicated-worktree
 grillmester local run "Fiks den avgrensede oppgaven og kjør testene"
 ```
 
-Kommandoen kjører i foreground; legg den i en egen terminal når den skal jobbe
-i bakgrunnen mens du gjør noe annet. Bruk alltid et rent, dedikert worktree,
-ingen samtidige menneske- eller agentendringer og én `run` per worktree.
+Kommandoen kjører i foreground; la den stå i en egen terminal mens du gjør noe
+annet. Bruk alltid et rent, dedikert worktree, ingen samtidige menneske- eller
+agentendringer og én `run` per worktree.
 OpenCode bruker `run --auto`, mens Copilot CLI bruker sin non-interaktive
 promptmodus. Begge auto-godkjenner prosjektwrites, shellkommandoer og URL-er
 innenfor den effektive klient- og cplt-policyen. cplt beskytter ikke
@@ -131,9 +134,10 @@ resultatet. `--agent` og `--full` er engangsoverstyringer; lagret default endres
 ikke. `--print-command` viser den redigerte kommandoformen uten å probe modellen
 eller klientversjonen.
 
-Autentisert GitHub-tilgang er av som default for OpenCode-run, og Copilot-run
-nekter `gh`-shelltools uten eksplisitt opt-in. Når en oppgave faktisk trenger
-GitHub, sett caller-eid `GH_TOKEN` og bruk `--github-access`:
+Autentisert GitHub-tilgang er av som default for begge klientene. Copilot legger
+i tillegg inn en `shell(gh:*)`-deny som defense-in-depth, ikke som en hard
+sikkerhetsgrense. Når en oppgave faktisk trenger GitHub, sett caller-eid
+`GH_TOKEN` og bruk `--github-access`:
 
 ```bash
 GH_TOKEN="$GRILLMESTER_RUN_GITHUB_TOKEN" \
@@ -144,7 +148,7 @@ GH_TOKEN="$GRILLMESTER_RUN_GITHUB_TOKEN" \
 Denne opt-in-flyten krever GitHub CLI på `PATH`; installer den med
 `brew install gh` dersom den mangler.
 
-Dette autoriserer en unattended child: GitHub-skrivinger som er eksplisitt
+Dette autoriserer en non-interaktiv child: GitHub-skrivinger som er eksplisitt
 autorisert i prompten kan skje uten en ny tool-dialog. Bruk et dedikert,
 fine-grained token begrenset til nødvendig repository og minste nødvendige
 permissions, ikke et bredt personlig standardtoken. Tokenet er en myk grense:
@@ -161,30 +165,33 @@ oppå. Webverktøy og dokumentasjonskilder virker når den effektive policyen og
 klientens godkjenninger tillater det. Dette er ikke en egen Grillmester-
 egressattest.
 
-GitHub-auth følger klientens native cplt-profil. Copilot-local bruker
-`cplt --agent copilot`; cplt kan derfor mediere brukerens vanlige Copilot-/GitHub-
-credential fra GitHub CLI eller Keychain også uten `--github-access`.
-Copilots innebygde GitHub MCP er fortsatt av, så agentens GitHub-kommandoer går
-gjennom guarded `gh` og cplts repo-scope. cplt dokumenterer denne tokenbroen og
-`gh`-guarden som en myk, best-effort kommandogrense, ikke som hemmelighold mot
-en prosess med samme bruker-ID.
+For begge klienter får cplt-parenten en tom, session-eid `GH_CONFIG_DIR`, child
+får session-eid XDG-config, eksisterende host-config deny-es, og en privat
+trusted-bin skjermer parenten fra caller-kontrollerte `gh`, `git`, `which` og
+`sandbox-exec`. Copilots innebygde GitHub MCP er av. OpenCode får dermed hard
+isolasjon fra den ambient GitHub-kontoen. Copilots cplt-profil tillater fortsatt
+macOS Keychain og kan derfor mediere en native credential; local-flyten lover
+ikke hard ambient-kontoisolasjon for Copilot. Uten `--github-access` sendes ingen
+støttet tokenvariabel. Copilot markerer kjente GitHub-tokenvariabler som secrets
+og deny-er dessuten det direkte `shell(gh:*)`-toolet som defense-in-depth. Den
+tool-denyen kan omgås av en annen shellform og er ikke sikkerhetsgrensen.
 
-OpenCode får ingen GitHub-credential som default. Når brukeren eksplisitt setter
-`GH_TOKEN` i caller-miljøet og velger `--github-access`, validerer launcheren
-verdien uten å kjøre `gh` og sender den til valgt child-klient. Det samme flagget
-kan brukes med Copilot for å velge en eksplisitt tokenverdi i stedet for cplts
-normale kontooppslag. Launcheren skriver ikke caller-tokenet til config,
-sessionstate eller preview, men klienten og godkjente tool-subprosesser kan lese
-og eventuelt persistere det i sin skrivbare sessionstate. En lokal modell kan
-også skrive tokenet til terminaloutput eller klientlogger hvis den inspiserer
-miljøet; cplt kan ikke redigere modellens output i etterkant. Bruk riktig konto
-og minst mulig scope. Interaktiv launch spør før sideeffekter; `local run`
-utfører den eksakt autoriserte prompten uten en ny tool-dialog.
+Når brukeren eksplisitt setter `GH_TOKEN` i caller-miljøet og velger
+`--github-access`, validerer launcheren tokenet og at `gh` finnes uten å starte
+det, og sender tokenet til valgt child-klient. Dette velger en eksplisitt
+tool-credential, men trekker ikke tilbake Copilot-profilens Keychain-tilgang.
+Launcheren skriver ikke tokenet
+til config, sessionstate eller preview, men klienten og godkjente
+tool-subprosesser kan lese og eventuelt persistere det i sin skrivbare
+sessionstate. En lokal modell kan også skrive tokenet til terminaloutput eller
+klientlogger; cplt kan ikke redigere modellens output i etterkant. Bruk riktig
+konto og minst mulig scope. Interaktiv launch spør før sideeffekter;
+`local run` utfører den eksakt autoriserte prompten uten en ny tool-dialog.
 
-Child-prosessen får ikke lese eksisterende GitHub CLI-config direkte. Copilot-
-profilens eventuelle credentialmediering eies av cplt; OpenCode ser bare et
-eksplisitt opt-in-token. Høy-nivåkommandoer som `gh issue create` forblir under
-`gh`-guard, og Git push forblir under Git-guard. OpenCodes websearch er aktiv,
+Høy-nivåkommandoer som `gh issue create` går fortsatt gjennom cplts `gh`-guard,
+og Git push går gjennom Git-guard. `gh`-guarden er en myk, best-effort
+kommandogrense; et eksplisitt token kan også brukes i direkte API-kall.
+OpenCodes websearch er aktiv,
 og Grillmester velger Exa som provider. Når websearch brukes, sendes
 søketeksten til Exa: interaktiv launch krever klientgodkjenning, mens `local
 run` auto-godkjenner tool-et. Trafikken går gjennom den effektive cplt-
@@ -198,6 +205,12 @@ agentteamet avvises; repoets vanlige `AGENTS.md` kan fortsatt gi stående
 prosjektkontekst. Dette er payloadisolasjon, ikke en egen runtime-sandbox. Bare
 de to nyeste avsluttede sessionmappene beholdes ved sekvensiell bruk; `doctor`
 og preview oppretter ingen sessionmappe.
+
+Copilot-local feiler konservativt på enhver ikke-tom repo-lokal agent- eller
+skillrot fordi klienten ikke tilbyr full discovery-disable. Det omfatter også
+ikke-kolliderende innhold synket av nav-pilot. Standard/pluginflyten kan fortsatt
+sameksistere med slikt innhold; for local bruker du OpenCode eller en eksplisitt
+pilotbranch/fixture uten røttene.
 
 En reell Qwen3.8-27B Q6-pilot med samme korte oppgave målte 8 024 mot 13 667
 inputtokens i OpenCode focused/full og 15 841 mot 20 117 i Copilot CLI. Det er
@@ -256,12 +269,12 @@ Et forsiktig M4 Pro-utgangspunkt er:
   og hastighet med `f16` før du standardiserer
 - én server-slot og én tung lokal agentoppgave om gangen
 - ingen MTP-/draftmodell i første correctness-baseline; mål det separat senere
-- en separat Git-worktree per bakgrunnsoppgave som kan skrive
+- en separat Git-worktree per avgrenset kjøring som kan skrive
 
 På en minnebåndbreddebegrenset maskin gjør flere samtidige requests vanligvis
 ikke at totalarbeidet blir tilsvarende raskere. De deler samme båndbredde og
 øker samtidig KV-/contexttrykket. Ved omtrent 9–10 genererte tokens/s bør
-bakgrunnsoppgaver derfor være små, godt briefet og uavhengig verifiserbare.
+avgrensede kjøringer derfor være små, godt briefet og uavhengig verifiserbare.
 Parallelliser gjerne menneskelig arbeid, repo-research eller oppgaver på en
 annen provider; kø tunge lokale Kokk-oppdrag sekvensielt.
 
@@ -451,7 +464,7 @@ etter at hver rolle har bestått capability- og kvalitetssmoken. På én M4 Pro
 bør serveren fortsatt ha én slot; parallelle delegeringer må køes for å unngå
 at modellene konkurrerer om samme minnebåndbredde og KV-cache.
 
-Når du vil starte en eksplisitt lokal bakgrunnsoppgave, bruk en offentlig
+Når du vil starte en eksplisitt avgrenset kjøring, bruk en offentlig
 primary-agent i en egen worktree i stedet for å behandle Kokk som en generell
 startagent:
 
@@ -464,7 +477,7 @@ grillmester local run --client opencode \
 OpenCode dokumenterer `--agent` og `--model provider/model` for
 [`opencode run`](https://opencode.ai/docs/cli#run). Kokk er en skjult subagent
 som brukes gjennom Grillmester-delegering. Barista er riktig direkte inngang
-for en ferdig spesifisert bakgrunnsoppgave. Start bare én tung lokal
+for en ferdig spesifisert avgrenset kjøring. Start bare én tung lokal
 agentoppgave om gangen med denne laptopbaselinen.
 
 ## Avansert: manuell Copilot CLI BYOK
@@ -584,7 +597,7 @@ kontrakten eies og verifiseres i cplt eller organisasjonens runtimepolicy. Ikke
 rapporter en vanlig local-session som offline bare fordi inferensen går til
 `127.0.0.1`.
 
-## Capability-smoke før modellen får bakgrunnsarbeid
+## Capability-smoke før modellen får en avgrenset kjøring
 
 Et godt svar i chat er ikke nok. Test den eksakte modellen, kvantiseringen,
 serveren, contextprofilen og harnesset sammen i et disponibelt repo:

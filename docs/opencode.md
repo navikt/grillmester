@@ -81,7 +81,7 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py \
 Focused Barista er default. Engangsvalg endrer ikke lagret default.
 `local run` kjører én foreground, non-interaktiv prompt og auto-godkjenner
 OpenCodes tools; bruk et rent, dedikert worktree og kontroller diff og tester
-etterpå. Se [bakgrunnskontrakten](local-models.md#avgrensede-bakgrunnsoppgaver).
+etterpå. Se [kontrakten for avgrenset kjøring](local-models.md#avgrenset-kjøring).
 
 Local betyr lokal inference, ikke offline. Modellrequests bindes til loopback,
 mens websearch, dokumentasjon og GitHub kan brukes gjennom OpenCodes
@@ -97,9 +97,11 @@ launch spør gjennom OpenCodes permissionmodell; `local run` auto-godkjenner
 tool-et sammen med øvrige tools. Bruk ikke websearch for tekst som skal bli på
 maskinen.
 
-OpenCode-local får ingen GitHub-credential som default. For en autentisert
-sesjon setter brukeren eksplisitt `GH_TOKEN` og velger `--github-access` fra
-riktig consumer-repo:
+Local-flyten skjermer tokenvariabler, rå `gh`-config og caller-PATH-verktøy for
+begge klienter. OpenCode gir i tillegg hard isolasjon fra den ambient
+GitHub-kontoen; Copilots cplt-profil tillater macOS Keychain og gir ikke samme
+garanti. For en autentisert sesjon setter brukeren eksplisitt `GH_TOKEN` og
+velger `--github-access` fra riktig consumer-repo:
 
 ```bash
 cd /path/to/consumer-repo
@@ -107,14 +109,12 @@ GH_TOKEN="$(gh auth token)" \
   grillmester local --client opencode --github-access
 ```
 
-Launcheren kjører ikke `gh` og skriver ikke tokenet til config, sessionstate
-eller preview. Klienten og godkjente tool-subprosesser kan lese og eventuelt
-persistere det i skrivbar sessionstate, så dette er en myk grense. Bruk riktig
-konto og minst mulig scope. Uten opt-in virker offentlig web fortsatt.
-
-Copilot-local bruker cplts native Copilot-profil og kan normalt bruke GitHub-
-kontoen cplt medierer. `--github-access` er også tilgjengelig der som en
-eksplisitt kontooverride, ikke som et krav for normal Copilot-auth.
+Launcheren verifiserer at `gh` finnes uten å starte det, og skriver ikke tokenet
+til config, sessionstate eller preview. Klienten og godkjente
+tool-subprosesser kan lese og eventuelt persistere det i skrivbar sessionstate,
+så dette er en myk grense. Bruk riktig konto og minst mulig scope. Uten opt-in
+virker offentlig web fortsatt når cplt-policyen tillater det. Samme eksplisitte
+form brukes med `--client copilot`.
 
 Se [lokalmodellguiden](local-models.md) for LM Studio, `llama.cpp`, Qwen,
 Copilot CLI og capability-smoke.

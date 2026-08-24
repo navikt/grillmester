@@ -6,6 +6,7 @@ import io
 import json
 import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -108,6 +109,17 @@ class LoopbackProviderTests(unittest.TestCase):
 
 
 class MatrixTests(unittest.TestCase):
+    def test_tree_snapshot_detects_same_size_content_rewrites(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate = root / "result.txt"
+            candidate.write_bytes(b"before")
+            before = SMOKE._tree_snapshot(root)
+
+            candidate.write_bytes(b"after!")
+
+            self.assertNotEqual(before, SMOKE._tree_snapshot(root))
+
     def test_matrix_uses_local_launcher_and_proves_payload_prompt_and_scrubbing(self) -> None:
         observed: list[tuple[str, str, tuple[str, ...]]] = []
         with tempfile.TemporaryDirectory() as directory:
@@ -143,73 +155,26 @@ class MatrixTests(unittest.TestCase):
             ) -> SMOKE.CommandResult:
                 self.assertGreater(timeout, 0)
                 self.assertEqual([cwd / ".git"], list(cwd.iterdir()))
-                rendered_environment = json.dumps(child_environment, sort_keys=True)
-                for name in SMOKE.CREDENTIAL_ENVIRONMENT:
-                    self.assertNotIn(
-                        f"{SMOKE.CREDENTIAL_CANARY_PREFIX}{name}",
-                        rendered_environment,
-                    )
-                separator = command.index("--")
-                self.assertIn("--proxy-forced", command[:separator])
-                self.assertIn("--gh-guard", command[:separator])
-                self.assertIn("--git-guard", command[:separator])
-                self.assertIn("--no-audit", command[:separator])
-                self.assertNotIn("--allow-all-domains", command[:separator])
-                self.assertNotIn("--preset", command[:separator])
-                self.assertIn("--allow-localhost", command[:separator])
-                self.assertNotIn("--allowed-domains", command[:separator])
+                self.assertEqual(("-I", "-S"), command[1:3])
+                self.assertEqual("grillmester.py", Path(command[3]).name)
+                self.assertEqual(("local", "run"), command[4:6])
+                self.assertEqual(SMOKE.PROMPT, command[-1])
+                self.assertNotIn("--github-access", command)
                 self.assertNotIn("CPLT_CONFIG", child_environment)
-                github_config = Path(child_environment["GH_CONFIG_DIR"])
-                self.assertTrue(github_config.is_dir())
-                self.assertEqual([], list(github_config.iterdir()))
-                guarded_gh = Path(
-                    shutil.which("gh", path=child_environment["PATH"]) or ""
-                )
-                self.assertEqual("gh", guarded_gh.name)
-                self.assertEqual(
-                    "#!/bin/sh\nexit 1\n",
-                    guarded_gh.read_text(encoding="utf-8"),
-                )
-                self.assertEqual(0o500, stat.S_IMODE(guarded_gh.stat().st_mode))
-                client_arguments = command[separator + 1 :]
-                if "OPENCODE_CONFIG_CONTENT" in child_environment:
-                    client = "opencode"
-                    payload = Path(child_environment["OPENCODE_CONFIG_DIR"])
-                    provider = json.loads(child_environment["OPENCODE_CONFIG_CONTENT"])[
-                        "provider"
-                    ]["smoke"]
-                    base_url = provider["options"]["baseURL"]
-                    self.assertEqual(1, client_arguments.count("run"))
-                else:
-                    client = "copilot"
-                    payload = Path(
-                        client_arguments[client_arguments.index("--plugin-dir") + 1]
-                    )
-                    base_url = child_environment["COPILOT_PROVIDER_BASE_URL"]
-                    self.assertNotIn("COPILOT_OFFLINE", child_environment)
-                context = "focused" if "focused" in payload.name else "full"
-                if client == "opencode" and context == "focused":
-                    self.assertIn("--auto", client_arguments)
-                    self.assertIn("--title", client_arguments)
-                    self.assertEqual(
-                        "Grillmester local run",
-                        client_arguments[client_arguments.index("--title") + 1],
-                    )
-                    self.assertEqual(SMOKE.PROMPT, client_arguments[-1])
-                elif client == "opencode":
-                    self.assertIn("--title", client_arguments)
-                    self.assertNotIn("--auto", client_arguments)
-                elif context == "focused":
-                    self.assertIn("--prompt", client_arguments)
-                    self.assertIn("--allow-all-tools", client_arguments)
-                    self.assertIn("--allow-all-urls", client_arguments)
-                    self.assertIn("--no-ask-user", client_arguments)
-                    self.assertIn("--deny-tool=shell(gh:*)", client_arguments)
-                    self.assertNotIn("--allow-all-paths", client_arguments)
-                    self.assertNotIn("GH_TOKEN", child_environment)
-                else:
-                    self.assertIn("-p", client_arguments)
-                    self.assertNotIn("--allow-all-tools", client_arguments)
+                for name in SMOKE.GITHUB_CREDENTIAL_ENVIRONMENT:
+                    self.assertNotIn(name, child_environment)
+                client = command[command.index("--client") + 1]
+                context = "full" if "--full" in command else "focused"
+                config = SMOKE.LOCAL.load_config(environment=child_environment)
+                self.assertIsNotNone(config)
+                assert config is not None
+                self.assertEqual(client, config.client)
+                self.assertEqual(context, config.context)
+                base_url = config.base_url
+                with urllib.request.build_opener(
+                    urllib.request.ProxyHandler({})
+                ).open(f"{base_url}/models", timeout=5) as response:
+                    self.assertEqual(200, response.status)
                 scenario = SMOKE.Scenario(client, context)
                 prompt = "# Barista ☕\n"
                 if context == "focused":
@@ -278,7 +243,7 @@ class MatrixTests(unittest.TestCase):
                             "tools": [{"type": "function"}],
                         },
                     )
-                observed.append((client, context, tuple(client_arguments)))
+                observed.append((client, context, command))
                 return SMOKE.CommandResult(0, stream)
 
             reports = SMOKE.run_matrix(
@@ -313,6 +278,73 @@ class MatrixTests(unittest.TestCase):
             },
             {report.payload for report in reports},
         )
+
+    def test_github_guard_matrix_uses_sandbox_path_lookup_and_fake_gh(self) -> None:
+        observed: list[tuple[str, ...]] = []
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binaries = root / "bin"
+            home = root / "home"
+            state = root / "state"
+            for path in (binaries, home, state):
+                path.mkdir()
+            cplt = executable(binaries / "cplt")
+            opencode = executable(binaries / "opencode")
+            for name in ("git", "sandbox-exec", "uname", "which"):
+                executable(binaries / name)
+            environment = {
+                "HOME": str(home),
+                "XDG_STATE_HOME": str(state),
+                "PATH": str(binaries),
+                "LANG": "en_US.UTF-8",
+            }
+
+            def run_process(
+                command: tuple[str, ...],
+                cwd: Path,
+                child_environment: dict[str, str],
+                timeout: float,
+            ) -> SMOKE.CommandResult:
+                self.assertGreater(timeout, 0)
+                self.assertEqual(("exec", "-c"), command[-3:-1])
+                arguments = tuple(SMOKE.shlex.split(command[-1]))
+                self.assertEqual("gh", arguments[0])
+                observed.append(arguments)
+                if arguments[:3] == ("gh", "issue", "create") and "--repo" not in arguments:
+                    completed = subprocess.run(
+                        arguments,
+                        cwd=cwd,
+                        env=child_environment,
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        timeout=timeout,
+                        check=False,
+                    )
+                    return SMOKE.CommandResult(completed.returncode, completed.stdout)
+                return SMOKE.CommandResult(1, "blocked by fixture")
+
+            with mock.patch.object(
+                SMOKE.LOCAL,
+                "_trusted_macos_executable",
+                side_effect=lambda name: (binaries / name).resolve(strict=True),
+            ), mock.patch.object(
+                SMOKE.LOCAL, "_ensure_cplt_executable_state_path"
+            ):
+                SMOKE.run_github_guard_matrix(
+                    distribution_root=ROOT,
+                    cplt=cplt,
+                    opencode=opencode,
+                    environment=environment,
+                    run_process=run_process,
+                    platform="darwin",
+                )
+
+        self.assertEqual(4, len(observed))
+        self.assertIn("--repo", observed[1])
+        self.assertEqual(("gh", "issue", "delete", "1"), observed[2])
+        self.assertEqual(("gh", "auth", "token"), observed[3])
 
     def test_provider_validation_rejects_the_wrong_context_projection(self) -> None:
         scenario = SMOKE.Scenario("copilot", "focused")
@@ -385,7 +417,9 @@ class MatrixTests(unittest.TestCase):
                                 ),
                             }
                         ],
-                        "tools": [{"type": "function"}],
+                        "tools": [
+                            {"type": "function", "function": {"name": "bash"}}
+                        ],
                     },
                 ),
                 SMOKE.CompletionRecord(
@@ -439,7 +473,9 @@ class MatrixTests(unittest.TestCase):
                                 ),
                             }
                         ],
-                        "tools": [{"type": "function"}],
+                        "tools": [
+                            {"type": "function", "function": {"name": "bash"}}
+                        ],
                     },
                 ),
                 SMOKE.CompletionRecord(
@@ -477,6 +513,32 @@ class MatrixTests(unittest.TestCase):
         with self.assertRaisesRegex(SMOKE.LocalSmokeError, "auto-approved bash"):
             SMOKE.validate_provider_state(state)
 
+    def test_provider_validation_names_missing_bash_tool(self) -> None:
+        scenario = SMOKE.Scenario("opencode", "focused")
+        state = SMOKE.ProviderState(scenario)
+        state.model_requests.append({})
+        state.completions.append(
+            SMOKE.CompletionRecord(
+                path="/v1/chat/completions",
+                headers={},
+                payload={
+                    "model": SMOKE.MODEL_ID,
+                    "stream": True,
+                    "messages": [{"role": "system", "content": "# Barista ☕"}],
+                    "tools": [
+                        {"type": "function", "function": {"name": "shell"}},
+                        {"type": "function", "function": {"name": "read"}},
+                    ],
+                },
+            )
+        )
+
+        with self.assertRaisesRegex(
+            SMOKE.LocalSmokeError,
+            "required 'bash' tool; advertised function tools: shell, read",
+        ):
+            SMOKE.validate_provider_state(state)
+
 
 class PrerequisiteTests(unittest.TestCase):
     def test_exact_versions_are_accepted_in_isolated_home(self) -> None:
@@ -494,6 +556,7 @@ class PrerequisiteTests(unittest.TestCase):
             )
             copilot = executable(
                 binaries / "copilot",
+                "Package extraction took 11579ms\\n"
                 f"GitHub Copilot CLI {SMOKE.EXPECTED_COPILOT_VERSION}.\\n"
                 "Run 'copilot update' to check for updates.",
             )
@@ -509,7 +572,42 @@ class PrerequisiteTests(unittest.TestCase):
                 platform="darwin",
             )
 
-        self.assertEqual((), result.problems)
+            self.assertEqual((), result.problems)
+
+    def test_duplicate_expected_version_line_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binaries = root / "bin"
+            state = root / "version-state"
+            binaries.mkdir()
+            state.mkdir()
+            cplt = executable(
+                binaries / "cplt", f"cplt {SMOKE.EXPECTED_CPLT_RELEASE}"
+            )
+            opencode = executable(
+                binaries / "opencode", SMOKE.EXPECTED_OPENCODE_VERSION
+            )
+            line = f"GitHub Copilot CLI {SMOKE.EXPECTED_COPILOT_VERSION}."
+            copilot = executable(binaries / "copilot", f"{line}\\n{line}")
+            ripgrep = executable(binaries / "rg")
+
+            result = SMOKE.inspect_prerequisites(
+                cplt=cplt,
+                opencode=opencode,
+                copilot=copilot,
+                ripgrep=ripgrep,
+                state=state,
+                environment={"PATH": str(binaries), "LANG": "en_US.UTF-8"},
+                platform="darwin",
+            )
+
+        self.assertTrue(
+            any(
+                "expected exactly one copilot version line" in problem
+                for problem in result.problems
+            ),
+            result.problems,
+        )
         self.assertEqual(cplt.resolve(), result.cplt)
         self.assertEqual(opencode.resolve(), result.opencode)
         self.assertEqual(copilot.resolve(), result.copilot)
