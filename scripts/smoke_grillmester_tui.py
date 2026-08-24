@@ -8,6 +8,7 @@ import errno
 import fcntl
 import os
 import pty
+import re
 import select
 import shutil
 import signal
@@ -24,7 +25,11 @@ MAX_OUTPUT_BYTES = 2 * 1024 * 1024
 OPENCODE_RUNTIME_GITIGNORE = (
     b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n"
 )
-READY_MARKERS = (b"Ask anything", b"Grillmester", b"1.18.20")
+READY_MARKERS = (b"Ask anything", b"Grillmester")
+OPENCODE_VERSION = re.compile(
+    r"^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+    r"(?:[-+][0-9A-Za-z.-]+)?$"
+)
 FAILURE_MARKERS = (
     b"unexpected server error",
     b"operation not permitted",
@@ -47,26 +52,48 @@ def _regular_executable(path: Path, *, label: str) -> Path:
     return resolved
 
 
-def _environment(
-    state: Path, *, launcher: Path, opencode: Path, cplt: Path
-) -> dict[str, str]:
+def _environment(state: Path, *, opencode: Path, cplt: Path) -> dict[str, str]:
     home = state / "home"
     config = state / "config"
     data = state / "data"
     cache = state / "cache"
     runtime_state = state / "runtime-state"
-    for directory in (home, config, data, cache, runtime_state, config / "cplt"):
+    client_bin = state / "client-bin"
+    for directory in (
+        home,
+        config,
+        data,
+        cache,
+        runtime_state,
+        config / "cplt",
+        client_bin,
+    ):
         directory.mkdir(parents=True, mode=0o700, exist_ok=False)
     cplt_config = config / "cplt/config.toml"
     cplt_config.write_bytes(b"")
     cplt_config.chmod(0o600)
 
-    path_entries: list[str] = []
-    for directory in (launcher.parent, opencode.parent, cplt.parent):
-        value = str(directory)
-        if value not in path_entries:
-            path_entries.append(value)
-    path_entries.extend(("/usr/bin", "/bin", "/usr/sbin", "/sbin"))
+    for name, binary in (("opencode", opencode), ("cplt", cplt)):
+        link = client_bin / name
+        try:
+            expected = binary.resolve(strict=True)
+            link.symlink_to(expected)
+            if link.resolve(strict=True) != expected:
+                raise TuiSmokeError(
+                    f"isolated {name} link does not resolve to {expected}"
+                )
+        except OSError as exc:
+            raise TuiSmokeError(
+                f"could not stage isolated {name} executable: {exc}"
+            ) from exc
+
+    path_entries = [
+        str(client_bin),
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+    ]
     return {
         "HOME": str(home),
         "XDG_CONFIG_HOME": str(config),
@@ -90,8 +117,16 @@ def _resolved_on_path(name: str, environment: Mapping[str, str]) -> Path:
         raise TuiSmokeError(f"could not resolve isolated {name}: {exc}") from exc
 
 
-def _is_ready(output: bytes) -> bool:
-    return all(marker in output for marker in READY_MARKERS)
+def _version_marker(opencode_version: str) -> bytes:
+    if OPENCODE_VERSION.fullmatch(opencode_version) is None:
+        raise TuiSmokeError(
+            f"OpenCode version must be a semantic version: {opencode_version!r}"
+        )
+    return opencode_version.encode("ascii")
+
+
+def _is_ready(output: bytes, *, opencode_version: bytes) -> bool:
+    return all(marker in output for marker in (*READY_MARKERS, opencode_version))
 
 
 def _bounded_excerpt(output: bytes) -> str:
@@ -124,37 +159,10 @@ def _terminate_child(child_pid: int, *, grace_seconds: float = 2.0) -> int:
     return os.waitpid(child_pid, 0)[1]
 
 
-def _run_tui_smoke_in_state(
-    *,
-    launcher: Path,
-    opencode: Path,
-    cplt: Path,
-    project_dir: Path,
-    state: Path,
-    startup_timeout: float = 25.0,
-    exit_timeout: float = 8.0,
-) -> None:
-    launcher = _regular_executable(launcher, label="launcher")
-    opencode = _regular_executable(opencode, label="OpenCode")
-    cplt = _regular_executable(cplt, label="cplt")
-    try:
-        project_dir = project_dir.resolve(strict=True)
-        state = state.resolve(strict=True)
-    except OSError as exc:
-        raise TuiSmokeError(f"could not resolve smoke directory: {exc}") from exc
-    if not project_dir.is_dir() or not (project_dir / ".git").is_dir():
-        raise TuiSmokeError("project-dir must be an initialized Git worktree")
-    if not state.is_dir():
-        raise TuiSmokeError("state must be a directory")
-    environment = _environment(
-        state, launcher=launcher, opencode=opencode, cplt=cplt
-    )
-    if _resolved_on_path("opencode", environment) != opencode:
-        raise TuiSmokeError("isolated PATH does not select the reviewed OpenCode binary")
-    if _resolved_on_path("cplt", environment) != cplt:
-        raise TuiSmokeError("isolated PATH does not select the reviewed cplt binary")
+def _launcher_command(*, launcher: Path, project_dir: Path) -> list[str]:
+    """Build the public launcher invocation exercised by the TUI smoke."""
 
-    command = [
+    return [
         str(launcher),
         "--client",
         "opencode",
@@ -164,7 +172,6 @@ def _run_tui_smoke_in_state(
         str(project_dir),
         "--yes",
         "--quiet",
-        "--no-audit",
         "--preset",
         "strict",
         "--",
@@ -172,6 +179,39 @@ def _run_tui_smoke_in_state(
         "--log-level",
         "INFO",
     ]
+
+
+def _run_tui_smoke_in_state(
+    *,
+    launcher: Path,
+    opencode: Path,
+    opencode_version: str,
+    cplt: Path,
+    project_dir: Path,
+    state: Path,
+    startup_timeout: float = 25.0,
+    exit_timeout: float = 8.0,
+) -> None:
+    launcher = _regular_executable(launcher, label="launcher")
+    opencode = _regular_executable(opencode, label="OpenCode")
+    cplt = _regular_executable(cplt, label="cplt")
+    version_marker = _version_marker(opencode_version)
+    try:
+        project_dir = project_dir.resolve(strict=True)
+        state = state.resolve(strict=True)
+    except OSError as exc:
+        raise TuiSmokeError(f"could not resolve smoke directory: {exc}") from exc
+    if not project_dir.is_dir() or not (project_dir / ".git").is_dir():
+        raise TuiSmokeError("project-dir must be an initialized Git worktree")
+    if not state.is_dir():
+        raise TuiSmokeError("state must be a directory")
+    environment = _environment(state, opencode=opencode, cplt=cplt)
+    if _resolved_on_path("opencode", environment) != opencode:
+        raise TuiSmokeError("isolated PATH does not select the reviewed OpenCode binary")
+    if _resolved_on_path("cplt", environment) != cplt:
+        raise TuiSmokeError("isolated PATH does not select the reviewed cplt binary")
+
+    command = _launcher_command(launcher=launcher, project_dir=project_dir)
     child_pid, descriptor = pty.fork()
     if child_pid == 0:
         os.chdir(project_dir)
@@ -186,7 +226,9 @@ def _run_tui_smoke_in_state(
     try:
         while child_status is None:
             now = time.monotonic()
-            if not interrupted and _is_ready(output):
+            if not interrupted and _is_ready(
+                output, opencode_version=version_marker
+            ):
                 os.write(descriptor, b"\x03")
                 interrupted = True
                 exit_deadline = now + exit_timeout
@@ -224,7 +266,7 @@ def _run_tui_smoke_in_state(
             child_status = _terminate_child(child_pid)
         os.close(descriptor)
 
-    if not _is_ready(output):
+    if not _is_ready(output, opencode_version=version_marker):
         raise TuiSmokeError(
             "OpenCode exited before rendering the Grillmester TUI:\n"
             + _bounded_excerpt(output)
@@ -246,6 +288,7 @@ def run_tui_smoke(
     *,
     launcher: Path,
     opencode: Path,
+    opencode_version: str,
     cplt: Path,
     project_dir: Path,
     state_parent: Path,
@@ -264,6 +307,7 @@ def run_tui_smoke(
         _run_tui_smoke_in_state(
             launcher=launcher,
             opencode=opencode,
+            opencode_version=opencode_version,
             cplt=cplt,
             project_dir=project_dir,
             state=Path(state),
@@ -276,6 +320,7 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--launcher", type=Path, required=True)
     parser.add_argument("--opencode", type=Path, required=True)
+    parser.add_argument("--opencode-version", required=True)
     parser.add_argument("--cplt", type=Path, required=True)
     parser.add_argument("--project-dir", type=Path, required=True)
     parser.add_argument("--state-parent", type=Path, required=True)
@@ -288,6 +333,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         run_tui_smoke(
             launcher=options.launcher,
             opencode=options.opencode,
+            opencode_version=options.opencode_version,
             cplt=options.cplt,
             project_dir=options.project_dir,
             state_parent=options.state_parent,

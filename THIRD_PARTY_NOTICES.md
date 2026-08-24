@@ -28,9 +28,13 @@ SOFTWARE.
 
 ## anomalyco/opencode
 
-The Grillmester Homebrew formula installs the reviewed OpenCode `1.18.20`
-macOS binary from [`anomalyco/opencode`](https://github.com/anomalyco/opencode).
-The binary package is distributed under the following license.
+The standard Grillmester distribution does not redistribute OpenCode. It uses
+the OpenCode executable that the user or organisation installed separately.
+Grillmester's release compatibility tests verify the reviewed OpenCode
+`1.18.20` artifacts from
+[`anomalyco/opencode`](https://github.com/anomalyco/opencode); this notice is
+retained for those upstream components. OpenCode is distributed under the
+following license.
 
 MIT License
 
@@ -56,10 +60,13 @@ SOFTWARE.
 
 ## navikt/cplt
 
-The Grillmester Homebrew formula installs the reviewed cplt
-`2026.08.17-062831-1008a92` macOS binary from
-[`navikt/cplt`](https://github.com/navikt/cplt). The binary is distributed under
-the following license.
+The Grillmester Homebrew formula declares
+[`navikt/tap/cplt`](https://github.com/navikt/homebrew-tap) as an external
+dependency; it does not redistribute a private cplt binary. Grillmester's
+release compatibility tests verify cplt
+`2026.08.17-062831-1008a92` artifacts from
+[`navikt/cplt`](https://github.com/navikt/cplt). This notice is retained for
+those upstream components. cplt is distributed under the following license.
 
 MIT License
 

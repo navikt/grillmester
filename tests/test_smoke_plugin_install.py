@@ -20,6 +20,75 @@ SPEC.loader.exec_module(SMOKE)
 
 
 class PluginLifecycleSmokeTest(unittest.TestCase):
+    def test_local_help_requires_the_complete_minimum_copilot_flag_roster(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with mock.patch.object(
+                SMOKE,
+                "run",
+                return_value="\n".join(
+                    (
+                        "--plugin-dir",
+                        "--agent",
+                        "--model",
+                        "--no-auto-update",
+                        "--no-experimental",
+                        "--no-remote",
+                        "--no-remote-export",
+                        "--disable-builtin-mcps",
+                        "--secret-env-vars",
+                        "--prompt",
+                        "--allow-all-tools",
+                        "--allow-all-urls",
+                        "--no-ask-user",
+                        "--deny-tool",
+                    )
+                ),
+            ) as run:
+                SMOKE.verify_local_cli_help_surface(
+                    "copilot",
+                    {"HOME": str(root / "home")},
+                    root,
+                )
+
+        command, environment, cwd = run.call_args.args
+        self.assertEqual(["copilot", "--help"], command)
+        self.assertEqual({"HOME": str(root / "home")}, environment)
+        self.assertEqual(root, cwd)
+
+    def test_local_help_fails_when_required_option_disappears(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            plugin = Path(temp)
+            with mock.patch.object(SMOKE, "run", return_value="--plugin-dir\n"):
+                with self.assertRaisesRegex(
+                    RuntimeError, "omitted required local-run option"
+                ):
+                    SMOKE.verify_local_cli_help_surface("copilot", {}, plugin)
+
+    def test_local_help_requires_exact_option_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            plugin = Path(temp)
+            deceptive = "\n".join(
+                (
+                    "--plugin-dir",
+                    "--agent",
+                    "--model",
+                    "--no-auto-update",
+                    "--no-experimental",
+                    "--no-remote-export",
+                    "--disable-builtin-mcps",
+                    "--secret-env-vars",
+                    "--prompt",
+                    "--allow-all-tools",
+                    "--allow-all-urls",
+                    "--no-ask-user",
+                    "--deny-tool",
+                )
+            )
+            with mock.patch.object(SMOKE, "run", return_value=deceptive):
+                with self.assertRaisesRegex(RuntimeError, "--no-remote"):
+                    SMOKE.verify_local_cli_help_surface("copilot", {}, plugin)
+
     def test_release_semver_is_strict_and_linear(self) -> None:
         for version in ("0.3.0-poc.2", "1.2.3", "1.2.3-rc.0"):
             with self.subTest(version=version):

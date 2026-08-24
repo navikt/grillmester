@@ -1,44 +1,47 @@
 # Bruke Grillmester i OpenCode
 
-Grillmester har et komplett, native target for den release-gatede klienten
-OpenCode `1.18.20`: 7 agenter, 42 skills og 42 slash commands. Agentmodus,
-toolnavn, delegering og permissions er oversatt til OpenCodes egne kontrakter;
-det er ikke Copilot-pluginen pakket inn på nytt. Andre OpenCode 1-versjoner er
-`UNVERIFIED` til de har passert samme gate.
+Grillmester har et komplett, native target for OpenCode 1.x fra `1.18.20`: 7
+agenter, 42 skills og 42 slash commands. Agentmodus, toolnavn, delegering og
+permissions er oversatt til OpenCodes egne kontrakter; det er ikke
+Copilot-pluginen pakket inn på nytt. `1.18.20` er release-testbaselinen, mens
+launcheren godtar kompatible nyere 1.x-versjoner.
 
 ## Kom i gang
 
 Den felles macOS-launcheren er ferdig, men Homebrew-oppføringen publiseres først
-etter første stabile release og en reviewet bootstrap i `navikt/homebrew-tap`.
-Kommandoen under er derfor foreløpig **ikke tilgjengelig**. Bruk den bare når
-installasjonsguiden markerer tap-bootstrapen som aktiv:
+etter første stabile release og review i `navikt/homebrew-tap`. Kommandoen er
+derfor foreløpig **ikke tilgjengelig**:
 
 ```bash
-brew install navikt/tap/grillmester
+brew install navikt/tap/cplt navikt/tap/grillmester
+brew install opencode
 ```
 
-Formelen installerer én checksummet Grillmester-release sammen med de eksakte
-OpenCode- og cplt-binærene releasen er testet mot. De ligger privat i formelen,
-så en separat oppgradering av globale klienter endrer ikke Grillmester-flyten.
+OpenCode er en brukerinstallert terminalklient. Grillmester resolver
+`opencode` fra `PATH`; den installerer, erstatter eller skygger aldri klienten.
+Den vises derfor ikke som app i Launchpad eller `/Applications`.
 
-Start velgeren fra repoet du vil arbeide i:
+Start fra repoet du vil arbeide i:
 
 ```bash
+cd /path/to/consumer-repo
 grillmester
 ```
 
 Velg **OpenCode** og deretter Grillmester, Barista, Designer eller Doctor Who.
-Kombinasjonen kan lagres som default. Neste gang holder det å trykke Enter;
-`grillmester choose` åpner begge valgene på nytt. For en eksplisitt sesjon:
+Bare valgt klient versjonssjekkes gjennom cplt mot en tom mappe før valget kan
+lagres. `grillmester choose` endrer defaulten. Mangler OpenCode, får du
+`brew install opencode`; det skjer ingen stille fallback til Copilot.
+
+En eksplisitt sesjon ser slik ut:
 
 ```bash
 grillmester --client opencode --agent grillmester
 ```
 
 Launcheren binder det distribuerte targetet og starter alltid OpenCode gjennom
-cplt. Den velger ikke provider eller modell. Deklarer provideren i din vanlige,
-brukereide OpenCode-konfigurasjon og bruk `/models` etter oppstart. GitHub
-Copilot-provider kobles til med OpenCodes vanlige `/connect`.
+cplt. Den vanlige kommandoen velger ikke provider eller modell; bruk din
+brukereide OpenCode-config og `/models`.
 
 Kontroller installasjonen uten å starte en agentsesjon:
 
@@ -46,20 +49,75 @@ Kontroller installasjonen uten å starte en agentsesjon:
 grillmester doctor --client opencode
 ```
 
+Proben har timeout og outputgrense, bruker en disponibel 0700-prosjektmappe og
+gir aldri klienten skriverettighet i consumer-repoet.
+
 ### Lokal modell på macOS
 
-Gi cplt tilgang til den eksakte localhost-porten og velg modellen i OpenCode:
+Start en OpenAI-kompatibel modellserver på loopback og kjør:
 
 ```bash
-grillmester --client opencode --agent grillmester \
-  --allow-localhost 1234 \
-  -- --model lmstudio/replace-with-id-from-v1-models
+cd /path/to/consumer-repo
+grillmester local setup --client opencode
+grillmester local
+grillmester local run "Fiks den avgrensede oppgaven og kjør testene"
+grillmester local --full --agent grillmester
 ```
 
-Bruk `--allow-localhost 8080` for `llama-server`. Dette er den normale,
-unmanaged cplt-flyten, ikke managerprofilen `local-only`. Det komplette
-provideroppsettet ligger i [guiden for lokale
-modeller](local-models.md#koble-opencode-til-den-lokale-serveren).
+Fra en checkout bruker du den virkelige launcherpathen, ikke en ikke-installert
+`grillmester`-kommando:
+
+```bash
+cd /path/to/consumer-repo
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
+python3 /absolute/path/to/grillmester/scripts/grillmester.py \
+  local run "Fiks den avgrensede oppgaven og kjør testene"
+```
+
+`setup` bruker `http://127.0.0.1:8080/v1` som default og leser modellene fra
+`/v1/models`; oppgi `--base-url http://127.0.0.1:1234/v1` for LM Studio.
+Focused Barista er default. Engangsvalg endrer ikke lagret default.
+`local run` kjører én foreground, non-interaktiv prompt og auto-godkjenner
+OpenCodes tools; bruk et rent, dedikert worktree og kontroller diff og tester
+etterpå. Se [kontrakten for avgrenset kjøring](local-models.md#avgrenset-kjøring).
+
+Local betyr lokal inference, ikke offline. Modellrequests bindes til loopback,
+mens websearch, dokumentasjon og GitHub kan brukes gjennom OpenCodes
+permissions og cplts forced proxy, `gh`-guard og Git-guard når den effektive
+cplt-policyen tillater trafikken. Launcheren åpner den eksakte localhost-porten,
+men overstyrer ikke brukerens eller organisasjonens domeneconfig og gir ingen
+egen egressattest. Den bruker samme kompatible OpenCode 1.x- og cplt-versjoner
+som standardlauncheren, ikke en egen klientpin.
+
+Grillmester velger Exa for OpenCodes websearch. Når tool-et brukes, sendes
+søketeksten til Exa gjennom den effektive cplt-nettverkspolicyen. Interaktiv
+launch spør gjennom OpenCodes permissionmodell; `local run` auto-godkjenner
+tool-et sammen med øvrige tools. Bruk ikke websearch for tekst som skal bli på
+maskinen.
+
+Local-flyten skjermer tokenvariabler, rå `gh`-config og caller-PATH-verktøy for
+begge klienter. OpenCode gir i tillegg hard isolasjon fra den ambient
+GitHub-kontoen; Copilots cplt-profil tillater macOS Keychain og gir ikke samme
+garanti. For en autentisert sesjon setter brukeren eksplisitt `GH_TOKEN` og
+velger `--github-access` fra riktig consumer-repo:
+
+```bash
+cd /path/to/consumer-repo
+GH_TOKEN="$(gh auth token)" \
+  grillmester local --client opencode --github-access
+```
+
+Launcheren verifiserer at `gh` finnes uten å starte det, og skriver ikke tokenet
+til config, sessionstate eller preview. Klienten og godkjente
+tool-subprosesser kan lese og eventuelt persistere det i skrivbar sessionstate,
+så dette er en myk grense. Bruk riktig konto og minst mulig scope. Uten opt-in
+virker offentlig web fortsatt når cplt-policyen tillater det. Samme eksplisitte
+form brukes med `--client copilot`.
+
+Se [lokalmodellguiden](local-models.md) for LM Studio, `llama.cpp`, Qwen,
+Copilot CLI og capability-smoke.
 
 ### Cloud-provider
 
@@ -73,850 +131,149 @@ grillmester --client opencode --agent grillmester \
 ```
 
 Flagg før `--` går til cplt; flagg etter `--` går til OpenCode. HTTPS-port
-`443` er standard. Begrensede providerdomener er managerpolicy eller en
-eksplisitt custom cplt-proxypolicy, ikke et krav for å binde Grillmester.
+`443` er standard. Begrensede providerdomener er en eksplisitt cplt-policy, ikke
+noe Grillmester vedlikeholder parallelt.
 
-OpenCodes innebygde GitHub Copilot-provider kan brukes i samme native kommando
-etter normal `/connect` i OpenCode; cplt beskriver dette som støtte for en
-eksisterende GitHub Copilot-subscription. Autentiseringen tilhører OpenCode og
-krever verken `nav-pilot-agent` eller Grillmesters manager. Denne PR-gaten
-kjører med vilje ikke en autentisert Copilot-/providerforespørsel; den validerer
-config, discovery, permissions og lokale fake-provider-scenarier uavhengig.
-Managerens smalere `--provider-id`-filter gjelder bare den valgfrie
-high-assurance-flyten for eksplisitte OpenAI-compatible providers.
+OpenCodes innebygde GitHub Copilot-provider kan brukes etter normal `/connect`.
+Autentiseringen tilhører OpenCode og krever verken `nav-pilot-agent` eller en
+ekstra Grillmester-runtime. Releasegaten kjører med vilje ingen autentisert
+providerforespørsel.
 
-cplts vanlige `standard`-profil har ingen fail-closed domeneallowlist, så den
-samme kommandoen er nok for `/connect`. Hvis du eller global cplt-config bruker
-`--preset strict`, `--default-allowlist` eller
-`proxy.default_allowlist=true`, velger cplt derimot OpenCode-agentens
-infrastrukturliste, ikke Copilot-agentens providerliste. Legg da følgende
-eksakte domener fra den pinnede cplt-releasens Copilot-liste i en brukereid fil:
-
-```text
-githubcopilot.com
-api.github.com
-github.com
-copilot-proxy.githubusercontent.com
-actions.githubusercontent.com
-default.exp2.cds.s9ch.io
-```
-
-Bind filen til samme native launch med
-`--allowed-domains /absolute/path/to/opencode-copilot-domains.txt`. cplt merger
-filen med OpenCodes egne standarddomener og package-registries. Bare domener
-som faktisk trengs for den pinnede OpenCode-/cplt-kombinasjonen skal stå der;
-les `BLOCKED-ALLOWLIST` i proxyloggen ved en kontrollert oppgradering. Ikke bruk
-`--allow-all-domains` som kompatibilitetsfiks, fordi den slår av den
-fail-closed domenegrensen.
-
-| Egenskap | Native `cplt --agent opencode` | Valgfri manager |
-| --- | --- | --- |
-| Providerflate | OpenCodes vanlige providers, inkludert GitHub Copilot | Eksplisitte OpenAI-compatible providers |
-| `navikt/copilot` | Kan merge en allerede synket nav-pilot-eksport | Isolert; nav-pilot-eksport brukes ikke |
-| Grillmester-binding | Automatisk gjennom `grillmester` | Immutable installasjon og kortlivet stage |
-| Sikkerhetsprofil | cplts vanlige policy + eksplisitte grants | Checksums, resolved-config-gate og deklarative profiler |
-
-Etter tap-aktivering er Homebrew-launcheren over den normale
-kompatibilitetsflyten. Når et team eller en runtimeeier eksplisitt krever den
-strengere assurance-kontrakten, kan de velge en manifestverifisert installasjon
-i brukerdata og en kortlivet runtime-stage gjennom
-[cplt](https://github.com/navikt/cplt). Configen er read-only, mens checksummede
-OpenCode- og cplt-bytes kjøres fra en privat, forseglet `trusted-bin`. Verken
-installasjon eller staging skriver i consumer-repoet, og ingen OpenCode-prosess
-kjører direkte fra det genererte source-targetet. Manageren og de syv native
-agentene er selvstendige: de krever verken `nav-pilot-agent`,
-Copilot-plugininstallasjon eller en Copilot-agent i runtime. Manageren er ikke
-en forhåndsgodkjent Nav-standard og er ikke nødvendig for cplt-kompatibilitet.
-
-Denne støtten betyr at agent-, skill-, delegerings- og permissionflaten er
-verifiserbar i OpenCode. Den er ikke et løfte om at en vilkårlig lokal eller
-cloudmodell leverer samme kvalitet som GitHub Copilot. Hver konkret modell,
-kvantisering, provider og contextprofil må bestå sin egen capability- og
-kvalitetssmoke.
-
-OpenCode 2 er fortsatt beta og er ikke en støttet Grillmester-klientflate. Bruk
-binæren `opencode`, ikke `opencode2`, for den release-gatede flaten. Se
-[grensen mot OpenCode 2](#grensen-mot-opencode-2).
+Hvis global cplt-config bruker en fail-closed allowlist, må nødvendige
+providerdomener legges til i den policyen. Ikke bruk `--allow-all-domains` som
+en skjult kompatibilitetsfiks når målet er en lukket allowlist. Local-launcheren
+beholder den effektive cplt-policyen og åpner bare den valgte loopback-porten.
 
 ## Avansert: manuell binding og verifisering
 
-Resten av guiden er for utvikling, manuell releaseverifisering eller team som
-har valgt den strengere lifecycle-manageren. Normal Homebrew-bruk trenger ikke
-disse stegene.
+Resten er for utvikling og releaseverifisering. Normal Homebrew-bruk trenger
+ikke disse stegene.
 
 ### Bind et checkout-target manuelt
 
-cplt støtter OpenCode direkte. Fra en Grillmester-checkout kan en vedlikeholder
-binde targetet uten Homebrew-launcheren:
+Fra en Grillmester-checkout kan en vedlikeholder binde targetet uten launcheren:
 
 ```bash
 GRILLMESTER_ROOT=/absolute/path/to/grillmester
 CONFIG_DIR="$GRILLMESTER_ROOT/targets/opencode-v1"
 USER_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 SUPPORT_FILE="$USER_CONFIG_DIR/.gitignore"
+
 mkdir -p "$USER_CONFIG_DIR"
 if [[ -L "$SUPPORT_FILE" || ( -e "$SUPPORT_FILE" && ! -f "$SUPPORT_FILE" ) ]]; then
   echo "OpenCode runtime support must be a regular file: $SUPPORT_FILE" >&2
   exit 1
 fi
 if [[ ! -e "$SUPPORT_FILE" ]]; then
-  printf 'node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n' \
-    > "$SUPPORT_FILE"
-  chmod 600 "$SUPPORT_FILE"
+  install -m 600 "$CONFIG_DIR/.gitignore" "$SUPPORT_FILE"
 fi
-cd /path/to/disposable-test-repo
+
 OPENCODE_CONFIG_DIR="$CONFIG_DIR" \
-  cplt --agent opencode --project-dir "$PWD" \
-    --allow-read "$CONFIG_DIR" --pass-env OPENCODE_CONFIG_DIR \
-    -- --agent grillmester
+cplt --agent opencode \
+  --project-dir "$PWD" \
+  --allow-read "$CONFIG_DIR" \
+  --pass-env OPENCODE_CONFIG_DIR \
+  -- --agent grillmester
 ```
 
-Dette er utviklingsinput, ikke immutable release-evidens. Ingen custom
-sandboxwrapper eller lifecycle-manager er nødvendig for selve cplt-
-kompatibiliteten. Den vanlige `grillmester`-launcheren håndterer støttefilen
-over automatisk og avviser symlinker eller andre ikke-regulære filer.
+OpenCode 1.18.20 forsøker å skrive `.gitignore` i configområdet ved oppstart.
+Støttefilen må derfor finnes før cplt gjør targetet read-only. Endre aldri en
+eksisterende brukerfil automatisk. På macOS kan cplt nekte prosesskjøring fra
+`/private/tmp` og `/private/var/folders`; bruk en vanlig brukereid plassering.
 
-### Installer eksakte klienter manuelt
+### Installer den eksakte testbaselinen manuelt
 
-Installer den release-gatede OpenCode-versjonen og kontroller den eksakte
-versjonen:
+Eksakte versjoner brukes for reproduserbar CI-evidens, ikke som runtimekrav for
+vanlige brukere:
 
 ```bash
 npm install --global opencode-ai@1.18.20
 test "$(opencode --version)" = "1.18.20"
-```
 
-Den reviewede nettverkskontrakten er pinnet til
-cplt [`2026.08.17-062831-1008a92`](https://github.com/navikt/cplt/releases/tag/2026.08.17-062831-1008a92).
-Hvis du velger den globale cplt-formelen i den manuelle flyten, må den faktisk
-resolve denne releasen:
-
-```bash
 brew install navikt/tap/cplt
 test "$(cplt --version)" = "cplt 2026.08.17-062831-1008a92"
 ```
 
-`cplt doctor` er en valgfri, global maskindiagnose, ikke en nødvendig
-OpenCode-sjekk. I denne cplt-pinnen prober den alle installerte agenter og kan
-kjøre `copilot --version` samt GitHub-authdiagnostikk når Copilot finnes på
-maskinen. Bruk derfor den eksakte versjonskontrollen over og OpenCode-smokene
-under for en OpenCode-only validering.
-
-Se OpenCodes [offisielle CLI-guide](https://opencode.ai/docs/cli/) og cplts
-[offisielle installasjon](https://github.com/navikt/cplt#install). En nyere
-OpenCode-binær eller cplt-release er ikke automatisk dekket av Grillmesters
-release-gate.
+Releasegaten verifiserer de committede artifact-digestene før disse binærene
+brukes som testinput. Det distribuerer ikke klientene og gjør dem ikke til
+runtimepinner.
 
 ### Hent og verifiser en Grillmester-bundle
 
-Den manuelle installasjonskilden er terminalassetene på den reviewede
-[GitHub-releasen](https://github.com/navikt/grillmester/releases): én
-deterministisk `tar.gz` og dens detached `.sha256`. Ikke bruk GitHubs automatisk
-genererte source-arkiv som OpenCode-bundle. Last ned begge assetene fra samme
-release, bruk de eksakte filnavnene som releasen oppgir, og verifiser før
-utpakking, for eksempel:
+En GitHub Release publiserer én deterministisk terminal-`tar.gz`, detached
+`.sha256` og Homebrew-formelen. GitHubs automatisk genererte source-arkiv er
+ikke installasjonsartefaktet:
 
 ```bash
-cd /path/to/downloads
 tag=vREPLACE_WITH_VERSION
-asset="grillmester-opencode-${tag}.tar.gz"
+asset="grillmester-terminal-${tag}.tar.gz"
 shasum -a 256 -c "${asset}.sha256"
-tar -xzf "${asset}" -C /path/to/user-owned/extraction
+tar -xzf "$asset" -C /path/to/user-owned/extraction
 ```
 
-Pakk ut til en vanlig, brukereid arbeidskatalog. cplt tillater med vilje ikke
-prosesskjøring fra macOS-katalogene `/private/tmp` eller
-`/private/var/folders`, så de er ikke egnede som launchplassering.
-
-Bundle-en inneholder Copilot-pluginen, terminallauncheren, manageren, profilene
-og OpenCode-targetet under roten `grillmester-opencode-v1/`. Inspiser at
-`DISTRIBUTION-MANIFEST.json` binder den forventede source-SHA-en, OpenCode
-`1.18.20`, cplt `2026.08.17-062831-1008a92` og eksakt filinventar.
-
-For vanlig, native cplt-bruk er bundle-en nå klar. Kjør den bundled launcheren,
-eller bruk den utpakkede roten som `GRILLMESTER_ROOT` i den manuelle bindingen
-over; ikke kjør managerens `install`-kommando. En source-checkout er bare
-utviklingsinput for vedlikeholdere og er ikke den støttede
-sluttbrukerinstallasjonen. `main`,
-GitHubs source-arkiv og løse kopier av `targets/opencode-v1/` erstatter ikke den
-checksummede release-bundle-en.
-
-## Valgfri lifecycle-manager
-
-Resten av managerflyten er valgfri hardening for en kontrollert, immutable
-installasjon med runtimeprofiler og rollback. Installer manageren bare når du
-har valgt denne assurance-kontrakten. Lifecycle-manageren bruker bare Python-
-standardbiblioteket, men krever Python `3.11` eller nyere (`tomllib`):
-
-```bash
-python3 -c 'import sys; assert sys.version_info >= (3, 11)'
-```
-
-Skill mellom en bekvemmelighetsinstallasjon og bootstrap-evidens. Ved en vanlig
-`npm install --global opencode-ai@1.18.20` kjører pakkens installkode:
-`postinstall` kjører `verifyBinary` før manageren kan hashe den installerte
-binæren. Den separate, globale Homebrew-formelen for cplt er en
-bekvemmelighetsinstallasjon, ikke bevis på en high-assurance bootstrap. Den
-normale Grillmester-formelen har egne arkivchecksums, men er heller ikke en
-publisher-attestasjon.
-
-For høy assurance: hent den eksakte npm-plattformpakken for OpenCode `1.18.20`
-og den eksakte cplt-releaseasseten direkte. Verifiser upstream-arkivchecksummen,
-forventet inventar og den reviewede binærdigesten før første kjøring. Legg først
-deretter de verifiserte binærene på `PATH` for manageren. Managerens senere
-checksum- og stagingkontroll kan ikke retroaktivt sikre bootstrapen eller kode
-som en package manager allerede har kjørt.
-
-Bundle-ens [immutable klientlås](../policy/client-artifacts.json) inneholder URL,
-arkivstørrelse, upstream-digest, eksakt tar-roster og binærdigest. Den bundled
-verifieren velger én eksakt OS/arkitektur/libc/variant-rad, printer bare den
-autentiserte URL-en og ekstraherer uten nettverk eller klientkjøring. Dette
-copy/paste-eksemplet er for Apple Silicon; bruk `x86_64` på Intel Mac. Managed
-cplt på Linux er i denne releasen låst til GNU/glibc-asseten; OpenCode har også
-musl-bytes for native/unmanaged bruk, men ingen tilsvarende cplt-musl-asset og
-derfor ingen managed musl-garanti:
-
-```bash
-bundle=/absolute/path/to/grillmester-opencode-v1
-verify="$bundle/scripts/verify_client_artifact.py"
-lock="$bundle/policy/client-artifacts.json"
-host_os=darwin
-host_arch=arm64
-opencode_libc=none
-cplt_libc=none
-variant=default
-downloads="$PWD/client-downloads"
-verified_bin="$PWD/verified-bin"
-mkdir -m 700 "$downloads" "$verified_bin"
-
-opencode_url="$(python3 -I -S "$verify" --lock "$lock" --client opencode \
-  --os "$host_os" --arch "$host_arch" --libc "$opencode_libc" \
-  --variant "$variant" --print-url)"
-cplt_url="$(python3 -I -S "$verify" --lock "$lock" --client cplt \
-  --os "$host_os" --arch "$host_arch" --libc "$cplt_libc" \
-  --variant default --print-url)"
-curl --fail --location --proto '=https' --tlsv1.2 \
-  --output "$downloads/opencode.tgz" "$opencode_url"
-curl --fail --location --proto '=https' --tlsv1.2 \
-  --output "$downloads/cplt.tar.gz" "$cplt_url"
-python3 -I -S "$verify" --lock "$lock" --client opencode \
-  --os "$host_os" --arch "$host_arch" --libc "$opencode_libc" \
-  --variant "$variant" --archive "$downloads/opencode.tgz" \
-  --output-dir "$verified_bin"
-python3 -I -S "$verify" --lock "$lock" --client cplt \
-  --os "$host_os" --arch "$host_arch" --libc "$cplt_libc" \
-  --variant default --archive "$downloads/cplt.tar.gz" \
-  --output-dir "$verified_bin"
-```
-
-Bruk deretter de absolutte filene som `--opencode "$verified_bin/opencode"`
-og `--cplt "$verified_bin/cplt"`. En feil selector, ekstra tar-member, feil
-størrelse eller digest publiserer ingen kjørbar output. Alle cplt-baserte
-managerprofiler nekter å starte med en annen cplt-release; pinnen dekker
-CLI-flagg, sandboxprofil, innebygde allowlister og enforcement som ett reviewet
-runtimegrensesnitt. I cplt-modus krever manageren i tillegg at den resolverte
-OpenCode-binæren er byte-identisk med en offisiell plattformbinær fra npm-
-distribusjonen av `opencode-ai@1.18.20`. Den opprinnelige binæren leses og
-checksummes, men startes ikke.
-
-Installer deretter lifecycle-manageren:
-
-```bash
-cd /path/to/extracted/grillmester-opencode-v1
-python3 -I -S scripts/manage_opencode.py install
-```
-
-Bruk en eksplisitt betrodd Python 3.11+ og behold `-I -S` på `install`,
-`launch` og `rollback`. Manageren er stdlib-only; flaggene ignorerer
-`PYTHONPATH`/user-site og laster ikke `site`/`sitecustomize` før managerens egne
-kontroller. Selve Python-binæren er fortsatt en bootstrap-tillitsrot. Manageren
-avviser managed lifecycle-kall som startes uten disse flaggene; native cplt og
-den eksplisitte `--direct`-opt-out-en er uavhengige av dette laget.
-
-Manageren verifiserer også targetets indre manifest: eksakt filinventar,
-SHA-256, filmodus, targettype og fravær av symlinker/path traversal. Deretter
-installeres en content-addressed, read-only release under den auditerte
-standardlokasjonen `~/.local/share/grillmester/opencode/`, der `~` er
-OS-kontoens home og ikke en caller-styrt `HOME`-verdi. Samme bundle er en
-idempotent no-op. En ny bundle aktiveres atomisk og beholder forrige release
-for rollback. Behold den checksumverifiserte, utpakkede bundle-en på en
-bruker-eid plassering: manageren kjøres derfra ved launch og rollback, mens
-targetpayloaden ligger i lifecycle home.
-
-## Velg managerens runtimeprofil
-
-Bundle-en velger aldri provider, modell eller credential. I en manager-herdet
-cplt-session peker `OPENCODE_MODELS_PATH` på en manager-eid, read-only tom
-modellkatalog. Dermed kommer modeller bare fra en provider og modell som er
-eksplisitt deklarert i den effektive OpenCode-configen. For denne flaten må
-provideren bruke nøyaktig npm-pakken `@ai-sdk/openai-compatible`; andre
-providerpakker avvises før launch. Dette er en bevisst Grillmester-avgrensning av
-eksekverbar providerkode, ikke et krav i cplt. Ordinær, unmanaged cplt kan bruke
-OpenCodes ambient modellkatalog og bredere providerstøtte.
-
-Velg én eksplisitt profil ved hver start:
-
-| Profil | Lokal inference | Cloud-inference | Annen ekstern egress |
-| --- | --- | --- | --- |
-| `local` | Mulig på eksplisitte porter | Ikke sperret via OpenCode-infrastrukturen | cplt strict sin innebygde OpenCode-allowlist |
-| `cloud-open-weight` | Ingen localhost-port | Eksakt valgte provider-ID-er, HTTPS-base-URL-er og modeller | cplt strict sin innebygde OpenCode-allowlist |
-| `hybrid` | Mulig på eksplisitte porter | Navngitte provider-hostnavn | cplt strict sin innebygde OpenCode-allowlist |
-| `local-only` | Eksplisitte porter | Blokkert med full håndheving på macOS | Blokkert med full håndheving på macOS |
-
-`local` er altså en lokal-kapabel profil, ikke et bevis på at faktisk inference
-er lokal. Manageren binder configens eksakte provider-ID, base-URL og tillatte
-modell-ID-er til launcherinput, men attesterer ikke modellvekter, lisens,
-kvalitet eller hva serveren faktisk leverer bak en modell-ID. cplt strict
-tillater fortsatt blant annet `opencode.ai`. Bare `local-only` stenger den
-innebygde OpenCode-infrastrukturen.
-
-Alle profiler leverer en modellnøytral baseline med `share: "disabled"` og
-`autoupdate: false`; den er ikke garantert å være siste configlag. OpenCodes
-managed/MDM-config kan merge senere. Manageren lar derfor den privat staged
-klienten resolve effektiv config og avviser launch hvis det resolved resultatet
-ikke matcher den herdede kontrakten. Sharing blokkeres uavhengig av
-merge-rekkefølgen med `OPENCODE_DISABLE_SHARE=true`, mens
-`OPENCODE_DISABLE_AUTOUPDATE=true` slår av klientoppdatering.
-
-Manageren setter også den kanoniske boolverdien `OPENCODE_PURE=true` for hver
-launch og eier verdien; callerens `--pure`/`--no-pure` avvises. OpenCode
-`1.18.20` har likevel en separat core V2-loader som verken respekterer pure mode
-eller `OPENCODE_DISABLE_PROJECT_CONFIG` for prosjektets `.opencode`-flate.
-Manageren kompenserer for en stabil oppstartsflate ved å avvise alle
-prosjektkomponenter i `.opencode` unntatt `opencode.json[c]`, og disse filene
-må være restriction-only: bare `$schema`, monotone `ask`/`deny`, deaktiverte
-tools og tilsvarende restriksjoner for de syv kjente agentene. Alle cplt-debug-
-og permissionprober bruker et tomt, disposable preflight-project, og
-`OPENCODE_TEST_HOME` peker på en forseglet, tom sessionkatalog. Før hver
-cplt-basert launch kontrollerer manageren både OpenCode `1.18.20` og cplt
-`2026.08.17-062831-1008a92` med checksum og eksakt versjonslikhet. Bruk ordinær,
-unmanaged `cplt --agent opencode` hvis en ekstern OpenCode-plugin faktisk er
-tilsiktet; den flyten har ikke managerens resolved-config-, plugin- eller
-pure-mode-garanti.
-
-### Lokal modell
-
-Når brukerconfigen peker på LM Studio på port `1234`:
-
-```bash
-cd /path/to/consumer-repo
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile local \
-  --provider-id lmstudio \
-  --provider-base-url lmstudio=http://127.0.0.1:1234/v1 \
-  --provider-model lmstudio/replace-with-id-from-v1-models \
-  --local-port 1234
-```
-
-cplt blokkerer localhost som standard. Launcheren åpner bare portene som står i
-kommandoen; den bruker ikke `--allow-localhost-any`. Se
-[lokale modeller](local-models.md) for providerconfig og capability-smoke.
-Det komplette lokale configeksempelet der bruker samme eksplisitte
-`@ai-sdk/openai-compatible`-provider og `baseURL` på loopback; den
-manager-eide tomme modellkatalogen fjerner ikke eksplisitt deklarerte modeller.
-`--provider-id` velger eksakt provider og binder den resolverte `baseURL`-en til
-den deklarerte loopback-porten. Uvalgte providers og credentials kopieres ikke
-til sessionen; `enabled_providers` låses til utvalget. Bruk `local-only` når
-også OpenCodes innebygde infrastruktur-egress skal stenges.
-
-### Åpen modell i cloud
-
-Profilnavnet beskriver den tiltenkte bruken, men manageren attesterer ikke at
-modellvektene er åpne eller at lisensen er godkjent. Cloudprofilen velger ikke
-leverandør eller modell. Deklarer først den eksakte modellen i brukerens
-`~/.config/opencode/opencode.json`, for eksempel mot et generisk offentlig,
-OpenAI-kompatibelt endepunkt:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "openweight-cloud": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Reviewed open-weight cloud endpoint",
-      "options": {
-        "baseURL": "https://inference.example.org/v1",
-        "apiKey": "{env:MODEL_PROVIDER_API_KEY}"
-      },
-      "models": {
-        "replace-with-provider-model-id": {
-          "name": "Reviewed open-weight model",
-          "tool_call": true,
-          "modalities": {"input": ["text"], "output": ["text"]},
-          "limit": {"context": 32768, "output": 8192}
-        }
-      }
-    }
-  }
-}
-```
-
-Oppgi deretter bare de faktiske offentlige hostnavnene cplt må tillate, og
-navnene på credentialvariablene configen bruker:
-
-```bash
-export MODEL_PROVIDER_API_KEY='set-locally-never-in-the-bundle'
-
-cd /path/to/consumer-repo
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile cloud-open-weight \
-  --provider-id openweight-cloud \
-  --provider-base-url openweight-cloud=https://inference.example.org/v1 \
-  --provider-model openweight-cloud/replace-with-provider-model-id \
-  --provider-domain inference.example.org \
-  --pass-env MODEL_PROVIDER_API_KEY
-```
-
-`--pass-env` lagrer bare variabelnavnet i prosessargumentene; manageren
-rekonstruerer providerens `apiKey` som `{env:MODEL_PROVIDER_API_KEY}`, så
-credentialverdien skrives ikke i bundle, profile, state, composed config eller
-cplt-allowlisten. Hver `--provider-id` krever én eksakt
-`--provider-base-url ID=URL` og minst én `--provider-model ID/MODEL`; kosmetiske
-provider-/modellnavn kopieres ikke. Modellens `limit.context` og `limit.output`
-må være positive. Bruk `--provider-domain` og `--pass-env` per behov. cplt
-matcher hvert domene som
-«samme hostname eller et subdomene», så oppgi det smaleste faktiske
-provider-hostnavnet; `example.org` tillater også `*.example.org`. cplt strict
-merger disse suffixene med sin innebygde OpenCode-liste (`opencode.ai`,
-`models.dev` og registries) og blokkerer andre eksterne domener. Den innebygde
-listen betyr samtidig at profilnavnet ikke er en teknisk attestasjon av aktiv
-modell eller provider. Managed mode bruker proxyfiltrert HTTPS-port `443`.
-Andre providerporter avvises: cplts `--allow-port` er en direkte any-host-
-kernelregel og kan ikke bindes til providerdomenet. Bruk native unmanaged cplt
-med denne eksplisitte tradeoff-en, eller vent på en upstream scoped proxy-port.
-`cloud-open-weight` avviser
-localhostnavn, IP-litteraler og `--private-provider-domain`; bruk `hybrid` for
-et eksplisitt privat eller internt endpoint. Manageren gjør ingen DNS-preflight,
-fordi et hostname kan endre svar mellom preflight og tilkobling. Den pinnede
-cplt-proxyen resolver og håndhever public/private- og loopbackgrensen på
-tilkoblingstidspunktet, som unngår denne TOCTOU-feilen.
-
-### Hybrid
-
-Hybrid åpner både den eksakte lokale porten og de navngitte cloud-hostnavnene
-med samme exact-or-subdomain-semantikk som over:
-
-```bash
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile hybrid \
-  --provider-id openweight-cloud \
-  --provider-id lmstudio \
-  --provider-base-url openweight-cloud=https://inference.example.org/v1 \
-  --provider-base-url lmstudio=http://127.0.0.1:1234/v1 \
-  --provider-model openweight-cloud/replace-with-provider-model-id \
-  --provider-model lmstudio/replace-with-id-from-v1-models \
-  --local-port 1234 \
-  --provider-domain inference.example.org \
-  --pass-env MODEL_PROVIDER_API_KEY
-```
-
-Dette passer når primary-agenten bruker sessionens cloudmodell mens for
-eksempel Kokk har en bruker-eid lokal modelloverride. Grillmester-targetet
-pinner ingen av dem. Et privat eller internt providernavn må i denne profilen
-oppgis både som `--provider-domain inference.internal.example` og
-`--private-provider-domain inference.internal.example`. Managed mode støtter
-bare HTTPS-port `443` for cloud-endepunktet.
-
-### Local-only
-
-`local-only` er strengere enn «modellen er lokal»:
-
-```bash
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile local-only \
-  --provider-id lmstudio \
-  --provider-base-url lmstudio=http://127.0.0.1:1234/v1 \
-  --provider-model lmstudio/replace-with-id-from-v1-models \
-  --local-port 1234
-```
-
-Profilen forbyr providerdomener, deaktiverer OpenCodes update-, model-catalog-,
-LSP-download-, default-plugin-, share- og Exa-flyter, og bruker cplts forced
-proxy med en fail-closed allow-/blocklist. Listen dekker cplts komplette
-OpenCode-defaults i den pinnede cplt-releasen; bare den navngitte host-lokale
-porten slipper gjennom. Managerens provider-base-URL er fortsatt låst til
-loopback. En tom cplt-allowlist betyr allow-all og brukes derfor
-aldri. En ikke-tom `.invalid`-sentinel aktiverer allowlist-modus og står også i
-blocklisten, slik at sentinelen selv ikke er et nettverksmål.
-
-På macOS matcher Seatbelts `localhost`-selector alle nettverksadresser som
-tilhører samme Mac, ikke bare `127.0.0.1`. En annen host-lokal tjeneste på den
-eksplisitt valgte porten er derfor en restflate, mens eksterne maskiner på samme
-port klassifiseres som blokkert. Denne garantien gjelder harnessprosessen, ikke
-providerprosessen som lytter på localhost. LM Studio, `llama-server` eller en
-annen lokal provider kjører
-utenfor cplt-sandboxen og må selv være betrodd og ha en separat egresspolicy
-hvis hele kjeden skal være offline.
-
-Den pinnede cplt-releasen har full forced-proxy-håndheving på macOS: Seatbelt
-kan pinne egress til proxyens localhost-port. Linux er ikke ekvivalent. Kernel
-`6.7` eller nyere gir Landlock TCP-regler, men de er portbaserte og etterlater
-en smal kanal til en ekstern host som tilfeldigvis svarer på proxyens
-ephemeral-port; eldre Linux har bare filesystem-enforcement. Launcheren skal
-derfor feile lukket for `local-only` på Linux med denne cplt-pinnen. En vanlig
-`local`-profil kan fortsatt brukes der uten en absolutt offlinepåstand.
-På Linux er også `--allow-localhost PORT` en portregel som kan nå en ekstern
-host på samme port. `local` og `hybrid` på Linux er derfor sandboxede
-kompatibilitetsprofiler, ikke full hostname-egressisolasjon.
-
-For `local-only` erstatter manageren global `CPLT_CONFIG` med en tom,
-kortlivet config og avviser alle repoets `[propose]`-relaxations før start.
-Profilen arver dermed ikke flere localhost-porter eller andre allow-regler fra
-maskin eller repo. De vanlige `local`, `cloud-open-weight` og `hybrid`-profilene
-beholder bare kompatibilitetssikre deler av brukerens normale cplt-config, blant
-annet corporate upstream-proxy, og lar den pinnede cplt-klienten sanitere det
-normale hostmiljøet. Skjulte relaxations som `sandbox.inherit_env`, globale
-`allow.*`, svakere proxy/default-allowlist og alle repoets `[propose]` avvises;
-bruk de eksplisitte Grillmester-flaggene som faktisk finnes, og les cplts
-launchoppsummering før du godkjenner. Dette er en strengere releasepolicy enn
-bar `cplt --agent opencode` ut av boksen. Ekstra filesystem- eller socket-grants
-er ikke eksponert av den auditerte launcheren.
-
-Managed launch starter med en fersk in-memory OpenCode-sesjonsdatabase, deaktiverer
-native `build`/`plan`/`general`/`explore` og gjør bare valgt Grillmester-primary
-synlig; `--session`, `--continue` og `--fork` avvises. Velg **Allow once** ved
-`ask`. OpenCodes **Always** er en eksplisitt prosessvid relaxasjon som evalueres
-etter agentreglene; TUI-ens auto-approve er en tilsvarende bevisst relaxasjon.
-Restart manageren for å tømme prosessgodkjenninger. Garantien om deny gjelder
-derfor fersk launch uten Always eller auto-approve. Manageren setter også
-`--no-audit`: cplts parent-side change-audit bruker `git status` før sandboxen og
-kan ellers trigge repoets `core.fsmonitor`. Unmanaged cplt kan beholde denne
-auditen når den lokale Git-konfigurasjonen er betrodd.
-
-Uten `--auth-provider` leser manageren ikke kontoens `auth.json` og sender
-`{}`. Et gjentatt `--auth-provider ID` (eller
-`GRILLMESTER_OPENCODE_AUTH_PROVIDERS`) velger eksplisitt én oppføring; først
-etter at samme custom provider-ID og SDK er validert, leses den bounded
-auth-snapshoten og akkurat den valgte `api`-oppføringen blir canonical
-`OPENCODE_AUTH_CONTENT`. Alle uvedkommende credentials utelates, og
-`local-only` tillater ingen auth-selector. En valgt
-`wellknown` avvises fordi typen ellers merger fjernkonfig per prosess, og en
-valgt OAuth-oppføring avvises fordi den bare har consumers i provider-/plugin-
-loaderne som managed mode forbyr. Credentialverdier legges ikke i argv, state
-eller logger. `OPENCODE_DB=:memory:` betyr også at AccountTable ikke gjenbrukes.
-Bruk helst en eksplisitt provider-credential-variabel. Native unmanaged cplt
-beholder OpenCodes vanlige auth- og accountmodell.
-
-Manageren leser og fingerprinter cwd→repo-root-kjeden av `AGENTS.md` og
-`CONTEXT.md`, kopierer de eksakte byteverdiene til den private config-stagen og
-peker `instructions` på disse `0444`-filene før hele stagen forsegles. Senere
-endringer i originalfilene kan derfor ikke endre denne launchens toppnivåprompt.
-En stock-klientgrense står likevel igjen: OpenCode 1.18.20 kan oppdage en ny,
-nestet `AGENTS.md` eller `CONTEXT.md` når en fil under katalogen leses, også med
-project-config deaktivert. Agentpromptene behandler dem som ubetrodd
-repoinnhold; releasegarantien er derfor ikke en påstand om eksklusiv
-promptkilde. Full eliminering krever en upstream-bryter eller en patchet
-OpenCode-binær.
-
-Manageren tar dessuten snapshots av global cplt-config og repoets
-`HEAD:.cplt.toml`, validerer dem og sjekker dem igjen rett før start. Den pinnede
-cplt-klienten har imidlertid ingen sealed repo-config-modus og leser repo-
-configen live etter at childprosessen er startet. En annen prosess med samme
-same-UID kan derfor fortsatt vinne det siste check/use-vinduet, på samme måte
-som den kan endre en ny prosjektplugin etter siste OpenCode-scan. Managed
-hardening beskytter mot ambient og stabil repo-config, ikke mot samtidig
-fiendtlig kode med samme brukerkonto. Å lukke dette fullt krever upstream cplt-
-støtte for en forseglet configsnapshot og OpenCode-støtte som faktisk slår av
-all prosjekt- og nested-instruction-discovery.
-
-`local-only` kan ikke kombineres med `--direct`. En OpenCode-miljøvariabel er
-ikke en OS-egressgrense; profilen får bare navnet når den eksakt pinnede cplt-
-releasen håndhever den. De tre andre cplt-baserte profilene har samme
-versjonspin, selv om nettverksreglene deres er mindre restriktive.
-
-### Deklarativt miljø
-
-CI-/maskinprofiler kan uttrykke samme input uten å endre bundle-en:
-
-```bash
-export GRILLMESTER_OPENCODE_PROFILE=hybrid
-export GRILLMESTER_OPENCODE_LOCAL_PORTS=1234
-export GRILLMESTER_OPENCODE_PROVIDER_DOMAINS=inference.example.org
-export GRILLMESTER_OPENCODE_PROVIDER_IDS=openweight-cloud,lmstudio
-export GRILLMESTER_OPENCODE_PROVIDER_BASE_URLS=openweight-cloud=https://inference.example.org/v1,lmstudio=http://127.0.0.1:1234/v1
-export GRILLMESTER_OPENCODE_PROVIDER_MODELS=openweight-cloud/replace-with-provider-model-id,lmstudio/replace-with-id-from-v1-models
-export GRILLMESTER_OPENCODE_PRIVATE_PROVIDER_DOMAINS=inference.example.org
-export GRILLMESTER_OPENCODE_PASS_ENV=MODEL_PROVIDER_API_KEY
-
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch
-```
-
-Flere verdier er kommaseparerte. `GRILLMESTER_OPENCODE_HOME` og
-`GRILLMESTER_OPENCODE_RUNTIME_ROOT` kan overstyre henholdsvis data- og
-runtime-lokasjon ved installasjon, rollback og eksplisitt `--direct`-kjøring.
-En cplt-basert launch godtar derimot bare den auditerte lifecycle-lokasjonen
-`~/.local/share/grillmester/opencode`; en custom manager-home kan ikke velges
-via `XDG_DATA_HOME`. En custom runtime-root må uansett være under
-`<GRILLMESTER_OPENCODE_HOME>/runtime`; den kan ikke flyttes til `~/.cache` eller
-consumer-repoet. Provider- og modellvalg skal fortsatt ikke inn i en distribuert
-Grillmester-profile.
-
-`--direct` arver eksisterende absolutte XDG-røtter etter overlap-validering og
-er et eksplisitt trusted-code-opt-out. Managed profiler leser bare en eksplisitt
-valgt `XDG_DATA_HOME/opencode/auth.json`-oppføring. Etter én read-only,
-sandboxet resolved-config-probe rekonstrueres bare eksplisitt valgte
-provider-ID-er, launcher-eide base-URL-er, modell-ID-er og reviewet
-capabilitymetadata med enum-avgrensede modalities i den manager-eide configen.
-Kosmetiske navn, `{file:...}`-
-verdier og agent-variants kopieres ikke. XDG config/data/state/cache erstattes så
-med private per-process-kataloger. Til resolved-config-proben kopierer manageren
-bare de tre forhåndsskannede globale OpenCode-configfilene (`config.json`,
-`opencode.json` og `opencode.jsonc`) til et forseglet snapshot. cplt får
-read-only-tilgang til snapshotet, ikke den ambient XDG-roten; dette fungerer også
-når en custom XDG-rot ligger utenfor brukerens hjem. Både kilden og snapshotet
-kontrolleres på nytt før launch. Det
-hindrer OpenCode i å skrive tilbake til ambient auth, legacy-auth, MCP-auth,
-sessions, TUI-config eller cache, og katalogene fjernes ved exit.
-Launcher-kontrollerte verdier kan ikke legges tilbake via `--pass-env`.
-Managed mode beholder validerte, absolutte toolchain-røtter, men utelater hele
-miljøvariabelen når én oppgitt sti overlapper consumeren, lifecycle-området,
-midlertidige kataloger eller kjente ambient-skrivbare toolområder. Dermed er en
-vanlig macOS-verdi som `PNPM_HOME=~/Library/pnpm` ikke en launch-feil og blir
-heller ikke annonsert til OpenCode; listevariabler filtreres aldri delvis.
+For vanlig, native cplt-bruk er bundle-en nå klar. Den inneholder Grillmester-
+payloadene og launcheren, men ingen OpenCode-, Copilot- eller cplt-binær.
 
 ## Hva launcheren faktisk gjør
 
-cplt støtter allerede OpenCode direkte med `cplt --agent opencode`. Grillmester
-erstatter ikke den integrasjonen eller sandboxen. En minimal, unmanaged start
-fra et checksumverifisert og utpakket target kan se slik ut:
+For OpenCode:
 
-```bash
-CONFIG_DIR=/absolute/path/to/grillmester-opencode-v1/targets/opencode-v1
-OPENCODE_CONFIG_DIR="$CONFIG_DIR" \
-  cplt --agent opencode \
-    --project-dir "$PWD" \
-    --allow-read "$CONFIG_DIR" \
-    --pass-env OPENCODE_CONFIG_DIR \
-    -- --agent grillmester
-```
+1. resolver `cplt` og `opencode` fra `PATH`
+2. kontrollerer kompatibel versjon gjennom cplt
+3. binder det genererte targetet med `OPENCODE_CONFIG_DIR` og `--allow-read`
+4. setter valgt offentlig agent på riktig plass for TUI eller `run`
+5. lar cplt eie sandbox, proxy, repo-policy og `gh`-/Git-guards
 
-Ingen custom sandboxwrapper er nødvendig for denne native integrasjonen.
-OpenCode 1.18.20 forsøker likevel å opprette `.gitignore` i både targetet og
-brukerconfigen før TUI-en vises. Release-targetet inneholder derfor den eksakte
-targetfilen. Ved manuell binding må en eksisterende, regulær
-`$XDG_CONFIG_HOME/opencode/.gitignore` også finnes; den felles `grillmester`-
-launcheren oppretter den bare når den mangler og endrer aldri en eksisterende
-fil. Dette løser oppstarten uten generell write-tilgang til configen.
-
-Lifecycle-manageren er valgfri hardening oppå den native flyten: immutable
-installasjon og rollback, offisielle klientchecksums, private binærkopier,
-resolved-config- og permissionvalidering, en tom modellkatalog og deklarative
-nettverksprofiler. Den validerer og forsegler targetfilen og pre-seeder samme
-eksakte støttefil i den isolerte XDG-configen.
-Unmanaged cplt-kommandoen arver OpenCodes vanlige config-, plugin-, provider- og
-modellflate og har ingen av disse managergarantiene.
-
-Den pinnede OpenCode 1.18.20/Bun-prosessen kan miste halen av en stor,
-enkeltstående stdout-write når output går gjennom en pipe. Manageren bruker
-derfor en forseglet resolved-structure-projeksjon med forkortede agent- og
-skilltekster og uten den permission-bulken som valideres separat mot den fulle
-configen per agent. Agent- og skill-frontmatter, kommandoer, skill-assets og
-alle øvrige configfelt bevares eksakt. Hver full originalfil og hver projisert
-fil bindes med digest, skill-ID/description/origin/marker-body og den pinnede
-builtin-skillens identity/origin valideres, og config-, agent- og skillprober må
-holde seg under en 48 KiB release-ratchet før launch.
-
-OpenCode kan returnere cplts tillatte `external_directory`-mønstre i ulik
-rekkefølge mellom prosesser, og cplt bruker en ny 32-heks scratch-ID per probe.
-Same-stage-digesten sorterer derfor bare sammenhengende
-`external_directory/allow`-grupper, normaliserer bare dette validerte nonce-
-leddet og krever fortsatt den eksakte composed permission-suffiksen og den
-managerbundne XDG `tool-output`-regelen. Deny-regler og grenser mellom ulike
-permissions/actions beholdes i rå rekkefølge.
-
-Når en normal, bevisst custom cplt-policy er viktigere enn denne fail-closed
-profilkontrakten, er ordinær `cplt --agent opencode` fortsatt den native
-out-of-the-box-flyten. Da må Grillmester-configen bindes inn manuelt, og
-managerens lifecycle-, staging- og `local-only`-garantier skal ikke hevdes for
-den sessionen.
-
-Før hver prosess verifiserer manageren aktiv release på nytt, kopierer configen
-til en unik stage under `<lifecycle-home>/runtime/sessions/`, verifiserer kopien
-og gjør det ferdige configtreet `0444`/`0555`. I cplt-modus checksum-
-autentiseres de offisielle OpenCode `1.18.20`- og cplt-binærene før de kopieres
-byte-identisk til sessionens private `trusted-bin`; katalogen forsegles før
-OpenCode-preflight og launch. `PATH` bindes til den staged OpenCode-kopien. Den
-opprinnelige OpenCode-binæren startes aldri i denne modusen og kan heller ikke
-endres gjennom sessionens `trusted-bin`. Hele stage-området er separat fra både
-source og release og fjernes når klienten avslutter.
-
-Install nekter også lifecycle home som er lik, inneholder eller ligger under
-den verifiserte distribution source-katalogen. Installasjonen kan dermed ikke
-skrive release-, lock- eller statefiler inn i inputen den samtidig verifiserer.
-
-Denne plasseringen er en sikkerhetsgrense. cplts OpenCode-profil har brede
-ambient write-regler under `~/.cache`; `--allow-read` kan ikke oppheve en write
-som allerede gjelder fra en annen regel. Manageren avviser derfor cachepaths,
-OpenCodes egne skrivbare data-/stateområder og alle lifecycle homes som
-overlapper consumerens project directory.
-
-Standardkommandoen tilsvarer konseptuelt:
-
-```text
-cplt --agent opencode \
-  --preset strict \
-  --allow-read <read-only-stage> \
-  --pass-env OPENCODE_CONFIG_DIR \
-  ...profilens eksakte nettverk/env... \
-  -- <OpenCode-argumenter>
-```
-
-Det finnes med vilje ingen `--allow-write` for Grillmester-stage eller release.
-Agent- og permissionfiler er en policyflate og skal ikke kunne endres eller
-hot-reloades av prosessen. Consumer-repoet er fortsatt cplts vanlige
-project directory og kan endres når agentens permissions og brukerens
-godkjenning tillater det.
-
-Den managerstyrte flyten setter `OPENCODE_DISABLE_PROJECT_CONFIG=true`, men
-OpenCode 1.18.20s core V2-loader ignorerer flagget. Manageren avviser derfor
-alle andre prosjektlokale OpenCode-felt og `.opencode`-komponenter enn
-restriction-only `opencode.json[c]`. Consumerens `AGENTS.md`/`CONTEXT.md`-kjede
-blir fingerprintede project-instructions, mens bare auditerte permissionregler
-med `ask`/`deny` fra de statisk validerte prosjektfilene komponeres monotont inn:
-`ask` kan bare stramme inn eksisterende `allow`, og `deny` kan aldri svekkes.
-Manageren validerer
-deretter den faktisk resolverte configen, agentene, commands, skills og
-instruksjonslisten i et disposable preflight-project før launch. Dette beviser
-den stabile inputflaten, ikke fravær av en samtidig same-UID-mutasjon etter
-siste sjekk.
-
-Den minimale unmanaged cplt-flyten over setter ikke denne managergrensen.
-Der følger `OPENCODE_CONFIG_DIR` OpenCodes normale globale og prosjektlokale
-merge- og precedence-regler; se OpenCodes
-[custom directory og precedence](https://opencode.ai/docs/config#custom-directory).
-Et likt agent-, command- eller skill-ID kan da skygge en annen definisjon.
-Behandle kollisjonen som konfigurasjon som må undersøkes, ikke som en skjult
-patchmekanisme.
-
-Den importerte arkitekturlinjens proveniens er låst til `navikt/copilot`
-`2d0911b353a91ec9091d252b481acb5777de7059` i
-[`policy/content-lock.json`](../policy/content-lock.json). Det er ikke en
-påstand om klientkompatibilitet med akkurat den revisjonen. Uavhengig av denne
-linjeproveniensen ble samspillet beskrevet her kontrollert mot den nyere
-kompatibilitetsrevisjonen
-[`0c96b8f`](https://github.com/navikt/copilot/blob/0c96b8fe7c8167a4dd9fc99e50ea18de08e6bb02/cli/nav-pilot/internal/artifacts/opencode_sync.go).
-Der kan `EnsureOpenCodeNavContext` materialisere `AGENTS.md`, skills, commands og
-agents under `~/.config/opencode`; den tilhørende
-[launchkoden](https://github.com/navikt/copilot/blob/0c96b8fe7c8167a4dd9fc99e50ea18de08e6bb02/cli/nav-pilot/internal/provider/opencode_launch.go)
-starter OpenCode gjennom cplt. I native/unmanaged cplt
-kan OpenCode merge dette med Grillmesters `OPENCODE_CONFIG_DIR`; prefiksede
-skill- og command-ID-er reduserer kollisjoner, mens de bevarte agent-ID-ene
-fortsatt må doctor-sjekkes. Managed high-assurance isolerer derimot XDG og
-avviser ambient skills, agents og plugins. Den modusen er bevisst eksklusiv og
-bruker ikke nav-pilot-eksporten.
-
-## Direkte OpenCode
-
-For en avgrenset klientdiagnose kan brukeren eksplisitt velge å starte samme
-manifestverifiserte config-stage uten cplt:
-
-```bash
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile local \
-  --local-port 1234 \
-  --direct
-```
-
-Dette bevarer bundle-integritet, read-only config-stage og de faste
-miljøgrensene, men starter den opprinnelige, caller-resolverte OpenCode-binæren.
-`--direct` omgår dermed managerens offisielle OpenCode-checksum, private
-`trusted-bin`, cplt-sandbox og egresspolicy; eksakt `--version`-output er ikke en
-byteautentisering. Direkte mode er et eksplisitt trusted-code-opt-out, ikke
-anbefalt normalflyt, og kan ikke brukes med `local-only`.
+Den installerer ingen klient, skriver ingen agent-/skillfiler i consumer-repoet
+og har ingen direkte fallback uten cplt. OpenCodes vanlige brukerconfig eier
+provider og modell i standardmodus. Local-modus bruker privat providerconfig og
+avviser ambient komponenter som kan skygge den distribuerte payloaden.
 
 ## Agenter, commands og forwarding
 
-Launch uten ekstra argumenter starter TUI med `grillmester`. Velg en annen
-offentlig agent med `--runtime-agent barista`, `designer` eller `doctor-who`.
-Kokk, Grill-inspektør og Researcher er skjulte subagenter for native `task`-
-delegering.
+OpenCode-targetet har syv native agenter. De fire offentlige velges direkte;
+Kokk, Grill-inspektør og Researcher brukes gjennom delegering. Skills lastes
+progressivt med OpenCodes native `skill`-tool, og de 42 commands speiler
+skillinngangene.
 
-OpenCode-argumenter etter `--` videresendes. For eksempel:
+For `run` plasserer launcheren valgt agent etter subkommandoen:
 
 ```bash
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile local \
-  --local-port 1234 \
-  --runtime-agent barista \
-  -- run "Les AGENTS.md og oppsummer build- og testkommandoene. Ikke skriv."
-
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile local \
-  --local-port 1234 \
-  -- agent list
+grillmester --client opencode --agent barista -- run "Fiks den avgrensede oppgaven"
 ```
 
-Manageren plasserer `--agent` på den posisjonen OpenCode dokumenterer for TUI
-og `opencode run`; managementkommandoer som `agent list` videresendes uten et
-irrelevant agentvalg.
-
-Skills lastes progressivt med OpenCodes native `skill`-tool. De 42 command-
-wrapperne gir eksplisitt slash-bruk, for eksempel:
-
-```text
-/grillmester-security-review Review auth-endringen i denne diffen
-```
-
-Targetet konfigurerer ikke MCP. Figma, GitHub Projects og andre eksterne
-capabilities finnes bare når bruker/organisasjon har konfigurert en reviewet
-server, autorisasjon, cplt-domener og riktige permissions. Manglende capability
-skal gi et reviewbart utkast eller `NEEDS_CONTEXT`, ikke shell-/API-fallback.
+Argumenter før `--` går til cplt; argumenter etter `--` går til OpenCode.
+Reserverte agent-, config- og project-flagg kan ikke overstyre launcherbindingen.
 
 ## Verifiser discovery før en ekte oppgave
 
-Kjør først i et tomt eller disponibelt testrepo. Bekreft at rosteret har 7
-Grillmester-agenter, at de fire primary-agentene kan velges, og at slash-listen
-har `grillmester-`-commands. Test deretter i en disponibel fixture:
+Fra en checkout:
 
-1. en read-only oppgave uten nettverk
-2. én ufarlig write som krever forventet godkjenning
-3. én avvist write uten sideeffekt
-4. Grillmester-delegering til Kokk og uavhengig Grill-inspektør
-5. en representativ skill med relative references eller scripts
+```bash
+python3 scripts/generate_opencode.py --check
+python3 scripts/generate_context_projections.py --check
+python3 scripts/validate.py
+python3 scripts/smoke_opencode.py --require-binary
+python3 scripts/smoke_opencode_runtime.py --require-binary --cplt cplt
+```
 
-Ikke bruk `--auto` før permissiontesten er bestått. OpenCode dokumenterer at
-auto-mode godkjenner det som ellers ville vært `ask`; eksplisitte `deny`-regler
-gjelder fortsatt. Agentprompten er ikke en sikkerhetsgrense. Se
-[OpenCode permissions](https://opencode.ai/docs/permissions).
+Discovery-smoken kontakter ingen modell. Runtime-smoken bruker en deterministisk
+loopbackprovider og beviser binding, permissions, delegering og blocked/allowed
+writes—ikke kvaliteten til en vilkårlig modell.
 
 ## Oppdatering og rollback
 
-Oppdatering er en ny, verifisert installasjon fra den nye release-asseten:
+`grillmester update` oppdaterer den installerte Grillmester-formelen. OpenCode
+og cplt følger sine egne pakkekanaler. En kompatibel 1.x-oppgradering krever
+normalt ingen Grillmester-release.
 
-```bash
-cd /path/to/new/extracted/grillmester-opencode-v1
-python3 -I -S scripts/manage_opencode.py install
-```
-
-Verifiser alltid den nye assetens detached checksum før kommandoen. En
-source-checkout eller GitHubs automatisk genererte source-arkiv er ikke en
-oppdateringskanal for en installert OpenCode-bundle.
-
-Aktiv release byttes atomisk først etter full verifikasjon. Avslutt en pågående
-session før du vurderer ny payload; den kan allerede ha lastet gamle prompts og
-skills.
-
-Rollback krever ikke Git eller consumerendringer:
-
-```bash
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py rollback
-```
-
-Kommandoen verifiserer både aktiv og forrige release før `active`/`previous`
-byttes atomisk. Installerte releases slettes ikke automatisk.
+En immutable Grillmester-release rulles tilbake ved å installere forrige
+reviewede versjon eller repinne marketplace-ref-en. Start en ny agentsesjon;
+en pågående session beholder allerede lastet kontekst.
 
 ## Grensen mot OpenCode 2
 
-OpenCode oppgir at V2-betaen leser støttede V1-agentfiler, commands og skills,
-men V2 har andre native permissionnavn og nye plugin-/server-API-er. V1-plugins
-fungerer ikke i V2. Grillmester-targetet bruker ingen OpenCode-plugin, men
-forventet filkompatibilitet er ikke det samme som verifisert runtimeparitet.
-
-Kjør derfor V2 kun som en eksplisitt beta-smoke. Ikke gjenbruk V1-managerens
-versjons-, cplt- eller local-only-garanti for `opencode2`. Se den offisielle
-[V1-til-V2-guiden](https://opencode.ai/v2/docs/migrate-v1).
-
-Arkitekturbegrunnelsen ligger i
-[ADR 0001](adr/0001-native-opencode-v1-target.md) for targetformatet og
-[ADR 0002](adr/0002-install-and-launch-opencode-bundles.md) for
-installasjon, staging, cplt og profiler.
+OpenCode 2 er beta og utenfor første release-løfte. V1-targetfilene forventes å
+være strukturelt kompatible, men permissions, provider/model-adferd og faktisk
+runtimeparitet må testes separat før `opencode2` omtales som støttet. Bruk
+`opencode` for den støttede OpenCode 1-flaten.

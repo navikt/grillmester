@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +16,20 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC and SPEC.loader
 VALIDATE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VALIDATE)
+FOCUSED_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_generate_context_projections_for_validation_test",
+    ROOT / "scripts/generate_context_projections.py",
+)
+assert FOCUSED_SPEC and FOCUSED_SPEC.loader
+FOCUSED = importlib.util.module_from_spec(FOCUSED_SPEC)
+FOCUSED_SPEC.loader.exec_module(FOCUSED)
+COPILOT_MANIFEST_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_generate_copilot_manifest_for_validation_test",
+    ROOT / "scripts/generate_copilot_manifest.py",
+)
+assert COPILOT_MANIFEST_SPEC and COPILOT_MANIFEST_SPEC.loader
+COPILOT_MANIFEST = importlib.util.module_from_spec(COPILOT_MANIFEST_SPEC)
+COPILOT_MANIFEST_SPEC.loader.exec_module(COPILOT_MANIFEST)
 
 
 class PackageValidationTest(unittest.TestCase):
@@ -26,6 +41,31 @@ class PackageValidationTest(unittest.TestCase):
             self.root,
             ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"),
         )
+
+    def test_projection_loader_supports_standard_import_time_introspection(
+        self,
+    ) -> None:
+        script = self.root / "scripts/dataclass_projection.py"
+        script.write_text(
+            "from dataclasses import dataclass\n"
+            "@dataclass\n"
+            "class Projection:\n"
+            "    name: str\n",
+            encoding="utf-8",
+        )
+        errors: list[str] = []
+
+        module = VALIDATE._load_projection_generator(
+            self.root,
+            errors,
+            script="scripts/dataclass_projection.py",
+            label="dataclass projection",
+        )
+
+        self.assertEqual([], errors)
+        self.assertIsNotNone(module)
+        self.assertEqual("projection", module.Projection("projection").name)
+        self.assertNotIn(module.__name__, sys.modules)
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -66,6 +106,13 @@ class PackageValidationTest(unittest.TestCase):
             f"expected {fragment!r} in validation errors: {errors}",
         )
 
+    def regenerate_focused_targets(self) -> None:
+        manifest = COPILOT_MANIFEST.build_manifest(self.root)
+        COPILOT_MANIFEST.update_manifest(self.root, manifest)
+        projections, policy = FOCUSED.build_projections(self.root)
+        for key, expected in projections.items():
+            FOCUSED.update_projection(self.root / policy["outputs"][key], expected)
+
     def test_actual_package_is_valid(self) -> None:
         self.assertEqual([], VALIDATE.validate_repo(ROOT))
 
@@ -73,6 +120,22 @@ class PackageValidationTest(unittest.TestCase):
         path = self.root / "targets/opencode-v1/agents/grillmester.md"
         path.write_text("stale\n", encoding="utf-8")
         self.assert_error("OpenCode target is stale")
+
+    def test_stale_focused_context_projection_is_rejected(self) -> None:
+        path = self.root / "targets/opencode-v1-focused/agents/barista.md"
+        path.write_text("stale\n", encoding="utf-8")
+        self.assert_error("focused context target is stale")
+
+    def test_stale_copilot_full_payload_manifest_is_rejected(self) -> None:
+        path = self.root / "plugin/manifest.json"
+        path.write_text("{}\n", encoding="utf-8")
+        self.assert_error("Copilot full payload manifest is stale")
+
+    def test_unmanifested_copilot_payload_file_is_rejected(self) -> None:
+        (self.root / "plugin/unmanifested.md").write_text(
+            "unexpected\n", encoding="utf-8"
+        )
+        self.assert_error("Copilot full payload manifest is stale")
 
     def test_boolean_agent_description_is_rejected(self) -> None:
         self.replace_frontmatter(
@@ -137,6 +200,7 @@ class PackageValidationTest(unittest.TestCase):
         for entry in marketplace["plugins"]:
             entry["version"] = "0.2.0"
         self.write_json(".github/plugin/marketplace.json", marketplace)
+        self.regenerate_focused_targets()
         self.assertEqual([], self.errors())
 
     def test_runtime_all_agent_rejects_an_explicit_tool_list(self) -> None:
@@ -310,6 +374,17 @@ class PackageValidationTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.assert_error("unexpected agent unreviewed")
+
+    def test_launcher_public_agent_roster_drift_is_rejected(self) -> None:
+        path = self.root / "scripts/grillmester_local.py"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                '"doctor-who"})', '"doctor-who", "researcher"})', 1
+            ),
+            encoding="utf-8",
+        )
+
+        self.assert_error("PUBLIC_AGENTS differs from the reviewed user-invocable roster")
 
     def test_skill_roster_drift_is_rejected(self) -> None:
         source = self.root / "plugin/skills/grillmester-grilling"
@@ -509,15 +584,13 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("looks like a national ID")
 
-    def test_client_artifact_digests_are_not_mistaken_for_national_ids(self) -> None:
-        path = self.root / "policy/client-artifacts.json"
+    def test_release_baseline_digests_are_not_mistaken_for_national_ids(self) -> None:
+        path = self.root / "scripts/release_test_baseline.py"
         text = path.read_text(encoding="utf-8")
-        self.assertIn("99651" + "618719", text)
+        self.assertIn("9598" + "c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952", text)
         self.assertEqual([], self.errors())
 
-        artifact_lock = json.loads(text)
-        artifact_lock["unsafeExample"] = "12345" + "678901"
-        path.write_text(json.dumps(artifact_lock), encoding="utf-8")
+        path.write_text(text + '\nUNSAFE_EXAMPLE = "12345' + '678901"\n', encoding="utf-8")
         self.assert_error("looks like a national ID")
 
     def test_plugin_file_symlink_is_rejected_before_reading_target(self) -> None:
@@ -650,6 +723,23 @@ class PackageValidationTest(unittest.TestCase):
         alternate.parent.mkdir()
         alternate.write_text("{}", encoding="utf-8")
         self.assert_error("forbidden alternate or generated path")
+
+    def test_removed_lifecycle_manager_surface_is_rejected(self) -> None:
+        for relative in (
+            "scripts/manage_opencode.py",
+            "scripts/compose_opencode_permissions.py",
+            "profiles/opencode",
+        ):
+            with self.subTest(relative=relative):
+                path = self.root / relative
+                path.mkdir(parents=True) if path.suffix == "" else path.write_text(
+                    "legacy\n", encoding="utf-8"
+                )
+                self.assert_error("forbidden alternate or generated path")
+                if path.is_dir():
+                    path.rmdir()
+                else:
+                    path.unlink()
 
     def test_missing_visual_identity_asset_is_rejected(self) -> None:
         (self.root / "docs/assets/grillmester-hero.jpg").unlink()

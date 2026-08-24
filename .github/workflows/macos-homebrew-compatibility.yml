@@ -70,14 +70,7 @@ jobs:
 
           machine="$(uname -m)"
           case "${machine}" in
-            arm64)
-              opencode_binary_sha256="9598c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952"
-              cplt_binary_sha256="423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2"
-              ;;
-            x86_64)
-              opencode_binary_sha256="96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60"
-              cplt_binary_sha256="36592c1b2bcfd7ab2d9083842b0aa7f51737cdf12ec1752d351bd9467dab5c02"
-              ;;
+            arm64|x86_64) ;;
             *)
               echo "Unsupported macOS runner architecture: ${machine}" >&2
               exit 1
@@ -86,6 +79,8 @@ jobs:
 
           bundle="${RUNNER_TEMP}/macos-homebrew-bundle.tar.gz"
           repeated="${RUNNER_TEMP}/macos-homebrew-bundle-repeated.tar.gz"
+          python3 -I -S scripts/generate_copilot_manifest.py --check
+          python3 -I -S scripts/generate_context_projections.py --check
           python3 -I -S scripts/build_opencode_bundle.py \
             --source-root "${GITHUB_WORKSPACE}" --source-sha "${SOURCE_SHA}" \
             --output "${bundle}"
@@ -97,7 +92,7 @@ jobs:
           version="$(jq -er '.version' plugin/plugin.json)"
           [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
           tag="v${version}"
-          bundle_name="grillmester-opencode-${tag}.tar.gz"
+          bundle_name="grillmester-terminal-${tag}.tar.gz"
           qa_root="${RUNNER_TEMP}/homebrew-formula-qa"
           mkdir -m 700 "${qa_root}"
           qa_bundle="${qa_root}/${bundle_name}"
@@ -124,7 +119,7 @@ jobs:
               echo "verified release formula inputs must be all present or all absent" >&2
               exit 1
             }
-            [[ "${RELEASE_BUNDLE_NAME}" =~ ^grillmester-opencode-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
+            [[ "${RELEASE_BUNDLE_NAME}" =~ ^grillmester-terminal-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
             [[ "${RELEASE_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
             [[ "${RELEASE_FORMULA_SHA256}" =~ ^[0-9a-f]{64}$ ]]
             [[ "${bundle_name}" == "${RELEASE_BUNDLE_NAME}" ]]
@@ -164,7 +159,6 @@ jobs:
           python3 -I -S scripts/generate_homebrew_formula.py \
             --tag "${tag}" --bundle-name "${bundle_name}" \
             --bundle-sha256 "${bundle_sha256}" \
-            --client-artifacts policy/client-artifacts.json \
             --output "${expected_formula}"
           if (( populated == 0 )); then
             cp "${expected_formula}" "${formula}"
@@ -175,8 +169,6 @@ jobs:
           tap_root="$(brew --repository "${tap_name}")"
           tap_formula="${tap_root}/Formula/grillmester.rb"
           cp "${formula}" "${tap_formula}"
-          brew style "${formula_name}"
-          brew audit --strict "${formula_name}"
 
           local_url="file://${qa_bundle}"
           python3 -I -S - "${formula}" "${install_formula}" "${local_url}" <<'PY'
@@ -202,6 +194,28 @@ jobs:
           if brew list --versions python@3.13 >/dev/null 2>&1; then
             python_dependency_preinstalled=true
           fi
+          cplt_dependency_preinstalled=false
+          if brew list --versions cplt >/dev/null 2>&1; then
+            cplt_dependency_preinstalled=true
+          fi
+          opencode_preinstalled=false
+          if brew list --versions opencode >/dev/null 2>&1; then
+            opencode_preinstalled=true
+          fi
+          copilot_preinstalled=false
+          if brew list --cask --versions copilot-cli >/dev/null 2>&1; then
+            copilot_preinstalled=true
+          fi
+          cplt_formula_trust_preexisting=false
+          if brew trust --json=v1 | jq -e \
+            '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+            cplt_formula_trust_preexisting=true
+          fi
+          copilot_state=""
+          navikt_tap_preexisting=false
+          if brew tap | grep -Fx 'navikt/tap' >/dev/null; then
+            navikt_tap_preexisting=true
+          fi
           runner_link_backup="${qa_root}/runner-python-links"
           runner_python_links=(
             idle3.13 pip3.13 pydoc3.13 python3.13 python3.13-config
@@ -224,12 +238,12 @@ jobs:
             done
           }
           restore_hosted_intel_python_links() {
-            [[ "${machine}" == "x86_64" ]] || return 0
             [[ "${python_dependency_preinstalled}" == "false" ]] || return 0
             restore_status=0
             if brew list --versions python@3.13 >/dev/null 2>&1; then
               brew uninstall --formula python@3.13 >/dev/null || restore_status=1
             fi
+            [[ "${machine}" == "x86_64" ]] || return "${restore_status}"
             for name in "${runner_python_links[@]}"; do
               target="/usr/local/bin/${name}"
               backup="${runner_link_backup}/${name}"
@@ -244,42 +258,167 @@ jobs:
             return "${restore_status}"
           }
           cleanup() {
-            cleanup_status=$?
-            brew uninstall --formula "${formula_name}" >/dev/null 2>&1 || true
+            cleanup_status="${1:-0}"
+            if brew list --versions "${formula_name}" >/dev/null 2>&1; then
+              brew uninstall --formula "${formula_name}" >/dev/null || cleanup_status=1
+            fi
+            if [[ "${opencode_preinstalled}" == "false" ]] && \
+              brew list --versions opencode >/dev/null 2>&1; then
+              brew uninstall --formula opencode >/dev/null || cleanup_status=1
+            fi
+            if [[ "${copilot_preinstalled}" == "false" ]] && \
+              brew list --cask --versions copilot-cli >/dev/null 2>&1; then
+              brew uninstall --cask copilot-cli >/dev/null || cleanup_status=1
+            fi
+            if [[ -n "${copilot_state}" && -d "${copilot_state}" ]]; then
+              [[ "${copilot_state}" == "${HOME}/.grillmester-copilot-qa."* ]] || {
+                echo "Refusing to remove unexpected Copilot QA path: ${copilot_state}" >&2
+                cleanup_status=1
+              }
+              if [[ "${copilot_state}" == "${HOME}/.grillmester-copilot-qa."* ]]; then
+                rm -rf -- "${copilot_state}" || cleanup_status=1
+              fi
+            fi
+            if [[ "${cplt_dependency_preinstalled}" == "false" ]] && \
+              brew list --versions cplt >/dev/null 2>&1; then
+              brew uninstall --formula navikt/tap/cplt >/dev/null || cleanup_status=1
+            fi
+            if [[ "${cplt_formula_trust_preexisting}" == "false" ]] && \
+              brew trust --json=v1 | jq -e \
+                '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+              brew untrust --formula navikt/tap/cplt >/dev/null || cleanup_status=1
+            fi
+            if [[ "${cplt_formula_trust_preexisting}" == "true" ]] && ! \
+              brew trust --json=v1 | jq -e \
+                '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+              brew trust --formula navikt/tap/cplt >/dev/null || cleanup_status=1
+            fi
             restore_hosted_intel_python_links || cleanup_status=1
-            brew untap "${tap_name}" >/dev/null 2>&1 || true
+            if brew tap | grep -Fx "${tap_name}" >/dev/null; then
+              brew untap "${tap_name}" >/dev/null || cleanup_status=1
+            fi
+            if [[ "${navikt_tap_preexisting}" == "false" ]] && \
+              brew tap | grep -Fx 'navikt/tap' >/dev/null; then
+              brew untap navikt/tap >/dev/null || cleanup_status=1
+            fi
             return "${cleanup_status}"
           }
-          trap cleanup EXIT
+          trap 'cleanup $?' EXIT
+          if [[ "${navikt_tap_preexisting}" == "false" ]]; then
+            brew tap navikt/tap
+          fi
+          # Fully qualifying the dependency grants item-level trust without
+          # accepting every current and future item in navikt/tap.
+          brew install --formula navikt/tap/cplt
+          brew style "${formula_name}"
+          brew audit --strict "${formula_name}"
           prepare_hosted_intel_python_links
           cp "${install_formula}" "${tap_formula}"
           brew install --formula "${formula_name}"
           prefix="$(brew --prefix "${formula_name}")"
           linked_launcher="$(brew --prefix)/bin/grillmester"
           [[ -x "${prefix}/bin/grillmester" ]]
-          [[ -x "${prefix}/libexec/clients/cplt" ]]
-          [[ -x "${prefix}/libexec/clients/opencode" ]]
-          [[ ! -L "${prefix}/libexec/clients/cplt" ]]
-          [[ ! -L "${prefix}/libexec/clients/opencode" ]]
-          [[ "$(shasum -a 256 "${prefix}/libexec/clients/cplt" | cut -d' ' -f1)" == \
-             "${cplt_binary_sha256}" ]]
-          [[ "$(shasum -a 256 "${prefix}/libexec/clients/opencode" | cut -d' ' -f1)" == \
-             "${opencode_binary_sha256}" ]]
+          [[ ! -e "${prefix}/libexec/clients" && ! -L "${prefix}/libexec/clients" ]]
           grep -F 'anomalyco/opencode' "${prefix}/libexec/THIRD_PARTY_NOTICES.md" >/dev/null
           grep -F 'navikt/cplt' "${prefix}/libexec/THIRD_PARTY_NOTICES.md" >/dev/null
           brew test --verbose "${formula_name}"
-          PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
-            "${prefix}/bin/grillmester" doctor --client opencode
+
           tui_consumer="${qa_root}/tui-consumer"
           mkdir -m 700 "${tui_consumer}"
           git -C "${tui_consumer}" init --quiet
+          missing_stdout="${qa_root}/missing-opencode.stdout"
+          missing_stderr="${qa_root}/missing-opencode.stderr"
+          if PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
+            "${prefix}/bin/grillmester" --client opencode \
+              --agent grillmester --project-dir "${tui_consumer}" \
+              --print-command >"${missing_stdout}" 2>"${missing_stderr}"; then
+            echo "Grillmester unexpectedly found OpenCode outside the caller PATH." >&2
+            exit 1
+          fi
+          [[ ! -s "${missing_stdout}" ]]
+          grep -Fx \
+            'grillmester: OpenCode was not found on PATH; install it with: brew install opencode' \
+            "${missing_stderr}"
+
+          # The hosted image can carry stale Homebrew API metadata while this
+          # job disables implicit updates for deterministic formula testing.
+          brew update
+          brew install opencode
+          cplt_candidate="$(brew --prefix navikt/tap/cplt)/bin/cplt"
+          opencode_candidate="$(brew --prefix opencode)/bin/opencode"
+          resolve_executable() {
+            python3 -I -S - "$1" "$2" <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          label, raw = sys.argv[1:]
+          path = Path(raw).resolve(strict=True)
+          if not path.is_file() or not os.access(path, os.X_OK):
+              raise SystemExit(f"{label} is not an executable regular file: {path}")
+          print(path)
+          PY
+          }
+          cplt_binary="$(resolve_executable cplt "${cplt_candidate}")"
+          opencode_binary="$(resolve_executable OpenCode "${opencode_candidate}")"
+          opencode_version="$("${opencode_binary}" --version)"
+          [[ "${opencode_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]
+          opencode_path_dir="${qa_root}/opencode-path"
+          mkdir -m 700 "${opencode_path_dir}"
+          ln -s "${opencode_binary}" "${opencode_path_dir}/opencode"
+          client_path="${opencode_path_dir}:/usr/bin:/bin:/usr/sbin:/sbin"
+          doctor_output="$(PATH="${client_path}" \
+            "${prefix}/bin/grillmester" doctor --client opencode)"
+          grep -F "ok  cplt ${cplt_binary} (cplt " <<<"${doctor_output}"
+          grep -F "ok  opencode ${opencode_binary} (${opencode_version})" \
+            <<<"${doctor_output}"
           python3 -I -S scripts/smoke_grillmester_tui.py \
             --launcher "${prefix}/bin/grillmester" \
-            --opencode "${prefix}/libexec/clients/opencode" \
-            --cplt "${prefix}/libexec/clients/cplt" \
+            --opencode "${opencode_binary}" \
+            --opencode-version "${opencode_version}" \
+            --cplt "${cplt_binary}" \
             --project-dir "${tui_consumer}" \
             --state-parent "${qa_root}"
-          cleanup
+
+          brew install --cask copilot-cli
+          copilot_candidate="$(command -v copilot)"
+          copilot_binary="$(resolve_executable 'GitHub Copilot CLI' "${copilot_candidate}")"
+          copilot_version="$("${copilot_binary}" --version | sed -n '1p')"
+          [[ "${copilot_version}" =~ ^GitHub\ Copilot\ CLI\ [0-9]+\.[0-9]+\.[0-9]+\.$ ]]
+          copilot_state="$(mktemp -d "${HOME}/.grillmester-copilot-qa.XXXXXX")"
+          mkdir -m 700 "${copilot_state}/home" "${copilot_state}/config"
+          copilot_path_dir="${qa_root}/copilot-path"
+          mkdir -m 700 "${copilot_path_dir}"
+          ln -s "${copilot_binary}" "${copilot_path_dir}/copilot"
+          copilot_client_path="${copilot_path_dir}:/usr/bin:/bin:/usr/sbin:/sbin"
+          if PATH="${copilot_client_path}" command -v opencode >/dev/null 2>&1; then
+            echo "OpenCode unexpectedly remained on the Copilot-only PATH." >&2
+            exit 1
+          fi
+          copilot_doctor_output="$(
+            HOME="${copilot_state}/home" \
+            XDG_CONFIG_HOME="${copilot_state}/config" \
+            PATH="${copilot_client_path}" \
+              "${prefix}/bin/grillmester" doctor --client copilot
+          )"
+          grep -F "ok  cplt ${cplt_binary} (cplt " <<<"${copilot_doctor_output}"
+          grep -F "ok  copilot ${copilot_binary} (${copilot_version})" \
+            <<<"${copilot_doctor_output}"
+          copilot_help_stdout="${qa_root}/copilot-help.stdout"
+          copilot_help_stderr="${qa_root}/copilot-help.stderr"
+          HOME="${copilot_state}/home" \
+          XDG_CONFIG_HOME="${copilot_state}/config" \
+          PATH="${copilot_client_path}" \
+            "${prefix}/bin/grillmester" --client copilot \
+              --agent grillmester --project-dir "${tui_consumer}" \
+              --yes --quiet -- --help \
+              >"${copilot_help_stdout}" 2>"${copilot_help_stderr}"
+          grep -F 'Usage: copilot ' "${copilot_help_stdout}"
+          grep -F 'Launching Grillmester (grillmester) in copilot through cplt...' \
+            "${copilot_help_stderr}"
+
+          [[ -z "$(git -C "${tui_consumer}" status --porcelain)" ]]
+          cleanup 0
           trap - EXIT
           if brew list --versions "${formula_name}" >/dev/null 2>&1; then
             echo "grillmester remains installed after uninstall" >&2
@@ -287,3 +426,44 @@ jobs:
           fi
           [[ ! -e "${linked_launcher}" && ! -L "${linked_launcher}" ]]
           [[ ! -e "${prefix}" && ! -L "${prefix}" ]]
+          if [[ "${opencode_preinstalled}" == "false" ]] && \
+            brew list --versions opencode >/dev/null 2>&1; then
+            echo "OpenCode remains installed after cleanup." >&2
+            exit 1
+          fi
+          if [[ "${copilot_preinstalled}" == "false" ]] && \
+            brew list --cask --versions copilot-cli >/dev/null 2>&1; then
+            echo "GitHub Copilot CLI remains installed after cleanup." >&2
+            exit 1
+          fi
+          if [[ -n "${copilot_state}" && -e "${copilot_state}" ]]; then
+            echo "Copilot QA state remains after cleanup." >&2
+            exit 1
+          fi
+          if [[ "${cplt_dependency_preinstalled}" == "false" ]] && \
+            brew list --versions cplt >/dev/null 2>&1; then
+            echo "cplt remains installed after cleanup." >&2
+            exit 1
+          fi
+          if [[ "${python_dependency_preinstalled}" == "false" ]] && \
+            brew list --versions python@3.13 >/dev/null 2>&1; then
+            echo "python@3.13 remains installed after cleanup." >&2
+            exit 1
+          fi
+          if [[ "${navikt_tap_preexisting}" == "false" ]] && \
+            brew tap | grep -Fx 'navikt/tap' >/dev/null; then
+            echo "navikt/tap remains configured after cleanup." >&2
+            exit 1
+          fi
+          if [[ "${cplt_formula_trust_preexisting}" == "false" ]] && \
+            brew trust --json=v1 | jq -e \
+              '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+            echo "navikt/tap/cplt remains trusted after cleanup." >&2
+            exit 1
+          fi
+          if [[ "${cplt_formula_trust_preexisting}" == "true" ]] && ! \
+            brew trust --json=v1 | jq -e \
+              '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+            echo "Pre-existing trust for navikt/tap/cplt was not preserved." >&2
+            exit 1
+          fi

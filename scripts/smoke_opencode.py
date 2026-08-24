@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -19,7 +20,18 @@ from typing import Any, Mapping, NamedTuple, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGET = ROOT / "targets/opencode-v1"
-EXPECTED_OPENCODE_VERSION = "1.18.20"
+_BASELINE_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_release_test_baseline_for_opencode_smoke",
+    ROOT / "scripts/release_test_baseline.py",
+)
+if _BASELINE_SPEC is None or _BASELINE_SPEC.loader is None:
+    raise RuntimeError("could not load release-test baseline contract")
+_BASELINE_MODULE = importlib.util.module_from_spec(_BASELINE_SPEC)
+sys.modules[_BASELINE_SPEC.name] = _BASELINE_MODULE
+_BASELINE_SPEC.loader.exec_module(_BASELINE_MODULE)
+EXPECTED_OPENCODE_VERSION = _BASELINE_MODULE.CONTRACT["releaseTest"][
+    "opencodeVersion"
+]
 PRIMARY_AGENTS = frozenset({"grillmester", "barista", "designer", "doctor-who"})
 SUBAGENTS = frozenset({"kokk", "grill-inspektor", "researcher"})
 EXPECTED_AGENTS = PRIMARY_AGENTS | SUBAGENTS

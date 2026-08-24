@@ -4,8 +4,9 @@
 The public release tag identifies a catalog-only commit. The catalog then
 identifies every target payload with one exact GitHub commit SHA. Stable
 releases are new, stable-versioned catalogs whose Copilot and OpenCode
-payloads are identical to a named RC apart from the Copilot manifest's
-version; an RC tag is never moved or re-used.
+payloads are identical to a named RC apart from the Copilot manifest version
+and its mechanically derived payload hashes; an RC tag is never moved or
+re-used.
 """
 
 from __future__ import annotations
@@ -13,12 +14,15 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import importlib.util
 import json
 import re
+import stat
 import subprocess
 import sys
+import unicodedata
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Sequence
 
 
@@ -27,27 +31,51 @@ PLUGIN_PATHS = {"grillmester": "plugin"}
 NATIVE_TARGET_PATHS = ("targets/opencode-v1",)
 OPENCODE_DISTRIBUTION_DIRECTORIES = (
     "targets/opencode-v1",
-    "profiles/opencode",
+    "targets/opencode-v1-focused",
 )
+FOCUSED_COPILOT_DIRECTORY = "targets/copilot-cli-focused-v1"
 OPENCODE_DISTRIBUTION_FILES = (
     "LICENSE",
     "PROVENANCE.md",
     "THIRD_PARTY_NOTICES.md",
-    "policy/client-artifacts.json",
     "policy/content-lock.json",
+    "policy/focused-context-v1.json",
     "scripts/build_opencode_bundle.py",
-    "scripts/compose_opencode_permissions.py",
-    "scripts/manage_opencode.py",
+    "scripts/generate_copilot_manifest.py",
+    "scripts/generate_context_projections.py",
+    "scripts/generate_homebrew_formula.py",
+    "scripts/grillmester.py",
+    "scripts/grillmester_local.py",
     "scripts/release_contract.py",
-    "scripts/verify_client_artifact.py",
+    "scripts/smoke_grillmester_local.py",
 )
 STABLE_GATE_HARNESS_FILES = (
+    "scripts/release_test_baseline.py",
+    "scripts/smoke_grillmester_tui.py",
     "scripts/smoke_plugin_install.py",
     "scripts/smoke_opencode.py",
     "scripts/smoke_opencode_runtime.py",
 )
-SUPPORTED_OPENCODE_VERSION = "1.18.20"
-SUPPORTED_CPLT_RELEASE = "2026.08.17-062831-1008a92"
+_BASELINE_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_release_test_baseline_for_release_contract",
+    Path(__file__).with_name("release_test_baseline.py"),
+)
+if _BASELINE_SPEC is None or _BASELINE_SPEC.loader is None:
+    raise RuntimeError("could not load release-test baseline contract")
+_BASELINE_MODULE = importlib.util.module_from_spec(_BASELINE_SPEC)
+sys.modules[_BASELINE_SPEC.name] = _BASELINE_MODULE
+_BASELINE_SPEC.loader.exec_module(_BASELINE_MODULE)
+_STANDARD_SUPPORT = _BASELINE_MODULE.CONTRACT["standardSupport"]
+_RELEASE_TEST = _BASELINE_MODULE.CONTRACT["releaseTest"]
+
+SUPPORTED_OPENCODE_VERSION = _STANDARD_SUPPORT["opencodeMinimum"]
+SUPPORTED_OPENCODE_RANGE = f">={SUPPORTED_OPENCODE_VERSION},<2.0.0"
+SUPPORTED_COPILOT_VERSION = _STANDARD_SUPPORT["copilotMinimum"]
+SUPPORTED_COPILOT_RANGE = f">={SUPPORTED_COPILOT_VERSION},<2.0.0"
+SUPPORTED_CPLT_RELEASE = _STANDARD_SUPPORT["cpltMinimum"]
+RELEASE_TEST_OPENCODE_VERSION = _RELEASE_TEST["opencodeVersion"]
+RELEASE_TEST_COPILOT_VERSION = _RELEASE_TEST["copilotVersion"]
+RELEASE_TEST_CPLT_RELEASE = _RELEASE_TEST["cpltRelease"]
 PLUGIN_REPOSITORY = "navikt/grillmester"
 CATALOG_PATH = ".github/plugin/marketplace.json"
 CONTENT_LOCK_PATH = "policy/content-lock.json"
@@ -275,6 +303,7 @@ def validate_source_checkout(
         manifests[name] = manifest
     for directory in OPENCODE_DISTRIBUTION_DIRECTORIES:
         payload_manifest(repo / directory)
+    payload_manifest(repo / FOCUSED_COPILOT_DIRECTORY)
     for relative in OPENCODE_DISTRIBUTION_FILES:
         distribution_file_digest(repo / relative)
     return manifests
@@ -561,6 +590,267 @@ def validate_stable_rights_approval(source_repo: Path) -> None:
         )
 
 
+def _validate_focused_copilot_stable_promotion(
+    stable_source: Path,
+    rc_source: Path,
+    *,
+    stable_version: Version,
+    rc_version: Version,
+) -> None:
+    """Allow only the mechanically regenerated hashes caused by a version bump."""
+
+    stable_target = stable_source / FOCUSED_COPILOT_DIRECTORY
+    rc_target = rc_source / FOCUSED_COPILOT_DIRECTORY
+    stable_plugin = stable_target / "plugin.json"
+    rc_plugin = rc_target / "plugin.json"
+    canonical_stable = stable_source / "plugin/plugin.json"
+    canonical_rc = rc_source / "plugin/plugin.json"
+    if stable_plugin.read_bytes() != canonical_stable.read_bytes() or (
+        rc_plugin.read_bytes() != canonical_rc.read_bytes()
+    ):
+        raise ReleaseContractError(
+            "focused Copilot plugin.json must be byte-identical to its canonical plugin"
+        )
+
+    stable_plugin_bytes = stable_plugin.read_bytes()
+    rc_plugin_bytes = rc_plugin.read_bytes()
+    stable_version_bytes = json.dumps(stable_version.text).encode("utf-8")
+    rc_version_bytes = json.dumps(rc_version.text).encode("utf-8")
+    version_field = re.compile(
+        rb'("version"\s*:\s*)' + re.escape(stable_version_bytes)
+    )
+    normalized_plugin, substitutions = version_field.subn(
+        rb"\g<1>" + rc_version_bytes, stable_plugin_bytes
+    )
+    if substitutions != 1 or normalized_plugin != rc_plugin_bytes:
+        raise ReleaseContractError(
+            "focused Copilot plugin.json differs from the RC beyond its version value"
+        )
+
+    stable_full_manifest = _validate_copilot_full_payload_manifest(
+        stable_source, label="stable"
+    )
+    rc_full_manifest = _validate_copilot_full_payload_manifest(
+        rc_source, label="RC"
+    )
+    stable_full_digest = hashlib.sha256(stable_full_manifest).hexdigest()
+    rc_full_digest = hashlib.sha256(rc_full_manifest).hexdigest()
+
+    stable_manifest_path = stable_target / "manifest.json"
+    rc_manifest_path = rc_target / "manifest.json"
+    stable_manifest = read_object(stable_manifest_path)
+    rc_manifest = read_object(rc_manifest_path)
+    stable_plugin_digest = hashlib.sha256(stable_plugin_bytes).hexdigest()
+    rc_plugin_digest = hashlib.sha256(rc_plugin_bytes).hexdigest()
+    for label, manifest, plugin_digest, full_digest in (
+        ("stable", stable_manifest, stable_plugin_digest, stable_full_digest),
+        ("RC", rc_manifest, rc_plugin_digest, rc_full_digest),
+    ):
+        source = manifest.get("source")
+        files = manifest.get("files")
+        if (
+            not isinstance(source, dict)
+            or source.get("payloadManifest") != "plugin/manifest.json"
+            or source.get("payloadManifestSha256") != full_digest
+            or not isinstance(files, dict)
+            or not isinstance(files.get("plugin.json"), dict)
+            or files["plugin.json"].get("sha256") != plugin_digest
+        ):
+            raise ReleaseContractError(
+                f"{label} focused Copilot manifest does not bind its full source payload"
+            )
+    stable_manifest_bytes = stable_manifest_path.read_bytes()
+    if (
+        stable_manifest_bytes.count(stable_plugin_digest.encode("ascii")) != 1
+        or stable_manifest_bytes.count(stable_full_digest.encode("ascii")) != 1
+    ):
+        raise ReleaseContractError(
+            "stable focused Copilot manifest must contain exactly one derived plugin "
+            "and full-payload hash"
+        )
+    normalized_manifest = stable_manifest_bytes.replace(
+        stable_plugin_digest.encode("ascii"), rc_plugin_digest.encode("ascii")
+    ).replace(
+        stable_full_digest.encode("ascii"), rc_full_digest.encode("ascii")
+    )
+    if normalized_manifest != rc_manifest_path.read_bytes():
+        raise ReleaseContractError(
+            "focused Copilot manifest differs from the RC beyond derived plugin hashes"
+        )
+
+    stable_payload = payload_manifest(stable_target)
+    rc_payload = payload_manifest(rc_target)
+    for derived in ("plugin.json", "manifest.json"):
+        stable_payload.pop(derived, None)
+        rc_payload.pop(derived, None)
+    if stable_payload != rc_payload:
+        raise ReleaseContractError(
+            "focused Copilot payload differs from the reviewed RC"
+        )
+
+
+def _validate_copilot_full_payload_manifest(source: Path, *, label: str) -> bytes:
+    plugin_root = source / "plugin"
+    manifest_path = plugin_root / "manifest.json"
+    try:
+        root_mode = plugin_root.lstat().st_mode
+        manifest_mode = manifest_path.lstat().st_mode
+    except OSError as exc:
+        raise ReleaseContractError(
+            f"{label} Copilot full payload or manifest is missing: {exc}"
+        ) from exc
+    if stat.S_ISLNK(root_mode) or not stat.S_ISDIR(root_mode):
+        raise ReleaseContractError(
+            f"{label} Copilot full payload root is not a regular directory"
+        )
+    if stat.S_ISLNK(manifest_mode) or not stat.S_ISREG(manifest_mode) or (
+        stat.S_IMODE(manifest_mode) != 0o644
+    ):
+        raise ReleaseContractError(
+            f"{label} Copilot full payload manifest is not a mode-0644 regular file"
+        )
+    manifest_bytes = manifest_path.read_bytes()
+    manifest = read_object(manifest_path)
+    expected_fields = {
+        "schemaVersion",
+        "target",
+        "generator",
+        "counts",
+        "agents",
+        "skills",
+        "files",
+    }
+    if set(manifest) != expected_fields or (
+        manifest.get("schemaVersion") != 1
+        or manifest.get("target") != "copilot-full-v1"
+        or manifest.get("generator")
+        != {"path": "scripts/generate_copilot_manifest.py", "version": 1}
+    ):
+        raise ReleaseContractError(
+            f"{label} Copilot full payload manifest identity is invalid"
+        )
+    contracts = manifest.get("files")
+    if not isinstance(contracts, dict) or not contracts:
+        raise ReleaseContractError(
+            f"{label} Copilot full payload manifest has no file contracts"
+        )
+    actual: dict[str, dict[str, str]] = {}
+    portable_paths: dict[str, str] = {}
+    for path in sorted(plugin_root.rglob("*")):
+        observed = path.lstat()
+        if stat.S_ISLNK(observed.st_mode):
+            raise ReleaseContractError(
+                f"{label} Copilot full payload contains a symlink: {path}"
+            )
+        if stat.S_ISDIR(observed.st_mode):
+            continue
+        if not stat.S_ISREG(observed.st_mode):
+            raise ReleaseContractError(
+                f"{label} Copilot full payload contains a special node: {path}"
+            )
+        if path == manifest_path:
+            continue
+        relative = path.relative_to(plugin_root).as_posix()
+        portable = unicodedata.normalize("NFC", relative).casefold()
+        previous = portable_paths.get(portable)
+        if previous is not None and previous != relative:
+            raise ReleaseContractError(
+                f"{label} Copilot full payload has a portable path collision: "
+                f"{previous}, {relative}"
+            )
+        portable_paths[portable] = relative
+        mode = stat.S_IMODE(observed.st_mode)
+        if mode not in (0o644, 0o755):
+            raise ReleaseContractError(
+                f"{label} Copilot full payload has unsupported mode {mode:04o}: "
+                f"{relative}"
+            )
+        actual[relative] = {
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "mode": f"{mode:04o}",
+        }
+    for raw_path, contract in contracts.items():
+        if not isinstance(raw_path, str):
+            raise ReleaseContractError(
+                f"{label} Copilot full payload manifest contains a non-text path"
+            )
+        relative = PurePosixPath(raw_path)
+        if (
+            relative.is_absolute()
+            or relative.as_posix() != raw_path
+            or any(part in ("", ".", "..") for part in relative.parts)
+            or raw_path == "manifest.json"
+            or not isinstance(contract, dict)
+            or set(contract) != {"sha256", "mode"}
+            or not isinstance(contract.get("sha256"), str)
+            or SHA256.fullmatch(contract["sha256"]) is None
+            or contract.get("mode") not in {"0644", "0755"}
+        ):
+            raise ReleaseContractError(
+                f"{label} Copilot full payload manifest contract is invalid: "
+                f"{raw_path!r}"
+            )
+    if actual != contracts:
+        raise ReleaseContractError(
+            f"{label} Copilot full payload differs from its manifest"
+        )
+    agents = manifest.get("agents")
+    skills = manifest.get("skills")
+    component_id = re.compile(r"^[a-z][a-z0-9-]*$")
+    observed_agent_files = {path for path in actual if path.startswith("agents/")}
+    observed_agents = sorted(
+        path.removeprefix("agents/").removesuffix(".agent.md")
+        for path in observed_agent_files
+        if path.endswith(".agent.md") and path.count("/") == 1
+    )
+    observed_skills = sorted(
+        {
+            path.split("/", 2)[1]
+            for path in actual
+            if path.startswith("skills/") and path.count("/") >= 2
+        }
+    )
+    if (
+        agents != observed_agents
+        or skills != observed_skills
+        or any(component_id.fullmatch(item) is None for item in (*observed_agents, *observed_skills))
+        or observed_agent_files
+        != {f"agents/{agent}.agent.md" for agent in observed_agents}
+        or any(f"skills/{skill}/SKILL.md" not in actual for skill in observed_skills)
+        or manifest.get("counts")
+        != {"agents": len(observed_agents), "skills": len(observed_skills)}
+    ):
+        raise ReleaseContractError(
+            f"{label} Copilot full payload roster differs from its manifest"
+        )
+    return manifest_bytes
+
+
+def _validate_copilot_full_stable_promotion(
+    stable_source: Path, rc_source: Path
+) -> None:
+    stable_manifest = _validate_copilot_full_payload_manifest(
+        stable_source, label="stable"
+    )
+    rc_manifest = _validate_copilot_full_payload_manifest(rc_source, label="RC")
+    stable_plugin = (stable_source / "plugin/plugin.json").read_bytes()
+    rc_plugin = (rc_source / "plugin/plugin.json").read_bytes()
+    stable_digest = hashlib.sha256(stable_plugin).hexdigest()
+    rc_digest = hashlib.sha256(rc_plugin).hexdigest()
+    if stable_manifest.count(stable_digest.encode("ascii")) != 1:
+        raise ReleaseContractError(
+            "stable Copilot full payload manifest must bind plugin.json exactly once"
+        )
+    normalized = stable_manifest.replace(
+        stable_digest.encode("ascii"), rc_digest.encode("ascii")
+    )
+    if normalized != rc_manifest:
+        raise ReleaseContractError(
+            "stable Copilot full payload manifest differs from the RC beyond the "
+            "derived plugin.json hash"
+        )
+
+
 def validate_stable_promotion(
     stable: Catalog,
     stable_source: Path,
@@ -618,6 +908,8 @@ def validate_stable_promotion(
 
         stable_payload = payload_manifest(stable_package, exclude_manifest=True)
         rc_payload = payload_manifest(rc_package, exclude_manifest=True)
+        stable_payload.pop("manifest.json", None)
+        rc_payload.pop("manifest.json", None)
         if stable_payload != rc_payload:
             missing = sorted(rc_payload.keys() - stable_payload.keys())
             added = sorted(stable_payload.keys() - rc_payload.keys())
@@ -635,6 +927,8 @@ def validate_stable_promotion(
                 f"stable {name} payload differs from the reviewed RC beyond plugin.json version"
                 + (f"; {detail}" if detail else "")
             )
+
+    _validate_copilot_full_stable_promotion(stable_source, rc_source)
 
     for directory in OPENCODE_DISTRIBUTION_DIRECTORIES:
         stable_payload = payload_manifest(stable_source / directory)
@@ -656,6 +950,13 @@ def validate_stable_promotion(
                 f"stable {directory} payload differs from the reviewed RC"
                 + (f"; {detail}" if detail else "")
             )
+
+    _validate_focused_copilot_stable_promotion(
+        stable_source,
+        rc_source,
+        stable_version=stable.version,
+        rc_version=rc.version,
+    )
 
     for relative in OPENCODE_DISTRIBUTION_FILES:
         stable_digest = distribution_file_digest(stable_source / relative)
@@ -721,10 +1022,64 @@ def render_notes(
     status = "release candidate" if channel == "rc" else "stable release"
     promoted = (
         f"\nThis stable release promotes the tested `{rc_tag}` payload. The only "
-        "permitted payload change is the `plugin.json.version` value.\n"
+        "permitted semantic payload change is the `plugin.json.version` value; "
+        "the full and focused Copilot manifest hashes are regenerated "
+        "mechanically from it.\n"
         if rc_tag
         else ""
     )
+    if channel == "rc":
+        terminal_install = f"""### Test the terminal launcher release candidate
+
+The stable-only Homebrew tap does not publish release candidates. Do not use
+`brew install navikt/tap/cplt navikt/tap/grillmester` to evaluate `{tag}`: that command selects
+the stable version currently present in the tap, if any. Download the
+`grillmester.rb` asset attached to this exact release, verify it as part of the
+release-candidate pilot, then install that local formula explicitly:
+
+```bash
+brew install --formula ./grillmester.rb
+```
+
+Replace an installed candidate only with another exact, reviewed formula asset;
+`brew upgrade grillmester` follows the stable tap and is not the RC update path.
+"""
+        update_commands = """The candidate formula is replaced only from an exact,
+reviewed release asset as described above. cplt, OpenCode, and GitHub Copilot CLI
+keep separate update lifecycles:
+
+```bash
+brew upgrade navikt/tap/cplt
+brew upgrade opencode
+brew upgrade --cask copilot-cli
+```"""
+    else:
+        terminal_install = f"""### Install the terminal launcher after tap publication
+
+The Homebrew tap accepts stable releases only. This GitHub Release does not by
+itself prove that the tap already serves `{tag}`. For the first stable release,
+the reviewed tap-bootstrap PR must merge; later releases are admitted by the
+tap updater. After `brew info navikt/tap/grillmester` reports this exact version:
+
+```bash
+brew install navikt/tap/cplt navikt/tap/grillmester
+```
+
+Both names are fully qualified so Homebrew trusts only these two formulae,
+not every current and future item in `navikt/tap`.
+
+If the tap still reports an earlier version, wait for the reviewed updater (or
+use the attached `grillmester.rb` only in the release-validation procedure).
+"""
+        update_commands = """Grillmester, cplt, OpenCode, and GitHub Copilot CLI keep
+separate update lifecycles. Update each installed component explicitly:
+
+```bash
+brew upgrade grillmester
+brew upgrade navikt/tap/cplt
+brew upgrade opencode
+brew upgrade --cask copilot-cli
+```"""
     return f"""## Grillmester {tag}
 
 This is a **{status}** with an immutable, two-step provenance chain.{promoted}
@@ -732,12 +1087,49 @@ This is a **{status}** with an immutable, two-step provenance chain.{promoted}
 | --- | --- |
 | Release tag | `{tag}` → catalog commit `{catalog_sha}` |
 | Source payloads | catalog source → `{source_sha}` |
-| OpenCode {SUPPORTED_OPENCODE_VERSION} bundle | release asset built from `{source_sha}` |
+| Grillmester terminal bundle (no client binaries) | release asset built from `{source_sha}` |
 
 The tag points to a catalog-only commit. It never points at `main` and is never
 moved after publication.
 
-### Install with Copilot CLI
+{terminal_install}
+
+The Homebrew formula installs Grillmester's reviewed content and launcher. It
+uses the OpenCode and GitHub Copilot CLI executables from `PATH` and does not
+package either client binary. cplt is a required, separate Homebrew dependency.
+The bundle manifest identifies the outer distribution as
+`grillmester-terminal-v1`; its exact client versions are release-test metadata,
+not runtime pins. The inner native OpenCode target remains `opencode-v1`.
+Install only the client or clients you want to use:
+
+```bash
+brew install opencode
+brew install --cask copilot-cli
+```
+
+{update_commands}
+
+The standard launcher accepts OpenCode `{SUPPORTED_OPENCODE_RANGE}`, GitHub
+Copilot CLI `{SUPPORTED_COPILOT_RANGE}`, and the tested cplt baseline
+`{SUPPORTED_CPLT_RELEASE}` or a newer release. The release gate exercises exact
+OpenCode `{RELEASE_TEST_OPENCODE_VERSION}`, Copilot CLI
+`{RELEASE_TEST_COPILOT_VERSION}`, and cplt `{RELEASE_TEST_CPLT_RELEASE}`. Newer
+compatible clients are not the exact bytes covered by the release gate.
+
+### Run with Copilot CLI from PATH
+
+```bash
+grillmester doctor --client copilot
+grillmester --client copilot --agent grillmester
+```
+
+The launcher supplies the reviewed plugin directory and starts the installed
+GitHub Copilot CLI through cplt.
+
+### Install directly in Copilot CLI
+
+This alternative registers the immutable marketplace tag in Copilot CLI's own
+plugin store. It is separate from the Homebrew launcher path above.
 
 ```bash
 copilot plugin marketplace add navikt/grillmester#{tag}
@@ -745,171 +1137,29 @@ copilot plugin install grillmester@grillmester
 copilot --agent=grillmester:grillmester
 ```
 
-### Run with OpenCode {SUPPORTED_OPENCODE_VERSION}
+### Run with OpenCode from PATH
 
-Only OpenCode `{SUPPORTED_OPENCODE_VERSION}` and cplt
-`{SUPPORTED_CPLT_RELEASE}` are release-gated for this payload; other versions
-are unverified. Download the release asset and its detached checksum, verify it,
-extract it, and use the bundled immutable target. The primary compatibility
-path is cplt's native OpenCode support: `cplt --agent opencode` receives the
-bundle's config directory directly, so no Grillmester lifecycle manager is
-required. Declare the exact provider and model in the user's normal OpenCode
-config before launch. This source-pinned
-[local-provider example](https://github.com/navikt/grillmester/blob/{source_sha}/docs/local-models.md#koble-opencode-til-den-lokale-serveren)
+```bash
+grillmester doctor --client opencode
+grillmester --client opencode --agent grillmester \\
+  --allow-localhost 1234 -- --model lmstudio/replace-with-local-model-id
+```
+
+The launcher binds the installed Grillmester target and starts the PATH-resolved
+OpenCode through cplt. Declare the provider and model in the user's normal
+OpenCode config before launch. This source-pinned
+[local-provider example](https://github.com/navikt/grillmester/blob/{source_sha}/docs/local-models.md#avansert-manuell-opencode-binding)
 shows the complete OpenAI-compatible shape; OpenCode's built-in GitHub Copilot
-provider instead uses its normal `/connect` flow. cplt's `standard` profile
-works with that flow as shown. If `--preset strict`, `--default-allowlist`, or
-an equivalent global setting is active, OpenCode's infrastructure allowlist
-does not automatically include the Copilot-provider domains. Add the pinned,
-reviewed domain list with `--allowed-domains`, never `--allow-all-domains`; the
-source-pinned
-[native cplt notes](https://github.com/navikt/grillmester/blob/{source_sha}/docs/opencode.md#native-cplt-kom-raskt-i-gang)
-contain the exact list for this cplt release.
+provider instead uses its normal `/connect` flow. The source-pinned
+[native cplt notes](https://github.com/navikt/grillmester/blob/{source_sha}/docs/opencode.md#kom-i-gang)
+describe the tested launcher boundary and any client-provider network access
+that must be admitted by the user's cplt policy.
 
-The optional managed path adds checksum-authenticated client staging and a
-narrower provider contract. In managed cplt mode it checksum-authenticates the
-official OpenCode and cplt platform bytes, stages byte-identical copies in a
-sealed private `trusted-bin`, and runs only those copies. The original
-caller-resolved OpenCode executable is read but not launched. `--direct`
-instead runs that original executable and is an explicit trusted-code opt-out
-from the official checksum, private staging, cplt sandbox, and egress policy.
-Neither path depends on a NAV pilot agent. Python 3.11 or newer is required for
-the optional lifecycle manager. The consumer repository's own `AGENTS.md`
-remains in force.
-
-OpenCode `{SUPPORTED_OPENCODE_VERSION}`'s core V2 loader ignores
-`OPENCODE_DISABLE_PROJECT_CONFIG`. The manager compensates by admitting only
-restriction-only project config (`ask`/`deny` permissions and disabled tools)
-and by resolving its bounded baseline in an empty probe project and test home.
-This is not a same-UID isolation boundary: cplt has no sealed repo-config mode
-and can reread `HEAD:.cplt.toml` after the manager's last snapshot, while a
-concurrent process owned by the same user can still mutate project inputs in a
-final check/use window.
-
-The npm integrity values, GitHub Release asset digests, and cplt `SHA256SUMS`
-bind the reviewed bytes, but they are not a separately verified maintainer
-signature or artifact attestation. The pinned cplt upstream release is mutable;
-the release gate detects byte drift against the committed lock instead of
-claiming stronger upstream provenance.
-
-For the release-gated path, do not bootstrap either client through an npm
-postinstall or an unpinned package-manager formula. After extracting the
-Grillmester bundle, select the exact host row in
-`grillmester-opencode-v1/policy/client-artifacts.json`; verify its archive size,
-archive digest, exact member roster, executable size, and executable digest
-before the client's first execution. Download each client archive from the URL
-in that exact row, then use the bundled offline verifier to publish the two
-verified executables into a private directory. Use those absolute paths in the
-native command or optional manager. Convenience installs are outside this
-release gate.
-Managed cplt on Linux is gated only for the GNU/glibc assets. OpenCode's musl
-rows remain available for native/unmanaged use, but this release has no cplt
-musl asset and therefore makes no managed-musl claim.
-
-```bash
-python3 -c 'import sys; assert sys.version_info >= (3, 11)'
-tag={tag}
-asset="grillmester-opencode-${{tag}}.tar.gz"
-curl --config /dev/null --fail-with-body --silent --show-error --location \
-  --proto '=https' --tlsv1.2 --proto-redir '=https' --max-filesize 61000000 \
-  --output "${{asset}}" \
-  "https://github.com/navikt/grillmester/releases/download/${{tag}}/${{asset}}"
-curl --config /dev/null --fail-with-body --silent --show-error --location \
-  --proto '=https' --tlsv1.2 --proto-redir '=https' --max-filesize 1024 \
-  --output "${{asset}}.sha256" \
-  "https://github.com/navikt/grillmester/releases/download/${{tag}}/${{asset}}.sha256"
-shasum -a 256 -c "${{asset}}.sha256"
-tar -xzf "${{asset}}"
-bundle_root="$(pwd -P)/grillmester-opencode-v1"
-host_os=darwin       # darwin or linux
-host_arch=arm64      # arm64 or x86_64
-opencode_libc=none   # none on macOS; glibc or musl on Linux
-cplt_libc=none       # none on macOS; glibc on managed Linux
-opencode_variant=default
-cplt_variant=default
-OPENCODE_ARCHIVE=/absolute/path/to/downloaded/opencode-client.tgz
-CPLT_ARCHIVE=/absolute/path/to/downloaded/cplt-client.tar.gz
-verified_bin="$PWD/verified-bin"
-mkdir -m 700 "${{verified_bin}}"
-python3 -I -S "${{bundle_root}}/scripts/verify_client_artifact.py" \
-  --client opencode --os "${{host_os}}" --arch "${{host_arch}}" \
-  --libc "${{opencode_libc}}" --variant "${{opencode_variant}}" \
-  --archive "${{OPENCODE_ARCHIVE}}" --output-dir "${{verified_bin}}"
-python3 -I -S "${{bundle_root}}/scripts/verify_client_artifact.py" \
-  --client cplt --os "${{host_os}}" --arch "${{host_arch}}" \
-  --libc "${{cplt_libc}}" --variant "${{cplt_variant}}" \
-  --archive "${{CPLT_ARCHIVE}}" --output-dir "${{verified_bin}}"
-OPENCODE_BIN="${{verified_bin}}/opencode"
-CPLT_BIN="${{verified_bin}}/cplt"
-CONFIG_DIR="${{bundle_root}}/targets/opencode-v1"
-cd /absolute/path/to/consumer-repo
-PATH="${{verified_bin}}:/usr/local/bin:/usr/bin:/bin" \
-OPENCODE_CONFIG_DIR="${{CONFIG_DIR}}" \
-  "${{CPLT_BIN}}" --agent opencode \
-    --project-dir "$PWD" \
-    --allow-read "${{CONFIG_DIR}}" \
-    --pass-env OPENCODE_CONFIG_DIR \
-    --allow-localhost 1234 \
-    -- --agent grillmester
-```
-
-The command above is the primary native cplt path and assumes the selected
-local provider is already running on port `1234`. Replace that port and choose
-the declared model with `/models` when the provider uses another endpoint.
-For a cloud provider, follow the source-pinned
-[cloud-provider example](https://github.com/navikt/grillmester/blob/{source_sha}/docs/opencode.md#åpen-modell-i-cloud)
-and pass only the credential environment variable named by that config.
-
-#### Optional managed hardening
-
-The manager is not required for cplt compatibility. Its model catalog is empty
-by design, so a managed launch must explicitly bind a provider ID, exact base
-URL, and at least one model already declared in the user's OpenCode config.
-Replace the example model ID below with the real ID from the linked local
-provider config:
-
-```bash
-python3 -I -S "${{bundle_root}}/scripts/manage_opencode.py" install \
-  --source "${{bundle_root}}"
-cd /absolute/path/to/consumer-repo
-python3 -I -S "${{bundle_root}}/scripts/manage_opencode.py" launch \
-  --profile local \
-  --provider-id lmstudio \
-  --provider-base-url lmstudio=http://127.0.0.1:1234/v1 \
-  --provider-model lmstudio/replace-with-id-from-v1-models \
-  --local-port 1234 \
-  --opencode "${{OPENCODE_BIN}}" --cplt "${{CPLT_BIN}}"
-```
-
-`local` enables an explicit localhost port but retains OpenCode infrastructure
-and compatibility-safe cplt settings such as an upstream proxy; it does not
-attest that the active model is local. The audited launcher rejects extra
-access, environment, and network relaxations. `cloud-open-weight` describes
-routing intent, not verified weights or license. It accepts public hostnames
-only and rejects localhost, IP literals, and `--private-provider-domain`;
-private or internal providers must use `hybrid` with the same hostname in
-`--provider-domain HOST` and `--private-provider-domain HOST`. Managed hostname
-isolation uses implicit HTTPS port 443 only. A custom provider port requires
-native unmanaged cplt (or an upstream cplt improvement) and does not receive
-this managed hostname-isolation guarantee. The manager does no DNS preflight:
-cplt guards public/private and loopback routing when the connection is made,
-avoiding a DNS TOCTOU gap.
-
-Managed cplt profiles point `OPENCODE_MODELS_PATH` at a manager-owned, read-only
-empty catalog. Only explicitly configured provider/model pairs using exactly
-the npm package `@ai-sdk/openai-compatible` are admitted. This narrower
-executable-provider surface is a Grillmester hardening tradeoff, not a cplt
-requirement; unmanaged cplt retains OpenCode's ambient catalog and broader
-provider support. The profile config is only a baseline because managed/MDM
-config can merge later. The manager validates the effective resolved config,
-and `OPENCODE_DISABLE_SHARE=true` blocks sharing independently of merge order.
-
-The macOS-only `local-only` profile isolates cplt policy and external egress.
-Seatbelt treats every address assigned to the Mac as localhost, while the
-manager binds the selected provider URL separately to loopback; other host-local
-services on the selected port and the provider itself remain separate trust and
-egress boundaries. Model quality is gated separately from this deterministic
-runtime contract.
+The exact OpenCode, Copilot CLI, and cplt versions named above are release-test
+inputs, not client binaries shipped in the bundle. The executable release-test
+baseline is used only by the release gate to authenticate those test inputs.
+Users remain in control of the compatible client versions installed on their
+machines.
 
 ### Verify Copilot
 
@@ -919,12 +1169,14 @@ copilot plugin list
 
 ### Verify OpenCode
 
-This is a discovery-only check; it does not contact the selected model:
+`doctor` validates the PATH-selected clients and the reviewed target without
+starting an interactive session or contacting a model. `--print-command` then
+previews the exact cplt invocation; it is a rendering aid and performs no
+client or version validation of its own:
 
 ```bash
-test "$("${{OPENCODE_BIN}}" --version)" = "{SUPPORTED_OPENCODE_VERSION}"
-OPENCODE_CONFIG_DIR="${{CONFIG_DIR}}" \
-  "${{OPENCODE_BIN}}" agent list --pure | grep -Fx 'grillmester (primary)'
+grillmester doctor --client opencode
+grillmester --client opencode --agent grillmester --print-command
 ```
 
 ### Roll back
@@ -935,13 +1187,9 @@ the marketplace at the previous tag, and reinstall the plugin. Tags are
 immutable; never retag an older or
 newer catalog.
 
-For the primary native cplt path, stop the active session; it creates no
-Grillmester lifecycle installation to roll back. If the optional manager was
-installed, use that same retained, checksum-verified release bundle:
-
-```bash
-python3 -I -S "${{bundle_root}}/scripts/manage_opencode.py" rollback
-```
+For the terminal launcher, stop the active session and install the previously
+reviewed Homebrew version. Grillmester does not create a separate lifecycle
+installation or copy client binaries into its bundle.
 """
 
 

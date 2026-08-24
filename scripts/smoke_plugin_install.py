@@ -148,6 +148,39 @@ def run(command: list[str], env: dict[str, str], cwd: Path) -> str:
     return result.stdout
 
 
+def verify_local_cli_help_surface(
+    copilot: str,
+    env: dict[str, str],
+    cwd: Path,
+) -> None:
+    """Require the minimum Copilot CLI to advertise every local-run option."""
+
+    output = run([copilot, "--help"], env, cwd)
+    advertised = set(
+        re.findall(r"(?<![A-Za-z0-9-])--[A-Za-z0-9][A-Za-z0-9-]*", output)
+    )
+    for marker in (
+        "--plugin-dir",
+        "--agent",
+        "--model",
+        "--no-auto-update",
+        "--no-experimental",
+        "--no-remote",
+        "--no-remote-export",
+        "--disable-builtin-mcps",
+        "--secret-env-vars",
+        "--prompt",
+        "--allow-all-tools",
+        "--allow-all-urls",
+        "--no-ask-user",
+        "--deny-tool",
+    ):
+        if marker not in advertised:
+            raise RuntimeError(
+                f"Copilot CLI help omitted required local-run option {marker}"
+            )
+
+
 def load_json_object(path: Path, *, allow_comments: bool = False) -> dict[str, Any]:
     try:
         text = path.read_text(encoding="utf-8")
@@ -797,6 +830,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         version_output = run([copilot, "--version"], env, command_cwd).strip()
         version = version_output.splitlines()[0]
+        verify_local_cli_help_surface(
+            copilot,
+            env,
+            command_cwd,
+        )
         if args.remote_marketplace_ref is not None:
             agent_count, skill_count = remote_install_smoke(
                 copilot=copilot,
@@ -811,7 +849,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(
                 f"Verified remote catalog {args.remote_marketplace_ref} -> "
                 f"{release_sha}: {agent_count} agents, {skill_count} skills, "
-                f"byte-exact install and uninstall using {version}"
+                f"byte-exact install and uninstall, and advertised local-run CLI surface "
+                f"using {version}"
             )
             return 0
 
@@ -1089,7 +1128,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"Verified {source_label}: {agent_count} agents, {skill_count} skills, "
             "same-package removed-skill cleanup and rollback, legacy add-on removal, "
             "byte-exact forward upgrade, explicit rollback, repeatable update, "
-            f"and uninstall using {version}"
+            f"advertised local-run CLI surface, and uninstall using {version}"
         )
     return 0
 

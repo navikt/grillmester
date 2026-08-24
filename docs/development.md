@@ -15,11 +15,13 @@ Start Copilot slik du vanligvis gjør i Nav, last
 og velg agent med `/agent`. En lokal mount gjelder bare prosessen du starter.
 Den endrer ikke den vanlige personlige installasjonen.
 
-For å inspisere terminalbindingen uten å starte en klient kan du bruke den
-bundled launcheren med eksplisitt klient og agent:
+For å inspisere terminalbindingen uten å starte en klient kan du bruke
+launcheren fra checkouten eller en installert distribusjon med eksplisitt klient
+og agent:
 
 ```bash
-grillmester --client opencode --agent grillmester --print-command
+python3 /absolute/path/to/grillmester/scripts/grillmester.py \
+  --client opencode --agent grillmester --print-command
 ```
 
 Kommandoen skriver den eksakte cplt-invokasjonen og endrer ingen OpenCode-
@@ -29,35 +31,43 @@ runtimefiler.
 
 Releasekatalogen genereres fra pluginmanifestene. Det native OpenCode 1-
 targetet genereres fra samme reviewede plugininnhold og den eksplisitte
-policyen i `policy/opencode-v1.json`. Når canonical agent-, skill- eller
-policyinnhold endres, regenerer det committede targetet først:
+policyen i `policy/opencode-v1.json`. De fokuserte lokalmodelltargetene avledes
+deretter fra den kanoniske pluginen og det fulle OpenCode-targetet gjennom
+`policy/focused-context-v1.json`. Når canonical agent-, skill- eller
+policyinnhold endres, regenerer targetene i denne rekkefølgen:
 
 ```bash
+python3 scripts/generate_copilot_manifest.py
 python3 scripts/generate_opencode.py
+python3 scripts/generate_context_projections.py
 ```
 
-Ikke håndrediger `targets/opencode-v1/`. CI verifiserer blant annet
-katalogpinning, innholdslås, agent-/skillroster, OpenCode-projeksjon,
+Ikke håndrediger `plugin/manifest.json`, `targets/opencode-v1/`,
+`targets/opencode-v1-focused/` eller
+`targets/copilot-cli-focused-v1/`. CI verifiserer blant annet katalogpinning,
+innholdslås, full og fokusert agent-/skillroster, OpenCode-projeksjon,
 progressive lenker og install–oppgradering–rollback–avinstallering.
 
 Terminalbrukere skal installere den deterministiske release-`tar.gz`-en gjennom
 den genererte Homebrew-formelen, ikke en source-checkout. Checkout-installasjon
 er bare utviklingsinput. Bundlebygget verifiserer Copilot-pluginen, launcheren,
-OpenCode-targetet, profiler og manager og binder dem til eksakt source-SHA i
-`DISTRIBUTION-MANIFEST.json`:
+OpenCode-targetet og focused-targetene og binder dem til eksakt source-SHA i
+`DISTRIBUTION-MANIFEST.json`. Det ytre distribusjonsnavnet er
+`grillmester-terminal-v1`; `opencode-v1` er fortsatt identiteten til det indre
+OpenCode-targetet. Eksakte klientversjoner ligger kun under manifestets
+`releaseTest`-metadata:
 
 ```bash
 python3 scripts/build_opencode_bundle.py \
   --source-root . \
   --source-sha "$(git rev-parse HEAD)" \
-  --output /tmp/grillmester-opencode-v1.tar.gz
-shasum -a 256 /tmp/grillmester-opencode-v1.tar.gz
+  --output /tmp/grillmester-terminal-v1.tar.gz
+shasum -a 256 /tmp/grillmester-terminal-v1.tar.gz
 
 python3 scripts/generate_homebrew_formula.py \
   --tag v0.0.0-test \
-  --bundle-name grillmester-opencode-v0.0.0-test.tar.gz \
-  --bundle-sha256 "$(shasum -a 256 /tmp/grillmester-opencode-v1.tar.gz | cut -d' ' -f1)" \
-  --client-artifacts policy/client-artifacts.json \
+  --bundle-name grillmester-terminal-v0.0.0-test.tar.gz \
+  --bundle-sha256 "$(shasum -a 256 /tmp/grillmester-terminal-v1.tar.gz | cut -d' ' -f1)" \
   --output /tmp/grillmester.rb
 ruby -c /tmp/grillmester.rb
 ```
@@ -70,8 +80,10 @@ Kjør den lokale hovedgaten:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
-python3 -m py_compile scripts/grillmester.py scripts/generate_homebrew_formula.py
+python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_homebrew_formula.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py
+python3 scripts/generate_copilot_manifest.py --check
 python3 scripts/generate_opencode.py --check
+python3 scripts/generate_context_projections.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/grillmester-design-prototype/scripts/server.js
@@ -80,23 +92,29 @@ node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py
 python3 scripts/smoke_opencode_runtime.py --cplt cplt
+python3 scripts/smoke_grillmester_local.py \
+  --cplt cplt --opencode opencode --copilot copilot
 ```
 
 Plugin-smoken skal bekrefte 7 agenter, 42 skills og byte-eksakt installasjon,
-oppgradering, rollback og avinstallering. OpenCode-smoken bruker OpenCode
-`1.18.20`, kopierer targetet til en skrivbar tempmappe og bekrefter native
+oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
+minimumsklienten Copilot CLI `1.0.79` annonserer hele flaggrosteren som local-run
+eier i `--help`, uten modell- eller nettverkskall. Den eksakte local-smoken
+kjører flaggene med release-testklienten. OpenCode-smoken bruker
+OpenCode `1.18.20`, kopierer targetet til en skrivbar tempmappe og bekrefter native
 discovery av 7 agenter, 42 skills, 42 commands, fravær av modellpin,
 deklarerte permissionregler og at native `read` løser consumerens `AGENTS.md`
-fra riktig repo uten å kontakte en modell. Den bekrefter også at en bruker-eid
-hybridprofil kan pinne bare Kokk til en lokal modell. Den beviser derfor ikke
+fra riktig repo uten å kontakte en modell. Den beviser derfor ikke
 at `AGENTS.md` faktisk påvirker et modellsvar, modelldrevet skillbruk,
 delegering, write-godkjenning eller kvalitet. Den separate runtime-smoken bruker
 en deterministisk loopback-provider gjennom ekte OpenCode og bekrefter native
 delegering, blokkert `.env`, progressiv skill-reference, avvist write og en
 eksplisitt auto-godkjent write uten å kontakte en modell. Begge smokene hopper
-kontrollert over når binæren mangler. En release-gate skal kreve eksakt
-OpenCode `1.18.20`, eksakt cplt `2026.08.17-062831-1008a92` for alle
-cplt-baserte profiler og smokene eksplisitt:
+kontrollert over når binæren mangler. Den eksakte release-testbaselinen er
+OpenCode `1.18.20`, Copilot CLI `1.0.80` og cplt
+`2026.08.17-062831-1008a92`. De er testinput, ikke runtimepinner;
+standardlauncheren støtter kompatible 1.x-klienter og nyere datostemplede
+cplt-releaser. Releasegaten skal kjøre de eksakte smokene:
 
 ```bash
 python3 scripts/smoke_opencode.py \
@@ -106,12 +124,29 @@ python3 scripts/smoke_opencode_runtime.py \
   --opencode /absolute/path/to/opencode \
   --require-binary \
   --cplt cplt
+python3 scripts/smoke_grillmester_local.py \
+  --cplt /absolute/path/to/cplt \
+  --opencode /absolute/path/to/opencode \
+  --copilot /absolute/path/to/copilot \
+  --require-binaries
 ```
 
 Runtime-smoken bruker en deterministisk provider og beviser ikke kvaliteten til
-en lokal eller ekstern modell. Manageren og bundle-en har ingen avhengighet til
-`nav-pilot-agent` eller en installert Copilot-agent. `--direct` er bare et
-eksplisitt opt-out fra cplt-sandbox og egresspolicy.
+en lokal eller ekstern modell. Local-smoken kjører focused/full i begge
+klienter gjennom den offentlige `local run`-flaten, krever eksakt lokal modell
+i hvert request, tester syntetiske ambient credentials og caller-PATH-verktøy,
+og tvinger normal Copilot-delegering til Grill-inspektøren. En separat fake-`gh`
+beviser current-repo issue-opprettelse med eksplisitt token og cplt-blokkering av
+cross-repo, destruktive og tokenuttrekkende kommandoer. Ingen GitHub-request eller
+cloudmodell brukes. Smoken erstatter ikke en separat kvalitetspilot med den
+konkrete lokale modellen. Bundle-en har ingen avhengighet til `nav-pilot-agent`
+eller en installert Copilot-agent.
+
+Launcher- og formeltestene skal i tillegg bevise systemklientkontrakten: en
+manglende OpenCode-installasjon gir `brew install opencode`, installert Copilot
+CLI virker uten OpenCode, `doctor` skiller `skip` fra eksplisitt feil, ingen
+klienter gir en samlet feil, og formelen oppretter aldri `libexec/clients` eller
+legger en privat klientkatalog først på `PATH`.
 
 ## Discovery-budsjett
 

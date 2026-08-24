@@ -3,13 +3,14 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib.util
 import json
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 
 PLUGIN_NAME = "grillmester"
@@ -33,7 +34,8 @@ FIGMA_KEY_PATHS = {
     "targets/opencode-v1/skills/grillmester-design-prototype/references/aksel-figma-katalog.json",
 }
 OPENCODE_MANIFEST_PATH = "targets/opencode-v1/manifest.json"
-CLIENT_ARTIFACTS_PATH = "policy/client-artifacts.json"
+COPILOT_FULL_MANIFEST_PATH = "plugin/manifest.json"
+RELEASE_TEST_BASELINE_PATH = "scripts/release_test_baseline.py"
 SHA256_DIGEST = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
 ARTIFACT_HEX_DIGEST = re.compile(
     r"(?<![0-9a-f])(?:[0-9a-f]{128}|[0-9a-f]{64})(?![0-9a-f])"
@@ -734,6 +736,73 @@ def validate_skills(
     return set(found)
 
 
+def _read_launcher_public_agents(path: Path, errors: list[str]) -> set[str] | None:
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except (OSError, SyntaxError, UnicodeError) as exc:
+        errors.append(f"could not inspect launcher public-agent roster in {path}: {exc}")
+        return None
+    assignment = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, (ast.Assign, ast.AnnAssign))
+            and any(
+                isinstance(target, ast.Name) and target.id == "PUBLIC_AGENTS"
+                for target in (
+                    node.targets if isinstance(node, ast.Assign) else [node.target]
+                )
+            )
+        ),
+        None,
+    )
+    if assignment is None:
+        errors.append(f"{path}: missing PUBLIC_AGENTS")
+        return None
+    value = assignment.value
+    if (
+        isinstance(value, ast.Call)
+        and isinstance(value.func, ast.Name)
+        and value.func.id == "frozenset"
+        and len(value.args) == 1
+        and not value.keywords
+    ):
+        value = value.args[0]
+    try:
+        roster = ast.literal_eval(value)
+    except (ValueError, TypeError) as exc:
+        errors.append(f"{path}: PUBLIC_AGENTS must be a literal string roster: {exc}")
+        return None
+    if (
+        not isinstance(roster, (list, tuple, set, frozenset))
+        or not roster
+        or any(not isinstance(agent, str) for agent in roster)
+        or len(roster) != len(set(roster))
+    ):
+        errors.append(f"{path}: PUBLIC_AGENTS must be a non-empty unique string roster")
+        return None
+    return set(roster)
+
+
+def validate_launcher_public_agents(
+    root: Path, contracts: Mapping[str, Mapping[str, Any]], errors: list[str]
+) -> None:
+    expected = {
+        agent_id
+        for agent_id, contract in contracts.items()
+        if contract.get("user-invocable") is True
+    }
+    for relative in ("scripts/grillmester.py", "scripts/grillmester_local.py"):
+        path = root / relative
+        observed = _read_launcher_public_agents(path, errors)
+        if observed is not None and observed != expected:
+            errors.append(
+                f"{relative}: PUBLIC_AGENTS differs from the reviewed "
+                f"user-invocable roster: expected {sorted(expected)}, "
+                f"found {sorted(observed)}"
+            )
+
+
 def runtime_markdown(root: Path) -> list[Path]:
     paths: list[Path] = []
     for directory in (root / "agents", root / "skills"):
@@ -854,11 +923,15 @@ def validate_content(
         if national_id_matches and (
             relative_path in FIGMA_KEY_PATHS
             or relative_path == OPENCODE_MANIFEST_PATH
-            or relative_path == CLIENT_ARTIFACTS_PATH
+            or relative_path == COPILOT_FULL_MANIFEST_PATH
+            or relative_path == RELEASE_TEST_BASELINE_PATH
         ):
-            if relative_path == OPENCODE_MANIFEST_PATH:
+            if relative_path in {
+                OPENCODE_MANIFEST_PATH,
+                COPILOT_FULL_MANIFEST_PATH,
+            }:
                 digest_pattern = SHA256_DIGEST
-            elif relative_path == CLIENT_ARTIFACTS_PATH:
+            elif relative_path == RELEASE_TEST_BASELINE_PATH:
                 digest_pattern = ARTIFACT_HEX_DIGEST
             else:
                 digest_pattern = FIGMA_COMPONENT_KEY
@@ -907,6 +980,9 @@ def validate_layout(root: Path, errors: list[str]) -> None:
         root / "plugin/.github/plugin/marketplace.json",
         root / "plugin/marketplace.json",
         root / "marketplace.json",
+        root / "profiles/opencode",
+        root / "scripts/manage_opencode.py",
+        root / "scripts/compose_opencode_permissions.py",
         root / "dist",
     ]
     for path in forbidden:
@@ -946,20 +1022,47 @@ def validate_assets(root: Path, errors: list[str]) -> None:
         errors.append("README must render the reviewed Grillmester hero asset")
 
 
-def validate_opencode_projection(root: Path, errors: list[str]) -> None:
-    generator_path = root / "scripts/generate_opencode.py"
+def _load_projection_generator(
+    root: Path, errors: list[str], *, script: str, label: str
+) -> object | None:
+    generator_path = root / script
     if not generator_path.is_file():
-        errors.append("missing OpenCode target generator: scripts/generate_opencode.py")
-        return
-    spec = importlib.util.spec_from_file_location(
-        f"grillmester_generate_opencode_{abs(hash(root))}", generator_path
-    )
+        errors.append(f"missing {label}: {script}")
+        return None
+    module_name = f"grillmester_{Path(script).stem}_{abs(hash(root))}"
+    spec = importlib.util.spec_from_file_location(module_name, generator_path)
     if spec is None or spec.loader is None:
-        errors.append("cannot load OpenCode target generator")
-        return
+        errors.append(f"cannot load {label}")
+        return None
     generator = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = generator
     try:
         spec.loader.exec_module(generator)
+    except (OSError, ValueError) as exc:
+        errors.append(f"{label} could not be loaded: {exc}")
+        return None
+    finally:
+        sys.modules.pop(module_name, None)
+    return generator
+
+
+def _summarize_projection_differences(differences: list[str]) -> str:
+    summary = "; ".join(differences[:3])
+    if len(differences) > 3:
+        summary += f"; and {len(differences) - 3} more differences"
+    return summary
+
+
+def validate_opencode_projection(root: Path, errors: list[str]) -> None:
+    generator = _load_projection_generator(
+        root,
+        errors,
+        script="scripts/generate_opencode.py",
+        label="OpenCode target generator",
+    )
+    if generator is None:
+        return
+    try:
         expected, policy = generator.build_projection(root)
         output = root / generator.relative_path(
             policy["output"], label="policy output"
@@ -969,10 +1072,57 @@ def validate_opencode_projection(root: Path, errors: list[str]) -> None:
         errors.append(f"OpenCode target validation failed: {exc}")
         return
     if differences:
-        summary = "; ".join(differences[:3])
-        if len(differences) > 3:
-            summary += f"; and {len(differences) - 3} more differences"
-        errors.append(f"OpenCode target is stale: {summary}")
+        errors.append(
+            "OpenCode target is stale: "
+            + _summarize_projection_differences(differences)
+        )
+
+
+def validate_copilot_full_manifest(root: Path, errors: list[str]) -> None:
+    generator = _load_projection_generator(
+        root,
+        errors,
+        script="scripts/generate_copilot_manifest.py",
+        label="Copilot full payload manifest generator",
+    )
+    if generator is None:
+        return
+    try:
+        expected = generator.build_manifest(root)
+        differences = generator.compare_manifest(root, expected)
+    except (OSError, ValueError) as exc:
+        errors.append(f"Copilot full payload manifest validation failed: {exc}")
+        return
+    if differences:
+        errors.append(
+            "Copilot full payload manifest is stale: "
+            + _summarize_projection_differences(differences)
+        )
+
+
+def validate_focused_context_projections(root: Path, errors: list[str]) -> None:
+    generator = _load_projection_generator(
+        root,
+        errors,
+        script="scripts/generate_context_projections.py",
+        label="focused context generator",
+    )
+    if generator is None:
+        return
+    try:
+        projections, policy = generator.build_projections(root)
+        for key, expected in projections.items():
+            output = root / generator.relative_path(
+                policy["outputs"][key], label=f"policy outputs.{key}"
+            )
+            differences = generator.compare_projection(output, expected)
+            if differences:
+                errors.append(
+                    f"{key} focused context target is stale: "
+                    + _summarize_projection_differences(differences)
+                )
+    except (OSError, ValueError) as exc:
+        errors.append(f"focused context target validation failed: {exc}")
 
 
 def validate_repo(root: Path) -> list[str]:
@@ -985,7 +1135,10 @@ def validate_repo(root: Path) -> list[str]:
     validate_assets(root, errors)
     validate_manifests(root, errors)
     validate_opencode_projection(root, errors)
+    validate_copilot_full_manifest(root, errors)
+    validate_focused_context_projections(root, errors)
     sources, agent_contracts, skill_contracts = load_content_lock(root, errors)
+    validate_launcher_public_agents(root, agent_contracts, errors)
     validate_attribution(root, sources, errors)
     agent_ids = validate_agents(plugin_root, agent_contracts, errors)
     skill_ids = validate_skills(

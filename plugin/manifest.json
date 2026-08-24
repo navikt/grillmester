@@ -1,0 +1,527 @@
+{
+  "schemaVersion": 1,
+  "target": "copilot-full-v1",
+  "generator": {
+    "path": "scripts/generate_copilot_manifest.py",
+    "version": 1
+  },
+  "counts": {
+    "agents": 7,
+    "skills": 42
+  },
+  "agents": [
+    "barista",
+    "designer",
+    "doctor-who",
+    "grill-inspektor",
+    "grillmester",
+    "kokk",
+    "researcher"
+  ],
+  "skills": [
+    "grillmester-accessibility-review",
+    "grillmester-aksel-design",
+    "grillmester-api-design",
+    "grillmester-architecture-review",
+    "grillmester-auth-overview",
+    "grillmester-create-a-skill",
+    "grillmester-design-prototype",
+    "grillmester-diagnosing-bugs",
+    "grillmester-doctor",
+    "grillmester-domain-modeling",
+    "grillmester-dulting",
+    "grillmester-e2e-tests",
+    "grillmester-figma-workflow",
+    "grillmester-grill-me",
+    "grillmester-grill-with-docs",
+    "grillmester-grilling",
+    "grillmester-handoff",
+    "grillmester-improve-codebase-architecture",
+    "grillmester-integration-tests",
+    "grillmester-issue-management",
+    "grillmester-kafka-topic",
+    "grillmester-klarsprak",
+    "grillmester-kotlin-ktor",
+    "grillmester-lumi-survey",
+    "grillmester-nais-manifest",
+    "grillmester-nav-troubleshoot",
+    "grillmester-observability-setup",
+    "grillmester-okr",
+    "grillmester-postgresql-review",
+    "grillmester-produktledelse",
+    "grillmester-prototype",
+    "grillmester-pull-request",
+    "grillmester-readme-update",
+    "grillmester-review",
+    "grillmester-security-review",
+    "grillmester-tdd",
+    "grillmester-team-status",
+    "grillmester-to-issues",
+    "grillmester-to-spec",
+    "grillmester-triage",
+    "grillmester-wayfinder",
+    "grillmester-workshop-design"
+  ],
+  "files": {
+    "LICENSE": {
+      "sha256": "9338442d0b677ff76d064e16719f02ad977bb9efa6d2bc5f5e5daaea203a0019",
+      "mode": "0644"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "846e08346dcc3770ff67b7a16b06d8a1aa3718fe3f8051ca706fd24983b4a8cf",
+      "mode": "0644"
+    },
+    "agents/barista.agent.md": {
+      "sha256": "98c01eaa863d3f9b5b2f6cab8981c1527b563375ee196abb73a6b7073d02065d",
+      "mode": "0644"
+    },
+    "agents/designer.agent.md": {
+      "sha256": "954c06d3bd1ea5c9d365064c03b47237886730f75a35076d7e636b1d5ed299e5",
+      "mode": "0644"
+    },
+    "agents/doctor-who.agent.md": {
+      "sha256": "df56d620a350f1e4e85f472b9697e8d4a5e540d5690ae86e6533fad94aec5c45",
+      "mode": "0644"
+    },
+    "agents/grill-inspektor.agent.md": {
+      "sha256": "0c95ad868f9bc4519b92bcd8a16e936c3f3773fb08120b8aa4e53a5423fd16ae",
+      "mode": "0644"
+    },
+    "agents/grillmester.agent.md": {
+      "sha256": "4b049c0e2a24a7d941e6f53e02d37dec08b5a2c68e0e21144cf8068ce6df9955",
+      "mode": "0644"
+    },
+    "agents/kokk.agent.md": {
+      "sha256": "6933c88c444bc8be5e0e89bd4e4fb8abfb16aab5dc8155abd1655204529047a0",
+      "mode": "0644"
+    },
+    "agents/researcher.agent.md": {
+      "sha256": "c81040e5882b64975b30246d3a0a1490eb834af9f262661126e8ecad657fdec0",
+      "mode": "0644"
+    },
+    "plugin.json": {
+      "sha256": "7b3e6a21b1a530d836952af97e0451fa75656c270a010b8789c00f8671d5bf29",
+      "mode": "0644"
+    },
+    "skills/grillmester-accessibility-review/SKILL.md": {
+      "sha256": "a5e17e7826834b6cdd8e570225811a2cda8afadb30100b14cb7225f056e82c44",
+      "mode": "0644"
+    },
+    "skills/grillmester-aksel-design/SKILL.md": {
+      "sha256": "6731468900d087287dc9035d4ded7362e8e43a65bc0a80e206688b29e26d4d8c",
+      "mode": "0644"
+    },
+    "skills/grillmester-aksel-design/references/components.md": {
+      "sha256": "cfb69eaf6eb3c7d67cfc06ec8f6f196c17f252be598f948cd3f731ca7f8269a3",
+      "mode": "0644"
+    },
+    "skills/grillmester-aksel-design/references/patterns.md": {
+      "sha256": "af7a8ebdc47e377f8f87003b6ef6c908a6b86bd1f40dbd5e65c76180f8450c7f",
+      "mode": "0644"
+    },
+    "skills/grillmester-aksel-design/references/semantic-tokens.md": {
+      "sha256": "61226937650b319f785224e9f8c40dc84222ba3925d5e086300e9072500e95c0",
+      "mode": "0644"
+    },
+    "skills/grillmester-aksel-design/references/setup.md": {
+      "sha256": "79955398819eba6e7f84dd38c3f192041c68e9776220a3b402a522e4f3edde89",
+      "mode": "0644"
+    },
+    "skills/grillmester-aksel-design/references/tokens.md": {
+      "sha256": "8e3b1e6f018dd0d3047b6b01b9774eb960f60d7526b1573997b6c41a7f151fac",
+      "mode": "0644"
+    },
+    "skills/grillmester-api-design/SKILL.md": {
+      "sha256": "da616d1af16a04ecd48ebbb6c3c774851259cc71e73ffe88187af17e96ae1d5d",
+      "mode": "0644"
+    },
+    "skills/grillmester-architecture-review/SKILL.md": {
+      "sha256": "80506ace5de4305b04a84c4747518334b5a93f3552dc5daf8b4a67ad485df92b",
+      "mode": "0644"
+    },
+    "skills/grillmester-architecture-review/references/nav-context.md": {
+      "sha256": "9509e58589254f362dceac67c24438e5d943d68b0e00b2e514bfb6b65bed9174",
+      "mode": "0644"
+    },
+    "skills/grillmester-architecture-review/references/review-checklist.md": {
+      "sha256": "197e962df49d8518b638da9274ace7ca07e9557eff34a89285c5436b8cf581fa",
+      "mode": "0644"
+    },
+    "skills/grillmester-auth-overview/SKILL.md": {
+      "sha256": "cdaff3314cfe56ebb3293bbc3b4bf10b08e5701496195a395b75834052c93655",
+      "mode": "0644"
+    },
+    "skills/grillmester-auth-overview/references/decision-tree.md": {
+      "sha256": "dc91f40f35aed6b4041658ab230cc5b684a7074f11b5778cf657f87d2006fa58",
+      "mode": "0644"
+    },
+    "skills/grillmester-auth-overview/references/local-auth-mock.md": {
+      "sha256": "ab8fc0e47e90489184905ca963ab598908ca751d94e72f386ebb8d06e12b8cae",
+      "mode": "0644"
+    },
+    "skills/grillmester-create-a-skill/SKILL.md": {
+      "sha256": "abf7adb2111d720089cc9228699852d30ed2491257866f606c162645ba5e76e0",
+      "mode": "0644"
+    },
+    "skills/grillmester-create-a-skill/references/copilot-cli-validation.md": {
+      "sha256": "53fb2901ffca3d3ff451b88561bfdcc66b8396e69bd207546056a36dcb37b430",
+      "mode": "0644"
+    },
+    "skills/grillmester-create-a-skill/references/glossary.md": {
+      "sha256": "4fd26645fe0a38e6a6df2dcb0afc3da81deb3560872dee7ea6010740255c1ec1",
+      "mode": "0644"
+    },
+    "skills/grillmester-create-a-skill/references/principles.md": {
+      "sha256": "a860a1bbc52763fa71bf60c6c736c9d5bf2caee000d9734ec6efa8e533e341e9",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/SKILL.md": {
+      "sha256": "7e79378d459fb6ceb8d96a310a856a4ad4929d0841baf40c5acfd3b5670c33b5",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/references/aksel-figma-katalog.json": {
+      "sha256": "41ccc177c3f2e5e1911c91ed355f9cc41e8ed2ea9f24dcbf6ee52d95fe9ad658",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/references/aksel-figma-katalog.md": {
+      "sha256": "69f53d5724dcceb28f27764143824d59adf767d487fcc917aa902e86903f01e8",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/references/aksel-figma-tokens.md": {
+      "sha256": "eac850d87ae0d178a62dcd85fe36f68d2b9b7ca15c422759108b1af9c5f85da3",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/references/aksel-markup-fasit.md": {
+      "sha256": "6fd96335b791e658a9ea169360051ccd5bfe92ab4a9157376bc66dff621b1e2e",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/references/figma-prototype.md": {
+      "sha256": "e3d09bf92a9cc8d7c96933992279a64eb85278731a144a3acbbb4f29c1b21e78",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/references/visual-companion.md": {
+      "sha256": "5802977b77fd1fb9513211f537046b3c9ae89f3b3e374514df56de60c2861f85",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/scripts/frame-template.tmpl": {
+      "sha256": "49dd3ce286200ad321a116cec3f6d42ff9edf58e6584d800804e2d61bbcb14d8",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/scripts/helper.js": {
+      "sha256": "1af0a5f87e412bd9210fbcc671c41c4cab214ddb3cd5e42389d8d8ce0c35f050",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/scripts/server.js": {
+      "sha256": "c2c7962bbb5afd2f0bbcf9b07643e60c6719fe7a62abb49b145b31b3bcd0ff3d",
+      "mode": "0644"
+    },
+    "skills/grillmester-design-prototype/tests/server.test.js": {
+      "sha256": "2912ebac131aa27f6b08f672b6bfb6d70c2ba8b0e09b550de5e43ca66b578965",
+      "mode": "0644"
+    },
+    "skills/grillmester-diagnosing-bugs/SKILL.md": {
+      "sha256": "a59a795e2f9b2f156e9a2fba5a4edc027dd8a92de51b0332cbb8bbbad69a9e88",
+      "mode": "0644"
+    },
+    "skills/grillmester-diagnosing-bugs/scripts/hitl-loop.template.sh": {
+      "sha256": "a4a1a26c4cc69cad1b4148b78979e2d0e4d0a38350cc25d8c55b2c15d1ec38d3",
+      "mode": "0755"
+    },
+    "skills/grillmester-doctor/SKILL.md": {
+      "sha256": "0b19fd5962af4384452960c44b84a5276264abed3ee449799f806ee21fbfa833",
+      "mode": "0644"
+    },
+    "skills/grillmester-domain-modeling/ADR-FORMAT.md": {
+      "sha256": "0f1c85e10381bb3727e21d67b4f106162a87ebf7ccd1c34fe26204d4285f95bf",
+      "mode": "0644"
+    },
+    "skills/grillmester-domain-modeling/CONTEXT-FORMAT.md": {
+      "sha256": "bf4d05398436545f6598037c596b5d10315ea275ff2af5e8cbd0689057bc64d9",
+      "mode": "0644"
+    },
+    "skills/grillmester-domain-modeling/SKILL.md": {
+      "sha256": "5ec84114c86632b95d0a16f6b07a056b2511f2d1e9d0c3da78406cc139638bac",
+      "mode": "0644"
+    },
+    "skills/grillmester-dulting/SKILL.md": {
+      "sha256": "44966a08fba44eed666df88146f2c8853bc6761e3c05121f084cb48f515568d4",
+      "mode": "0644"
+    },
+    "skills/grillmester-dulting/references/behavioral-patterns.md": {
+      "sha256": "3b0a7ae818df9f53f3796b750e4bec2c87d8411e5b4b50d676744b944d68aa02",
+      "mode": "0644"
+    },
+    "skills/grillmester-dulting/references/ethics-and-evaluation.md": {
+      "sha256": "ddc8b71269eb796c3365b701c9bf53878a3efdbf4e99ce5bc927404fd0f8e015",
+      "mode": "0644"
+    },
+    "skills/grillmester-e2e-tests/SKILL.md": {
+      "sha256": "2acdfc7ef20afafb70f708f1fb82b4ba901b7e9876ab72bfe12171d65f1b69fd",
+      "mode": "0644"
+    },
+    "skills/grillmester-figma-workflow/SKILL.md": {
+      "sha256": "6105fed7d36cd2647d3b4c7069176e52de729dec82c3f644753b38dec51b29cc",
+      "mode": "0644"
+    },
+    "skills/grillmester-grill-me/SKILL.md": {
+      "sha256": "2be9fdd05bc1f0ea5f8674f4a293a491d309599661c2493c83674ea53dc1e9d0",
+      "mode": "0644"
+    },
+    "skills/grillmester-grill-with-docs/SKILL.md": {
+      "sha256": "1d5eba067fcc0dac87370f37ebefda03a60cd3aed917b69c6271acef63ad4d72",
+      "mode": "0644"
+    },
+    "skills/grillmester-grilling/SKILL.md": {
+      "sha256": "eb645d506d0edae57a9b36cdcd528dfa5a8c7609989146bc223fcad27e5a64f7",
+      "mode": "0644"
+    },
+    "skills/grillmester-handoff/SKILL.md": {
+      "sha256": "b5048c2b47800a96042d2d8362d6b4d9d1c4ac50477da11eb98fa3c082299188",
+      "mode": "0644"
+    },
+    "skills/grillmester-improve-codebase-architecture/HTML-REPORT.md": {
+      "sha256": "0b412e5e71e6d7fb88432009643498b3537ca69b91c8ae392e2407dfac3a43dd",
+      "mode": "0644"
+    },
+    "skills/grillmester-improve-codebase-architecture/SKILL.md": {
+      "sha256": "61c1c1519c1ded1f07647ac98b2a2dc1dbac8ffbccd9792d0c333ba5076fb923",
+      "mode": "0644"
+    },
+    "skills/grillmester-integration-tests/SKILL.md": {
+      "sha256": "36da37dd2815c9de2ac8fdf2bb153e0eaa917ea0b99ee0464b1b4e497dbb47c2",
+      "mode": "0644"
+    },
+    "skills/grillmester-issue-management/SKILL.md": {
+      "sha256": "c87e0c5896a397c8c9046969e0852feb5d21826441204e50c5d4e6ce266caab7",
+      "mode": "0644"
+    },
+    "skills/grillmester-kafka-topic/SKILL.md": {
+      "sha256": "4ccbe7a5aa0c264d5502529832bdf1deced0b1d44857a863b604988710068e4e",
+      "mode": "0644"
+    },
+    "skills/grillmester-kafka-topic/references/plain-kafka.md": {
+      "sha256": "b1f9c2f2804a919d94605775536750736fc9b43956c705a98beb2eec8ef8bdca",
+      "mode": "0644"
+    },
+    "skills/grillmester-klarsprak/SKILL.md": {
+      "sha256": "da4ff08d1df3ffdd0a80f6463192444d7c8f658edd0e14247db8df314676d7de",
+      "mode": "0644"
+    },
+    "skills/grillmester-klarsprak/references/ai-markorer.md": {
+      "sha256": "36b867c510c79a6880266be5f746277e6ee2a71f7546e36e079db9cb96684c6f",
+      "mode": "0644"
+    },
+    "skills/grillmester-klarsprak/references/fagtermer-og-anglisismer.md": {
+      "sha256": "5a6fbf1f66d99e9938c970cec9376fb95910e290c3ed7e6be1883c599fd9f9dc",
+      "mode": "0644"
+    },
+    "skills/grillmester-klarsprak/references/for-og-etter.md": {
+      "sha256": "34029a5acdb95920b382812674b30f28b9597c9edaab2d47d2bcc86c1e591433",
+      "mode": "0644"
+    },
+    "skills/grillmester-kotlin-ktor/SKILL.md": {
+      "sha256": "f4bb21c659152c9fa9a5ca164cce840c304434fdb03f45d221a4eb5e9dee48d0",
+      "mode": "0644"
+    },
+    "skills/grillmester-kotlin-ktor/references/error-handling.md": {
+      "sha256": "f682701bd6163a46f44e77cbb0ad648c833fa8ea3f063d1e63fce937127620ad",
+      "mode": "0644"
+    },
+    "skills/grillmester-kotlin-ktor/references/http-client.md": {
+      "sha256": "6fded34bbdb05800f7a076a2c98d9bd279de49c0932f615e4951be880b83727d",
+      "mode": "0644"
+    },
+    "skills/grillmester-kotlin-ktor/references/pagination-validation.md": {
+      "sha256": "0816a322b6bbadb1956bfc3c7079618e5bfeeb69fe5ece51ffe4935ae3b9d460",
+      "mode": "0644"
+    },
+    "skills/grillmester-lumi-survey/SKILL.md": {
+      "sha256": "0d3d7dcfd1b90d0f677e31fe0e0c3570d98a3462eb4f003099638bb8eea399f7",
+      "mode": "0644"
+    },
+    "skills/grillmester-lumi-survey/references/backend-transport.md": {
+      "sha256": "8c94f965b5e5cf74a9d53a737718ed682bd3d65ebc6e55c2ac6d74d0c6d146c1",
+      "mode": "0644"
+    },
+    "skills/grillmester-lumi-survey/references/nais-integration.md": {
+      "sha256": "650dfc8df3fe3fd71a744e5211c1e442304fd98aec4ebe018d27fe7808d42d71",
+      "mode": "0644"
+    },
+    "skills/grillmester-lumi-survey/references/survey-design.md": {
+      "sha256": "fa6ba1abc26594fa5a1325b177554946435814d49262d0117f8ff6fc00e9252b",
+      "mode": "0644"
+    },
+    "skills/grillmester-nais-manifest/SKILL.md": {
+      "sha256": "391dc4caf70a9a89995a51fce3ea7eea37af76647e542bce1909c2d2624826fe",
+      "mode": "0644"
+    },
+    "skills/grillmester-nais-manifest/references/naisjob-example.md": {
+      "sha256": "35a3bb0beaeca5f461731170dad50e17f4af30cef6c02aa9238b5af51a12fc58",
+      "mode": "0644"
+    },
+    "skills/grillmester-nais-manifest/references/pod-lifecycle.md": {
+      "sha256": "30f8bc5f2065013a4f999234fca5fe214b51f85eb079a5015aa17062bb7d766e",
+      "mode": "0644"
+    },
+    "skills/grillmester-nav-troubleshoot/SKILL.md": {
+      "sha256": "a7413e455d3b03d44a172381dfffdba1309b0409dfa0c4d6b988ce642bc13a05",
+      "mode": "0644"
+    },
+    "skills/grillmester-nav-troubleshoot/references/auth-diagnose.md": {
+      "sha256": "0448d7cc4a13b1f838c832ef0b9eef8c0b9ceeabb8dc0f5bccfb8af51f56c52a",
+      "mode": "0644"
+    },
+    "skills/grillmester-nav-troubleshoot/references/database-diagnose.md": {
+      "sha256": "cca9d60a31e6f45b95cf7f3ec8664212b6135e2076a69b42488c52ae515a068a",
+      "mode": "0644"
+    },
+    "skills/grillmester-nav-troubleshoot/references/kafka-diagnose.md": {
+      "sha256": "a72f1a5c3593342b44b84dfcdafc70a2db984bdb4deccf13042ba50be14d23fb",
+      "mode": "0644"
+    },
+    "skills/grillmester-nav-troubleshoot/references/observability-diagnose.md": {
+      "sha256": "be8e3b8918828b362a23c2c0dac1084ca8459960d101f66d72bedb39678a097f",
+      "mode": "0644"
+    },
+    "skills/grillmester-nav-troubleshoot/references/pod-diagnose.md": {
+      "sha256": "31283c6a9395b222100c8f57a3eacee0da5f931521adf4b83721817bb9566d6a",
+      "mode": "0644"
+    },
+    "skills/grillmester-observability-setup/SKILL.md": {
+      "sha256": "2320fed9032687e8057b2565edbfeb58b2bbafa163177c9a86540f129475602a",
+      "mode": "0644"
+    },
+    "skills/grillmester-observability-setup/references/alerting.md": {
+      "sha256": "16b9abe8eef391d30dad0f345599fa6b6a7431c07aa1203a6f832b8c88d6bd78",
+      "mode": "0644"
+    },
+    "skills/grillmester-observability-setup/references/micrometer.md": {
+      "sha256": "8712b79b2dbd1aac30a9d2b9cac9179a4c85e1232d81c94289899889fd33e5ab",
+      "mode": "0644"
+    },
+    "skills/grillmester-observability-setup/references/promql-logql.md": {
+      "sha256": "7f121fae7a17bc9e41646da0e7f6db343e41a758561e4185c1e9bfb4ed4f79ba",
+      "mode": "0644"
+    },
+    "skills/grillmester-okr/SKILL.md": {
+      "sha256": "256822ccbf417c3bbe2c2894c591c5a2d27fda096ab0c82f4cff93c7468dd845",
+      "mode": "0644"
+    },
+    "skills/grillmester-okr/references/eksempler.md": {
+      "sha256": "78e152651db66bdb5eeb30bd1adafb7fe08272164bfdc5fdd353bb6558b7386f",
+      "mode": "0644"
+    },
+    "skills/grillmester-postgresql-review/SKILL.md": {
+      "sha256": "e33bf4c5ca9514db107f3d5f170d85a4f3918842246cddd5ee9138f67bccfffb",
+      "mode": "0644"
+    },
+    "skills/grillmester-postgresql-review/references/migration-flyway.md": {
+      "sha256": "f32010f45eb0054ddf664b9a2bd1d42f44d6e59380ac33ff02cfc58bdfc44909",
+      "mode": "0644"
+    },
+    "skills/grillmester-postgresql-review/references/sql-patterns.md": {
+      "sha256": "b9746c3d3896dc5726880a1db39c934d1c6b83c33f408afb00406e5618cc7ad3",
+      "mode": "0644"
+    },
+    "skills/grillmester-produktledelse/SKILL.md": {
+      "sha256": "7c3abdad384a5d91dbc08b9e926d4ddddf0bbfc29809cb8ad98c709e24b42f1f",
+      "mode": "0644"
+    },
+    "skills/grillmester-produktledelse/references/ressurser.md": {
+      "sha256": "e0be5aed729631f9e3c4c13d861cc9e649294e3c10b911f456ecf666873306e0",
+      "mode": "0644"
+    },
+    "skills/grillmester-produktledelse/references/team-rammeverk.md": {
+      "sha256": "1f44dd1bdc4f9e7e3d62c8f5b2ba2a690858f5ac549ab41b1171cf43f80b7838",
+      "mode": "0644"
+    },
+    "skills/grillmester-prototype/SKILL.md": {
+      "sha256": "6377317418ab96d689423bd11632ebdbf792523e88e5ecfb84bdf84e4b5f10f7",
+      "mode": "0644"
+    },
+    "skills/grillmester-pull-request/SKILL.md": {
+      "sha256": "f6b83a965dfe43fdf4590837866bf43312e935eaf4600a3e5ab8490ff713a7da",
+      "mode": "0644"
+    },
+    "skills/grillmester-readme-update/SKILL.md": {
+      "sha256": "d1143f31835f5c3c18bc0441b0398faebe5fede1139694a44824969a09ca971b",
+      "mode": "0644"
+    },
+    "skills/grillmester-review/SKILL.md": {
+      "sha256": "21c196d4b7204e263a075a36d9d3eb2b3076d8944772eb7b31837668dd56ecc1",
+      "mode": "0644"
+    },
+    "skills/grillmester-security-review/SKILL.md": {
+      "sha256": "39396040e0b8af7f1b85463107e3d49611ba2c8c64792e242b0e16091941fffa",
+      "mode": "0644"
+    },
+    "skills/grillmester-security-review/references/nav-security-review.md": {
+      "sha256": "1b18149fc5e793f9f5069d8ef0dbff96fe5c2e53f9a40e375937c5acce0bd153",
+      "mode": "0644"
+    },
+    "skills/grillmester-security-review/references/threat-model.md": {
+      "sha256": "00eb790e4385abc8173e0eb67b7729e626bd945c61b5789905adbc70eb43c9fb",
+      "mode": "0644"
+    },
+    "skills/grillmester-tdd/SKILL.md": {
+      "sha256": "7a8ad2d330be6b4a01d58581d762f790d28c372fe0a9834cf8538cbbad9acfd1",
+      "mode": "0644"
+    },
+    "skills/grillmester-tdd/mocking.md": {
+      "sha256": "f5cc6372548138f2fb78131d86e8b5a24e72a42b2c8080a43b9e8aa1442f8156",
+      "mode": "0644"
+    },
+    "skills/grillmester-tdd/refactoring.md": {
+      "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
+      "mode": "0644"
+    },
+    "skills/grillmester-tdd/tests.md": {
+      "sha256": "d78e6e5e61c39792485927bb3451c9dbec1f9bee5823aa36f524c9486b1ae2d6",
+      "mode": "0644"
+    },
+    "skills/grillmester-team-status/SKILL.md": {
+      "sha256": "156f9947a1c733d2c780ccf6f2d3b6742ae01204fb8ae0d3063f62282efce0b7",
+      "mode": "0644"
+    },
+    "skills/grillmester-team-status/references/projects-v2.md": {
+      "sha256": "b37908eb8add8b70eeb493357b65af8bd208c2423dc2f0656cbbea15b23cfb92",
+      "mode": "0644"
+    },
+    "skills/grillmester-team-status/references/rapportmaler.md": {
+      "sha256": "8061c3326b1b06032068c89d43fd13776cf72717467afcbaa6c349502a63894f",
+      "mode": "0644"
+    },
+    "skills/grillmester-to-issues/SKILL.md": {
+      "sha256": "16b705a104643288ad71e93f86c068659d308ae837afe0e23aa6abfdba05899f",
+      "mode": "0644"
+    },
+    "skills/grillmester-to-spec/SKILL.md": {
+      "sha256": "4ba9108611b9bbc776b52b2062ae11e04c8f51f3c80015d26f9ab9f7e448f290",
+      "mode": "0644"
+    },
+    "skills/grillmester-triage/AGENT-BRIEF.md": {
+      "sha256": "20cbf3e102734364b8c4ad1502b64832c7b9dfc2995cc4709c4c2e02a7d09b4c",
+      "mode": "0644"
+    },
+    "skills/grillmester-triage/SKILL.md": {
+      "sha256": "b48d308e14845b7e9b92f8be0b7d974b2bcbb05affbafb775ea6f67e203e8c11",
+      "mode": "0644"
+    },
+    "skills/grillmester-wayfinder/SKILL.md": {
+      "sha256": "e6b8f7518a8f9b5ba52b9e6116bcf5a60ce310649583c812e7e1be526339b888",
+      "mode": "0644"
+    },
+    "skills/grillmester-workshop-design/SKILL.md": {
+      "sha256": "5f5fafa6b1aa6b9a99557e7ed2a52c48316ece70dc8a6d80ae21118061995aa3",
+      "mode": "0644"
+    },
+    "skills/grillmester-workshop-design/references/foundation-sprint.md": {
+      "sha256": "3daf5a0ce015c5d93c2d3dc2cdceba43ad355378be7c385d58fd0ee2ce69590d",
+      "mode": "0644"
+    },
+    "skills/grillmester-workshop-design/references/retro-og-teamhelse.md": {
+      "sha256": "f5f33721da63f622d6831d56ef044c6bac0da6cf7d1c2d3eefc37e8b6c68f383",
+      "mode": "0644"
+    }
+  }
+}
