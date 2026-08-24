@@ -260,6 +260,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "${{ runner.temp }}/verified-darwin-bin:/opt/homebrew/bin:/usr/local/bin",
             gate,
         )
+        self.assertIn('python_bin="$(command -v python3)"', gate)
+        self.assertIn('assert sys.version_info >= (3, 11)', gate)
+        self.assertIn('launcher=("${python_bin}" -I -S', gate)
         for marker in (
             'HTTPServer(("127.0.0.1", 0), Handler)',
             '"/v1/models"',

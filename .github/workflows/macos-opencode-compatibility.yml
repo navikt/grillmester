@@ -1035,6 +1035,9 @@ jobs:
           provider_port="$(<"${provider_info}")"
           [[ "${provider_port}" =~ ^[1-9][0-9]{1,4}$ ]]
           /usr/bin/nc -z -G 2 127.0.0.1 "${provider_port}"
+          python_bin="$(command -v python3)"
+          "${python_bin}" -I -S -c \
+            'import sys, tomllib; assert sys.version_info >= (3, 11)'
 
           local_root="${RUNNER_TEMP}/copilot-local-gate"
           host_home="${local_root}/host-home"
@@ -1061,7 +1064,7 @@ jobs:
             "XDG_STATE_HOME=${host_state}"
             "PATH=${RUNNER_TEMP}/verified-darwin-bin:/usr/bin:/bin:/usr/sbin:/sbin"
           )
-          launcher=(python3 -I -S "${BUNDLE_ROOT}/scripts/grillmester.py")
+          launcher=("${python_bin}" -I -S "${BUNDLE_ROOT}/scripts/grillmester.py")
           local_setup="$(env "${local_environment[@]}" "${launcher[@]}" local setup \
             --client copilot --agent barista --context focused \
             --provider-id ci-local \
