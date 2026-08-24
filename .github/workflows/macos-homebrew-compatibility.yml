@@ -205,6 +205,11 @@ jobs:
           if brew list --cask --versions copilot-cli >/dev/null 2>&1; then
             copilot_preinstalled=true
           fi
+          cplt_formula_trust_preexisting=false
+          if brew trust --json=v1 | jq -e \
+            '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+            cplt_formula_trust_preexisting=true
+          fi
           copilot_state=""
           navikt_tap_preexisting=false
           if brew tap | grep -Fx 'navikt/tap' >/dev/null; then
@@ -277,6 +282,16 @@ jobs:
               brew list --versions cplt >/dev/null 2>&1; then
               brew uninstall --formula navikt/tap/cplt >/dev/null || cleanup_status=1
             fi
+            if [[ "${cplt_formula_trust_preexisting}" == "false" ]] && \
+              brew trust --json=v1 | jq -e \
+                '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+              brew untrust --formula navikt/tap/cplt >/dev/null || cleanup_status=1
+            fi
+            if [[ "${cplt_formula_trust_preexisting}" == "true" ]] && ! \
+              brew trust --json=v1 | jq -e \
+                '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+              brew trust --formula navikt/tap/cplt >/dev/null || cleanup_status=1
+            fi
             restore_hosted_intel_python_links || cleanup_status=1
             if brew tap | grep -Fx "${tap_name}" >/dev/null; then
               brew untap "${tap_name}" >/dev/null || cleanup_status=1
@@ -291,6 +306,9 @@ jobs:
           if [[ "${navikt_tap_preexisting}" == "false" ]]; then
             brew tap navikt/tap
           fi
+          # Fully qualifying the dependency grants item-level trust without
+          # accepting every current and future item in navikt/tap.
+          brew install --formula navikt/tap/cplt
           brew style "${formula_name}"
           brew audit --strict "${formula_name}"
           prepare_hosted_intel_python_links
@@ -428,5 +446,17 @@ jobs:
           if [[ "${navikt_tap_preexisting}" == "false" ]] && \
             brew tap | grep -Fx 'navikt/tap' >/dev/null; then
             echo "navikt/tap remains configured after cleanup." >&2
+            exit 1
+          fi
+          if [[ "${cplt_formula_trust_preexisting}" == "false" ]] && \
+            brew trust --json=v1 | jq -e \
+              '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+            echo "navikt/tap/cplt remains trusted after cleanup." >&2
+            exit 1
+          fi
+          if [[ "${cplt_formula_trust_preexisting}" == "true" ]] && ! \
+            brew trust --json=v1 | jq -e \
+              '.formulae | index("navikt/tap/cplt") != null' >/dev/null; then
+            echo "Pre-existing trust for navikt/tap/cplt was not preserved." >&2
             exit 1
           fi

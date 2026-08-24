@@ -4,23 +4,20 @@
   <img src="docs/assets/grillmester-hero.jpg" alt="En retro robotgrillmester ved en kullgrill i et norsk landskap" width="100%">
 </p>
 
-Grillmester er et agentteam for utvikling, design og produktarbeid i Nav. Det
-leveres for GitHub Copilot og OpenCode, med fire valgbare agenter, tre interne
-roller og 42 skills. Tilgang og tillatt bruk styres av Navs gjeldende policy.
+Grillmester er Navs agentteam for GitHub Copilot og OpenCode: fire agenter, tre interne roller og 42 skills. Tilgang og tillatt bruk styres av Navs gjeldende policy.
 
 ## Kom i gang
 
 ### Copilot CLI og OpenCode i terminalen
 
-Homebrew-oppføringen aktiveres etter stabil release og reviewet tap-bootstrap. Kommandoen er **ikke tilgjengelig ennå**; bruk Copilot app eller [native Copilot-installasjon](docs/installation.md#alternativ-native-copilot-cli-installasjon-med-automatisk-oppdatering).
-Når tapen er live, installeres Grillmester med cplt som ekstern Homebrew-avhengighet:
+Homebrew er **ikke tilgjengelig ennå** og aktiveres etter stabil release og tap-review. Bruk foreløpig Copilot app eller [native Copilot-installasjon](docs/installation.md#alternativ-native-copilot-cli-installasjon-med-automatisk-oppdatering).
+Når tapen er live, installer Grillmester med cplt som ekstern Homebrew-avhengighet. Fullt kvalifiserte navn begrenser Homebrew-tilliten til disse formlene:
 
 ```bash
-brew install navikt/tap/grillmester
+brew install navikt/tap/cplt navikt/tap/grillmester
 ```
 
-Installer OpenCode og/eller GitHub Copilot CLI separat. Grillmester bruker dem
-fra `PATH` uten å endre dem:
+Installer OpenCode og/eller GitHub Copilot CLI separat. Grillmester bruker dem fra `PATH` uten å endre dem:
 
 ```bash
 brew install opencode
@@ -33,11 +30,9 @@ Start så Grillmester:
 grillmester
 ```
 
-Launcheren viser installerte klienter fra `PATH` uten å starte dem. Alle
-terminalsesjoner går alltid gjennom cplt; før lagring versjonssjekkes valgt klient
-mot en tom, midlertidig mappe.
-`grillmester choose` bytter. En manglende klient gir
-installasjonskommando, aldri fallback.
+Launcheren viser installerte klienter fra `PATH` uten å endre dem. Alle terminalsesjoner
+går alltid gjennom cplt; valgt klient versjonssjekkes i en tom mappe før lagring.
+`grillmester choose` bytter. En manglende klient gir installasjonskommando, aldri fallback.
 
 Du kan også være eksplisitt:
 

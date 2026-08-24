@@ -483,7 +483,7 @@ install-to-upgrade between two immutable test releases, preference retention,
 checksum failure with the previous keg left active, missing OpenCode with an
 actionable install command, installed Copilot CLI without OpenCode, absence of
 private client copies, and documented uninstall behavior. Do not announce
-`brew install navikt/tap/grillmester` as available until the tap PR has merged
+`brew install navikt/tap/cplt navikt/tap/grillmester` as available until the tap PR has merged
 and a clean install from the real tap passes `grillmester doctor --client
 opencode` with OpenCode installed separately. The PR that enables the public
 command in README is the final rollout step.

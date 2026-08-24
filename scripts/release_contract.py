@@ -831,7 +831,7 @@ def render_notes(
         terminal_install = f"""### Test the terminal launcher release candidate
 
 The stable-only Homebrew tap does not publish release candidates. Do not use
-`brew install navikt/tap/grillmester` to evaluate `{tag}`: that command selects
+`brew install navikt/tap/cplt navikt/tap/grillmester` to evaluate `{tag}`: that command selects
 the stable version currently present in the tap, if any. Download the
 `grillmester.rb` asset attached to this exact release, verify it as part of the
 release-candidate pilot, then install that local formula explicitly:
@@ -861,8 +861,11 @@ the reviewed tap-bootstrap PR must merge; later releases are admitted by the
 tap updater. After `brew info navikt/tap/grillmester` reports this exact version:
 
 ```bash
-brew install navikt/tap/grillmester
+brew install navikt/tap/cplt navikt/tap/grillmester
 ```
+
+Both names are fully qualified so Homebrew trusts only these two formulae,
+not every current and future item in `navikt/tap`.
 
 If the tap still reports an earlier version, wait for the reviewed updater (or
 use the attached `grillmester.rb` only in the release-validation procedure).

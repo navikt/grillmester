@@ -15,11 +15,13 @@ Kommandoen under er derfor foreløpig **ikke tilgjengelig**. Bruk den bare når
 installasjonsguiden markerer tap-bootstrapen som aktiv:
 
 ```bash
-brew install navikt/tap/grillmester
+brew install navikt/tap/cplt navikt/tap/grillmester
 ```
 
-Formelen installerer én checksummet Grillmester-release og bruker cplt fra den
-separate, påkrevde Homebrew-avhengigheten. OpenCode er en brukerinstallert
+De fullt kvalifiserte navnene gir Homebrew item-level trust for akkurat disse
+to formlene, ikke hele tapen. Grillmester-formelen installerer én checksummet
+release og bruker cplt fra den separate, påkrevde Homebrew-avhengigheten.
+OpenCode er en brukerinstallert
 systemklient. Installer og oppdater den gjennom dens egen pakkekanal:
 
 ```bash

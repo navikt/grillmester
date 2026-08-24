@@ -62,10 +62,14 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         normalized = " ".join(terminal.split())
         self.assertLess(
             terminal.index("ikke tilgjengelig ennå"),
-            terminal.index("brew install navikt/tap/grillmester"),
+            terminal.index(
+                "brew install navikt/tap/cplt navikt/tap/grillmester"
+            ),
         )
         self.assertLess(
-            terminal.index("brew install navikt/tap/grillmester"),
+            terminal.index(
+                "brew install navikt/tap/cplt navikt/tap/grillmester"
+            ),
             terminal.index("brew install opencode"),
         )
         self.assertLess(

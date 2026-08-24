@@ -956,10 +956,12 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("brew install --formula ./grillmester.rb", notes)
         self.assertIn("stable-only Homebrew tap", notes)
         self.assertIn(
-            "Do not use `brew install navikt/tap/grillmester`", normalized_notes
+            "Do not use `brew install navikt/tap/cplt navikt/tap/grillmester`",
+            normalized_notes,
         )
         self.assertNotIn(
-            "```bash\nbrew install navikt/tap/grillmester\n```", notes
+            "```bash\nbrew install navikt/tap/cplt navikt/tap/grillmester\n```",
+            notes,
         )
         self.assertIn("brew install opencode", notes)
         self.assertIn("brew install --cask copilot-cli", notes)
@@ -1180,7 +1182,8 @@ class ReleaseContractTest(unittest.TestCase):
             normalized_notes,
         )
         self.assertIn(
-            "```bash\nbrew install navikt/tap/grillmester\n```", notes
+            "```bash\nbrew install navikt/tap/cplt navikt/tap/grillmester\n```",
+            notes,
         )
         self.assertIn("brew upgrade grillmester", notes)
 

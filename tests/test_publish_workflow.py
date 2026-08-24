@@ -356,6 +356,12 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'ruby -c "${formula}"',
             'brew tap-new --no-git "${tap_name}"',
             "brew tap navikt/tap",
+            "brew trust --json=v1",
+            "cplt_formula_trust_preexisting",
+            "brew install --formula navikt/tap/cplt",
+            "brew untrust --formula navikt/tap/cplt",
+            "brew trust --formula navikt/tap/cplt",
+            "Pre-existing trust for navikt/tap/cplt was not preserved.",
             'brew style "${formula_name}"',
             'brew audit --strict "${formula_name}"',
             'brew install --formula "${formula_name}"',
@@ -382,6 +388,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, gate)
+
+        self.assertLess(
+            gate.index("brew install --formula navikt/tap/cplt"),
+            gate.index('brew audit --strict "${formula_name}"'),
+        )
 
         for obsolete in (
             "libexec/clients/cplt",

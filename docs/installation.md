@@ -41,14 +41,17 @@ plugininstallasjonen i neste seksjon. OpenCode kan valideres fra en checkout;
 når en kandidat-release er publisert, kan den også releaseverifiseres gjennom
 den manuelle bundle-en i [OpenCode-guiden](opencode.md#hent-og-verifiser-en-grillmester-bundle).
 
-Etter aktivering installerer du Grillmester fra Navs Homebrew-tap:
+Etter aktivering installerer du Grillmester og cplt fra Navs Homebrew-tap:
 
 ```bash
-brew install navikt/tap/grillmester
+brew install navikt/tap/cplt navikt/tap/grillmester
 ```
 
-Formelen installerer den checksummede Grillmester-distribusjonen, Python-runtimen
-launcheren bruker og cplt som en ekstern Homebrew-avhengighet. Den
+Begge formlene navngis fullt kvalifisert slik at Homebrew gir item-level trust
+til akkurat Grillmester og cplt, ikke til alle nåværende og fremtidige elementer
+i `navikt/tap`. Grillmester-formelen installerer den checksummede
+Grillmester-distribusjonen og Python-runtimen launcheren bruker, og deklarerer
+cplt som en ekstern Homebrew-avhengighet. Den
 bundle-inkluderte Copilot-pluginen og det genererte OpenCode-targetet oppdateres
 atomisk med `brew upgrade grillmester`. OpenCode og Copilot CLI er derimot
 brukereide systemklienter: formelen installerer, erstatter eller skygger dem

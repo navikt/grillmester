@@ -262,10 +262,14 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         )[1].split("## Avansert: manuell binding og verifisering", 1)[0]
         normalized = " ".join(quick_start.split())
 
-        self.assertIn("brew install navikt/tap/grillmester", normalized)
+        self.assertIn(
+            "brew install navikt/tap/cplt navikt/tap/grillmester", normalized
+        )
         self.assertLess(
             normalized.index("ikke tilgjengelig"),
-            normalized.index("brew install navikt/tap/grillmester"),
+            normalized.index(
+                "brew install navikt/tap/cplt navikt/tap/grillmester"
+            ),
         )
         self.assertIn("grillmester choose", normalized)
         self.assertIn("starter alltid OpenCode gjennom cplt", normalized)
@@ -345,7 +349,10 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         )[1].split("### Copilot app", 1)[0]
         normalized = " ".join(section.split())
 
-        journey_markers = ("brew install navikt/tap/grillmester", "grillmester")
+        journey_markers = (
+            "brew install navikt/tap/cplt navikt/tap/grillmester",
+            "grillmester",
+        )
         positions = [normalized.index(marker) for marker in journey_markers]
         self.assertEqual(sorted(positions), positions)
         for marker in (
@@ -363,7 +370,9 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("## Felles terminaloppsett på macOS", self.installation)
         self.assertLess(
             self.installation.index("ikke tilgjengelig"),
-            self.installation.index("brew install navikt/tap/grillmester"),
+            self.installation.index(
+                "brew install navikt/tap/cplt navikt/tap/grillmester"
+            ),
         )
         self.assertIn("opencode.md#kom-i-gang", self.installation)
         common_setup = self.installation.split(
@@ -379,7 +388,9 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("installerte klienter på `PATH`", normalized)
         self.assertIn("Manglende cplt er en hard feil", normalized)
         self.assertLess(
-            self.installation.index("brew install navikt/tap/grillmester"),
+            self.installation.index(
+                "brew install navikt/tap/cplt navikt/tap/grillmester"
+            ),
             self.installation.index("scripts/manage_opencode.py install"),
         )
         self.assertLess(
@@ -394,7 +405,9 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn("ikke tilgjengelig", normalized)
                 self.assertLess(
                     normalized.index("ikke tilgjengelig"),
-                    normalized.index("brew install navikt/tap/grillmester"),
+                    normalized.index(
+                        "brew install navikt/tap/cplt navikt/tap/grillmester"
+                    ),
                 )
 
         normalized_runbook = " ".join(self.release_runbook.split())
