@@ -877,7 +877,7 @@ jobs:
       - name: Exercise focused and full Copilot through exact cplt and loopback BYOK
         shell: bash
         env:
-          PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+          PATH: ${{ runner.temp }}/verified-darwin-bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
         run: |
           set -euo pipefail
           umask 077

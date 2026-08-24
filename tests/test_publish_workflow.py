@@ -256,6 +256,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
             maxsplit=1,
         )[1]
 
+        self.assertIn(
+            "${{ runner.temp }}/verified-darwin-bin:/opt/homebrew/bin:/usr/local/bin",
+            gate,
+        )
         for marker in (
             'HTTPServer(("127.0.0.1", 0), Handler)',
             '"/v1/models"',
