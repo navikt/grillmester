@@ -309,10 +309,10 @@ def update_manifest(root: Path, expected: bytes) -> bool:
     temporary = Path(temporary_name)
     try:
         with os.fdopen(descriptor, "wb") as output:
+            os.fchmod(output.fileno(), 0o644)
             output.write(expected)
             output.flush()
             os.fsync(output.fileno())
-        os.chmod(temporary, 0o644)
         os.replace(temporary, manifest_path)
     finally:
         try:
