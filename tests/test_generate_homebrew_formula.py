@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 import os
 import stat
 import subprocess
@@ -23,7 +22,20 @@ SPEC.loader.exec_module(FORMULA)
 
 
 class GenerateHomebrewFormulaTests(unittest.TestCase):
-    def test_formula_binds_exact_release_and_reviewed_terminal_clients(self) -> None:
+    def test_formula_depends_on_cplt_and_never_packages_client_binaries(self) -> None:
+        content = FORMULA.render_formula(
+            tag="v1.2.3",
+            bundle_name="grillmester-opencode-v1.2.3.tar.gz",
+            bundle_sha256="e" * 64,
+        )
+
+        self.assertIn('depends_on "navikt/tap/cplt"', content)
+        self.assertNotIn('resource "grillmester-cplt"', content)
+        self.assertNotIn('resource "grillmester-opencode"', content)
+        self.assertNotIn("libexec/clients", content)
+        self.assertNotIn("clients.install", content)
+
+    def test_formula_binds_exact_release_and_documents_user_owned_clients(self) -> None:
         digest = "a" * 64
         content = FORMULA.render_formula(
             tag="v1.2.3-rc.4",
@@ -38,43 +50,35 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
         )
         self.assertIn(f'sha256 "{digest}"', content)
         self.assertNotIn('version "1.2.3-rc.4"', content)
-        self.assertNotIn('depends_on "navikt/tap/cplt"', content)
+        self.assertIn('depends_on "navikt/tap/cplt"', content)
         self.assertNotIn('depends_on "opencode"', content)
         self.assertIn('depends_on "python@3.13"', content)
-        self.assertIn('resource "grillmester-cplt"', content)
-        self.assertIn('resource "grillmester-opencode"', content)
+        self.assertNotIn('resource "grillmester-cplt"', content)
+        self.assertNotIn('resource "grillmester-opencode"', content)
+        self.assertNotIn('export PATH="#{libexec}/clients:$PATH"', content)
+        self.assertIn('cplt = formula_opt_bin("cplt")', content)
+        self.assertIn('export PATH="#{cplt}:$PATH"', content)
+        self.assertIn("#!/bin/sh", content)
+        self.assertNotIn("#!/bin/bash", content)
         self.assertIn(
-            "cplt-aarch64-apple-darwin.tar.gz", content
+            'exec "#{python}" -I -S "#{libexec}/scripts/grillmester.py" "$@"',
+            content,
         )
-        self.assertIn(
-            "opencode-darwin-arm64-1.18.20.tgz", content
-        )
-        self.assertIn(
-            'export PATH="#{libexec}/clients:$PATH"', content
-        )
-        self.assertIn('clients.install "cplt"', content)
-        self.assertIn('clients.install "bin/opencode"', content)
         self.assertIn('libexec.install Dir["*"]', content)
-        self.assertIn("grillmester doctor --client opencode", content)
+        self.assertIn("uses OpenCode and GitHub Copilot CLI from your PATH", content)
+        self.assertIn("Homebrew launcher\n      never installs, replaces, or shadows", content)
         self.assertIn("Copilot app uses its own Plugins UI", content)
 
-    def test_formula_resources_cover_both_macos_architectures(self) -> None:
+    def test_formula_has_no_architecture_specific_client_resources(self) -> None:
         content = FORMULA.render_formula(
             tag="v1.2.3",
             bundle_name="grillmester-opencode-v1.2.3.tar.gz",
             bundle_sha256="c" * 64,
         )
 
-        self.assertIn("on_arm do", content)
-        self.assertIn("on_intel do", content)
-        for digest in (
-            "fb1fd69f5ff42deb1cf2e510d97a58ff5f7ddf913e1cd4f7533815a16588eeda",
-            "e60687724df8a2fdb6f99654cc80f1a0dccb215263c2d984c222ff99ce56f8ea",
-            "5091c1188dc99026c066ae1e31451d6893409d807f14aca3f66928d1a44c55f7",
-            "345a6684759fa78e2e9d11e3a8dd53bf7b963c60f303d8a7f8ca547999389104",
-        ):
-            with self.subTest(digest=digest):
-                self.assertIn(f'sha256 "{digest}"', content)
+        self.assertNotIn("on_arm do", content)
+        self.assertNotIn("on_intel do", content)
+        self.assertNotIn("resource ", content)
 
     def test_formula_is_valid_ruby_syntax(self) -> None:
         content = FORMULA.render_formula(
@@ -95,6 +99,70 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout)
         self.assertIn("Syntax OK", result.stdout)
 
+    def test_launcher_shim_ignores_shell_and_python_startup_injection(self) -> None:
+        content = FORMULA.render_formula(
+            tag="v1.2.3",
+            bundle_name="grillmester-opencode-v1.2.3.tar.gz",
+            bundle_sha256="d" * 64,
+        )
+        start = content.index("      #!/bin/sh\n")
+        end = content.index("    SH\n", start)
+        shim = "\n".join(
+            line[6:] for line in content[start:end].splitlines()
+        ) + "\n"
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cplt = root / "cplt-bin"
+            libexec = root / "libexec"
+            scripts = libexec / "scripts"
+            python_startup = root / "python-startup"
+            cplt.mkdir()
+            scripts.mkdir(parents=True)
+            python_startup.mkdir()
+            target = scripts / "grillmester.py"
+            target.write_text("print('safe launcher')\n", encoding="utf-8")
+            shell_marker = root / "shell-marker"
+            python_marker = root / "python-marker"
+            shell_hook = root / "shell-hook"
+            shell_hook.write_text(
+                f"touch {shell_marker}\n",
+                encoding="utf-8",
+            )
+            (python_startup / "sitecustomize.py").write_text(
+                "from pathlib import Path\n"
+                f"Path({str(python_marker)!r}).write_text('executed')\n",
+                encoding="utf-8",
+            )
+            launcher = root / "grillmester"
+            launcher.write_text(
+                shim.replace("#{cplt}", str(cplt))
+                .replace("#{python}", sys.executable)
+                .replace("#{libexec}", str(libexec)),
+                encoding="utf-8",
+            )
+            launcher.chmod(0o700)
+            environment = {
+                **os.environ,
+                "BASH_ENV": str(shell_hook),
+                "PYTHONPATH": str(python_startup),
+            }
+            result = subprocess.run(
+                [str(launcher)],
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=False,
+            )
+            shell_injected = shell_marker.exists()
+            python_injected = python_marker.exists()
+
+        self.assertEqual(0, result.returncode, result.stdout)
+        self.assertEqual("safe launcher\n", result.stdout)
+        self.assertFalse(shell_injected)
+        self.assertFalse(python_injected)
+
     def test_generator_rejects_unbound_or_unsafe_inputs(self) -> None:
         cases = (
             ("latest", "grillmester-opencode-latest.tar.gz", "a" * 64),
@@ -108,22 +176,6 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
             ):
                 FORMULA.render_formula(
                     tag=tag, bundle_name=name, bundle_sha256=digest
-                )
-
-    def test_generator_requires_reviewed_sha256_for_every_macos_resource(self) -> None:
-        lock = json.loads(
-            (ROOT / "policy/client-artifacts.json").read_text(encoding="utf-8")
-        )
-        lock["opencode"]["artifacts"][0]["archive"].pop("sha256")
-        with tempfile.TemporaryDirectory() as directory:
-            lock_path = Path(directory) / "client-artifacts.json"
-            lock_path.write_text(json.dumps(lock), encoding="utf-8")
-            with self.assertRaisesRegex(FORMULA.FormulaError, "has no lowercase SHA-256"):
-                FORMULA.render_formula(
-                    tag="v1.2.3",
-                    bundle_name="grillmester-opencode-v1.2.3.tar.gz",
-                    bundle_sha256="d" * 64,
-                    client_artifacts=lock_path,
                 )
 
     def test_output_is_private_from_symlink_replacement_and_mode_is_stable(self) -> None:

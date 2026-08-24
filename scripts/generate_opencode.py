@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import sys
 import unicodedata
 from pathlib import Path, PurePosixPath
@@ -998,7 +999,7 @@ def scan_output(
 def update_projection(output: Path, expected: Mapping[str, GeneratedFile]) -> bool:
     if output.exists() and (output.is_symlink() or not output.is_dir()):
         raise ProjectionError(f"target output is not a regular directory: {output}")
-    changed = bool(compare_projection(output, expected))
+    changed = False
     output.mkdir(parents=True, exist_ok=True)
     actual_files, symlinks, directories, special_nodes = scan_output(output)
     if special_nodes:
@@ -1011,14 +1012,19 @@ def update_projection(output: Path, expected: Mapping[str, GeneratedFile]) -> bo
     )
     for relative in sorted(set(actual_files) - set(expected), reverse=True):
         actual_files[relative].unlink()
+        changed = True
     for relative, (data, mode) in sorted(expected.items()):
         destination = output / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         if destination.is_symlink():
             destination.unlink()
+            changed = True
         if not destination.is_file() or destination.read_bytes() != data:
             destination.write_bytes(data)
-        os.chmod(destination, mode)
+            changed = True
+        if stat.S_IMODE(destination.stat().st_mode) != mode:
+            os.chmod(destination, mode)
+            changed = True
     for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
         try:
             directory.rmdir()

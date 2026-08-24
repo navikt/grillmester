@@ -946,20 +946,45 @@ def validate_assets(root: Path, errors: list[str]) -> None:
         errors.append("README must render the reviewed Grillmester hero asset")
 
 
-def validate_opencode_projection(root: Path, errors: list[str]) -> None:
-    generator_path = root / "scripts/generate_opencode.py"
+def _load_projection_generator(
+    root: Path, errors: list[str], *, script: str, label: str
+) -> object | None:
+    generator_path = root / script
     if not generator_path.is_file():
-        errors.append("missing OpenCode target generator: scripts/generate_opencode.py")
-        return
+        errors.append(f"missing {label}: {script}")
+        return None
     spec = importlib.util.spec_from_file_location(
-        f"grillmester_generate_opencode_{abs(hash(root))}", generator_path
+        f"grillmester_{Path(script).stem}_{abs(hash(root))}", generator_path
     )
     if spec is None or spec.loader is None:
-        errors.append("cannot load OpenCode target generator")
-        return
+        errors.append(f"cannot load {label}")
+        return None
     generator = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(generator)
+    except (OSError, ValueError) as exc:
+        errors.append(f"{label} could not be loaded: {exc}")
+        return None
+    return generator
+
+
+def _summarize_projection_differences(differences: list[str]) -> str:
+    summary = "; ".join(differences[:3])
+    if len(differences) > 3:
+        summary += f"; and {len(differences) - 3} more differences"
+    return summary
+
+
+def validate_opencode_projection(root: Path, errors: list[str]) -> None:
+    generator = _load_projection_generator(
+        root,
+        errors,
+        script="scripts/generate_opencode.py",
+        label="OpenCode target generator",
+    )
+    if generator is None:
+        return
+    try:
         expected, policy = generator.build_projection(root)
         output = root / generator.relative_path(
             policy["output"], label="policy output"
@@ -969,10 +994,35 @@ def validate_opencode_projection(root: Path, errors: list[str]) -> None:
         errors.append(f"OpenCode target validation failed: {exc}")
         return
     if differences:
-        summary = "; ".join(differences[:3])
-        if len(differences) > 3:
-            summary += f"; and {len(differences) - 3} more differences"
-        errors.append(f"OpenCode target is stale: {summary}")
+        errors.append(
+            "OpenCode target is stale: "
+            + _summarize_projection_differences(differences)
+        )
+
+
+def validate_focused_context_projections(root: Path, errors: list[str]) -> None:
+    generator = _load_projection_generator(
+        root,
+        errors,
+        script="scripts/generate_context_projections.py",
+        label="focused context generator",
+    )
+    if generator is None:
+        return
+    try:
+        projections, policy = generator.build_projections(root)
+        for key, expected in projections.items():
+            output = root / generator.relative_path(
+                policy["outputs"][key], label=f"policy outputs.{key}"
+            )
+            differences = generator.compare_projection(output, expected)
+            if differences:
+                errors.append(
+                    f"{key} focused context target is stale: "
+                    + _summarize_projection_differences(differences)
+                )
+    except (OSError, ValueError) as exc:
+        errors.append(f"focused context target validation failed: {exc}")
 
 
 def validate_repo(root: Path) -> list[str]:
@@ -985,6 +1035,7 @@ def validate_repo(root: Path) -> list[str]:
     validate_assets(root, errors)
     validate_manifests(root, errors)
     validate_opencode_projection(root, errors)
+    validate_focused_context_projections(root, errors)
     sources, agent_contracts, skill_contracts = load_content_lock(root, errors)
     validate_attribution(root, sources, errors)
     agent_ids = validate_agents(plugin_root, agent_contracts, errors)

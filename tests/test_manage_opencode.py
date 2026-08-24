@@ -154,6 +154,23 @@ class ManageOpenCodeTest(unittest.TestCase):
             destination = profiles / profile.name
             destination.write_bytes(profile.read_bytes())
             destination.chmod(0o644)
+        for focused_relative in (
+            "targets/opencode-v1-focused/manifest.json",
+            "targets/copilot-cli-focused-v1/manifest.json",
+        ):
+            focused_manifest = self.source / focused_relative
+            focused_manifest.parent.mkdir(parents=True, exist_ok=True)
+            focused_manifest.write_text(
+                json.dumps({"schemaVersion": 1, "marker": focused_relative})
+                + "\n",
+                encoding="utf-8",
+            )
+            focused_manifest.chmod(0o644)
+        focused_policy = self.source / "policy/focused-context-v1.json"
+        focused_policy.write_bytes(
+            (ROOT / "policy/focused-context-v1.json").read_bytes()
+        )
+        focused_policy.chmod(0o644)
         self.seal_distribution()
         return self.source
 
@@ -176,6 +193,17 @@ class ManageOpenCodeTest(unittest.TestCase):
             "opencodeVersion": "1.18.20",
             "cpltRelease": "2026.08.17-062831-1008a92",
             "targetManifestSha256": sha256(target_manifest),
+            "focusedOpenCodeManifestSha256": sha256(
+                (self.source / "targets/opencode-v1-focused/manifest.json").read_bytes()
+            ),
+            "focusedCopilotManifestSha256": sha256(
+                (
+                    self.source / "targets/copilot-cli-focused-v1/manifest.json"
+                ).read_bytes()
+            ),
+            "focusedContextPolicySha256": sha256(
+                (self.source / "policy/focused-context-v1.json").read_bytes()
+            ),
             "files": entries,
         }
         outer.write_text(
@@ -803,6 +831,75 @@ pathlib.Path(os.environ["FAKE_CAPTURE"]).write_text(json.dumps(capture))
                 MANAGER._parse_distribution_manifest(
                     self.source, require_current_contract=True
                 )
+
+    def test_distribution_manifest_requires_focused_digests_for_current_contract(
+        self,
+    ) -> None:
+        self.make_bundle()
+        outer = self.source / MANAGER.DISTRIBUTION_MANIFEST
+        manifest = json.loads(outer.read_text(encoding="utf-8"))
+        for field in (
+            "focusedOpenCodeManifestSha256",
+            "focusedCopilotManifestSha256",
+            "focusedContextPolicySha256",
+        ):
+            with self.subTest(field=field):
+                stripped = {
+                    key: value for key, value in manifest.items() if key != field
+                }
+                outer.write_text(
+                    json.dumps(stripped, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(
+                    MANAGER.LifecycleError, "unexpected or missing fields"
+                ):
+                    MANAGER._parse_distribution_manifest(
+                        self.source, require_current_contract=True
+                    )
+        outer.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        MANAGER._parse_distribution_manifest(
+            self.source, require_current_contract=True
+        )
+
+    def test_distribution_manifest_legacy_shape_verifies_only_for_rollback(
+        self,
+    ) -> None:
+        self.make_bundle()
+        outer = self.source / MANAGER.DISTRIBUTION_MANIFEST
+        manifest = json.loads(outer.read_text(encoding="utf-8"))
+        legacy = {
+            key: value
+            for key, value in manifest.items()
+            if not key.startswith("focused")
+        }
+        outer.write_text(
+            json.dumps(legacy, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        MANAGER._parse_distribution_manifest(
+            self.source, require_current_contract=False
+        )
+        with self.assertRaisesRegex(
+            MANAGER.LifecycleError, "unexpected or missing fields"
+        ):
+            MANAGER._parse_distribution_manifest(
+                self.source, require_current_contract=True
+            )
+
+    def test_focused_manifest_digest_mismatch_is_rejected(self) -> None:
+        self.make_bundle()
+        outer = self.source / MANAGER.DISTRIBUTION_MANIFEST
+        manifest = json.loads(outer.read_text(encoding="utf-8"))
+        manifest["focusedOpenCodeManifestSha256"] = "f" * 64
+        outer.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        with self.assertRaisesRegex(
+            MANAGER.LifecycleError, "focused OpenCode target manifest digest"
+        ):
+            MANAGER.verify_distribution(self.source, immutable=False)
 
     def test_installing_a_new_release_and_rollback_swap_active_releases(self) -> None:
         self.make_bundle("one")

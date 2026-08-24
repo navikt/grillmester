@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -51,6 +52,7 @@ def write_opencode_distribution_inputs(root: Path, content: str = "reviewed\n") 
     policy.mkdir(parents=True, exist_ok=True)
     (policy / "client-artifacts.json").write_text(content)
     (policy / "content-lock.json").write_text(content)
+    (policy / "focused-context-v1.json").write_text(content)
     profiles = root / "profiles/opencode"
     profiles.mkdir(parents=True, exist_ok=True)
     (profiles / "local.json").write_text(content)
@@ -59,14 +61,44 @@ def write_opencode_distribution_inputs(root: Path, content: str = "reviewed\n") 
     for name in (
         "build_opencode_bundle.py",
         "compose_opencode_permissions.py",
+        "generate_context_projections.py",
+        "generate_homebrew_formula.py",
+        "grillmester.py",
+        "grillmester_local.py",
         "manage_opencode.py",
         "release_contract.py",
+        "smoke_grillmester_tui.py",
+        "smoke_grillmester_local.py",
         "smoke_plugin_install.py",
         "smoke_opencode.py",
         "smoke_opencode_runtime.py",
         "verify_client_artifact.py",
     ):
         (scripts / name).write_text(content)
+
+    focused_opencode = root / "targets/opencode-v1-focused"
+    focused_opencode.mkdir(parents=True, exist_ok=True)
+    (focused_opencode / "manifest.json").write_text(content)
+
+    canonical_plugin = root / "plugin/plugin.json"
+    if canonical_plugin.is_file():
+        plugin_bytes = canonical_plugin.read_bytes()
+        plugin_digest = hashlib.sha256(plugin_bytes).hexdigest()
+        focused_copilot = root / CONTRACT.FOCUSED_COPILOT_DIRECTORY
+        focused_copilot.mkdir(parents=True, exist_ok=True)
+        (focused_copilot / "plugin.json").write_bytes(plugin_bytes)
+        (focused_copilot / "payload.txt").write_text(content)
+        (focused_copilot / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "source": {"pluginManifestSha256": plugin_digest},
+                    "files": {"plugin.json": {"sha256": plugin_digest}},
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        )
 
 
 def write_stable_rights_fixture(root: Path) -> dict[str, object]:
@@ -838,6 +870,71 @@ class ReleaseContractTest(unittest.TestCase):
                         )
                     path.write_bytes(reviewed)
 
+    def test_stable_promotion_rejects_launcher_and_formula_generator_drift(
+        self,
+    ) -> None:
+        stable = CONTRACT.Catalog(
+            version=CONTRACT.parse_version("1.4.0"), source_sha="1" * 40
+        )
+        rc = CONTRACT.Catalog(
+            version=CONTRACT.parse_version("1.4.0-rc.2"), source_sha="2" * 40
+        )
+        protected = (
+            "scripts/grillmester.py",
+            "scripts/generate_homebrew_formula.py",
+        )
+        for relative in protected:
+            self.assertIn(relative, CONTRACT.OPENCODE_DISTRIBUTION_FILES)
+        self.assertIn(
+            "scripts/smoke_grillmester_tui.py",
+            CONTRACT.STABLE_GATE_HARNESS_FILES,
+        )
+        self.assertIn(
+            "scripts/smoke_grillmester_local.py",
+            CONTRACT.OPENCODE_DISTRIBUTION_FILES,
+        )
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            stable_source = root / "stable"
+            rc_source = root / "rc"
+            for checkout, version in (
+                (stable_source, "1.4.0"),
+                (rc_source, "1.4.0-rc.2"),
+            ):
+                checkout.mkdir(parents=True)
+                (checkout / "package-manifest.json").write_text(
+                    '{"schemaVersion":1}\n'
+                )
+                package = checkout / "plugin"
+                package.mkdir(parents=True)
+                (package / "plugin.json").write_text(
+                    json.dumps({"name": "grillmester", "version": version})
+                )
+                (package / "payload.txt").write_text("reviewed\n")
+                target = checkout / "targets/opencode-v1"
+                target.mkdir(parents=True)
+                (target / "manifest.json").write_text("reviewed\n")
+                write_opencode_distribution_inputs(checkout)
+
+            for relative in protected:
+                with self.subTest(relative=relative):
+                    path = stable_source / relative
+                    reviewed = path.read_bytes()
+                    path.write_text("weakened\n")
+                    with self.assertRaisesRegex(
+                        CONTRACT.ReleaseContractError,
+                        f"stable {relative} differs",
+                    ):
+                        CONTRACT.validate_stable_promotion(
+                            stable,
+                            stable_source,
+                            "v1.4.0-rc.2",
+                            rc,
+                            rc_source,
+                        )
+                    path.write_bytes(reviewed)
+
     def test_release_notes_explain_both_immutable_links(self) -> None:
         notes = CONTRACT.render_notes(
             channel="rc",
@@ -852,14 +949,45 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("catalog source →", notes)
         self.assertIn("navikt/grillmester#v0.2.0-poc.4", notes)
         self.assertIn("grillmester@grillmester", notes)
+        self.assertIn("Test the terminal launcher release candidate", notes)
+        self.assertIn("Run with Copilot CLI from PATH", notes)
+        self.assertIn("Run with OpenCode from PATH", notes)
+        self.assertIn("Grillmester terminal bundle (no client binaries)", notes)
+        self.assertIn("brew install --formula ./grillmester.rb", notes)
+        self.assertIn("stable-only Homebrew tap", notes)
         self.assertIn(
-            f"Run with OpenCode {CONTRACT.SUPPORTED_OPENCODE_VERSION}", notes
+            "Do not use `brew install navikt/tap/grillmester`", normalized_notes
         )
+        self.assertNotIn(
+            "```bash\nbrew install navikt/tap/grillmester\n```", notes
+        )
+        self.assertIn("brew install opencode", notes)
+        self.assertIn("brew install --cask copilot-cli", notes)
         self.assertIn(
-            f"OpenCode {CONTRACT.SUPPORTED_OPENCODE_VERSION} bundle", notes
+            "`brew upgrade grillmester` follows the stable tap", notes
+        )
+        self.assertIn("brew upgrade opencode", notes)
+        self.assertIn("brew upgrade --cask copilot-cli", notes)
+        self.assertIn("grillmester doctor --client copilot", notes)
+        self.assertIn("grillmester --client copilot --agent grillmester", notes)
+        self.assertIn("Install directly in Copilot CLI", notes)
+        self.assertIn(
+            "uses the OpenCode and GitHub Copilot CLI executables from `PATH`",
+            normalized_notes,
+        )
+        self.assertIn("does not package either client binary", normalized_notes)
+        self.assertIn(CONTRACT.SUPPORTED_OPENCODE_RANGE, notes)
+        self.assertIn("tested cplt baseline", normalized_notes)
+        self.assertIn("or a newer release", normalized_notes)
+        self.assertIn(
+            "Newer compatible clients are not the exact bytes covered by the release gate",
+            normalized_notes,
         )
         self.assertNotIn("npm install --global opencode-ai@", notes)
-        self.assertIn("do not bootstrap either client through an npm\npostinstall", notes)
+        self.assertIn(
+            "do not bootstrap either client through an npm postinstall",
+            normalized_notes,
+        )
         self.assertIn("policy/client-artifacts.json", notes)
         self.assertIn("sys.version_info >= (3, 11)", notes)
         self.assertEqual(2, notes.count("scripts/verify_client_artifact.py"))
@@ -875,7 +1003,6 @@ class ReleaseContractTest(unittest.TestCase):
             '--client cplt --os "${host_os}" --arch "${host_arch}"', notes
         )
         self.assertIn("OPENCODE_BIN=\"${verified_bin}/opencode\"", notes)
-        self.assertIn("other versions\nare unverified", notes)
         self.assertIn(CONTRACT.SUPPORTED_CPLT_RELEASE, notes)
         self.assertIn("CPLT_BIN=\"${verified_bin}/cplt\"", notes)
         self.assertIn('--opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"', notes)
@@ -889,19 +1016,21 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn('bundle_root="$(pwd -P)/grillmester-opencode-v1"', notes)
         self.assertEqual(2, notes.count("cd /absolute/path/to/consumer-repo"))
         self.assertIn('CONFIG_DIR="${bundle_root}/targets/opencode-v1"', notes)
+        self.assertIn('PYTHON_BIN="$(command -v python3)"', notes)
         self.assertIn(
             'PATH="${verified_bin}:/usr/local/bin:/usr/bin:/bin"', notes
         )
-        self.assertIn('OPENCODE_CONFIG_DIR="${CONFIG_DIR}"', notes)
-        self.assertIn('"${CPLT_BIN}" --agent opencode', notes)
-        self.assertIn('--project-dir "$PWD"', notes)
-        self.assertIn('--allow-read "${CONFIG_DIR}"', notes)
-        self.assertIn("--pass-env OPENCODE_CONFIG_DIR", notes)
+        self.assertIn(
+            '"${PYTHON_BIN}" -I -S "${bundle_root}/scripts/grillmester.py"',
+            notes,
+        )
+        self.assertIn("--client opencode --agent grillmester", notes)
         self.assertIn("--allow-localhost 1234", notes)
-        self.assertIn("-- --agent grillmester", notes)
+        self.assertIn("required `.gitignore` support file with mode `0600`", notes)
+        self.assertIn("rejects a symlink or other non-regular path", notes)
         self.assertIn(
             f"/blob/{'2' * 40}/docs/local-models.md"
-            "#koble-opencode-til-den-lokale-serveren",
+            "#avansert-manuell-opencode-binding",
             notes,
         )
         self.assertIn(
@@ -909,8 +1038,17 @@ class ReleaseContractTest(unittest.TestCase):
             notes,
         )
         self.assertIn("no Grillmester lifecycle manager is required", normalized_notes)
-        self.assertIn("choose\nthe declared model with `/models`", notes)
+        self.assertIn(
+            "choose the declared model with `/models`", normalized_notes
+        )
         self.assertIn("#### Optional managed hardening", notes)
+        self.assertIn(
+            "optional high-assurance flow remains pinned to exact OpenCode",
+            normalized_notes,
+        )
+        self.assertIn(
+            "not the standard Homebrew path", normalized_notes
+        )
         self.assertIn("model catalog is empty\nby design", notes)
         self.assertIn(
             'python3 -I -S "${bundle_root}/scripts/manage_opencode.py" launch',
@@ -938,7 +1076,7 @@ class ReleaseContractTest(unittest.TestCase):
             normalized_notes,
         )
         self.assertLess(
-            notes.index('"${CPLT_BIN}" --agent opencode'),
+            notes.index('"${bundle_root}/scripts/grillmester.py"'),
             notes.index("#### Optional managed hardening"),
         )
         self.assertIn(
@@ -951,7 +1089,7 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("`--allowed-domains`", notes)
         self.assertIn("never `--allow-all-domains`", notes)
         self.assertIn(
-            f"/blob/{'2' * 40}/docs/opencode.md#native-cplt-kom-raskt-i-gang",
+            f"/blob/{'2' * 40}/docs/opencode.md#kom-i-gang",
             notes,
         )
         self.assertIn(
@@ -1001,21 +1139,56 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("### Verify Copilot", notes)
         self.assertIn("copilot plugin list", notes)
         self.assertIn("### Verify OpenCode", notes)
-        self.assertIn("This is a discovery-only check", notes)
         self.assertIn(
-            '"${OPENCODE_BIN}" agent list --pure | '
-            "grep -Fx 'grillmester (primary)'",
+            "without starting an interactive session or contacting a model",
+            normalized_notes,
+        )
+        self.assertIn("grillmester doctor --client opencode", notes)
+        self.assertIn(
+            "--client opencode --agent grillmester --print-command",
             notes,
         )
+        self.assertNotIn('"${OPENCODE_BIN}" agent list', notes)
         self.assertLess(
             notes.index("### Verify Copilot"), notes.index("### Verify OpenCode")
         )
-        self.assertIn("creates no\nGrillmester lifecycle installation", notes)
+        self.assertIn(
+            "neither creates a Grillmester lifecycle installation",
+            normalized_notes,
+        )
         self.assertNotIn("grillmester-nav@grillmester", notes)
         self.assertIn("never\nmoved", notes)
 
-    def test_release_notes_pin_the_release_gated_opencode_version(self) -> None:
+    def test_stable_release_notes_gate_tap_install_on_exact_version(self) -> None:
+        notes = CONTRACT.render_notes(
+            channel="stable",
+            tag="v0.2.0",
+            catalog_sha="1" * 40,
+            source_sha="2" * 40,
+            rc_tag="v0.2.0-rc.4",
+        )
+        normalized_notes = " ".join(notes.split())
+
+        self.assertIn("Install the terminal launcher after tap publication", notes)
+        self.assertIn(
+            "does not by itself prove that the tap already serves `v0.2.0`",
+            normalized_notes,
+        )
+        self.assertIn("reviewed tap-bootstrap PR must merge", normalized_notes)
+        self.assertIn(
+            "brew info navikt/tap/grillmester` reports this exact version",
+            normalized_notes,
+        )
+        self.assertIn(
+            "```bash\nbrew install navikt/tap/grillmester\n```", notes
+        )
+        self.assertIn("brew upgrade grillmester", notes)
+
+    def test_release_notes_keep_a_range_for_standard_use_and_exact_manager_pin(
+        self,
+    ) -> None:
         self.assertEqual("1.18.20", CONTRACT.SUPPORTED_OPENCODE_VERSION)
+        self.assertEqual(">=1.18.20,<2.0.0", CONTRACT.SUPPORTED_OPENCODE_RANGE)
         smoke_source = (ROOT / "scripts/smoke_opencode.py").read_text()
         self.assertIn(
             f'EXPECTED_OPENCODE_VERSION = "{CONTRACT.SUPPORTED_OPENCODE_VERSION}"',

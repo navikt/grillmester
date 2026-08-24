@@ -5,6 +5,11 @@ date: 2026-08-22
 
 # Gi terminalklientene én Grillmester-inngang gjennom cplt
 
+Klienteierskapet og Homebrew-distribusjonen i denne ADR-en er senere supersedert
+av [ADR 0004](0004-use-user-installed-terminal-clients.md): standardlauncheren
+bruker systeminstallerte OpenCode- og Copilot CLI-binærer, mens beslutningen om
+én inngang gjennom cplt uten direkte fallback gjelder fortsatt.
+
 ## Kontekst
 
 GitHub Copilot CLI og OpenCode kan begge kjøre det samme Grillmester-agentteamet,
@@ -73,12 +78,11 @@ og launcheren. OpenCode-manageren fra ADR 0002 forblir den eneste valgfrie,
 managed/high-assurance livssyklusen. Den nye kommandoen er normal terminal-UX,
 ikke en ny filsynk eller installasjon inn i klientenes globale configområder.
 
-Homebrew er den anbefalte distribusjonsinngangen for terminalflyten. Formelen
-installerer den checksummede Grillmester-bundle-en, de eksakte reviewede cplt-
-og OpenCode-binærene og eksponerer `grillmester`-kommandoen. De private
-klientbinærene velges per macOS-arkitektur fra den committede artefaktlåsen og
-legges først på `PATH` bare for Grillmester-launcheren. Dermed endrer ikke en
-senere oppstrøms Homebrew-oppdatering den installerte releasekombinasjonen.
+Den opprinnelige Homebrew-beslutningen, senere supersedert av ADR 0004,
+installerte den checksummede Grillmester-bundle-en sammen med eksakte private
+cplt- og OpenCode-binærer. ADR 0004 beholder Homebrew som anbefalt inngang, men
+erstatter de private klientene med en ekstern cplt-dependency og brukerinstallerte
+OpenCode-/Copilot CLI-binærer fra `PATH`.
 I denne releasen støttes Homebrew-pakken bare på macOS; Linux er ikke en del av
 pakkens release-løfte.
 GitHub Copilot CLI er fortsatt en separat, valgfri klientinstallasjon fordi den
@@ -112,9 +116,9 @@ til en separat løsning er testet.
   bundle-en og endrer ikke brukerens pluginlager.
 - Copilot app beholder en selvstendig, native installasjonsflyt og påvirkes ikke
   av terminalvalg.
-- En ny Grillmester-release oppdaterer plugin, OpenCode-target, launcher og de
-  terminalklientbytene Grillmester eier atomisk. Copilot CLI må fortsatt
-  re-gates når upstreamkontrakten endres.
+- Denne ADR-ens opprinnelige atomiske klientoppdatering er supersedert av ADR
+  0004. En ny Grillmester-release oppdaterer plugin, OpenCode-target og launcher;
+  systemklientene følger egne pakkekanaler.
 - Homebrew-formelen må publiseres fra den immutable release-bundle-en og dens
   checksum; en source-checkout eller flytende branch er ikke en stabil
   distribusjonskilde.

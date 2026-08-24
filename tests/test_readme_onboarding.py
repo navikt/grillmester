@@ -66,18 +66,27 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         )
         self.assertLess(
             terminal.index("brew install navikt/tap/grillmester"),
+            terminal.index("brew install opencode"),
+        )
+        self.assertLess(
+            terminal.index("brew install opencode"),
             terminal.index("\ngrillmester\n"),
         )
         for marker in (
+            "cplt som ekstern Homebrew-avhengighet",
+            "fra `PATH` uten å endre dem",
+            "brew install opencode",
             "brew install --cask copilot-cli",
             "GitHub Copilot CLI",
             "OpenCode",
             "grillmester choose",
+            "En manglende klient gir installasjonskommando, aldri fallback",
             "--client copilot --agent grillmester",
             "--client opencode --agent barista",
             "grillmester doctor",
             "alltid gjennom cplt",
-            "--allow-localhost 1234",
+            "grillmester local setup",
+            "grillmester local --full",
             "grillmester update",
         ):
             with self.subTest(marker=marker):
@@ -86,6 +95,11 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertNotIn('"autoUpdate"', self.text)
         self.assertIn('"autoUpdate"', self.installation)
 
+        baseline_heading = "### Installer den eksakte testbaselinen manuelt"
+        self.assertLess(
+            self.opencode_guide.index(baseline_heading),
+            self.opencode_guide.index("### Hent og verifiser en Grillmester-bundle"),
+        )
         self.assertLess(
             self.opencode_guide.index("### Hent og verifiser en Grillmester-bundle"),
             self.opencode_guide.index("## Valgfri lifecycle-manager"),
@@ -98,15 +112,26 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         )
         self.assertNotIn("manage_opencode.py install", native_bundle)
 
-        client_install = self.opencode_guide.split(
-            "### Installer eksakte klienter manuelt", 1
+        standard_setup = self.opencode_guide.split(
+            "## Kom i gang", 1
+        )[1].split("## Avansert: manuell binding og verifisering", 1)[0]
+        baseline = self.opencode_guide.split(
+            baseline_heading, 1
         )[1].split("### Hent og verifiser en Grillmester-bundle", 1)[0]
         manager = self.opencode_guide.split("## Valgfri lifecycle-manager", 1)[1]
-        self.assertNotIn("Python `3.11`", client_install)
-        self.assertNotIn("verify_client_artifact.py", client_install)
+        self.assertIn("brew install opencode", standard_setup)
+        self.assertIn("resolver `opencode` fra `PATH`", standard_setup)
+        self.assertNotIn("npm install --global opencode-ai@", standard_setup)
+        self.assertNotIn("private `trusted-bin`", standard_setup)
+        self.assertIn(f"opencode-ai@{self.opencode_version}", baseline)
+        self.assertIn(self.cplt_release, baseline)
+        self.assertNotIn("Python `3.11`", baseline)
+        self.assertNotIn("verify_client_artifact.py", baseline)
         self.assertIn("Python `3.11`", manager)
         self.assertIn("verify_client_artifact.py", manager)
-        self.assertIn("--allow-localhost 1234", self.opencode_guide)
+        self.assertIn(self.opencode_version, manager)
+        self.assertIn(self.cplt_release, manager)
+        self.assertIn("grillmester local setup --client opencode", self.opencode_guide)
         self.assertIn("--pass-env MODEL_PROVIDER_API_KEY", self.opencode_guide)
 
     def test_readme_distinguishes_roles_and_support_compactly(self) -> None:
@@ -120,10 +145,12 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         normalized = " ".join(self.text.split())
         for marker in (
             "GitHub Copilot CLI er referanseklienten",
-            "Homebrew-pakken støttes bare på macOS",
-            "Linux er utenfor pakkens release-løfte",
-            "VS Code er utenfor første onboarding og release-løftet",
-            "OpenCode-støtten gjelder den release-gatede klientkombinasjonen",
+            "Homebrew støttes på macOS",
+            "Linux og VS Code er utenfor release-løftet",
+            "Standardlauncheren støtter OpenCode 1.x fra `1.18.20`",
+            "Copilot CLI 1.x fra `1.0.79`",
+            "cplt fra testbaselinen",
+            "High-assurance-manageren har eksakte pinner",
             "docs/trust-and-client-support.md",
             "docs/repository-context.md#samspill-med-naviktcopilot",
             "valgfritt MCP-oppsett",
@@ -158,6 +185,9 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         for marker in (
             "Homebrew-terminalflyten støttes bare på macOS i denne releasen",
             "Copilot app",
+            "Alternativ: native Copilot CLI-installasjon med automatisk oppdatering",
+            '"enabledPlugins"',
+            '"marketplace"',
             "velge **Update** under\n**Settings → Plugins**",
             ".github/copilot/settings.json",
             "strictKnownMarketplaces",

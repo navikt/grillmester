@@ -238,7 +238,6 @@ jobs:
             python3 "${rc_source_repo}/scripts/generate_homebrew_formula.py" \
               --tag "${RC_TAG}" --bundle-name "${rc_bundle_name}" \
               --bundle-sha256 "${rc_bundle_sha256}" \
-              --client-artifacts "${rc_source_repo}/policy/client-artifacts.json" \
               --output "${rc_expected_formula}"
             ruby -c "${rc_published_formula}"
             cmp -s "${rc_expected_formula}" "${rc_published_formula}"

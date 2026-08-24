@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import gzip
+import io
 import json
 import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import textwrap
 import unittest
@@ -153,18 +156,138 @@ class PublishWorkflowContractTest(unittest.TestCase):
 
         self.assertIn("scripts/smoke_grillmester_tui.py", gate)
         self.assertIn('--launcher "${prefix}/bin/grillmester"', gate)
-        self.assertIn('--opencode "${prefix}/libexec/clients/opencode"', gate)
-        self.assertIn('--cplt "${prefix}/libexec/clients/cplt"', gate)
+        self.assertIn('--opencode "${opencode_binary}"', gate)
+        self.assertIn('--opencode-version "${opencode_version}"', gate)
+        self.assertIn('--cplt "${cplt_binary}"', gate)
         self.assertIn('--project-dir "${tui_consumer}"', gate)
         self.assertLess(
             workflow.index('brew install --formula "${formula_name}"'),
+            workflow.index("\n          brew install opencode\n"),
+        )
+        self.assertLess(
+            workflow.index("\n          brew install opencode\n"),
             workflow.index("scripts/smoke_grillmester_tui.py"),
         )
-        self.assertNotIn("COPILOT", gate)
+
+    def test_macos_gate_reaches_real_copilot_through_launcher_and_cplt_without_a_model_call(
+        self,
+    ) -> None:
+        workflow = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
+        gate = workflow.split(
+            "          brew install --cask copilot-cli", maxsplit=1
+        )[1].split("          cleanup 0", maxsplit=1)[0]
+
+        for marker in (
+            'copilot_candidate="$(command -v copilot)"',
+            'copilot_path_dir="${qa_root}/copilot-path"',
+            'ln -s "${copilot_binary}" "${copilot_path_dir}/copilot"',
+            'PATH="${copilot_client_path}" command -v opencode',
+            'copilot_state="$(mktemp -d "${HOME}/.grillmester-copilot-qa.XXXXXX")"',
+            'doctor --client copilot',
+            '"${prefix}/bin/grillmester" --client copilot',
+            '--agent grillmester --project-dir "${tui_consumer}"',
+            '--yes --quiet --no-audit -- --help',
+            "Usage: copilot ",
+            'git -C "${tui_consumer}" status --porcelain',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, gate)
+        self.assertNotIn("--prompt", gate)
+        self.assertNotIn(" -p ", gate)
+        self.assertNotIn("opencode_candidate", gate)
+        self.assertNotIn('dirname "${copilot_candidate}"', gate)
+        self.assertLess(
+            workflow.index("scripts/smoke_grillmester_tui.py"),
+            workflow.index("brew install --cask copilot-cli"),
+        )
+
+    def test_native_macos_gate_exercises_focused_and_full_copilot_against_loopback_model(
+        self,
+    ) -> None:
+        workflow = MACOS_WORKFLOW.read_text(encoding="utf-8")
+        for marker in (
+            "copilot-darwin-arm64.tar.gz",
+            "2346bb691981c2997d65c1c5bc3cef1aeddc9edd37dcb2f970b911aa597e59f6",
+            "fe779da7dd2342c1d23f0744873fa27d0251eaaee4dc6637fa53093639c0f3c9",
+            "copilot-darwin-x64.tar.gz",
+            "a1a9c1f25740f9a27b34eb14b70b5d3175794dc8bb410875531aa198b3abc18f",
+            "15a2576566635fdd2dc0c84137ec7481e41a6982281391c62e58883aa5f39f41",
+            'if [member.name for member in members] != ["copilot"]',
+            "member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}",
+            'echo "COPILOT_BIN=',
+        ):
+            with self.subTest(artifact_marker=marker):
+                self.assertIn(marker, workflow)
+        for marker in (
+            'ripgrep_platform="aarch64-apple-darwin"',
+            "24ad76777745fbff131c8fbc466742b011f925bfa4fffa2ded6def23b5b937be",
+            "0e0cb83f5195f1f51bb8feef1fff5b0b171e82bd1db6bd35deee701a3e7102f8",
+            'ripgrep_platform="x86_64-apple-darwin"',
+            'ripgrep_archive_sha256="fc87e78f7cb3fea12d69072e7ef3b215"'
+            '"09754717b746368fd40d88963630e2b3"',
+            "923dcc25cab57d33f4e7dd0476d4b74a554401a38817e246a8d6101dcd51c50f",
+            'ripgrep_root="ripgrep-14.1.1-${ripgrep_platform}"',
+            "ripgrep archive roster differs",
+            "ripgrep archive contains a link or special member",
+            'echo "RIPGREP_BIN=',
+        ):
+            with self.subTest(ripgrep_marker=marker):
+                self.assertIn(marker, workflow)
+        matrix_gate = workflow.split(
+            "      - name: Exercise every local-model context through the exact cplt clients",
+            maxsplit=1,
+        )[1].split(
+            "      - name: Exercise focused and full Copilot through exact cplt and loopback BYOK",
+            maxsplit=1,
+        )[0]
+        for marker in (
+            '"${BUNDLE_ROOT}/scripts/smoke_grillmester_local.py"',
+            "--require-binaries",
+            '--cplt "${CPLT_BIN}"',
+            '--opencode "${OPENCODE_BIN}"',
+            '--copilot "${COPILOT_BIN}"',
+            '--ripgrep "${RIPGREP_BIN}"',
+            '"${RIPGREP_BINARY_SHA256}"',
+        ):
+            with self.subTest(matrix_marker=marker):
+                self.assertIn(marker, matrix_gate)
+        gate = workflow.split(
+            "      - name: Exercise focused and full Copilot through exact cplt and loopback BYOK",
+            maxsplit=1,
+        )[1]
+
+        for marker in (
+            'HTTPServer(("127.0.0.1", 0), Handler)',
+            '"/v1/models"',
+            '"/v1/chat/completions"',
+            'model = "ci-grillmester-local"',
+            'answer = "GRILLMESTER_LOCAL_GATE_OK"',
+            'AMBIENT_FULL_PLUGIN_MUST_NOT_LOAD',
+            'local setup',
+            '--context focused',
+            'local doctor',
+            'targets/copilot-cli-focused-v1',
+            'local launch',
+            "-p 'FOCUSED-GATE:",
+            '--full',
+            '"${BUNDLE_ROOT}/plugin"',
+            "-p 'FULL-GATE:",
+            'record.get("model") != "ci-grillmester-local"',
+            'record.get("stream") is not True',
+            'endswith("/chat/completions")',
+            'overlay = "Resume with: grillmester local --full"',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, gate)
+        self.assertIn('provider_pid=$!', gate)
+        self.assertIn('kill "${provider_pid}"', workflow)
+        self.assertNotIn("api.github.com", gate)
+        self.assertNotIn("githubcopilot.com", gate)
+        self.assertLess(gate.index('local setup'), gate.index("-p 'FOCUSED-GATE:"))
+        self.assertLess(gate.index("-p 'FOCUSED-GATE:"), gate.index("-p 'FULL-GATE:"))
 
     def test_macos_gate_is_bound_to_the_reviewed_darwin_artifact_lock(self) -> None:
         text = MACOS_WORKFLOW.read_text(encoding="utf-8")
-        homebrew = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
         artifact_lock = json.loads(
             (ROOT / "policy/client-artifacts.json").read_text(encoding="utf-8")
         )
@@ -206,7 +329,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
                     value=value,
                 ):
                     self.assertIn(value, text)
-            self.assertIn(artifact["executable"]["sha256"], homebrew)
 
     def test_macos_gate_installs_and_tests_the_generated_homebrew_formula(self) -> None:
         text = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
@@ -233,23 +355,42 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "scripts/generate_homebrew_formula.py",
             'ruby -c "${formula}"',
             'brew tap-new --no-git "${tap_name}"',
+            "brew tap navikt/tap",
             'brew style "${formula_name}"',
             'brew audit --strict "${formula_name}"',
             'brew install --formula "${formula_name}"',
             'brew test --verbose "${formula_name}"',
+            "Grillmester unexpectedly found OpenCode outside the caller PATH.",
+            "OpenCode was not found on PATH; install it with: brew install opencode",
+            "brew install opencode",
+            "brew install --cask copilot-cli",
             "doctor --client opencode",
-            "libexec/clients/cplt",
-            "libexec/clients/opencode",
-            "cplt_binary_sha256",
-            "opencode_binary_sha256",
+            "doctor --client copilot",
+            'cplt_candidate="$(brew --prefix navikt/tap/cplt)/bin/cplt"',
+            'opencode_candidate="$(brew --prefix opencode)/bin/opencode"',
+            '[[ ! -e "${prefix}/libexec/clients"',
+            '--opencode-version "${opencode_version}"',
             "anomalyco/opencode",
             "navikt/cplt",
             'brew uninstall --formula "${formula_name}"',
+            "brew uninstall --formula opencode",
+            "brew uninstall --cask copilot-cli",
+            "brew uninstall --formula navikt/tap/cplt",
+            "brew untap navikt/tap",
             '[[ ! -e "${linked_launcher}" && ! -L "${linked_launcher}" ]]',
             '[[ ! -e "${prefix}" && ! -L "${prefix}" ]]',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, gate)
+
+        for obsolete in (
+            "libexec/clients/cplt",
+            "libexec/clients/opencode",
+            "cplt_binary_sha256",
+            "opencode_binary_sha256",
+        ):
+            with self.subTest(obsolete=obsolete):
+                self.assertNotIn(obsolete, gate)
 
     def test_release_macos_gate_tests_the_exact_sealed_formula(self) -> None:
         macos = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
@@ -853,6 +994,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
         write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
             "\n  remote-smoke:\n", maxsplit=1
         )[0]
+        verify_job = text.split("\n  verify-release-assets:\n", maxsplit=1)[1].split(
+            "\n  release:\n", maxsplit=1
+        )[0]
         self.assertIn("environment: grillmester-release", write_job)
         self.assertIn("actions: read", write_job)
         self.assertIn("contents: write", write_job)
@@ -895,7 +1039,18 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/opencode.json"',
             write_job,
         )
-        self.assertIn("targets/opencode-v1 profiles/opencode", write_job)
+        for path in (
+            "targets/opencode-v1",
+            "targets/opencode-v1-focused",
+            "profiles/opencode",
+            "policy/focused-context-v1.json",
+            "scripts/generate_context_projections.py",
+            "scripts/grillmester_local.py",
+            "scripts/smoke_grillmester_local.py",
+        ):
+            self.assertIn(path, write_job)
+        self.assertIn("targets/copilot-cli-focused-v1", verify_job)
+        self.assertIn("stable_focused_digest", verify_job)
         self.assertIn(
             'cmp -s "${regenerated_rc_catalog}" "${rc_catalog_file}"', write_job
         )
@@ -981,6 +1136,22 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py"',
             validate_job,
         )
+        self.assertLess(
+            validate_job.index(
+                'python3 -I -S "${SOURCE_ROOT}/scripts/generate_context_projections.py"'
+            ),
+            validate_job.index(
+                'python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py"'
+            ),
+        )
+        self.assertLess(
+            validate_job.index(
+                'python3 -I -S "${rc_source_repo}/scripts/generate_context_projections.py"'
+            ),
+            validate_job.index(
+                'python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"'
+            ),
+        )
         # Two current-source reproducibility builds plus one conditional RC
         # rebuild that binds stable promotion to the published candidate asset.
         self.assertEqual(3, validate_job.count("scripts/build_opencode_bundle.py"))
@@ -989,10 +1160,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'python3 "${SOURCE_ROOT}/scripts/generate_homebrew_formula.py"',
             validate_job,
         )
-        self.assertIn(
-            '--client-artifacts "${SOURCE_ROOT}/policy/client-artifacts.json"',
-            validate_job,
-        )
+        self.assertNotIn("--client-artifacts", validate_job)
         self.assertIn('ruby -c "${formula}"', validate_job)
         for output in (
             "bundle_artifact_name",
@@ -1039,11 +1207,15 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'composer_path = "scripts/compose_opencode_permissions.py"',
             verify_job,
         )
-        self.assertIn("immutable source has no regular permission composer", verify_job)
+        self.assertIn('composer_path: ("permission composer", 0o644)', verify_job)
         self.assertIn(
             'artifact_verifier_path = "scripts/verify_client_artifact.py"', verify_job
         )
-        self.assertIn("immutable source has no regular client artifact verifier", verify_job)
+        self.assertIn(
+            'artifact_verifier_path: ("client artifact verifier", 0o755)',
+            verify_job,
+        )
+        self.assertIn('fail(f"immutable source has no regular {label}")', verify_job)
         for mapping in (
             '"LICENSE": "LICENSE"',
             '"PROVENANCE.md": "PROVENANCE.md"',
@@ -1107,13 +1279,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
         for marker in (
             'git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}"',
             'git show "${MAIN_SHA}:scripts/generate_homebrew_formula.py"',
-            'git show "${SOURCE_SHA}:policy/client-artifacts.json"',
             'python3 -I -S "${trusted_generator}"',
             '--bundle-sha256 "${BUNDLE_SHA256}"',
             '"${FORMULA_SHA256}"',
             'cmp -s "${expected_formula}" "${RUNNER_TEMP}/${FORMULA_NAME}"',
         ):
             self.assertIn(marker, step)
+        self.assertNotIn("client_lock", step)
+        self.assertNotIn("--client-artifacts", step)
         self.assertNotIn("github.token", step)
 
     def test_release_approval_summary_shows_exact_sealed_values(self) -> None:
@@ -1196,8 +1369,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
             for name in (
                 "build_opencode_bundle.py",
                 "compose_opencode_permissions.py",
+                "generate_context_projections.py",
                 "grillmester.py",
+                "grillmester_local.py",
                 "manage_opencode.py",
+                "smoke_grillmester_local.py",
                 "verify_client_artifact.py",
             ):
                 shutil.copy2(ROOT / "scripts" / name, source / "scripts" / name)
@@ -1209,7 +1385,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
             )
             shutil.copytree(ROOT / "plugin", source / "plugin")
             (source / "policy").mkdir(parents=True)
-            for name in ("client-artifacts.json", "content-lock.json"):
+            for name in (
+                "client-artifacts.json",
+                "content-lock.json",
+                "focused-context-v1.json",
+            ):
                 shutil.copy2(ROOT / "policy" / name, source / "policy" / name)
             shutil.copytree(ROOT / "profiles", source / "profiles")
             shutil.copytree(ROOT / "targets", source / "targets")
@@ -1223,6 +1403,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                     "add",
                     "--force",
                     "targets/opencode-v1/.gitignore",
+                    "targets/opencode-v1-focused/.gitignore",
                 ],
                 check=True,
             )
@@ -1273,6 +1454,44 @@ class PublishWorkflowContractTest(unittest.TestCase):
             )
             self.assertEqual(verified.returncode, 0, verified.stderr)
 
+            raw_tar = bytearray(gzip.decompress(bundle.read_bytes()))
+            with tarfile.open(fileobj=io.BytesIO(raw_tar), mode="r:") as archive:
+                regular = next(
+                    member
+                    for member in archive.getmembers()
+                    if member.type == tarfile.REGTYPE
+                )
+
+            for type_flag in (tarfile.CONTTYPE, tarfile.GNUTYPE_SPARSE):
+                with self.subTest(type_flag=type_flag):
+                    mutated_tar = bytearray(raw_tar)
+                    header_start = regular.offset
+                    mutated_tar[header_start + 156 : header_start + 157] = type_flag
+                    mutated_tar[header_start + 148 : header_start + 156] = b" " * 8
+                    checksum = sum(mutated_tar[header_start : header_start + 512])
+                    mutated_tar[header_start + 148 : header_start + 156] = (
+                        f"{checksum:06o}\0 ".encode("ascii")
+                    )
+                    mutated = root / f"special-{type_flag.hex()}.tar.gz"
+                    with mutated.open("wb") as output:
+                        with gzip.GzipFile(
+                            filename="",
+                            mode="wb",
+                            compresslevel=9,
+                            fileobj=output,
+                            mtime=0,
+                        ) as compressed:
+                            compressed.write(mutated_tar)
+                    rejected = subprocess.run(
+                        [sys.executable, "-", str(mutated), source_sha],
+                        cwd=source,
+                        input=verifier,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertNotEqual(rejected.returncode, 0, rejected.stderr)
+                    self.assertIn("special", rejected.stderr.lower())
+
     def test_remote_smoke_verifies_and_safely_installs_release_asset(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         remote = text.split("\n  remote-smoke:\n", maxsplit=1)[1]
@@ -1289,6 +1508,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("scripts/generate_homebrew_formula.py", remote)
         self.assertIn('cmp -s "${expected_formula}" "${formula}"', remote)
         self.assertIn("links and special archive nodes are forbidden", remote)
+        self.assertIn("member.type == tarfile.DIRTYPE", remote)
+        self.assertIn(
+            "member.type not in (tarfile.REGTYPE, tarfile.DIRTYPE)", remote
+        )
         self.assertIn("archive member escapes extraction root", remote)
         self.assertIn("archive expands beyond the safety limit", remote)
         self.assertIn("distribution manifest provenance does not match", remote)
@@ -1302,10 +1525,23 @@ class PublishWorkflowContractTest(unittest.TestCase):
 
     def test_stable_release_cannot_drift_terminal_distribution_inputs(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        verify_job = text.split("\n  verify-release-assets:\n", maxsplit=1)[1].split(
+            "\n  release:\n", maxsplit=1
+        )[0]
         write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
             "\n  remote-smoke:\n", maxsplit=1
         )[0]
-        self.assertIn("targets/opencode-v1 profiles/opencode", write_job)
+        for path in (
+            "targets/opencode-v1",
+            "targets/opencode-v1-focused",
+            "profiles/opencode",
+            "policy/focused-context-v1.json",
+            "scripts/generate_context_projections.py",
+            "scripts/grillmester_local.py",
+        ):
+            self.assertIn(path, write_job)
+        self.assertIn("targets/copilot-cli-focused-v1", verify_job)
+        self.assertIn("stable_focused_digest", verify_job)
         self.assertIn(
             "scripts/compose_opencode_permissions.py scripts/release_contract.py",
             write_job,
@@ -1315,6 +1551,8 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "scripts/smoke_plugin_install.py",
             "scripts/smoke_opencode.py",
             "scripts/smoke_opencode_runtime.py",
+            "scripts/smoke_grillmester_local.py",
+            "scripts/smoke_grillmester_tui.py",
         ):
             self.assertIn(harness, write_job)
         for path in (

@@ -94,12 +94,21 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         launcher = source / "scripts/grillmester.py"
         launcher.write_bytes((ROOT / "scripts/grillmester.py").read_bytes())
         launcher.chmod(0o644)
+        for name in (
+            "grillmester_local.py",
+            "generate_context_projections.py",
+            "smoke_grillmester_local.py",
+        ):
+            support = source / "scripts" / name
+            support.write_bytes((ROOT / "scripts" / name).read_bytes())
+            support.chmod(0o644)
 
         shutil.copytree(ROOT / "plugin", source / "plugin")
 
         for source_relative, destination_relative in (
             ("policy/client-artifacts.json", "policy/client-artifacts.json"),
             ("policy/content-lock.json", "policy/content-lock.json"),
+            ("policy/focused-context-v1.json", "policy/focused-context-v1.json"),
             ("LICENSE", "LICENSE"),
             ("PROVENANCE.md", "PROVENANCE.md"),
             ("THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES.md"),
@@ -224,6 +233,22 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
         (target / "manifest.json").chmod(0o644)
+
+        for focused_name in ("opencode-v1-focused", "copilot-cli-focused-v1"):
+            shutil.copytree(
+                ROOT / "targets" / focused_name,
+                source / "targets" / focused_name,
+            )
+        focused_manifest_path = source / "targets/opencode-v1-focused/manifest.json"
+        focused_manifest = json.loads(focused_manifest_path.read_text(encoding="utf-8"))
+        focused_manifest["source"]["targetManifestSha256"] = sha256(
+            (target / "manifest.json").read_bytes()
+        )
+        focused_manifest_path.write_text(
+            json.dumps(focused_manifest, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        focused_manifest_path.chmod(0o644)
         return source
 
     def test_build_is_byte_reproducible_and_manifested_exactly(self) -> None:
@@ -265,8 +290,12 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 f"{ARCHIVE_ROOT}/THIRD_PARTY_NOTICES.md",
                 f"{ARCHIVE_ROOT}/policy/client-artifacts.json",
                 f"{ARCHIVE_ROOT}/policy/content-lock.json",
+                f"{ARCHIVE_ROOT}/policy/focused-context-v1.json",
                 f"{ARCHIVE_ROOT}/scripts/manage_opencode.py",
                 f"{ARCHIVE_ROOT}/scripts/grillmester.py",
+                f"{ARCHIVE_ROOT}/scripts/grillmester_local.py",
+                f"{ARCHIVE_ROOT}/scripts/generate_context_projections.py",
+                f"{ARCHIVE_ROOT}/scripts/smoke_grillmester_local.py",
                 f"{ARCHIVE_ROOT}/scripts/compose_opencode_permissions.py",
                 f"{ARCHIVE_ROOT}/scripts/verify_client_artifact.py",
                 f"{ARCHIVE_ROOT}/profiles/opencode/cloud-open-weight.json",
@@ -289,6 +318,12 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 for path in (source / "plugin").rglob("*")
                 if path.is_file()
             )
+            for focused_name in ("opencode-v1-focused", "copilot-cli-focused-v1"):
+                expected_files.update(
+                    f"{ARCHIVE_ROOT}/{path.relative_to(source).as_posix()}"
+                    for path in (source / "targets" / focused_name).rglob("*")
+                    if path.is_file()
+                )
             self.assertEqual(set(files), expected_files)
 
             manifest_member = files[f"{ARCHIVE_ROOT}/DISTRIBUTION-MANIFEST.json"]
@@ -313,6 +348,18 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 distribution["targetManifestSha256"],
                 sha256(target_manifest_bytes),
             )
+            self.assertEqual(
+                distribution["focusedContextPolicySha256"],
+                sha256((source / "policy/focused-context-v1.json").read_bytes()),
+            )
+            for field, relative in (
+                ("focusedOpenCodeManifestSha256", "opencode-v1-focused"),
+                ("focusedCopilotManifestSha256", "copilot-cli-focused-v1"),
+            ):
+                self.assertEqual(
+                    distribution[field],
+                    sha256((source / "targets" / relative / "manifest.json").read_bytes()),
+                )
 
             expected_manifest_paths = {
                 name.removeprefix(f"{ARCHIVE_ROOT}/")
@@ -407,12 +454,16 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         source = self.make_source("launcher-pin-drift")
         launcher = source / "scripts/grillmester.py"
         launcher.write_text(
-            launcher.read_text(encoding="utf-8").replace("1.18.20", "1.18.21"),
+            launcher.read_text(encoding="utf-8").replace(
+                'REVIEWED_LOCAL_OPENCODE_VERSION = "1.18.20"',
+                'REVIEWED_LOCAL_OPENCODE_VERSION = "1.18.21"',
+            ),
             encoding="utf-8",
         )
 
         with self.assertRaisesRegex(
-            BUILDER.BundleBuildError, "launcher must pin SUPPORTED_OPENCODE_VERSION"
+            BUILDER.BundleBuildError,
+            "launcher must pin REVIEWED_LOCAL_OPENCODE_VERSION",
         ):
             BUILDER.build_bundle(
                 source,
@@ -655,6 +706,15 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         }
         manifest_path.write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        focused_manifest_path = source / "targets/opencode-v1-focused/manifest.json"
+        focused_manifest = json.loads(focused_manifest_path.read_text(encoding="utf-8"))
+        focused_manifest["source"]["targetManifestSha256"] = sha256(
+            manifest_path.read_bytes()
+        )
+        focused_manifest_path.write_text(
+            json.dumps(focused_manifest, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
         )
 
         with self.assertRaisesRegex(BUILDER.BundleBuildError, "portable USTAR"):

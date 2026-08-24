@@ -86,8 +86,7 @@ jobs:
           rc_tag="$(jq -er '.rcTag' "${request}")"
           request_id="$(jq -er '.requestId' "${request}")"
 
-          git fetch --no-tags origin \
-            "refs/heads/main:refs/remotes/origin/main" \
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main" \
             "refs/heads/marketplace:refs/remotes/origin/marketplace"
           [[ "${MAIN_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
             echo "Release request is not current origin/main." >&2
@@ -240,6 +239,8 @@ jobs:
               "${rc_formula_url}" --output "${rc_published_formula}"
 
             rc_rebuilt_bundle="${RUNNER_TEMP}/rebuilt-${rc_bundle_name}"
+            python3 -I -S "${rc_source_repo}/scripts/generate_context_projections.py" \
+              --check
             python3 "${rc_source_repo}/scripts/build_opencode_bundle.py" \
               --source-root "${rc_source_repo}" --source-sha "${rc_source_sha}" \
               --output "${rc_rebuilt_bundle}"
@@ -266,7 +267,6 @@ jobs:
             python3 "${rc_source_repo}/scripts/generate_homebrew_formula.py" \
               --tag "${rc_tag}" --bundle-name "${rc_bundle_name}" \
               --bundle-sha256 "${rc_bundle_sha256}" \
-              --client-artifacts "${rc_source_repo}/policy/client-artifacts.json" \
               --output "${rc_expected_formula}"
             ruby -c "${rc_expected_formula}"
             cmp -s "${rc_expected_formula}" "${rc_published_formula}"
@@ -331,6 +331,8 @@ jobs:
           checksum="${RUNNER_TEMP}/${bundle_checksum_name}"
           formula="${RUNNER_TEMP}/grillmester.rb"
           formula_name="grillmester.rb"
+          python3 -I -S "${SOURCE_ROOT}/scripts/generate_context_projections.py" \
+            --check
           python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py" \
             --source-root "${SOURCE_ROOT}" --source-sha "${SOURCE_SHA}" \
             --output "${bundle}"
@@ -347,7 +349,6 @@ jobs:
           python3 "${SOURCE_ROOT}/scripts/generate_homebrew_formula.py" \
             --tag "${TAG}" --bundle-name "${bundle_name}" \
             --bundle-sha256 "${bundle_sha256}" \
-            --client-artifacts "${SOURCE_ROOT}/policy/client-artifacts.json" \
             --output "${formula}"
           ruby -c "${formula}"
           formula_sha256="$(sha256sum "${formula}" | cut -d' ' -f1)"
@@ -597,6 +598,7 @@ jobs:
       BUNDLE_SIZE: ${{ needs.validate.outputs.bundle-size }}
       CHANNEL: ${{ needs.validate.outputs.channel }}
       MAIN_SHA: ${{ needs.validate.outputs.main-sha }}
+      RC_SOURCE_SHA: ${{ needs.validate.outputs.rc-source-sha }}
       RUN_ID: ${{ github.run_id }}
       SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
       TAG: ${{ needs.validate.outputs.tag }}
@@ -682,9 +684,7 @@ jobs:
           [[ "${MAIN_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]]
           git cat-file -e "${SOURCE_SHA}^{commit}"
           git merge-base --is-ancestor "${SOURCE_SHA}" refs/remotes/origin/main
-          # This verifier is workflow-owned code, not code from SOURCE_SHA. It
-          # independently binds every archive byte to immutable Git blobs before
-          # the write token can create a public release.
+          # Git-bound archive verifier.
           python3 - "${bundle}" "${SOURCE_SHA}" <<'PY'
           import hashlib
           import io
@@ -837,6 +837,8 @@ jobs:
                       or member.uname != ""
                       or member.gname != ""
                       or member.mtime != 0
+                      or member.devmajor
+                      or member.devminor
                   ):
                       fail(f"archive metadata is not canonical for {relative}")
                   collision_key = unicodedata.normalize("NFC", relative.as_posix()).casefold()
@@ -845,13 +847,15 @@ jobs:
                   portable_paths[collision_key] = relative
                   normalized_names.append(relative.as_posix())
                   mode = stat.S_IMODE(member.mode)
-                  if member.isdir():
+                  if member.type not in (tarfile.REGTYPE, tarfile.DIRTYPE) or member.linkname:
+                      fail(f"links and special nodes are forbidden: {relative}")
+                  if member.type == tarfile.DIRTYPE:
                       if mode != 0o755 or member.size != 0:
                           fail(f"directory metadata is invalid for {relative}")
                       archive_directories.add(relative)
                       continue
-                  if not member.isreg() or mode not in (0o644, 0o755):
-                      fail(f"links and special nodes are forbidden: {relative}")
+                  if mode not in (0o644, 0o755):
+                      fail(f"invalid file mode for {relative}")
                   if len(relative.parts) == 1 or member.size > max_file_bytes:
                       fail(f"archive file is invalid or too large: {relative}")
                   aggregate_size += member.size
@@ -874,6 +878,9 @@ jobs:
 
           manager_path = "scripts/manage_opencode.py"
           launcher_path = "scripts/grillmester.py"
+          local_launcher_path = "scripts/grillmester_local.py"
+          local_smoke_path = "scripts/smoke_grillmester_local.py"
+          projection_generator_path = "scripts/generate_context_projections.py"
           composer_path = "scripts/compose_opencode_permissions.py"
           artifact_verifier_path = "scripts/verify_client_artifact.py"
           legal_source_to_archive = {
@@ -882,41 +889,38 @@ jobs:
               "THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
               "policy/content-lock.json": "policy/content-lock.json",
               "policy/client-artifacts.json": "policy/client-artifacts.json",
+              "policy/focused-context-v1.json": "policy/focused-context-v1.json",
           }
           profile_paths = {
               f"profiles/opencode/{profile}.json"
               for profile in ("cloud-open-weight", "hybrid", "local", "local-only")
           }
-          manager_nodes = git_tree(manager_path)
-          launcher_nodes = git_tree(launcher_path)
-          composer_nodes = git_tree(composer_path)
-          artifact_verifier_nodes = git_tree(artifact_verifier_path)
+          support_files = {
+              manager_path: ("lifecycle manager", 0o755),
+              launcher_path: ("Grillmester launcher", 0o755),
+              local_launcher_path: ("Grillmester local launcher", 0o644),
+              local_smoke_path: ("Grillmester local smoke", 0o644),
+              projection_generator_path: ("focused context generator", 0o644),
+              composer_path: ("permission composer", 0o644),
+              artifact_verifier_path: ("client artifact verifier", 0o755),
+          }
+          support_nodes = {}
+          for path, (label, _archive_mode) in support_files.items():
+              nodes = git_tree(path)
+              if set(nodes) != {path} or nodes[path][0] != "100644":
+                  fail(f"immutable source has no regular {label}")
+              support_nodes[path] = nodes[path]
           plugin_nodes = git_tree("plugin")
           profile_nodes = git_tree("profiles/opencode")
           target_nodes = git_tree("targets/opencode-v1")
+          focused_opencode_nodes = git_tree("targets/opencode-v1-focused")
+          focused_copilot_nodes = git_tree("targets/copilot-cli-focused-v1")
           legal_nodes = {}
           for source_path in legal_source_to_archive:
               nodes = git_tree(source_path)
               if set(nodes) != {source_path} or nodes[source_path][0] != "100644":
                   fail(f"immutable source has no regular legal artifact {source_path}")
               legal_nodes[source_path] = nodes[source_path]
-          if (
-              set(manager_nodes) != {manager_path}
-              or manager_nodes[manager_path][0] != "100644"
-          ):
-              fail("immutable source has no regular lifecycle manager")
-          if (
-              set(launcher_nodes) != {launcher_path}
-              or launcher_nodes[launcher_path][0] != "100644"
-          ):
-              fail("immutable source has no regular Grillmester launcher")
-          if set(composer_nodes) != {composer_path} or composer_nodes[composer_path][0] != "100644":
-              fail("immutable source has no regular permission composer")
-          if (
-              set(artifact_verifier_nodes) != {artifact_verifier_path}
-              or artifact_verifier_nodes[artifact_verifier_path][0] != "100644"
-          ):
-              fail("immutable source has no regular client artifact verifier")
           if set(profile_nodes) != profile_paths:
               fail("immutable source does not have exactly four runtime profiles")
           if any(node[0] != "100644" for node in profile_nodes.values()):
@@ -933,15 +937,38 @@ jobs:
           if not isinstance(target_entries, dict) or not target_entries:
               fail("target manifest file inventory is invalid")
 
-          expected_content = {
-              PurePosixPath(launcher_path): (git_blob(launcher_nodes[launcher_path]), 0o755),
-              PurePosixPath(manager_path): (git_blob(manager_nodes[manager_path]), 0o755),
-              PurePosixPath(composer_path): (git_blob(composer_nodes[composer_path]), 0o644),
-              PurePosixPath(artifact_verifier_path): (
-                  git_blob(artifact_verifier_nodes[artifact_verifier_path]), 0o755
+          focused_opencode_manifest_path = "targets/opencode-v1-focused/manifest.json"
+          focused_copilot_manifest_path = "targets/copilot-cli-focused-v1/manifest.json"
+          for label, path, nodes, target_name in (
+              (
+                  "focused OpenCode",
+                  focused_opencode_manifest_path,
+                  focused_opencode_nodes,
+                  "opencode-v1-focused",
               ),
-              PurePosixPath(target_manifest_path): (target_manifest_bytes, 0o644),
+              (
+                  "focused Copilot",
+                  focused_copilot_manifest_path,
+                  focused_copilot_nodes,
+                  "copilot-cli-focused-v1",
+              ),
+          ):
+              if path not in nodes or nodes[path][0] != "100644":
+                  fail(f"immutable source has no mode-0644 {label} manifest")
+              value = json_object(git_blob(nodes[path]), f"{label} manifest")
+              if (
+                  value.get("schemaVersion") != 1
+                  or value.get("target") != target_name
+                  or value.get("projection") != "focused-context-v1"
+                  or not isinstance(value.get("files"), dict)
+              ):
+                  fail(f"{label} manifest identity is invalid")
+
+          expected_content = {
+              PurePosixPath(path): (git_blob(support_nodes[path]), archive_mode)
+              for path, (_label, archive_mode) in support_files.items()
           }
+          expected_content[PurePosixPath(target_manifest_path)] = (target_manifest_bytes, 0o644)
           for source_path, archive_path in legal_source_to_archive.items():
               expected_content[PurePosixPath(archive_path)] = (
                   git_blob(legal_nodes[source_path]), 0o644
@@ -988,6 +1015,21 @@ jobs:
           if set(target_nodes) != expected_target_paths:
               fail("target source tree differs from its manifest inventory")
 
+          for label, nodes in (
+              ("focused OpenCode", focused_opencode_nodes),
+              ("focused Copilot", focused_copilot_nodes),
+          ):
+              if not nodes:
+                  fail(f"immutable source has no {label} tree")
+              for path, node in sorted(nodes.items()):
+                  source_mode = node[0]
+                  if source_mode not in ("100644", "100755"):
+                      fail(f"unsupported {label} source mode for {path}")
+                  expected_content[PurePosixPath(path)] = (
+                      git_blob(node),
+                      0o755 if source_mode == "100755" else 0o644,
+                  )
+
           manifest_entry = archive_files.pop(outer_manifest, None)
           if manifest_entry is None or manifest_entry[1] != 0o644:
               fail("distribution manifest is missing or has the wrong mode")
@@ -1011,6 +1053,15 @@ jobs:
               "opencodeVersion": "1.18.20",
               "cpltRelease": "2026.08.17-062831-1008a92",
               "targetManifestSha256": hashlib.sha256(target_manifest_bytes).hexdigest(),
+              "focusedOpenCodeManifestSha256": hashlib.sha256(
+                  git_blob(focused_opencode_nodes[focused_opencode_manifest_path])
+              ).hexdigest(),
+              "focusedCopilotManifestSha256": hashlib.sha256(
+                  git_blob(focused_copilot_nodes[focused_copilot_manifest_path])
+              ).hexdigest(),
+              "focusedContextPolicySha256": hashlib.sha256(
+                  git_blob(legal_nodes["policy/focused-context-v1.json"])
+              ).hexdigest(),
               "files": file_manifest,
           }
           expected_manifest_bytes = (json.dumps(expected_manifest, indent=2, sort_keys=True) + "\n").encode()
@@ -1031,8 +1082,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ && \
-             "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]
+          [[ "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ && "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]
           [[ "${MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
@@ -1052,16 +1102,13 @@ jobs:
           trusted_root="${RUNNER_TEMP}/trusted-formula-renderer"
           mkdir -m 700 "${trusted_root}"
           trusted_generator="${trusted_root}/generate_homebrew_formula.py"
-          client_lock="${trusted_root}/client-artifacts.json"
           expected_formula="${trusted_root}/grillmester.rb"
           git show "${MAIN_SHA}:scripts/generate_homebrew_formula.py" \
             > "${trusted_generator}"
-          git show "${SOURCE_SHA}:policy/client-artifacts.json" > "${client_lock}"
-          chmod 0400 "${trusted_generator}" "${client_lock}"
+          chmod 0400 "${trusted_generator}"
           python3 -I -S "${trusted_generator}" \
             --tag "${TAG}" --bundle-name "${BUNDLE_NAME}" \
             --bundle-sha256 "${BUNDLE_SHA256}" \
-            --client-artifacts "${client_lock}" \
             --output "${expected_formula}"
           [[ -f "${expected_formula}" && ! -L "${expected_formula}" ]]
           [[ "$(sha256sum "${expected_formula}" | cut -d' ' -f1)" == \
@@ -1290,6 +1337,34 @@ jobs:
               fail("Doctor Who remains in scope but brand status says renamed")
           PY
 
+      - name: Independently enforce focused Copilot stable parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${CHANNEL}" != "stable" ]]; then
+            [[ "${CHANNEL}" == "rc" && -z "${RC_SOURCE_SHA}" ]]
+            exit 0
+          fi
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ && \
+             "${RC_SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "${RC_SOURCE_SHA}^{commit}"
+          root="targets/copilot-cli-focused-v1"
+          git diff --quiet "${RC_SOURCE_SHA}" "${SOURCE_SHA}" -- "${root}" \
+            ":(exclude)${root}/plugin.json" ":(exclude)${root}/manifest.json"
+          [[ "$(git rev-parse "${SOURCE_SHA}:${root}/plugin.json")" == \
+             "$(git rev-parse "${SOURCE_SHA}:plugin/plugin.json")" ]]
+          [[ "$(git rev-parse "${RC_SOURCE_SHA}:${root}/plugin.json")" == \
+             "$(git rev-parse "${RC_SOURCE_SHA}:plugin/plugin.json")" ]]
+          stable_focused_digest="$(git show "${SOURCE_SHA}:${root}/plugin.json" | sha256sum | cut -d' ' -f1)"
+          rc_focused_digest="$(git show "${RC_SOURCE_SHA}:${root}/plugin.json" | sha256sum | cut -d' ' -f1)"
+          [[ "$(git show "${SOURCE_SHA}:${root}/manifest.json" | \
+            grep -o "${stable_focused_digest}" | wc -l)" == "2" ]]
+          [[ "$(git show "${RC_SOURCE_SHA}:${root}/manifest.json" | \
+            grep -o "${rc_focused_digest}" | wc -l)" == "2" ]]
+          [[ "$(git show "${SOURCE_SHA}:${root}/manifest.json" | \
+            sed "s/${stable_focused_digest}/${rc_focused_digest}/g")" == \
+             "$(git show "${RC_SOURCE_SHA}:${root}/manifest.json")" ]]
+
 
   release:
     needs:
@@ -1342,7 +1417,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ -n "${IMMUTABLE_RELEASES_ADMIN_READ_TOKEN}" ]] || {
-            echo "The protected environment lacks its Administration:read token." >&2
+            echo "Missing Administration:read release token." >&2
             exit 1
           }
           immutable_policy="$(curl --config /dev/null \
@@ -1365,7 +1440,6 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-
           [[ "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ && \
              "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]
           [[ "${MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
@@ -1395,7 +1469,6 @@ jobs:
           formula="${RUNNER_TEMP}/${FORMULA_NAME}"
           printf '%s' "${NOTES_BASE64}" | base64 --decode > "${notes}"
           [[ "$(sha256sum "${notes}" | cut -d' ' -f1)" == "${NOTES_SHA256}" ]]
-
           artifact="$(gh api \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
@@ -1441,31 +1514,25 @@ jobs:
           (cd "${RUNNER_TEMP}" && sha256sum --check --strict "${BUNDLE_CHECKSUM_NAME}")
           [[ "$(wc -c < "${formula}" | tr -d ' ')" == "${FORMULA_SIZE}" ]]
           [[ "$(sha256sum "${formula}" | cut -d' ' -f1)" == "${FORMULA_SHA256}" ]]
-
           git init --quiet
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote add origin \
-            "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
-          git fetch --no-tags origin \
-            "refs/heads/main:refs/remotes/origin/main" \
-            "refs/heads/marketplace:refs/remotes/origin/marketplace"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main" "refs/heads/marketplace:refs/remotes/origin/marketplace"
           [[ "${MAIN_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
-            echo "origin/main moved after validation; a new request is required." >&2
+            echo "origin/main moved; a new request is required." >&2
             exit 1
           }
           git cat-file -e "${BEFORE_SHA}^{commit}"
           git merge-base --is-ancestor "${BEFORE_SHA}" "${MAIN_SHA}"
           [[ "$(git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}")" == \
              ".github/release-request.json" ]]
-
           request="$(git show "${MAIN_SHA}:.github/release-request.json")"
           [[ "$(jq -r '.schemaVersion' <<<"${request}")" == "1" ]]
           [[ "$(jq -r '.channel' <<<"${request}")" == "${CHANNEL}" ]]
           [[ "$(jq -r '.catalogSha' <<<"${request}")" == "${CATALOG_SHA}" ]]
           [[ "$(jq -r '.rcTag' <<<"${request}")" == "${RC_TAG}" ]]
           [[ "$(jq -r '.requestId' <<<"${request}")" == "${REQUEST_ID}" ]]
-
           validate_catalog() {
             jq -e --arg v "$2" --arg s "$3" \
               '.name == "grillmester" and .metadata.version == $v and
@@ -1487,11 +1554,9 @@ jobs:
                   source: {source: "github", repo: "navikt/grillmester",
                     path: "plugin", sha: $s}}]}' > "$5"
           }
-
           git cat-file -e "${CATALOG_SHA}^{commit}"
           git cat-file -e "${SOURCE_SHA}^{commit}"
-          git merge-base --is-ancestor \
-            "${CATALOG_SHA}" refs/remotes/origin/marketplace
+          git merge-base --is-ancestor "${CATALOG_SHA}" refs/remotes/origin/marketplace
           git merge-base --is-ancestor "${SOURCE_SHA}" refs/remotes/origin/main
           expected_tree="100644 blob $(git rev-parse "${CATALOG_SHA}:.github/plugin/marketplace.json")"
           actual_tree="$(git ls-tree -r "${CATALOG_SHA}")"
@@ -1572,8 +1637,7 @@ jobs:
             [[ "v${rc_catalog_version}" == "${RC_TAG}" ]]
             validate_catalog \
               "${rc_catalog_file}" "${rc_catalog_version}" "${RC_SOURCE_SHA}"
-            git merge-base --is-ancestor \
-              "${RC_SOURCE_SHA}" refs/remotes/origin/main
+            git merge-base --is-ancestor "${RC_SOURCE_SHA}" refs/remotes/origin/main
             rc_package_manifest_file="${RUNNER_TEMP}/rc-package-manifest.json"
             rc_standard_manifest_file="${RUNNER_TEMP}/rc-grillmester-plugin.json"
             git show "${RC_SOURCE_SHA}:package-manifest.json" > "${rc_package_manifest_file}"
@@ -1584,20 +1648,12 @@ jobs:
             [[ "$(jq -er '.name' "${rc_standard_manifest_file}")" == "grillmester" ]]
             [[ "$(jq -er '.repository' "${rc_standard_manifest_file}")" == "https://github.com/navikt/grillmester" ]]
             [[ "${rc_version%%-*}" == "${version}" && "${rc_version}" == *-* ]]
-            [[ "$(jq -cS 'del(.version)' "${standard_manifest_file}")" == \
-               "$(jq -cS 'del(.version)' "${rc_standard_manifest_file}")" ]]
+            [[ "$(jq -cS 'del(.version)' "${standard_manifest_file}")" == "$(jq -cS 'del(.version)' "${rc_standard_manifest_file}")" ]]
+            [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" -- plugin ':(exclude)plugin/plugin.json')" ]]
             [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
-              -- plugin ':(exclude)plugin/plugin.json')" ]]
-            [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
-              -- LICENSE PROVENANCE.md THIRD_PARTY_NOTICES.md \
-                 policy/content-lock.json policy/client-artifacts.json \
-                 targets/opencode-v1 profiles/opencode \
-                 scripts/build_opencode_bundle.py scripts/grillmester.py \
-                 scripts/generate_homebrew_formula.py \
-                 scripts/manage_opencode.py \
-                 scripts/compose_opencode_permissions.py scripts/release_contract.py \
-                 scripts/verify_client_artifact.py scripts/smoke_plugin_install.py \
-                 scripts/smoke_opencode.py scripts/smoke_opencode_runtime.py)" ]]
+              -- LICENSE PROVENANCE.md THIRD_PARTY_NOTICES.md policy/content-lock.json policy/client-artifacts.json policy/focused-context-v1.json targets/opencode-v1 targets/opencode-v1-focused profiles/opencode \
+                 scripts/build_opencode_bundle.py scripts/grillmester.py scripts/grillmester_local.py scripts/generate_context_projections.py scripts/generate_homebrew_formula.py scripts/manage_opencode.py scripts/compose_opencode_permissions.py scripts/release_contract.py \
+                 scripts/verify_client_artifact.py scripts/smoke_plugin_install.py scripts/smoke_opencode.py scripts/smoke_opencode_runtime.py scripts/smoke_grillmester_local.py scripts/smoke_grillmester_tui.py)" ]]
 
             stable_version_pattern="${version//./\\.}"
             [[ "$(grep -Ec "\"version\"[[:space:]]*:[[:space:]]*\"${stable_version_pattern}\"" \
@@ -1681,7 +1737,7 @@ jobs:
             }
             target="$(git rev-parse "refs/tags/${TAG}^{}")"
             [[ "${target}" == "${CATALOG_SHA}" ]] || {
-              echo "Refusing to move ${TAG}; it identifies another catalog." >&2
+              echo "Release tag ${TAG} identifies another catalog." >&2
               exit 1
             }
           }
@@ -1691,7 +1747,7 @@ jobs:
             if ! git push origin "refs/tags/${TAG}"; then
               git tag -d "${TAG}"
               verify_remote_tag || {
-                echo "Concurrent tag creation produced another target." >&2
+                echo "Concurrent tag conflict." >&2
                 exit 1
               }
             fi
@@ -1834,7 +1890,7 @@ jobs:
           [[ "$(sha256sum "${published_assets}/${BUNDLE_NAME}" | cut -d' ' -f1)" == \
              "${BUNDLE_SHA256}" ]]
           if [[ "${release_already_published}" == "true" ]]; then
-            echo "Release ${TAG} and its sealed OpenCode assets already exist exactly; no-op."
+            echo "Release ${TAG} and sealed assets already match; no-op."
           else
             echo "Published ${TAG} with sealed OpenCode archive ${BUNDLE_NAME}."
           fi
@@ -1932,7 +1988,6 @@ jobs:
           python3 "${SOURCE_ROOT}/scripts/generate_homebrew_formula.py" \
             --tag "${TAG}" --bundle-name "${BUNDLE_NAME}" \
             --bundle-sha256 "${BUNDLE_SHA256}" \
-            --client-artifacts "${SOURCE_ROOT}/policy/client-artifacts.json" \
             --output "${expected_formula}"
           ruby -c "${formula}"
           cmp -s "${expected_formula}" "${formula}"
@@ -1987,23 +2042,33 @@ jobs:
                   if relative in seen:
                       raise SystemExit(f"duplicate archive path: {relative}")
                   seen.add(relative)
-                  if member.pax_headers or member.uid != 0 or member.gid != 0 or member.mtime != 0:
+                  if (
+                      member.pax_headers
+                      or member.uid != 0
+                      or member.gid != 0
+                      or member.mtime != 0
+                      or member.devmajor
+                      or member.devminor
+                  ):
                       raise SystemExit(f"non-canonical archive metadata: {relative}")
                   mode = stat.S_IMODE(member.mode)
-                  if member.isdir():
+                  if member.type not in (tarfile.REGTYPE, tarfile.DIRTYPE) or member.linkname:
+                      raise SystemExit(f"links and special archive nodes are forbidden: {relative}")
+                  if member.type == tarfile.DIRTYPE:
                       if mode != 0o755 or member.size != 0:
                           raise SystemExit(f"invalid directory metadata: {relative}")
-                  elif member.isreg():
+                  else:
                       if mode not in (0o644, 0o755) or member.size > 5_000_000:
                           raise SystemExit(f"invalid file metadata: {relative}")
                       total_size += member.size
                       if total_size > 50_000_000:
                           raise SystemExit("archive expands beyond the safety limit")
-                  else:
-                      raise SystemExit(f"links and special archive nodes are forbidden: {relative}")
                   normalized.append((relative, member))
               member_by_path = dict(normalized)
-              if archive_root not in member_by_path or not member_by_path[archive_root].isdir():
+              if (
+                  archive_root not in member_by_path
+                  or member_by_path[archive_root].type != tarfile.DIRTYPE
+              ):
                   raise SystemExit("archive root directory is missing")
 
               destination_resolved = destination.resolve()
@@ -2011,7 +2076,7 @@ jobs:
                   target = destination.joinpath(*relative.parts)
                   if not target.resolve().is_relative_to(destination_resolved):
                       raise SystemExit(f"archive member escapes extraction root: {relative}")
-                  if member.isdir():
+                  if member.type == tarfile.DIRTYPE:
                       target.mkdir(mode=0o755, exist_ok=True)
                   else:
                       target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
@@ -2030,7 +2095,9 @@ jobs:
           )
           required_keys = {
               "schemaVersion", "sourceSha", "target", "opencodeVersion",
-              "cpltRelease", "targetManifestSha256", "files",
+              "cpltRelease", "targetManifestSha256",
+              "focusedOpenCodeManifestSha256", "focusedCopilotManifestSha256",
+              "focusedContextPolicySha256", "files",
           }
           if not isinstance(manifest, dict) or set(manifest) != required_keys:
               raise SystemExit("distribution manifest shape is invalid")
@@ -2061,6 +2128,43 @@ jobs:
           target_manifest = bundle_root / "targets/opencode-v1/manifest.json"
           if hashlib.sha256(target_manifest.read_bytes()).hexdigest() != manifest["targetManifestSha256"]:
               raise SystemExit("target manifest digest does not match distribution manifest")
+          focused_opencode_manifest = (
+              bundle_root / "targets/opencode-v1-focused/manifest.json"
+          )
+          focused_copilot_manifest = (
+              bundle_root / "targets/copilot-cli-focused-v1/manifest.json"
+          )
+          focused_policy = bundle_root / "policy/focused-context-v1.json"
+          digest_bindings = (
+              (
+                  focused_opencode_manifest,
+                  "focusedOpenCodeManifestSha256",
+                  "focused OpenCode manifest",
+              ),
+              (
+                  focused_copilot_manifest,
+                  "focusedCopilotManifestSha256",
+                  "focused Copilot manifest",
+              ),
+              (
+                  focused_policy,
+                  "focusedContextPolicySha256",
+                  "focused context policy",
+              ),
+          )
+          for path, key, label in digest_bindings:
+              if not path.is_file() or path.is_symlink():
+                  raise SystemExit(f"{label} is missing or unsafe")
+              if hashlib.sha256(path.read_bytes()).hexdigest() != manifest[key]:
+                  raise SystemExit(f"{label} digest does not match distribution manifest")
+          for relative in (
+              "scripts/grillmester_local.py",
+              "scripts/generate_context_projections.py",
+              "scripts/smoke_grillmester_local.py",
+          ):
+              path = bundle_root / relative
+              if not path.is_file() or path.is_symlink():
+                  raise SystemExit(f"required local-mode support file is missing: {relative}")
           PY
 
           bundle_root="${extract_root}/grillmester-opencode-v1"

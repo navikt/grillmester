@@ -51,6 +51,13 @@ PERMISSION_COMPOSER_RELATIVE = PurePosixPath(
 ARTIFACT_VERIFIER_RELATIVE = PurePosixPath("scripts/verify_client_artifact.py")
 CLIENT_ARTIFACTS_RELATIVE = PurePosixPath("policy/client-artifacts.json")
 CONTENT_LOCK_RELATIVE = PurePosixPath("policy/content-lock.json")
+FOCUSED_OPENCODE_MANIFEST_RELATIVE = PurePosixPath(
+    "targets/opencode-v1-focused/manifest.json"
+)
+FOCUSED_COPILOT_MANIFEST_RELATIVE = PurePosixPath(
+    "targets/copilot-cli-focused-v1/manifest.json"
+)
+FOCUSED_CONTEXT_POLICY_RELATIVE = PurePosixPath("policy/focused-context-v1.json")
 LICENSE_RELATIVE = PurePosixPath("LICENSE")
 PROVENANCE_RELATIVE = PurePosixPath("PROVENANCE.md")
 THIRD_PARTY_NOTICES_RELATIVE = PurePosixPath("THIRD_PARTY_NOTICES.md")
@@ -1270,7 +1277,7 @@ def _parse_distribution_manifest(
         max_bytes=MAX_JSON_BYTES,
     )
     manifest = _parse_json_object(manifest_bytes, label="distribution manifest")
-    expected_fields = {
+    legacy_fields = {
         "schemaVersion",
         "sourceSha",
         "target",
@@ -1279,8 +1286,28 @@ def _parse_distribution_manifest(
         "targetManifestSha256",
         "files",
     }
-    if set(manifest) != expected_fields:
+    focused_fields = {
+        "focusedOpenCodeManifestSha256",
+        "focusedCopilotManifestSha256",
+        "focusedContextPolicySha256",
+    }
+    observed_fields = set(manifest)
+    if require_current_contract:
+        if observed_fields != legacy_fields | focused_fields:
+            raise LifecycleError(
+                "distribution manifest has unexpected or missing fields"
+            )
+    elif observed_fields not in (legacy_fields, legacy_fields | focused_fields):
+        # Rollback still verifies releases sealed before the focused targets
+        # became part of the distribution manifest.
         raise LifecycleError("distribution manifest has unexpected or missing fields")
+    for focused_field in sorted(focused_fields & observed_fields):
+        focused_digest = manifest.get(focused_field)
+        if (
+            not isinstance(focused_digest, str)
+            or RELEASE_ID_PATTERN.fullmatch(focused_digest) is None
+        ):
+            raise LifecycleError(f"distribution {focused_field} is invalid")
     if type(manifest.get("schemaVersion")) is not int or manifest["schemaVersion"] != 1:
         raise LifecycleError("distribution manifest schemaVersion must be 1")
     if (
@@ -1390,6 +1417,14 @@ def verify_distribution(
                 THIRD_PARTY_NOTICES_RELATIVE,
             }
         )
+    if "focusedOpenCodeManifestSha256" in manifest:
+        required.update(
+            {
+                FOCUSED_OPENCODE_MANIFEST_RELATIVE,
+                FOCUSED_COPILOT_MANIFEST_RELATIVE,
+                FOCUSED_CONTEXT_POLICY_RELATIVE,
+            }
+        )
     absent_required = sorted(required - expected, key=str)
     if absent_required:
         raise LifecycleError(
@@ -1460,6 +1495,31 @@ def verify_distribution(
     target = verify_bundle(target_root, immutable=immutable)
     if _sha256(target.manifest_bytes) != manifest["targetManifestSha256"]:
         raise LifecycleError("distribution target manifest digest does not match target")
+    if "focusedOpenCodeManifestSha256" in manifest:
+        for field, relative, label in (
+            (
+                "focusedOpenCodeManifestSha256",
+                FOCUSED_OPENCODE_MANIFEST_RELATIVE,
+                "focused OpenCode target manifest digest",
+            ),
+            (
+                "focusedCopilotManifestSha256",
+                FOCUSED_COPILOT_MANIFEST_RELATIVE,
+                "focused Copilot target manifest digest",
+            ),
+            (
+                "focusedContextPolicySha256",
+                FOCUSED_CONTEXT_POLICY_RELATIVE,
+                "focused context policy digest",
+            ),
+        ):
+            focused_bytes = _regular_file_bytes(
+                root.joinpath(*relative.parts), label=str(relative)
+            )
+            if _sha256(focused_bytes) != manifest[field]:
+                raise LifecycleError(
+                    f"distribution {label} does not match the bundled file"
+                )
     if require_current_contract:
         content_lock = _parse_json_object(
             _regular_file_bytes(

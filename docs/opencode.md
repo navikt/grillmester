@@ -1,10 +1,11 @@
 # Bruke Grillmester i OpenCode
 
-Grillmester har et komplett, native target for den release-gatede klienten
-OpenCode `1.18.20`: 7 agenter, 42 skills og 42 slash commands. Agentmodus,
-toolnavn, delegering og permissions er oversatt til OpenCodes egne kontrakter;
-det er ikke Copilot-pluginen pakket inn på nytt. Andre OpenCode 1-versjoner er
-`UNVERIFIED` til de har passert samme gate.
+Grillmester har et komplett, native target for OpenCode 1.x fra `1.18.20`: 7
+agenter, 42 skills og 42 slash commands. Agentmodus, toolnavn, delegering og
+permissions er oversatt til OpenCodes egne kontrakter; det er ikke
+Copilot-pluginen pakket inn på nytt. `1.18.20` er den eksakte
+release-testbaselinen. Standardlauncheren godtar nyere 1.x-versjoner, mens den
+valgfrie high-assurance-manageren fortsatt krever eksakt testede klientbytes.
 
 ## Kom i gang
 
@@ -17,9 +18,17 @@ installasjonsguiden markerer tap-bootstrapen som aktiv:
 brew install navikt/tap/grillmester
 ```
 
-Formelen installerer én checksummet Grillmester-release sammen med de eksakte
-OpenCode- og cplt-binærene releasen er testet mot. De ligger privat i formelen,
-så en separat oppgradering av globale klienter endrer ikke Grillmester-flyten.
+Formelen installerer én checksummet Grillmester-release og bruker cplt fra den
+separate, påkrevde Homebrew-avhengigheten. OpenCode er en brukerinstallert
+systemklient. Installer og oppdater den gjennom dens egen pakkekanal:
+
+```bash
+brew install opencode
+```
+
+Grillmester resolver `opencode` fra `PATH`; den installerer, erstatter eller
+skygger aldri klienten. Dette er en terminalklient, ikke en macOS-app som vises
+i Launchpad eller `/Applications`.
 
 Start velgeren fra repoet du vil arbeide i:
 
@@ -27,9 +36,13 @@ Start velgeren fra repoet du vil arbeide i:
 grillmester
 ```
 
-Velg **OpenCode** og deretter Grillmester, Barista, Designer eller Doctor Who.
-Kombinasjonen kan lagres som default. Neste gang holder det å trykke Enter;
-`grillmester choose` åpner begge valgene på nytt. For en eksplisitt sesjon:
+Launcheren finner installerte klienter på `PATH` uten å starte dem. Velg
+**OpenCode** og deretter Grillmester, Barista, Designer eller Doctor Who. Bare
+valgt klient versjonssjekkes gjennom cplt mot en tom, midlertidig mappe før
+kombinasjonen kan lagres som default. Neste
+gang holder det å trykke Enter; `grillmester choose` åpner valgene på nytt. Hvis
+OpenCode mangler, vises `brew install opencode`; det skjer ingen stille fallback
+til Copilot. For en eksplisitt sesjon:
 
 ```bash
 grillmester --client opencode --agent grillmester
@@ -46,20 +59,26 @@ Kontroller installasjonen uten å starte en agentsesjon:
 grillmester doctor --client opencode
 ```
 
+Dette kjører bare OpenCodes strenge `--version`-probe inne i cplt. Proben har
+timeout og outputgrense, bruker en disposable 0700-prosjektmappe og får aldri
+skriverettighet i consumer-repoet.
+
 ### Lokal modell på macOS
 
-Gi cplt tilgang til den eksakte localhost-porten og velg modellen i OpenCode:
+Bruk den local-only launcheren. Den lager providerconfigen, åpner bare den
+eksakte loopback-porten og bruker focused Barista som default:
 
 ```bash
-grillmester --client opencode --agent grillmester \
-  --allow-localhost 1234 \
-  -- --model lmstudio/replace-with-id-from-v1-models
+grillmester local setup --client opencode
+grillmester local
+grillmester local --full --agent grillmester
 ```
 
-Bruk `--allow-localhost 8080` for `llama-server`. Dette er den normale,
-unmanaged cplt-flyten, ikke managerprofilen `local-only`. Det komplette
-provideroppsettet ligger i [guiden for lokale
-modeller](local-models.md#koble-opencode-til-den-lokale-serveren).
+`setup` bruker `http://127.0.0.1:8080/v1` som default og leser modellene fra
+`/v1/models`; oppgi `--base-url http://127.0.0.1:1234/v1` for LM Studio.
+Engangsvalgene endrer ikke lagret default. Manuell, model-neutral binding og
+managerprofilene ligger under [avansert lokal
+konfigurasjon](local-models.md#avansert-manuell-opencode-binding).
 
 ### Cloud-provider
 
@@ -90,7 +109,7 @@ samme kommandoen er nok for `/connect`. Hvis du eller global cplt-config bruker
 `--preset strict`, `--default-allowlist` eller
 `proxy.default_allowlist=true`, velger cplt derimot OpenCode-agentens
 infrastrukturliste, ikke Copilot-agentens providerliste. Legg da følgende
-eksakte domener fra den pinnede cplt-releasens Copilot-liste i en brukereid fil:
+eksakte domener fra den testede cplt-baselinens Copilot-liste i en brukereid fil:
 
 ```text
 githubcopilot.com
@@ -104,8 +123,10 @@ default.exp2.cds.s9ch.io
 Bind filen til samme native launch med
 `--allowed-domains /absolute/path/to/opencode-copilot-domains.txt`. cplt merger
 filen med OpenCodes egne standarddomener og package-registries. Bare domener
-som faktisk trengs for den pinnede OpenCode-/cplt-kombinasjonen skal stå der;
-les `BLOCKED-ALLOWLIST` i proxyloggen ved en kontrollert oppgradering. Ikke bruk
+som faktisk trengs for den installerte OpenCode-/cplt-kombinasjonen skal stå
+der. Listen under er reviewet mot OpenCode `1.18.20` og cplt
+`2026.08.17-062831-1008a92`; les `BLOCKED-ALLOWLIST` i proxyloggen ved en
+kontrollert oppgradering. Ikke bruk
 `--allow-all-domains` som kompatibilitetsfiks, fordi den slår av den
 fail-closed domenegrensen.
 
@@ -135,7 +156,7 @@ kvantisering, provider og contextprofil må bestå sin egen capability- og
 kvalitetssmoke.
 
 OpenCode 2 er fortsatt beta og er ikke en støttet Grillmester-klientflate. Bruk
-binæren `opencode`, ikke `opencode2`, for den release-gatede flaten. Se
+binæren `opencode`, ikke `opencode2`, for den støttede OpenCode 1-flaten. Se
 [grensen mot OpenCode 2](#grensen-mot-opencode-2).
 
 ## Avansert: manuell binding og verifisering
@@ -176,20 +197,21 @@ sandboxwrapper eller lifecycle-manager er nødvendig for selve cplt-
 kompatibiliteten. Den vanlige `grillmester`-launcheren håndterer støttefilen
 over automatisk og avviser symlinker eller andre ikke-regulære filer.
 
-### Installer eksakte klienter manuelt
+### Installer den eksakte testbaselinen manuelt
 
-Installer den release-gatede OpenCode-versjonen og kontroller den eksakte
-versjonen:
+Standardlauncheren støtter OpenCode 1.x fra `1.18.20`. For å gjenskape den
+eksakte release-testbaselinen eller bruke manageren installerer du og
+versjonskontrollerer denne versjonen:
 
 ```bash
 npm install --global opencode-ai@1.18.20
 test "$(opencode --version)" = "1.18.20"
 ```
 
-Den reviewede nettverkskontrakten er pinnet til
+Managerens reviewede nettverkskontrakt er pinnet til
 cplt [`2026.08.17-062831-1008a92`](https://github.com/navikt/cplt/releases/tag/2026.08.17-062831-1008a92).
-Hvis du velger den globale cplt-formelen i den manuelle flyten, må den faktisk
-resolve denne releasen:
+Hvis du velger den globale cplt-formelen i managerflyten, må den faktisk resolve
+denne releasen:
 
 ```bash
 brew install navikt/tap/cplt
@@ -204,8 +226,8 @@ under for en OpenCode-only validering.
 
 Se OpenCodes [offisielle CLI-guide](https://opencode.ai/docs/cli/) og cplts
 [offisielle installasjon](https://github.com/navikt/cplt#install). En nyere
-OpenCode-binær eller cplt-release er ikke automatisk dekket av Grillmesters
-release-gate.
+OpenCode 1.x-binær eller datostemplet cplt-release kan brukes av
+standardlauncheren, men har ikke managerens eksakte checksum- og bytegaranti.
 
 ### Hent og verifiser en Grillmester-bundle
 
@@ -257,7 +279,8 @@ Skill mellom en bekvemmelighetsinstallasjon og bootstrap-evidens. Ved en vanlig
 `postinstall` kjører `verifyBinary` før manageren kan hashe den installerte
 binæren. Den separate, globale Homebrew-formelen for cplt er en
 bekvemmelighetsinstallasjon, ikke bevis på en high-assurance bootstrap. Den
-normale Grillmester-formelen har egne arkivchecksums, men er heller ikke en
+normale Grillmester-formelens checksum dekker Grillmester-bundle-en, ikke de
+separat installerte klientbinærene, og er heller ikke en
 publisher-attestasjon.
 
 For høy assurance: hent den eksakte npm-plattformpakken for OpenCode `1.18.20`
@@ -691,9 +714,9 @@ OPENCODE_CONFIG_DIR="$CONFIG_DIR" \
 ```
 
 Ingen custom sandboxwrapper er nødvendig for denne native integrasjonen.
-OpenCode 1.18.20 forsøker likevel å opprette `.gitignore` i både targetet og
-brukerconfigen før TUI-en vises. Release-targetet inneholder derfor den eksakte
-targetfilen. Ved manuell binding må en eksisterende, regulær
+OpenCode 1.18.20-testbaselinen forsøker likevel å opprette `.gitignore` i både
+targetet og brukerconfigen før TUI-en vises. Release-targetet inneholder derfor
+den eksakte støttefilen. Ved manuell binding må en eksisterende, regulær
 `$XDG_CONFIG_HOME/opencode/.gitignore` også finnes; den felles `grillmester`-
 launcheren oppretter den bare når den mangler og endrer aldri en eksisterende
 fil. Dette løser oppstarten uten generell write-tilgang til configen.
@@ -919,4 +942,12 @@ versjons-, cplt- eller local-only-garanti for `opencode2`. Se den offisielle
 Arkitekturbegrunnelsen ligger i
 [ADR 0001](adr/0001-native-opencode-v1-target.md) for targetformatet og
 [ADR 0002](adr/0002-install-and-launch-opencode-bundles.md) for
-installasjon, staging, cplt og profiler.
+managerens installasjon, staging og profiler. [ADR
+0003](adr/0003-one-terminal-entrypoint-through-cplt.md) etablerer den felles
+terminalkommandoen, mens [ADR
+0004](adr/0004-use-user-installed-terminal-clients.md) eier standardflytens
+systemklienter og kompatibilitetsgrense. [ADR
+0005](adr/0005-focused-context-projection-for-local-models.md) avgrenser focused-
+projeksjonen, og [ADR
+0006](adr/0006-local-model-launcher-and-trust-boundary.md) eier den eksplisitte
+local-launcheren og trustgrensen.

@@ -12,13 +12,25 @@ generated source archive for the release therefore contains only
 `.github/plugin/marketplace.json`; it is not an installation artifact. Install
 the Copilot plugin through the Grillmester marketplace. The same GitHub Release
 also attaches a deterministic terminal bundle and detached `.sha256`; the
-generated Homebrew formula installs that bundle together with its exact macOS
-OpenCode and cplt resources. Direct archive extraction is the manual path.
+generated Homebrew formula installs that bundle and declares cplt as an
+external Homebrew dependency. OpenCode and Copilot CLI remain separately
+installed system clients resolved from `PATH`. Direct archive extraction is the
+manual path.
 Never move, replace, delete, or force-update a release tag or replace an
 existing release asset. Each release has exactly three maintained assets: the
 terminal bundle, its detached checksum, and `grillmester.rb`.
 
 ## Workflows and trust boundary
+
+A scheduled **Upstream client watch** compares the reviewed local-mode client
+pins with the OpenCode and Copilot CLI versions Homebrew currently distributes,
+and keeps at most one drift issue open. It has no write access to pins, digests,
+or policy; re-gating a selected combination is always a human-reviewed change
+through the gates below. Maintainers do not need to certify every upstream
+release: select a current baseline on a regular cadence, and re-gate sooner for
+security- or compatibility-relevant changes. Standard `grillmester` remains on
+its compatible version ranges independently of this local-only pin. Run
+`python3 scripts/watch_upstream_clients.py --report-only` for a local check.
 
 Three workflows have deliberately separate jobs:
 
@@ -44,8 +56,8 @@ Three workflows have deliberately separate jobs:
   job also builds the terminal bundle twice, requires byte identity, verifies
   `DISTRIBUTION-MANIFEST.json`, and seals the exact `tar.gz`, detached checksum
   and release notes. It generates and syntax-checks `grillmester.rb`, bound to
-  the same bundle checksum and committed macOS client artifacts, and seals it
-  as the third GitHub Release asset. A separate read-only job retrieves the
+  the same bundle checksum and external cplt dependency, and seals it as the
+  third GitHub Release asset. A separate read-only job retrieves the
   exact immutable
   artifact ID and uses fixed workflow-owned code to match every archive file,
   mode, manifest entry, and canonical archive property to immutable Git blobs
@@ -55,11 +67,20 @@ Three workflows have deliberately separate jobs:
   archives and executables before their first execution, runs the native and
   cplt runtime smokes, proves Seatbelt's same-host localhost semantics plus
   blocked remote-host classification under forced proxy policy, and launches
-  the installed manager through `local-only` with an explicit local provider,
+  all four local-model combinations (OpenCode/Copilot CLI × focused/full)
+  through the exact cplt and clients. Copilot scenarios force normal delegation
+  to Grill-inspektøren and require the exact loopback model in the primary,
+  subagent and return requests. The matrix then launches the installed manager
+  through `local-only` with an explicit local provider,
   exact loopback base URL, model ID, and positive context/output limits. The
   structurally separate Homebrew matrix rebuilds the deterministic bundle,
-  consumes the independently verified release formula when publishing, then
-  audits, installs, tests and uninstalls the formula.
+  provisions OpenCode as an external test client and cplt as the formula
+  dependency, consumes the independently verified release formula when
+  publishing, then audits, installs, tests and uninstalls the formula. It also
+  proves that the formula has no private client directory and resolves the
+  expected `PATH` binaries. The same matrix also starts a real installed
+  Copilot CLI through the installed launcher and cplt with OpenCode excluded
+  from `PATH`, using `--help` without a model call.
   Only after all of those jobs succeed does the workflow wait at the protected
   `grillmester-release` environment. The three asset files cross
   that boundary in one immutable
@@ -87,10 +108,11 @@ the current-main guard fails closed; dispatch a fresh run from current `main`.
 ### Terminal asset contract
 
 The asset's `DISTRIBUTION-MANIFEST.json` must bind the selected source SHA,
-OpenCode `1.18.20`, cplt `2026.08.17-062831-1008a92`, the inner target manifest
-digest, the canonical Copilot plugin, the common launcher, and the complete
-distribution inventory. Every cplt-backed profile
-requires that exact cplt release. The manager and native agents have no runtime
+the OpenCode `1.18.20` and cplt `2026.08.17-062831-1008a92` test baseline, the
+inner target manifest digest, the canonical Copilot plugin, the common launcher,
+and the complete distribution inventory. Standard launch accepts OpenCode 1.x
+from that baseline and newer dated cplt releases; every manager-backed profile
+requires the exact baseline. The manager and native agents have no runtime
 dependency on `nav-pilot-agent`, the Copilot plugin installation, or a Copilot
 agent. `--direct` remains an explicit opt-out from cplt sandbox and egress
 policy; it is not the default or a `local-only` mode. Passing this release gate
@@ -395,14 +417,33 @@ Use an immutable release tag when rollout must wait for a separate approval.
 Record App and VS Code behavior separately; neither may be inferred from the
 CLI result.
 
+### Gate the local-model harness
+
+Before an RC is called ready for a local-model pilot, both Apple Silicon and
+Intel jobs must run the bundled `scripts/smoke_grillmester_local.py` with
+`--require-binaries`. The gate uses checksum-verified cplt, OpenCode and
+Copilot CLI binaries, one deterministic loopback provider and no GitHub Copilot
+cloud model. It fails if the wrong focused/full payload loads, the consumer
+repository changes, a credential canary leaks, or any of Copilot's three
+delegation requests uses another model ID.
+
+The protocol smoke is not model quality. Before stable promotion, run the same
+immutable RC against at least one actually permitted local model in both
+clients. Record the model artifact/revision, quantization, server version,
+machine, context limit, focused/full input tokens, tool calls, delegation,
+output quality and that Copilot reports zero premium requests. Use an empty,
+disposable consumer repository and no cloud model. Passing a Qwen pilot does
+not extend the support claim to another model or quantization.
+
 ### Publish the Homebrew entrypoint
 
 Homebrew needs one reviewed bootstrap PR in `navikt/homebrew-tap`, not one PR
 per Grillmester release. Do not open that PR until an immutable stable release
 exists and the exact published `grillmester.rb` has passed the Apple Silicon
 and Intel matrix, strict audit, clean install, `brew test`, launcher doctor,
-installed OpenCode-TUI startup through cplt without a model call, and uninstall
-checks.
+externally installed OpenCode-TUI startup through cplt without a model call,
+installed Copilot CLI through launcher+cplt with OpenCode excluded from `PATH`,
+missing-client diagnostics, and uninstall checks.
 
 For the bootstrap, download `grillmester.rb` from the immutable stable release,
 regenerate it from the exact release source, and compare byte-for-byte:
@@ -412,14 +453,15 @@ python3 scripts/generate_homebrew_formula.py \
   --tag vREPLACE_WITH_VERSION \
   --bundle-name grillmester-opencode-vREPLACE_WITH_VERSION.tar.gz \
   --bundle-sha256 REPLACE_WITH_RELEASE_BUNDLE_SHA256 \
-  --client-artifacts policy/client-artifacts.json \
   --output /tmp/grillmester.rb
 ```
 
-The formula downloads the checksummed Grillmester bundle and the exact macOS
-OpenCode and cplt archives from `policy/client-artifacts.json`. It prepends the
-two clients to `PATH` only for `grillmester`, so global upgrades cannot drift an
-installed release. Users who select that client install Copilot CLI separately.
+The formula downloads only the checksummed Grillmester bundle, declares
+`navikt/tap/cplt` and Python as external dependencies, and never packages or
+prepends a private OpenCode or Copilot CLI. Users install the clients they want
+with `brew install opencode` and/or `brew install --cask copilot-cli`; the
+launcher resolves those system binaries from `PATH`. The optional manager still
+uses `policy/client-artifacts.json` for its explicit high-assurance path.
 
 The same bootstrap PR adds one tap-owned scheduled updater. It polls GitHub's
 latest non-draft, non-prerelease Grillmester release and accepts only a newer
@@ -438,11 +480,13 @@ publish a new immutable release, and let the updater carry the reviewed bytes.
 
 Before the bootstrap PR is opened, prove clean install on both architectures,
 install-to-upgrade between two immutable test releases, preference retention,
-checksum failure with the previous keg left active, and documented uninstall
-behavior. Do not announce `brew install navikt/tap/grillmester` as available
-until the tap PR has merged and a clean install from the real tap passes
-`grillmester doctor --client opencode`. The PR that enables the public command
-in README is the final rollout step.
+checksum failure with the previous keg left active, missing OpenCode with an
+actionable install command, installed Copilot CLI without OpenCode, absence of
+private client copies, and documented uninstall behavior. Do not announce
+`brew install navikt/tap/grillmester` as available until the tap PR has merged
+and a clean install from the real tap passes `grillmester doctor --client
+opencode` with OpenCode installed separately. The PR that enables the public
+command in README is the final rollout step.
 
 ## Promote a reviewed candidate to stable
 
@@ -515,11 +559,16 @@ Do not rewrite a bad release. Stop adoption and:
 3. Publish a new version containing the correction. Catalog version reuse is
    rejected, including reuse of an older historical version.
 
-For an OpenCode installation, run `rollback` with the manager from the
-checksum-verified, extracted release bundle after stopping the active session.
-It re-verifies `active` and `previous` before atomically swapping them; do not
-recover by editing state, copying a target from a checkout, or replacing a
-published asset.
+The standard PATH-client launcher and the optional native cplt command create
+no Grillmester lifecycle installation. Stop the active session and recover the
+affected Grillmester, OpenCode, or cplt version through its own installation
+channel; do not run `manage_opencode.py rollback` for this standard flow.
+
+Only when the optional high-assurance manager was installed, run `rollback`
+with the manager from the checksum-verified, extracted release bundle after
+stopping the active session. It re-verifies `active` and `previous` before
+atomically swapping them; do not recover by editing state, copying a target
+from a checkout, or replacing a published asset.
 
 Normal recovery is roll-forward. Any temporary ruleset enforcement change must
 be authorized by a repository administrator, recorded in the incident, returned

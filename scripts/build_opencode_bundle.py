@@ -27,8 +27,16 @@ from typing import Any, Sequence
 ARCHIVE_ROOT = PurePosixPath("grillmester-opencode-v1")
 TARGET_NAME = "opencode-v1"
 TARGET_DIRECTORY = PurePosixPath("targets/opencode-v1")
+FOCUSED_OPENCODE_TARGET_NAME = "opencode-v1-focused"
+FOCUSED_OPENCODE_DIRECTORY = PurePosixPath("targets/opencode-v1-focused")
+FOCUSED_COPILOT_TARGET_NAME = "copilot-cli-focused-v1"
+FOCUSED_COPILOT_DIRECTORY = PurePosixPath("targets/copilot-cli-focused-v1")
 PLUGIN_DIRECTORY = PurePosixPath("plugin")
 LAUNCHER_PATH = PurePosixPath("scripts/grillmester.py")
+LOCAL_LAUNCHER_PATH = PurePosixPath("scripts/grillmester_local.py")
+LOCAL_SMOKE_PATH = PurePosixPath("scripts/smoke_grillmester_local.py")
+PROJECTION_GENERATOR_PATH = PurePosixPath("scripts/generate_context_projections.py")
+FOCUSED_POLICY_PATH = PurePosixPath("policy/focused-context-v1.json")
 MANAGER_PATH = PurePosixPath("scripts/manage_opencode.py")
 PERMISSION_COMPOSER_PATH = PurePosixPath("scripts/compose_opencode_permissions.py")
 ARTIFACT_VERIFIER_PATH = PurePosixPath("scripts/verify_client_artifact.py")
@@ -63,6 +71,15 @@ REQUIRED_PROFILES = frozenset(
 )
 OPENCODE_OVERLAY_SKILL_IDS = frozenset(
     {"grillmester-create-a-skill", "grillmester-doctor"}
+)
+FOCUSED_AGENT_IDS = ("barista", "grill-inspektor")
+FOCUSED_SKILL_IDS = (
+    "grillmester-diagnosing-bugs",
+    "grillmester-integration-tests",
+    "grillmester-pull-request",
+    "grillmester-review",
+    "grillmester-security-review",
+    "grillmester-tdd",
 )
 BASE_PROFILE_ENVIRONMENT = {
     "OPENCODE_CONFIG_CONTENT": '{"autoupdate":false,"share":"disabled"}',
@@ -893,6 +910,224 @@ def _target_files(
     return result, manifest_bytes
 
 
+def _focused_target_files(
+    source_root: Path,
+    *,
+    directory: PurePosixPath,
+    target_name: str,
+    client: str,
+    policy_sha256: str,
+    canonical_source_sha256: str,
+) -> tuple[list[BundleFile], bytes]:
+    """Verify one generated focused projection before it enters the bundle."""
+
+    target = source_root.joinpath(*directory.parts)
+    _require_directory(target, label=f"{target_name} directory")
+    manifest_bytes, manifest_mode = _read_regular(
+        target / "manifest.json",
+        label=f"{target_name} manifest",
+        max_bytes=MAX_JSON_BYTES,
+    )
+    if manifest_mode != 0o644:
+        raise BundleBuildError(
+            f"{target_name} manifest mode must be 0644; observed {manifest_mode:04o}"
+        )
+    manifest = _parse_json_object(
+        manifest_bytes, label=f"{target_name} manifest"
+    )
+    common_fields = {
+        "schemaVersion",
+        "target",
+        "projection",
+        "generator",
+        "source",
+        "modelSelection",
+        "transformations",
+        "counts",
+        "agents",
+        "skills",
+        "files",
+    }
+    expected_fields = common_fields | ({"distribution"} if client == "copilot" else set())
+    if set(manifest) != expected_fields:
+        raise BundleBuildError(
+            f"{target_name} manifest has unexpected or missing fields"
+        )
+    if (
+        type(manifest.get("schemaVersion")) is not int
+        or manifest["schemaVersion"] != 1
+        or manifest.get("target") != target_name
+        or manifest.get("projection") != "focused-context-v1"
+        or manifest.get("modelSelection") != "inherit-provider-or-session"
+    ):
+        raise BundleBuildError(f"{target_name} manifest identity is invalid")
+    if manifest.get("generator") != {
+        "path": PROJECTION_GENERATOR_PATH.as_posix(),
+        "version": 1,
+    }:
+        raise BundleBuildError(f"{target_name} generator contract is invalid")
+    if manifest.get("agents") != list(FOCUSED_AGENT_IDS) or manifest.get(
+        "skills"
+    ) != list(FOCUSED_SKILL_IDS):
+        raise BundleBuildError(f"{target_name} roster differs from focused policy")
+
+    source = manifest.get("source")
+    if not isinstance(source, dict):
+        raise BundleBuildError(f"{target_name} source contract must be an object")
+    if client == "opencode":
+        expected_source = {
+            "target": TARGET_DIRECTORY.as_posix(),
+            "targetManifestSha256": canonical_source_sha256,
+            "policy": FOCUSED_POLICY_PATH.as_posix(),
+            "policySha256": policy_sha256,
+        }
+        expected_counts = {"agents": 2, "skills": 6, "commands": 6}
+        expected_transformations = {
+            "agentEscalation": "full-context-handoff",
+            "excludedSkillReferences": "full-context-guidance",
+            "skillPermissionEntriesRemoved": [
+                "grillmester-doctor",
+                "grillmester-grill-me",
+                "grillmester-grill-with-docs",
+                "grillmester-handoff",
+            ],
+        }
+    elif client == "copilot":
+        expected_source = {
+            "plugin": PLUGIN_DIRECTORY.as_posix(),
+            "pluginManifestSha256": canonical_source_sha256,
+            "policy": FOCUSED_POLICY_PATH.as_posix(),
+            "policySha256": policy_sha256,
+        }
+        expected_counts = {"agents": 2, "skills": 6}
+        expected_transformations = {
+            "agentFrontmatterRemoved": ["model"],
+            "agentEscalation": "full-context-handoff",
+            "excludedSkillReferences": "full-context-guidance",
+        }
+        if manifest.get("distribution") != "private-cli-only":
+            raise BundleBuildError(
+                "focused Copilot target must remain private-cli-only"
+            )
+    else:  # pragma: no cover - fixed internal callers
+        raise BundleBuildError(f"unsupported focused client {client!r}")
+    if source != expected_source:
+        raise BundleBuildError(f"{target_name} source hashes are stale")
+    if manifest.get("counts") != expected_counts:
+        raise BundleBuildError(f"{target_name} counts are invalid")
+    if manifest.get("transformations") != expected_transformations:
+        raise BundleBuildError(f"{target_name} transformations are invalid")
+
+    raw_files = manifest.get("files")
+    if not isinstance(raw_files, dict) or not raw_files:
+        raise BundleBuildError(f"{target_name} files must be a non-empty object")
+    if len(raw_files) + 2 > MAX_ARCHIVE_MEMBERS:
+        raise BundleBuildError(
+            f"{target_name} exceeds the {MAX_ARCHIVE_MEMBERS}-member safety limit"
+        )
+    declared: dict[PurePosixPath, tuple[str, int]] = {}
+    portable_paths: dict[str, PurePosixPath] = {}
+    for raw_path, raw_entry in raw_files.items():
+        relative = _safe_relative_path(
+            raw_path, label=f"{target_name} manifest path"
+        )
+        if relative == PurePosixPath("manifest.json"):
+            raise BundleBuildError(f"{target_name} manifest must not describe itself")
+        collision_key = _portable_collision_key(relative)
+        previous = portable_paths.get(collision_key)
+        if previous is not None:
+            raise BundleBuildError(
+                f"portable {target_name} path collision: {previous}, {relative}"
+            )
+        portable_paths[collision_key] = relative
+        if not isinstance(raw_entry, dict) or set(raw_entry) != {"sha256", "mode"}:
+            raise BundleBuildError(
+                f"{target_name} entry {relative} must contain only sha256 and mode"
+            )
+        digest = raw_entry.get("sha256")
+        raw_mode = raw_entry.get("mode")
+        if not isinstance(digest, str) or DIGEST.fullmatch(digest) is None:
+            raise BundleBuildError(f"invalid {target_name} sha256 for {relative}")
+        if not isinstance(raw_mode, str) or FILE_MODE.fullmatch(raw_mode) is None:
+            raise BundleBuildError(f"invalid {target_name} mode for {relative}")
+        mode = int(raw_mode, 8)
+        if mode not in ALLOWED_FILE_MODES:
+            raise BundleBuildError(
+                f"unsupported {target_name} mode for {relative}: {raw_mode}"
+            )
+        declared[relative] = (digest, mode)
+
+    expected_agents = {
+        PurePosixPath("agents")
+        / (f"{agent}.md" if client == "opencode" else f"{agent}.agent.md")
+        for agent in FOCUSED_AGENT_IDS
+    }
+    observed_agents = {
+        path for path in declared if path.parts[:1] == ("agents",)
+    }
+    expected_skill_manifests = {
+        PurePosixPath("skills") / skill / "SKILL.md"
+        for skill in FOCUSED_SKILL_IDS
+    }
+    observed_skill_ids = {
+        path.parts[1]
+        for path in declared
+        if len(path.parts) >= 2 and path.parts[0] == "skills"
+    }
+    observed_skill_manifests = {
+        path
+        for path in declared
+        if len(path.parts) == 3
+        and path.parts[0] == "skills"
+        and path.name == "SKILL.md"
+    }
+    if observed_agents != expected_agents or (
+        observed_skill_ids != set(FOCUSED_SKILL_IDS)
+        or observed_skill_manifests != expected_skill_manifests
+    ):
+        raise BundleBuildError(f"{target_name} component inventory is invalid")
+    observed_commands = {
+        path for path in declared if path.parts[:1] == ("commands",)
+    }
+    expected_commands = (
+        {
+            PurePosixPath("commands") / f"{skill}.md"
+            for skill in FOCUSED_SKILL_IDS
+        }
+        if client == "opencode"
+        else set()
+    )
+    if observed_commands != expected_commands:
+        raise BundleBuildError(f"{target_name} command inventory is invalid")
+
+    actual = _target_inventory(target)
+    if actual != set(declared):
+        missing = sorted(set(declared) - actual, key=str)
+        extras = sorted(actual - set(declared), key=str)
+        detail = "; ".join(
+            f"{label}: {', '.join(map(str, paths[:5]))}"
+            for label, paths in (("missing", missing), ("extra", extras))
+            if paths
+        )
+        raise BundleBuildError(
+            f"{target_name} differs from its manifest" + (f"; {detail}" if detail else "")
+        )
+
+    result: list[BundleFile] = []
+    for relative in sorted(declared, key=str):
+        expected_digest, expected_mode = declared[relative]
+        content, observed_mode = _read_regular(
+            target.joinpath(*relative.parts), label=f"{target_name} file {relative}"
+        )
+        if _sha256(content) != expected_digest or observed_mode != expected_mode:
+            raise BundleBuildError(
+                f"{target_name} file differs from its manifest: {relative}"
+            )
+        result.append(BundleFile(directory / relative, content, expected_mode))
+    result.append(BundleFile(directory / "manifest.json", manifest_bytes, 0o644))
+    return result, manifest_bytes
+
+
 def _validate_profile(profile: dict[str, Any], *, profile_id: str) -> None:
     common_fields = {
         "schemaVersion",
@@ -1139,7 +1374,7 @@ def _launcher_file(source_root: Path) -> BundleFile:
     except (UnicodeDecodeError, SyntaxError) as exc:
         raise BundleBuildError(f"Grillmester launcher is not valid UTF-8 Python: {exc}") from exc
     observed: dict[str, list[object]] = {
-        "SUPPORTED_OPENCODE_VERSION": [],
+        "REVIEWED_LOCAL_OPENCODE_VERSION": [],
         "SUPPORTED_CPLT_RELEASE": [],
     }
     for statement in tree.body:
@@ -1156,7 +1391,7 @@ def _launcher_file(source_root: Path) -> BundleFile:
                     f"Grillmester launcher {statement.targets[0].id} must be a literal"
                 ) from exc
     expected = {
-        "SUPPORTED_OPENCODE_VERSION": OPENCODE_VERSION,
+        "REVIEWED_LOCAL_OPENCODE_VERSION": OPENCODE_VERSION,
         "SUPPORTED_CPLT_RELEASE": CPLT_RELEASE,
     }
     for name, expected_value in expected.items():
@@ -1165,6 +1400,19 @@ def _launcher_file(source_root: Path) -> BundleFile:
                 f"Grillmester launcher must pin {name}={expected_value!r}"
             )
     return BundleFile(LAUNCHER_PATH, content, 0o755)
+
+
+def _python_support_file(
+    source_root: Path, path: PurePosixPath, *, label: str
+) -> BundleFile:
+    content, mode = _read_regular(source_root.joinpath(*path.parts), label=label)
+    if mode != 0o644:
+        raise BundleBuildError(f"{label} source mode must be 0644; observed {mode:04o}")
+    try:
+        ast.parse(content.decode("utf-8"), filename=path.as_posix())
+    except (UnicodeDecodeError, SyntaxError) as exc:
+        raise BundleBuildError(f"{label} is not valid UTF-8 Python: {exc}") from exc
+    return BundleFile(path, content, 0o644)
 
 
 def _artifact_binary_digest_maps(
@@ -1378,8 +1626,74 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
         expected_agents=expected_agents,
         expected_skills=expected_skills,
     )
+    focused_policy_content, focused_policy_mode = _read_regular(
+        source_root.joinpath(*FOCUSED_POLICY_PATH.parts),
+        label="focused context policy",
+        max_bytes=MAX_JSON_BYTES,
+    )
+    if focused_policy_mode != 0o644:
+        raise BundleBuildError(
+            "focused context policy mode must be 0644; "
+            f"observed {focused_policy_mode:04o}"
+        )
+    focused_policy = _parse_json_object(
+        focused_policy_content, label="focused context policy"
+    )
+    expected_focused_policy = {
+        "schemaVersion": 1,
+        "projection": "focused-context-v1",
+        "sources": {
+            "plugin": PLUGIN_DIRECTORY.as_posix(),
+            "opencode": TARGET_DIRECTORY.as_posix(),
+        },
+        "outputs": {
+            "opencode": FOCUSED_OPENCODE_DIRECTORY.as_posix(),
+            "copilotCli": FOCUSED_COPILOT_DIRECTORY.as_posix(),
+        },
+        "agents": list(FOCUSED_AGENT_IDS),
+        "skills": list(FOCUSED_SKILL_IDS),
+        "fullContextHandoff": {
+            "status": "NEEDS_FULL_CONTEXT",
+            "command": "grillmester local --full",
+        },
+        "copilotCli": {"removeAgentFrontmatterFields": ["model"]},
+    }
+    if focused_policy != expected_focused_policy:
+        raise BundleBuildError("focused context policy differs from the reviewed v1 contract")
+    policy_sha256 = _sha256(focused_policy_content)
+    plugin_manifest_content, _ = _read_regular(
+        source_root / "plugin/plugin.json", label="Copilot plugin manifest"
+    )
+    focused_opencode_files, focused_opencode_manifest = _focused_target_files(
+        source_root,
+        directory=FOCUSED_OPENCODE_DIRECTORY,
+        target_name=FOCUSED_OPENCODE_TARGET_NAME,
+        client="opencode",
+        policy_sha256=policy_sha256,
+        canonical_source_sha256=_sha256(target_manifest),
+    )
+    focused_copilot_files, focused_copilot_manifest = _focused_target_files(
+        source_root,
+        directory=FOCUSED_COPILOT_DIRECTORY,
+        target_name=FOCUSED_COPILOT_TARGET_NAME,
+        client="copilot",
+        policy_sha256=policy_sha256,
+        canonical_source_sha256=_sha256(plugin_manifest_content),
+    )
     files = [
         _launcher_file(source_root),
+        _python_support_file(
+            source_root, LOCAL_LAUNCHER_PATH, label="Grillmester local launcher"
+        ),
+        _python_support_file(
+            source_root, LOCAL_SMOKE_PATH, label="Grillmester local smoke"
+        ),
+        _python_support_file(
+            source_root,
+            PROJECTION_GENERATOR_PATH,
+            label="focused context generator",
+        ),
+        BundleFile(FOCUSED_POLICY_PATH, focused_policy_content, 0o644),
         BundleFile(MANAGER_PATH, manager_content, 0o755),
         BundleFile(PERMISSION_COMPOSER_PATH, composer_content, 0o644),
         BundleFile(ARTIFACT_VERIFIER_PATH, verifier_content, 0o755),
@@ -1394,6 +1708,8 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
         )
     )
     files.extend(target_files)
+    files.extend(focused_opencode_files)
+    files.extend(focused_copilot_files)
     files.sort(key=lambda entry: entry.path.as_posix())
     aggregate_size = sum(len(entry.content) for entry in files)
     if aggregate_size > MAX_DISTRIBUTION_BYTES:
@@ -1418,6 +1734,9 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
         "opencodeVersion": OPENCODE_VERSION,
         "cpltRelease": CPLT_RELEASE,
         "targetManifestSha256": _sha256(target_manifest),
+        "focusedOpenCodeManifestSha256": _sha256(focused_opencode_manifest),
+        "focusedCopilotManifestSha256": _sha256(focused_copilot_manifest),
+        "focusedContextPolicySha256": policy_sha256,
         "files": file_manifest,
     }
     manifest_bytes = (

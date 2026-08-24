@@ -15,6 +15,13 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC and SPEC.loader
 VALIDATE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VALIDATE)
+FOCUSED_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_generate_context_projections_for_validation_test",
+    ROOT / "scripts/generate_context_projections.py",
+)
+assert FOCUSED_SPEC and FOCUSED_SPEC.loader
+FOCUSED = importlib.util.module_from_spec(FOCUSED_SPEC)
+FOCUSED_SPEC.loader.exec_module(FOCUSED)
 
 
 class PackageValidationTest(unittest.TestCase):
@@ -66,6 +73,11 @@ class PackageValidationTest(unittest.TestCase):
             f"expected {fragment!r} in validation errors: {errors}",
         )
 
+    def regenerate_focused_targets(self) -> None:
+        projections, policy = FOCUSED.build_projections(self.root)
+        for key, expected in projections.items():
+            FOCUSED.update_projection(self.root / policy["outputs"][key], expected)
+
     def test_actual_package_is_valid(self) -> None:
         self.assertEqual([], VALIDATE.validate_repo(ROOT))
 
@@ -73,6 +85,11 @@ class PackageValidationTest(unittest.TestCase):
         path = self.root / "targets/opencode-v1/agents/grillmester.md"
         path.write_text("stale\n", encoding="utf-8")
         self.assert_error("OpenCode target is stale")
+
+    def test_stale_focused_context_projection_is_rejected(self) -> None:
+        path = self.root / "targets/opencode-v1-focused/agents/barista.md"
+        path.write_text("stale\n", encoding="utf-8")
+        self.assert_error("focused context target is stale")
 
     def test_boolean_agent_description_is_rejected(self) -> None:
         self.replace_frontmatter(
@@ -137,6 +154,7 @@ class PackageValidationTest(unittest.TestCase):
         for entry in marketplace["plugins"]:
             entry["version"] = "0.2.0"
         self.write_json(".github/plugin/marketplace.json", marketplace)
+        self.regenerate_focused_targets()
         self.assertEqual([], self.errors())
 
     def test_runtime_all_agent_rejects_an_explicit_tool_list(self) -> None:

@@ -14,6 +14,11 @@ Normal terminaldistribusjon og native cplt-launch er videreutviklet av
 valgfrie high-assurance-manageren, dens installasjon, staging og rollback
 gjelder fortsatt.
 
+[ADR 0004](0004-use-user-installed-terminal-clients.md) superseder senere den
+normale Homebrew-flytens klienteierskap: standardlauncheren bruker
+systeminstallerte klienter. Denne ADR-ens eksakte pinner, checksumkontroll og
+private `trusted-bin` gjelder fortsatt uendret for den valgfrie manageren.
+
 ## Kontekst
 
 ADR 0001 valgte et deterministisk generert OpenCode-target utenfor consumerens

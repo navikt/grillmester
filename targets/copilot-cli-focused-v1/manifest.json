@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "target": "copilot-cli-focused-v1",
+  "projection": "focused-context-v1",
+  "distribution": "private-cli-only",
+  "generator": {
+    "path": "scripts/generate_context_projections.py",
+    "version": 1
+  },
+  "source": {
+    "plugin": "plugin",
+    "pluginManifestSha256": "7b3e6a21b1a530d836952af97e0451fa75656c270a010b8789c00f8671d5bf29",
+    "policy": "policy/focused-context-v1.json",
+    "policySha256": "9984a517cddaf4c992981194f59ba4936f9f26241f61a8c9b76e847cdfb3f820"
+  },
+  "modelSelection": "inherit-provider-or-session",
+  "transformations": {
+    "agentFrontmatterRemoved": [
+      "model"
+    ],
+    "agentEscalation": "full-context-handoff",
+    "excludedSkillReferences": "full-context-guidance"
+  },
+  "counts": {
+    "agents": 2,
+    "skills": 6
+  },
+  "agents": [
+    "barista",
+    "grill-inspektor"
+  ],
+  "skills": [
+    "grillmester-diagnosing-bugs",
+    "grillmester-integration-tests",
+    "grillmester-pull-request",
+    "grillmester-review",
+    "grillmester-security-review",
+    "grillmester-tdd"
+  ],
+  "files": {
+    "LICENSE": {
+      "sha256": "9338442d0b677ff76d064e16719f02ad977bb9efa6d2bc5f5e5daaea203a0019",
+      "mode": "0644"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "846e08346dcc3770ff67b7a16b06d8a1aa3718fe3f8051ca706fd24983b4a8cf",
+      "mode": "0644"
+    },
+    "agents/barista.agent.md": {
+      "sha256": "f7a1145f47b4b8b0341257c6b751d2889526ddb9eed7b9ef8593409a371be1a7",
+      "mode": "0644"
+    },
+    "agents/grill-inspektor.agent.md": {
+      "sha256": "caf8bf2a414d921f2f6064a432f6e5b4231b261217a311f3d9d9a212b8e1670d",
+      "mode": "0644"
+    },
+    "plugin.json": {
+      "sha256": "7b3e6a21b1a530d836952af97e0451fa75656c270a010b8789c00f8671d5bf29",
+      "mode": "0644"
+    },
+    "skills/grillmester-diagnosing-bugs/SKILL.md": {
+      "sha256": "d0bf67d8a7243d2e2972e772ee3a447f0bae000a52bc4bff7e4bf0907d0e20a7",
+      "mode": "0644"
+    },
+    "skills/grillmester-diagnosing-bugs/scripts/hitl-loop.template.sh": {
+      "sha256": "a4a1a26c4cc69cad1b4148b78979e2d0e4d0a38350cc25d8c55b2c15d1ec38d3",
+      "mode": "0755"
+    },
+    "skills/grillmester-integration-tests/SKILL.md": {
+      "sha256": "3a8c609a09bf3f422d4311fed3e699b4cd481da2cf26def20542ed37f32e86d7",
+      "mode": "0644"
+    },
+    "skills/grillmester-pull-request/SKILL.md": {
+      "sha256": "f6b83a965dfe43fdf4590837866bf43312e935eaf4600a3e5ab8490ff713a7da",
+      "mode": "0644"
+    },
+    "skills/grillmester-review/SKILL.md": {
+      "sha256": "b1066831edd3fca59acb80255c4df60c3821073f8ed15b5ffb9388513e9d3429",
+      "mode": "0644"
+    },
+    "skills/grillmester-security-review/SKILL.md": {
+      "sha256": "39396040e0b8af7f1b85463107e3d49611ba2c8c64792e242b0e16091941fffa",
+      "mode": "0644"
+    },
+    "skills/grillmester-security-review/references/nav-security-review.md": {
+      "sha256": "1b18149fc5e793f9f5069d8ef0dbff96fe5c2e53f9a40e375937c5acce0bd153",
+      "mode": "0644"
+    },
+    "skills/grillmester-security-review/references/threat-model.md": {
+      "sha256": "00eb790e4385abc8173e0eb67b7729e626bd945c61b5789905adbc70eb43c9fb",
+      "mode": "0644"
+    },
+    "skills/grillmester-tdd/SKILL.md": {
+      "sha256": "296d9ac10385295f8bd1531fa71c4321dd2374aec742e5d163ef385ecc80292d",
+      "mode": "0644"
+    },
+    "skills/grillmester-tdd/mocking.md": {
+      "sha256": "f5cc6372548138f2fb78131d86e8b5a24e72a42b2c8080a43b9e8aa1442f8156",
+      "mode": "0644"
+    },
+    "skills/grillmester-tdd/refactoring.md": {
+      "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
+      "mode": "0644"
+    },
+    "skills/grillmester-tdd/tests.md": {
+      "sha256": "2099647931cb08e180693144cf85f3e8dcb196e4396e7a9f64629af5c040d5d3",
+      "mode": "0644"
+    }
+  }
+}

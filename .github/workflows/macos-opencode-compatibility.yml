@@ -152,7 +152,14 @@ jobs:
                       fail(f"archive roster differs for {output_name}")
                   selected = None
                   for member in members:
-                      if not member.isfile() or member.pax_headers or member.linkname:
+                      if (
+                          member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}
+                          or member.pax_headers
+                          or member.linkname
+                          or member.devmajor != 0
+                          or member.devminor != 0
+                          or member.sparse is not None
+                      ):
                           fail(f"archive contains a link or special member for {output_name}")
                       if member.name == binary_member:
                           selected = member
@@ -227,6 +234,259 @@ jobs:
             echo "CPLT_BINARY_SHA256=${cplt_binary_sha256}"
           } >> "${GITHUB_ENV}"
 
+      - name: Download and verify pinned Copilot CLI for local-only compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          machine="$(uname -m)"
+          case "${machine}" in
+            arm64)
+              copilot_url="https://github.com/github/copilot-cli/releases/download/v1.0.80/copilot-darwin-arm64.tar.gz"
+              copilot_archive_size=99168802
+              copilot_archive_sha256="2346bb691981c2997d65c1c5bc3cef1aeddc9edd37dcb2f970b911aa597e59f6"
+              copilot_binary_size=160804656
+              copilot_binary_sha256="fe779da7dd2342c1d23f0744873fa27d0251eaaee4dc6637fa53093639c0f3c9"
+              ;;
+            x86_64)
+              copilot_url="https://github.com/github/copilot-cli/releases/download/v1.0.80/copilot-darwin-x64.tar.gz"
+              copilot_archive_size=110675243
+              copilot_archive_sha256="a1a9c1f25740f9a27b34eb14b70b5d3175794dc8bb410875531aa198b3abc18f"
+              copilot_binary_size=173286208
+              copilot_binary_sha256="15a2576566635fdd2dc0c84137ec7481e41a6982281391c62e58883aa5f39f41"
+              ;;
+            *)
+              echo "Unsupported macOS runner architecture: ${machine}" >&2
+              exit 1
+              ;;
+          esac
+          archive="${RUNNER_TEMP}/darwin-client-archives/copilot.tar.gz"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 120000000 --output "${archive}" "${copilot_url}"
+          python3 -I -S - \
+            "${archive}" "${copilot_archive_size}" "${copilot_archive_sha256}" \
+            "${copilot_binary_size}" "${copilot_binary_sha256}" \
+            "${RUNNER_TEMP}/verified-darwin-bin/copilot" <<'PY'
+          import hashlib
+          import os
+          import stat
+          import sys
+          import tarfile
+          from pathlib import Path
+
+          archive, archive_size, archive_sha256, binary_size, binary_sha256, destination = (
+              sys.argv[1:]
+          )
+          archive_path = Path(archive)
+          archive_size_value = int(archive_size)
+          binary_size_value = int(binary_size)
+          flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+          descriptor = os.open(archive_path, flags)
+          try:
+              observed = os.fstat(descriptor)
+              if not stat.S_ISREG(observed.st_mode) or observed.st_size != archive_size_value:
+                  raise SystemExit("Copilot archive size or type differs")
+              with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                  content = stream.read(archive_size_value + 1)
+          finally:
+              os.close(descriptor)
+          if len(content) != archive_size_value:
+              raise SystemExit("Copilot archive changed while reading")
+          if hashlib.sha256(content).hexdigest() != archive_sha256:
+              raise SystemExit("Copilot archive digest differs")
+
+          import io
+
+          with tarfile.open(fileobj=io.BytesIO(content), mode="r:gz") as package:
+              if package.pax_headers:
+                  raise SystemExit("Copilot archive has global PAX headers")
+              members = package.getmembers()
+              if [member.name for member in members] != ["copilot"]:
+                  raise SystemExit("Copilot archive roster differs")
+              member = members[0]
+              if (
+                  member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}
+                  or member.pax_headers
+                  or member.linkname
+                  or member.devmajor != 0
+                  or member.devminor != 0
+                  or member.sparse is not None
+                  or member.size != binary_size_value
+              ):
+                  raise SystemExit("Copilot archive contains a link or special member")
+              extracted = package.extractfile(member)
+              if extracted is None:
+                  raise SystemExit("Copilot executable could not be read")
+              executable = extracted.read(binary_size_value + 1)
+          if len(executable) != binary_size_value:
+              raise SystemExit("Copilot executable changed while reading")
+          if hashlib.sha256(executable).hexdigest() != binary_sha256:
+              raise SystemExit("Copilot executable digest differs")
+
+          output_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
+          output = os.open(destination, output_flags, 0o500)
+          try:
+              with os.fdopen(output, "wb", closefd=False) as target:
+                  target.write(executable)
+                  target.flush()
+                  os.fsync(output)
+              os.fchmod(output, 0o555)
+          finally:
+              os.close(output)
+          PY
+          [[ "$(stat -f '%Lp:%u' "${RUNNER_TEMP}/verified-darwin-bin/copilot")" == \
+             "555:$(id -u)" ]]
+          [[ "$(shasum -a 256 "${RUNNER_TEMP}/verified-darwin-bin/copilot" | cut -d' ' -f1)" == \
+             "${copilot_binary_sha256}" ]]
+          {
+            echo "COPILOT_BIN=${RUNNER_TEMP}/verified-darwin-bin/copilot"
+            echo "COPILOT_BINARY_SHA256=${copilot_binary_sha256}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Download and verify pinned ripgrep for the local OpenCode smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          machine="$(uname -m)"
+          case "${machine}" in
+            arm64)
+              ripgrep_platform="aarch64-apple-darwin"
+              ripgrep_archive_size=1787248
+              ripgrep_archive_sha256="24ad76777745fbff131c8fbc466742b011f925bfa4fffa2ded6def23b5b937be"
+              ripgrep_binary_size=4375216
+              ripgrep_binary_sha256="0e0cb83f5195f1f51bb8feef1fff5b0b171e82bd1db6bd35deee701a3e7102f8"
+              ;;
+            x86_64)
+              ripgrep_platform="x86_64-apple-darwin"
+              ripgrep_archive_size=2082672
+              ripgrep_archive_sha256="fc87e78f7cb3fea12d69072e7ef3b215""09754717b746368fd40d88963630e2b3"
+              ripgrep_binary_size=5162504
+              ripgrep_binary_sha256="923dcc25cab57d33f4e7dd0476d4b74a554401a38817e246a8d6101dcd51c50f"
+              ;;
+            *)
+              echo "Unsupported macOS runner architecture: ${machine}" >&2
+              exit 1
+              ;;
+          esac
+          ripgrep_root="ripgrep-14.1.1-${ripgrep_platform}"
+          ripgrep_url="https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/${ripgrep_root}.tar.gz"
+          archive="${RUNNER_TEMP}/darwin-client-archives/ripgrep.tar.gz"
+          destination="${RUNNER_TEMP}/verified-darwin-bin/rg"
+          curl --config /dev/null --fail-with-body --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --proto-redir '=https' \
+            --max-filesize 3000000 --output "${archive}" "${ripgrep_url}"
+          python3 -I -S - \
+            "${archive}" "${ripgrep_archive_size}" "${ripgrep_archive_sha256}" \
+            "${ripgrep_root}" "${ripgrep_binary_size}" \
+            "${ripgrep_binary_sha256}" "${destination}" <<'PY'
+          import hashlib
+          import io
+          import os
+          import stat
+          import sys
+          import tarfile
+          from pathlib import Path
+
+          (
+              archive,
+              archive_size,
+              archive_sha256,
+              root,
+              binary_size,
+              binary_sha256,
+              destination,
+          ) = sys.argv[1:]
+          archive_size_value = int(archive_size)
+          binary_size_value = int(binary_size)
+          expected_roster = [
+              root,
+              f"{root}/complete",
+              f"{root}/rg",
+              f"{root}/README.md",
+              f"{root}/COPYING",
+              f"{root}/UNLICENSE",
+              f"{root}/doc",
+              f"{root}/LICENSE-MIT",
+              f"{root}/doc/CHANGELOG.md",
+              f"{root}/doc/FAQ.md",
+              f"{root}/doc/GUIDE.md",
+              f"{root}/doc/rg.1",
+              f"{root}/complete/_rg.ps1",
+              f"{root}/complete/rg.fish",
+              f"{root}/complete/_rg",
+              f"{root}/complete/rg.bash",
+          ]
+          expected_directories = {root, f"{root}/complete", f"{root}/doc"}
+          archive_path = Path(archive)
+          flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+          descriptor = os.open(archive_path, flags)
+          try:
+              observed = os.fstat(descriptor)
+              if not stat.S_ISREG(observed.st_mode) or observed.st_size != archive_size_value:
+                  raise SystemExit("ripgrep archive size or type differs")
+              with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                  content = stream.read(archive_size_value + 1)
+          finally:
+              os.close(descriptor)
+          if len(content) != archive_size_value:
+              raise SystemExit("ripgrep archive changed while reading")
+          if hashlib.sha256(content).hexdigest() != archive_sha256:
+              raise SystemExit("ripgrep archive digest differs")
+
+          with tarfile.open(fileobj=io.BytesIO(content), mode="r:gz") as package:
+              if package.pax_headers:
+                  raise SystemExit("ripgrep archive has global PAX headers")
+              members = package.getmembers()
+              if [member.name for member in members] != expected_roster:
+                  raise SystemExit("ripgrep archive roster differs")
+              selected = None
+              for member in members:
+                  expected_type = (
+                      tarfile.DIRTYPE
+                      if member.name in expected_directories
+                      else tarfile.REGTYPE
+                  )
+                  if (
+                      member.type != expected_type
+                      or member.pax_headers
+                      or member.linkname
+                      or member.devmajor != 0
+                      or member.devminor != 0
+                      or member.sparse is not None
+                  ):
+                      raise SystemExit("ripgrep archive contains a link or special member")
+                  if member.name == f"{root}/rg":
+                      selected = member
+              if selected is None or selected.size != binary_size_value:
+                  raise SystemExit("ripgrep executable size differs")
+              extracted = package.extractfile(selected)
+              if extracted is None:
+                  raise SystemExit("ripgrep executable could not be read")
+              executable = extracted.read(binary_size_value + 1)
+          if len(executable) != binary_size_value:
+              raise SystemExit("ripgrep executable changed while reading")
+          if hashlib.sha256(executable).hexdigest() != binary_sha256:
+              raise SystemExit("ripgrep executable digest differs")
+
+          output_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
+          output = os.open(destination, output_flags, 0o500)
+          try:
+              with os.fdopen(output, "wb", closefd=False) as target:
+                  target.write(executable)
+                  target.flush()
+                  os.fsync(output)
+              os.fchmod(output, 0o555)
+          finally:
+              os.close(output)
+          PY
+          [[ "$(stat -f '%Lp:%u' "${destination}")" == "555:$(id -u)" ]]
+          [[ "$(shasum -a 256 "${destination}" | cut -d' ' -f1)" == \
+             "${ripgrep_binary_sha256}" ]]
+          {
+            echo "RIPGREP_BIN=${destination}"
+            echo "RIPGREP_BINARY_SHA256=${ripgrep_binary_sha256}"
+          } >> "${GITHUB_ENV}"
+
       - name: Prove strict native OpenCode Copilot-provider network policy without auth
         shell: bash
         run: |
@@ -284,6 +544,8 @@ jobs:
              "${OPENCODE_BINARY_SHA256}" ]]
           [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
              "${CPLT_BINARY_SHA256}" ]]
+          [[ "$(shasum -a 256 "${RIPGREP_BIN}" | cut -d' ' -f1)" == \
+             "${RIPGREP_BINARY_SHA256}" ]]
           python3 -I -S scripts/smoke_opencode.py \
             --require-binary --opencode "${OPENCODE_BIN}"
           python3 -I -S scripts/smoke_opencode_runtime.py \
@@ -295,6 +557,7 @@ jobs:
           set -euo pipefail
           bundle="${RUNNER_TEMP}/macos-opencode-bundle.tar.gz"
           repeated="${RUNNER_TEMP}/macos-opencode-bundle-repeated.tar.gz"
+          python3 -I -S scripts/generate_context_projections.py --check
           python3 -I -S scripts/build_opencode_bundle.py \
             --source-root "${GITHUB_WORKSPACE}" --source-sha "${SOURCE_SHA}" \
             --output "${bundle}"
@@ -330,11 +593,18 @@ jobs:
                   ):
                       raise SystemExit(f"unsafe bundle path: {member.name!r}")
                   destination = root.joinpath(*path.parts)
-                  if member.isdir():
+                  if (
+                      member.linkname
+                      or member.devmajor != 0
+                      or member.devminor != 0
+                      or member.sparse is not None
+                  ):
+                      raise SystemExit(f"unsafe bundle member: {member.name!r}")
+                  if member.type == tarfile.DIRTYPE:
                       destination.mkdir(mode=0o700, exist_ok=False)
                       directories.append((destination, stat.S_IMODE(member.mode)))
                       continue
-                  if not member.isfile() or member.linkname or member.size > 5_000_000:
+                  if member.type != tarfile.REGTYPE or member.size > 5_000_000:
                       raise SystemExit(f"unsafe bundle member: {member.name!r}")
                   extracted = bundle.extractfile(member)
                   if extracted is None:
@@ -574,3 +844,346 @@ jobs:
           grep -F 'ci-local/ci-model' "${manager_output}" >/dev/null
           grep -F '"context": 32768' "${manager_output}" >/dev/null
           grep -F '"output": 8192' "${manager_output}" >/dev/null
+
+      - name: Exercise every local-model context through the exact cplt clients
+        shell: bash
+        env:
+          PATH: ${{ runner.temp }}/verified-darwin-bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+        run: |
+          set -euo pipefail
+          [[ "$(shasum -a 256 "${COPILOT_BIN}" | cut -d' ' -f1)" == \
+             "${COPILOT_BINARY_SHA256}" ]]
+          [[ "$(shasum -a 256 "${OPENCODE_BIN}" | cut -d' ' -f1)" == \
+             "${OPENCODE_BINARY_SHA256}" ]]
+          [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
+             "${CPLT_BINARY_SHA256}" ]]
+          [[ "$(shasum -a 256 "${RIPGREP_BIN}" | cut -d' ' -f1)" == \
+             "${RIPGREP_BINARY_SHA256}" ]]
+          smoke_home="${RUNNER_TEMP}/grillmester-local-smoke-home"
+          mkdir -m 700 "${smoke_home}"
+          HOME="${smoke_home}" \
+          XDG_CONFIG_HOME="${smoke_home}/config" \
+          XDG_CACHE_HOME="${smoke_home}/cache" \
+          XDG_DATA_HOME="${smoke_home}/data" \
+          XDG_STATE_HOME="${smoke_home}/state" \
+            python3 -I -S "${BUNDLE_ROOT}/scripts/smoke_grillmester_local.py" \
+              --require-binaries \
+              --cplt "${CPLT_BIN}" \
+              --opencode "${OPENCODE_BIN}" \
+              --copilot "${COPILOT_BIN}" \
+              --ripgrep "${RIPGREP_BIN}" \
+              --timeout 90
+
+      - name: Exercise focused and full Copilot through exact cplt and loopback BYOK
+        shell: bash
+        env:
+          PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+        run: |
+          set -euo pipefail
+          [[ "$(shasum -a 256 "${COPILOT_BIN}" | cut -d' ' -f1)" == \
+             "${COPILOT_BINARY_SHA256}" ]]
+          [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
+             "${CPLT_BINARY_SHA256}" ]]
+          provider_info="${RUNNER_TEMP}/copilot-provider-port"
+          provider_log="${RUNNER_TEMP}/copilot-provider-requests.jsonl"
+          python3 -I -S - "${provider_info}" "${provider_log}" <<'PY' &
+          import json
+          import os
+          import sys
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+          from pathlib import Path
+          from urllib.parse import urlsplit
+
+          port_file = Path(sys.argv[1])
+          request_log = Path(sys.argv[2])
+          model = "ci-grillmester-local"
+          answer = "GRILLMESTER_LOCAL_GATE_OK"
+
+          class Handler(BaseHTTPRequestHandler):
+              protocol_version = "HTTP/1.0"
+
+              def log_message(self, _format, *_arguments):
+                  return
+
+              def json_response(self, status, value):
+                  content = json.dumps(value, separators=(",", ":")).encode()
+                  self.send_response(status)
+                  self.send_header("Content-Type", "application/json")
+                  self.send_header("Content-Length", str(len(content)))
+                  self.end_headers()
+                  self.wfile.write(content)
+
+              def do_GET(self):
+                  if urlsplit(self.path).path.rstrip("/") != "/v1/models":
+                      self.json_response(404, {"error": "not found"})
+                      return
+                  self.json_response(
+                      200,
+                      {"object": "list", "data": [{"id": model, "object": "model"}]},
+                  )
+
+              def do_POST(self):
+                  path = urlsplit(self.path).path
+                  if path not in {"/v1/chat/completions", "/chat/completions"}:
+                      self.json_response(404, {"error": "not found"})
+                      return
+                  try:
+                      size = int(self.headers.get("Content-Length", "-1"))
+                  except ValueError:
+                      size = -1
+                  if size < 0 or size > 20 * 1024 * 1024:
+                      self.json_response(413, {"error": "invalid request size"})
+                      return
+                  try:
+                      value = json.loads(self.rfile.read(size))
+                  except (UnicodeDecodeError, json.JSONDecodeError):
+                      self.json_response(400, {"error": "invalid JSON"})
+                      return
+                  if not isinstance(value, dict) or value.get("model") != model:
+                      self.json_response(409, {"error": "unexpected model"})
+                      return
+                  record = {
+                      "path": path,
+                      "model": value["model"],
+                      "stream": value.get("stream"),
+                      "request": value,
+                  }
+                  descriptor = os.open(
+                      request_log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600
+                  )
+                  with os.fdopen(descriptor, "a", encoding="utf-8") as output:
+                      output.write(json.dumps(record, sort_keys=True) + "\n")
+                  if value.get("stream") is not True:
+                      self.json_response(409, {"error": "streaming is required"})
+                      return
+                  chunks = (
+                      {
+                          "id": "chatcmpl-grillmester-ci",
+                          "object": "chat.completion.chunk",
+                          "created": 0,
+                          "model": model,
+                          "choices": [
+                              {
+                                  "index": 0,
+                                  "delta": {"role": "assistant", "content": answer},
+                                  "finish_reason": None,
+                              }
+                          ],
+                      },
+                      {
+                          "id": "chatcmpl-grillmester-ci",
+                          "object": "chat.completion.chunk",
+                          "created": 0,
+                          "model": model,
+                          "choices": [
+                              {"index": 0, "delta": {}, "finish_reason": "stop"}
+                          ],
+                          "usage": {
+                              "prompt_tokens": 1,
+                              "completion_tokens": 1,
+                              "total_tokens": 2,
+                          },
+                      },
+                  )
+                  content = b"".join(
+                      b"data: "
+                      + json.dumps(chunk, separators=(",", ":")).encode()
+                      + b"\n\n"
+                      for chunk in chunks
+                  ) + b"data: [DONE]\n\n"
+                  self.send_response(200)
+                  self.send_header("Content-Type", "text/event-stream")
+                  self.send_header("Cache-Control", "no-cache")
+                  self.send_header("Content-Length", str(len(content)))
+                  self.end_headers()
+                  self.wfile.write(content)
+
+          server = HTTPServer(("127.0.0.1", 0), Handler)
+          descriptor = os.open(port_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+          with os.fdopen(descriptor, "w", encoding="ascii") as output:
+              output.write(f"{server.server_port}\n")
+          server.serve_forever()
+          PY
+          provider_pid=$!
+          trap 'kill "${provider_pid}" 2>/dev/null || true' EXIT
+          for _attempt in {1..100}; do
+            [[ -s "${provider_info}" ]] && break
+            sleep 0.1
+          done
+          [[ -s "${provider_info}" ]]
+          provider_port="$(<"${provider_info}")"
+          [[ "${provider_port}" =~ ^[1-9][0-9]{1,4}$ ]]
+          /usr/bin/nc -z -G 2 127.0.0.1 "${provider_port}"
+
+          local_root="${RUNNER_TEMP}/copilot-local-gate"
+          host_home="${local_root}/host-home"
+          host_config="${local_root}/host-config"
+          host_cache="${local_root}/host-cache"
+          host_data="${local_root}/host-data"
+          host_state="${local_root}/host-state"
+          mkdir -m 700 \
+            "${local_root}" "${host_home}" "${host_config}" "${host_cache}" \
+            "${host_data}" "${host_state}"
+          ambient_agents="${host_home}/.copilot/agents"
+          ambient_plugin="${host_home}/.copilot/installed-plugins/_direct/full-grillmester"
+          mkdir -m 700 "${ambient_agents}" "$(dirname "${ambient_plugin}")"
+          cp "${BUNDLE_ROOT}/plugin/agents/barista.agent.md" \
+            "${ambient_agents}/barista.agent.md"
+          printf '\nAMBIENT_FULL_PLUGIN_MUST_NOT_LOAD\n' \
+            >> "${ambient_agents}/barista.agent.md"
+          cp -R "${BUNDLE_ROOT}/plugin" "${ambient_plugin}"
+          local_environment=(
+            "HOME=${host_home}"
+            "XDG_CONFIG_HOME=${host_config}"
+            "XDG_CACHE_HOME=${host_cache}"
+            "XDG_DATA_HOME=${host_data}"
+            "XDG_STATE_HOME=${host_state}"
+            "PATH=${RUNNER_TEMP}/verified-darwin-bin:/usr/bin:/bin:/usr/sbin:/sbin"
+          )
+          launcher=(python3 -I -S "${BUNDLE_ROOT}/scripts/grillmester.py")
+          local_setup="$(env "${local_environment[@]}" "${launcher[@]}" local setup \
+            --client copilot --agent barista --context focused \
+            --provider-id ci-local \
+            --base-url "http://127.0.0.1:${provider_port}/v1" \
+            --model-id ci-grillmester-local)"
+          grep -F 'Selected copilot with ci-grillmester-local (focused barista)' \
+            <<<"${local_setup}"
+
+          focused_doctor="$(env "${local_environment[@]}" "${launcher[@]}" \
+            local doctor --client copilot --agent barista \
+            --project-dir "${MACOS_CONSUMER}")"
+          grep -F 'ok  model ci-grillmester-local' <<<"${focused_doctor}"
+          grep -F "ok  payload ${BUNDLE_ROOT}/targets/copilot-cli-focused-v1" \
+            <<<"${focused_doctor}"
+          focused_command="$(env "${local_environment[@]}" "${launcher[@]}" \
+            local launch --client copilot --agent barista \
+            --project-dir "${MACOS_CONSUMER}" --print-command)"
+          grep -F -- "${BUNDLE_ROOT}/targets/copilot-cli-focused-v1" \
+            <<<"${focused_command}"
+          grep -F -- '--model ci-grillmester-local' <<<"${focused_command}"
+          if grep -F -- "${BUNDLE_ROOT}/plugin" <<<"${focused_command}"; then
+            echo "Focused local launch unexpectedly selected the full plugin." >&2
+            exit 1
+          fi
+          focused_output="${local_root}/focused.stdout"
+          env "${local_environment[@]}" "${launcher[@]}" local launch \
+            --client copilot --agent barista --project-dir "${MACOS_CONSUMER}" -- \
+            -p 'FOCUSED-GATE: return the provider sentinel without using tools.' \
+            -s --no-ask-user --no-color > "${focused_output}"
+          grep -F 'GRILLMESTER_LOCAL_GATE_OK' "${focused_output}"
+
+          full_doctor="$(env "${local_environment[@]}" "${launcher[@]}" \
+            local doctor --client copilot --agent barista --full \
+            --project-dir "${MACOS_CONSUMER}")"
+          grep -F 'ok  model ci-grillmester-local' <<<"${full_doctor}"
+          grep -F "ok  payload ${BUNDLE_ROOT}/plugin" <<<"${full_doctor}"
+          full_command="$(env "${local_environment[@]}" "${launcher[@]}" \
+            local launch --client copilot --agent barista --full \
+            --project-dir "${MACOS_CONSUMER}" --print-command)"
+          grep -F -- "${BUNDLE_ROOT}/plugin" <<<"${full_command}"
+          grep -F -- '--model ci-grillmester-local' <<<"${full_command}"
+          full_output="${local_root}/full.stdout"
+          env "${local_environment[@]}" "${launcher[@]}" local launch \
+            --client copilot --agent barista --full \
+            --project-dir "${MACOS_CONSUMER}" -- \
+            -p 'FULL-GATE: return the provider sentinel without using tools.' \
+            -s --no-ask-user --no-color > "${full_output}"
+          grep -F 'GRILLMESTER_LOCAL_GATE_OK' "${full_output}"
+
+          python3 -I -S - "${provider_log}" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          records = [
+              json.loads(line)
+              for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+          ]
+          rendered = [(record, json.dumps(record["request"], sort_keys=True)) for record in records]
+          focused = [item for item in rendered if "FOCUSED-GATE" in item[1]]
+          full = [item for item in rendered if "FULL-GATE" in item[1]]
+          if not focused or not full:
+              raise SystemExit("local Copilot smoke did not record both context modes")
+          for record, _body in rendered:
+              if record.get("model") != "ci-grillmester-local":
+                  raise SystemExit("Copilot ignored the explicit local model override")
+              if record.get("stream") is not True:
+                  raise SystemExit("Copilot did not use the required streaming contract")
+              if not record.get("path", "").endswith("/chat/completions"):
+                  raise SystemExit("Copilot did not use Chat Completions")
+          focused_text = "\n".join(body for _record, body in focused)
+          full_text = "\n".join(body for _record, body in full)
+          overlay = "Resume with: grillmester local --full"
+          ambient = "AMBIENT_FULL_PLUGIN_MUST_NOT_LOAD"
+          if overlay not in focused_text:
+              raise SystemExit("focused Copilot request did not load the focused overlay")
+          if overlay in full_text:
+              raise SystemExit("full Copilot request unexpectedly loaded the focused overlay")
+          if ambient in focused_text or ambient in full_text:
+              raise SystemExit("isolated local Copilot loaded an ambient agent or plugin")
+          PY
+
+          opencode_root="${RUNNER_TEMP}/opencode-local-launcher-gate"
+          opencode_home="${opencode_root}/home"
+          opencode_config="${opencode_root}/config"
+          opencode_cache="${opencode_root}/cache"
+          opencode_data="${opencode_root}/data"
+          opencode_state="${opencode_root}/state"
+          mkdir -m 700 \
+            "${opencode_root}" "${opencode_home}" "${opencode_config}" \
+            "${opencode_cache}" "${opencode_data}" "${opencode_state}"
+          opencode_environment=(
+            "HOME=${opencode_home}"
+            "XDG_CONFIG_HOME=${opencode_config}"
+            "XDG_CACHE_HOME=${opencode_cache}"
+            "XDG_DATA_HOME=${opencode_data}"
+            "XDG_STATE_HOME=${opencode_state}"
+            "PATH=${RUNNER_TEMP}/verified-darwin-bin:/usr/bin:/bin:/usr/sbin:/sbin"
+          )
+          opencode_setup="$(env "${opencode_environment[@]}" "${launcher[@]}" \
+            local setup --client opencode --agent barista --context focused \
+            --provider-id ci-local \
+            --base-url "http://127.0.0.1:${provider_port}/v1" \
+            --model-id ci-grillmester-local)"
+          grep -F 'Selected opencode with ci-grillmester-local (focused barista)' \
+            <<<"${opencode_setup}"
+          opencode_doctor="$(env "${opencode_environment[@]}" "${launcher[@]}" \
+            local doctor --client opencode --agent barista \
+            --project-dir "${MACOS_CONSUMER}")"
+          grep -F 'ok  client opencode ' <<<"${opencode_doctor}"
+          grep -F 'ok  model ci-grillmester-local' <<<"${opencode_doctor}"
+          grep -F "ok  payload ${BUNDLE_ROOT}/targets/opencode-v1-focused" \
+            <<<"${opencode_doctor}"
+          opencode_output="${opencode_root}/focused.stdout"
+          env "${opencode_environment[@]}" "${launcher[@]}" local launch \
+            --client opencode --agent barista \
+            --project-dir "${MACOS_CONSUMER}" -- run --format json \
+            'OPENCODE-LOCAL-GATE: return the provider sentinel without using tools.' \
+            > "${opencode_output}"
+          grep -F 'GRILLMESTER_LOCAL_GATE_OK' "${opencode_output}"
+
+          python3 -I -S - "${provider_log}" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          records = [
+              json.loads(line)
+              for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+          ]
+          matching = [
+              record
+              for record in records
+              if "OPENCODE-LOCAL-GATE" in json.dumps(record["request"], sort_keys=True)
+          ]
+          if not matching:
+              raise SystemExit("local OpenCode launcher gate recorded no request")
+          for record in matching:
+              if record.get("model") != "ci-grillmester-local":
+                  raise SystemExit("OpenCode ignored the explicit local model override")
+              if record.get("stream") is not True:
+                  raise SystemExit("OpenCode did not use the required streaming contract")
+              if not record.get("path", "").endswith("/chat/completions"):
+                  raise SystemExit("OpenCode did not use Chat Completions")
+          PY
+          [[ -z "$(git -C "${MACOS_CONSUMER}" status --porcelain)" ]]

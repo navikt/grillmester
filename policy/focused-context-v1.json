@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "projection": "focused-context-v1",
+  "sources": {
+    "plugin": "plugin",
+    "opencode": "targets/opencode-v1"
+  },
+  "outputs": {
+    "opencode": "targets/opencode-v1-focused",
+    "copilotCli": "targets/copilot-cli-focused-v1"
+  },
+  "agents": [
+    "barista",
+    "grill-inspektor"
+  ],
+  "skills": [
+    "grillmester-diagnosing-bugs",
+    "grillmester-integration-tests",
+    "grillmester-pull-request",
+    "grillmester-review",
+    "grillmester-security-review",
+    "grillmester-tdd"
+  ],
+  "fullContextHandoff": {
+    "status": "NEEDS_FULL_CONTEXT",
+    "command": "grillmester local --full"
+  },
+  "copilotCli": {
+    "removeAgentFrontmatterFields": [
+      "model"
+    ]
+  }
+}

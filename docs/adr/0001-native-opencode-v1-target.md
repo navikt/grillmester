@@ -7,7 +7,9 @@ date: 2026-08-21
 
 Installasjons- og aktiveringsdelen er supersedert av
 [ADR 0002](0002-install-and-launch-opencode-bundles.md) og deretter
-[ADR 0003](0003-one-terminal-entrypoint-through-cplt.md). Beslutningen om et
+[ADR 0003](0003-one-terminal-entrypoint-through-cplt.md). Standardflytens
+klienteierskap og kompatibilitetsgrense er videre supersedert av
+[ADR 0004](0004-use-user-installed-terminal-clients.md). Beslutningen om et
 generert native target gjelder fortsatt.
 
 ## Kontekst
