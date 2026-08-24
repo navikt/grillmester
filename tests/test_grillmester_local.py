@@ -1595,6 +1595,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("multiple client choices", stderr.getvalue())
         self.assertFalse(LOCAL.config_path(environment).exists())
 
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
     def test_embedded_main_accepts_checked_binaries_and_full_one_shot(self) -> None:
         LOCAL.save_config(self._config(), environment=self.environment)
         resolutions: list[str] = []
@@ -1637,6 +1638,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual("opencode", persisted.client)
         self.assertEqual("barista", persisted.agent)
 
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
     def test_doctor_reports_the_exact_checked_runtime_and_selection(self) -> None:
         with ProbeServer() as server:
             LOCAL.save_config(
@@ -1674,6 +1676,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("targets/opencode-v1-focused", output)
         self.assertFalse((self.root / "state").exists())
 
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
     def test_remainder_print_token_cannot_disable_checked_binary_resolution(self) -> None:
         with ProbeServer() as server:
             LOCAL.save_config(

@@ -1363,6 +1363,7 @@ class GrillmesterCliTests(unittest.TestCase):
             self.assertNotEqual(str(hostile_config), observed_config)
             self.assertEqual("unset", observed_secret)
 
+    @mock.patch.object(CLI.sys, "platform", "darwin")
     def test_local_cplt_is_checksum_rejected_before_first_execution(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1856,6 +1857,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual([mock.call("cplt"), mock.call("opencode")], locate.call_args_list)
         checked.assert_not_called()
 
+    @mock.patch.object(CLI.sys, "platform", "darwin")
     def test_local_rejects_unreviewed_cplt_with_actionable_guidance(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
