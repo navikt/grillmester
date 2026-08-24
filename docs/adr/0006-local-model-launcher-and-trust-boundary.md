@@ -37,6 +37,8 @@ Dette betyr med vilje:
 
 - modellrequests går til den valgte lokale provideren
 - web, dokumentasjon og GitHub kan nås når klienten og cplt-policyen tillater det
+- OpenCode bruker Exa for websearch; søketeksten forlater maskinen når tool-et
+  godkjennes interaktivt eller auto-godkjennes i `local run`
 - cplt eier filesystem-, miljø-, proxy-, `gh`- og Git-grensene
 - Grillmester åpner ikke alle domener og utsteder ingen egen egressattest
 
@@ -45,6 +47,22 @@ den distribuerte focused- eller full-payloaden og avviser ambient
 klientkomponenter som kan skygge agentteamet. Dette beskytter hvilken metode og
 modell som lastes; det er ikke en parallell sandboximplementasjon. Focused
 Barista er default, mens `--full` bruker den kanoniske fullpayloaden.
+
+### Interaktiv launch og eksplisitt unattended run
+
+Den eksisterende `grillmester local`-/`launch`-reisen beholder klientens
+interaktive godkjenningsmodell. `grillmester local run "<prompt>"` er en egen,
+klientnøytral flate for én non-interaktiv oppgave. Launcheren mapper den til
+OpenCode `run --auto` eller Copilot CLIs promptmodus med automatiske tool- og
+URL-godkjenninger og uten `ask_user`. Rå klientflaggene eksponeres ikke.
+
+`run` endrer ikke runtimegrensen: den bruker samme cplt-kommando,
+prosjektavgrensning, providerbinding, payloadkontroll og secretflyt som launch.
+Den automatiserer derimot operasjoner modellen starter innenfor prosjektet;
+cplt beskytter ikke prosjektfiler mot overskriving eller destruktive Git-
+kommandoer. Brukerflaten krever derfor et rent, dedikert worktree, én run per
+worktree og etterkontroll av sluttsvar, diff og tester. En vellykket
+klientprosess er ikke bevis på at oppgaven er semantisk fullført.
 
 ### Systemklienter og kompatible versjonsranger
 
@@ -67,26 +85,43 @@ klientnøytral funksjon. Det er ikke en pin av klientens normalreise.
 
 ### GitHub i OpenCode og Copilot CLI
 
-cplt medierer foreløpig ikke Keychain-backed GitHub-auth generisk for begge
-child-klientene med isolert klientstate. Ingen local-klient får derfor GitHub-
-credential som default. Copilot CLIs innebygde GitHub MCP er deaktivert; GitHub-
-operasjoner skal gå gjennom guarded `gh`. Bare når brukeren både
-setter `GH_TOKEN` i caller-miljøet og velger `--github-access`, validerer
-launcheren verdien uten å kjøre `gh` og sender den til valgt child-miljø.
-Launcheren skriver ikke tokenet til config, sessionstate eller preview. Klienten
-og godkjente tool-subprosesser kan likevel persistere det i skrivbar
-sessionstate. Uten opt-in starter OpenCode fortsatt med offentlig webtilgang,
-og `doctor` forklarer at autentiserte GitHub-operasjoner mangler.
+GitHub-auth følger klientens native cplt-profil. Copilot-local kjøres med
+`cplt --agent copilot`. cplt kan da hente brukerens vanlige GitHub-credential
+fra GitHub CLI eller Keychain og mediere den til guarded `gh`.
+Copilot CLIs innebygde GitHub MCP er deaktivert, så GitHub-operasjoner skal
+fortsatt gå gjennom cplts `gh`- og repo-guard.
 
-Alle eksisterende host-paths som GitHub CLI kan bruke som rå credentialstore
-deny-es for begge child-klientene. Valgt klient ser bare opt-in-tokenet.
+OpenCode får ingen GitHub-credential som default. Når brukeren både setter
+`GH_TOKEN` i caller-miljøet og velger `--github-access`, validerer Grillmester
+verdien uten å kjøre `gh` og sender den til valgt child-miljø. Flagget kan også
+brukes med Copilot som eksplisitt kontooverride. Grillmester skriver ikke
+caller-tokenet til config, sessionstate eller preview. Uten OpenCode-opt-in
+starter klienten fortsatt med offentlig webtilgang, og `doctor` forklarer at
+autentiserte GitHub-operasjoner mangler.
 
-Dette er en myk secret-grense: modellen og vilkårlige tool-subprosesser i
-klienten kan lese `GH_TOKEN` og kan i prinsippet bruke det utenom `gh`-guarden.
+I unattended `run` deny-es Copilots `shell(gh:*)` i tillegg med mindre
+brukeren velger `--github-access`; OpenCode får fortsatt ingen token som
+default. Med flagget kan GitHub-skrivinger som er eksplisitt autorisert i
+prompten skje uten en ny tool-dialog. Denne reisen krever et dedikert,
+fine-grained token med minst mulig repository- og permission-scope. Det er
+fortsatt en myk grense: child kan lese tokenet, og direkte API-kall kan omgå
+cplts best-effort `gh`-guard.
+
+Eksisterende host-paths som GitHub CLI kan bruke som rå credentialstore deny-es
+for child-klientene. cplt-parenten beholder nødvendig hostkontekst for native
+Copilot-mediering. Release-smoken bruker derimot en tom, scenario-eid
+`GH_CONFIG_DIR` og en deterministisk feilende `gh`, slik at testen aldri kan
+lese en virkelig runner-credential.
+
+Begge credentialveiene er myke, best-effort-grenser. Modellen og vilkårlige
+tool-subprosesser kan lese og persistere et eksplisitt `GH_TOKEN` eller skrive
+det til terminaloutput/klientlogger; cplt kan ikke redigere modellens output i
+etterkant. Native Copilot-mediering er ikke en hemmeligholdsgrense mot prosesser
+med samme bruker-ID.
 Brukeren skal derfor bare starte en local-session i repo og med GitHub-konto som
-er innenfor ønsket scope, og godkjenne sideeffekter som vanlig. Langsiktig mål
-er generisk cplt-mediering som lar child-klientene bruke GitHub uten at tokenet blir
-synlig i child-miljøet.
+er innenfor ønsket scope. Interaktive sessions godkjenner sideeffekter som
+vanlig; unattended `run` må få hele den avgrensede autorisasjonen i prompten og
+kjøres i et separat worktree.
 
 ### Ingen egen offlineprofil
 
@@ -102,12 +137,14 @@ eies av cplt eller organisasjonens runtimepolicy, ikke av en parallell launcher.
   eier payload-, provider- og modellbindingen.
 - Local-flyten er ikke offline. Et krav om fravær av ekstern egress må løses i
   cplt eller organisasjonens runtimepolicy.
-- Den eksplisitte opt-in-tokenbroen er brukbar nå, men svakere enn ekte
-  credentialmediering og må omtales ærlig i trustdokumentasjonen.
+- Native Copilot-mediering og OpenCodes eksplisitte opt-in-token er myke
+  credentialgrenser og må omtales ærlig i trustdokumentasjonen.
 - Modellserverens binær, vekter, logging og egen egress forblir en separat
   tillitsgrense.
 - Nye klientversjoner krever ikke løpende arbeid; bare nye majorversjoner eller
   nye rå passthrough-flagg utvider den reviewede kompatibilitetsflaten.
+- Små og mellomstore oppgaver kan kjøre unattended gjennom én klientnøytral
+  kommando, men arbeidskopi og semantisk resultat må verifiseres av brukeren.
 
 ## Forkastede alternativer
 

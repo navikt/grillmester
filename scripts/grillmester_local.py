@@ -1087,11 +1087,13 @@ RIPGREP_HINT = (
 )
 
 
-def _resolve_ripgrep(environment: Mapping[str, str]) -> Path | None:
+def _resolve_path_executable(
+    name: str, environment: Mapping[str, str]
+) -> Path | None:
     search_path = environment.get("PATH")
     if not search_path:
         return None
-    found = shutil.which("rg", path=search_path)
+    found = shutil.which(name, path=search_path)
     if found is None:
         return None
     try:
@@ -1102,6 +1104,10 @@ def _resolve_ripgrep(environment: Mapping[str, str]) -> Path | None:
     if not stat.S_ISREG(observed.st_mode) or not os.access(resolved, os.X_OK):
         return None
     return resolved
+
+
+def _resolve_ripgrep(environment: Mapping[str, str]) -> Path | None:
+    return _resolve_path_executable("rg", environment)
 
 
 def _explicit_github_token(environment: Mapping[str, str]) -> _ResolvedSecret:
@@ -1123,6 +1129,16 @@ def _explicit_github_token(environment: Mapping[str, str]) -> _ResolvedSecret:
     ) is None:
         raise LocalModeError("GH_TOKEN has an invalid value")
     return _ResolvedSecret(token)
+
+
+def _explicit_github_capability(environment: Mapping[str, str]) -> _ResolvedSecret:
+    token = _explicit_github_token(environment)
+    if _resolve_path_executable("gh", environment) is None:
+        raise LocalModeError(
+            "--github-access requires GitHub CLI (gh) on PATH; install it with: "
+            "brew install gh"
+        )
+    return token
 
 
 def _client_search_directory(
@@ -1929,26 +1945,7 @@ def _reject_copilot_command_mode(arguments: Sequence[str]) -> None:
         )
 
 
-def _client_arguments(
-    config: LocalConfig,
-    payload: Path,
-    arguments: Sequence[str],
-) -> list[str]:
-    _validate_client_arguments(config.client, arguments)
-    if config.client == "opencode":
-        binding = ["--agent", config.agent, "--model", config.qualified_model]
-        if not arguments:
-            return binding
-        if arguments and arguments[0] == "run":
-            return ["run", *binding, *arguments[1:]]
-        if tuple(arguments) in OPENCODE_SAFE_META_ARGUMENTS:
-            return list(arguments)
-        if arguments[0].startswith("-"):
-            return [*binding, *arguments]
-        raise LocalModeError(
-            "local OpenCode accepts the TUI, 'run', --help, or --version; "
-            "use the system OpenCode command directly for admin commands or another project"
-        )
+def _copilot_binding_arguments(config: LocalConfig, payload: Path) -> list[str]:
     return [
         "--plugin-dir",
         str(payload),
@@ -1964,8 +1961,68 @@ def _client_arguments(
         "--no-remote-export",
         "--disable-builtin-mcps",
         f"--secret-env-vars={COPILOT_SECRET_ENV}",
-        *arguments,
     ]
+
+
+def _validate_run_prompt(run_prompt: str) -> None:
+    if "\x00" in run_prompt:
+        raise LocalModeError("local run prompt must not contain NUL bytes")
+    if not run_prompt.strip():
+        raise LocalModeError("local run prompt must not be empty")
+
+
+def _client_arguments(
+    config: LocalConfig,
+    payload: Path,
+    arguments: Sequence[str],
+    *,
+    run_prompt: str | None = None,
+    github_access: bool = False,
+) -> list[str]:
+    if run_prompt is not None:
+        if arguments:
+            raise LocalModeError(
+                "local run owns the client command line and accepts only one prompt"
+            )
+        _validate_run_prompt(run_prompt)
+        if config.client == "opencode":
+            return [
+                "run",
+                "--agent",
+                config.agent,
+                "--model",
+                config.qualified_model,
+                "--auto",
+                "--title",
+                "Grillmester local run",
+                "--",
+                run_prompt,
+            ]
+        return [
+            *_copilot_binding_arguments(config, payload),
+            "--prompt",
+            run_prompt,
+            "--allow-all-tools",
+            "--allow-all-urls",
+            "--no-ask-user",
+            *([] if github_access else ["--deny-tool=shell(gh:*)"]),
+        ]
+    _validate_client_arguments(config.client, arguments)
+    if config.client == "opencode":
+        binding = ["--agent", config.agent, "--model", config.qualified_model]
+        if not arguments:
+            return binding
+        if arguments and arguments[0] == "run":
+            return ["run", *binding, *arguments[1:]]
+        if tuple(arguments) in OPENCODE_SAFE_META_ARGUMENTS:
+            return list(arguments)
+        if arguments[0].startswith("-"):
+            return [*binding, *arguments]
+        raise LocalModeError(
+            "local OpenCode accepts the TUI, 'run', --help, or --version; "
+            "use the system OpenCode command directly for admin commands or another project"
+        )
+    return [*_copilot_binding_arguments(config, payload), *arguments]
 
 
 def build_local_launch(
@@ -1976,10 +2033,12 @@ def build_local_launch(
     cplt: object,
     client: object,
     client_arguments: Sequence[str] = (),
+    run_prompt: str | None = None,
     environment: Mapping[str, str] | None = None,
     github_access: bool = False,
     resolve_credentials: bool = True,
     resolved_secret: _ResolvedSecret | None = None,
+    resolved_github_secret: _ResolvedSecret | None = None,
     prepare_state: bool = True,
     platform: str | None = None,
 ) -> LocalLaunch:
@@ -2015,6 +2074,17 @@ def build_local_launch(
     else:
         reject_project_copilot_hooks(project)
     payload = _payload_path(distribution_root, config)
+    github_secret: str | None = None
+    if github_access:
+        github_secret = (
+            (
+                _explicit_github_capability(source_environment).value
+                if resolved_github_secret is None
+                else resolved_github_secret.value
+            )
+            if resolve_credentials
+            else "<redacted>"
+        )
     secret_configured = config.api_key_env is not None or config.api_key_file is not None
     if not resolve_credentials:
         secret = None
@@ -2096,11 +2166,6 @@ def build_local_launch(
         secret_names = frozenset({COPILOT_SECRET_ENV})
 
     if github_access:
-        github_secret = (
-            _explicit_github_token(source_environment).value
-            if resolve_credentials
-            else "<redacted>"
-        )
         assert github_secret is not None
         child_environment[GITHUB_SECRET_ENV] = github_secret
         passed_environment.append(GITHUB_SECRET_ENV)
@@ -2124,10 +2189,9 @@ def build_local_launch(
     ]
     sensitive_paths = list(_existing_host_github_config_dirs(source_environment))
     if config.client == "copilot":
-        # Copilot extracts its signed runtime and native addon below its isolated
-        # HOME cache. cplt blocks mmap/exec from caches unless this exact private
-        # subdirectory is named explicitly.
-        command.extend(("--allow-cache-exec", "copilot"))
+        # The native cplt Copilot profile pre-extracts the signed SEA runtime
+        # and grants executable mapping only below its read-only pkg subtree.
+        # Do not add a broader user cache-exec carve-out here.
         sensitive_paths.extend(
             _copilot_sensitive_paths(_environment_home(source_environment))
         )
@@ -2146,7 +2210,15 @@ def build_local_launch(
     for name in dict.fromkeys(passed_environment):
         command.extend(("--pass-env", name))
     command.append("--")
-    command.extend(_client_arguments(config, payload, client_arguments))
+    command.extend(
+        _client_arguments(
+            config,
+            payload,
+            client_arguments,
+            run_prompt=run_prompt,
+            github_access=github_access,
+        )
+    )
     return LocalLaunch(
         tuple(command),
         child_environment,
@@ -2170,6 +2242,9 @@ def doctor_local(
 ) -> tuple[ModelProbe, LocalLaunch]:
     environment = os.environ if environment is None else environment
     config = validate_config(config)
+    resolved_github_secret = (
+        _explicit_github_capability(environment) if github_access else None
+    )
     resolved_secret = _ResolvedSecret(_read_secret(config, environment))
     probe = probe_model(
         config,
@@ -2186,6 +2261,7 @@ def doctor_local(
         github_access=github_access,
         environment=environment,
         resolved_secret=resolved_secret,
+        resolved_github_secret=resolved_github_secret,
         prepare_state=False,
         platform=platform,
     )
@@ -2200,6 +2276,7 @@ def execute_local(
     cplt: object,
     client: object,
     client_arguments: Sequence[str] = (),
+    run_prompt: str | None = None,
     github_access: bool = False,
     environment: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
@@ -2210,6 +2287,15 @@ def execute_local(
 
     environment = os.environ if environment is None else environment
     config = validate_config(config)
+    if run_prompt is not None:
+        if client_arguments:
+            raise LocalModeError(
+                "local run owns the client command line and accepts only one prompt"
+            )
+        _validate_run_prompt(run_prompt)
+    resolved_github_secret = (
+        _explicit_github_capability(environment) if github_access else None
+    )
     resolved_secret = _ResolvedSecret(_read_secret(config, environment))
     probe_model(
         config,
@@ -2224,9 +2310,11 @@ def execute_local(
         cplt=cplt,
         client=client,
         client_arguments=client_arguments,
+        run_prompt=run_prompt,
         github_access=github_access,
         environment=environment,
         resolved_secret=resolved_secret,
+        resolved_github_secret=resolved_github_secret,
         platform=platform,
     )
     return exec_callback(launch.command[0], launch.command, launch.environment)
@@ -2347,6 +2435,7 @@ def _parser() -> argparse.ArgumentParser:
             "Examples:\n"
             "  grillmester local setup\n"
             "  grillmester local\n"
+            '  grillmester local run "Fix the failing test"\n'
             "  grillmester local --client copilot\n"
             "  grillmester local --full --agent grillmester\n"
             "  grillmester local doctor\n"
@@ -2356,7 +2445,7 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     subparsers = parser.add_subparsers(
-        dest="command", required=True, metavar="{setup,status,doctor,launch}"
+        dest="command", required=True, metavar="{setup,status,doctor,launch,run}"
     )
     setup = subparsers.add_parser(
         "setup",
@@ -2438,8 +2527,9 @@ def _parser() -> argparse.ArgumentParser:
         "--github-access",
         action="store_true",
         help=(
-            "pass caller-supplied GH_TOKEN to the client; gh invocations "
-            "remain guarded by cplt"
+            "enable OpenCode GitHub access or explicitly override Copilot's "
+            "cplt-managed account with caller-supplied GH_TOKEN; gh remains "
+            "guarded by cplt"
         ),
     )
     launch = subparsers.add_parser(
@@ -2476,8 +2566,9 @@ def _parser() -> argparse.ArgumentParser:
         "--github-access",
         action="store_true",
         help=(
-            "pass caller-supplied GH_TOKEN to the client; gh invocations "
-            "remain guarded by cplt"
+            "enable OpenCode GitHub access or explicitly override Copilot's "
+            "cplt-managed account with caller-supplied GH_TOKEN; gh remains "
+            "guarded by cplt"
         ),
     )
     launch.add_argument(
@@ -2485,6 +2576,56 @@ def _parser() -> argparse.ArgumentParser:
         nargs=argparse.REMAINDER,
         help="client arguments after -- (restricted by local mode)",
     )
+    run = subparsers.add_parser(
+        "run",
+        allow_abbrev=False,
+        help="run one prompt non-interactively with automatic tool approvals",
+        description=(
+            "Run one local-model task in foreground, non-interactively through cplt."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "This mode auto-approves project writes and tool commands. Use one run "
+            "at a time in a clean, dedicated worktree; cplt does not protect project "
+            "files from the model. An exit 0 means client completion, not semantic "
+            "task success: inspect the final status, diff and tests."
+        ),
+    )
+    run.add_argument(
+        "--project-dir",
+        type=Path,
+        default=Path.cwd(),
+        help="consumer repository for the sandbox (default: current directory)",
+    )
+    run.add_argument(
+        "--client", choices=sorted(CLIENTS), help="one-shot client override"
+    )
+    run.add_argument(
+        "--agent", choices=sorted(PUBLIC_AGENTS), help="one-shot agent override"
+    )
+    run.add_argument(
+        "--full",
+        action="store_true",
+        help="use the complete agent and skill payload for this task only",
+    )
+    run.add_argument(
+        "--print-command",
+        action="store_true",
+        help=(
+            "print a redacted, side-effect-free preview; policy files and secret "
+            "environment are not materialized, so it is not a copy/paste command"
+        ),
+    )
+    run.add_argument(
+        "--github-access",
+        action="store_true",
+        help=(
+            "authorize prompt-described GitHub writes without tool prompts using a "
+            "dedicated fine-grained GH_TOKEN supplied by the caller; the child can "
+            "read it and cplt's gh guard is a soft boundary"
+        ),
+    )
+    run.add_argument("prompt", help="one quoted task prompt")
     return parser
 
 
@@ -2533,6 +2674,12 @@ def main(
         try:
             config = load_config(environment=environment)
         except LocalModeError as exc:
+            saved_config = config_path(environment)
+            if saved_config.is_symlink():
+                raise LocalModeError(
+                    f"{exc}; remove the symlink {saved_config}, then run "
+                    "'grillmester local setup'"
+                ) from exc
             raise LocalModeError(
                 f"{exc}; run 'grillmester local setup' to create or replace it"
             ) from exc
@@ -2542,16 +2689,24 @@ def main(
 
         if binary_resolver is None:
             raise LocalModeError(
-                "doctor and launch must run through the top-level 'grillmester local' "
+                "doctor, launch and run must use the top-level 'grillmester local' "
                 "launcher so compatible cplt and client versions are verified"
             )
 
-        config = replace(
-            config,
-            client=arguments.client or config.client,
-            agent=arguments.agent or config.agent,
-            context="full" if arguments.full else config.context,
-        )
+        if arguments.command == "run":
+            config = replace(
+                config,
+                client=arguments.client or config.client,
+                agent=arguments.agent or FOCUSED_AGENT,
+                context="full" if arguments.full else "focused",
+            )
+        else:
+            config = replace(
+                config,
+                client=arguments.client or config.client,
+                agent=arguments.agent or config.agent,
+                context="full" if arguments.full else config.context,
+            )
         config = validate_config(config)
 
         root = (
@@ -2562,7 +2717,10 @@ def main(
         # The local parser is the sole authority on whether this is a pure
         # preview. Tokens after argparse.REMAINDER must never weaken the
         # cplt/client version gate in the parent launcher.
-        checked = arguments.command != "launch" or not arguments.print_command
+        checked = (
+            arguments.command not in {"launch", "run"}
+            or not arguments.print_command
+        )
         resolved = binary_resolver(config.client, checked)
         if not isinstance(resolved, tuple) or len(resolved) != 2:
             raise LocalModeError("binary_resolver must return (cplt, client)")
@@ -2594,12 +2752,21 @@ def main(
                     "ok  github explicit GH_TOKEN passed to client "
                     "(soft boundary); gh guarded by cplt"
                 )
+            elif config.client == "copilot":
+                print(
+                    "info github cplt may mediate native Copilot authentication; "
+                    "credential not probed"
+                )
             else:
                 print(
                     "skip github credential not exposed; use --github-access "
                     "with an explicit GH_TOKEN when needed"
                 )
             if config.client == "opencode":
+                print(
+                    "info websearch OpenCode sends approved search queries to Exa "
+                    "when cplt network policy permits"
+                )
                 ripgrep = _resolve_ripgrep(environment)
                 if ripgrep is None:
                     print(f"warn  {RIPGREP_HINT}")
@@ -2607,9 +2774,14 @@ def main(
                     print(f"ok  rg {ripgrep}")
             return 0
 
-        client_arguments = list(arguments.client_arguments)
+        client_arguments = list(getattr(arguments, "client_arguments", ()))
         if client_arguments[:1] == ["--"]:
             client_arguments.pop(0)
+        if arguments.command == "launch" and client_arguments[:1] == ["run"]:
+            raise LocalModeError(
+                "use unattended mode: place 'run' immediately after "
+                "'grillmester local', before --client and other options"
+            )
         if arguments.print_command:
             launch = build_local_launch(
                 config,
@@ -2618,6 +2790,7 @@ def main(
                 cplt=cplt,
                 client=client,
                 client_arguments=client_arguments,
+                run_prompt=arguments.prompt if arguments.command == "run" else None,
                 github_access=arguments.github_access,
                 environment=environment,
                 resolve_credentials=False,
@@ -2632,6 +2805,7 @@ def main(
             cplt=cplt,
             client=client,
             client_arguments=client_arguments,
+            run_prompt=arguments.prompt if arguments.command == "run" else None,
             github_access=arguments.github_access,
             environment=environment,
             exec_callback=exec_callback,

@@ -49,16 +49,17 @@ grillmester doctor
 ```
 
 Standardkommandoen beholder hele agentteamet og klientens vanlige modellregler.
-For en eksplisitt loopback-modell starter du først en OpenAI-kompatibel
-modellserver, og bruker så den lokale flyten fra consumer-repoet:
+For loopback starter du først en OpenAI-kompatibel modellserver og kjører fra
+consumer-repoet:
 
 ```bash
 cd /path/to/consumer-repo
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local run "Fiks den avgrensede oppgaven og kjør testene"
 ```
 
-`setup` finner klient/modell; focused Barista er default. Inferensen går til localhost; web/GitHub følger cplt-policy. Begge flyter bruker kompatible 1.x-klienter. Se [lokale modeller](docs/local-models.md) og [OpenCode](docs/opencode.md).
+`launch` er interaktiv; `run` er alternativet for én bakgrunnsoppgave i et eget worktree. Web/GitHub følger cplt-policy. Se [lokale modeller](docs/local-models.md).
 
 ### Oppdatere terminalinstallasjonen
 
@@ -98,9 +99,8 @@ Standardlauncheren støtter OpenCode 1.x fra `1.18.20`, Copilot CLI 1.x fra
 `1.0.79` og cplt fra testbaselinen. Hver modell må kvalitetsvalideres separat.
 Se [klientstatus og releasegater](docs/trust-and-client-support.md).
 
-Grillmester kan brukes sammen med `navikt/copilot`. Se hvordan [repo-eid
-kontekst, overlapp og eventuelle
-kollisjoner](docs/repository-context.md#samspill-med-naviktcopilot) håndteres.
+Grillmester kan brukes sammen med `navikt/copilot`. Se hvordan [repo-eid kontekst,
+overlapp og kollisjoner](docs/repository-context.md#samspill-med-naviktcopilot) håndteres.
 
 ## Dokumentasjon
 

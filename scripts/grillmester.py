@@ -1354,18 +1354,46 @@ def _has_explicit_selection(arguments: Sequence[str], option: str) -> bool:
 def _run_local_mode(arguments: Sequence[str]) -> int:
     local_mode = _load_local_mode_module()
     local_arguments = list(arguments)
-    if not local_arguments:
+    if local_arguments == ["help"]:
+        local_arguments = ["--help"]
+    elif not local_arguments:
         local_arguments = ["launch"]
     elif local_arguments[0].startswith("-") and local_arguments[0] not in (
         "-h",
         "--help",
     ):
-        local_arguments.insert(0, "launch")
+        value_options = {"--project-dir", "--client", "--agent"}
+        flag_options = {"--full", "--print-command", "--github-access"}
+        index = 0
+        run_index: int | None = None
+        while index < len(local_arguments):
+            value = local_arguments[index]
+            if value == "run":
+                run_index = index
+                break
+            if value in value_options:
+                index += 2
+                continue
+            if any(value.startswith(f"{option}=") for option in value_options):
+                index += 1
+                continue
+            if value in flag_options:
+                index += 1
+                continue
+            break
+        if run_index is None:
+            local_arguments.insert(0, "launch")
+        else:
+            local_arguments = [
+                "run",
+                *local_arguments[:run_index],
+                *local_arguments[run_index + 1 :],
+            ]
 
     command = local_arguments[0] if local_arguments else ""
     distribution: Distribution | None = None
     binary_resolver = None
-    if command in {"doctor", "launch"}:
+    if command in {"doctor", "launch", "run"}:
         distribution = load_distribution()
 
         def resolve_local_binaries(

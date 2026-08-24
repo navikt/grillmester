@@ -201,14 +201,14 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn(marker, local_models)
 
         self.assertIn(
-            "web/GitHub følger cplt-policy", normalized(self.readme)
+            "web/github følger cplt-policy", normalized(self.readme).casefold()
         )
         self.assertIn("Websearch, dokumentasjon og GitHub", trust)
         self.assertIn("lokal inference, ikke offline", normalized(self.guide))
         self.assertIn("ingen offlinegaranti", decision)
         self.assertIn("cplt er eneste runtimeeier", decision)
 
-    def test_local_github_contract_is_explicit_for_both_clients(self) -> None:
+    def test_local_github_contract_matches_each_native_client_profile(self) -> None:
         local_models = normalized(self.local_models)
         trust = normalized(self.trust)
         decision = normalized(self.adrs["0006"])
@@ -221,19 +221,31 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn("lese", document)
 
         self.assertIn(
-            "Launcheren skriver ikke tokenet til config, sessionstate eller preview",
+            "Launcheren skriver ikke caller-tokenet til config, sessionstate eller preview",
             local_models,
         )
-        self.assertIn("innebygde GitHub MCP er av", local_models)
+        self.assertIn("innebygde GitHub MCP er fortsatt av", local_models)
         self.assertIn("guarded `gh`", local_models)
         self.assertIn("Git push forblir under Git-guard", local_models)
         self.assertIn("OpenCodes websearch er aktiv", local_models)
-        self.assertIn("permission krever godkjenning", local_models)
-        self.assertIn("cplt-credentialmediering", trust)
+        self.assertIn("interaktiv launch krever klientgodkjenning", local_models)
+        self.assertIn("`local run` auto-godkjenner", local_models)
+        self.assertIn("Exa", local_models)
+        self.assertIn("søketeksten", local_models)
+        self.assertIn("Exa", self.guide)
+        self.assertIn("Exa", trust)
+        self.assertIn("Exa", decision)
+        self.assertIn("`brew install gh`", local_models)
+        self.assertIn("cplts native Copilot-tokenbro", trust)
         self.assertIn("rå credentialstore", trust)
         self.assertIn("eksplisitte cplt `--deny-path`", trust)
         self.assertIn("`--no-audit`", trust)
         self.assertIn("parent-side Git-audit", decision)
+        self.assertIn("`cplt --agent copilot`", decision)
+        self.assertIn("GitHub CLI eller Keychain", trust)
+        self.assertIn("OpenCode får ingen GitHub-credential som default", local_models)
+        self.assertIn("også uten `--github-access`", local_models)
+        self.assertIn("eksplisitt kontooverride", decision)
         for document in (local_models, trust, decision):
             with self.subTest(explicit_github=document[:60]):
                 self.assertIn("`--github-access`", document)
@@ -311,6 +323,75 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
 
         self.assertIn("binder inferensen til én eksplisitt loopbackprovider", normalized(self.local_models))
         self.assertIn("Grillmester eier ikke serveren", normalized(self.local_models))
+
+    def test_local_run_documents_the_unattended_worktree_and_github_boundary(
+        self,
+    ) -> None:
+        value = normalized(self.local_models)
+        for marker in (
+            'grillmester local run "Fiks den avgrensede oppgaven og kjør testene"',
+            "foreground",
+            "rent, dedikert worktree",
+            "én `run` per worktree",
+            "auto-godkjenner",
+            "cplt beskytter ikke prosjektfilene",
+            "exitkode `0`",
+            "ikke at oppgaven er semantisk løst",
+            "`Status: NEEDS_INPUT`",
+            "`Status: NEEDS_FULL_CONTEXT`",
+            "dedikert, fine-grained token",
+            "myk grense",
+            "GitHub-skrivinger som er eksplisitt autorisert i prompten",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, value)
+
+        self.assertIn(
+            'local run "Fiks den avgrensede oppgaven', normalized(self.readme)
+        )
+        for name, document in (
+            ("installation", self.installation),
+            ("OpenCode", self.guide),
+        ):
+            with self.subTest(document=name):
+                self.assertIn("grillmester local run", normalized(document))
+
+        self.assertNotIn(
+            "grillmester local --client opencode --agent barista -- run",
+            value,
+        )
+        trust = normalized(self.trust)
+        for marker in (
+            "`grillmester local run`",
+            "`shell(gh:*)`",
+            "rent, dedikert worktree",
+            "direkte API-kall",
+        ):
+            with self.subTest(trust_marker=marker):
+                self.assertIn(marker, trust)
+
+    def test_issue_management_accepts_bounded_prompt_authorization_in_local_run(
+        self,
+    ) -> None:
+        source = normalized(
+            (ROOT / "plugin/skills/grillmester-issue-management/SKILL.md").read_text(
+                encoding="utf-8"
+            )
+        )
+        focused = normalized(
+            (
+                ROOT
+                / "targets/opencode-v1-focused/skills/grillmester-issue-management/SKILL.md"
+            ).read_text(encoding="utf-8")
+        )
+        for document in (source, focused):
+            with self.subTest(document=document[:60]):
+                self.assertIn("original `local run` prompt", document)
+                self.assertIn("exact, bounded mutation", document)
+                self.assertIn("no second client tool dialog", document)
+                self.assertIn("repository scope", document)
+                self.assertIn("never inspect or print the token", document)
+                self.assertNotIn("never bypass cplt's repository scope, GitHub guard, approval prompt", document)
 
     def test_checkout_commands_are_executable_without_an_installed_launcher(self) -> None:
         local_commands = (

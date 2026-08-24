@@ -76,6 +76,12 @@ scope by inventing technical detail.
 Present the exact issues and mutations first. Obtain explicit human
 authorization for that bounded set of external writes.
 
+In `grillmester local run`, the original `local run` prompt may carry that
+human authorization when it names the exact, bounded mutation and repository.
+This means there is no second client tool dialog. It does not authorize
+unstated writes or resolve an ambiguous repository, account, issue body or
+metadata choice; return `Status: NEEDS_INPUT` when any such choice remains.
+
 For Doctor Who, and for any runtime without explicit command-execution
 capability, use only an available, approved semantic GitHub integration. Never
 fall back to `gh`, shell, raw HTTP, or ask the user to run a command on the
@@ -88,10 +94,13 @@ GitHub UI action.
 An implementation agent in a terminal session explicitly started through
 Grillmester and cplt may use cplt-guarded `gh issue` commands as its approved
 GitHub adapter. Use only the confirmed current repository and account, keep the
-command inside cplt, and never bypass cplt's repository scope, GitHub guard,
-approval prompt, or command restrictions. Prefer semantic GitHub tools when
-they are available. Outside that explicit cplt context, do not substitute `gh`
-or shell for a missing semantic tracker capability. Never use raw HTTP for a
+command inside cplt, and never bypass cplt's repository scope, GitHub guard or
+command restrictions. Prefer semantic GitHub tools when they are available.
+When `GH_TOKEN` is supplied, never inspect or print the token or enumerate the
+full environment; invoke only the bounded `gh` command needed for the approved
+mutation.
+Outside that explicit cplt context, do not substitute `gh` or shell for a
+missing semantic tracker capability. Never use raw HTTP for a
 tracker mutation.
 
 Verify every created or changed issue, project item, field value, and

@@ -4,6 +4,7 @@ import importlib.util
 import io
 import json
 import os
+import shlex
 import shutil
 import stat
 import subprocess
@@ -774,6 +775,77 @@ class LocalModeTests(unittest.TestCase):
                     "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN", child
                 )
 
+    def test_invalid_github_capability_creates_no_session_state(self) -> None:
+        for client, binary in (("opencode", self.opencode), ("copilot", self.copilot)):
+            for label, token in (("missing", None), ("invalid", "bad token")):
+                with self.subTest(client=client, token=label):
+                    state = self.root / f"state-{client}-{label}"
+                    environment = {
+                        **self.environment,
+                        "XDG_STATE_HOME": str(state),
+                    }
+                    if token is None:
+                        environment.pop("GH_TOKEN", None)
+                    else:
+                        environment["GH_TOKEN"] = token
+                    with self.assertRaisesRegex(LOCAL.LocalModeError, "GH_TOKEN"):
+                        LOCAL.build_local_launch(
+                            self._config(client=client),
+                            distribution_root=self.distribution,
+                            project_dir=self.project,
+                            cplt=self.cplt,
+                            client=binary,
+                            environment=environment,
+                            github_access=True,
+                            platform="darwin",
+                        )
+                    self.assertFalse(state.exists())
+
+    def test_github_access_requires_gh_on_path_before_state_is_created(self) -> None:
+        self.gh.unlink()
+        for client, binary in (("opencode", self.opencode), ("copilot", self.copilot)):
+            state = self.root / f"state-no-gh-{client}"
+            environment = {**self.environment, "XDG_STATE_HOME": str(state)}
+            with self.subTest(client=client), self.assertRaisesRegex(
+                LOCAL.LocalModeError, "brew install gh"
+            ):
+                LOCAL.build_local_launch(
+                    self._config(client=client),
+                    distribution_root=self.distribution,
+                    project_dir=self.project,
+                    cplt=self.cplt,
+                    client=binary,
+                    environment=environment,
+                    github_access=True,
+                    platform="darwin",
+                )
+            self.assertFalse(state.exists())
+
+    def test_execute_rejects_invalid_run_inputs_before_probe_or_state(self) -> None:
+        without_token = {**self.environment}
+        without_token.pop("GH_TOKEN", None)
+        cases = (
+            ("blank-prompt", "   ", False, self.environment, "prompt"),
+            ("missing-token", "Create the approved issue", True, without_token, "GH_TOKEN"),
+        )
+        for label, prompt, github_access, environment, error in cases:
+            with self.subTest(case=label), mock.patch.object(
+                LOCAL, "probe_model", side_effect=AssertionError("must not probe")
+            ) as probe, self.assertRaisesRegex(LOCAL.LocalModeError, error):
+                LOCAL.execute_local(
+                    self._config(),
+                    distribution_root=self.distribution,
+                    project_dir=self.project,
+                    cplt=self.cplt,
+                    client=self.opencode,
+                    run_prompt=prompt,
+                    github_access=github_access,
+                    environment=environment,
+                    platform="darwin",
+                )
+            probe.assert_not_called()
+            self.assertFalse((self.root / "state").exists())
+
     def test_opencode_rejects_provider_credentials_before_state_is_created(self) -> None:
         for config in (
             self._config(api_key_env="LOCAL_MODEL_TOKEN"),
@@ -824,6 +896,54 @@ class LocalModeTests(unittest.TestCase):
             ):
                 self._launch(arguments=arguments)
 
+    def test_opencode_run_auto_approves_tools_without_exposing_ambient_github_token(
+        self,
+    ) -> None:
+        launch = LOCAL.build_local_launch(
+            self._config(),
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            cplt=self.cplt,
+            client=self.opencode,
+            run_prompt="Fix the failing test",
+            environment=self.environment,
+            platform="darwin",
+        )
+
+        command = list(launch.command)
+        self.assertEqual("cplt", Path(command[0]).name)
+        self.assertIn(str(self.project.resolve(strict=True)), command)
+        self.assertEqual(
+            [
+                "run",
+                "--agent",
+                "barista",
+                "--model",
+                "llamacpp/qwen3.8-local",
+                "--auto",
+                "--title",
+                "Grillmester local run",
+                "--",
+                "Fix the failing test",
+            ],
+            command[command.index("--") + 1 :],
+        )
+        self.assertNotIn("GH_TOKEN", launch.environment)
+        self.assertNotIn("GH_TOKEN", launch.secret_environment)
+
+    def test_run_rejects_nul_in_prompt_before_building_the_client_command(self) -> None:
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "must not contain NUL"):
+            LOCAL.build_local_launch(
+                self._config(),
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                cplt=self.cplt,
+                client=self.opencode,
+                run_prompt="Fix the test\0and hide this suffix",
+                environment=self.environment,
+                platform="darwin",
+            )
+
     def test_copilot_launch_binds_local_inference_and_keeps_tools_connected(self) -> None:
         self.environment["LOCAL_MODEL_TOKEN"] = "private-token"
         config = self._config(
@@ -869,6 +989,53 @@ class LocalModeTests(unittest.TestCase):
                 for item in settings["subagents"]["agents"].values()
             )
         )
+
+    def test_copilot_run_is_noninteractive_but_denies_gh_without_explicit_access(
+        self,
+    ) -> None:
+        launch = LOCAL.build_local_launch(
+            self._config(client="copilot"),
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            cplt=self.cplt,
+            client=self.copilot,
+            run_prompt="Fix the failing test",
+            environment=self.environment,
+            platform="darwin",
+        )
+
+        command = list(launch.command)
+        client = command[command.index("--") + 1 :]
+        self.assertIn("--prompt", client)
+        self.assertEqual("Fix the failing test", client[client.index("--prompt") + 1])
+        self.assertIn("--allow-all-tools", client)
+        self.assertIn("--allow-all-urls", client)
+        self.assertIn("--no-ask-user", client)
+        self.assertIn("--deny-tool=shell(gh:*)", client)
+        self.assertNotIn("--allow-all-paths", client)
+        self.assertNotIn("GH_TOKEN", launch.environment)
+        self.assertNotIn("GH_TOKEN", launch.secret_environment)
+
+    def test_copilot_run_with_explicit_github_access_passes_redacted_token_and_removes_gh_deny(
+        self,
+    ) -> None:
+        launch = LOCAL.build_local_launch(
+            self._config(client="copilot"),
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            cplt=self.cplt,
+            client=self.copilot,
+            run_prompt="Create the approved issue",
+            github_access=True,
+            environment=self.environment,
+            platform="darwin",
+        )
+
+        client = list(launch.command[launch.command.index("--") + 1 :])
+        self.assertNotIn("--deny-tool=shell(gh:*)", client)
+        self.assertEqual("must-not-cross", launch.environment["GH_TOKEN"])
+        self.assertEqual("<redacted>", launch.redacted_environment["GH_TOKEN"])
+        self.assertIn("GH_TOKEN", launch.secret_environment)
 
     def test_copilot_without_auth_uses_only_redacted_local_placeholder(self) -> None:
         launch = self._launch(self._config(client="copilot"))
@@ -1322,7 +1489,10 @@ class LocalModeTests(unittest.TestCase):
         expected_gh_config.mkdir(parents=True)
         launch = self._launch(self._config(client="copilot"))
         command = list(launch.command)
-        self.assertEqual("copilot", command[command.index("--allow-cache-exec") + 1])
+        separator = command.index("--")
+        self.assertEqual("copilot", command[command.index("--agent") + 1])
+        self.assertNotIn("exec", command[:separator])
+        self.assertNotIn("--allow-cache-exec", command)
         denied = {
             command[index + 1]
             for index, value in enumerate(command)
@@ -1653,6 +1823,58 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual("barista", persisted.agent)
 
     @mock.patch.object(LOCAL.sys, "platform", "darwin")
+    def test_run_preview_maps_saved_opencode_to_focused_barista_auto_mode(self) -> None:
+        LOCAL.save_config(
+            self._config(context="full", agent="grillmester"),
+            environment=self.environment,
+        )
+        resolutions: list[tuple[str, bool]] = []
+
+        def resolve(client: str, checked: bool) -> tuple[object, object]:
+            resolutions.append((client, checked))
+            return (
+                SimpleNamespace(path=str(self.cplt), version="reviewed"),
+                SimpleNamespace(path=str(self.opencode), version="reviewed"),
+            )
+
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            result = LOCAL.main(
+                [
+                    "run",
+                    "--project-dir",
+                    str(self.project),
+                    "--print-command",
+                    "Fix the failing test",
+                ],
+                distribution_root=self.distribution,
+                binary_resolver=resolve,
+                environment=self.environment,
+            )
+
+        self.assertEqual(0, result)
+        self.assertEqual([("opencode", False)], resolutions)
+        command = shlex.split(stdout.getvalue())
+        self.assertEqual(
+            [
+                "run",
+                "--agent",
+                "barista",
+                "--model",
+                "llamacpp/qwen3.8-local",
+                "--auto",
+                "--title",
+                "Grillmester local run",
+                "--",
+                "Fix the failing test",
+            ],
+            command[command.index("--") + 1 :],
+        )
+        persisted = LOCAL.load_config(environment=self.environment)
+        self.assertEqual("full", persisted.context)
+        self.assertEqual("grillmester", persisted.agent)
+
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
     def test_doctor_reports_the_exact_checked_runtime_and_selection(self) -> None:
         with ProbeServer() as server:
             LOCAL.save_config(
@@ -1688,6 +1910,47 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn(f"ok  endpoint {server.base_url}", output)
         self.assertIn("ok  model qwen3.8-local", output)
         self.assertIn("targets/opencode-v1-focused", output)
+        self.assertIn(
+            "info websearch OpenCode sends approved search queries to Exa "
+            "when cplt network policy permits",
+            output,
+        )
+        self.assertIn("skip github credential not exposed", output)
+        self.assertFalse((self.root / "state").exists())
+
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
+    def test_doctor_reports_native_cplt_auth_for_copilot(self) -> None:
+        with ProbeServer() as server:
+            LOCAL.save_config(
+                self._config(client="copilot", base_url=server.base_url),
+                environment=self.environment,
+            )
+
+            def resolve(client: str, checked: bool) -> tuple[object, object]:
+                self.assertEqual("copilot", client)
+                self.assertTrue(checked)
+                return (
+                    SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
+                    SimpleNamespace(path=str(self.copilot), version="1.0.80"),
+                )
+
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                result = LOCAL.main(
+                    ["doctor", "--project-dir", str(self.project)],
+                    distribution_root=self.distribution,
+                    binary_resolver=resolve,
+                    environment=self.environment,
+                )
+
+        self.assertEqual(0, result)
+        output = stdout.getvalue()
+        self.assertIn(
+            "info github cplt may mediate native Copilot authentication; "
+            "credential not probed",
+            output,
+        )
+        self.assertNotIn("skip github credential not exposed", output)
         self.assertFalse((self.root / "state").exists())
 
     @mock.patch.object(LOCAL.sys, "platform", "darwin")
@@ -1733,7 +1996,9 @@ class LocalModeTests(unittest.TestCase):
                 )
 
         self.assertEqual(2, result)
-        self.assertIn("not supported by local mode", stderr.getvalue())
+        self.assertIn(
+            "place 'run' immediately after 'grillmester local'", stderr.getvalue()
+        )
         self.assertEqual([("opencode", True)], resolutions)
         self.assertEqual([], executions)
 
@@ -1744,6 +2009,83 @@ class LocalModeTests(unittest.TestCase):
 
         self.assertEqual(2, result)
         self.assertIn("grillmester local setup", stderr.getvalue())
+
+    def test_symlinked_local_config_explains_manual_recovery_before_setup(self) -> None:
+        path = LOCAL.config_path(self.environment)
+        path.parent.mkdir(parents=True)
+        victim = self.root / "victim-local.json"
+        victim.write_text("{}", encoding="utf-8")
+        path.symlink_to(victim)
+
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            result = LOCAL.main(["status"], environment=self.environment)
+
+        self.assertEqual(2, result)
+        output = stderr.getvalue()
+        self.assertIn(f"remove the symlink {path}", output)
+        self.assertIn("then run 'grillmester local setup'", output)
+        self.assertNotIn("create or replace it", output)
+        self.assertTrue(path.is_symlink())
+        self.assertEqual("{}", victim.read_text(encoding="utf-8"))
+
+    def test_run_accepts_exactly_one_prompt_and_exposes_no_raw_permission_flags(
+        self,
+    ) -> None:
+        for arguments in (
+            ["run", "first prompt", "second prompt"],
+            ["run", "--auto", "task"],
+            ["run", "--allow-all-tools", "task"],
+            ["run", "--allow-all-urls", "task"],
+            ["run", "--no-ask-user", "task"],
+            ["run", "--deny-tool=shell(gh:*)", "task"],
+        ):
+            with self.subTest(arguments=arguments), redirect_stderr(
+                io.StringIO()
+            ), self.assertRaises(SystemExit) as raised:
+                LOCAL._parser().parse_args(arguments)
+            self.assertEqual(2, raised.exception.code)
+
+    def test_launch_rejects_raw_run_remainder_with_actionable_syntax(self) -> None:
+        LOCAL.save_config(self._config(), environment=self.environment)
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            result = LOCAL.main(
+                [
+                    "launch",
+                    "--client",
+                    "opencode",
+                    "--",
+                    "run",
+                    "Fix the failing test",
+                ],
+                distribution_root=self.distribution,
+                binary_resolver=lambda _client, _checked: (
+                    SimpleNamespace(path=str(self.cplt), version="reviewed"),
+                    SimpleNamespace(path=str(self.opencode), version="reviewed"),
+                ),
+                environment=self.environment,
+            )
+
+        self.assertEqual(2, result)
+        self.assertIn("place 'run' immediately after 'grillmester local'", stderr.getvalue())
+
+    def test_run_help_warns_about_auto_approval_worktrees_and_completion_status(
+        self,
+    ) -> None:
+        stdout = io.StringIO()
+        with redirect_stdout(stdout), self.assertRaises(SystemExit) as raised:
+            LOCAL._parser().parse_args(["run", "--help"])
+
+        self.assertEqual(0, raised.exception.code)
+        output = stdout.getvalue()
+        self.assertIn("foreground", output)
+        self.assertIn("auto-approves project writes", output)
+        self.assertIn("clean, dedicated worktree", output)
+        self.assertIn("exit 0 means client completion", output)
+        self.assertIn("fine-grained GH_TOKEN", output)
+        self.assertNotIn("--allow-all-tools", output)
+        self.assertNotIn("--auto", output)
 
     def test_internal_module_cannot_bypass_parent_binary_verification(self) -> None:
         LOCAL.save_config(self._config(), environment=self.environment)

@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "158201c756bb1ef616b90aebf3929f053c1c1131287f21f8a478b8c4daea5389",
+    "payloadManifestSha256": "10ee8db638e5bffcb4ec3a49991bbf973f2a83ebe048d21f0ee0bbaf8ee828ee",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "5fe33032e71361e42c42729f5c0ca43fe67ca7e90dff898819ed01bcddf33283"
   },
@@ -73,7 +73,7 @@
       "mode": "0644"
     },
     "skills/grillmester-issue-management/SKILL.md": {
-      "sha256": "8712d792dd8bcf9db8b64ad64ccd17a2df11640181ba12226128f6368f1d2e56",
+      "sha256": "b6b7e3b3485cd99d0ccbcab90aafbfaf20ce067cabc842a051cf7603a4d69c9d",
       "mode": "0644"
     },
     "skills/grillmester-pull-request/SKILL.md": {

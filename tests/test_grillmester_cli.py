@@ -1719,6 +1719,112 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual([mock.call("cplt"), mock.call("opencode")], locate.call_args_list)
         checked.assert_not_called()
 
+    def test_local_help_alias_uses_the_local_help_surface_without_runtime_checks(
+        self,
+    ) -> None:
+        observed: dict[str, object] = {}
+
+        def local_main(arguments, *, distribution_root, binary_resolver):
+            observed["arguments"] = list(arguments)
+            observed["root"] = distribution_root
+            observed["resolver"] = binary_resolver
+            return 0
+
+        local_module = mock.Mock()
+        local_module.main = local_main
+        with (
+            mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
+            mock.patch.object(
+                CLI,
+                "load_distribution",
+                side_effect=AssertionError("help must not load the distribution"),
+            ),
+        ):
+            result = CLI._run_local_mode(["help"])
+
+        self.assertEqual(0, result)
+        self.assertEqual(["--help"], observed["arguments"])
+        self.assertIsNone(observed["root"])
+        self.assertIsNone(observed["resolver"])
+
+    def test_local_run_preview_uses_distribution_binaries_without_version_probes(
+        self,
+    ) -> None:
+        observed: dict[str, object] = {}
+
+        def local_main(arguments, *, distribution_root, binary_resolver):
+            observed["arguments"] = list(arguments)
+            observed["root"] = distribution_root
+            observed["binaries"] = binary_resolver("opencode", False)
+            return 0
+
+        local_module = mock.Mock()
+        local_module.main = local_main
+        with (
+            mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
+            mock.patch.object(CLI, "load_distribution", return_value=self.distribution),
+            mock.patch.object(
+                CLI,
+                "_resolve_binary",
+                side_effect=lambda name: f"/resolved/{name}",
+            ) as locate,
+            mock.patch.object(
+                CLI,
+                "check_client",
+                side_effect=AssertionError("preview must not execute a client probe"),
+            ) as checked,
+        ):
+            result = CLI._run_local_mode(
+                [
+                    "run",
+                    "--client",
+                    "opencode",
+                    "--print-command",
+                    "Fix the failing test",
+                ]
+            )
+
+        self.assertEqual(0, result)
+        self.assertEqual(
+            [
+                "run",
+                "--client",
+                "opencode",
+                "--print-command",
+                "Fix the failing test",
+            ],
+            observed["arguments"],
+        )
+        self.assertEqual(self.distribution.root, observed["root"])
+        cplt, client = observed["binaries"]
+        self.assertEqual("/resolved/cplt", cplt.path)
+        self.assertEqual("/resolved/opencode", client.path)
+        self.assertEqual([mock.call("cplt"), mock.call("opencode")], locate.call_args_list)
+        checked.assert_not_called()
+
+    def test_local_run_accepts_one_shot_options_before_the_subcommand(self) -> None:
+        observed: dict[str, object] = {}
+
+        def local_main(arguments, *, distribution_root, binary_resolver):
+            observed["arguments"] = list(arguments)
+            return 0
+
+        local_module = mock.Mock()
+        local_module.main = local_main
+        with (
+            mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
+            mock.patch.object(CLI, "load_distribution", return_value=self.distribution),
+        ):
+            result = CLI._run_local_mode(
+                ["--client", "opencode", "--full", "run", "Fix the failing test"]
+            )
+
+        self.assertEqual(0, result)
+        self.assertEqual(
+            ["run", "--client", "opencode", "--full", "Fix the failing test"],
+            observed["arguments"],
+        )
+
     def test_local_launch_uses_the_standard_compatible_client_gate(self) -> None:
         observed: dict[str, object] = {}
         checks = CLI.LaunchChecks(
@@ -1742,6 +1848,39 @@ class GrillmesterCliTests(unittest.TestCase):
 
         self.assertEqual(0, result)
         self.assertEqual(["launch", "--client", "opencode"], observed["arguments"])
+        self.assertEqual((checks.cplt, checks.client), observed["binaries"])
+        check_client.assert_called_once_with(
+            "opencode", distribution=self.distribution
+        )
+
+    def test_local_run_uses_the_standard_compatible_client_gate(self) -> None:
+        observed: dict[str, object] = {}
+        checks = CLI.LaunchChecks(
+            CLI.CheckedBinary("cplt", "/checked/cplt", "cplt newer"),
+            CLI.CheckedBinary("opencode", "/checked/opencode", "1.99.0"),
+        )
+
+        def local_main(arguments, *, distribution_root, binary_resolver):
+            observed["arguments"] = list(arguments)
+            observed["binaries"] = binary_resolver("opencode", True)
+            return 0
+
+        local_module = mock.Mock()
+        local_module.main = local_main
+        with (
+            mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
+            mock.patch.object(CLI, "load_distribution", return_value=self.distribution),
+            mock.patch.object(CLI, "check_client", return_value=checks) as check_client,
+        ):
+            result = CLI._run_local_mode(
+                ["run", "--client", "opencode", "Fix the failing test"]
+            )
+
+        self.assertEqual(0, result)
+        self.assertEqual(
+            ["run", "--client", "opencode", "Fix the failing test"],
+            observed["arguments"],
+        )
         self.assertEqual((checks.cplt, checks.client), observed["binaries"])
         check_client.assert_called_once_with(
             "opencode", distribution=self.distribution

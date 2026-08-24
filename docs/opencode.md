@@ -60,6 +60,7 @@ Start en OpenAI-kompatibel modellserver på loopback og kjør:
 cd /path/to/consumer-repo
 grillmester local setup --client opencode
 grillmester local
+grillmester local run "Fiks den avgrensede oppgaven og kjør testene"
 grillmester local --full --agent grillmester
 ```
 
@@ -71,11 +72,16 @@ cd /path/to/consumer-repo
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
+python3 /absolute/path/to/grillmester/scripts/grillmester.py \
+  local run "Fiks den avgrensede oppgaven og kjør testene"
 ```
 
 `setup` bruker `http://127.0.0.1:8080/v1` som default og leser modellene fra
 `/v1/models`; oppgi `--base-url http://127.0.0.1:1234/v1` for LM Studio.
 Focused Barista er default. Engangsvalg endrer ikke lagret default.
+`local run` kjører én foreground, non-interaktiv prompt og auto-godkjenner
+OpenCodes tools; bruk et rent, dedikert worktree og kontroller diff og tester
+etterpå. Se [bakgrunnskontrakten](local-models.md#avgrensede-bakgrunnsoppgaver).
 
 Local betyr lokal inference, ikke offline. Modellrequests bindes til loopback,
 mens websearch, dokumentasjon og GitHub kan brukes gjennom OpenCodes
@@ -85,9 +91,15 @@ men overstyrer ikke brukerens eller organisasjonens domeneconfig og gir ingen
 egen egressattest. Den bruker samme kompatible OpenCode 1.x- og cplt-versjoner
 som standardlauncheren, ikke en egen klientpin.
 
-Ingen local-klient får GitHub-credential som default. For en autentisert sesjon må
-brukeren eksplisitt sette `GH_TOKEN` og velge `--github-access` fra riktig
-consumer-repo:
+Grillmester velger Exa for OpenCodes websearch. Når tool-et brukes, sendes
+søketeksten til Exa gjennom den effektive cplt-nettverkspolicyen. Interaktiv
+launch spør gjennom OpenCodes permissionmodell; `local run` auto-godkjenner
+tool-et sammen med øvrige tools. Bruk ikke websearch for tekst som skal bli på
+maskinen.
+
+OpenCode-local får ingen GitHub-credential som default. For en autentisert
+sesjon setter brukeren eksplisitt `GH_TOKEN` og velger `--github-access` fra
+riktig consumer-repo:
 
 ```bash
 cd /path/to/consumer-repo
@@ -95,12 +107,14 @@ GH_TOKEN="$(gh auth token)" \
   grillmester local --client opencode --github-access
 ```
 
-Launcheren kjører ikke `gh` og skriver ikke tokenet til config,
-sessionstate eller preview, men klienten og godkjente tool-subprosesser kan lese
-og eventuelt persistere det i sin skrivbare sessionstate. Dette er en myk grense
-for både OpenCode og Copilot-local, inntil cplt tilbyr generisk GitHub-
-credentialmediering. Bruk riktig konto og
-minst mulig scope. Uten opt-in virker offentlig web fortsatt.
+Launcheren kjører ikke `gh` og skriver ikke tokenet til config, sessionstate
+eller preview. Klienten og godkjente tool-subprosesser kan lese og eventuelt
+persistere det i skrivbar sessionstate, så dette er en myk grense. Bruk riktig
+konto og minst mulig scope. Uten opt-in virker offentlig web fortsatt.
+
+Copilot-local bruker cplts native Copilot-profil og kan normalt bruke GitHub-
+kontoen cplt medierer. `--github-access` er også tilgjengelig der som en
+eksplisitt kontooverride, ikke som et krav for normal Copilot-auth.
 
 Se [lokalmodellguiden](local-models.md) for LM Studio, `llama.cpp`, Qwen,
 Copilot CLI og capability-smoke.

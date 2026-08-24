@@ -52,6 +52,7 @@ PROVIDER_ID = "smoke"
 SERVER_HOST = "127.0.0.1"
 PROMPT = "Return the deterministic Grillmester local smoke sentinel only."
 SUBAGENT_PROMPT = "Return SUBAGENT_LOCAL_ONLY and do not use tools."
+TOOL_SENTINEL = "GRILLMESTER_LOCAL_TOOL_OK"
 MAX_REQUEST_BYTES = 2 * 1024 * 1024
 MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 DEFAULT_TIMEOUT = 45.0
@@ -256,8 +257,78 @@ def _task_stream_body(scenario: Scenario) -> bytes:
     ) + b"data: [DONE]\n\n"
 
 
+def _bash_stream_body(scenario: Scenario) -> bytes:
+    arguments = json.dumps(
+        {"command": f"/usr/bin/printf {TOOL_SENTINEL}"},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    chunks = (
+        {
+            "id": f"chatcmpl-{scenario.name}-tool",
+            "object": "chat.completion.chunk",
+            "created": 1,
+            "model": MODEL_ID,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "index": 0,
+                                "id": "call_local_tool_probe",
+                                "type": "function",
+                                "function": {"name": "bash", "arguments": arguments},
+                            }
+                        ],
+                    },
+                    "finish_reason": None,
+                }
+            ],
+        },
+        {
+            "id": f"chatcmpl-{scenario.name}-tool",
+            "object": "chat.completion.chunk",
+            "created": 1,
+            "model": MODEL_ID,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "tool_calls",
+                }
+            ],
+        },
+    )
+    return b"".join(
+        f"data: {json.dumps(chunk, sort_keys=True, separators=(',', ':'))}\n\n".encode(
+            "utf-8"
+        )
+        for chunk in chunks
+    ) + b"data: [DONE]\n\n"
+
+
+def _exposes_function_tool(record: CompletionRecord, name: str) -> bool:
+    tools = record.payload.get("tools")
+    if not isinstance(tools, list):
+        return False
+    return any(
+        isinstance(tool, dict)
+        and isinstance(tool.get("function"), dict)
+        and tool["function"].get("name") == name
+        for tool in tools
+    )
+
+
 def _stream_body(state: ProviderState) -> bytes:
     request_number = len(state.completions)
+    if (
+        state.scenario == Scenario("opencode", "focused")
+        and request_number == 1
+        and _exposes_function_tool(state.completions[0], "bash")
+    ):
+        return _bash_stream_body(state.scenario)
     if state.scenario.client == "copilot":
         if request_number == 1:
             return _task_stream_body(state.scenario)
@@ -508,13 +579,31 @@ def _request_text(payload: Mapping[str, Any]) -> str:
     return "\n".join(found)
 
 
+def _tool_result_text(payload: Mapping[str, Any]) -> str:
+    messages = payload.get("messages")
+    if not isinstance(messages, list):
+        return ""
+    contents = [
+        message.get("content")
+        for message in messages
+        if isinstance(message, dict) and message.get("role") == "tool"
+    ]
+    return _request_text({"messages": contents})
+
+
 def validate_provider_state(state: ProviderState) -> None:
     if state.violations:
         raise LocalSmokeError(
             f"{state.scenario.name} provider protocol violation: "
             + "; ".join(state.violations)
         )
-    expected_completions = 3 if state.scenario.client == "copilot" else 1
+    expected_completions = (
+        3
+        if state.scenario.client == "copilot"
+        else 2
+        if state.scenario == Scenario("opencode", "focused")
+        else 1
+    )
     if len(state.completions) != expected_completions:
         raise LocalSmokeError(
             f"{state.scenario.name} made {len(state.completions)} completion requests; "
@@ -547,6 +636,12 @@ def validate_provider_state(state: ProviderState) -> None:
         if SUBAGENT_PROMPT not in delegated_text:
             raise LocalSmokeError(
                 f"{state.scenario.name} did not dispatch the Grill-inspektor probe"
+            )
+    elif state.scenario.context == "focused":
+        tool_text = _tool_result_text(state.completions[1].payload)
+        if TOOL_SENTINEL not in tool_text:
+            raise LocalSmokeError(
+                f"{state.scenario.name} did not execute its auto-approved bash probe"
             )
     text = _request_text(record.payload)
     if "# Barista" not in text:
@@ -649,6 +744,9 @@ def _scenario_environment(
     ripgrep: Path,
 ) -> dict[str, str]:
     environment = dict(source)
+    # The release gate must exercise cplt's reviewed defaults rather than an
+    # ambient user or runner policy file.
+    environment.pop("CPLT_CONFIG", None)
     # Prove the sanitizer with synthetic values without ever reading or passing
     # a caller's real ambient credentials to the child.
     environment.update(
@@ -671,6 +769,15 @@ def _scenario_environment(
         alias.symlink_to(binary)
         if alias.resolve(strict=True) != binary:
             raise LocalSmokeError(f"could not stage exact {name} binary for cplt")
+    # Native cplt Copilot authentication may ask the parent-side gh executable
+    # for a token. A release smoke must never consult the runner's real gh
+    # config or Keychain, so put a deterministic failing gh first on PATH and
+    # point the parent at an empty, scenario-owned config directory.
+    guarded_gh = client_bin / "gh"
+    guarded_gh.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    guarded_gh.chmod(0o500)
+    github_config = scenario_root / "github-config"
+    github_config.mkdir(mode=0o700)
     path_entries: list[str] = [str(client_bin)]
     for binary in (cplt, client):
         parent = str(binary.parent)
@@ -684,6 +791,7 @@ def _scenario_environment(
             "XDG_CACHE_HOME": str(xdg / "cache"),
             "XDG_DATA_HOME": str(xdg / "data"),
             "XDG_STATE_HOME": str(xdg / "state"),
+            "GH_CONFIG_DIR": str(github_config),
             "PATH": os.pathsep.join(dict.fromkeys(path_entries)),
             "LANG": environment.get("LANG", "en_US.UTF-8"),
             "TERM": "dumb",
@@ -775,7 +883,12 @@ def _run_scenario(
             project_dir=consumer,
             cplt=cplt,
             client=client,
-            client_arguments=_scenario_client_arguments(scenario),
+            client_arguments=(
+                ()
+                if scenario.context == "focused"
+                else _scenario_client_arguments(scenario)
+            ),
+            run_prompt=PROMPT if scenario.context == "focused" else None,
             environment=scenario_environment,
             platform="darwin",
         )
@@ -786,9 +899,26 @@ def _run_scenario(
             raise LocalSmokeError(
                 f"{scenario.name} selected {launch.payload}, expected {expected_payload}"
             )
+        execution_environment = dict(launch.environment)
+        staged_bin = scenario_root / "client-bin"
+        execution_environment["PATH"] = os.pathsep.join(
+            dict.fromkeys(
+                (
+                    str(staged_bin),
+                    *execution_environment.get("PATH", "").split(os.pathsep),
+                )
+            )
+        )
+        discovered_gh = shutil.which("gh", path=execution_environment["PATH"])
+        if discovered_gh is None or Path(discovered_gh).resolve(strict=True) != (
+            staged_bin / "gh"
+        ).resolve(strict=True):
+            raise LocalSmokeError(
+                f"{scenario.name} did not keep the deterministic failing gh first on PATH"
+            )
         if scenario.client == "opencode":
             try:
-                discovered = shutil.which("rg", path=launch.environment["PATH"])
+                discovered = shutil.which("rg", path=execution_environment["PATH"])
                 discovered_path = (
                     Path(discovered).resolve(strict=True) if discovered else None
                 )
@@ -801,7 +931,7 @@ def _run_scenario(
                     f"{scenario.name} did not preserve the selected ripgrep on PATH"
                 )
         result = run_process(
-            tuple(launch.command), consumer, dict(launch.environment), timeout
+            tuple(launch.command), consumer, execution_environment, timeout
         )
     if audit_marker.exists():
         raise LocalSmokeError(
@@ -824,7 +954,7 @@ def _run_scenario(
             f"{scenario.name} changed the consumer tree: before={before!r}, after={after!r}"
         )
     command_text = json.dumps(list(launch.command), ensure_ascii=False)
-    environment_text = json.dumps(dict(launch.environment), ensure_ascii=False, sort_keys=True)
+    environment_text = json.dumps(execution_environment, ensure_ascii=False, sort_keys=True)
     provider_text = _record_text(provider.state)
     for canary in canaries:
         if any(

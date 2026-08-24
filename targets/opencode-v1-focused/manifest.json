@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "62d6c6a1d1d411c5c78192b333c6e1ce7159235b80e45bd1937cb9a932a9de1a",
+    "targetManifestSha256": "2f111c2de18caedc5b66c9f1ae65a16e04da5869d4efdc42d99750bd759cd2b7",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "5fe33032e71361e42c42729f5c0ca43fe67ca7e90dff898819ed01bcddf33283"
   },
@@ -99,7 +99,7 @@
       "mode": "0644"
     },
     "skills/grillmester-issue-management/SKILL.md": {
-      "sha256": "8f1a4c0c3dd658adf9eaf4f46d7718f2f3d71e3ee515dd83aaed28dbbfce27ee",
+      "sha256": "02f7ad9470489415f1e15d400998ed8cde77a71d3cbc86a69a0a3c302a7c5bef",
       "mode": "0644"
     },
     "skills/grillmester-pull-request/SKILL.md": {

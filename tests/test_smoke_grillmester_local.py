@@ -4,6 +4,8 @@ import contextlib
 import importlib.util
 import io
 import json
+import shutil
+import stat
 import sys
 import tempfile
 import textwrap
@@ -120,9 +122,11 @@ class MatrixTests(unittest.TestCase):
             opencode = executable(binaries / "opencode")
             copilot = executable(binaries / "copilot")
             ripgrep = executable(binaries / "rg")
+            executable(binaries / "gh", "AMBIENT_GH_MUST_NOT_RUN")
             environment = {
                 "HOME": str(home),
                 "XDG_STATE_HOME": str(state),
+                "CPLT_CONFIG": str(root / "ambient-cplt-config.toml"),
                 "PATH": str(binaries),
                 "LANG": "en_US.UTF-8",
                 **{
@@ -154,6 +158,19 @@ class MatrixTests(unittest.TestCase):
                 self.assertNotIn("--preset", command[:separator])
                 self.assertIn("--allow-localhost", command[:separator])
                 self.assertNotIn("--allowed-domains", command[:separator])
+                self.assertNotIn("CPLT_CONFIG", child_environment)
+                github_config = Path(child_environment["GH_CONFIG_DIR"])
+                self.assertTrue(github_config.is_dir())
+                self.assertEqual([], list(github_config.iterdir()))
+                guarded_gh = Path(
+                    shutil.which("gh", path=child_environment["PATH"]) or ""
+                )
+                self.assertEqual("gh", guarded_gh.name)
+                self.assertEqual(
+                    "#!/bin/sh\nexit 1\n",
+                    guarded_gh.read_text(encoding="utf-8"),
+                )
+                self.assertEqual(0o500, stat.S_IMODE(guarded_gh.stat().st_mode))
                 client_arguments = command[separator + 1 :]
                 if "OPENCODE_CONFIG_CONTENT" in child_environment:
                     client = "opencode"
@@ -162,7 +179,6 @@ class MatrixTests(unittest.TestCase):
                         "provider"
                     ]["smoke"]
                     base_url = provider["options"]["baseURL"]
-                    self.assertIn("--title", client_arguments)
                     self.assertEqual(1, client_arguments.count("run"))
                 else:
                     client = "copilot"
@@ -170,9 +186,30 @@ class MatrixTests(unittest.TestCase):
                         client_arguments[client_arguments.index("--plugin-dir") + 1]
                     )
                     base_url = child_environment["COPILOT_PROVIDER_BASE_URL"]
-                    self.assertIn("-p", client_arguments)
                     self.assertNotIn("COPILOT_OFFLINE", child_environment)
                 context = "focused" if "focused" in payload.name else "full"
+                if client == "opencode" and context == "focused":
+                    self.assertIn("--auto", client_arguments)
+                    self.assertIn("--title", client_arguments)
+                    self.assertEqual(
+                        "Grillmester local run",
+                        client_arguments[client_arguments.index("--title") + 1],
+                    )
+                    self.assertEqual(SMOKE.PROMPT, client_arguments[-1])
+                elif client == "opencode":
+                    self.assertIn("--title", client_arguments)
+                    self.assertNotIn("--auto", client_arguments)
+                elif context == "focused":
+                    self.assertIn("--prompt", client_arguments)
+                    self.assertIn("--allow-all-tools", client_arguments)
+                    self.assertIn("--allow-all-urls", client_arguments)
+                    self.assertIn("--no-ask-user", client_arguments)
+                    self.assertIn("--deny-tool=shell(gh:*)", client_arguments)
+                    self.assertNotIn("--allow-all-paths", client_arguments)
+                    self.assertNotIn("GH_TOKEN", child_environment)
+                else:
+                    self.assertIn("-p", client_arguments)
+                    self.assertNotIn("--allow-all-tools", client_arguments)
                 scenario = SMOKE.Scenario(client, context)
                 prompt = "# Barista ☕\n"
                 if context == "focused":
@@ -192,10 +229,30 @@ class MatrixTests(unittest.TestCase):
                         "model": SMOKE.MODEL_ID,
                         "stream": True,
                         "messages": [{"role": "system", "content": prompt}],
-                        "tools": [{"type": "function"}],
+                        "tools": [
+                            {
+                                "type": "function",
+                                "function": {"name": "bash"},
+                            }
+                        ],
                     },
                 )
-                if client == "copilot":
+                if client == "opencode" and context == "focused":
+                    stream += post_completion(
+                        base_url,
+                        {
+                            "model": SMOKE.MODEL_ID,
+                            "stream": True,
+                            "messages": [
+                                {
+                                    "role": "tool",
+                                    "content": SMOKE.TOOL_SENTINEL,
+                                }
+                            ],
+                            "tools": [{"type": "function"}],
+                        },
+                    )
+                elif client == "copilot":
                     stream += post_completion(
                         base_url,
                         {
@@ -357,6 +414,67 @@ class MatrixTests(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(SMOKE.LocalSmokeError, "request 2 escaped"):
+            SMOKE.validate_provider_state(state)
+
+    def test_provider_validation_requires_the_bash_tool_result_not_its_arguments(
+        self,
+    ) -> None:
+        scenario = SMOKE.Scenario("opencode", "focused")
+        state = SMOKE.ProviderState(scenario)
+        state.model_requests.append({})
+        state.completions.extend(
+            (
+                SMOKE.CompletionRecord(
+                    path="/v1/chat/completions",
+                    headers={},
+                    payload={
+                        "model": SMOKE.MODEL_ID,
+                        "stream": True,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": (
+                                    "# Barista ☕\nStatus: NEEDS_FULL_CONTEXT\n"
+                                    "Resume with: grillmester local --full"
+                                ),
+                            }
+                        ],
+                        "tools": [{"type": "function"}],
+                    },
+                ),
+                SMOKE.CompletionRecord(
+                    path="/v1/chat/completions",
+                    headers={},
+                    payload={
+                        "model": SMOKE.MODEL_ID,
+                        "stream": True,
+                        "messages": [
+                            {
+                                "role": "assistant",
+                                "tool_calls": [
+                                    {
+                                        "function": {
+                                            "name": "bash",
+                                            "arguments": json.dumps(
+                                                {
+                                                    "command": (
+                                                        "/usr/bin/printf "
+                                                        f"{SMOKE.TOOL_SENTINEL}"
+                                                    )
+                                                }
+                                            ),
+                                        }
+                                    }
+                                ],
+                            },
+                            {"role": "tool", "content": "permission denied"},
+                        ],
+                    },
+                ),
+            )
+        )
+
+        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "auto-approved bash"):
             SMOKE.validate_provider_state(state)
 
 
