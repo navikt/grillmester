@@ -359,7 +359,10 @@ jobs:
           opencode_binary="$(resolve_executable OpenCode "${opencode_candidate}")"
           opencode_version="$("${opencode_binary}" --version)"
           [[ "${opencode_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]
-          client_path="$(dirname "${opencode_binary}"):/usr/bin:/bin:/usr/sbin:/sbin"
+          opencode_path_dir="${qa_root}/opencode-path"
+          mkdir -m 700 "${opencode_path_dir}"
+          ln -s "${opencode_binary}" "${opencode_path_dir}/opencode"
+          client_path="${opencode_path_dir}:/usr/bin:/bin:/usr/sbin:/sbin"
           doctor_output="$(PATH="${client_path}" \
             "${prefix}/bin/grillmester" doctor --client opencode)"
           grep -F "ok  cplt ${cplt_binary} (cplt " <<<"${doctor_output}"

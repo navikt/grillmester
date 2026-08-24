@@ -362,6 +362,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "brew untrust --formula navikt/tap/cplt",
             "brew trust --formula navikt/tap/cplt",
             "Pre-existing trust for navikt/tap/cplt was not preserved.",
+            'ln -s "${opencode_binary}" "${opencode_path_dir}/opencode"',
             'brew style "${formula_name}"',
             'brew audit --strict "${formula_name}"',
             'brew install --formula "${formula_name}"',
