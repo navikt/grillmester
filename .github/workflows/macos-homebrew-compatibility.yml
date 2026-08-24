@@ -339,6 +339,9 @@ jobs:
             'grillmester: OpenCode was not found on PATH; install it with: brew install opencode' \
             "${missing_stderr}"
 
+          # The hosted image can carry stale Homebrew API metadata while this
+          # job disables implicit updates for deterministic formula testing.
+          brew update
           brew install opencode
           cplt_candidate="$(brew --prefix navikt/tap/cplt)/bin/cplt"
           opencode_candidate="$(brew --prefix opencode)/bin/opencode"

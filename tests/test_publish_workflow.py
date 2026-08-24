@@ -363,6 +363,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "brew trust --formula navikt/tap/cplt",
             "Pre-existing trust for navikt/tap/cplt was not preserved.",
             'ln -s "${opencode_binary}" "${opencode_path_dir}/opencode"',
+            "brew update",
             'brew style "${formula_name}"',
             'brew audit --strict "${formula_name}"',
             'brew install --formula "${formula_name}"',
@@ -393,6 +394,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertLess(
             gate.index("brew install --formula navikt/tap/cplt"),
             gate.index('brew audit --strict "${formula_name}"'),
+        )
+        self.assertLess(
+            gate.index("brew update"),
+            gate.index("\n          brew install opencode", gate.index("brew update")),
         )
 
         for obsolete in (
