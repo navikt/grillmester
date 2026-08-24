@@ -45,16 +45,29 @@ class PinParsingTests(unittest.TestCase):
         try:
             cli_spec.loader.exec_module(cli)
             self.assertEqual(cli.REVIEWED_LOCAL_OPENCODE_VERSION, opencode)
-            self.assertEqual(
-                ".".join(str(part) for part in cli.REVIEWED_LOCAL_COPILOT_VERSION),
-                copilot,
-            )
+            self.assertEqual(cli.REVIEWED_LOCAL_COPILOT_VERSION, copilot)
         finally:
             sys.modules.pop(cli_spec.name, None)
 
     def test_missing_pins_fail_closed(self) -> None:
         with self.assertRaisesRegex(WATCH.WatchError, "reviewed client pins"):
             WATCH.parse_pins("REVIEWED_LOCAL_OPENCODE_VERSION = None\n")
+
+    def test_dynamic_and_duplicate_pins_fail_closed(self) -> None:
+        cases = (
+            (
+                "REVIEWED_LOCAL_OPENCODE_VERSION = get_version()\n"
+                'REVIEWED_LOCAL_COPILOT_VERSION = "1.0.80"\n'
+            ),
+            (
+                'REVIEWED_LOCAL_OPENCODE_VERSION = "1.18.20"\n'
+                'REVIEWED_LOCAL_OPENCODE_VERSION = "1.18.21"\n'
+                'REVIEWED_LOCAL_COPILOT_VERSION = "1.0.80"\n'
+            ),
+        )
+        for source in cases:
+            with self.subTest(source=source), self.assertRaises(WATCH.WatchError):
+                WATCH.parse_pins(source)
 
 
 class UpstreamParsingTests(unittest.TestCase):

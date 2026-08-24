@@ -1445,6 +1445,58 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(self.cplt.read_bytes(), executable.read_bytes())
         self.assertEqual("qwen3.8-local", ProbeHandler.models[0])
 
+    def test_execute_binds_one_secret_value_to_probe_and_launch(self) -> None:
+        calls: list[dict[str, str]] = []
+
+        def execute(
+            _executable: str, _command: object, environment: Mapping[str, str]
+        ) -> int:
+            calls.append(dict(environment))
+            return 0
+
+        with ProbeServer() as server, mock.patch.object(
+            LOCAL, "_read_secret", return_value="one-reviewed-secret"
+        ) as read_secret:
+            result = LOCAL.execute_local(
+                self._config(
+                    client="copilot",
+                    base_url=server.base_url,
+                    api_key_env="LOCAL_MODEL_TOKEN",
+                ),
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                cplt=self.cplt,
+                client=self.copilot,
+                environment={**self.environment, "LOCAL_MODEL_TOKEN": "ambient-secret"},
+                exec_callback=execute,
+                platform="darwin",
+            )
+
+        self.assertEqual(0, result)
+        read_secret.assert_called_once()
+        self.assertEqual(
+            "one-reviewed-secret", calls[0]["COPILOT_PROVIDER_API_KEY"]
+        )
+
+    def test_execute_validates_config_before_reading_a_secret(self) -> None:
+        with mock.patch.object(
+            LOCAL, "_read_secret", side_effect=AssertionError("credential read")
+        ) as read_secret, self.assertRaisesRegex(
+            LOCAL.LocalModeError, "not supported with OpenCode"
+        ):
+            LOCAL.execute_local(
+                self._config(client="opencode", api_key_env="LOCAL_MODEL_TOKEN"),
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                cplt=self.cplt,
+                client=self.opencode,
+                environment={**self.environment, "LOCAL_MODEL_TOKEN": "secret"},
+                exec_callback=lambda *_arguments: 0,
+                platform="darwin",
+            )
+
+        read_secret.assert_not_called()
+
     def test_local_only_launch_fails_closed_off_macos(self) -> None:
         with self.assertRaisesRegex(LOCAL.LocalModeError, "only on macOS"):
             LOCAL.build_local_launch(

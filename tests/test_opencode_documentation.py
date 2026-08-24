@@ -300,7 +300,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
 
     def test_local_copilot_byok_uses_the_shared_launcher_and_cplt_contract(self) -> None:
         recommended = self.local_models.split(
-            "## Anbefalt flyt: én lokal profil, begge terminalklienter", 1
+            "## Anbefalt flyt: ett lokalt oppsett, begge terminalklienter", 1
         )[1].split("## Qwen3.8-27B", 1)[0]
         section = self.local_models.split(
             "## Avansert: manuell Copilot CLI BYOK", 1
@@ -424,7 +424,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
 
     def test_local_model_guide_leads_with_native_cplt_before_manager(self) -> None:
         section = self.local_models.split(
-            "## Anbefalt flyt: én lokal profil, begge terminalklienter", 1
+            "## Anbefalt flyt: ett lokalt oppsett, begge terminalklienter", 1
         )[1].split("## Hybrid:", 1)[0]
         self.assertLess(
             section.index("grillmester local setup"),

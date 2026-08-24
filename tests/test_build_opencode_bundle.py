@@ -471,6 +471,48 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 self.root / "launcher-pin-drift.tar.gz",
             )
 
+    def test_rejects_launcher_copilot_pin_drift(self) -> None:
+        source = self.make_source("launcher-copilot-pin-drift")
+        launcher = source / "scripts/grillmester.py"
+        launcher.write_text(
+            launcher.read_text(encoding="utf-8").replace(
+                'REVIEWED_LOCAL_COPILOT_VERSION = "1.0.80"',
+                'REVIEWED_LOCAL_COPILOT_VERSION = "1.0.81"',
+            ),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError,
+            "launcher must pin REVIEWED_LOCAL_COPILOT_VERSION",
+        ):
+            BUILDER.build_bundle(
+                source,
+                SOURCE_SHA,
+                self.root / "launcher-copilot-pin-drift.tar.gz",
+            )
+
+    def test_rejects_local_smoke_copilot_pin_drift(self) -> None:
+        source = self.make_source("local-smoke-copilot-pin-drift")
+        smoke = source / "scripts/smoke_grillmester_local.py"
+        smoke.write_text(
+            smoke.read_text(encoding="utf-8").replace(
+                'EXPECTED_COPILOT_VERSION = "1.0.80"',
+                'EXPECTED_COPILOT_VERSION = "1.0.81"',
+            ),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError,
+            "local smoke must pin EXPECTED_COPILOT_VERSION",
+        ):
+            BUILDER.build_bundle(
+                source,
+                SOURCE_SHA,
+                self.root / "local-smoke-copilot-pin-drift.tar.gz",
+            )
+
     def test_rejects_re_manifested_agent_skill_and_command_roster_drift(self) -> None:
         cases = (
             ("agent", f"agents/{AGENT_IDS[0]}.md", "agents/replacement-agent.md"),

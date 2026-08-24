@@ -283,11 +283,12 @@ class PublishWorkflowContractTest(unittest.TestCase):
         for startup_marker in (
             'provider_root="$(mktemp -d "${RUNNER_TEMP}/copilot-provider.XXXXXX")"',
             '2>"${provider_stderr}"',
-            "for _attempt in {1..300}",
+            "for _attempt in {1..600}",
             'kill -0 "${provider_pid}"',
             '[[ "${provider_ready}" != true ]]',
-            "Loopback provider did not publish its port within 30 seconds.",
+            "Loopback provider did not publish its port before the startup deadline.",
             "sed -n '1,120p' \"${provider_stderr}\"",
+            'mkdir -p "${ambient_agents}"',
         ):
             with self.subTest(startup_marker=startup_marker):
                 self.assertIn(startup_marker, gate)

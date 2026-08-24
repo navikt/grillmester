@@ -38,7 +38,10 @@ REVIEWED_LOCAL_OPENCODE_VERSION_TUPLE = tuple(
 )
 MINIMUM_COPILOT_VERSION = (1, 0, 79)
 SUPPORTED_COPILOT_MAJOR = MINIMUM_COPILOT_VERSION[0]
-REVIEWED_LOCAL_COPILOT_VERSION = (1, 0, 80)
+REVIEWED_LOCAL_COPILOT_VERSION = "1.0.80"
+REVIEWED_LOCAL_COPILOT_VERSION_TUPLE = tuple(
+    int(part) for part in REVIEWED_LOCAL_COPILOT_VERSION.split(".")
+)
 CLIENTS = ("copilot", "opencode")
 PUBLIC_AGENTS = ("grillmester", "barista", "designer", "doctor-who")
 OPENCODE_COMMANDS = frozenset(
@@ -1227,24 +1230,15 @@ def check_client_runtime(
     *,
     cplt: CheckedBinary | None = None,
     distribution: Distribution | None = None,
-    local_only: bool = False,
 ) -> CheckedBinary:
     binary = _resolve_binary(client)
     cplt = check_cplt() if cplt is None else cplt
     distribution = load_distribution() if distribution is None else distribution
-    digest: str | None = None
-    if local_only:
-        version, _, digest = _local_sandboxed_client_version(
-            client,
-            cplt=cplt,
-            client_path=binary,
-        )
-    else:
-        version = _sandboxed_client_version(
-            client,
-            cplt=cplt,
-            distribution=distribution,
-        )
+    version = _sandboxed_client_version(
+        client,
+        cplt=cplt,
+        distribution=distribution,
+    )
     if client == "opencode":
         observed = _opencode_semver(version)
         if (
@@ -1266,7 +1260,7 @@ def check_client_runtime(
                 "Copilot CLI must be in the supported 1.x range, starting at "
                 f"{minimum}; found {version!r}"
             )
-    return CheckedBinary(client, binary, version, digest)
+    return CheckedBinary(client, binary, version)
 
 
 def check_local_runtime(
@@ -1290,11 +1284,10 @@ def check_local_runtime(
                 "local-only OpenCode requires exact reviewed version "
                 f"{REVIEWED_LOCAL_OPENCODE_VERSION}; found {version!r}"
             )
-    elif _copilot_semver(version) != REVIEWED_LOCAL_COPILOT_VERSION:
-        reviewed = ".".join(str(part) for part in REVIEWED_LOCAL_COPILOT_VERSION)
+    elif _copilot_semver(version) != REVIEWED_LOCAL_COPILOT_VERSION_TUPLE:
         raise LauncherError(
             "local-only Copilot CLI requires exact reviewed version "
-            f"{reviewed}; found {version!r}"
+            f"{REVIEWED_LOCAL_COPILOT_VERSION}; found {version!r}"
         )
     checked_cplt = CheckedBinary(
         cplt.label, cplt.path, cplt.version, cplt_digest

@@ -49,6 +49,7 @@ THIRD_PARTY_NOTICES_SOURCE = PurePosixPath("THIRD_PARTY_NOTICES.md")
 THIRD_PARTY_NOTICES_PATH = PurePosixPath("THIRD_PARTY_NOTICES.md")
 OUTER_MANIFEST = PurePosixPath("DISTRIBUTION-MANIFEST.json")
 OPENCODE_VERSION = "1.18.20"
+COPILOT_VERSION = "1.0.80"
 CPLT_RELEASE = "2026.08.17-062831-1008a92"
 CPLT_TARGET_COMMIT = "1008a92188cc39fb17e0c9afc098f68050aff19a"
 CPLT_RELEASE_ID = 371561671
@@ -1361,22 +1362,18 @@ def _plugin_files(
     return files
 
 
-def _launcher_file(source_root: Path) -> BundleFile:
-    content, mode = _read_regular(
-        source_root.joinpath(*LAUNCHER_PATH.parts), label="Grillmester launcher"
-    )
-    if mode != 0o644:
-        raise BundleBuildError(
-            f"Grillmester launcher source mode must be 0644; observed {mode:04o}"
-        )
+def _validate_python_literals(
+    content: bytes,
+    *,
+    path: PurePosixPath,
+    label: str,
+    expected: dict[str, object],
+) -> None:
     try:
-        tree = ast.parse(content.decode("utf-8"), filename=LAUNCHER_PATH.as_posix())
+        tree = ast.parse(content.decode("utf-8"), filename=path.as_posix())
     except (UnicodeDecodeError, SyntaxError) as exc:
-        raise BundleBuildError(f"Grillmester launcher is not valid UTF-8 Python: {exc}") from exc
-    observed: dict[str, list[object]] = {
-        "REVIEWED_LOCAL_OPENCODE_VERSION": [],
-        "SUPPORTED_CPLT_RELEASE": [],
-    }
+        raise BundleBuildError(f"{label} is not valid UTF-8 Python: {exc}") from exc
+    observed: dict[str, list[object]] = {name: [] for name in expected}
     for statement in tree.body:
         if (
             isinstance(statement, ast.Assign)
@@ -1388,30 +1385,52 @@ def _launcher_file(source_root: Path) -> BundleFile:
                 observed[statement.targets[0].id].append(ast.literal_eval(statement.value))
             except (ValueError, TypeError) as exc:
                 raise BundleBuildError(
-                    f"Grillmester launcher {statement.targets[0].id} must be a literal"
+                    f"{label} {statement.targets[0].id} must be a literal"
                 ) from exc
-    expected = {
-        "REVIEWED_LOCAL_OPENCODE_VERSION": OPENCODE_VERSION,
-        "SUPPORTED_CPLT_RELEASE": CPLT_RELEASE,
-    }
     for name, expected_value in expected.items():
         if observed[name] != [expected_value]:
             raise BundleBuildError(
-                f"Grillmester launcher must pin {name}={expected_value!r}"
+                f"{label} must pin {name}={expected_value!r}"
             )
+
+
+def _launcher_file(source_root: Path) -> BundleFile:
+    content, mode = _read_regular(
+        source_root.joinpath(*LAUNCHER_PATH.parts), label="Grillmester launcher"
+    )
+    if mode != 0o644:
+        raise BundleBuildError(
+            f"Grillmester launcher source mode must be 0644; observed {mode:04o}"
+        )
+    _validate_python_literals(
+        content,
+        path=LAUNCHER_PATH,
+        label="Grillmester launcher",
+        expected={
+            "REVIEWED_LOCAL_OPENCODE_VERSION": OPENCODE_VERSION,
+            "REVIEWED_LOCAL_COPILOT_VERSION": COPILOT_VERSION,
+            "SUPPORTED_CPLT_RELEASE": CPLT_RELEASE,
+        },
+    )
     return BundleFile(LAUNCHER_PATH, content, 0o755)
 
 
 def _python_support_file(
-    source_root: Path, path: PurePosixPath, *, label: str
+    source_root: Path,
+    path: PurePosixPath,
+    *,
+    label: str,
+    expected_literals: dict[str, object] | None = None,
 ) -> BundleFile:
     content, mode = _read_regular(source_root.joinpath(*path.parts), label=label)
     if mode != 0o644:
         raise BundleBuildError(f"{label} source mode must be 0644; observed {mode:04o}")
-    try:
-        ast.parse(content.decode("utf-8"), filename=path.as_posix())
-    except (UnicodeDecodeError, SyntaxError) as exc:
-        raise BundleBuildError(f"{label} is not valid UTF-8 Python: {exc}") from exc
+    _validate_python_literals(
+        content,
+        path=path,
+        label=label,
+        expected={} if expected_literals is None else expected_literals,
+    )
     return BundleFile(path, content, 0o644)
 
 
@@ -1686,7 +1705,10 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
             source_root, LOCAL_LAUNCHER_PATH, label="Grillmester local launcher"
         ),
         _python_support_file(
-            source_root, LOCAL_SMOKE_PATH, label="Grillmester local smoke"
+            source_root,
+            LOCAL_SMOKE_PATH,
+            label="Grillmester local smoke",
+            expected_literals={"EXPECTED_COPILOT_VERSION": COPILOT_VERSION},
         ),
         _python_support_file(
             source_root,

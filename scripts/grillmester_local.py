@@ -199,6 +199,11 @@ class ModelProbe:
     advertised_models: tuple[str, ...]
 
 
+@dataclass(frozen=True, repr=False)
+class _ResolvedSecret:
+    value: str | None = field(repr=False)
+
+
 @dataclass(frozen=True)
 class RuntimePaths:
     root: Path
@@ -615,12 +620,17 @@ def _advertised_models(
     *,
     environment: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
+    resolved_secret: _ResolvedSecret | None = None,
 ) -> tuple[str, ...]:
     config = validate_config(config)
     if timeout <= 0 or timeout > 60:
         raise LocalModeError("local model probe timeout must be in (0, 60] seconds")
     environment = os.environ if environment is None else environment
-    secret = _read_secret(config, environment)
+    secret = (
+        _read_secret(config, environment)
+        if resolved_secret is None
+        else resolved_secret.value
+    )
     headers = {"Accept": "application/json"}
     if secret is not None:
         headers["Authorization"] = f"Bearer {secret}"
@@ -670,9 +680,13 @@ def probe_model(
     *,
     environment: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
+    resolved_secret: _ResolvedSecret | None = None,
 ) -> ModelProbe:
     models = _advertised_models(
-        config, environment=environment, timeout=timeout
+        config,
+        environment=environment,
+        timeout=timeout,
+        resolved_secret=resolved_secret,
     )
     if config.model_id not in models:
         raise LocalModeError(
@@ -2093,6 +2107,7 @@ def build_local_launch(
     client_arguments: Sequence[str] = (),
     environment: Mapping[str, str] | None = None,
     resolve_credentials: bool = True,
+    resolved_secret: _ResolvedSecret | None = None,
     prepare_state: bool = True,
     platform: str | None = None,
 ) -> LocalLaunch:
@@ -2131,7 +2146,12 @@ def build_local_launch(
         reject_project_copilot_hooks(project)
     payload = _payload_path(distribution_root, config)
     secret_configured = config.api_key_env is not None or config.api_key_file is not None
-    secret = _read_secret(config, source_environment) if resolve_credentials else None
+    if not resolve_credentials:
+        secret = None
+    elif resolved_secret is None:
+        secret = _read_secret(config, source_environment)
+    else:
+        secret = resolved_secret.value
     runtime = (
         _prepare_runtime(source_environment, config.client)
         if prepare_state
@@ -2290,7 +2310,14 @@ def doctor_local(
     platform: str | None = None,
 ) -> tuple[ModelProbe, LocalLaunch]:
     environment = os.environ if environment is None else environment
-    probe = probe_model(config, environment=environment, timeout=timeout)
+    config = validate_config(config)
+    resolved_secret = _ResolvedSecret(_read_secret(config, environment))
+    probe = probe_model(
+        config,
+        environment=environment,
+        timeout=timeout,
+        resolved_secret=resolved_secret,
+    )
     launch = build_local_launch(
         config,
         distribution_root=distribution_root,
@@ -2298,6 +2325,7 @@ def doctor_local(
         cplt=cplt,
         client=client,
         environment=environment,
+        resolved_secret=resolved_secret,
         prepare_state=False,
         platform=platform,
     )
@@ -2320,7 +2348,14 @@ def execute_local(
     """Probe the exact model, then replace the process through native cplt."""
 
     environment = os.environ if environment is None else environment
-    probe_model(config, environment=environment, timeout=timeout)
+    config = validate_config(config)
+    resolved_secret = _ResolvedSecret(_read_secret(config, environment))
+    probe_model(
+        config,
+        environment=environment,
+        timeout=timeout,
+        resolved_secret=resolved_secret,
+    )
     launch = build_local_launch(
         config,
         distribution_root=distribution_root,
@@ -2329,6 +2364,7 @@ def execute_local(
         client=client,
         client_arguments=client_arguments,
         environment=environment,
+        resolved_secret=resolved_secret,
         platform=platform,
     )
     return exec_callback(launch.command[0], launch.command, launch.environment)

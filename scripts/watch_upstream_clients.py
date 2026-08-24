@@ -16,6 +16,7 @@ pipeline and land together with a Grillmester release.
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -56,21 +57,39 @@ def tls_context() -> ssl.SSLContext:
 
 
 def parse_pins(launcher_text: str) -> tuple[str, str]:
-    opencode = re.search(
-        r'^REVIEWED_LOCAL_OPENCODE_VERSION = "(\d+(?:\.\d+)*)"',
-        launcher_text,
-        re.M,
+    names = (
+        "REVIEWED_LOCAL_OPENCODE_VERSION",
+        "REVIEWED_LOCAL_COPILOT_VERSION",
     )
-    copilot = re.search(
-        r"^REVIEWED_LOCAL_COPILOT_VERSION = \((\d+), (\d+), (\d+)\)",
-        launcher_text,
-        re.M,
-    )
-    if opencode is None or copilot is None:
+    try:
+        tree = ast.parse(launcher_text, filename="scripts/grillmester.py")
+    except SyntaxError as exc:
+        raise WatchError("scripts/grillmester.py is not valid Python") from exc
+    observed: dict[str, list[object]] = {name: [] for name in names}
+    for statement in tree.body:
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id in observed
+        ):
+            try:
+                observed[statement.targets[0].id].append(
+                    ast.literal_eval(statement.value)
+                )
+            except (ValueError, TypeError) as exc:
+                raise WatchError(
+                    "reviewed client pins must be string literals in "
+                    "scripts/grillmester.py"
+                ) from exc
+    if any(
+        len(observed[name]) != 1 or not isinstance(observed[name][0], str)
+        for name in names
+    ):
         raise WatchError(
             "could not parse the reviewed client pins from scripts/grillmester.py"
         )
-    return opencode.group(1), ".".join(copilot.groups())
+    return observed[names[0]][0], observed[names[1]][0]
 
 
 def version_tuple(value: str, *, label: str) -> tuple[int, ...]:

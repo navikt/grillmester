@@ -33,7 +33,7 @@ omtales som «like god som Copilot» uten en separat, representativ kvalitetsgat
 `cloud-open-weight` uttrykker ønsket routing, men attesterer ikke vekter, lisens
 eller den modellen brukeren faktisk velger.
 
-## Anbefalt flyt: én lokal profil, begge terminalklienter
+## Anbefalt flyt: ett lokalt oppsett, begge terminalklienter
 
 Start en OpenAI-kompatibel modellserver på loopback først. Grillmester eier
 ikke serveren, modellfilen eller klientbinærene. Kjør deretter:

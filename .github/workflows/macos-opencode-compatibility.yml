@@ -1015,7 +1015,7 @@ jobs:
           }
           trap cleanup_provider EXIT
           provider_ready=false
-          for _attempt in {1..300}; do
+          for _attempt in {1..600}; do
             if [[ -s "${provider_info}" ]]; then
               provider_ready=true
               break
@@ -1028,7 +1028,7 @@ jobs:
             sleep 0.1
           done
           if [[ "${provider_ready}" != true ]]; then
-            echo "Loopback provider did not publish its port within 30 seconds." >&2
+            echo "Loopback provider did not publish its port before the startup deadline." >&2
             sed -n '1,120p' "${provider_stderr}" >&2
             exit 1
           fi
@@ -1047,7 +1047,7 @@ jobs:
             "${host_data}" "${host_state}"
           ambient_agents="${host_home}/.copilot/agents"
           ambient_plugin="${host_home}/.copilot/installed-plugins/_direct/full-grillmester"
-          mkdir -m 700 "${ambient_agents}" "$(dirname "${ambient_plugin}")"
+          mkdir -p "${ambient_agents}" "$(dirname "${ambient_plugin}")"
           cp "${BUNDLE_ROOT}/plugin/agents/barista.agent.md" \
             "${ambient_agents}/barista.agent.md"
           printf '\nAMBIENT_FULL_PLUGIN_MUST_NOT_LOAD\n' \

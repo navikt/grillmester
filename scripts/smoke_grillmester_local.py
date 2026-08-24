@@ -9,6 +9,7 @@ request made by each client for contract validation.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import math
@@ -387,6 +388,18 @@ class PrerequisiteResult:
     problems: tuple[str, ...]
 
 
+def _file_identity(path: Path) -> tuple[int, str]:
+    """Hash one executable with bounded memory instead of loading it whole."""
+
+    digest = hashlib.sha256()
+    size = 0
+    with path.open("rb") as source:
+        while chunk := source.read(1024 * 1024):
+            size += len(chunk)
+            digest.update(chunk)
+    return size, digest.hexdigest()
+
+
 def _terminate(process: subprocess.Popen[bytes], *, grace: float = 2.0) -> None:
     if process.poll() is not None:
         return
@@ -746,13 +759,13 @@ def _run_scenario(
         if scenario.client == "opencode":
             try:
                 staged_mode = stat.S_IMODE(staged_ripgrep.stat().st_mode)
-                staged_content = staged_ripgrep.read_bytes()
-                source_content = ripgrep.read_bytes()
+                staged_identity = _file_identity(staged_ripgrep)
+                source_identity = _file_identity(ripgrep)
             except OSError as exc:
                 raise LocalSmokeError(
                     f"{scenario.name} did not stage ripgrep for offline Glob/Grep: {exc}"
                 ) from exc
-            if staged_mode != 0o500 or staged_content != source_content:
+            if staged_mode != 0o500 or staged_identity != source_identity:
                 raise LocalSmokeError(
                     f"{scenario.name} staged ripgrep with the wrong identity or mode"
                 )

@@ -1348,11 +1348,10 @@ class GrillmesterCliTests(unittest.TestCase):
                 },
                 clear=False,
             ), mock.patch.object(CLI, "_resolve_binary", side_effect=resolve):
-                checked = CLI.check_client_runtime(
+                _checked_cplt, checked = CLI.check_local_runtime(
                     "opencode",
                     cplt=checked_cplt,
                     distribution=self.distribution,
-                    local_only=True,
                 )
 
             self.assertEqual(CLI.REVIEWED_LOCAL_OPENCODE_VERSION, checked.version)

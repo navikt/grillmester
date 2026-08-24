@@ -190,7 +190,7 @@ Mappene kan inneholde klientstate, men aldri nøkkelen som launcheren leste fra
 valgt env-variabel eller privat fil. Copilot-local bruker også privat
 `COPILOT_HOME`, slik at personlige agents, skills og approvals ikke merges inn.
 Se [hele
-local-modellflyten](local-models.md#anbefalt-flyt-én-lokal-profil-begge-terminalklienter).
+local-modellflyten](local-models.md#anbefalt-flyt-ett-lokalt-oppsett-begge-terminalklienter).
 
 `brew uninstall grillmester` fjerner Grillmester-formelen, men ikke den separat
 installerte OpenCode- eller Copilot CLI-klienten. Homebrew avgjør på vanlig måte
