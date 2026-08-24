@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
+import importlib.util
 import io
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -23,6 +26,14 @@ MACOS_WORKFLOW = ROOT / ".github/workflows/macos-opencode-compatibility.yml"
 MACOS_HOMEBREW_WORKFLOW = (
     ROOT / ".github/workflows/macos-homebrew-compatibility.yml"
 )
+BASELINE_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_release_test_baseline_for_workflow_tests",
+    ROOT / "scripts/release_test_baseline.py",
+)
+assert BASELINE_SPEC and BASELINE_SPEC.loader
+BASELINE = importlib.util.module_from_spec(BASELINE_SPEC)
+sys.modules[BASELINE_SPEC.name] = BASELINE
+BASELINE_SPEC.loader.exec_module(BASELINE)
 
 
 class PublishWorkflowContractTest(unittest.TestCase):
@@ -98,51 +109,20 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn('ref: ${{ inputs.source_sha }}', text)
         self.assertNotIn("npm install", text)
         self.assertNotIn("@github/copilot", text)
-
-        for archive, archive_digest, binary_digest in (
-            (
-                "opencode-darwin-arm64-1.18.20.tgz",
-                "7e010126cc31f75380b44989cbb8934f6da262c69d0b29f8629eeb574f60fae7"
-                "f9968c995e49f238b62620b6080ebbc43fa16b50bacf6160635a65aa22beae80",
-                "9598c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952",
-            ),
-            (
-                "opencode-darwin-x64-1.18.20.tgz",
-                "cbade5db7d9d2cf3175a66155aba13c5b77bc1f602b1178f05a5ec8bb9f77983"
-                "cd7bb29ea3aacc97170db266c187173c3a609eaf4c83f4391a492e7230b83dc1",
-                "96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60",
-            ),
-            (
-                "cplt-aarch64-apple-darwin.tar.gz",
-                "fb1fd69f5ff42deb1cf2e510d97a58ff5f7ddf913e1cd4f7533815a16588eeda",
-                "423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2",
-            ),
-            (
-                "cplt-x86_64-apple-darwin.tar.gz",
-                "e60687724df8a2fdb6f99654cc80f1a0dccb215263c2d984c222ff99ce56f8ea",
-                "36592c1b2bcfd7ab2d9083842b0aa7f51737cdf12ec1752d351bd9467dab5c02",
-            ),
-        ):
-            with self.subTest(archive=archive):
-                self.assertIn(archive, text)
-                self.assertIn(archive_digest, text)
-                self.assertIn(binary_digest, text)
-
         verifier = text.split(
-            "Download and verify native Darwin clients before first execution",
+            "Install and independently verify native Darwin release-test clients",
             maxsplit=1,
-        )[1].split("Run native Darwin discovery", maxsplit=1)[0]
+        )[1].split("Download and verify ripgrep", maxsplit=1)[0]
         first_execution = verifier.index('"${verified_bin}/opencode" --version')
         for prerequisite in (
-            "archive digest differs",
-            "archive roster differs",
-            "archive contains a link or special member",
-            "executable digest differs",
-            "os.O_EXCL",
-            "os.fsync",
-            "os.fchmod",
+            "scripts/release_test_baseline.py install",
+            "--name executableSha256",
+            "stat -f '%Lp:%u'",
+            "shasum -a 256",
         ):
             self.assertLess(verifier.index(prerequisite), first_execution)
+        self.assertIn("for client in opencode cplt copilot", verifier)
+        self.assertIn("${RELEASE_TEST_COPILOT_VERSION}", verifier)
 
         self.assertIn("scripts/smoke_opencode.py", text)
         self.assertIn("scripts/smoke_opencode_runtime.py", text)
@@ -206,14 +186,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
     ) -> None:
         workflow = MACOS_WORKFLOW.read_text(encoding="utf-8")
         for marker in (
-            "copilot-darwin-arm64.tar.gz",
-            "2346bb691981c2997d65c1c5bc3cef1aeddc9edd37dcb2f970b911aa597e59f6",
-            "fe779da7dd2342c1d23f0744873fa27d0251eaaee4dc6637fa53093639c0f3c9",
-            "copilot-darwin-x64.tar.gz",
-            "a1a9c1f25740f9a27b34eb14b70b5d3175794dc8bb410875531aa198b3abc18f",
-            "15a2576566635fdd2dc0c84137ec7481e41a6982281391c62e58883aa5f39f41",
-            'if [member.name for member in members] != ["copilot"]',
-            "member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}",
+            "scripts/release_test_baseline.py install",
+            "for client in opencode cplt copilot",
+            "--name executableSha256",
+            "${RELEASE_TEST_COPILOT_VERSION}",
             'echo "COPILOT_BIN=',
         ):
             with self.subTest(artifact_marker=marker):
@@ -227,6 +203,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             '"09754717b746368fd40d88963630e2b3"',
             "923dcc25cab57d33f4e7dd0476d4b74a554401a38817e246a8d6101dcd51c50f",
             'ripgrep_root="ripgrep-14.1.1-${ripgrep_platform}"',
+            'mkdir -m 700 "${downloads}"',
             "ripgrep archive roster differs",
             "ripgrep archive contains a link or special member",
             'echo "RIPGREP_BIN=',
@@ -241,7 +218,8 @@ class PublishWorkflowContractTest(unittest.TestCase):
             maxsplit=1,
         )[0]
         for marker in (
-            '"${BUNDLE_ROOT}/scripts/smoke_grillmester_local.py"',
+            "scripts/smoke_grillmester_local.py",
+            '--distribution-root "${BUNDLE_ROOT}"',
             "--require-binaries",
             '--cplt "${CPLT_BIN}"',
             '--opencode "${OPENCODE_BIN}"',
@@ -306,49 +284,40 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertLess(gate.index('local setup'), gate.index("-p 'FOCUSED-GATE:"))
         self.assertLess(gate.index("-p 'FOCUSED-GATE:"), gate.index("-p 'FULL-GATE:"))
 
-    def test_macos_gate_is_bound_to_the_reviewed_darwin_artifact_lock(self) -> None:
+    def test_macos_gate_is_bound_to_the_executable_release_test_baseline(self) -> None:
         text = MACOS_WORKFLOW.read_text(encoding="utf-8")
-        artifact_lock = json.loads(
-            (ROOT / "policy/client-artifacts.json").read_text(encoding="utf-8")
-        )
-        selections = (
-            ("opencode", "arm64", "default"),
-            ("opencode", "x86_64", "default"),
-            ("cplt", "arm64", "default"),
-            ("cplt", "x86_64", "default"),
-        )
-
-        for client, architecture, variant in selections:
-            matches = [
-                artifact
-                for artifact in artifact_lock[client]["artifacts"]
-                if artifact["platform"] == "darwin"
-                and artifact["architecture"] == architecture
-                and artifact["variant"] == variant
-            ]
-            self.assertEqual(
-                len(matches),
-                1,
-                f"{client} darwin/{architecture}/{variant}",
-            )
-            artifact = matches[0]
-            archive_digest = artifact["archive"].get("sha512") or artifact[
-                "archive"
-            ]["sha256"]
-            for value in (
-                artifact["url"],
-                str(artifact["archive"]["size"]),
-                archive_digest,
-                str(artifact["executable"]["size"]),
-                artifact["executable"]["sha256"],
-            ):
-                with self.subTest(
-                    client=client,
-                    architecture=architecture,
-                    variant=variant,
-                    value=value,
+        install_gate = text.split(
+            "Install and independently verify native Darwin release-test clients",
+            maxsplit=1,
+        )[1].split("Download and verify ripgrep", maxsplit=1)[0]
+        self.assertIn("scripts/release_test_baseline.py github-env", text)
+        self.assertIn("scripts/release_test_baseline.py install", install_gate)
+        self.assertIn("for client in opencode cplt copilot", install_gate)
+        self.assertIn('--platform darwin --architecture "${machine}"', install_gate)
+        self.assertIn("${RELEASE_TEST_OPENCODE_VERSION}", install_gate)
+        self.assertIn("${RELEASE_TEST_COPILOT_VERSION}", install_gate)
+        self.assertIn("${RELEASE_TEST_CPLT_RELEASE}", install_gate)
+        self.assertIn("stat -f '%Lp:%u'", install_gate)
+        self.assertEqual(3, install_gate.count("--name executableSha256"))
+        self.assertEqual(3, install_gate.count("shasum -a 256"))
+        for client in ("opencode", "copilot", "cplt"):
+            self.assertIn(f"--client {client} --platform darwin", install_gate)
+        for architecture in ("arm64", "x86_64"):
+            for client in ("opencode", "copilot", "cplt"):
+                artifact = BASELINE.artifact(client, "darwin", architecture)
+                for value in (
+                    artifact["url"],
+                    str(artifact["archiveSize"]),
+                    artifact["archiveDigest"].split(":", 1)[1],
+                    str(artifact["executableSize"]),
+                    artifact["executableSha256"],
                 ):
-                    self.assertIn(value, text)
+                    with self.subTest(
+                        client=client,
+                        architecture=architecture,
+                        value=value,
+                    ):
+                        self.assertNotIn(value, install_gate)
 
     def test_macos_gate_installs_and_tests_the_generated_homebrew_formula(self) -> None:
         text = MACOS_HOMEBREW_WORKFLOW.read_text(encoding="utf-8")
@@ -495,46 +464,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn('"exfiltration.invalid:443" "blocked"', gate)
         self.assertIn('.items[0].decision == $decision', gate)
 
-    def test_macos_gate_proves_cplt_policy_socket_pin_and_manager_launch(self) -> None:
-        text = MACOS_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('CPLT_CONFIG="${policy}/cplt-config.toml"', text)
-        self.assertIn('"${policy_command[@]}" check --json', text)
-        self.assertIn('.platform == "macos (Seatbelt)"', text)
-        self.assertIn('.items | length) == 7 and .verified == 4', text)
-        self.assertIn('.target == "opencode.ai:443"', text)
-        self.assertIn('.expected == "allowed" and .decision == "blocked"', text)
-        self.assertIn('.target == "169.254.169.254:443"', text)
-        self.assertIn('.expected == "blocked" and .decision == "blocked"', text)
-        self.assertIn("check --json net", text)
-        self.assertIn('"127.0.0.1:${listener_port}" --no-connect', text)
-        self.assertIn('check --json net opencode.ai:443', text)
-        self.assertIn('/usr/bin/nc -z -G 2 127.0.0.1 "${listener_port}"', text)
-        self.assertIn('/usr/bin/nc -z -G 2 "${runner_ip}" "${listener_port}"', text)
-        self.assertIn('remote_same_port="198.51.100.1:${listener_port}"', text)
-        self.assertIn('.items[0].decision == "blocked"', text)
-        self.assertIn('manage_opencode.py" install', text)
-        self.assertIn('--source "${BUNDLE_ROOT}"', text)
-        self.assertIn('manage_opencode.py" launch', text)
-        self.assertIn('--profile local-only --local-port "${LOCAL_PROVIDER_PORT}"', text)
-        self.assertIn("listener_ready=false", text)
-        self.assertIn("for _attempt in {1..100}", text)
-        self.assertIn('[[ "${listener_ready}" == true ]]', text)
-        self.assertIn('npm: "@ai-sdk/openai-compatible"', text)
-        self.assertIn('limit: {context: 32768, output: 8192}', text)
-        self.assertIn('--provider-id ci-local', text)
-        self.assertIn(
-            '--provider-base-url "ci-local=http://127.0.0.1:${LOCAL_PROVIDER_PORT}/v1"',
-            text,
-        )
-        self.assertIn('--provider-model ci-local/ci-model', text)
-        self.assertIn(
-            '--opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}" --',
-            text,
-        )
-        self.assertIn("models ci-local --verbose", text)
-        self.assertIn("grep -F 'ci-local/ci-model'", text)
-        self.assertIn("grep -F '\"context\": 32768'", text)
-        self.assertIn("grep -F '\"output\": 8192'", text)
+    def test_workflows_do_not_gate_on_retired_lifecycle_components(self) -> None:
+        for workflow in sorted((ROOT / ".github/workflows").glob("*.yml")):
+            text = workflow.read_text(encoding="utf-8")
+            with self.subTest(workflow=workflow.name):
+                self.assertNotIn("scripts/manage_opencode.py", text)
+                self.assertNotIn("scripts/compose_opencode_permissions.py", text)
+                self.assertNotIn("profiles/opencode", text)
+                self.assertNotIn("--profile local-only", text)
 
     def test_all_workflow_checkouts_disable_persisted_credentials(self) -> None:
         for workflow in (
@@ -563,7 +500,12 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 line for line in workflow.read_text(encoding="utf-8").splitlines()
                 if "curl " in line
             ]
-            self.assertTrue(curl_lines, workflow.name)
+            if not curl_lines:
+                self.assertIn(
+                    "scripts/release_test_baseline.py install",
+                    workflow.read_text(encoding="utf-8"),
+                    workflow.name,
+                )
             for line in curl_lines:
                 self.assertIn("curl --config /dev/null", line, workflow.name)
 
@@ -662,34 +604,16 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 self.assertNotIn("npm install --global opencode-ai@1.18.20", text)
                 self.assertNotIn("npm install -g opencode-ai@1.18.20", text)
                 self.assertIn(
-                    "opencode-linux-x64/-/opencode-linux-x64-1.18.20.tgz",
+                    "scripts/release_test_baseline.py\" install"
+                    if "${SOURCE_ROOT}" in text
+                    else "scripts/release_test_baseline.py install",
                     text,
                 )
-                self.assertIn(
-                    "1fe5e153b35b7d306df98135cdab1876e9637ef79941b6adc3bda00d485629f9"
-                    "c4f3781df4a67cbb96e209fed364472c8bd40979b1606b6513ade6ec8afcd0ba",
-                    text,
-                )
-                self.assertIn(
-                    "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16",
-                    text,
-                )
-                self.assertIn("sha512sum --check --strict", text)
-                self.assertIn('"package/bin/opencode"', text)
+                self.assertIn("--client opencode --platform linux", text)
+                self.assertIn("--client cplt --platform linux", text)
                 self.assertIn("smoke_opencode.py", text)
                 self.assertIn("smoke_opencode_runtime.py", text)
                 self.assertIn("--require-binary", text)
-                self.assertIn(
-                    '[[ "${#cplt_entries[@]}" == "1" && '
-                    '"${cplt_entries[0]}" == "cplt" ]]',
-                    text,
-                )
-                self.assertIn("--no-same-owner --no-same-permissions -- cplt", text)
-                self.assertIn("--max-filesize 10000000", text)
-                self.assertIn(
-                    "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5",
-                    text,
-                )
 
         self.assertIn(
             'python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py"',
@@ -1079,7 +1003,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
         for path in (
             "targets/opencode-v1",
             "targets/opencode-v1-focused",
-            "profiles/opencode",
             "policy/focused-context-v1.json",
             "scripts/generate_context_projections.py",
             "scripts/grillmester_local.py",
@@ -1091,7 +1014,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn(
             'cmp -s "${regenerated_rc_catalog}" "${rc_catalog_file}"', write_job
         )
-        self.assertIn("-- plugin ':(exclude)plugin/plugin.json'", write_job)
+        self.assertIn('full_root="plugin"', verify_job)
+        self.assertIn(":(exclude)${full_root}/plugin.json", verify_job)
+        self.assertIn(":(exclude)${full_root}/manifest.json", verify_job)
         self.assertNotIn("plugin-nav", write_job)
         self.assertIn('git ls-tree -r "${RC_CATALOG_SHA}"', write_job)
         self.assertIn("'.tag_name'", write_job)
@@ -1175,10 +1100,26 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertLess(
             validate_job.index(
+                'python3 -I -S "${SOURCE_ROOT}/scripts/generate_copilot_manifest.py"'
+            ),
+            validate_job.index(
+                'python3 -I -S "${SOURCE_ROOT}/scripts/generate_context_projections.py"'
+            ),
+        )
+        self.assertLess(
+            validate_job.index(
                 'python3 -I -S "${SOURCE_ROOT}/scripts/generate_context_projections.py"'
             ),
             validate_job.index(
                 'python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py"'
+            ),
+        )
+        self.assertLess(
+            validate_job.index(
+                'python3 -I -S "${rc_source_repo}/scripts/generate_copilot_manifest.py"'
+            ),
+            validate_job.index(
+                'python3 -I -S "${rc_source_repo}/scripts/generate_context_projections.py"'
             ),
         )
         self.assertLess(
@@ -1240,25 +1181,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
             verify_job,
         )
         self.assertIn('run_git("cat-file", "blob", node[1])', verify_job)
-        self.assertIn(
-            'composer_path = "scripts/compose_opencode_permissions.py"',
-            verify_job,
-        )
-        self.assertIn('composer_path: ("permission composer", 0o644)', verify_job)
-        self.assertIn(
-            'artifact_verifier_path = "scripts/verify_client_artifact.py"', verify_job
-        )
-        self.assertIn(
-            'artifact_verifier_path: ("client artifact verifier", 0o755)',
-            verify_job,
-        )
+        self.assertNotIn("scripts/compose_opencode_permissions.py", verify_job)
+        self.assertNotIn("permission composer", verify_job)
         self.assertIn('fail(f"immutable source has no regular {label}")', verify_job)
         for mapping in (
             '"LICENSE": "LICENSE"',
             '"PROVENANCE.md": "PROVENANCE.md"',
             '"THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"',
             '"policy/content-lock.json": "policy/content-lock.json"',
-            '"policy/client-artifacts.json": "policy/client-artifacts.json"',
         ):
             self.assertIn(mapping, verify_job)
 
@@ -1326,11 +1256,134 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("--client-artifacts", step)
         self.assertNotIn("github.token", step)
 
+    def test_independent_formula_binding_rejects_digest_consistent_tampering(
+        self,
+    ) -> None:
+        """Run the exact workflow verifier against attacker-controlled bytes."""
+
+        workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        raw_step = workflow.split(
+            "      - name: Independently bind formula with trusted release tooling\n",
+            maxsplit=1,
+        )[1].split("\n      - name: Export independently verified formula", maxsplit=1)[0]
+        verifier = textwrap.dedent(raw_step.split("        run: |\n", maxsplit=1)[1])
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary = Path(temporary_directory)
+            repository = temporary / "repository"
+            (repository / "scripts").mkdir(parents=True)
+            shutil.copy2(
+                ROOT / "scripts/generate_homebrew_formula.py",
+                repository / "scripts/generate_homebrew_formula.py",
+            )
+
+            def git(*arguments: str) -> str:
+                completed = subprocess.run(
+                    ["git", "-C", str(repository), *arguments],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                return completed.stdout.strip()
+
+            git("init", "--quiet")
+            git("config", "user.name", "Workflow Test")
+            git("config", "user.email", "workflow-test@example.invalid")
+            git("add", "scripts/generate_homebrew_formula.py")
+            git("commit", "--quiet", "-m", "immutable source")
+            source_sha = git("rev-parse", "HEAD")
+
+            (repository / ".github").mkdir()
+            (repository / ".github/release-request.json").write_text(
+                '{"schemaVersion": 1}\n', encoding="utf-8"
+            )
+            git("add", ".github/release-request.json")
+            git("commit", "--quiet", "-m", "release request")
+            main_sha = git("rev-parse", "HEAD")
+
+            tag = "v9.8.7"
+            bundle_name = f"grillmester-terminal-{tag}.tar.gz"
+            bundle_sha256 = "a" * 64
+
+            def verify(
+                case: str, *, tamper: bool, digest_tracks_bytes: bool
+            ) -> subprocess.CompletedProcess[str]:
+                runner_temp = temporary / case
+                runner_temp.mkdir()
+                formula = runner_temp / "grillmester.rb"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        "-I",
+                        "-S",
+                        str(ROOT / "scripts/generate_homebrew_formula.py"),
+                        "--tag",
+                        tag,
+                        "--bundle-name",
+                        bundle_name,
+                        "--bundle-sha256",
+                        bundle_sha256,
+                        "--output",
+                        str(formula),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                trusted_sha256 = hashlib.sha256(formula.read_bytes()).hexdigest()
+                if tamper:
+                    generated = formula.read_text(encoding="utf-8")
+                    formula.write_text(
+                        generated.replace(
+                            "class Grillmester < Formula\n",
+                            'class Grillmester < Formula\n  system "/usr/bin/false"\n',
+                            1,
+                        ),
+                        encoding="utf-8",
+                    )
+                observed_sha256 = hashlib.sha256(formula.read_bytes()).hexdigest()
+                environment = os.environ.copy()
+                environment.update(
+                    {
+                        "BEFORE_SHA": source_sha,
+                        "MAIN_SHA": main_sha,
+                        "SOURCE_SHA": source_sha,
+                        "TAG": tag,
+                        "BUNDLE_NAME": bundle_name,
+                        "BUNDLE_SHA256": bundle_sha256,
+                        "FORMULA_NAME": formula.name,
+                        "FORMULA_SHA256": (
+                            observed_sha256 if digest_tracks_bytes else trusted_sha256
+                        ),
+                        "RUNNER_TEMP": str(runner_temp),
+                    }
+                )
+                return subprocess.run(
+                    ["bash", "-c", verifier],
+                    cwd=repository,
+                    env=environment,
+                    capture_output=True,
+                    text=True,
+                )
+
+            valid = verify("valid", tamper=False, digest_tracks_bytes=True)
+            self.assertEqual(valid.returncode, 0, valid.stderr)
+
+            attacker_sealed = verify(
+                "attacker-sealed", tamper=True, digest_tracks_bytes=True
+            )
+            self.assertNotEqual(attacker_sealed.returncode, 0)
+
+            changed_after_sealing = verify(
+                "changed-after-sealing", tamper=True, digest_tracks_bytes=False
+            )
+            self.assertNotEqual(changed_after_sealing.returncode, 0)
+
     def test_release_approval_summary_shows_exact_sealed_values(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         summary = text.split(
             "Write protected-environment approval summary", maxsplit=1
-        )[1].split("Install checksum-pinned OpenCode CLI", maxsplit=1)[0]
+        )[1].split("Install exact OpenCode release-test baseline", maxsplit=1)[0]
         for value in (
             "REQUEST_ID",
             "CHANNEL",
@@ -1348,6 +1401,69 @@ class PublishWorkflowContractTest(unittest.TestCase):
             self.assertIn(value, summary)
         self.assertIn('>> "${GITHUB_STEP_SUMMARY}"', summary)
 
+    def test_release_approval_summary_emits_validated_evidence(self) -> None:
+        workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        raw_step = workflow.split(
+            "      - name: Write protected-environment approval summary\n",
+            maxsplit=1,
+        )[1].split("\n      - name: Install exact OpenCode release-test baseline", maxsplit=1)[0]
+        summary_script = textwrap.dedent(
+            raw_step.split("        run: |\n", maxsplit=1)[1]
+        )
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            summary_path = Path(temporary_directory) / "summary.md"
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "ARTIFACT_DIGEST": "d" * 64,
+                    "ARTIFACT_ID": "12345",
+                    "BUNDLE_NAME": "grillmester-terminal-v9.8.7.tar.gz",
+                    "BUNDLE_SHA256": "b" * 64,
+                    "BUNDLE_SIZE": "4567",
+                    "CATALOG_SHA": "c" * 40,
+                    "CHANNEL": "stable",
+                    "FORMULA_SHA256": "f" * 64,
+                    "FORMULA_SIZE": "890",
+                    "REQUEST_ID": "release-9.8.7",
+                    "SOURCE_SHA": "a" * 40,
+                    "TAG": "v9.8.7",
+                    "GITHUB_STEP_SUMMARY": str(summary_path),
+                }
+            )
+            completed = subprocess.run(
+                ["bash", "-c", summary_script],
+                cwd=ROOT,
+                env=environment,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            rendered = summary_path.read_text(encoding="utf-8")
+            for evidence in (
+                "| Tag | `v9.8.7` |",
+                f"| Catalog SHA | `{'c' * 40}` |",
+                f"| Source SHA | `{'a' * 40}` |",
+                f"| Bundle SHA-256 | `{'b' * 64}` |",
+                f"| Formula SHA-256 | `{'f' * 64}` (890 bytes) |",
+            ):
+                self.assertIn(evidence, rendered)
+
+            invalid_environment = environment.copy()
+            invalid_environment["CATALOG_SHA"] = "not-a-commit"
+            invalid_environment["GITHUB_STEP_SUMMARY"] = str(
+                Path(temporary_directory) / "invalid-summary.md"
+            )
+            invalid = subprocess.run(
+                ["bash", "-c", summary_script],
+                cwd=ROOT,
+                env=invalid_environment,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(invalid.returncode, 0)
+            self.assertFalse(Path(invalid_environment["GITHUB_STEP_SUMMARY"]).exists())
+
     def test_release_asset_idempotency_requires_exact_remote_bytes(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
@@ -1360,7 +1476,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertIn('all(.assets[]; .state == "uploaded")', write_job)
         self.assertIn("verify_release_asset_roster", write_job)
-        self.assertIn(".label == \"Grillmester OpenCode bundle\"", write_job)
+        self.assertIn(".label == \"Grillmester terminal bundle\"", write_job)
         self.assertIn(".label == \"Homebrew formula\"", write_job)
         self.assertIn(".digest == $bundle_digest", write_job)
         self.assertIn("find_release()", write_job)
@@ -1379,7 +1495,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'cmp -s "${formula}" "${published_assets}/${FORMULA_NAME}"',
             write_job,
         )
-        self.assertIn('"${bundle}#Grillmester OpenCode bundle"', write_job)
+        self.assertIn('"${bundle}#Grillmester terminal bundle"', write_job)
         self.assertIn('"${checksum}#SHA-256 checksum"', write_job)
         self.assertIn('"${formula}#Homebrew formula"', write_job)
         self.assertIn("--draft --latest=false", write_job)
@@ -1398,6 +1514,12 @@ class PublishWorkflowContractTest(unittest.TestCase):
         verifier_start = workflow.index(marker) + len(marker)
         verifier_end = workflow.index("\n          PY", verifier_start)
         verifier = textwrap.dedent(workflow[verifier_start:verifier_end])
+        copilot_marker = '          python3 -I -S - "${SOURCE_SHA}" <<\'PY\'\n'
+        copilot_start = workflow.index(copilot_marker) + len(copilot_marker)
+        copilot_end = workflow.index("\n          PY", copilot_start)
+        copilot_verifier = textwrap.dedent(
+            workflow[copilot_start:copilot_end]
+        )
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -1405,13 +1527,12 @@ class PublishWorkflowContractTest(unittest.TestCase):
             (source / "scripts").mkdir(parents=True)
             for name in (
                 "build_opencode_bundle.py",
-                "compose_opencode_permissions.py",
+                "generate_copilot_manifest.py",
                 "generate_context_projections.py",
                 "grillmester.py",
                 "grillmester_local.py",
-                "manage_opencode.py",
+                "release_test_baseline.py",
                 "smoke_grillmester_local.py",
-                "verify_client_artifact.py",
             ):
                 shutil.copy2(ROOT / "scripts" / name, source / "scripts" / name)
             shutil.copy2(ROOT / "LICENSE", source / "LICENSE")
@@ -1423,12 +1544,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
             shutil.copytree(ROOT / "plugin", source / "plugin")
             (source / "policy").mkdir(parents=True)
             for name in (
-                "client-artifacts.json",
                 "content-lock.json",
                 "focused-context-v1.json",
             ):
                 shutil.copy2(ROOT / "policy" / name, source / "policy" / name)
-            shutil.copytree(ROOT / "profiles", source / "profiles")
             shutil.copytree(ROOT / "targets", source / "targets")
             subprocess.run(["git", "init", "--quiet", str(source)], check=True)
             subprocess.run(["git", "-C", str(source), "add", "--all"], check=True)
@@ -1490,6 +1609,16 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(verified.returncode, 0, verified.stderr)
+            copilot_verified = subprocess.run(
+                [sys.executable, "-I", "-S", "-", source_sha],
+                cwd=source,
+                input=copilot_verifier,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                copilot_verified.returncode, 0, copilot_verified.stderr
+            )
 
             raw_tar = bytearray(gzip.decompress(bundle.read_bytes()))
             with tarfile.open(fileobj=io.BytesIO(raw_tar), mode="r:") as archive:
@@ -1529,11 +1658,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
                     self.assertNotEqual(rejected.returncode, 0, rejected.stderr)
                     self.assertIn("special", rejected.stderr.lower())
 
-    def test_remote_smoke_verifies_and_safely_installs_release_asset(self) -> None:
+    def test_remote_smoke_verifies_and_safely_inspects_release_asset(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         remote = text.split("\n  remote-smoke:\n", maxsplit=1)[1]
         self.assertIn(
-            "Download, verify, safely extract, and install OpenCode asset", remote
+            "Download, verify, and safely inspect terminal bundle", remote
         )
         self.assertIn("--proto '=https' --tlsv1.2", remote)
         self.assertIn("--proto-redir '=https'", remote)
@@ -1553,12 +1682,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("archive expands beyond the safety limit", remote)
         self.assertIn("distribution manifest provenance does not match", remote)
         self.assertIn("extracted files do not match the distribution manifest", remote)
-        self.assertIn(
-            'python3 -I -S "${bundle_root}/scripts/manage_opencode.py" install', remote
-        )
-        self.assertIn('--source "${bundle_root}"', remote)
-        self.assertNotIn('--source "${bundle_root}/targets/opencode-v1"', remote)
-        self.assertIn('--home "${install_home}"', remote)
+        self.assertNotIn("scripts/manage_opencode.py", remote)
+        self.assertNotIn("opencode-install", remote)
+        self.assertNotIn("state.json", remote)
 
     def test_stable_release_cannot_drift_terminal_distribution_inputs(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
@@ -1571,18 +1697,20 @@ class PublishWorkflowContractTest(unittest.TestCase):
         for path in (
             "targets/opencode-v1",
             "targets/opencode-v1-focused",
-            "profiles/opencode",
             "policy/focused-context-v1.json",
             "scripts/generate_context_projections.py",
             "scripts/grillmester_local.py",
         ):
             self.assertIn(path, write_job)
         self.assertIn("targets/copilot-cli-focused-v1", verify_job)
+        self.assertIn("Independently verify Copilot full payload manifest", verify_job)
+        self.assertIn('"copilotFullManifestSha256"', verify_job)
+        self.assertIn("scripts/generate_copilot_manifest.py", verify_job)
         self.assertIn("stable_focused_digest", verify_job)
-        self.assertIn(
-            "scripts/compose_opencode_permissions.py scripts/release_contract.py",
-            write_job,
-        )
+        self.assertNotIn("profiles/opencode", write_job)
+        self.assertNotIn("scripts/manage_opencode.py", write_job)
+        self.assertNotIn("scripts/compose_opencode_permissions.py", write_job)
+        self.assertIn("scripts/release_contract.py", write_job)
         self.assertIn("scripts/generate_homebrew_formula.py", write_job)
         for harness in (
             "scripts/smoke_plugin_install.py",
@@ -1597,7 +1725,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             "PROVENANCE.md",
             "THIRD_PARTY_NOTICES.md",
             "policy/content-lock.json",
-            "policy/client-artifacts.json",
+            "scripts/release_test_baseline.py",
         ):
             self.assertIn(path, write_job)
 
@@ -1623,7 +1751,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
             "\n  remote-smoke:\n", maxsplit=1
         )[0]
-        self.assertIn('rc_bundle_name="grillmester-opencode-${rc_tag}.tar.gz"', validate_job)
+        self.assertIn('rc_bundle_name="grillmester-terminal-${rc_tag}.tar.gz"', validate_job)
         self.assertIn(
             'python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"',
             validate_job,
@@ -1652,7 +1780,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         for workflow in (validate_job, preflight):
             self.assertIn("(.assets | length) == 3", workflow)
             self.assertIn('[[ "$(jq -r \'.immutable\' <<<"${rc_release}")" == "true" ]]', workflow)
-            self.assertIn('.label == "Grillmester OpenCode bundle"', workflow)
+            self.assertIn('.label == "Grillmester terminal bundle"', workflow)
             self.assertIn('.label == "SHA-256 checksum"', workflow)
             self.assertIn('.label == "Homebrew formula"', workflow)
             self.assertIn(".browser_download_url", workflow)

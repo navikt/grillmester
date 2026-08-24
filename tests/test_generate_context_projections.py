@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import re
 import shutil
@@ -40,11 +41,11 @@ class FocusedContextGenerationTest(unittest.TestCase):
         copilot_manifest = json.loads(copilot["manifest.json"][0])
 
         self.assertEqual(
-            {"agents": 2, "skills": 6, "commands": 6},
+            {"agents": 2, "skills": 7, "commands": 7},
             opencode_manifest["counts"],
         )
         self.assertEqual(
-            {"agents": 2, "skills": 6},
+            {"agents": 2, "skills": 7},
             copilot_manifest["counts"],
         )
         self.assertEqual(
@@ -58,6 +59,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
             {
                 "commands/grillmester-diagnosing-bugs.md",
                 "commands/grillmester-integration-tests.md",
+                "commands/grillmester-issue-management.md",
                 "commands/grillmester-pull-request.md",
                 "commands/grillmester-review.md",
                 "commands/grillmester-security-review.md",
@@ -75,6 +77,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
         expected_skills = {
             "grillmester-diagnosing-bugs",
             "grillmester-integration-tests",
+            "grillmester-issue-management",
             "grillmester-pull-request",
             "grillmester-review",
             "grillmester-security-review",
@@ -113,6 +116,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "commands/grillmester-tdd.md",
                 "skills/grillmester-diagnosing-bugs/SKILL.md",
                 "skills/grillmester-integration-tests/SKILL.md",
+                "skills/grillmester-issue-management/SKILL.md",
                 "skills/grillmester-review/SKILL.md",
                 "skills/grillmester-tdd/SKILL.md",
                 "skills/grillmester-tdd/tests.md",
@@ -138,6 +142,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "agents/grill-inspektor.agent.md",
                 "skills/grillmester-diagnosing-bugs/SKILL.md",
                 "skills/grillmester-integration-tests/SKILL.md",
+                "skills/grillmester-issue-management/SKILL.md",
                 "skills/grillmester-review/SKILL.md",
                 "skills/grillmester-tdd/SKILL.md",
                 "skills/grillmester-tdd/tests.md",
@@ -170,6 +175,20 @@ class FocusedContextGenerationTest(unittest.TestCase):
         self.assertEqual("private-cli-only", copilot_manifest["distribution"])
         self.assertEqual(
             {
+                "plugin": "plugin",
+                "payloadManifest": "plugin/manifest.json",
+                "payloadManifestSha256": hashlib.sha256(
+                    (ROOT / "plugin/manifest.json").read_bytes()
+                ).hexdigest(),
+                "policy": "policy/focused-context-v1.json",
+                "policySha256": hashlib.sha256(
+                    (ROOT / "policy/focused-context-v1.json").read_bytes()
+                ).hexdigest(),
+            },
+            copilot_manifest["source"],
+        )
+        self.assertEqual(
+            {
                 "agentFrontmatterRemoved": ["model"],
                 "agentEscalation": "full-context-handoff",
                 "excludedSkillReferences": "full-context-guidance",
@@ -194,6 +213,29 @@ class FocusedContextGenerationTest(unittest.TestCase):
             with self.assertRaisesRegex(
                 GENERATOR.ProjectionError,
                 "OpenCode source differs from its manifest.*agents/barista.md",
+            ):
+                GENERATOR.build_projections(root)
+        finally:
+            temporary.cleanup()
+
+    def test_tampered_or_unmanifested_full_copilot_source_is_rejected(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            source = root / "plugin/skills/grillmester-okr/SKILL.md"
+            source.write_text(source.read_text(encoding="utf-8") + "tampered\n")
+            with self.assertRaisesRegex(
+                GENERATOR.ProjectionError,
+                "Copilot full payload source differs from its manifest.*grillmester-okr",
+            ):
+                GENERATOR.build_projections(root)
+
+            shutil.copy2(ROOT / "plugin/skills/grillmester-okr/SKILL.md", source)
+            (root / "plugin/unmanifested.md").write_text(
+                "unexpected\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(
+                GENERATOR.ProjectionError,
+                "Copilot full payload source differs from its manifest.*unmanifested",
             ):
                 GENERATOR.build_projections(root)
         finally:
@@ -224,6 +266,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
         allowed_skills = {
             "grillmester-diagnosing-bugs",
             "grillmester-integration-tests",
+            "grillmester-issue-management",
             "grillmester-pull-request",
             "grillmester-review",
             "grillmester-security-review",

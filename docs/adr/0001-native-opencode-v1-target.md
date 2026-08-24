@@ -9,8 +9,11 @@ Installasjons- og aktiveringsdelen er supersedert av
 [ADR 0002](0002-install-and-launch-opencode-bundles.md) og deretter
 [ADR 0003](0003-one-terminal-entrypoint-through-cplt.md). Standardflytens
 klienteierskap og kompatibilitetsgrense er videre supersedert av
-[ADR 0004](0004-use-user-installed-terminal-clients.md). Beslutningen om et
-generert native target gjelder fortsatt.
+[ADR 0004](0004-use-user-installed-terminal-clients.md), og den upubliserte
+lifecycle-manageren fra ADR 0002 er fjernet av
+[ADR 0007](0007-remove-the-lifecycle-manager.md). Beslutningen om et generert
+native target gjelder fortsatt; manager-, profil- og stagingbeskrivelsene gjør
+ikke det.
 
 ## Kontekst
 
@@ -59,20 +62,18 @@ delegerte oppgaven. Dette følger OpenCodes dokumenterte
 brukbart med både lokale og tillatte eksterne providers.
 
 Targetet ligger bevisst utenfor en consumers `.opencode/`. Denne ADR-en valgte
-opprinnelig eksplisitt aktivering fra en reviewet checkout. Det er ikke lenger
-repositoryets managed/high-assurance installasjons- eller launchflyt: ADR 0002
-erstatter den med en checksummet release-`tar.gz`, manifestverifisert
-installasjon og read-only stage. Native `cplt --agent opencode` er den normale
-brede kompatibilitetsveien; ADR 0002-manageren er valgfri hardening. `--direct`
-gjennom manageren er et eksplisitt opt-out fra dens cplt-kontrakt.
+opprinnelig eksplisitt aktivering fra en reviewet checkout. Normalflyten er nå
+den checksummede terminalbundle-en og `grillmester`-launcheren fra ADR 0003 og
+0004, med en brukerinstallert OpenCode-klient gjennom cplt. Checkout-binding er
+bare en utviklingsvei; ADR 0007 fjernet manageren, private klientkopier,
+runtimeprofiler og read-only staging.
 
-Native unmanaged OpenCode/cplt laster targetets custom config directory sammen
-med vanlige globale og prosjektlokale configkilder. Et likt agent-, command-
-eller skill-ID kan da bli skygget og må undersøkes som en kollisjon, ikke som en
-stille extension-mekanisme. ADR 0002-manageren setter derimot
-`OPENCODE_DISABLE_PROJECT_CONFIG`, isolerer XDG-config og rekonstruerer bare
-auditerte project-instructions/permission-denies og eksplisitt valgte providers.
-Se OpenCodes [config precedence](https://opencode.ai/docs/config#custom-directory).
+Direkte targetbinding laster OpenCodes vanlige globale og prosjektlokale
+configkilder. Et likt agent-, command- eller skill-ID kan da bli skygget og må
+undersøkes som en kollisjon, ikke som en stille extension-mekanisme. Den
+eksplisitte local-launcheren fra ADR 0006 isolerer klient-/XDG-state og avviser
+kjente ambientkomponenter, mens cplt eier runtimegrensen. Se OpenCodes
+[config precedence](https://opencode.ai/docs/config#custom-directory).
 
 Grillmester distribuerer ikke `AGENTS.md`, provideroppsett eller en kopi inn i
 consumer-repoet. `AGENTS.md` forblir consumerens stående repo-kontrakt.
@@ -109,8 +110,8 @@ migreringsbane, men dette er ikke verifisert full V2-støtte. Se OpenCodes
 
 Vi gjør derfor følgende:
 
-1. støtter og release-gater OpenCode 1.18.20; en versjonsoppgradering krever
-   samme gate på nytt
+1. støtter OpenCode 1.x fra `1.18.20`; eksakt `1.18.20` forblir reproduserbart
+   release-testinput, mens kompatible nyere 1.x ikke er runtimepinnet
 2. kan kjøre en ikke-blokkerende kompatibilitetssmoke mot V2-beta
 3. lager først et native `opencode-v2`-target hvis betaforskjeller faktisk
    krever det etter at kontraktene stabiliseres
@@ -120,15 +121,15 @@ Vi gjør derfor følgende:
 - Én innholdskilde og deterministiske target gir mindre semantisk drift enn
   manuell kopiering eller to håndredigerte produkter.
 - Modellvalg blir en runtimebeslutning i OpenCode, ikke en innholdsrelease.
-- Sluttbrukeren henter den publiserte, deterministiske OpenCode-bundle-en med
-  dens detached checksum. Native cplt binder det utpakkede targetet direkte;
-  bare brukere som velger high-assurance-livssyklusen installerer den gjennom
-  manageren som ADR 0002 beskriver.
+- Sluttbrukeren installerer den publiserte, deterministiske terminalbundle-en
+  med dens detached checksum gjennom Homebrew. Launcheren binder det utpakkede
+  targetet og starter den brukerinstallerte OpenCode-klienten gjennom cplt.
 - Endringer i canonical innhold må vurderes mot begge klienters validatorer og
   live smoke.
-- Release-taggen peker på en catalog-only commit, men GitHub-releasen publiserer
-  en separat, source-SHA-bundet OpenCode-asset. OpenCode-brukere skal bruke
-  denne asseten og dens detached checksum, ikke taggens source-arkiv.
+- Release-taggen peker på en catalog-only commit, mens GitHub-releasen
+  publiserer en separat, source-SHA-bundet terminalbundle for både OpenCode- og
+  Copilot CLI-payloaden. Det er et installasjonsartefakt, i motsetning til
+  taggens automatisk genererte source-arkiv.
 
 ## Forkastede alternativer
 
@@ -137,9 +138,8 @@ Vi gjør derfor følgende:
 - **Bruk Copilot-frontmatter direkte i OpenCode:** filene kan parses, men
   ukjente felt og feil tool-/agentnavn gir stille semantisk tap.
 - **Synk targetet inn i consumer-repoer:** innfører et ekstra eierskap og en
-  konfliktfylt fil-livssyklus. ADR 0002 holder i stedet en
-  manifestverifisert, read-only runtime-stage utenfor consumeren og source-
-  checkouten.
+  konfliktfylt fillivssyklus. Launcheren binder i stedet targetet fra den
+  source-SHA-bundne terminalbundle-en uten å kopiere det inn i consumeren.
 - **Bygg en OpenCode-plugin nå:** er unødvendig for agents/commands/skills, og
   V2-plugin-API-et er fortsatt beta og inkompatibelt med V1.
 - **Pin én lokal modell i targetet:** gjør kvalitet, maskinkrav og provider til

@@ -25,11 +25,12 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
     def test_formula_depends_on_cplt_and_never_packages_client_binaries(self) -> None:
         content = FORMULA.render_formula(
             tag="v1.2.3",
-            bundle_name="grillmester-opencode-v1.2.3.tar.gz",
+            bundle_name="grillmester-terminal-v1.2.3.tar.gz",
             bundle_sha256="e" * 64,
         )
 
         self.assertIn('depends_on "navikt/tap/cplt"', content)
+        self.assertIn('depends_on "ripgrep"', content)
         self.assertNotIn('resource "grillmester-cplt"', content)
         self.assertNotIn('resource "grillmester-opencode"', content)
         self.assertNotIn("libexec/clients", content)
@@ -39,13 +40,13 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
         digest = "a" * 64
         content = FORMULA.render_formula(
             tag="v1.2.3-rc.4",
-            bundle_name="grillmester-opencode-v1.2.3-rc.4.tar.gz",
+            bundle_name="grillmester-terminal-v1.2.3-rc.4.tar.gz",
             bundle_sha256=digest,
         )
 
         self.assertIn(
             "https://github.com/navikt/grillmester/releases/download/v1.2.3-rc.4/"
-            "grillmester-opencode-v1.2.3-rc.4.tar.gz",
+            "grillmester-terminal-v1.2.3-rc.4.tar.gz",
             content,
         )
         self.assertIn(f'sha256 "{digest}"', content)
@@ -53,6 +54,7 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
         self.assertIn('depends_on "navikt/tap/cplt"', content)
         self.assertNotIn('depends_on "opencode"', content)
         self.assertIn('depends_on "python@3.13"', content)
+        self.assertIn('depends_on "ripgrep"', content)
         self.assertNotIn('resource "grillmester-cplt"', content)
         self.assertNotIn('resource "grillmester-opencode"', content)
         self.assertNotIn('export PATH="#{libexec}/clients:$PATH"', content)
@@ -72,7 +74,7 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
     def test_formula_has_no_architecture_specific_client_resources(self) -> None:
         content = FORMULA.render_formula(
             tag="v1.2.3",
-            bundle_name="grillmester-opencode-v1.2.3.tar.gz",
+            bundle_name="grillmester-terminal-v1.2.3.tar.gz",
             bundle_sha256="c" * 64,
         )
 
@@ -83,7 +85,7 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
     def test_formula_is_valid_ruby_syntax(self) -> None:
         content = FORMULA.render_formula(
             tag="v1.2.3",
-            bundle_name="grillmester-opencode-v1.2.3.tar.gz",
+            bundle_name="grillmester-terminal-v1.2.3.tar.gz",
             bundle_sha256="b" * 64,
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -102,7 +104,7 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
     def test_launcher_shim_ignores_shell_and_python_startup_injection(self) -> None:
         content = FORMULA.render_formula(
             tag="v1.2.3",
-            bundle_name="grillmester-opencode-v1.2.3.tar.gz",
+            bundle_name="grillmester-terminal-v1.2.3.tar.gz",
             bundle_sha256="d" * 64,
         )
         start = content.index("      #!/bin/sh\n")
@@ -165,10 +167,10 @@ class GenerateHomebrewFormulaTests(unittest.TestCase):
 
     def test_generator_rejects_unbound_or_unsafe_inputs(self) -> None:
         cases = (
-            ("latest", "grillmester-opencode-latest.tar.gz", "a" * 64),
+            ("latest", "grillmester-terminal-latest.tar.gz", "a" * 64),
             ("v1.2.3", "other-v1.2.3.tar.gz", "a" * 64),
-            ("v1.2.3", "grillmester-opencode-v1.2.4.tar.gz", "a" * 64),
-            ("v1.2.3", "grillmester-opencode-v1.2.3.tar.gz", "A" * 64),
+            ("v1.2.3", "grillmester-terminal-v1.2.4.tar.gz", "a" * 64),
+            ("v1.2.3", "grillmester-terminal-v1.2.3.tar.gz", "A" * 64),
         )
         for tag, name, digest in cases:
             with self.subTest(tag=tag, name=name), self.assertRaises(

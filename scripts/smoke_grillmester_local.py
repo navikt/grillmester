@@ -9,7 +9,6 @@ request made by each client for contract validation.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import importlib.util
 import json
 import math
@@ -30,9 +29,24 @@ from typing import Any, Callable, Mapping, Sequence
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_CPLT_RELEASE = "2026.08.17-062831-1008a92"
-EXPECTED_OPENCODE_VERSION = "1.18.20"
-EXPECTED_COPILOT_VERSION = "1.0.80"
+
+
+def _load_release_test_contract() -> Mapping[str, Any]:
+    name = "grillmester_release_test_baseline_for_local_smoke"
+    path = ROOT / "scripts/release_test_baseline.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load release-test baseline contract: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module.CONTRACT["releaseTest"]
+
+
+_RELEASE_TEST = _load_release_test_contract()
+EXPECTED_CPLT_RELEASE = _RELEASE_TEST["cpltRelease"]
+EXPECTED_OPENCODE_VERSION = _RELEASE_TEST["opencodeVersion"]
+EXPECTED_COPILOT_VERSION = _RELEASE_TEST["copilotVersion"]
 MODEL_ID = "grillmester-local-smoke-v1"
 PROVIDER_ID = "smoke"
 SERVER_HOST = "127.0.0.1"
@@ -64,11 +78,12 @@ class LocalSmokeError(RuntimeError):
     """Raised when a local-model smoke contract cannot be proven."""
 
 
-def _load_local_launcher() -> Any:
+def _load_local_launcher(distribution_root: Path = ROOT) -> Any:
     name = "grillmester_local_for_local_smoke"
-    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts/grillmester_local.py")
+    path = distribution_root / "scripts/grillmester_local.py"
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise LocalSmokeError("could not load scripts/grillmester_local.py")
+        raise LocalSmokeError(f"could not load extracted local launcher: {path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
@@ -388,18 +403,6 @@ class PrerequisiteResult:
     problems: tuple[str, ...]
 
 
-def _file_identity(path: Path) -> tuple[int, str]:
-    """Hash one executable with bounded memory instead of loading it whole."""
-
-    digest = hashlib.sha256()
-    size = 0
-    with path.open("rb") as source:
-        while chunk := source.read(1024 * 1024):
-            size += len(chunk)
-            digest.update(chunk)
-    return size, digest.hexdigest()
-
-
 def _terminate(process: subprocess.Popen[bytes], *, grace: float = 2.0) -> None:
     if process.poll() is not None:
         return
@@ -716,6 +719,36 @@ def _run_scenario(
 ) -> ScenarioReport:
     consumer = scenario_root / "consumer"
     consumer.mkdir(mode=0o700)
+    audit_marker = scenario_root / "cplt-audit-escaped"
+    git = Path("/usr/bin/git")
+    try:
+        subprocess.run(
+            (str(git), "init", "-q"),
+            cwd=consumer,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=10,
+            check=True,
+        )
+        subprocess.run(
+            (
+                str(git),
+                "config",
+                "core.fsmonitor",
+                f"/usr/bin/touch {audit_marker}",
+            ),
+            cwd=consumer,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=10,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise LocalSmokeError(
+            f"{scenario.name} could not seed the cplt audit escape regression: {exc}"
+        ) from exc
     before = _tree_snapshot(consumer)
     scenario_environment = _scenario_environment(
         environment,
@@ -753,28 +786,27 @@ def _run_scenario(
             raise LocalSmokeError(
                 f"{scenario.name} selected {launch.payload}, expected {expected_payload}"
             )
-        staged_ripgrep = (
-            Path(launch.environment["XDG_CACHE_HOME"]) / "opencode/bin/rg"
-        )
         if scenario.client == "opencode":
             try:
-                staged_mode = stat.S_IMODE(staged_ripgrep.stat().st_mode)
-                staged_identity = _file_identity(staged_ripgrep)
-                source_identity = _file_identity(ripgrep)
+                discovered = shutil.which("rg", path=launch.environment["PATH"])
+                discovered_path = (
+                    Path(discovered).resolve(strict=True) if discovered else None
+                )
             except OSError as exc:
                 raise LocalSmokeError(
-                    f"{scenario.name} did not stage ripgrep for offline Glob/Grep: {exc}"
+                    f"{scenario.name} could not resolve ripgrep from PATH: {exc}"
                 ) from exc
-            if staged_mode != 0o500 or staged_identity != source_identity:
+            if discovered_path != ripgrep.resolve(strict=True):
                 raise LocalSmokeError(
-                    f"{scenario.name} staged ripgrep with the wrong identity or mode"
+                    f"{scenario.name} did not preserve the selected ripgrep on PATH"
                 )
-        elif staged_ripgrep.exists():
-            raise LocalSmokeError(
-                f"{scenario.name} unexpectedly staged OpenCode-only ripgrep"
-            )
         result = run_process(
             tuple(launch.command), consumer, dict(launch.environment), timeout
+        )
+    if audit_marker.exists():
+        raise LocalSmokeError(
+            f"{scenario.name} let cplt execute repository core.fsmonitor "
+            "outside the sandbox"
         )
     if result.returncode != 0:
         raise LocalSmokeError(
@@ -1044,7 +1076,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--cplt", help="path to exact gated cplt")
     parser.add_argument("--opencode", help="path to exact gated OpenCode")
     parser.add_argument("--copilot", help="path to exact gated Copilot CLI")
-    parser.add_argument("--ripgrep", help="path to ripgrep staged for OpenCode tools")
+    parser.add_argument("--ripgrep", help="path to ripgrep exposed to OpenCode tools")
+    parser.add_argument(
+        "--distribution-root",
+        type=Path,
+        help="extracted Grillmester bundle root to exercise",
+    )
     parser.add_argument(
         "--require-binaries",
         action="store_true",
@@ -1061,7 +1098,16 @@ def main(
     environment: Mapping[str, str] | None = None,
     platform: str | None = None,
 ) -> int:
+    global LOCAL
     arguments = parse_args(argv)
+    if arguments.distribution_root is not None:
+        distribution_root = arguments.distribution_root
+    try:
+        distribution_root = distribution_root.expanduser().resolve(strict=True)
+        LOCAL = _load_local_launcher(distribution_root)
+    except (LocalSmokeError, OSError) as exc:
+        print(f"Grillmester local smoke failed: {exc}", file=sys.stderr)
+        return 1
     source = os.environ if environment is None else environment
     prerequisites = resolve_and_inspect_prerequisites(
         cplt=arguments.cplt,
@@ -1103,8 +1149,8 @@ def main(
         )
     print(
         "Grillmester local smoke passed: 4/4 focused/full OpenCode/Copilot "
-        "scenarios through exact cplt; ripgrep staged for OpenCode; consumer "
-        "clean; credentials scrubbed."
+        "scenarios through the release-test cplt baseline; ripgrep available on "
+        "PATH; cplt audit escape blocked; consumer clean; credentials scrubbed."
     )
     return 0
 

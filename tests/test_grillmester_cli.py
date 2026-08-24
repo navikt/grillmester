@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import hashlib
 import io
 import json
 import os
@@ -57,6 +56,7 @@ class GrillmesterCliTests(unittest.TestCase):
             command,
             [
                 "/trusted/cplt",
+                "--no-audit",
                 "--agent",
                 "copilot",
                 "--project-dir",
@@ -94,7 +94,7 @@ class GrillmesterCliTests(unittest.TestCase):
         )
 
         separator = command.index("--")
-        self.assertEqual(command[1:3], ["--agent", "opencode"])
+        self.assertEqual(command[1:4], ["--no-audit", "--agent", "opencode"])
         self.assertEqual(
             command[separator + 1 :],
             ["--agent", "barista", "--model", "lmstudio/qwen"],
@@ -1300,102 +1300,6 @@ class GrillmesterCliTests(unittest.TestCase):
                     "copilot", cplt=cplt, distribution=self.distribution
                 )
 
-    def test_local_version_probe_ignores_ambient_config_and_credentials(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            report = root / "probe-environment.txt"
-            cplt = root / "cplt"
-            cplt.write_text(
-                "#!/bin/sh\n"
-                f"if [ \"$1\" = --version ]; then printf '%s\\n' "
-                f"'cplt {CLI.SUPPORTED_CPLT_RELEASE}'; exit 0; fi\n"
-                f"printf '%s\\n' \"$HOME|$CPLT_CONFIG|"
-                f"${{GRILLMESTER_PROBE_SECRET-unset}}\" > {shlex.quote(str(report))}\n"
-                "test -f \"$CPLT_CONFIG\" || exit 91\n"
-                "test ! -s \"$CPLT_CONFIG\" || exit 92\n"
-                "test -z \"${GRILLMESTER_PROBE_SECRET+x}\" || exit 93\n"
-                "exec opencode --version\n",
-                encoding="utf-8",
-            )
-            cplt.chmod(0o700)
-            opencode = root / "opencode"
-            opencode.write_text(
-                "#!/bin/sh\n"
-                "test -z \"${GRILLMESTER_PROBE_SECRET+x}\" || exit 94\n"
-                f"printf '%s\\n' '{CLI.REVIEWED_LOCAL_OPENCODE_VERSION}'\n",
-                encoding="utf-8",
-            )
-            opencode.chmod(0o700)
-            hostile_config = root / "hostile-cplt.toml"
-            hostile_config.write_text(
-                "[sandbox]\ninherit_env = true\n", encoding="utf-8"
-            )
-
-            def resolve(name: str) -> str:
-                return str({"opencode": opencode}[name])
-
-            checked_cplt = CLI.CheckedBinary(
-                "cplt",
-                str(cplt),
-                f"cplt {CLI.SUPPORTED_CPLT_RELEASE}",
-                hashlib.sha256(cplt.read_bytes()).hexdigest(),
-            )
-            with mock.patch.dict(
-                os.environ,
-                {
-                    "CPLT_CONFIG": str(hostile_config),
-                    "GRILLMESTER_PROBE_SECRET": "probe-canary",
-                },
-                clear=False,
-            ), mock.patch.object(CLI, "_resolve_binary", side_effect=resolve):
-                _checked_cplt, checked = CLI.check_local_runtime(
-                    "opencode",
-                    cplt=checked_cplt,
-                    distribution=self.distribution,
-                )
-
-            self.assertEqual(CLI.REVIEWED_LOCAL_OPENCODE_VERSION, checked.version)
-            observed_home, observed_config, observed_secret = report.read_text(
-                encoding="utf-8"
-            ).strip().split("|")
-            self.assertNotEqual(os.environ.get("HOME"), observed_home)
-            self.assertNotEqual(str(hostile_config), observed_config)
-            self.assertEqual("unset", observed_secret)
-
-    @mock.patch.object(CLI.sys, "platform", "darwin")
-    def test_local_cplt_is_checksum_rejected_before_first_execution(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            report = root / "ambient-secret.txt"
-            cplt = root / "cplt"
-            cplt.write_text(
-                "#!/bin/sh\n"
-                f"printf '%s' \"${{LOCAL_CPLT_CANARY-unset}}\" > {shlex.quote(str(report))}\n"
-                f"printf '%s\\n' 'cplt {CLI.SUPPORTED_CPLT_RELEASE}'\n",
-                encoding="utf-8",
-            )
-            cplt.chmod(0o700)
-            opencode = self._write_version_binary(
-                root, "opencode", CLI.REVIEWED_LOCAL_OPENCODE_VERSION
-            )
-
-            def resolve(name: str) -> str:
-                return str({"cplt": cplt, "opencode": opencode}[name])
-
-            with mock.patch.dict(
-                os.environ, {"LOCAL_CPLT_CANARY": "must-not-leak"}, clear=False
-            ), mock.patch.object(CLI, "_resolve_binary", side_effect=resolve):
-                checked_cplt = CLI.check_local_cplt(self.distribution)
-                self.assertFalse(report.exists())
-                with self.assertRaisesRegex(CLI.LauncherError, "artifact lock"):
-                    CLI.check_local_runtime(
-                        "opencode",
-                        cplt=checked_cplt,
-                        distribution=self.distribution,
-                    )
-
-            self.assertFalse(report.exists())
-
     def test_sandboxed_probe_has_a_hard_output_limit(self) -> None:
         with self.assertRaisesRegex(CLI.LauncherError, "output limit"):
             CLI._bounded_command_output(
@@ -1436,53 +1340,6 @@ class GrillmesterCliTests(unittest.TestCase):
 
         self.assertEqual("opencode", checked.label)
         self.assertIn("1.19.3", checked.detail)
-
-    def test_local_opencode_pin_does_not_raise_the_standard_minimum(self) -> None:
-        cplt = CLI.CheckedBinary(
-            "cplt", "/bin/cplt", f"cplt {CLI.SUPPORTED_CPLT_RELEASE}"
-        )
-        with mock.patch.object(
-            CLI, "REVIEWED_LOCAL_OPENCODE_VERSION", "1.99.0"
-        ), mock.patch.object(
-            CLI, "REVIEWED_LOCAL_OPENCODE_VERSION_TUPLE", (1, 99, 0)
-        ), mock.patch.object(
-            CLI, "_resolve_binary", return_value="/bin/opencode"
-        ), mock.patch.object(
-            CLI,
-            "_sandboxed_client_version",
-            return_value=CLI.MINIMUM_OPENCODE_VERSION_TEXT,
-        ):
-            checked = CLI.check_client_runtime(
-                "opencode", cplt=cplt, distribution=self.distribution
-            )
-
-        self.assertEqual(CLI.MINIMUM_OPENCODE_VERSION_TEXT, checked.version)
-
-    def test_local_runtime_rejects_every_unreviewed_client_version(self) -> None:
-        cplt = CLI.CheckedBinary(
-            "cplt",
-            "/bin/cplt",
-            f"cplt {CLI.SUPPORTED_CPLT_RELEASE}",
-            "a" * 64,
-        )
-        cases = (
-            ("opencode", "1.18.21", "exact reviewed version 1.18.20"),
-            ("opencode", "1.19.0", "exact reviewed version 1.18.20"),
-            ("copilot", "GitHub Copilot CLI 1.0.79.", "exact reviewed version 1.0.80"),
-            ("copilot", "GitHub Copilot CLI 1.0.81.", "exact reviewed version 1.0.80"),
-        )
-        for client, version, message in cases:
-            with self.subTest(client=client, version=version), mock.patch.object(
-                CLI, "_resolve_binary", return_value=f"/bin/{client}"
-            ), mock.patch.object(
-                CLI,
-                "_local_sandboxed_client_version",
-                return_value=(version, "a" * 64, "b" * 64),
-            ):
-                with self.assertRaisesRegex(CLI.LauncherError, message):
-                    CLI.check_local_runtime(
-                        client, cplt=cplt, distribution=self.distribution
-                    )
 
     def test_supported_opencode_v1_range_rejects_next_major(self) -> None:
         cplt = CLI.CheckedBinary(
@@ -1856,35 +1713,33 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual([mock.call("cplt"), mock.call("opencode")], locate.call_args_list)
         checked.assert_not_called()
 
-    @mock.patch.object(CLI.sys, "platform", "darwin")
-    def test_local_rejects_unreviewed_cplt_with_actionable_guidance(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            cplt = root / "cplt"
-            cplt.write_text(
-                "#!/bin/sh\n"
-                f"printf '%s\\n' 'cplt {CLI.SUPPORTED_CPLT_RELEASE}'\n",
-                encoding="utf-8",
-            )
-            cplt.chmod(0o700)
-            opencode = self._write_version_binary(
-                root, "opencode", CLI.REVIEWED_LOCAL_OPENCODE_VERSION
-            )
+    def test_local_launch_uses_the_standard_compatible_client_gate(self) -> None:
+        observed: dict[str, object] = {}
+        checks = CLI.LaunchChecks(
+            CLI.CheckedBinary("cplt", "/checked/cplt", "cplt newer"),
+            CLI.CheckedBinary("opencode", "/checked/opencode", "1.99.0"),
+        )
 
-            def resolve(name: str) -> str:
-                return str({"cplt": cplt, "opencode": opencode}[name])
+        def local_main(arguments, *, distribution_root, binary_resolver):
+            observed["arguments"] = list(arguments)
+            observed["binaries"] = binary_resolver("opencode", True)
+            return 0
 
-            with mock.patch.object(CLI, "_resolve_binary", side_effect=resolve):
-                checked_cplt = CLI.check_local_cplt(self.distribution)
-                with self.assertRaisesRegex(
-                    CLI.LauncherError,
-                    "brew update && brew upgrade grillmester navikt/tap/cplt",
-                ):
-                    CLI.check_local_runtime(
-                        "opencode",
-                        cplt=checked_cplt,
-                        distribution=self.distribution,
-                    )
+        local_module = mock.Mock()
+        local_module.main = local_main
+        with (
+            mock.patch.object(CLI, "_load_local_mode_module", return_value=local_module),
+            mock.patch.object(CLI, "load_distribution", return_value=self.distribution),
+            mock.patch.object(CLI, "check_client", return_value=checks) as check_client,
+        ):
+            result = CLI._run_local_mode(["--client", "opencode"])
+
+        self.assertEqual(0, result)
+        self.assertEqual(["launch", "--client", "opencode"], observed["arguments"])
+        self.assertEqual((checks.cplt, checks.client), observed["binaries"])
+        check_client.assert_called_once_with(
+            "opencode", distribution=self.distribution
+        )
 
 
 if __name__ == "__main__":

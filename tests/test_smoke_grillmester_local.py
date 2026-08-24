@@ -46,23 +46,6 @@ def post_completion(base_url: str, payload: dict[str, object]) -> str:
         return response.read().decode("utf-8")
 
 
-class FileIdentityTests(unittest.TestCase):
-    def test_executable_identity_is_hashed_without_read_bytes(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            executable_path = Path(directory) / "rg"
-            executable_path.write_bytes(b"ripgrep-fixture")
-            with mock.patch.object(
-                Path, "read_bytes", side_effect=AssertionError("unbounded read")
-            ):
-                size, digest = SMOKE._file_identity(executable_path)
-
-        self.assertEqual(len(b"ripgrep-fixture"), size)
-        self.assertEqual(
-            "08725b0341e5ff53f0654e71ccd012b9994b6809f72e3b6c2c1535373e8d3145",
-            digest,
-        )
-
-
 class LoopbackProviderTests(unittest.TestCase):
     def test_models_and_chat_completions_stream_have_exact_contract(self) -> None:
         scenario = SMOKE.Scenario("opencode", "focused")
@@ -155,7 +138,7 @@ class MatrixTests(unittest.TestCase):
                 timeout: float,
             ) -> SMOKE.CommandResult:
                 self.assertGreater(timeout, 0)
-                self.assertEqual([], list(cwd.iterdir()))
+                self.assertEqual([cwd / ".git"], list(cwd.iterdir()))
                 rendered_environment = json.dumps(child_environment, sort_keys=True)
                 for name in SMOKE.CREDENTIAL_ENVIRONMENT:
                     self.assertNotIn(
@@ -163,6 +146,14 @@ class MatrixTests(unittest.TestCase):
                         rendered_environment,
                     )
                 separator = command.index("--")
+                self.assertIn("--proxy-forced", command[:separator])
+                self.assertIn("--gh-guard", command[:separator])
+                self.assertIn("--git-guard", command[:separator])
+                self.assertIn("--no-audit", command[:separator])
+                self.assertNotIn("--allow-all-domains", command[:separator])
+                self.assertNotIn("--preset", command[:separator])
+                self.assertIn("--allow-localhost", command[:separator])
+                self.assertNotIn("--allowed-domains", command[:separator])
                 client_arguments = command[separator + 1 :]
                 if "OPENCODE_CONFIG_CONTENT" in child_environment:
                     client = "opencode"
@@ -180,7 +171,7 @@ class MatrixTests(unittest.TestCase):
                     )
                     base_url = child_environment["COPILOT_PROVIDER_BASE_URL"]
                     self.assertIn("-p", client_arguments)
-                    self.assertEqual("true", child_environment["COPILOT_OFFLINE"])
+                    self.assertNotIn("COPILOT_OFFLINE", child_environment)
                 context = "focused" if "focused" in payload.name else "full"
                 scenario = SMOKE.Scenario(client, context)
                 prompt = "# Barista ☕\n"

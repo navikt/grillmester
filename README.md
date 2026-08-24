@@ -10,8 +10,16 @@ Grillmester er Navs agentteam for GitHub Copilot og OpenCode: fire agenter, tre 
 
 ### Copilot CLI og OpenCode i terminalen
 
-Homebrew er **ikke tilgjengelig ennå** og aktiveres etter stabil release og tap-review. Bruk foreløpig Copilot app eller [native Copilot-installasjon](docs/installation.md#alternativ-native-copilot-cli-installasjon-med-automatisk-oppdatering).
-Når tapen er live, installer Grillmester med cplt som ekstern Homebrew-avhengighet. Fullt kvalifiserte navn begrenser Homebrew-tilliten til disse formlene:
+Homebrew er **ikke tilgjengelig ennå**. Fra consumer-repoet, med cplt og én
+klient på `PATH`, kjører du checkouten direkte:
+
+```bash
+cd /path/to/consumer-repo
+python3 /absolute/path/to/grillmester/scripts/grillmester.py
+python3 /absolute/path/to/grillmester/scripts/grillmester.py doctor
+```
+
+[Copilot app eller native Copilot](docs/installation.md#alternativ-native-copilot-cli-installasjon-med-automatisk-oppdatering) kan brukes frem til tap-review. Da installeres terminalflyten med ekstern cplt:
 
 ```bash
 brew install navikt/tap/cplt navikt/tap/grillmester
@@ -30,11 +38,9 @@ Start så Grillmester:
 grillmester
 ```
 
-Launcheren viser installerte klienter fra `PATH` uten å endre dem. Alle terminalsesjoner
-går alltid gjennom cplt; valgt klient versjonssjekkes i en tom mappe før lagring.
-`grillmester choose` bytter. En manglende klient gir installasjonskommando, aldri fallback.
+Launcheren viser klienter fra `PATH`. Alle terminalsesjoner går gjennom cplt; valgt klient versjonssjekkes før lagring. `grillmester choose` bytter. En manglende klient gir installasjonskommando, aldri fallback.
 
-Du kan også være eksplisitt:
+Eksplisitt:
 
 ```bash
 grillmester --client copilot --agent grillmester
@@ -43,17 +49,16 @@ grillmester doctor
 ```
 
 Standardkommandoen beholder hele agentteamet og klientens vanlige modellregler.
-For en eksplisitt loopback-modell bruker du den lokale flyten:
+For en eksplisitt loopback-modell starter du først en OpenAI-kompatibel
+modellserver, og bruker så den lokale flyten fra consumer-repoet:
 
 ```bash
-grillmester local setup
-grillmester local
-grillmester local --client copilot
-grillmester local --full --agent grillmester
+cd /path/to/consumer-repo
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
 ```
 
-`setup` oppdager klient og modell; focused Barista er default, uten cloud-fallback.
-Se [lokale modeller](docs/local-models.md) og [klientoppsett](docs/opencode.md).
+`setup` finner klient/modell; focused Barista er default. Inferensen går til localhost; web/GitHub følger cplt-policy. Begge flyter bruker kompatible 1.x-klienter. Se [lokale modeller](docs/local-models.md) og [OpenCode](docs/opencode.md).
 
 ### Oppdatere terminalinstallasjonen
 
@@ -90,8 +95,8 @@ brukes ved behov. [Se alle agenter og skills](docs/agents-and-skills.md).
 GitHub Copilot CLI er referanseklienten; Copilot app har egen plugininstallasjon.
 Homebrew støttes på macOS. Linux og VS Code er utenfor release-løftet.
 Standardlauncheren støtter OpenCode 1.x fra `1.18.20`, Copilot CLI 1.x fra
-`1.0.79` og cplt fra testbaselinen. High-assurance-manageren har eksakte pinner. Hver
-modell må kvalitetsvalideres separat. Se [klientstatus og releasegater](docs/trust-and-client-support.md).
+`1.0.79` og cplt fra testbaselinen. Hver modell må kvalitetsvalideres separat.
+Se [klientstatus og releasegater](docs/trust-and-client-support.md).
 
 Grillmester kan brukes sammen med `navikt/copilot`. Se hvordan [repo-eid
 kontekst, overlapp og eventuelle

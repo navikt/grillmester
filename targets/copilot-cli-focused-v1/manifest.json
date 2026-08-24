@@ -9,9 +9,10 @@
   },
   "source": {
     "plugin": "plugin",
-    "pluginManifestSha256": "7b3e6a21b1a530d836952af97e0451fa75656c270a010b8789c00f8671d5bf29",
+    "payloadManifest": "plugin/manifest.json",
+    "payloadManifestSha256": "158201c756bb1ef616b90aebf3929f053c1c1131287f21f8a478b8c4daea5389",
     "policy": "policy/focused-context-v1.json",
-    "policySha256": "9984a517cddaf4c992981194f59ba4936f9f26241f61a8c9b76e847cdfb3f820"
+    "policySha256": "5fe33032e71361e42c42729f5c0ca43fe67ca7e90dff898819ed01bcddf33283"
   },
   "modelSelection": "inherit-provider-or-session",
   "transformations": {
@@ -23,7 +24,7 @@
   },
   "counts": {
     "agents": 2,
-    "skills": 6
+    "skills": 7
   },
   "agents": [
     "barista",
@@ -32,6 +33,7 @@
   "skills": [
     "grillmester-diagnosing-bugs",
     "grillmester-integration-tests",
+    "grillmester-issue-management",
     "grillmester-pull-request",
     "grillmester-review",
     "grillmester-security-review",
@@ -68,6 +70,10 @@
     },
     "skills/grillmester-integration-tests/SKILL.md": {
       "sha256": "3a8c609a09bf3f422d4311fed3e699b4cd481da2cf26def20542ed37f32e86d7",
+      "mode": "0644"
+    },
+    "skills/grillmester-issue-management/SKILL.md": {
+      "sha256": "8712d792dd8bcf9db8b64ad64ccd17a2df11640181ba12226128f6368f1d2e56",
       "mode": "0644"
     },
     "skills/grillmester-pull-request/SKILL.md": {

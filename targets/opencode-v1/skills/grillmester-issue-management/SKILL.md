@@ -85,10 +85,15 @@ is unavailable, keep the reviewed mutation as a draft and return
 `Status: NEEDS_INPUT`, naming the required integration or the exact manual
 GitHub UI action.
 
-Do not substitute `gh`, shell or raw HTTP for a missing semantic tracker
-capability, including from an implementation agent. This keeps the same
-external-write contract across public and delegated roles. Use the confirmed
-repository and account context only through the approved semantic integration.
+An implementation agent in a terminal session explicitly started through
+Grillmester and cplt may use cplt-guarded `gh issue` commands as its approved
+GitHub adapter. Use only the confirmed current repository and account, keep the
+command inside cplt, and never bypass cplt's repository scope, GitHub guard,
+approval prompt, or command restrictions. Prefer semantic GitHub tools when
+they are available. Outside that explicit cplt context, do not substitute `gh`
+or shell for a missing semantic tracker capability. Never use raw HTTP for a
+tracker mutation.
+
 Verify every created or changed issue, project item, field value, and
 relationship after writing.
 Report partial failure without silently omitting project state or substituting

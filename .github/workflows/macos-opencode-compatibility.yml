@@ -1,4 +1,4 @@
-name: Verify pinned OpenCode and cplt on macOS
+name: Verify release-test terminal clients on macOS
 
 on:
   workflow_call:
@@ -34,7 +34,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Download and verify native Darwin clients before first execution
+      - name: Load the executable release-test baseline
+        shell: bash
+        run: python3 -I -S scripts/release_test_baseline.py github-env >> "${GITHUB_ENV}"
+
+      - name: Install and independently verify native Darwin release-test clients
         shell: bash
         run: |
           set -euo pipefail
@@ -43,307 +47,57 @@ jobs:
 
           machine="$(uname -m)"
           case "${machine}" in
-            arm64)
-              opencode_url="https://registry.npmjs.org/opencode-darwin-arm64/-/opencode-darwin-arm64-1.18.20.tgz"
-              opencode_archive_size=45912069
-              opencode_archive_sha512="7e010126cc31f75380b44989cbb8934f6da262c69d0b29f8629eeb574f60fae7f9968c995e49f238b62620b6080ebbc43fa16b50bacf6160635a65aa22beae80"
-              opencode_binary_size=143925602
-              opencode_binary_sha256="9598c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952"
-              cplt_url="https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-aarch64-apple-darwin.tar.gz"
-              cplt_archive_size=1480572
-              cplt_archive_sha256="fb1fd69f5ff42deb1cf2e510d97a58ff5f7ddf913e1cd4f7533815a16588eeda"
-              cplt_binary_size=3122208
-              cplt_binary_sha256="423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2"
-              ;;
-            x86_64)
-              opencode_url="https://registry.npmjs.org/opencode-darwin-x64/-/opencode-darwin-x64-1.18.20.tgz"
-              opencode_archive_size=48089366
-              opencode_archive_sha512="cbade5db7d9d2cf3175a66155aba13c5b77bc1f602b1178f05a5ec8bb9f77983cd7bb29ea3aacc97170db266c187173c3a609eaf4c83f4391a492e7230b83dc1"
-              opencode_binary_size=149405776
-              opencode_binary_sha256="96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60"
-              cplt_url="https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-x86_64-apple-darwin.tar.gz"
-              cplt_archive_size=1613282
-              cplt_archive_sha256="e60687724df8a2fdb6f99654cc80f1a0dccb215263c2d984c222ff99ce56f8ea"
-              cplt_binary_size=3546896
-              cplt_binary_sha256="36592c1b2bcfd7ab2d9083842b0aa7f51737cdf12ec1752d351bd9467dab5c02"
-              ;;
+            arm64|x86_64) ;;
             *)
               echo "Unsupported macOS runner architecture: ${machine}" >&2
               exit 1
               ;;
           esac
 
-          downloads="${RUNNER_TEMP}/darwin-client-archives"
           verified_bin="${RUNNER_TEMP}/verified-darwin-bin"
-          mkdir -m 700 "${downloads}" "${verified_bin}"
-          opencode_archive="${downloads}/opencode.tgz"
-          cplt_archive="${downloads}/cplt.tar.gz"
-          curl --config /dev/null --fail-with-body --silent --show-error --location \
-            --proto '=https' --tlsv1.2 --proto-redir '=https' \
-            --max-filesize 50000000 --output "${opencode_archive}" "${opencode_url}"
-          curl --config /dev/null --fail-with-body --silent --show-error --location \
-            --proto '=https' --tlsv1.2 --proto-redir '=https' \
-            --max-filesize 10000000 --output "${cplt_archive}" "${cplt_url}"
+          mkdir -m 700 "${verified_bin}"
+          for client in opencode cplt copilot; do
+            python3 -I -S scripts/release_test_baseline.py install \
+              --client "${client}" --platform darwin --architecture "${machine}" \
+              --output "${verified_bin}/${client}"
+          done
 
-          python3 -I -S - \
-            "${opencode_archive}" "${opencode_archive_size}" \
-            "${opencode_archive_sha512}" "${opencode_binary_size}" \
-            "${opencode_binary_sha256}" \
-            "${cplt_archive}" "${cplt_archive_size}" \
-            "${cplt_archive_sha256}" "${cplt_binary_size}" \
-            "${cplt_binary_sha256}" "${verified_bin}" <<'PY'
-          import hashlib
-          import os
-          import stat
-          import sys
-          import tarfile
-          from pathlib import Path
+          opencode_binary_sha256="$(python3 -I -S scripts/release_test_baseline.py field \
+            --client opencode --platform darwin --architecture "${machine}" \
+            --name executableSha256)"
+          cplt_binary_sha256="$(python3 -I -S scripts/release_test_baseline.py field \
+            --client cplt --platform darwin --architecture "${machine}" \
+            --name executableSha256)"
+          copilot_binary_sha256="$(python3 -I -S scripts/release_test_baseline.py field \
+            --client copilot --platform darwin --architecture "${machine}" \
+            --name executableSha256)"
 
-          (
-              opencode_archive,
-              opencode_archive_size,
-              opencode_archive_sha512,
-              opencode_binary_size,
-              opencode_binary_sha256,
-              cplt_archive,
-              cplt_archive_size,
-              cplt_archive_sha256,
-              cplt_binary_size,
-              cplt_binary_sha256,
-              output_directory,
-          ) = sys.argv[1:]
-
-          def fail(message: str) -> None:
-              raise SystemExit(f"Darwin client verification failed: {message}")
-
-          def read_archive(path_value: str, expected_size: int, algorithm: str, digest: str) -> bytes:
-              path = Path(path_value)
-              flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-              descriptor = os.open(path, flags)
-              try:
-                  observed = os.fstat(descriptor)
-                  if not stat.S_ISREG(observed.st_mode) or observed.st_size != expected_size:
-                      fail(f"archive size or type differs for {path.name}")
-                  with os.fdopen(descriptor, "rb", closefd=False) as stream:
-                      content = stream.read(expected_size + 1)
-              finally:
-                  os.close(descriptor)
-              if len(content) != expected_size:
-                  fail(f"archive changed while reading {path.name}")
-              if hashlib.new(algorithm, content).hexdigest() != digest:
-                  fail(f"archive digest differs for {path.name}")
-              return content
-
-          def publish_binary(
-              archive: bytes,
-              expected_roster: list[str],
-              binary_member: str,
-              expected_size: int,
-              expected_digest: str,
-              output_name: str,
-          ) -> None:
-              import io
-
-              with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as package:
-                  if package.pax_headers:
-                      fail(f"global PAX headers are forbidden in {output_name}")
-                  members = package.getmembers()
-                  if [member.name for member in members] != expected_roster:
-                      fail(f"archive roster differs for {output_name}")
-                  selected = None
-                  for member in members:
-                      if (
-                          member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}
-                          or member.pax_headers
-                          or member.linkname
-                          or member.devmajor != 0
-                          or member.devminor != 0
-                          or member.sparse is not None
-                      ):
-                          fail(f"archive contains a link or special member for {output_name}")
-                      if member.name == binary_member:
-                          selected = member
-                  if selected is None or selected.size != expected_size:
-                      fail(f"executable size differs for {output_name}")
-                  extracted = package.extractfile(selected)
-                  if extracted is None:
-                      fail(f"cannot read executable member for {output_name}")
-                  executable = extracted.read(expected_size + 1)
-              if len(executable) != expected_size:
-                  fail(f"executable changed while reading {output_name}")
-              if hashlib.sha256(executable).hexdigest() != expected_digest:
-                  fail(f"executable digest differs for {output_name}")
-
-              destination = Path(output_directory) / output_name
-              flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
-              descriptor = os.open(destination, flags, 0o500)
-              try:
-                  with os.fdopen(descriptor, "wb", closefd=False) as target:
-                      target.write(executable)
-                      target.flush()
-                      os.fsync(descriptor)
-                  os.fchmod(descriptor, 0o555)
-              finally:
-                  os.close(descriptor)
-
-          opencode_bytes = read_archive(
-              opencode_archive,
-              int(opencode_archive_size),
-              "sha512",
-              opencode_archive_sha512,
-          )
-          cplt_bytes = read_archive(
-              cplt_archive,
-              int(cplt_archive_size),
-              "sha256",
-              cplt_archive_sha256,
-          )
-          publish_binary(
-              opencode_bytes,
-              ["package/package.json", "package/bin/opencode"],
-              "package/bin/opencode",
-              int(opencode_binary_size),
-              opencode_binary_sha256,
-              "opencode",
-          )
-          publish_binary(
-              cplt_bytes,
-              ["cplt"],
-              "cplt",
-              int(cplt_binary_size),
-              cplt_binary_sha256,
-              "cplt",
-          )
-          PY
-
-          [[ "$(stat -f '%Lp:%u' "${verified_bin}/opencode")" == "555:$(id -u)" ]]
-          [[ "$(stat -f '%Lp:%u' "${verified_bin}/cplt")" == "555:$(id -u)" ]]
+          for client in opencode cplt copilot; do
+            [[ "$(stat -f '%Lp:%u' "${verified_bin}/${client}")" == "555:$(id -u)" ]]
+          done
           [[ "$(shasum -a 256 "${verified_bin}/opencode" | cut -d' ' -f1)" == \
              "${opencode_binary_sha256}" ]]
           [[ "$(shasum -a 256 "${verified_bin}/cplt" | cut -d' ' -f1)" == \
              "${cplt_binary_sha256}" ]]
+          [[ "$(shasum -a 256 "${verified_bin}/copilot" | cut -d' ' -f1)" == \
+             "${copilot_binary_sha256}" ]]
 
           # These are the first client executions in this job.
-          [[ "$("${verified_bin}/opencode" --version)" == "1.18.20" ]]
+          [[ "$("${verified_bin}/opencode" --version)" == "${RELEASE_TEST_OPENCODE_VERSION}" ]]
           [[ "$("${verified_bin}/cplt" --version)" == \
-             "cplt 2026.08.17-062831-1008a92" ]]
+             "cplt ${RELEASE_TEST_CPLT_RELEASE}" ]]
+          [[ "$("${verified_bin}/copilot" --version)" == \
+             "GitHub Copilot CLI ${RELEASE_TEST_COPILOT_VERSION}." ]]
           {
             echo "OPENCODE_BIN=${verified_bin}/opencode"
             echo "CPLT_BIN=${verified_bin}/cplt"
+            echo "COPILOT_BIN=${verified_bin}/copilot"
             echo "OPENCODE_BINARY_SHA256=${opencode_binary_sha256}"
             echo "CPLT_BINARY_SHA256=${cplt_binary_sha256}"
-          } >> "${GITHUB_ENV}"
-
-      - name: Download and verify pinned Copilot CLI for local-only compatibility
-        shell: bash
-        run: |
-          set -euo pipefail
-          machine="$(uname -m)"
-          case "${machine}" in
-            arm64)
-              copilot_url="https://github.com/github/copilot-cli/releases/download/v1.0.80/copilot-darwin-arm64.tar.gz"
-              copilot_archive_size=99168802
-              copilot_archive_sha256="2346bb691981c2997d65c1c5bc3cef1aeddc9edd37dcb2f970b911aa597e59f6"
-              copilot_binary_size=160804656
-              copilot_binary_sha256="fe779da7dd2342c1d23f0744873fa27d0251eaaee4dc6637fa53093639c0f3c9"
-              ;;
-            x86_64)
-              copilot_url="https://github.com/github/copilot-cli/releases/download/v1.0.80/copilot-darwin-x64.tar.gz"
-              copilot_archive_size=110675243
-              copilot_archive_sha256="a1a9c1f25740f9a27b34eb14b70b5d3175794dc8bb410875531aa198b3abc18f"
-              copilot_binary_size=173286208
-              copilot_binary_sha256="15a2576566635fdd2dc0c84137ec7481e41a6982281391c62e58883aa5f39f41"
-              ;;
-            *)
-              echo "Unsupported macOS runner architecture: ${machine}" >&2
-              exit 1
-              ;;
-          esac
-          archive="${RUNNER_TEMP}/darwin-client-archives/copilot.tar.gz"
-          curl --config /dev/null --fail-with-body --silent --show-error --location \
-            --proto '=https' --tlsv1.2 --proto-redir '=https' \
-            --max-filesize 120000000 --output "${archive}" "${copilot_url}"
-          python3 -I -S - \
-            "${archive}" "${copilot_archive_size}" "${copilot_archive_sha256}" \
-            "${copilot_binary_size}" "${copilot_binary_sha256}" \
-            "${RUNNER_TEMP}/verified-darwin-bin/copilot" <<'PY'
-          import hashlib
-          import os
-          import stat
-          import sys
-          import tarfile
-          from pathlib import Path
-
-          archive, archive_size, archive_sha256, binary_size, binary_sha256, destination = (
-              sys.argv[1:]
-          )
-          archive_path = Path(archive)
-          archive_size_value = int(archive_size)
-          binary_size_value = int(binary_size)
-          flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-          descriptor = os.open(archive_path, flags)
-          try:
-              observed = os.fstat(descriptor)
-              if not stat.S_ISREG(observed.st_mode) or observed.st_size != archive_size_value:
-                  raise SystemExit("Copilot archive size or type differs")
-              with os.fdopen(descriptor, "rb", closefd=False) as stream:
-                  content = stream.read(archive_size_value + 1)
-          finally:
-              os.close(descriptor)
-          if len(content) != archive_size_value:
-              raise SystemExit("Copilot archive changed while reading")
-          if hashlib.sha256(content).hexdigest() != archive_sha256:
-              raise SystemExit("Copilot archive digest differs")
-
-          import io
-
-          with tarfile.open(fileobj=io.BytesIO(content), mode="r:gz") as package:
-              if package.pax_headers:
-                  raise SystemExit("Copilot archive has global PAX headers")
-              members = package.getmembers()
-              if [member.name for member in members] != ["copilot"]:
-                  raise SystemExit("Copilot archive roster differs")
-              member = members[0]
-              if (
-                  member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}
-                  or member.pax_headers
-                  or member.linkname
-                  or member.devmajor != 0
-                  or member.devminor != 0
-                  or member.sparse is not None
-                  or member.size != binary_size_value
-              ):
-                  raise SystemExit("Copilot archive contains a link or special member")
-              extracted = package.extractfile(member)
-              if extracted is None:
-                  raise SystemExit("Copilot executable could not be read")
-              executable = extracted.read(binary_size_value + 1)
-          if len(executable) != binary_size_value:
-              raise SystemExit("Copilot executable changed while reading")
-          if hashlib.sha256(executable).hexdigest() != binary_sha256:
-              raise SystemExit("Copilot executable digest differs")
-
-          output_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
-          output = os.open(destination, output_flags, 0o500)
-          try:
-              with os.fdopen(output, "wb", closefd=False) as target:
-                  target.write(executable)
-                  target.flush()
-                  os.fsync(output)
-              os.fchmod(output, 0o555)
-          finally:
-              os.close(output)
-          PY
-          [[ "$(stat -f '%Lp:%u' "${RUNNER_TEMP}/verified-darwin-bin/copilot")" == \
-             "555:$(id -u)" ]]
-          [[ "$(shasum -a 256 "${RUNNER_TEMP}/verified-darwin-bin/copilot" | cut -d' ' -f1)" == \
-             "${copilot_binary_sha256}" ]]
-          {
-            echo "COPILOT_BIN=${RUNNER_TEMP}/verified-darwin-bin/copilot"
             echo "COPILOT_BINARY_SHA256=${copilot_binary_sha256}"
           } >> "${GITHUB_ENV}"
 
-      - name: Download and verify pinned ripgrep for the local OpenCode smoke
+      - name: Download and verify ripgrep for the local OpenCode smoke
         shell: bash
         run: |
           set -euo pipefail
@@ -370,7 +124,9 @@ jobs:
           esac
           ripgrep_root="ripgrep-14.1.1-${ripgrep_platform}"
           ripgrep_url="https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/${ripgrep_root}.tar.gz"
-          archive="${RUNNER_TEMP}/darwin-client-archives/ripgrep.tar.gz"
+          downloads="${RUNNER_TEMP}/darwin-client-archives"
+          mkdir -m 700 "${downloads}"
+          archive="${downloads}/ripgrep.tar.gz"
           destination="${RUNNER_TEMP}/verified-darwin-bin/rg"
           curl --config /dev/null --fail-with-body --silent --show-error --location \
             --proto '=https' --tlsv1.2 --proto-redir '=https' \
@@ -557,6 +313,7 @@ jobs:
           set -euo pipefail
           bundle="${RUNNER_TEMP}/macos-opencode-bundle.tar.gz"
           repeated="${RUNNER_TEMP}/macos-opencode-bundle-repeated.tar.gz"
+          python3 -I -S scripts/generate_copilot_manifest.py --check
           python3 -I -S scripts/generate_context_projections.py --check
           python3 -I -S scripts/build_opencode_bundle.py \
             --source-root "${GITHUB_WORKSPACE}" --source-sha "${SOURCE_SHA}" \
@@ -588,7 +345,7 @@ jobs:
                       path.is_absolute()
                       or any(part in ("", ".", "..") for part in path.parts)
                       or not path.parts
-                      or path.parts[0] != "grillmester-opencode-v1"
+                      or path.parts[0] != "grillmester-terminal-v1"
                       or member.pax_headers
                   ):
                       raise SystemExit(f"unsafe bundle path: {member.name!r}")
@@ -625,14 +382,14 @@ jobs:
           for directory, mode in reversed(directories):
               directory.chmod(mode)
           PY
-          bundle_root="${extraction}/grillmester-opencode-v1"
+          bundle_root="${extraction}/grillmester-terminal-v1"
           [[ -f "${bundle_root}/DISTRIBUTION-MANIFEST.json" ]]
           {
             echo "BUNDLE_ARCHIVE=${bundle}"
             echo "BUNDLE_ROOT=${bundle_root}"
           } >> "${GITHUB_ENV}"
 
-      - name: Prove cplt local-only policy and host-local socket semantics
+      - name: Prove cplt policy and host-local socket semantics
         shell: bash
         env:
           PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
@@ -641,16 +398,16 @@ jobs:
           [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
              "${CPLT_BINARY_SHA256}" ]]
           project="${RUNNER_TEMP}/empty-consumer"
-          policy="${RUNNER_TEMP}/local-only-policy"
+          policy="${RUNNER_TEMP}/cplt-loopback-policy"
           mkdir -m 700 "${project}" "${policy}"
           git -C "${project}" init --quiet
           : > "${policy}/cplt-config.toml"
-          printf '%s\n' 'grillmester-local-only.invalid' > "${policy}/allowed-domains.txt"
+          printf '%s\n' 'grillmester-policy-test.invalid' > "${policy}/allowed-domains.txt"
           printf '%s\n' \
             registry.npmjs.org registry.yarnpkg.com repo.maven.apache.org \
             plugins.gradle.org crates.io static.crates.io pypi.org \
             files.pythonhosted.org opencode.ai models.dev \
-            grillmester-local-only.invalid > "${policy}/blocked-domains.txt"
+            grillmester-policy-test.invalid > "${policy}/blocked-domains.txt"
           chmod 0400 "${policy}"/*
 
           listener_info="${RUNNER_TEMP}/listener-port"
@@ -695,9 +452,9 @@ jobs:
           check_status=0
           CPLT_CONFIG="${policy}/cplt-config.toml" \
             "${policy_command[@]}" check --json > "${battery}" || check_status=$?
-          # local-only is deliberately stricter than cplt's generic battery: it
-          # blocks OpenCode's normal allowed domains, so inspect every probe and
-          # require that single intentional mismatch instead of trusting exit 0.
+          # This release-test policy deliberately blocks OpenCode's normal
+          # allowed domains. Inspect every probe and require that single
+          # intentional mismatch instead of trusting exit 0.
           [[ "${check_status}" == "1" ]]
           jq -e '
             .platform == "macos (Seatbelt)" and .battery == true and .enforcing == false and
@@ -747,8 +504,8 @@ jobs:
               raise SystemExit("no non-loopback runner address was found")
           PY
           # Seatbelt's `localhost` selector covers every address assigned to
-          # this Mac, not only 127.0.0.1. The manager still binds the provider
-          # base URL to loopback; this probe records the pinned cplt semantics.
+          # this Mac, not only 127.0.0.1. This probe records the pinned cplt
+          # semantics independently of the Grillmester launcher.
           CPLT_CONFIG="${policy}/cplt-config.toml" \
             "${policy_command[@]}" exec -- \
             /usr/bin/nc -z -G 2 "${runner_ip}" "${listener_port}"
@@ -764,86 +521,8 @@ jobs:
             .items[0].decision == "blocked"
           ' "${remote_result}" >/dev/null
           {
-            echo "LOCAL_PROVIDER_PORT=${listener_port}"
             echo "MACOS_CONSUMER=${project}"
           } >> "${GITHUB_ENV}"
-
-      - name: Exercise the installed manager through genuine local-only cplt
-        shell: bash
-        env:
-          PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-        run: |
-          set -euo pipefail
-          [[ "$(shasum -a 256 "${OPENCODE_BIN}" | cut -d' ' -f1)" == \
-             "${OPENCODE_BINARY_SHA256}" ]]
-          [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
-             "${CPLT_BINARY_SHA256}" ]]
-          account_home="$(python3 -I -S -c 'import os,pwd; print(pwd.getpwuid(os.geteuid()).pw_dir)')"
-          lifecycle="${account_home}/.local/share/grillmester/opencode"
-          [[ ! -e "${lifecycle}" && ! -L "${lifecycle}" ]]
-          config_home="${RUNNER_TEMP}/macos-opencode-user-config"
-          mkdir -m 700 "${config_home}" "${config_home}/opencode"
-          jq -n --arg base_url "http://127.0.0.1:${LOCAL_PROVIDER_PORT}/v1" '
-            {provider: {"ci-local": {
-              npm: "@ai-sdk/openai-compatible",
-              options: {baseURL: $base_url},
-              models: {"ci-model": {
-                tool_call: true,
-                modalities: {input: ["text"], output: ["text"]},
-                limit: {context: 32768, output: 8192}
-              }}
-            }}}
-          ' > "${config_home}/opencode/opencode.json"
-          chmod 0400 "${config_home}/opencode/opencode.json"
-          export XDG_CONFIG_HOME="${config_home}"
-          # Re-open the exact host-pinned port for the manager invocation. The
-          # previous step deliberately tears its listener down at the step
-          # boundary, so this is a fresh live endpoint rather than stale state.
-          python3 -I -S - "${LOCAL_PROVIDER_PORT}" <<'PY' &
-          import socket
-          import sys
-
-          server = socket.socket()
-          server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-          server.bind(("127.0.0.1", int(sys.argv[1])))
-          server.listen(16)
-          while True:
-              connection, _address = server.accept()
-              connection.close()
-          PY
-          listener_pid=$!
-          trap 'kill "${listener_pid}" 2>/dev/null || true' EXIT
-          listener_ready=false
-          for _attempt in {1..100}; do
-            if /usr/bin/nc -z -G 2 127.0.0.1 "${LOCAL_PROVIDER_PORT}"
-            then
-              listener_ready=true
-              break
-            fi
-            sleep 0.1
-          done
-          [[ "${listener_ready}" == true ]]
-          python3 -I -S "${BUNDLE_ROOT}/scripts/manage_opencode.py" install \
-            --source "${BUNDLE_ROOT}"
-          cd "${MACOS_CONSUMER}"
-          manager_output="${RUNNER_TEMP}/macos-manager-local-provider.txt"
-          if ! python3 -I -S "${BUNDLE_ROOT}/scripts/manage_opencode.py" launch \
-            --profile local-only --local-port "${LOCAL_PROVIDER_PORT}" \
-            --provider-id ci-local \
-            --provider-base-url "ci-local=http://127.0.0.1:${LOCAL_PROVIDER_PORT}/v1" \
-            --provider-model ci-local/ci-model \
-            --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}" -- \
-            models ci-local --verbose \
-            > "${manager_output}" 2>&1
-          then
-            sed -n '1,200p' "${manager_output}" >&2
-            exit 1
-          fi
-          # Verbose mode emits bounded model metadata so this final cplt launch
-          # independently confirms the selected ID and capacity limits.
-          grep -F 'ci-local/ci-model' "${manager_output}" >/dev/null
-          grep -F '"context": 32768' "${manager_output}" >/dev/null
-          grep -F '"output": 8192' "${manager_output}" >/dev/null
 
       - name: Exercise every local-model context through the exact cplt clients
         shell: bash
@@ -866,7 +545,8 @@ jobs:
           XDG_CACHE_HOME="${smoke_home}/cache" \
           XDG_DATA_HOME="${smoke_home}/data" \
           XDG_STATE_HOME="${smoke_home}/state" \
-            python3 -I -S "${BUNDLE_ROOT}/scripts/smoke_grillmester_local.py" \
+            python3 -I -S scripts/smoke_grillmester_local.py \
+              --distribution-root "${BUNDLE_ROOT}" \
               --require-binaries \
               --cplt "${CPLT_BIN}" \
               --opencode "${OPENCODE_BIN}" \

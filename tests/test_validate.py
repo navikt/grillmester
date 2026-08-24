@@ -22,6 +22,13 @@ FOCUSED_SPEC = importlib.util.spec_from_file_location(
 assert FOCUSED_SPEC and FOCUSED_SPEC.loader
 FOCUSED = importlib.util.module_from_spec(FOCUSED_SPEC)
 FOCUSED_SPEC.loader.exec_module(FOCUSED)
+COPILOT_MANIFEST_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_generate_copilot_manifest_for_validation_test",
+    ROOT / "scripts/generate_copilot_manifest.py",
+)
+assert COPILOT_MANIFEST_SPEC and COPILOT_MANIFEST_SPEC.loader
+COPILOT_MANIFEST = importlib.util.module_from_spec(COPILOT_MANIFEST_SPEC)
+COPILOT_MANIFEST_SPEC.loader.exec_module(COPILOT_MANIFEST)
 
 
 class PackageValidationTest(unittest.TestCase):
@@ -74,6 +81,8 @@ class PackageValidationTest(unittest.TestCase):
         )
 
     def regenerate_focused_targets(self) -> None:
+        manifest = COPILOT_MANIFEST.build_manifest(self.root)
+        COPILOT_MANIFEST.update_manifest(self.root, manifest)
         projections, policy = FOCUSED.build_projections(self.root)
         for key, expected in projections.items():
             FOCUSED.update_projection(self.root / policy["outputs"][key], expected)
@@ -90,6 +99,17 @@ class PackageValidationTest(unittest.TestCase):
         path = self.root / "targets/opencode-v1-focused/agents/barista.md"
         path.write_text("stale\n", encoding="utf-8")
         self.assert_error("focused context target is stale")
+
+    def test_stale_copilot_full_payload_manifest_is_rejected(self) -> None:
+        path = self.root / "plugin/manifest.json"
+        path.write_text("{}\n", encoding="utf-8")
+        self.assert_error("Copilot full payload manifest is stale")
+
+    def test_unmanifested_copilot_payload_file_is_rejected(self) -> None:
+        (self.root / "plugin/unmanifested.md").write_text(
+            "unexpected\n", encoding="utf-8"
+        )
+        self.assert_error("Copilot full payload manifest is stale")
 
     def test_boolean_agent_description_is_rejected(self) -> None:
         self.replace_frontmatter(
@@ -527,15 +547,13 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("looks like a national ID")
 
-    def test_client_artifact_digests_are_not_mistaken_for_national_ids(self) -> None:
-        path = self.root / "policy/client-artifacts.json"
+    def test_release_baseline_digests_are_not_mistaken_for_national_ids(self) -> None:
+        path = self.root / "scripts/release_test_baseline.py"
         text = path.read_text(encoding="utf-8")
-        self.assertIn("99651" + "618719", text)
+        self.assertIn("9598" + "c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952", text)
         self.assertEqual([], self.errors())
 
-        artifact_lock = json.loads(text)
-        artifact_lock["unsafeExample"] = "12345" + "678901"
-        path.write_text(json.dumps(artifact_lock), encoding="utf-8")
+        path.write_text(text + '\nUNSAFE_EXAMPLE = "12345' + '678901"\n', encoding="utf-8")
         self.assert_error("looks like a national ID")
 
     def test_plugin_file_symlink_is_rejected_before_reading_target(self) -> None:
@@ -668,6 +686,23 @@ class PackageValidationTest(unittest.TestCase):
         alternate.parent.mkdir()
         alternate.write_text("{}", encoding="utf-8")
         self.assert_error("forbidden alternate or generated path")
+
+    def test_removed_lifecycle_manager_surface_is_rejected(self) -> None:
+        for relative in (
+            "scripts/manage_opencode.py",
+            "scripts/compose_opencode_permissions.py",
+            "profiles/opencode",
+        ):
+            with self.subTest(relative=relative):
+                path = self.root / relative
+                path.mkdir(parents=True) if path.suffix == "" else path.write_text(
+                    "legacy\n", encoding="utf-8"
+                )
+                self.assert_error("forbidden alternate or generated path")
+                if path.is_dir():
+                    path.rmdir()
+                else:
+                    path.unlink()
 
     def test_missing_visual_identity_asset_is_rejected(self) -> None:
         (self.root / "docs/assets/grillmester-hero.jpg").unlink()

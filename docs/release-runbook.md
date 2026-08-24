@@ -22,16 +22,6 @@ terminal bundle, its detached checksum, and `grillmester.rb`.
 
 ## Workflows and trust boundary
 
-A scheduled **Upstream client watch** compares the reviewed local-mode client
-pins with the OpenCode and Copilot CLI versions Homebrew currently distributes,
-and keeps at most one drift issue open. It has no write access to pins, digests,
-or policy; re-gating a selected combination is always a human-reviewed change
-through the gates below. Maintainers do not need to certify every upstream
-release: select a current baseline on a regular cadence, and re-gate sooner for
-security- or compatibility-relevant changes. Standard `grillmester` remains on
-its compatible version ranges independently of this local-only pin. Run
-`python3 scripts/watch_upstream_clients.py --report-only` for a local check.
-
 Three workflows have deliberately separate jobs:
 
 - **Publish marketplace catalog** is an explicit maintainer dispatch from
@@ -46,7 +36,7 @@ Three workflows have deliberately separate jobs:
   floating `marketplace` ref.
 - **Validate immutable release** is an optional, read-only manual preflight.
   Dispatch it from `main` with an exact catalog SHA. It cannot create a tag or
-  release. It reruns native macOS client and manager compatibility, but has no
+  release. It reruns native macOS client compatibility, but has no
   structural path to the Homebrew package-manager gate: revision input from a
   manual dispatch must never precede a cache-capable package-manager step.
 - **Publish reviewed release request** is the only release publisher. It runs
@@ -63,16 +53,13 @@ Three workflows have deliberately separate jobs:
   mode, manifest entry, and canonical archive property to immutable Git blobs
   at the selected source SHA. Separate Copilot, native macOS and Homebrew macOS
   compatibility jobs must also pass. Both macOS matrices run on Apple Silicon
-  and hosted Intel. The native matrix verifies the pinned OpenCode and cplt
-  archives and executables before their first execution, runs the native and
-  cplt runtime smokes, proves Seatbelt's same-host localhost semantics plus
-  blocked remote-host classification under forced proxy policy, and launches
-  all four local-model combinations (OpenCode/Copilot CLI × focused/full)
-  through the exact cplt and clients. Copilot scenarios force normal delegation
-  to Grill-inspektøren and require the exact loopback model in the primary,
-  subagent and return requests. The matrix then launches the installed manager
-  through `local-only` with an explicit local provider,
-  exact loopback base URL, model ID, and positive context/output limits. The
+  and hosted Intel. The native matrix verifies the exact OpenCode, Copilot CLI
+  and cplt release-test artifacts before their first execution, runs the native and
+  cplt runtime smokes, and launches all four local-model combinations
+  (OpenCode/Copilot CLI × focused/full) through cplt. Copilot scenarios force
+  normal delegation to Grill-inspektøren and require the exact loopback model
+  in the primary, subagent and return requests. Those exact versions are
+  reproducible release-test input, not local-launcher runtime pins. The
   structurally separate Homebrew matrix rebuilds the deterministic bundle,
   provisions OpenCode as an external test client and cplt as the formula
   dependency, consumes the independently verified release formula when
@@ -107,25 +94,25 @@ the current-main guard fails closed; dispatch a fresh run from current `main`.
 
 ### Terminal asset contract
 
-The asset's `DISTRIBUTION-MANIFEST.json` must bind the selected source SHA,
-the OpenCode `1.18.20` and cplt `2026.08.17-062831-1008a92` test baseline, the
-inner target manifest digest, the canonical Copilot plugin, the common launcher,
-and the complete distribution inventory. Standard launch accepts OpenCode 1.x
-from that baseline and newer dated cplt releases; every manager-backed profile
-requires the exact baseline. The manager and native agents have no runtime
-dependency on `nav-pilot-agent`, the Copilot plugin installation, or a Copilot
-agent. `--direct` remains an explicit opt-out from cplt sandbox and egress
-policy; it is not the default or a `local-only` mode. Passing this release gate
-proves the packaged surface and deterministic runtime contract, not quality
-parity for an arbitrary local or cloud model.
+The asset's `DISTRIBUTION-MANIFEST.json` must identify the outer distribution
+as `grillmester-terminal-v1` and bind the selected source SHA, the exact client
+test baseline under `releaseTest`, the inner target manifests (including the
+`opencode-v1` target), the canonical Copilot full-payload manifest, the common
+launcher, and the complete distribution inventory. Standard and local launch
+accept OpenCode 1.x from the supported minimum, Copilot CLI 1.x from its
+minimum and newer dated cplt releases. `scripts/release_test_baseline.py` is the single
+executable source contract for exact release-test versions, URLs, sizes,
+archive rosters and digests; it is not a shipped client or runtime pin. Passing
+this release gate proves the packaged surface and deterministic test contract,
+not quality parity for an arbitrary local or cloud model.
 
-The committed npm integrity, GitHub Release asset digest, and cplt
-`SHA256SUMS` values bind the bytes accepted by the gate. They are not a
-separately verified maintainer signature or artifact attestation. The pinned
-cplt release is marked mutable upstream, so any later byte replacement fails
-against the committed archive and executable digests. Managed Linux cplt is
-gated only with its GNU/glibc assets; OpenCode's musl assets do not create a
-managed-musl support claim without a corresponding cplt asset.
+The npm integrity and GitHub Release asset digests committed in that executable
+baseline bind the bytes accepted by the gate. They are not a separately
+verified maintainer signature or artifact attestation. The test-baseline cplt
+release is marked mutable upstream, so any later byte replacement fails against
+the committed archive and executable digests. Linux artifacts remain test
+inputs only; they do not create a Linux support claim for the macOS Homebrew
+release.
 
 The release-request PR, protected `main`, rulesets, and environment approval
 are process and accidental-misdispatch controls. A normal repository
@@ -375,7 +362,7 @@ strict writer separation.
    requires an exact catalog-only tree, and regenerates the one-entry catalog
    byte-for-byte from the release contract and plugin manifest at that source.
    It then stages and verifies those exact catalog bytes and the source-pinned
-   Grillmester payload locally, builds the deterministic OpenCode bundle twice,
+   Grillmester payload locally, builds the deterministic terminal bundle twice,
    generates `grillmester.rb`, and uploads the bundle, detached checksum and
    formula as one immutable, digest-bound workflow artifact before seeking
    environment approval. A raw
@@ -403,7 +390,7 @@ Published assets are never replaced. The following read-only
 installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/42-skill
 Copilot payload, downloads the exact three-asset roster, verifies the detached
 checksum before safe extraction, regenerates and byte-compares the formula,
-and runs the manager's install verification. A failed
+and exercises the launcher's install contract. A failed
 post-publication smoke stops promotion and requires a new corrective version;
 tags and assets are never replaced.
 
@@ -451,7 +438,7 @@ regenerate it from the exact release source, and compare byte-for-byte:
 ```bash
 python3 scripts/generate_homebrew_formula.py \
   --tag vREPLACE_WITH_VERSION \
-  --bundle-name grillmester-opencode-vREPLACE_WITH_VERSION.tar.gz \
+  --bundle-name grillmester-terminal-vREPLACE_WITH_VERSION.tar.gz \
   --bundle-sha256 REPLACE_WITH_RELEASE_BUNDLE_SHA256 \
   --output /tmp/grillmester.rb
 ```
@@ -460,8 +447,7 @@ The formula downloads only the checksummed Grillmester bundle, declares
 `navikt/tap/cplt` and Python as external dependencies, and never packages or
 prepends a private OpenCode or Copilot CLI. Users install the clients they want
 with `brew install opencode` and/or `brew install --cask copilot-cli`; the
-launcher resolves those system binaries from `PATH`. The optional manager still
-uses `policy/client-artifacts.json` for its explicit high-assurance path.
+launcher resolves those system binaries from `PATH`.
 
 The same bootstrap PR adds one tap-owned scheduled updater. It polls GitHub's
 latest non-draft, non-prerelease Grillmester release and accepts only a newer
@@ -492,11 +478,13 @@ command in README is the final rollout step.
 
 Stable is a new version, source commit, catalog commit, tag, and GitHub Release;
 it is never a second label on the RC catalog. Create a source commit whose
-plugin manifest uses the stable version, such as `0.3.0`. Apart from the exact
-`version` value in `plugin/plugin.json`, the package payload and manifest format
-must be byte-identical to the named candidate. The release contract must also
-be byte-identical. OpenCode distribution inputs — manager, profiles, generated
-target and bundle-builder contract — must also be byte-identical between RC and
+plugin manifest uses the stable version, such as `0.3.0`. Apart from that exact
+`version` value, the corresponding generated `plugin/manifest.json` digest and
+the focused Copilot manifest's two derived digests, the package payload and
+manifest formats must be byte-identical to the named candidate. The release
+contract must also be byte-identical. OpenCode distribution inputs — generated
+target, launchers and bundle-builder contract — must also be byte-identical
+between RC and
 stable; the outer bundle manifest and checksum are expected to change because
 they bind the new stable source SHA. Before either validation or publication can
 promote stable, the workflow also downloads the named RC's three public assets,
@@ -524,7 +512,8 @@ SHA, and the reviewed prerelease tag. Then merge a separate request-file PR:
 
 The publisher peels the named RC tag, verifies its prerelease, requires the RC
 and stable versions to share `major.minor.patch`, verifies both catalog/source chains, and
-allows no payload change beyond the manifest version. It then creates the new
+allows no payload change beyond the manifest version and its mechanically
+derived hashes. It then creates the new
 stable tag and release. Never retag the RC catalog.
 
 ## Idempotency and interrupted publication
@@ -559,16 +548,10 @@ Do not rewrite a bad release. Stop adoption and:
 3. Publish a new version containing the correction. Catalog version reuse is
    rejected, including reuse of an older historical version.
 
-The standard PATH-client launcher and the optional native cplt command create
-no Grillmester lifecycle installation. Stop the active session and recover the
-affected Grillmester, OpenCode, or cplt version through its own installation
-channel; do not run `manage_opencode.py rollback` for this standard flow.
-
-Only when the optional high-assurance manager was installed, run `rollback`
-with the manager from the checksum-verified, extracted release bundle after
-stopping the active session. It re-verifies `active` and `previous` before
-atomically swapping them; do not recover by editing state, copying a target
-from a checkout, or replacing a published asset.
+The PATH-client launcher does not manage client installation or rollback.
+Stop the active session and recover Grillmester, OpenCode or cplt through its
+own installation channel. Do not recover by copying a target from a checkout or
+replacing a published asset.
 
 Normal recovery is roll-forward. Any temporary ruleset enforcement change must
 be authorized by a repository administrator, recorded in the incident, returned
@@ -580,7 +563,7 @@ as incident evidence, fix the publisher on `main`, and use a reviewed recovery
 through the protected automation identity. Re-enable it only after generator,
 validator, remote install smoke, and history/version guards pass.
 
-Record the catalog SHA, source SHA, OpenCode asset SHA-256, tags, consumer refs,
-request ID, and recovery actions in the incident. Repinning or manager rollback
+Record the catalog SHA, source SHA, test artifact SHA-256, tags, consumer refs,
+request ID, and recovery actions in the incident. Repinning or reinstalling
 does not make an already-started agent session forget loaded content; restart
 the affected Copilot or OpenCode session.

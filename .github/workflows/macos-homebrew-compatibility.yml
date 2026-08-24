@@ -79,6 +79,7 @@ jobs:
 
           bundle="${RUNNER_TEMP}/macos-homebrew-bundle.tar.gz"
           repeated="${RUNNER_TEMP}/macos-homebrew-bundle-repeated.tar.gz"
+          python3 -I -S scripts/generate_copilot_manifest.py --check
           python3 -I -S scripts/generate_context_projections.py --check
           python3 -I -S scripts/build_opencode_bundle.py \
             --source-root "${GITHUB_WORKSPACE}" --source-sha "${SOURCE_SHA}" \
@@ -91,7 +92,7 @@ jobs:
           version="$(jq -er '.version' plugin/plugin.json)"
           [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
           tag="v${version}"
-          bundle_name="grillmester-opencode-${tag}.tar.gz"
+          bundle_name="grillmester-terminal-${tag}.tar.gz"
           qa_root="${RUNNER_TEMP}/homebrew-formula-qa"
           mkdir -m 700 "${qa_root}"
           qa_bundle="${qa_root}/${bundle_name}"
@@ -118,7 +119,7 @@ jobs:
               echo "verified release formula inputs must be all present or all absent" >&2
               exit 1
             }
-            [[ "${RELEASE_BUNDLE_NAME}" =~ ^grillmester-opencode-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
+            [[ "${RELEASE_BUNDLE_NAME}" =~ ^grillmester-terminal-v[0-9A-Za-z.-]+\.tar\.gz$ ]]
             [[ "${RELEASE_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
             [[ "${RELEASE_FORMULA_SHA256}" =~ ^[0-9a-f]{64}$ ]]
             [[ "${bundle_name}" == "${RELEASE_BUNDLE_NAME}" ]]

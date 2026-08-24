@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Build a deterministic, manifest-verified Grillmester OpenCode bundle."""
+"""Build a deterministic, manifest-verified Grillmester terminal bundle."""
 
 from __future__ import annotations
 
 import argparse
 import ast
-import base64
-import binascii
 import errno
 import gzip
 import hashlib
@@ -21,10 +19,11 @@ import tempfile
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 
-ARCHIVE_ROOT = PurePosixPath("grillmester-opencode-v1")
+ARCHIVE_ROOT = PurePosixPath("grillmester-terminal-v1")
+DISTRIBUTION_NAME = ARCHIVE_ROOT.as_posix()
 TARGET_NAME = "opencode-v1"
 TARGET_DIRECTORY = PurePosixPath("targets/opencode-v1")
 FOCUSED_OPENCODE_TARGET_NAME = "opencode-v1-focused"
@@ -32,34 +31,24 @@ FOCUSED_OPENCODE_DIRECTORY = PurePosixPath("targets/opencode-v1-focused")
 FOCUSED_COPILOT_TARGET_NAME = "copilot-cli-focused-v1"
 FOCUSED_COPILOT_DIRECTORY = PurePosixPath("targets/copilot-cli-focused-v1")
 PLUGIN_DIRECTORY = PurePosixPath("plugin")
+COPILOT_FULL_MANIFEST_PATH = PLUGIN_DIRECTORY / "manifest.json"
+COPILOT_FULL_TARGET_NAME = "copilot-full-v1"
+COPILOT_MANIFEST_GENERATOR_PATH = PurePosixPath(
+    "scripts/generate_copilot_manifest.py"
+)
 LAUNCHER_PATH = PurePosixPath("scripts/grillmester.py")
 LOCAL_LAUNCHER_PATH = PurePosixPath("scripts/grillmester_local.py")
-LOCAL_SMOKE_PATH = PurePosixPath("scripts/smoke_grillmester_local.py")
 PROJECTION_GENERATOR_PATH = PurePosixPath("scripts/generate_context_projections.py")
 FOCUSED_POLICY_PATH = PurePosixPath("policy/focused-context-v1.json")
-MANAGER_PATH = PurePosixPath("scripts/manage_opencode.py")
-PERMISSION_COMPOSER_PATH = PurePosixPath("scripts/compose_opencode_permissions.py")
-ARTIFACT_VERIFIER_PATH = PurePosixPath("scripts/verify_client_artifact.py")
-PROFILE_DIRECTORY = PurePosixPath("profiles/opencode")
-CLIENT_ARTIFACTS_PATH = PurePosixPath("policy/client-artifacts.json")
 CONTENT_LOCK_PATH = PurePosixPath("policy/content-lock.json")
+RELEASE_TEST_BASELINE_PATH = PurePosixPath("scripts/release_test_baseline.py")
 LICENSE_PATH = PurePosixPath("LICENSE")
 PROVENANCE_PATH = PurePosixPath("PROVENANCE.md")
 THIRD_PARTY_NOTICES_SOURCE = PurePosixPath("THIRD_PARTY_NOTICES.md")
 THIRD_PARTY_NOTICES_PATH = PurePosixPath("THIRD_PARTY_NOTICES.md")
 OUTER_MANIFEST = PurePosixPath("DISTRIBUTION-MANIFEST.json")
-OPENCODE_VERSION = "1.18.20"
-COPILOT_VERSION = "1.0.80"
-CPLT_RELEASE = "2026.08.17-062831-1008a92"
-CPLT_TARGET_COMMIT = "1008a92188cc39fb17e0c9afc098f68050aff19a"
-CPLT_RELEASE_ID = 371561671
-CPLT_CHECKSUMS_ASSET_ID = 517725071
-CPLT_CHECKSUMS_SHA256 = (
-    "ec1f96427a90230afc1df685c237750b1f4d98c5ce5abcb18ec097c8e706b3fd"
-)
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
-SHA512_DIGEST = re.compile(r"^[0-9a-f]{128}$")
 FILE_MODE = re.compile(r"^0[0-7]{3}$")
 ALLOWED_FILE_MODES = frozenset({0o644, 0o755})
 MAX_JSON_BYTES = 2 * 1024 * 1024
@@ -67,9 +56,6 @@ MAX_JSON_DEPTH = 40
 MAX_FILE_BYTES = 5_000_000
 MAX_DISTRIBUTION_BYTES = 50_000_000
 MAX_ARCHIVE_MEMBERS = 10_000
-REQUIRED_PROFILES = frozenset(
-    {"local", "cloud-open-weight", "hybrid", "local-only"}
-)
 OPENCODE_OVERLAY_SKILL_IDS = frozenset(
     {"grillmester-create-a-skill", "grillmester-doctor"}
 )
@@ -77,72 +63,12 @@ FOCUSED_AGENT_IDS = ("barista", "grill-inspektor")
 FOCUSED_SKILL_IDS = (
     "grillmester-diagnosing-bugs",
     "grillmester-integration-tests",
+    "grillmester-issue-management",
     "grillmester-pull-request",
     "grillmester-review",
     "grillmester-security-review",
     "grillmester-tdd",
 )
-BASE_PROFILE_ENVIRONMENT = {
-    "OPENCODE_CONFIG_CONTENT": '{"autoupdate":false,"share":"disabled"}',
-    "OPENCODE_DISABLE_AUTOUPDATE": "true",
-    "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "true",
-    "OPENCODE_DISABLE_CLAUDE_CODE_PROMPT": "true",
-    "OPENCODE_DISABLE_DEFAULT_PLUGINS": "true",
-    "OPENCODE_DISABLE_EXTERNAL_SKILLS": "true",
-    "OPENCODE_DISABLE_SHARE": "true",
-    "OPENCODE_DISABLE_MODELS_FETCH": "true",
-    "OPENCODE_DISABLE_LSP_DOWNLOAD": "true",
-    "OPENCODE_DISABLE_PROJECT_CONFIG": "true",
-    "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER": "true",
-    "OPENCODE_EXPERIMENTAL": "false",
-    "OPENCODE_EXPERIMENTAL_CODE_MODE": "false",
-    "OPENCODE_PURE": "true",
-    "OPENCODE_DB": ":memory:",
-}
-LOCAL_ONLY_ENVIRONMENT = {
-    **BASE_PROFILE_ENVIRONMENT,
-    "OPENCODE_DISABLE_MODELS_FETCH": "true",
-    "OPENCODE_DISABLE_LSP_DOWNLOAD": "true",
-    "OPENCODE_AUTO_SHARE": "false",
-    "OPENCODE_ENABLE_EXA": "false",
-}
-LOCAL_ONLY_ALLOWED_DOMAIN = "grillmester-local-only.invalid"
-LOCAL_ONLY_BLOCKED_DOMAINS = frozenset(
-    {
-        "registry.npmjs.org",
-        "registry.yarnpkg.com",
-        "repo.maven.apache.org",
-        "plugins.gradle.org",
-        "crates.io",
-        "static.crates.io",
-        "pypi.org",
-        "files.pythonhosted.org",
-        "opencode.ai",
-        "models.dev",
-    }
-)
-OPENCODE_ARTIFACT_PACKAGES = {
-    ("darwin", "arm64", "none", "default"): "opencode-darwin-arm64",
-    ("darwin", "x86_64", "none", "default"): "opencode-darwin-x64",
-    ("darwin", "x86_64", "none", "baseline"): "opencode-darwin-x64-baseline",
-    ("linux", "arm64", "glibc", "default"): "opencode-linux-arm64",
-    ("linux", "arm64", "musl", "default"): "opencode-linux-arm64-musl",
-    ("linux", "x86_64", "glibc", "default"): "opencode-linux-x64",
-    ("linux", "x86_64", "glibc", "baseline"): "opencode-linux-x64-baseline",
-    ("linux", "x86_64", "musl", "default"): "opencode-linux-x64-musl",
-    (
-        "linux",
-        "x86_64",
-        "musl",
-        "baseline",
-    ): "opencode-linux-x64-baseline-musl",
-}
-CPLT_ARTIFACT_ASSETS = {
-    ("darwin", "arm64"): ("cplt-aarch64-apple-darwin.tar.gz", 517725074),
-    ("darwin", "x86_64"): ("cplt-x86_64-apple-darwin.tar.gz", 517725073),
-    ("linux", "arm64"): ("cplt-aarch64-unknown-linux-gnu.tar.gz", 517725072),
-    ("linux", "x86_64"): ("cplt-x86_64-unknown-linux-gnu.tar.gz", 517725077),
-}
 
 
 class BundleBuildError(RuntimeError):
@@ -318,12 +244,6 @@ def _require_exact_fields(
     return value
 
 
-def _require_positive_integer(value: object, *, label: str) -> int:
-    if type(value) is not int or value <= 0:
-        raise BundleBuildError(f"{label} must be a positive integer")
-    return value
-
-
 def _require_digest(
     value: object, pattern: re.Pattern[str], *, algorithm: str, label: str
 ) -> str:
@@ -332,304 +252,7 @@ def _require_digest(
     return value
 
 
-def _validate_executable_record(value: object, *, path: str, label: str) -> None:
-    executable = _require_exact_fields(
-        value, {"path", "size", "sha256"}, label=label
-    )
-    if executable["path"] != path:
-        raise BundleBuildError(f"{label} must name {path!r}")
-    _require_positive_integer(executable["size"], label=f"{label} size")
-    _require_digest(
-        executable["sha256"], DIGEST, algorithm="SHA-256", label=f"{label} sha256"
-    )
-
-
-def _validate_opencode_artifacts(value: object) -> None:
-    opencode = _require_exact_fields(
-        value, {"version", "registry", "artifacts"}, label="OpenCode artifact lock"
-    )
-    if opencode["version"] != OPENCODE_VERSION:
-        raise BundleBuildError(
-            f"client artifact lock must pin OpenCode {OPENCODE_VERSION}"
-        )
-    if opencode["registry"] != "https://registry.npmjs.org":
-        raise BundleBuildError("OpenCode artifact registry must be the npm registry")
-    artifacts = opencode["artifacts"]
-    if not isinstance(artifacts, list):
-        raise BundleBuildError("OpenCode artifact records must be an array")
-
-    observed: dict[tuple[str, str, str, str], str] = {}
-    for index, raw_artifact in enumerate(artifacts):
-        label = f"OpenCode artifact record {index}"
-        artifact = _require_exact_fields(
-            raw_artifact,
-            {
-                "platform",
-                "architecture",
-                "libc",
-                "variant",
-                "package",
-                "url",
-                "archive",
-                "executable",
-            },
-            label=label,
-        )
-        key = (
-            artifact["platform"],
-            artifact["architecture"],
-            artifact["libc"],
-            artifact["variant"],
-        )
-        if not all(isinstance(part, str) for part in key):
-            raise BundleBuildError(f"{label} platform selector must contain strings")
-        package = OPENCODE_ARTIFACT_PACKAGES.get(key)
-        if package is None or artifact["package"] != package:
-            raise BundleBuildError(f"{label} has an unsupported platform package")
-        if key in observed:
-            raise BundleBuildError(f"duplicate OpenCode artifact platform selector: {key}")
-        observed[key] = package
-        expected_url = (
-            f"https://registry.npmjs.org/{package}/-/{package}-{OPENCODE_VERSION}.tgz"
-        )
-        if artifact["url"] != expected_url:
-            raise BundleBuildError(f"{label} has an invalid immutable tarball URL")
-
-        archive_fields = {
-            "size",
-            "sha512",
-            "integrity",
-            "integrityEvidence",
-            "roster",
-        }
-        if key[0] == "darwin" and key[3] == "default":
-            archive_fields.add("sha256")
-        archive = _require_exact_fields(
-            artifact["archive"], archive_fields, label=f"{label} archive"
-        )
-        _require_positive_integer(archive["size"], label=f"{label} archive size")
-        if "sha256" in archive:
-            _require_digest(
-                archive["sha256"],
-                DIGEST,
-                algorithm="SHA-256",
-                label=f"{label} archive sha256",
-            )
-        sha512 = _require_digest(
-            archive["sha512"],
-            SHA512_DIGEST,
-            algorithm="SHA-512",
-            label=f"{label} archive sha512",
-        )
-        integrity = archive["integrity"]
-        if not isinstance(integrity, str) or not integrity.startswith("sha512-"):
-            raise BundleBuildError(f"{label} archive needs npm SHA-512 integrity")
-        try:
-            integrity_digest = base64.b64decode(
-                integrity.removeprefix("sha512-"), validate=True
-            ).hex()
-        except (binascii.Error, ValueError) as exc:
-            raise BundleBuildError(
-                f"{label} archive has invalid npm SHA-512 integrity"
-            ) from exc
-        if integrity_digest != sha512:
-            raise BundleBuildError(
-                f"{label} archive integrity does not match its SHA-512 digest"
-            )
-        evidence = _require_exact_fields(
-            archive["integrityEvidence"],
-            {"type", "metadataUrl"},
-            label=f"{label} integrity evidence",
-        )
-        if evidence != {
-            "type": "npm-registry-dist-integrity",
-            "metadataUrl": f"https://registry.npmjs.org/{package}/{OPENCODE_VERSION}",
-        }:
-            raise BundleBuildError(f"{label} has invalid registry integrity evidence")
-        if archive["roster"] != ["package/package.json", "package/bin/opencode"]:
-            raise BundleBuildError(f"{label} archive roster must be exact")
-        _validate_executable_record(
-            artifact["executable"], path="package/bin/opencode", label=f"{label} executable"
-        )
-
-    if observed != OPENCODE_ARTIFACT_PACKAGES:
-        raise BundleBuildError(
-            "client artifact lock must cover the exact supported OpenCode packages"
-        )
-
-
-def _validate_cplt_artifacts(value: object) -> None:
-    cplt = _require_exact_fields(
-        value,
-        {
-            "release",
-            "targetCommit",
-            "releaseUrl",
-            "releaseApiUrl",
-            "upstreamReleaseImmutable",
-            "checksumManifest",
-            "artifacts",
-        },
-        label="cplt artifact lock",
-    )
-    expected_release_url = f"https://github.com/navikt/cplt/releases/tag/{CPLT_RELEASE}"
-    expected_api_url = (
-        f"https://api.github.com/repos/navikt/cplt/releases/{CPLT_RELEASE_ID}"
-    )
-    if (
-        cplt["release"] != CPLT_RELEASE
-        or cplt["targetCommit"] != CPLT_TARGET_COMMIT
-        or cplt["releaseUrl"] != expected_release_url
-        or cplt["releaseApiUrl"] != expected_api_url
-        or cplt["upstreamReleaseImmutable"] is not False
-    ):
-        raise BundleBuildError("cplt artifact lock has an invalid release identity")
-
-    checksum = _require_exact_fields(
-        cplt["checksumManifest"],
-        {"asset", "url", "assetApiUrl", "size", "sha256", "content"},
-        label="cplt checksum manifest",
-    )
-    expected_download_root = (
-        f"https://github.com/navikt/cplt/releases/download/{CPLT_RELEASE}"
-    )
-    checksum_identity = {key: value for key, value in checksum.items() if key != "content"}
-    if checksum_identity != {
-        "asset": "SHA256SUMS",
-        "url": f"{expected_download_root}/SHA256SUMS",
-        "assetApiUrl": (
-            "https://api.github.com/repos/navikt/cplt/releases/assets/"
-            f"{CPLT_CHECKSUMS_ASSET_ID}"
-        ),
-        "size": 404,
-        "sha256": CPLT_CHECKSUMS_SHA256,
-    }:
-        raise BundleBuildError("cplt checksum manifest identity is invalid")
-    checksum_content = checksum["content"]
-    if not isinstance(checksum_content, str):
-        raise BundleBuildError("cplt checksum manifest content must be text")
-    checksum_bytes = checksum_content.encode("utf-8")
-    if (
-        len(checksum_bytes) != checksum["size"]
-        or _sha256(checksum_bytes) != checksum["sha256"]
-    ):
-        raise BundleBuildError(
-            "cplt checksum manifest content does not match its size and SHA-256"
-        )
-    if not checksum_content.endswith("\n"):
-        raise BundleBuildError("cplt checksum manifest must end with one newline")
-    checksum_entries: dict[str, str] = {}
-    for line in checksum_content[:-1].split("\n"):
-        match = re.fullmatch(r"([0-9a-f]{64})  ([A-Za-z0-9._-]+)", line)
-        if match is None or match.group(2) in checksum_entries:
-            raise BundleBuildError("cplt checksum manifest has an invalid or duplicate row")
-        checksum_entries[match.group(2)] = match.group(1)
-
-    artifacts = cplt["artifacts"]
-    if not isinstance(artifacts, list):
-        raise BundleBuildError("cplt artifact records must be an array")
-    observed: dict[tuple[str, str], str] = {}
-    observed_archive_digests: dict[str, str] = {}
-    for index, raw_artifact in enumerate(artifacts):
-        label = f"cplt artifact record {index}"
-        artifact = _require_exact_fields(
-            raw_artifact,
-            {
-                "platform",
-                "architecture",
-                "libc",
-                "variant",
-                "asset",
-                "url",
-                "archive",
-                "executable",
-            },
-            label=label,
-        )
-        key = (artifact["platform"], artifact["architecture"])
-        if not all(isinstance(part, str) for part in key):
-            raise BundleBuildError(f"{label} platform selector must contain strings")
-        expected = CPLT_ARTIFACT_ASSETS.get(key)
-        if expected is None or artifact["asset"] != expected[0]:
-            raise BundleBuildError(f"{label} has an unsupported platform asset")
-        if key in observed:
-            raise BundleBuildError(f"duplicate cplt artifact platform selector: {key}")
-        asset, asset_id = expected
-        observed[key] = asset
-        expected_libc = "none" if artifact["platform"] == "darwin" else "glibc"
-        if artifact["libc"] != expected_libc or artifact["variant"] != "default":
-            raise BundleBuildError(f"{label} has an invalid runtime variant")
-        if artifact["url"] != f"{expected_download_root}/{asset}":
-            raise BundleBuildError(f"{label} has an invalid immutable asset URL")
-
-        archive = _require_exact_fields(
-            artifact["archive"],
-            {"size", "sha256", "digestEvidence", "roster"},
-            label=f"{label} archive",
-        )
-        _require_positive_integer(archive["size"], label=f"{label} archive size")
-        archive_digest = _require_digest(
-            archive["sha256"],
-            DIGEST,
-            algorithm="SHA-256",
-            label=f"{label} archive sha256",
-        )
-        observed_archive_digests[asset] = archive_digest
-        evidence = _require_exact_fields(
-            archive["digestEvidence"],
-            {"type", "assetApiUrl", "reportedDigest"},
-            label=f"{label} digest evidence",
-        )
-        if evidence != {
-            "type": "github-release-api-asset-digest",
-            "assetApiUrl": (
-                "https://api.github.com/repos/navikt/cplt/releases/assets/"
-                f"{asset_id}"
-            ),
-            "reportedDigest": f"sha256:{archive_digest}",
-        }:
-            raise BundleBuildError(f"{label} has invalid GitHub asset digest evidence")
-        if archive["roster"] != ["cplt"]:
-            raise BundleBuildError(f"{label} archive roster must be exactly ['cplt']")
-        _validate_executable_record(
-            artifact["executable"], path="cplt", label=f"{label} executable"
-        )
-
-    if observed != {
-        selector: asset for selector, (asset, _) in CPLT_ARTIFACT_ASSETS.items()
-    }:
-        raise BundleBuildError(
-            "client artifact lock must cover the exact supported cplt assets"
-        )
-    if checksum_entries != observed_archive_digests:
-        raise BundleBuildError(
-            "cplt SHA256SUMS rows must bind the exact supported archive digests"
-        )
-
-
 def _distribution_support_files(source_root: Path) -> list[BundleFile]:
-    artifact_content, artifact_mode = _read_regular(
-        source_root.joinpath(*CLIENT_ARTIFACTS_PATH.parts),
-        label="client artifact lock",
-        max_bytes=MAX_JSON_BYTES,
-    )
-    if artifact_mode != 0o644:
-        raise BundleBuildError(
-            "client artifact lock mode must be 0644; "
-            f"observed {artifact_mode:04o}"
-        )
-    artifact_lock = _parse_json_object(
-        artifact_content, label="client artifact lock"
-    )
-    if set(artifact_lock) != {"schemaVersion", "opencode", "cplt"}:
-        raise BundleBuildError("client artifact lock has unexpected or missing fields")
-    if type(artifact_lock["schemaVersion"]) is not int or artifact_lock[
-        "schemaVersion"
-    ] != 1:
-        raise BundleBuildError("client artifact lock schemaVersion must be 1")
-    _validate_opencode_artifacts(artifact_lock["opencode"])
-    _validate_cplt_artifacts(artifact_lock["cplt"])
-
     content_lock_content, content_lock_mode = _read_regular(
         source_root.joinpath(*CONTENT_LOCK_PATH.parts),
         label="content lock",
@@ -652,10 +275,7 @@ def _distribution_support_files(source_root: Path) -> list[BundleFile]:
     ):
         raise BundleBuildError("content lock must be the complete 7-agent/42-skill BOM")
 
-    result = [
-        BundleFile(CLIENT_ARTIFACTS_PATH, artifact_content, 0o644),
-        BundleFile(CONTENT_LOCK_PATH, content_lock_content, 0o644),
-    ]
+    result = [BundleFile(CONTENT_LOCK_PATH, content_lock_content, 0o644)]
     for source_path, distribution_path, label in (
         (LICENSE_PATH, LICENSE_PATH, "license"),
         (PROVENANCE_PATH, PROVENANCE_PATH, "provenance record"),
@@ -982,7 +602,11 @@ def _focused_target_files(
             "policy": FOCUSED_POLICY_PATH.as_posix(),
             "policySha256": policy_sha256,
         }
-        expected_counts = {"agents": 2, "skills": 6, "commands": 6}
+        expected_counts = {
+            "agents": len(FOCUSED_AGENT_IDS),
+            "skills": len(FOCUSED_SKILL_IDS),
+            "commands": len(FOCUSED_SKILL_IDS),
+        }
         expected_transformations = {
             "agentEscalation": "full-context-handoff",
             "excludedSkillReferences": "full-context-guidance",
@@ -996,11 +620,15 @@ def _focused_target_files(
     elif client == "copilot":
         expected_source = {
             "plugin": PLUGIN_DIRECTORY.as_posix(),
-            "pluginManifestSha256": canonical_source_sha256,
+            "payloadManifest": COPILOT_FULL_MANIFEST_PATH.as_posix(),
+            "payloadManifestSha256": canonical_source_sha256,
             "policy": FOCUSED_POLICY_PATH.as_posix(),
             "policySha256": policy_sha256,
         }
-        expected_counts = {"agents": 2, "skills": 6}
+        expected_counts = {
+            "agents": len(FOCUSED_AGENT_IDS),
+            "skills": len(FOCUSED_SKILL_IDS),
+        }
         expected_transformations = {
             "agentFrontmatterRemoved": ["model"],
             "agentEscalation": "full-context-handoff",
@@ -1129,127 +757,6 @@ def _focused_target_files(
     return result, manifest_bytes
 
 
-def _validate_profile(profile: dict[str, Any], *, profile_id: str) -> None:
-    common_fields = {
-        "schemaVersion",
-        "id",
-        "description",
-        "cpltPolicy",
-        "cpltRelease",
-        "localPorts",
-        "providerDomains",
-        "environment",
-    }
-    is_local_only = profile_id == "local-only"
-    expected_fields = (
-        common_fields | {"allowedDomain", "blockedDomains"}
-        if is_local_only
-        else common_fields
-    )
-    if set(profile) != expected_fields:
-        raise BundleBuildError(
-            f"OpenCode profile {profile_id} has unexpected or missing fields"
-        )
-    if (
-        type(profile.get("schemaVersion")) is not int
-        or profile["schemaVersion"] != 1
-        or profile.get("id") != profile_id
-    ):
-        raise BundleBuildError(
-            f"OpenCode profile {profile_id} has an invalid schema or id"
-        )
-    if not isinstance(profile.get("description"), str) or not profile[
-        "description"
-    ].strip():
-        raise BundleBuildError(f"OpenCode profile {profile_id} needs a description")
-    if profile.get("cpltRelease") != CPLT_RELEASE:
-        raise BundleBuildError(
-            f"OpenCode profile {profile_id} must pin cplt {CPLT_RELEASE}"
-        )
-
-    expected_shape = {
-        "local": ("strict", "required", "forbidden"),
-        "cloud-open-weight": ("strict", "forbidden", "required"),
-        "hybrid": ("strict", "required", "required"),
-        "local-only": ("local-only", "required", "forbidden"),
-    }[profile_id]
-    observed_shape = (
-        profile.get("cpltPolicy"),
-        profile.get("localPorts"),
-        profile.get("providerDomains"),
-    )
-    if observed_shape != expected_shape:
-        raise BundleBuildError(
-            f"OpenCode profile {profile_id} has an invalid runtime policy shape"
-        )
-    expected_environment = (
-        LOCAL_ONLY_ENVIRONMENT if is_local_only else BASE_PROFILE_ENVIRONMENT
-    )
-    if profile.get("environment") != expected_environment:
-        raise BundleBuildError(
-            f"OpenCode profile {profile_id} has an invalid immutable environment overlay"
-        )
-    if is_local_only:
-        if profile.get("allowedDomain") != LOCAL_ONLY_ALLOWED_DOMAIN:
-            raise BundleBuildError(
-                "local-only profile has an invalid fail-closed allowed domain"
-            )
-        blocked = profile.get("blockedDomains")
-        if (
-            not isinstance(blocked, list)
-            or len(blocked) != len(LOCAL_ONLY_BLOCKED_DOMAINS)
-            or any(not isinstance(domain, str) for domain in blocked)
-            or set(blocked) != LOCAL_ONLY_BLOCKED_DOMAINS
-        ):
-            raise BundleBuildError(
-                "local-only profile must block the exact audited cplt domain set"
-            )
-
-
-def _profile_files(source_root: Path) -> list[BundleFile]:
-    _require_directory(source_root / "profiles", label="profiles directory")
-    profiles = source_root.joinpath(*PROFILE_DIRECTORY.parts)
-    _require_directory(profiles, label="OpenCode profiles directory")
-    result: list[BundleFile] = []
-    try:
-        children = sorted(profiles.iterdir(), key=lambda path: path.name)
-    except OSError as exc:
-        raise BundleBuildError(f"could not list OpenCode profiles {profiles}: {exc}") from exc
-    validated_children: list[tuple[Path, PurePosixPath]] = []
-    for child in children:
-        relative = _safe_relative_path(child.name, label="OpenCode profile path")
-        if len(relative.parts) != 1 or child.suffix != ".json":
-            raise BundleBuildError(f"unexpected OpenCode profile entry: {child}")
-        validated_children.append((child, relative))
-    observed_profile_ids = {
-        child.stem
-        for child, _ in validated_children
-        if child.suffix == ".json" and not child.name.startswith(".")
-    }
-    if (
-        observed_profile_ids != REQUIRED_PROFILES
-        or len(children) != len(REQUIRED_PROFILES)
-    ):
-        raise BundleBuildError(
-            "OpenCode profiles must be exactly: "
-            + ", ".join(sorted(REQUIRED_PROFILES))
-        )
-    for child, relative in validated_children:
-        content, mode = _read_regular(
-            child,
-            label=f"OpenCode profile {child.name}",
-            max_bytes=MAX_JSON_BYTES,
-        )
-        if mode != 0o644:
-            raise BundleBuildError(
-                f"OpenCode profile {child.name} mode must be 0644; observed {mode:04o}"
-            )
-        profile = _parse_json_object(content, label=f"OpenCode profile {child.name}")
-        _validate_profile(profile, profile_id=child.stem)
-        result.append(BundleFile(PROFILE_DIRECTORY / relative, content, 0o644))
-    return result
-
-
 def _portable_tree_files(root: Path, *, destination: PurePosixPath, label: str) -> list[BundleFile]:
     """Read one symlink-free portable tree without following directory aliases."""
 
@@ -1299,7 +806,7 @@ def _plugin_files(
     *,
     expected_agents: frozenset[str],
     expected_skills: frozenset[str],
-) -> list[BundleFile]:
+) -> tuple[list[BundleFile], bytes]:
     files = _portable_tree_files(
         source_root.joinpath(*PLUGIN_DIRECTORY.parts),
         destination=PLUGIN_DIRECTORY,
@@ -1308,6 +815,38 @@ def _plugin_files(
     relative_files = {
         entry.path.relative_to(PLUGIN_DIRECTORY): entry for entry in files
     }
+    payload_manifest_entry = relative_files.get(PurePosixPath("manifest.json"))
+    if payload_manifest_entry is None:
+        raise BundleBuildError("Copilot full payload has no manifest.json")
+    if payload_manifest_entry.mode != 0o644:
+        raise BundleBuildError("Copilot full payload manifest mode must be 0644")
+    payload_manifest = _parse_json_object(
+        payload_manifest_entry.content, label="Copilot full payload manifest"
+    )
+    _require_exact_fields(
+        payload_manifest,
+        {
+            "schemaVersion",
+            "target",
+            "generator",
+            "counts",
+            "agents",
+            "skills",
+            "files",
+        },
+        label="Copilot full payload manifest",
+    )
+    if (
+        type(payload_manifest.get("schemaVersion")) is not int
+        or payload_manifest["schemaVersion"] != 1
+        or payload_manifest.get("target") != COPILOT_FULL_TARGET_NAME
+        or payload_manifest.get("generator")
+        != {
+            "path": COPILOT_MANIFEST_GENERATOR_PATH.as_posix(),
+            "version": 1,
+        }
+    ):
+        raise BundleBuildError("Copilot full payload manifest identity is invalid")
     manifest_entry = relative_files.get(PurePosixPath("plugin.json"))
     if manifest_entry is None:
         raise BundleBuildError("Copilot plugin has no plugin.json")
@@ -1359,7 +898,75 @@ def _plugin_files(
         raise BundleBuildError(
             "Copilot plugin skill roster differs from policy/content-lock.json"
         )
-    return files
+    if payload_manifest.get("agents") != sorted(expected_agents) or (
+        payload_manifest.get("skills") != sorted(expected_skills)
+    ):
+        raise BundleBuildError(
+            "Copilot full payload manifest roster differs from policy/content-lock.json"
+        )
+    if payload_manifest.get("counts") != {
+        "agents": len(expected_agents),
+        "skills": len(expected_skills),
+    }:
+        raise BundleBuildError("Copilot full payload manifest counts are invalid")
+    declared_files = payload_manifest.get("files")
+    if not isinstance(declared_files, dict) or not declared_files:
+        raise BundleBuildError("Copilot full payload manifest files are invalid")
+    actual_payload_paths = set(relative_files) - {PurePosixPath("manifest.json")}
+    declared_paths: set[PurePosixPath] = set()
+    portable_paths: set[str] = set()
+    for raw_relative, raw_contract in declared_files.items():
+        relative = _safe_relative_path(
+            raw_relative, label="Copilot full payload manifest path"
+        )
+        if relative == PurePosixPath("manifest.json"):
+            raise BundleBuildError("Copilot full payload manifest must not describe itself")
+        portable = _portable_collision_key(relative)
+        if portable in portable_paths:
+            raise BundleBuildError(
+                f"portable Copilot full payload manifest path collision: {relative}"
+            )
+        portable_paths.add(portable)
+        contract = _require_exact_fields(
+            raw_contract,
+            {"sha256", "mode"},
+            label=f"Copilot full payload contract {relative}",
+        )
+        digest = _require_digest(
+            contract["sha256"],
+            DIGEST,
+            algorithm="SHA-256",
+            label=f"Copilot full payload digest {relative}",
+        )
+        raw_mode = contract["mode"]
+        if not isinstance(raw_mode, str) or FILE_MODE.fullmatch(raw_mode) is None:
+            raise BundleBuildError(
+                f"Copilot full payload mode is invalid for {relative}"
+            )
+        mode = int(raw_mode, 8)
+        if mode not in ALLOWED_FILE_MODES:
+            raise BundleBuildError(
+                f"Copilot full payload mode is unsupported for {relative}"
+            )
+        entry = relative_files.get(relative)
+        if entry is None or _sha256(entry.content) != digest or entry.mode != mode:
+            raise BundleBuildError(
+                f"Copilot full payload differs from its manifest: {relative}"
+            )
+        declared_paths.add(relative)
+    if actual_payload_paths != declared_paths:
+        missing = sorted(actual_payload_paths - declared_paths, key=str)
+        extra = sorted(declared_paths - actual_payload_paths, key=str)
+        details = []
+        if missing:
+            details.append("unmanifested " + ", ".join(map(str, missing[:5])))
+        if extra:
+            details.append("missing " + ", ".join(map(str, extra[:5])))
+        raise BundleBuildError(
+            "Copilot full payload tree differs from its manifest: "
+            + "; ".join(details)
+        )
+    return files, payload_manifest_entry.content
 
 
 def _validate_python_literals(
@@ -1394,7 +1001,74 @@ def _validate_python_literals(
             )
 
 
-def _launcher_file(source_root: Path) -> BundleFile:
+def _release_test_contract(source_root: Path) -> dict[str, Any]:
+    content, mode = _read_regular(
+        source_root.joinpath(*RELEASE_TEST_BASELINE_PATH.parts),
+        label="release-test baseline contract",
+        max_bytes=MAX_JSON_BYTES,
+    )
+    if mode != 0o644:
+        raise BundleBuildError(
+            "release-test baseline contract source mode must be 0644; "
+            f"observed {mode:04o}"
+        )
+    try:
+        tree = ast.parse(
+            content.decode("utf-8"), filename=RELEASE_TEST_BASELINE_PATH.as_posix()
+        )
+    except (UnicodeDecodeError, SyntaxError) as exc:
+        raise BundleBuildError(
+            f"release-test baseline contract is not valid UTF-8 Python: {exc}"
+        ) from exc
+    assignments: list[object] = []
+    for statement in tree.body:
+        if (
+            isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id == "CONTRACT"
+            and statement.value is not None
+        ):
+            try:
+                assignments.append(ast.literal_eval(statement.value))
+            except (ValueError, TypeError) as exc:
+                raise BundleBuildError(
+                    "release-test baseline CONTRACT must be one literal"
+                ) from exc
+    if len(assignments) != 1 or not isinstance(assignments[0], dict):
+        raise BundleBuildError(
+            "release-test baseline must define exactly one literal CONTRACT"
+        )
+    contract = assignments[0]
+    if set(contract) != {"schemaVersion", "standardSupport", "releaseTest", "artifacts"}:
+        raise BundleBuildError("release-test baseline contract fields differ")
+    if type(contract.get("schemaVersion")) is not int or contract["schemaVersion"] != 1:
+        raise BundleBuildError("release-test baseline schemaVersion must be 1")
+    standard = contract.get("standardSupport")
+    tested = contract.get("releaseTest")
+    artifacts = contract.get("artifacts")
+    if not isinstance(standard, dict) or set(standard) != {
+        "opencodeMinimum",
+        "copilotMinimum",
+        "cpltMinimum",
+    }:
+        raise BundleBuildError("release-test standard support fields differ")
+    if not isinstance(tested, dict) or set(tested) != {
+        "opencodeVersion",
+        "copilotVersion",
+        "cpltRelease",
+    }:
+        raise BundleBuildError("release-test client baseline fields differ")
+    if not isinstance(artifacts, dict) or not artifacts:
+        raise BundleBuildError("release-test artifact roster must not be empty")
+    values = (*standard.values(), *tested.values())
+    if any(not isinstance(value, str) or not value for value in values):
+        raise BundleBuildError("release-test client versions must be non-empty strings")
+    return contract
+
+
+def _launcher_file(
+    source_root: Path, *, standard_support: Mapping[str, str]
+) -> BundleFile:
     content, mode = _read_regular(
         source_root.joinpath(*LAUNCHER_PATH.parts), label="Grillmester launcher"
     )
@@ -1407,9 +1081,11 @@ def _launcher_file(source_root: Path) -> BundleFile:
         path=LAUNCHER_PATH,
         label="Grillmester launcher",
         expected={
-            "REVIEWED_LOCAL_OPENCODE_VERSION": OPENCODE_VERSION,
-            "REVIEWED_LOCAL_COPILOT_VERSION": COPILOT_VERSION,
-            "SUPPORTED_CPLT_RELEASE": CPLT_RELEASE,
+            "MINIMUM_OPENCODE_VERSION_TEXT": standard_support["opencodeMinimum"],
+            "MINIMUM_COPILOT_VERSION": tuple(
+                int(part) for part in standard_support["copilotMinimum"].split(".")
+            ),
+            "SUPPORTED_CPLT_RELEASE": standard_support["cpltMinimum"],
         },
     )
     return BundleFile(LAUNCHER_PATH, content, 0o755)
@@ -1432,125 +1108,6 @@ def _python_support_file(
         expected={} if expected_literals is None else expected_literals,
     )
     return BundleFile(path, content, 0o644)
-
-
-def _artifact_binary_digest_maps(
-    artifact_lock: dict[str, Any],
-) -> tuple[dict[tuple[str, str], str], dict[tuple[str, str, str], str]]:
-    cplt_digests = {
-        (record["platform"], record["architecture"]): record["executable"][
-            "sha256"
-        ]
-        for record in artifact_lock["cplt"]["artifacts"]
-    }
-    opencode_digest_sets: dict[tuple[str, str, str], set[str]] = {}
-    for record in artifact_lock["opencode"]["artifacts"]:
-        platform = record["platform"]
-        architecture = record["architecture"]
-        binary_variant = "default" if platform == "darwin" else record["libc"]
-        opencode_digest_sets.setdefault(
-            (platform, architecture, binary_variant), set()
-        ).add(record["executable"]["sha256"])
-    divergent = {
-        selector: digests
-        for selector, digests in opencode_digest_sets.items()
-        if len(digests) != 1
-    }
-    if divergent:  # pragma: no cover - rejected by the committed lock contract
-        raise BundleBuildError(
-            "OpenCode baseline/default artifact variants have divergent executable bytes"
-        )
-    return cplt_digests, {
-        selector: next(iter(digests))
-        for selector, digests in opencode_digest_sets.items()
-    }
-
-
-def _manager_architecture(platform: str, architecture: str) -> str:
-    if platform == "linux" and architecture == "arm64":
-        return "aarch64"
-    return architecture
-
-
-def _validate_manager_contract(
-    content: bytes,
-    *,
-    composer_sha256: str,
-    artifact_lock: dict[str, Any],
-) -> None:
-    try:
-        source = content.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise BundleBuildError("OpenCode lifecycle manager is not UTF-8") from exc
-    try:
-        tree = ast.parse(source, filename=MANAGER_PATH.as_posix())
-    except SyntaxError as exc:
-        raise BundleBuildError(f"OpenCode lifecycle manager is not valid Python: {exc}") from exc
-
-    observed: dict[str, list[object]] = {
-        "SUPPORTED_OPENCODE_VERSION": [],
-        "SUPPORTED_CPLT_RELEASE": [],
-        "PERMISSION_COMPOSER_SHA256": [],
-        "PINNED_CPLT_BINARY_SHA256": [],
-        "PINNED_OPENCODE_BINARY_SHA256": [],
-    }
-    for statement in tree.body:
-        name: str | None = None
-        value: ast.expr | None = None
-        if (
-            isinstance(statement, ast.Assign)
-            and len(statement.targets) == 1
-            and isinstance(statement.targets[0], ast.Name)
-        ):
-            name = statement.targets[0].id
-            value = statement.value
-        elif isinstance(statement, ast.AnnAssign) and isinstance(
-            statement.target, ast.Name
-        ):
-            name = statement.target.id
-            value = statement.value
-        if name in observed and value is not None:
-            try:
-                observed[name].append(ast.literal_eval(value))
-            except (ValueError, TypeError) as exc:
-                raise BundleBuildError(
-                    f"OpenCode lifecycle manager {name} must be a literal"
-                ) from exc
-
-    expected = {
-        "SUPPORTED_OPENCODE_VERSION": OPENCODE_VERSION,
-        "SUPPORTED_CPLT_RELEASE": CPLT_RELEASE,
-        "PERMISSION_COMPOSER_SHA256": composer_sha256,
-    }
-    for name, expected_value in expected.items():
-        if observed[name] != [expected_value]:
-            raise BundleBuildError(
-                f"OpenCode lifecycle manager must pin {name}={expected_value!r}"
-            )
-
-    cplt_digests, opencode_digests = _artifact_binary_digest_maps(artifact_lock)
-    expected_cplt = {
-        (platform, _manager_architecture(platform, architecture)): digest
-        for (platform, architecture), digest in cplt_digests.items()
-    }
-    expected_opencode = {
-        (
-            platform,
-            _manager_architecture(platform, architecture),
-            variant,
-        ): digest
-        for (platform, architecture, variant), digest in opencode_digests.items()
-    }
-    if observed["PINNED_CPLT_BINARY_SHA256"] != [expected_cplt]:
-        raise BundleBuildError(
-            "OpenCode lifecycle manager PINNED_CPLT_BINARY_SHA256 must match "
-            "policy/client-artifacts.json"
-        )
-    if observed["PINNED_OPENCODE_BINARY_SHA256"] != [expected_opencode]:
-        raise BundleBuildError(
-            "OpenCode lifecycle manager PINNED_OPENCODE_BINARY_SHA256 must match "
-            "policy/client-artifacts.json"
-        )
 
 
 def _validate_archive_path_collisions(files: list[BundleFile]) -> None:
@@ -1577,57 +1134,11 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
     _require_directory(source_root, label="source root")
     _require_directory(source_root / "scripts", label="scripts directory")
 
-    manager_content, _ = _read_regular(
-        source_root.joinpath(*MANAGER_PATH.parts), label="OpenCode lifecycle manager"
-    )
-    composer_content, composer_mode = _read_regular(
-        source_root.joinpath(*PERMISSION_COMPOSER_PATH.parts),
-        label="OpenCode permission composer",
-    )
-    if composer_mode != 0o644:
-        raise BundleBuildError(
-            "OpenCode permission composer mode must be 0644; "
-            f"observed {composer_mode:04o}"
-        )
-    try:
-        ast.parse(
-            composer_content.decode("utf-8"),
-            filename=PERMISSION_COMPOSER_PATH.as_posix(),
-        )
-    except (UnicodeDecodeError, SyntaxError) as exc:
-        raise BundleBuildError(
-            f"OpenCode permission composer is not valid UTF-8 Python: {exc}"
-        ) from exc
-    verifier_content, verifier_mode = _read_regular(
-        source_root.joinpath(*ARTIFACT_VERIFIER_PATH.parts),
-        label="client artifact verifier",
-    )
-    if verifier_mode != 0o644:
-        raise BundleBuildError(
-            "client artifact verifier mode must be 0644; "
-            f"observed {verifier_mode:04o}"
-        )
-    try:
-        ast.parse(
-            verifier_content.decode("utf-8"),
-            filename=ARTIFACT_VERIFIER_PATH.as_posix(),
-        )
-    except (UnicodeDecodeError, SyntaxError) as exc:
-        raise BundleBuildError(
-            f"client artifact verifier is not valid UTF-8 Python: {exc}"
-        ) from exc
+    release_test_contract = _release_test_contract(source_root)
+    standard_support = release_test_contract["standardSupport"]
+    release_test = release_test_contract["releaseTest"]
+
     support_files = _distribution_support_files(source_root)
-    artifact_lock_file = next(
-        entry for entry in support_files if entry.path == CLIENT_ARTIFACTS_PATH
-    )
-    artifact_lock = _parse_json_object(
-        artifact_lock_file.content, label="client artifact lock"
-    )
-    _validate_manager_contract(
-        manager_content,
-        composer_sha256=_sha256(composer_content),
-        artifact_lock=artifact_lock,
-    )
     content_lock_file = next(
         entry for entry in support_files if entry.path == CONTENT_LOCK_PATH
     )
@@ -1680,8 +1191,10 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
     if focused_policy != expected_focused_policy:
         raise BundleBuildError("focused context policy differs from the reviewed v1 contract")
     policy_sha256 = _sha256(focused_policy_content)
-    plugin_manifest_content, _ = _read_regular(
-        source_root / "plugin/plugin.json", label="Copilot plugin manifest"
+    plugin_files, copilot_full_manifest = _plugin_files(
+        source_root,
+        expected_agents=expected_agents,
+        expected_skills=expected_skills,
     )
     focused_opencode_files, focused_opencode_manifest = _focused_target_files(
         source_root,
@@ -1697,38 +1210,17 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
         target_name=FOCUSED_COPILOT_TARGET_NAME,
         client="copilot",
         policy_sha256=policy_sha256,
-        canonical_source_sha256=_sha256(plugin_manifest_content),
+        canonical_source_sha256=_sha256(copilot_full_manifest),
     )
     files = [
-        _launcher_file(source_root),
+        _launcher_file(source_root, standard_support=standard_support),
         _python_support_file(
             source_root, LOCAL_LAUNCHER_PATH, label="Grillmester local launcher"
         ),
-        _python_support_file(
-            source_root,
-            LOCAL_SMOKE_PATH,
-            label="Grillmester local smoke",
-            expected_literals={"EXPECTED_COPILOT_VERSION": COPILOT_VERSION},
-        ),
-        _python_support_file(
-            source_root,
-            PROJECTION_GENERATOR_PATH,
-            label="focused context generator",
-        ),
         BundleFile(FOCUSED_POLICY_PATH, focused_policy_content, 0o644),
-        BundleFile(MANAGER_PATH, manager_content, 0o755),
-        BundleFile(PERMISSION_COMPOSER_PATH, composer_content, 0o644),
-        BundleFile(ARTIFACT_VERIFIER_PATH, verifier_content, 0o755),
     ]
     files.extend(support_files)
-    files.extend(_profile_files(source_root))
-    files.extend(
-        _plugin_files(
-            source_root,
-            expected_agents=expected_agents,
-            expected_skills=expected_skills,
-        )
-    )
+    files.extend(plugin_files)
     files.extend(target_files)
     files.extend(focused_opencode_files)
     files.extend(focused_copilot_files)
@@ -1752,10 +1244,14 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
     distribution_manifest = {
         "schemaVersion": 1,
         "sourceSha": source_sha,
-        "target": TARGET_NAME,
-        "opencodeVersion": OPENCODE_VERSION,
-        "cpltRelease": CPLT_RELEASE,
+        "distribution": DISTRIBUTION_NAME,
+        "releaseTest": {
+            "opencodeVersion": release_test["opencodeVersion"],
+            "copilotVersion": release_test["copilotVersion"],
+            "cpltRelease": release_test["cpltRelease"],
+        },
         "targetManifestSha256": _sha256(target_manifest),
+        "copilotFullManifestSha256": _sha256(copilot_full_manifest),
         "focusedOpenCodeManifestSha256": _sha256(focused_opencode_manifest),
         "focusedCopilotManifestSha256": _sha256(focused_copilot_manifest),
         "focusedContextPolicySha256": policy_sha256,
@@ -1939,7 +1435,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     try:
         build_bundle(options.source_root, options.source_sha, options.output)
     except BundleBuildError as exc:
-        print(f"OpenCode bundle build failed: {exc}", file=sys.stderr)
+        print(f"Terminal bundle build failed: {exc}", file=sys.stderr)
         return 2
     print(options.output)
     return 0

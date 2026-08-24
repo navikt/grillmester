@@ -1,23 +1,17 @@
 ---
-status: accepted
+status: superseded by ADR-0007
 date: 2026-08-21
 ---
 
 # Installer og start OpenCode fra verifiserte brukerartefakter
 
+Hele denne beslutningen er supersedert av
+[ADR 0007](0007-remove-the-lifecycle-manager.md). Resten av teksten beholdes
+som historikk for den upubliserte manageren.
+
 Denne beslutningen superseder aktiverings- og rollbackdelen av
 [ADR 0001](0001-native-opencode-v1-target.md), men ikke beslutningen om et
 generert native target.
-
-Normal terminaldistribusjon og native cplt-launch er videreutviklet av
-[ADR 0003](0003-one-terminal-entrypoint-through-cplt.md). Beslutningen om den
-valgfrie high-assurance-manageren, dens installasjon, staging og rollback
-gjelder fortsatt.
-
-[ADR 0004](0004-use-user-installed-terminal-clients.md) superseder senere den
-normale Homebrew-flytens klienteierskap: standardlauncheren bruker
-systeminstallerte klienter. Denne ADR-ens eksakte pinner, checksumkontroll og
-private `trusted-bin` gjelder fortsatt uendret for den valgfrie manageren.
 
 ## Kontekst
 

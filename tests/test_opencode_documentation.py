@@ -8,6 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def normalized(text: str) -> str:
+    return " ".join(text.split())
+
+
 class OpenCodeDocumentationContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -29,43 +33,57 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         cls.release_runbook = (ROOT / "docs/release-runbook.md").read_text(
             encoding="utf-8"
         )
-        cls.bundle_adr = (
-            ROOT / "docs/adr/0002-install-and-launch-opencode-bundles.md"
-        ).read_text(encoding="utf-8")
-        cls.target_adr = (
-            ROOT / "docs/adr/0001-native-opencode-v1-target.md"
-        ).read_text(encoding="utf-8")
-        cls.launcher_adr = (
-            ROOT / "docs/adr/0003-one-terminal-entrypoint-through-cplt.md"
-        ).read_text(encoding="utf-8")
-        cls.system_clients_adr = (
-            ROOT / "docs/adr/0004-use-user-installed-terminal-clients.md"
-        ).read_text(encoding="utf-8")
+        cls.provenance = (ROOT / "PROVENANCE.md").read_text(encoding="utf-8")
+        cls.adrs = {
+            number: next((ROOT / "docs/adr").glob(f"{number}-*.md")).read_text(
+                encoding="utf-8"
+            )
+            for number in ("0001", "0002", "0003", "0004", "0005", "0006", "0007")
+        }
 
     def test_domain_documentation_follows_the_repository_convention(self) -> None:
         self.assertFalse((ROOT / "docs/decisions").exists())
-        self.assertIn("**Native cplt-flyt**", self.context)
-        self.assertIn("**Lifecycle-manager**", self.context)
-        self.assertIn("**Terminal-launcher**", self.context)
-        self.assertIn("**Launcherpreferanse**", self.context)
-        self.assertIn("**Systemklient**", self.context)
-        self.assertIn("**`local-only`**", self.context)
+        for term in (
+            "**Native cplt-flyt**",
+            "**Terminal-launcher**",
+            "**Launcherpreferanse**",
+            "**Systemklient**",
+            "**Local-model-launcher**",
+        ):
+            with self.subTest(term=term):
+                self.assertIn(term, self.context)
+        for removed_term in (
+            "**Lifecycle-manager**",
+            "**Runtimeprofil**",
+            "**`local-only`**",
+        ):
+            with self.subTest(removed_term=removed_term):
+                self.assertNotIn(removed_term, self.context)
+
         self.assertIn("[CONTEXT.md](../CONTEXT.md)", self.development)
         self.assertIn("[`docs/adr/`](adr/)", self.development)
-        for adr in (
-            self.target_adr,
-            self.bundle_adr,
-            self.launcher_adr,
-            self.system_clients_adr,
-        ):
-            with self.subTest(title=adr.splitlines()[5]):
-                self.assertTrue(adr.startswith("---\nstatus: accepted\ndate: "))
+        for number in ("0001", "0003", "0004", "0005", "0006", "0007"):
+            with self.subTest(adr=number):
+                self.assertTrue(
+                    self.adrs[number].startswith("---\nstatus: accepted\ndate: ")
+                )
+        self.assertTrue(
+            self.adrs["0002"].startswith(
+                "---\nstatus: superseded by ADR-0007\ndate: "
+            )
+        )
+        self.assertIn("0007-remove-the-lifecycle-manager.md", self.adrs["0002"])
+        for number in ("0001", "0003"):
+            with self.subTest(supersession=number):
+                self.assertIn(
+                    "0007-remove-the-lifecycle-manager.md", self.adrs[number]
+                )
 
-    def test_standard_clients_are_user_owned_while_cplt_remains_required(self) -> None:
-        decision = " ".join(self.system_clients_adr.split())
-        installation = " ".join(self.installation.split())
-        guide = " ".join(self.guide.split())
-        trust = " ".join(self.trust.split())
+    def test_system_clients_are_user_owned_and_cplt_is_the_only_runtime_boundary(self) -> None:
+        decision = normalized(self.adrs["0004"])
+        installation = normalized(self.installation)
+        guide = normalized(self.guide)
+        trust = normalized(self.trust)
 
         for marker in (
             "OpenCode og Copilot CLI er valgfrie systemklienter",
@@ -74,343 +92,333 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "det finnes ingen direkte eller stille fallback",
             "OpenCode `>=1.18.20,<2`",
             "Copilot CLI `>=1.0.79,<2`",
-            "nyere, gyldig datostemplet release",
             "installert Copilot CLI uten OpenCode",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, decision)
 
-        self.assertIn("navikt/tap/cplt`-avhengigheten", installation)
         self.assertIn("brukereide systemklienter", installation)
-        self.assertIn(
-            "formelen installerer, erstatter eller skygger dem aldri", installation
-        )
+        self.assertIn("formelen installerer, erstatter eller skygger dem aldri", installation)
         self.assertIn("resolver `opencode` fra `PATH`", guide)
         self.assertIn("installerer, erstatter eller skygger aldri klienten", guide)
         self.assertIn(
             "Standardlauncheren bruker OpenCode og Copilot CLI fra brukerens `PATH`",
             trust,
         )
-        self.assertIn("standardflyten gir ingen byteproveniens", trust)
-        self.assertIn("ingen stille fallback til Copilot", guide)
-        self.assertIn("brew install opencode", guide)
+        self.assertIn("cplt eier runtimegrensen", normalized(self.adrs["0007"]))
 
-    def test_standard_and_high_assurance_version_contracts_stay_separate(self) -> None:
-        readme = " ".join(self.readme.split())
-        installation = " ".join(self.installation.split())
-        decision = " ".join(self.system_clients_adr.split())
-
-        for marker in (
-            "OpenCode 1.x fra `1.18.20`",
-            "Copilot CLI 1.x fra `1.0.79`",
-            "cplt fra testbaselinen",
-            "High-assurance-manageren har eksakte pinner",
-        ):
-            with self.subTest(marker=marker):
-                self.assertIn(marker, readme)
-
-        self.assertIn(
-            "OpenCode 1.x fra `1.18.20`, Copilot CLI 1.x fra `1.0.79`",
-            installation,
-        )
-        self.assertIn("nyere, datostemplet release", installation)
-        self.assertIn("eksakte pinner", installation)
-        self.assertIn(
-            "Lifecycle-manageren fra ADR 0002 beholder sin eksakte OpenCode "
-            "`1.18.20`-/cplt `2026.08.17-062831-1008a92`-pin",
-            decision,
-        )
-        self.assertIn("klientlås, checksumkontroll", decision)
-        self.assertIn("private `trusted-bin`", decision)
-
-    def test_grillmester_and_system_clients_have_separate_update_paths(self) -> None:
-        readme = " ".join(self.readme.split())
-        installation = " ".join(self.installation.split())
-        decision = " ".join(self.system_clients_adr.split())
-
-        self.assertIn("`grillmester update` oppdaterer Grillmester", readme)
-        self.assertIn(
-            "OpenCode, Copilot CLI og cplt følger sine egne pakkekanaler", readme
-        )
-        self.assertIn("`brew upgrade grillmester`", installation)
-        self.assertIn(
-            "OpenCode og Copilot CLI oppdateres gjennom sine egne pakkekanaler; "
-            "cplt følger den separate Homebrew-formelen",
-            installation,
-        )
-        self.assertIn(
-            "`grillmester update` oppdaterer Grillmester-formelen", decision
-        )
-        self.assertIn(
-            "Vanlig launch gjør fortsatt ingen oppdaterings- eller "
-            "nettverkskontroll utenfor cplt",
-            decision,
-        )
-
-    def test_launcher_update_policy_stays_explicit_and_off_the_launch_path(self) -> None:
-        normalized = " ".join(self.launcher_adr.split())
-        for marker in (
-            "Vanlig launch gjør ingen oppdaterings- eller nettverkskontroll utenfor cplt",
-            "Homebrew-pakken bare på macOS",
-            "Linux er ikke en del av pakkens release-løfte",
-            "observert versjonsspredning uten produkttelemetri",
-            "grillmester doctor --check-updates",
-            "En passiv oppdateringssjekk under vanlig launch inngår ikke",
-        ):
-            with self.subTest(marker=marker):
-                self.assertIn(marker, normalized)
-
-    def test_runtime_prerequisites_include_python_311(self) -> None:
+    def test_exact_artifacts_are_release_test_inputs_not_runtime_pins(self) -> None:
         for name, document in (
-            ("OpenCode guide", self.guide),
-            ("installation guide", self.installation),
+            ("installation", self.installation),
+            ("local models", self.local_models),
+            ("trust", self.trust),
+            ("ADR 0006", self.adrs["0006"]),
+            ("release runbook", self.release_runbook),
+        ):
+            value = normalized(document)
+            with self.subTest(document=name):
+                self.assertIn("OpenCode", value)
+                self.assertRegex(value, r"testinput|test input|testmetadata")
+                self.assertRegex(value, r"runtimepinn|runtime pin|ikke pinner")
+
+        local_decision = normalized(self.adrs["0006"])
+        self.assertIn("OpenCode `>=1.18.20,<2`", local_decision)
+        self.assertIn("Copilot CLI `>=1.0.79,<2`", local_decision)
+        self.assertIn("skal derfor ikke ha en upstream-watch", local_decision)
+        self.assertIn(
+            "En kompatibel 1.x-klientoppgradering krever normalt ingen Grillmester-release",
+            normalized(self.adrs["0007"]),
+        )
+        for name, document in (
+            ("provenance", self.provenance),
+            ("trust", self.trust),
+            ("ADR 0007", self.adrs["0007"]),
+            ("release runbook", self.release_runbook),
+        ):
+            with self.subTest(executable_baseline=name):
+                self.assertIn("scripts/release_test_baseline.py", document)
+                self.assertNotIn("policy/client-artifacts.json", document)
+                self.assertNotIn("verify_client_artifact.py", document)
+
+    def test_terminal_bundle_name_matches_the_current_release_contract(self) -> None:
+        for name, document in (
+            ("provenance", self.provenance),
+            ("development", self.development),
+            ("OpenCode", self.guide),
+            ("release runbook", self.release_runbook),
         ):
             with self.subTest(document=name):
-                self.assertIn("Python `3.11`", document)
+                self.assertIn("grillmester-terminal-", document)
+                self.assertNotIn("grillmester-opencode-", document)
 
-    def test_opencode_only_setup_does_not_run_cplt_global_doctor(self) -> None:
-        normalized = " ".join(self.guide.split())
+    def test_lifecycle_manager_is_removed_from_supported_paths(self) -> None:
+        supported_documents = {
+            "README": self.readme,
+            "OpenCode guide": self.guide,
+            "installation": self.installation,
+            "local models": self.local_models,
+            "trust": self.trust,
+            "development": self.development,
+            "release runbook": self.release_runbook,
+        }
+        for name, document in supported_documents.items():
+            with self.subTest(document=name):
+                self.assertNotIn("scripts/manage_opencode.py", document)
+                self.assertNotIn("## Valgfri lifecycle-manager", document)
+                self.assertNotIn("### Valgfri high-assurance manager", document)
+                self.assertNotIn("--profile local-only", document)
+                self.assertNotIn("upstream-client-watch", document)
 
-        self.assertNotIn("\ncplt doctor\n", self.guide)
-        self.assertIn("prober den alle installerte agenter", normalized)
-        self.assertIn("ikke en nødvendig OpenCode-sjekk", normalized)
-        self.assertIn("kan kjøre `copilot --version`", normalized)
-
-    def test_local_profile_is_not_documented_as_an_egress_guarantee(self) -> None:
-        self.assertIn("`local` er altså en lokal-kapabel profil", self.guide)
-        self.assertIn("opencode.ai", self.guide)
-        self.assertIn(
-            "binder provider/base-URL/modell-ID", " ".join(self.local_models.split())
-        )
-
-    def test_cloud_profile_documents_intent_and_domain_suffix_semantics(self) -> None:
-        self.assertIn("manageren attesterer ikke at\nmodellvektene", self.guide)
-        self.assertIn("samme hostname eller et subdomene", self.guide)
-        self.assertIn("smaleste faktiske", self.installation)
-        self.assertIn("direkte any-host-\nkernelregel", self.guide)
-        self.assertIn("åpner direkte\negress til alle", self.installation)
-
-    def test_local_only_names_platform_and_provider_boundaries(self) -> None:
-        guide = " ".join(self.guide.split())
+        removal = normalized(self.adrs["0007"])
         for marker in (
-            "full forced-proxy-håndheving på macOS",
-            "Launcheren skal derfor feile lukket for `local-only` på Linux",
-            "providerprosessen som lytter på localhost",
-            "kjører utenfor cplt-sandboxen",
-            "Seatbelts `localhost`-selector",
-            "eksterne maskiner på samme port klassifiseres som blokkert",
+            "Lifecycle-manageren, runtimeprofilene og den private `trusted-bin`-/staging- livssyklusen fjernes",
+            "Det finnes ingen Grillmester-eid `local-only`-profil eller `--direct`-bakvei",
+            "Kontrakten er ikke en runtimepin, installasjonsmetadata eller en alternativ distribusjon",
+            "manageren aldri ble publisert",
+            "Ingen migrering eller rollbackmekanisme er nødvendig",
         ):
             with self.subTest(marker=marker):
-                self.assertIn(marker, guide)
-        self.assertIn("står også i blocklisten", guide)
-        self.assertIn("både allow- og blocklisten", self.local_models)
+                self.assertIn(marker, removal)
 
-    def test_cplt_launch_documents_the_fixed_audited_home(self) -> None:
-        for name, document in (
-            ("OpenCode guide", self.guide),
-            ("bundle ADR", self.bundle_adr),
+        system_clients = normalized(self.adrs["0004"])
+        self.assertIn("ADR 0007 fjerner manageren og private klientkopier", system_clients)
+        self.assertNotIn("Team med behov for slik binding må velge", system_clients)
+
+    def test_local_mode_is_connected_local_inference(self) -> None:
+        local_models = normalized(self.local_models)
+        trust = normalized(self.trust)
+        decision = normalized(self.adrs["0006"])
+
+        for marker in (
+            "Local-flyten har ingen cloudmodell-fallback, men den kan være tilkoblet",
+            "Launcheren åpner den valgte localhost-porten og krever cplts forced proxy",
+            "Webverktøy og dokumentasjonskilder virker",
+            "cplt-config forblir autoritativ",
+            "Grillmester åpner ikke alle domener",
+            "legger en annen sandbox oppå",
         ):
-            with self.subTest(document=name):
-                self.assertIn(
-                    "~/.local/share/grillmester/opencode", document
-                )
-        self.assertIn("custom manager-home kan ikke velges\nvia `XDG_DATA_HOME`", self.guide)
-        self.assertIn("ikke for en cplt-basert launch", self.bundle_adr)
+            with self.subTest(marker=marker):
+                self.assertIn(marker, local_models)
 
-    def test_docs_distinguish_native_cplt_from_lifecycle_hardening(self) -> None:
-        self.assertIn("cplt støtter allerede OpenCode direkte", self.guide)
-        self.assertIn("Ingen custom\nsandboxwrapper", self.guide)
-        self.assertIn("manageren er valgfri hardening", self.guide)
-        self.assertIn("beholder bare kompatibilitetssikre", self.guide)
-        self.assertIn("`sandbox.inherit_env`", self.guide)
         self.assertIn(
-            "les cplts launchoppsummering", " ".join(self.guide.split())
+            "web/GitHub følger cplt-policy", normalized(self.readme)
         )
-        self.assertIn("ordinær `cplt --agent opencode`", self.guide)
-        self.assertIn("Ekstra filesystem- eller socket-grants", self.guide)
-        self.assertIn("peker manageren `CPLT_CONFIG`", self.bundle_adr)
-        target_adr = " ".join(self.target_adr.split())
-        bundle_adr = " ".join(self.bundle_adr.split())
-        self.assertIn(
-            "Native cplt binder det utpakkede targetet direkte", target_adr
-        )
-        self.assertIn(
-            "bare brukere som velger high-assurance-livssyklusen", target_adr
-        )
-        self.assertIn("Native unmanaged cplt kan fortsatt binde", bundle_adr)
-        self.assertIn("påstår ikke managerens lifecycle-", bundle_adr)
+        self.assertIn("Websearch, dokumentasjon og GitHub", trust)
+        self.assertIn("lokal inference, ikke offline", normalized(self.guide))
+        self.assertIn("ingen offlinegaranti", decision)
+        self.assertIn("cplt er eneste runtimeeier", decision)
 
-    def test_native_cplt_documents_opencodes_startup_support_files(self) -> None:
-        guide = " ".join(self.guide.split())
-        installation = " ".join(self.installation.split())
-        adr = " ".join(self.bundle_adr.split())
+    def test_local_github_contract_is_explicit_for_both_clients(self) -> None:
+        local_models = normalized(self.local_models)
+        trust = normalized(self.trust)
+        decision = normalized(self.adrs["0006"])
 
-        self.assertIn("USER_CONFIG_DIR", self.guide)
-        self.assertIn("endrer aldri en eksisterende fil", guide)
-        self.assertIn("uten generell write-tilgang", guide)
-        self.assertIn("den eksakte targetfilen", installation)
-        self.assertIn("validerer og forsegler den `0444`", adr)
-        self.assertIn("`/private/tmp`", self.guide)
+        for document in (local_models, trust, decision):
+            with self.subTest(document=document[:60]):
+                self.assertIn("`GH_TOKEN`", document)
+                self.assertIn("child-", document)
+                self.assertIn("myk", document)
+                self.assertIn("lese", document)
+
+        self.assertIn(
+            "Launcheren skriver ikke tokenet til config, sessionstate eller preview",
+            local_models,
+        )
+        self.assertIn("innebygde GitHub MCP er av", local_models)
+        self.assertIn("guarded `gh`", local_models)
+        self.assertIn("Git push forblir under Git-guard", local_models)
+        self.assertIn("OpenCodes websearch er aktiv", local_models)
+        self.assertIn("permission krever godkjenning", local_models)
+        self.assertIn("cplt-credentialmediering", trust)
+        self.assertIn("rå credentialstore", trust)
+        self.assertIn("eksplisitte cplt `--deny-path`", trust)
+        self.assertIn("`--no-audit`", trust)
+        self.assertIn("parent-side Git-audit", decision)
+        for document in (local_models, trust, decision):
+            with self.subTest(explicit_github=document[:60]):
+                self.assertIn("`--github-access`", document)
+                self.assertIn("uten å kjøre `gh`", document)
+                self.assertRegex(document, r"persistere")
 
     def test_opencode_guide_starts_with_the_homebrew_launcher(self) -> None:
         self.assertLess(
             self.guide.index("## Kom i gang"),
             self.guide.index("## Avansert: manuell binding og verifisering"),
         )
-        quick_start = self.guide.split(
-            "## Kom i gang", 1
-        )[1].split("## Avansert: manuell binding og verifisering", 1)[0]
-        normalized = " ".join(quick_start.split())
+        quick_start = self.guide.split("## Kom i gang", 1)[1].split(
+            "## Avansert: manuell binding og verifisering", 1
+        )[0]
+        value = normalized(quick_start)
 
-        self.assertIn(
-            "brew install navikt/tap/cplt navikt/tap/grillmester", normalized
-        )
         self.assertLess(
-            normalized.index("ikke tilgjengelig"),
-            normalized.index(
-                "brew install navikt/tap/cplt navikt/tap/grillmester"
-            ),
+            value.index("ikke tilgjengelig"),
+            value.index("brew install navikt/tap/cplt navikt/tap/grillmester"),
         )
-        self.assertIn("grillmester choose", normalized)
-        self.assertIn("starter alltid OpenCode gjennom cplt", normalized)
-        self.assertIn("brew install opencode", normalized)
-        self.assertIn("resolver `opencode` fra `PATH`", normalized)
-        self.assertIn("installerer, erstatter eller skygger aldri klienten", normalized)
+        for marker in (
+            "brew install opencode",
+            "resolver `opencode` fra `PATH`",
+            "grillmester choose",
+            "ingen stille fallback til Copilot",
+            "starter alltid OpenCode gjennom cplt",
+            "### Lokal modell på macOS",
+            "grillmester local setup --client opencode",
+            "### Cloud-provider",
+            "--pass-env MODEL_PROVIDER_API_KEY",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, value)
 
-    def test_launcher_quick_start_covers_unmanaged_local_and_cloud(self) -> None:
-        quick_start = self.guide.split(
-            "## Kom i gang", 1
-        )[1].split("## Avansert: manuell binding og verifisering", 1)[0]
-        normalized = " ".join(quick_start.split())
+    def test_manual_opencode_binding_and_test_baseline_are_clear(self) -> None:
+        for marker in (
+            "OPENCODE_CONFIG_DIR",
+            "cplt --agent opencode",
+            '--allow-read "$CONFIG_DIR"',
+            "--pass-env OPENCODE_CONFIG_DIR",
+            "-- --agent grillmester",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.guide)
 
-        self.assertIn("### Lokal modell på macOS", quick_start)
-        self.assertIn("grillmester local setup --client opencode", quick_start)
-        self.assertIn("grillmester local --full --agent grillmester", quick_start)
-        self.assertIn("`http://127.0.0.1:8080/v1`", normalized)
-        self.assertIn("`--base-url http://127.0.0.1:1234/v1`", normalized)
-        self.assertNotIn("--allow-localhost", quick_start)
-        self.assertIn("### Cloud-provider", quick_start)
-        self.assertGreaterEqual(quick_start.count("grillmester --client opencode"), 2)
-        self.assertIn("--pass-env MODEL_PROVIDER_API_KEY", quick_start)
-        self.assertIn("HTTPS-port `443` er standard", normalized)
-        self.assertIn(
-            "managerpolicy eller en eksplisitt custom cplt-proxypolicy",
-            normalized,
-        )
+        baseline_heading = "### Installer den eksakte testbaselinen manuelt"
+        bundle_heading = "### Hent og verifiser en Grillmester-bundle"
+        self.assertLess(self.guide.index(baseline_heading), self.guide.index(bundle_heading))
+        baseline = self.guide.split(baseline_heading, 1)[1].split(bundle_heading, 1)[0]
+        bundle = self.guide.split(bundle_heading, 1)[1].split(
+            "## Hva launcheren faktisk gjør", 1
+        )[0]
+        self.assertIn("opencode-ai@1.18.20", baseline)
+        self.assertIn("reproduserbar CI-evidens", baseline)
+        self.assertIn("ikke som runtimekrav", baseline)
+        self.assertIn("ingen OpenCode-, Copilot- eller cplt-binær", bundle)
 
-    def test_local_copilot_byok_uses_the_shared_launcher_and_cplt_contract(self) -> None:
+    def test_local_setup_covers_both_clients_and_focused_default(self) -> None:
         recommended = self.local_models.split(
             "## Anbefalt flyt: ett lokalt oppsett, begge terminalklienter", 1
         )[1].split("## Qwen3.8-27B", 1)[0]
+        value = normalized(recommended)
+
+        for marker in (
+            "grillmester local setup",
+            "grillmester local --client copilot",
+            "grillmester local --client opencode",
+            "grillmester local --full --agent grillmester",
+            "focused Barista",
+            "grillmester local doctor",
+            "OpenCode og Copilot CLI på `PATH`",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, value)
+
+        self.assertIn("binder inferensen til én eksplisitt loopbackprovider", normalized(self.local_models))
+        self.assertIn("Grillmester eier ikke serveren", normalized(self.local_models))
+
+    def test_checkout_commands_are_executable_without_an_installed_launcher(self) -> None:
+        local_commands = (
+            "python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup",
+            "python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor",
+            "python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch",
+        )
+        for name, document in (
+            ("installation", self.installation),
+            ("local models", self.local_models),
+            ("OpenCode", self.guide),
+        ):
+            value = normalized(document)
+            for command in local_commands:
+                with self.subTest(document=name, command=command):
+                    self.assertIn(command, value)
+
+        for name, document in (
+            ("README", self.readme),
+            ("installation", self.installation),
+        ):
+            value = normalized(document)
+            for command in (
+                "python3 /absolute/path/to/grillmester/scripts/grillmester.py",
+                "python3 /absolute/path/to/grillmester/scripts/grillmester.py doctor",
+            ):
+                with self.subTest(document=name, command=command):
+                    self.assertIn(command, value)
+
+        readme = normalized(self.readme)
+        self.assertIn(local_commands[0], readme)
+        self.assertIn(local_commands[2], readme)
+        self.assertIn("OpenAI-kompatibel modellserver", readme)
+        for document in (self.readme, self.installation, self.local_models, self.guide):
+            with self.subTest(consumer_repo=document[:40]):
+                self.assertIn("cd /path/to/consumer-repo", document)
+
+    def test_focused_roster_and_measurement_history_are_honest(self) -> None:
+        focused = normalized(self.adrs["0005"])
+        for marker in (
+            "`grillmester-issue-management`",
+            "nøyaktig sju OpenCode-commands",
+            "opprinnelige seks-skill-baselinen",
+            "ikke en måling av dagens sju-skill-roster",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, focused)
+
+        self.assertIn(
+            "opprinnelige focused-rosteren med seks skills",
+            normalized(self.local_models),
+        )
+
+    def test_local_launcher_keeps_host_home_and_isolates_client_state(self) -> None:
+        for name, document in (
+            ("installation", self.installation),
+            ("local models", self.local_models),
+            ("ADR 0005", self.adrs["0005"]),
+        ):
+            value = normalized(document)
+            with self.subTest(document=name):
+                self.assertIn("hostens `HOME`", value)
+                self.assertRegex(value, r"XDG.*(?:state|klientstate)")
+                self.assertNotIn("privat HOME", value)
+
+    def test_issue_creation_is_guarded_in_cplt_and_not_a_global_fallback(self) -> None:
+        installation = normalized(self.installation)
+        for marker in (
+            "cplt-guardede `gh issue`-kommandoer",
+            "Det krever ikke en egen write-MCP",
+            "repo-scope, `gh`-guard",
+            "gjelder ikke automatisk Copilot app, cloud agent",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, installation)
+
+        self.assertNotIn("`cloud-open-weight`", self.local_models)
+
+    def test_manual_copilot_byok_keeps_cplt_path_without_offline_side_mode(self) -> None:
         section = self.local_models.split(
             "## Avansert: manuell Copilot CLI BYOK", 1
         )[1].split("## Copilot app med lokal provider", 1)[0]
-
-        self.assertIn("grillmester local --client copilot", recommended)
-        self.assertIn("grillmester --client copilot --agent barista", section)
-        self.assertIn("--allow-localhost 1234", section)
-        self.assertIn("--pass-env COPILOT_PROVIDER_API_KEY", section)
-        self.assertIn("--pass-env COPILOT_OFFLINE", section)
-        self.assertIn("--disable-builtin-mcps", section)
-        self.assertIn("--secret-env-vars=COPILOT_PROVIDER_API_KEY", section)
-        self.assertNotRegex(section, r"(?m)^copilot\s*$")
-
-    def test_native_copilot_provider_documents_cplt_allowlist_composition(self) -> None:
-        quick_start = self.guide.split(
-            "## Kom i gang", 1
-        )[1].split("## Avansert: manuell binding og verifisering", 1)[0]
-        normalized = " ".join(quick_start.split())
-
-        self.assertIn("`standard`-profil", normalized)
-        self.assertIn("`--preset strict`", quick_start)
-        self.assertIn("`--default-allowlist`", quick_start)
-        self.assertIn("`proxy.default_allowlist=true`", quick_start)
-        self.assertIn("--allowed-domains", quick_start)
-        for domain in (
-            "githubcopilot.com",
-            "api.github.com",
-            "github.com",
-            "copilot-proxy.githubusercontent.com",
-            "actions.githubusercontent.com",
-            "default.exp2.cds.s9ch.io",
-        ):
-            with self.subTest(domain=domain):
-                self.assertIn(domain, quick_start)
-        self.assertIn("Ikke bruk\n`--allow-all-domains`", quick_start)
-
-    def test_readme_has_one_terminal_journey_before_app_and_agent_help(self) -> None:
-        self.assertLessEqual(len(self.readme.splitlines()), 115)
-        self.assertLess(
-            self.readme.index("### Copilot CLI og OpenCode i terminalen"),
-            self.readme.index("### Copilot app"),
-        )
-        section = self.readme.split(
-            "### Copilot CLI og OpenCode i terminalen", 1
-        )[1].split("### Copilot app", 1)[0]
-        normalized = " ".join(section.split())
-
-        journey_markers = (
-            "brew install navikt/tap/cplt navikt/tap/grillmester",
-            "grillmester",
-        )
-        positions = [normalized.index(marker) for marker in journey_markers]
-        self.assertEqual(sorted(positions), positions)
         for marker in (
-            "brew install --cask copilot-cli",
-            "--client copilot",
-            "--client opencode",
-            "grillmester choose",
-            "alltid gjennom cplt",
-            "docs/opencode.md",
+            "grillmester --client copilot --agent barista",
+            "--allow-localhost 1234",
+            "--pass-env COPILOT_PROVIDER_API_KEY",
+            "--disable-builtin-mcps",
+            "--secret-env-vars=COPILOT_PROVIDER_API_KEY",
         ):
             with self.subTest(marker=marker):
-                self.assertIn(marker, normalized)
+                self.assertIn(marker, section)
+        self.assertNotIn("COPILOT_OFFLINE", section)
+        self.assertNotRegex(section, r"(?m)^copilot\s*$")
 
-    def test_installation_guide_leads_with_launcher_before_manager(self) -> None:
-        self.assertIn("## Felles terminaloppsett på macOS", self.installation)
-        self.assertLess(
-            self.installation.index("ikke tilgjengelig"),
-            self.installation.index(
-                "brew install navikt/tap/cplt navikt/tap/grillmester"
-            ),
-        )
-        self.assertIn("opencode.md#kom-i-gang", self.installation)
-        common_setup = self.installation.split(
-            "## Felles terminaloppsett på macOS", 1
-        )[1].split(
-            "## Alternativ: native Copilot CLI-installasjon med automatisk oppdatering",
-            1,
-        )[0]
-        normalized = " ".join(common_setup.split())
-        self.assertIn("cplt som en ekstern Homebrew-avhengighet", normalized)
-        self.assertIn("brew install opencode", common_setup)
-        self.assertIn("brew install --cask copilot-cli", common_setup)
-        self.assertIn("installerte klienter på `PATH`", normalized)
-        self.assertIn("Manglende cplt er en hard feil", normalized)
-        self.assertLess(
-            self.installation.index(
-                "brew install navikt/tap/cplt navikt/tap/grillmester"
-            ),
-            self.installation.index("scripts/manage_opencode.py install"),
-        )
-        self.assertLess(
-            self.installation.index("grillmester --client opencode"),
-            self.installation.index("### Valgfri high-assurance manager"),
-        )
+    def test_updates_remain_separate_and_launch_has_no_update_check(self) -> None:
+        readme = normalized(self.readme)
+        installation = normalized(self.installation)
+        system_clients = normalized(self.adrs["0004"])
 
-    def test_homebrew_rollout_is_availability_gated_and_automated_after_bootstrap(self) -> None:
-        for document in (self.readme, self.installation, self.guide):
-            normalized = " ".join(document.split())
-            with self.subTest(document=document.splitlines()[0]):
-                self.assertIn("ikke tilgjengelig", normalized)
-                self.assertLess(
-                    normalized.index("ikke tilgjengelig"),
-                    normalized.index(
-                        "brew install navikt/tap/cplt navikt/tap/grillmester"
-                    ),
-                )
+        self.assertIn("`grillmester update` oppdaterer Grillmester", readme)
+        self.assertIn("OpenCode, Copilot CLI og cplt følger sine egne pakkekanaler", readme)
+        self.assertIn("`brew upgrade grillmester`", installation)
+        self.assertIn("Ingen pakkeoperasjon eller oppdateringsforespørsel skjer under vanlig launch", installation)
+        self.assertIn("`grillmester update` oppdaterer Grillmester-formelen", system_clients)
+        self.assertIn("Vanlig launch gjør fortsatt ingen oppdaterings- eller nettverkskontroll utenfor cplt", system_clients)
 
-        normalized_runbook = " ".join(self.release_runbook.split())
+    def test_release_runbook_keeps_test_evidence_and_lightweight_tap_updates(self) -> None:
+        runbook = normalized(self.release_runbook)
         for marker in (
             "one reviewed bootstrap PR",
             "not one PR per Grillmester release",
@@ -418,266 +426,24 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "latest non-draft, non-prerelease",
             "Apple Silicon and Intel",
             "exact three-asset roster",
+            "OpenCode-TUI startup through cplt without a model call",
+            "reproducible release-test input, not local-launcher runtime pins",
         ):
             with self.subTest(marker=marker):
-                self.assertIn(marker, normalized_runbook)
+                self.assertIn(marker, runbook)
+        self.assertNotIn("upstream-client-watch", self.release_runbook)
+        self.assertNotIn("watch_upstream_clients.py", self.release_runbook)
 
-    def test_local_model_guide_leads_with_native_cplt_before_manager(self) -> None:
-        section = self.local_models.split(
-            "## Anbefalt flyt: ett lokalt oppsett, begge terminalklienter", 1
-        )[1].split("## Hybrid:", 1)[0]
-        self.assertLess(
-            section.index("grillmester local setup"),
-            section.index("scripts/manage_opencode.py launch"),
-        )
-        self.assertIn("ingen lifecycle-manager eller nav-pilot-agent", section)
+    def test_client_bootstrap_and_runtime_support_boundaries_are_explicit(self) -> None:
+        trust = normalized(self.trust)
+        guide = normalized(self.guide)
+        installation = normalized(self.installation)
 
-    def test_managed_docs_do_not_claim_normal_project_config_merging(self) -> None:
-        managed = self.guide.split("## Hva launcheren faktisk gjør", 1)[1].split(
-            "## Direkte OpenCode", 1
-        )[0]
-        normalized = " ".join(managed.split())
-
-        self.assertIn("`OPENCODE_DISABLE_PROJECT_CONFIG=true`", normalized)
-        self.assertIn("fingerprintede project-instructions", normalized)
-        self.assertIn(
-            "auditerte permissionregler med `ask`/`deny`", normalized
-        )
-        self.assertIn("Den minimale unmanaged cplt-flyten", normalized)
-        self.assertNotIn(
-            "merger Grillmester-agenter, commands og skills etter globale og "
-            "prosjektlokale configkilder",
-            normalized,
-        )
-
-    def test_nested_dynamic_instruction_limit_is_explicit(self) -> None:
-        normalized = " ".join(self.guide.split())
-        self.assertIn("kopierer de eksakte byteverdiene", normalized)
-        self.assertIn("private config-stagen", normalized)
-        self.assertIn("`0444`-filene", normalized)
-        self.assertIn("nestet `AGENTS.md` eller `CONTEXT.md`", normalized)
-        self.assertIn("ikke en påstand om eksklusiv promptkilde", normalized)
-
-    def test_managed_threat_boundary_names_stock_client_live_read_gaps(self) -> None:
-        guide = " ".join(self.guide.split())
-        installation = " ".join(self.installation.split())
-        adr = " ".join(self.bundle_adr.split())
-        for marker in (
-            "core V2",
-            "restriction-only",
-            "disposable preflight-project",
-            "`OPENCODE_TEST_HOME`",
-            "same-UID",
-            "sealed repo-config",
-        ):
-            with self.subTest(marker=marker):
-                self.assertIn(marker, guide)
-        self.assertIn("same-UID", installation)
-        self.assertIn("sealed repo-config", installation)
-        self.assertIn("same-UID", adr)
-        self.assertIn("sealed repo-config", adr)
-
-    def test_native_nav_pilot_coexistence_and_managed_exclusion_are_explicit(self) -> None:
-        normalized = " ".join(self.guide.split())
-        agents = " ".join(
-            (ROOT / "docs/agents-and-skills.md").read_text(encoding="utf-8").split()
-        )
-
-        self.assertIn("`EnsureOpenCodeNavContext`", normalized)
-        self.assertIn("native/unmanaged cplt", normalized)
-        self.assertIn("merge dette med Grillmesters `OPENCODE_CONFIG_DIR`", normalized)
-        self.assertIn("bevarte agent-ID-ene", normalized)
-        self.assertIn("bruker ikke nav-pilot-eksporten", normalized)
-        self.assertIn(
-            "arkitekturlinjens proveniens er låst", normalized
-        )
-        self.assertIn(
-            "2d0911b353a91ec9091d252b481acb5777de7059", normalized
-        )
-        self.assertIn(
-            "nyere kompatibilitetsrevisjonen", normalized
-        )
-        self.assertIn(
-            "0c96b8fe7c8167a4dd9fc99e50ea18de08e6bb02", normalized
-        )
-        self.assertIn("Canonical skill- og command- ID-er", agents)
-        self.assertIn("agent-ID-ene er bevart", agents)
-
-    def test_hermetic_modes_and_private_provider_opt_in_are_explicit(self) -> None:
-        self.assertIn(
-            "--private-provider-domain inference.internal.example", self.guide
-        )
-        self.assertIn(
-            "GRILLMESTER_OPENCODE_PRIVATE_PROVIDER_DOMAINS", self.guide
-        )
-        self.assertIn("XDG config/data/state/cache erstattes", self.guide)
-        self.assertIn("`~/.config/opencode`", self.guide)
-        self.assertIn("--private-provider-domain", self.installation)
-
-    def test_runtime_smoke_does_not_overclaim_zero_external_egress(self) -> None:
-        self.assertIn("uten ekstern modell", self.trust)
-        self.assertIn("ikke kernel-evidens for null ekstern\ntrafikk", self.trust)
-        self.assertIn("separat fail-closed nettverksmåling", self.trust)
-
-    def test_homebrew_gate_documents_a_real_tui_start_without_model_use(self) -> None:
-        trust = " ".join(self.trust.split())
-        runbook = " ".join(self.release_runbook.split())
-
-        self.assertIn("installerte OpenCode-TUI-en gjennom cplt", trust)
-        self.assertIn("avsluttes før prompt eller modellkall", trust)
-        self.assertIn("OpenCode-TUI startup through cplt without a model call", runbook)
-
-    def test_managed_cplt_authenticates_and_stages_official_clients(self) -> None:
-        guide = " ".join(self.guide.split())
-        installation = " ".join(self.installation.split())
-        adr = " ".join(self.bundle_adr.split())
-
-        self.assertIn(
-            "byte-identisk med en offisiell plattformbinær", guide
-        )
-        self.assertIn("private `trusted-bin`", guide)
-        self.assertIn("opprinnelige OpenCode-binæren startes aldri", guide)
-        self.assertIn("OpenCode og cplt byte-identisk", installation)
-        self.assertIn("opprinnelige OpenCode-binæren leses, men kjøres ikke", installation)
-        self.assertIn("kopierer begge byte-identisk", adr)
-
-        direct = self.guide.split("## Direkte OpenCode", 1)[1].split(
-            "## Agenter, commands og forwarding", 1
-        )[0]
-        self.assertEqual(1, direct.count("scripts/manage_opencode.py launch"))
-        self.assertIn("caller-resolverte OpenCode-binæren", direct)
-        self.assertIn("trusted-code-opt-out", direct)
-
-    def test_client_bootstrap_trust_boundary_is_explicit(self) -> None:
-        trust = " ".join(self.trust.split())
-        self.assertIn(
-            "Standardlauncheren bruker OpenCode og Copilot CLI fra brukerens `PATH`",
-            trust,
-        )
-        self.assertIn("standardflyten gir ingen byteproveniens", trust)
-        self.assertIn(
-            "verken kopierer eller kjører klienter fra en privat Grillmester-katalog",
-            trust,
-        )
-
-        for name, document in (
-            ("OpenCode guide", self.guide),
-            ("installation guide", self.installation),
-        ):
-            normalized = " ".join(document.split())
-            with self.subTest(document=name):
-                self.assertIn("`postinstall` kjører `verifyBinary`", normalized)
-                self.assertIn("før manageren kan hashe", normalized)
-                self.assertIn("Homebrew-formelen for cplt er en bekvemmelighetsinstallasjon", normalized)
-                self.assertIn("eksakte npm-plattformpakken", normalized)
-                self.assertIn("eksakte cplt-releaseasseten", normalized)
-                self.assertIn("upstream-arkivchecksummen", normalized)
-                self.assertIn("binærdigesten før første kjøring", normalized)
-
-        for name, document in (
-            ("trust guide", self.trust),
-            ("bundle ADR", self.bundle_adr),
-        ):
-            normalized = " ".join(document.split())
-            with self.subTest(document=name):
-                self.assertIn("`postinstall`", normalized)
-                self.assertIn("`verifyBinary`", normalized)
-                self.assertIn("ikke retroaktivt sikre bootstrapen", normalized)
-
-    def test_hardened_profiles_use_only_explicit_safe_provider_models(self) -> None:
-        guide = " ".join(self.guide.split())
-        trust = " ".join(self.trust.split())
-
-        self.assertIn("`OPENCODE_MODELS_PATH`", guide)
-        self.assertIn("manager-eid, read-only tom modellkatalog", guide)
-        self.assertIn("`@ai-sdk/openai-compatible`", guide)
-        self.assertIn('"baseURL": "https://inference.example.org/v1"', self.guide)
-        self.assertIn('"npm": "@ai-sdk/openai-compatible"', self.local_models)
-        self.assertIn('"baseURL": "http://127.0.0.1:1234/v1"', self.local_models)
-        self.assertIn("--provider-base-url", self.guide)
-        self.assertIn("--provider-model", self.guide)
-        self.assertIn(
-            "positive `limit.context`/ `limit.output`",
-            " ".join(self.bundle_adr.split()),
-        )
-        self.assertIn("Grillmester-tradeoff, ikke et cplt-krav", trust)
-        self.assertIn("unmanaged cplt", trust)
-
-    def test_every_managed_provider_launch_binds_base_url_and_model(self) -> None:
-        for name, document in (
-            ("OpenCode guide", self.guide),
-            ("installation guide", self.installation),
-            ("local model guide", self.local_models),
-        ):
-            for block in re.findall(r"```bash\n(.*?)```", document, flags=re.DOTALL):
-                if "manage_opencode.py launch" not in block or "--provider-id" not in block:
-                    continue
-                with self.subTest(document=name, block=block[:80]):
-                    self.assertIn("--provider-base-url", block)
-                    self.assertIn("--provider-model", block)
-        for variable in (
-            "GRILLMESTER_OPENCODE_PROVIDER_IDS",
-            "GRILLMESTER_OPENCODE_PROVIDER_BASE_URLS",
-            "GRILLMESTER_OPENCODE_PROVIDER_MODELS",
-            "GRILLMESTER_OPENCODE_AUTH_PROVIDERS",
-        ):
-            with self.subTest(variable=variable):
-                self.assertIn(variable, self.bundle_adr)
-
-    def test_cloud_profile_is_public_only_without_dns_preflight(self) -> None:
-        guide = " ".join(self.guide.split())
-        installation = " ".join(self.installation.split())
-        trust = " ".join(self.trust.split())
-
-        for document in (guide, installation, trust):
-            with self.subTest(document=document[:40]):
-                self.assertIn("ingen DNS-preflight", document)
-        self.assertIn("localhostnavn, IP-litteraler", guide)
-        self.assertIn("bruk `hybrid`", guide)
-        self.assertIn("tilkoblingstidspunktet", guide)
-        self.assertIn("public/private- og loopbackgrensen", installation)
-        self.assertIn("Private og interne providernavn hører hjemme i `hybrid`", trust)
-
-    def test_resolved_config_not_overlay_order_is_the_guarantee(self) -> None:
-        guide = " ".join(self.guide.split())
-        installation = " ".join(self.installation.split())
-        trust = " ".join(self.trust.split())
-
-        for document in (guide, installation, trust):
-            with self.subTest(document=document[:40]):
-                self.assertIn("managed/MDM-config kan merge senere", document)
-                self.assertIn("OPENCODE_DISABLE_SHARE=true", document)
-        self.assertIn("resolve effektiv config", guide)
-        self.assertIn("effektivt resolved config før launch", installation)
-
-    def test_unmanaged_cplt_command_is_minimal_and_manager_is_optional(self) -> None:
-        for marker in (
-            "CONFIG_DIR=/absolute/path/to/grillmester-opencode-v1/targets/opencode-v1",
-            'OPENCODE_CONFIG_DIR="$CONFIG_DIR"',
-            'cplt --agent opencode',
-            '--allow-read "$CONFIG_DIR"',
-            '--pass-env OPENCODE_CONFIG_DIR',
-            '-- --agent grillmester',
-            "manageren er valgfri hardening",
-        ):
-            with self.subTest(marker=marker):
-                self.assertIn(marker, self.guide)
-
-    def test_macos_gates_separate_standard_and_manager_evidence(self) -> None:
-        trust = " ".join(self.trust.split())
-
-        self.assertIn("`macos-homebrew-compatibility`", trust)
-        self.assertIn("`macos-live-compatibility`", trust)
-        self.assertIn("uavhengige CI-gatene", trust)
-        self.assertIn("hver sin matrise", trust)
-        self.assertIn("byteidentiske, uavhengig verifiserte releaseformelen", trust)
-        self.assertIn("provisjonerer klientene som separate testinput", trust)
-        self.assertIn("launcheren resolver systemklientene", trust)
-        self.assertIn("ikke har private `libexec/clients`-kopier", trust)
-        self.assertIn("eksakte pinnede Darwin-ressursene", trust)
-        self.assertIn("rå `/usr/bin/nc`-målinger", trust)
-        self.assertIn("Seatbelts `localhost`-selector", trust)
-        self.assertIn("dokumentasjonsadresse på samme port", trust)
+        self.assertIn("Homebrew-checksum binder Grillmester-bundle-en, ikke disse klientbinærene", trust)
+        self.assertIn("release-gatekode, ikke runtimepinner", trust)
+        self.assertIn("OpenCode 1.18.20 forsøker å skrive `.gitignore`", guide)
+        self.assertIn("Endre aldri en eksisterende brukerfil automatisk", guide)
+        self.assertIn("den eksakte targetfilen fra testbaselinen", installation)
 
 
 class DocumentationAnchorIntegrityTest(unittest.TestCase):

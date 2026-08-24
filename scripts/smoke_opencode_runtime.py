@@ -10,6 +10,7 @@ consumer repository. Unlike ``smoke_opencode.py``, this script drives native
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import shutil
@@ -26,8 +27,18 @@ from typing import Any, Mapping, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGET = ROOT / "targets/opencode-v1"
-EXPECTED_OPENCODE_VERSION = "1.18.20"
-EXPECTED_CPLT_RELEASE = "2026.08.17-062831-1008a92"
+_BASELINE_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_release_test_baseline_for_runtime_smoke",
+    ROOT / "scripts/release_test_baseline.py",
+)
+if _BASELINE_SPEC is None or _BASELINE_SPEC.loader is None:
+    raise RuntimeError("could not load release-test baseline contract")
+_BASELINE_MODULE = importlib.util.module_from_spec(_BASELINE_SPEC)
+sys.modules[_BASELINE_SPEC.name] = _BASELINE_MODULE
+_BASELINE_SPEC.loader.exec_module(_BASELINE_MODULE)
+_RELEASE_TEST = _BASELINE_MODULE.CONTRACT["releaseTest"]
+EXPECTED_OPENCODE_VERSION = _RELEASE_TEST["opencodeVersion"]
+EXPECTED_CPLT_RELEASE = _RELEASE_TEST["cpltRelease"]
 MODEL_ID = "permission-probe"
 MODEL_REF = f"probe/{MODEL_ID}"
 SERVER_HOST = "127.0.0.1"
@@ -741,7 +752,7 @@ def smoke(*, binary: Path, source_target: Path, cplt: Path | None = None) -> Non
             if not plugin_marker.exists():
                 raise RuntimeSmokeError(
                     "pinned OpenCode no longer reproduced the project-plugin "
-                    "import surface that the lifecycle manager must reject before exec"
+                    "import surface covered by the release compatibility test"
                 )
         finally:
             make_tree_writable(target)

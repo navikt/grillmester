@@ -21,10 +21,10 @@ gjennom klientens egen pakkekanal. En privat OpenCode-kopi er dessuten vanskelig
 en ny Grillmester-distribusjon. Den ekstra koblingen er ikke nødvendig for den
 normale cplt-integrasjonen.
 
-Den valgfrie lifecycle-manageren fra
-[ADR 0002](0002-install-and-launch-opencode-bundles.md) løser et annet behov.
-Der er eksakt checksum, versjonspin og privat `trusted-bin` selve
-assurance-kontrakten og skal ikke svekkes av standardflytens enklere eierskap.
+[ADR 0007](0007-remove-the-lifecycle-manager.md) fjernet den upubliserte
+lifecycle-manageren fra ADR 0002. Eksakte klientartefakter beholdes bare som
+reproduserbare release-testinput; cplt og organisasjonspolicy eier eventuelle
+strengere runtimegrenser.
 
 ## Beslutning
 
@@ -66,10 +66,9 @@ launcher- og Homebrew-testene manglende OpenCode, installert Copilot CLI uten
 OpenCode, installert OpenCode gjennom cplt og avinstallasjon uten å fjerne de
 brukereide klientene.
 
-Lifecycle-manageren fra ADR 0002 beholder sin eksakte OpenCode
-`1.18.20`-/cplt `2026.08.17-062831-1008a92`-pin, klientlås, checksumkontroll og
-private `trusted-bin`. Denne manageren er den eksplisitte high-assurance-kanalen;
-garantiene dens gjelder aldri automatisk for standardlauncheren.
+ADR 0007 fjerner manageren og private klientkopier. Det finnes derfor ingen
+alternativ Grillmester-runtime med eksakte klientpinner; strengere egress- og
+klientkrav må håndheves av cplt eller organisasjonens runtimepolicy.
 
 Copilot CLI kan fortsatt installere Grillmester direkte fra marketplace uten
 Homebrew-launcheren. Copilot app beholder sin native Plugins-UI og påvirkes ikke
@@ -88,16 +87,17 @@ av denne beslutningen.
   releasegater, supportdata og konkrete feilrapporter må derfor registrere den
   observerte klientversjonen.
 - Grillmester-bundle-ens checksum sier ingenting om de separat installerte
-  klientbytene. Team med behov for slik binding må velge lifecycle-manageren.
-- En ny Grillmester-release er nødvendig når payload, launcher,
-  kompatibilitetsgrense eller high-assurance-pin endres, men ikke bare fordi en
-  bruker oppdaterer en klient innenfor den støttede standardgrensen.
+  klientbytene. Strengere binding må eies av cplt, organisasjonspolicy eller
+  den valgte pakkekanalen.
+- En ny Grillmester-release er nødvendig når payload, launcher eller
+  kompatibilitetsgrense endres, men ikke bare fordi en bruker oppdaterer en
+  klient innenfor den støttede standardgrensen.
 
 ## Forkastede alternativer
 
 - **Fortsett å bundle OpenCode og cplt privat:** gir hermetiske bytes, men gjør
-  Grillmester til klientdistributør og skygger brukerens valgte OpenCode. Denne
-  assurance-egenskapen hører hjemme i den eksplisitte managerflyten.
+  Grillmester til klientdistributør og skygger brukerens valgte OpenCode.
+  Runtimepolicy hører hjemme i cplt, ikke i en privat klientdistribusjon.
 - **Installer OpenCode automatisk som påkrevd dependency:** påfører Copilot-only
   brukere en klient de ikke har valgt og gjør OpenCode til en skjult del av
   Grillmester-oppgradering.
@@ -106,5 +106,5 @@ av denne beslutningen.
   handlingsrettet.
 - **Fjern cplt-kravet i standardflyten:** bryter den felles sandboxgrensen fra
   ADR 0003. Systemklienter endrer eierskap til klientbytes, ikke kravet om cplt.
-- **Fjern klientlåsen og managerens private staging:** ville svekke en separat,
-  eksplisitt valgt high-assurance-kontrakt uten å gjøre standardflyten enklere.
+- **Behold en separat high-assurance-manager:** dupliserer cplts ansvar og
+  klientens pakkekanal. Den var aldri publisert og er fjernet av ADR 0007.

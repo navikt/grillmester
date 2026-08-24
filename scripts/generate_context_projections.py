@@ -36,6 +36,7 @@ EXPECTED_AGENTS = ("barista", "grill-inspektor")
 EXPECTED_SKILLS = (
     "grillmester-diagnosing-bugs",
     "grillmester-integration-tests",
+    "grillmester-issue-management",
     "grillmester-pull-request",
     "grillmester-review",
     "grillmester-security-review",
@@ -48,6 +49,12 @@ EXPECTED_SOURCES = {
 EXPECTED_OUTPUTS = {
     "opencode": "targets/opencode-v1-focused",
     "copilotCli": "targets/copilot-cli-focused-v1",
+}
+COPILOT_FULL_MANIFEST = "manifest.json"
+COPILOT_FULL_TARGET = "copilot-full-v1"
+COPILOT_FULL_GENERATOR = {
+    "path": "scripts/generate_copilot_manifest.py",
+    "version": 1,
 }
 EXCLUDED_SKILL_REPLACEMENTS = {
     "grillmester-e2e-tests": "the repository's full-system test workflow",
@@ -274,6 +281,28 @@ def copy_tree(
         raise ProjectionError(f"{label} contains no files: {source}")
 
 
+def read_tree(
+    source: Path, *, label: str, excluded: frozenset[str] = frozenset()
+) -> dict[str, GeneratedFile]:
+    files: dict[str, GeneratedFile] = {}
+    if source.is_symlink() or not source.is_dir():
+        raise ProjectionError(f"{label} is not a regular directory: {source}")
+    for candidate in sorted(source.rglob("*")):
+        if candidate.is_symlink():
+            raise ProjectionError(f"{label} contains symlink: {candidate}")
+        if candidate.is_dir():
+            continue
+        if not candidate.is_file():
+            raise ProjectionError(f"{label} contains non-regular node: {candidate}")
+        relative = candidate.relative_to(source).as_posix()
+        if relative in excluded:
+            continue
+        add_file(files, relative, read_regular_file(candidate, label=label))
+    if not files:
+        raise ProjectionError(f"{label} contains no files: {source}")
+    return files
+
+
 def remove_frontmatter_field(data: bytes, *, field: str, path: str) -> bytes:
     try:
         text = data.decode("utf-8")
@@ -422,6 +451,17 @@ def apply_focused_text_overlay(
         if relative == "skills/grillmester-diagnosing-bugs/SKILL.md":
             text = apply_diagnosing_focused_overlay(text, path=relative)
         text = replace_excluded_skill_references(text)
+        if relative == "skills/grillmester-issue-management/SKILL.md":
+            text = replace_once(
+                text,
+                "The caller owns\n"
+                "`grillmester-grilling`, planning, specifications, and ticket "
+                "decomposition;\n"
+                "this skill owns the resulting tracker mutations.",
+                "The caller owns problem shaping, planning, specifications, and ticket\n"
+                "decomposition; this skill owns the resulting tracker mutations.",
+                path=relative,
+            )
         if relative in {"agents/barista.md", "agents/barista.agent.md"}:
             qualified = (
                 "`grillmester`" if client == "opencode" else "`grillmester:grillmester`"
@@ -546,9 +586,21 @@ def validate_source_files(
     contracts: Any,
     *,
     label: str,
+    require_exact: bool = False,
 ) -> None:
     if not isinstance(contracts, dict):
         raise ProjectionError(f"{label} manifest has no file contracts")
+    if require_exact and set(files) != set(contracts):
+        missing = sorted(set(files) - set(contracts))
+        extra = sorted(set(contracts) - set(files))
+        details: list[str] = []
+        if missing:
+            details.append("unmanifested " + ", ".join(missing[:5]))
+        if extra:
+            details.append("missing " + ", ".join(extra[:5]))
+        raise ProjectionError(
+            f"{label} source differs from its manifest: {'; '.join(details)}"
+        )
     for relative, (data, mode) in sorted(files.items()):
         contract = contracts.get(relative)
         if not isinstance(contract, dict):
@@ -561,6 +613,67 @@ def validate_source_files(
             raise ProjectionError(
                 f"{label} source differs from its manifest: {relative}"
             )
+        if set(contract) != {"sha256", "mode"}:
+            raise ProjectionError(
+                f"{label} source manifest contract is invalid: {relative}"
+            )
+
+
+def validate_copilot_full_manifest(
+    manifest: Mapping[str, Any], files: Mapping[str, GeneratedFile]
+) -> None:
+    require_exact_fields(
+        manifest,
+        expected=frozenset(
+            {
+                "schemaVersion",
+                "target",
+                "generator",
+                "counts",
+                "agents",
+                "skills",
+                "files",
+            }
+        ),
+        label="Copilot full payload manifest",
+    )
+    if manifest["schemaVersion"] != 1 or manifest["target"] != COPILOT_FULL_TARGET:
+        raise ProjectionError("Copilot full payload manifest identity is invalid")
+    if manifest["generator"] != COPILOT_FULL_GENERATOR:
+        raise ProjectionError("Copilot full payload manifest generator is invalid")
+    agents = string_list(manifest["agents"], label="Copilot full payload agents")
+    skills = string_list(manifest["skills"], label="Copilot full payload skills")
+    if len(agents) != 7 or len(skills) != 42:
+        raise ProjectionError("Copilot full payload is not the complete 7/42 target")
+    if manifest["counts"] != {"agents": len(agents), "skills": len(skills)}:
+        raise ProjectionError("Copilot full payload counts are invalid")
+    observed_agents = tuple(
+        sorted(
+            Path(relative).name.removesuffix(".agent.md")
+            for relative in files
+            if len(Path(relative).parts) == 2
+            and Path(relative).parts[0] == "agents"
+            and relative.endswith(".agent.md")
+        )
+    )
+    observed_skills = tuple(
+        sorted(
+            {
+                Path(relative).parts[1]
+                for relative in files
+                if len(Path(relative).parts) >= 3
+                and Path(relative).parts[0] == "skills"
+            }
+        )
+    )
+    if agents != observed_agents or skills != observed_skills:
+        raise ProjectionError("Copilot full payload roster differs from its manifest")
+    validate_source_files(
+        files,
+        manifest["files"],
+        label="Copilot full payload",
+        require_exact=True,
+    )
 
 
 def build_opencode_projection(
@@ -638,7 +751,11 @@ def build_opencode_projection(
                 OPENCODE_ABSENT_PERMISSION_SKILLS
             ),
         },
-        "counts": {"agents": 2, "skills": 6, "commands": 6},
+        "counts": {
+            "agents": len(EXPECTED_AGENTS),
+            "skills": len(EXPECTED_SKILLS),
+            "commands": len(EXPECTED_SKILLS),
+        },
         "agents": list(EXPECTED_AGENTS),
         "skills": list(EXPECTED_SKILLS),
         "files": file_contract(files),
@@ -667,6 +784,18 @@ def build_copilot_projection(
         raise ProjectionError(
             f"focused Copilot source is not a regular directory: {source}"
         )
+    payload_manifest_bytes, _ = read_regular_file(
+        source / COPILOT_FULL_MANIFEST, label="Copilot full payload manifest"
+    )
+    payload_manifest = parse_object(
+        payload_manifest_bytes, label="Copilot full payload manifest"
+    )
+    source_files = read_tree(
+        source,
+        label="Copilot full payload",
+        excluded=frozenset({COPILOT_FULL_MANIFEST}),
+    )
+    validate_copilot_full_manifest(payload_manifest, source_files)
     plugin_bytes, plugin_mode = read_regular_file(
         source / "plugin.json", label="Copilot manifest"
     )
@@ -710,7 +839,10 @@ def build_copilot_projection(
         },
         "source": {
             "plugin": source_relative.as_posix(),
-            "pluginManifestSha256": hashlib.sha256(plugin_bytes).hexdigest(),
+            "payloadManifest": f"{source_relative.as_posix()}/{COPILOT_FULL_MANIFEST}",
+            "payloadManifestSha256": hashlib.sha256(
+                payload_manifest_bytes
+            ).hexdigest(),
             "policy": policy_path.as_posix(),
             "policySha256": policy_sha256,
         },
@@ -720,7 +852,10 @@ def build_copilot_projection(
             "agentEscalation": "full-context-handoff",
             "excludedSkillReferences": "full-context-guidance",
         },
-        "counts": {"agents": 2, "skills": 6},
+        "counts": {
+            "agents": len(EXPECTED_AGENTS),
+            "skills": len(EXPECTED_SKILLS),
+        },
         "agents": list(EXPECTED_AGENTS),
         "skills": list(EXPECTED_SKILLS),
         "files": file_contract(files),

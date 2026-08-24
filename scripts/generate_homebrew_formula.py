@@ -17,7 +17,7 @@ TAG = re.compile(
     r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
 )
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
-BUNDLE_NAME = re.compile(r"^grillmester-opencode-v[0-9A-Za-z.-]+\.tar\.gz$")
+BUNDLE_NAME = re.compile(r"^grillmester-terminal-v[0-9A-Za-z.-]+\.tar\.gz$")
 
 
 class FormulaError(RuntimeError):
@@ -33,7 +33,7 @@ def render_formula(
     if TAG.fullmatch(tag) is None:
         raise FormulaError("tag must be a strict v-prefixed SemVer")
     if BUNDLE_NAME.fullmatch(bundle_name) is None or bundle_name != (
-        f"grillmester-opencode-{tag}.tar.gz"
+        f"grillmester-terminal-{tag}.tar.gz"
     ):
         raise FormulaError("bundle name must be derived exactly from the release tag")
     if DIGEST.fullmatch(bundle_sha256) is None:
@@ -52,6 +52,7 @@ def render_formula(
   depends_on :macos
   depends_on "navikt/tap/cplt"
   depends_on "python@3.13"
+  depends_on "ripgrep"
 
   def install
     libexec.install Dir["*"]

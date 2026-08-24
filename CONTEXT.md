@@ -31,8 +31,7 @@ _Avoid_: lite-plugin, local-only-target, runtimeprofil
 
 **Release-bundle**:
 Det immutable, checksumverifiserbare sluttbrukerartefaktet som pakker den
-kanoniske pluginen, OpenCode 1-targetet, terminal-launcheren og den valgfrie
-lifecycle-manageren.
+kanoniske pluginen, OpenCode 1-targetet og terminal-launcheren.
 _Avoid_: source-arkiv, checkout
 
 ### Ownership
@@ -50,9 +49,9 @@ _Avoid_: plugininnhold, genererte instructions
 
 **Native cplt-flyt**:
 Den normale terminalintegrasjonen der cplt starter valgt klient og klienten
-laster sin native Grillmester-representasjon. `grillmester` kan binde den
-distribuerte pathen, men gjør ingen managed staging eller configsynk.
-_Avoid_: managerflyt, direkte klientstart
+laster sin native Grillmester-representasjon. `grillmester` binder den
+distribuerte pathen, men eier ikke klientens sandbox.
+_Avoid_: direkte klientstart, Grillmester-sandbox
 
 **Terminal-launcher**:
 Den tynne `grillmester`-adapteren som velger Copilot CLI eller OpenCode, binder
@@ -62,11 +61,12 @@ _Avoid_: agentruntime, universell app-installer, cplt-erstatning
 
 **Local-model-launcher**:
 Den eksplisitte `grillmester local`-flyten som binder én bruker-eid,
-OpenAI-kompatibel loopbackmodell til OpenCode eller Copilot CLI gjennom eksakt
-reviewet cplt. Den bruker privat runtime, avviser ambient klientkomponenter og
-har ingen cloud-fallback. Begrepet beskriver kommandoen og trustgrensen, ikke
-lifecycle-managerens runtimeprofil `local`.
-_Avoid_: lokal profil, modellserver, bundled klient, auto-detektert BYOK
+OpenAI-kompatibel loopbackmodell til OpenCode eller Copilot CLI gjennom cplt.
+«Local» beskriver inferensen, ikke at resten av klienten er offline: web- og
+GitHub-verktøy kan fortsatt brukes gjennom klientens godkjenninger og cplts
+runtimegrenser.
+_Avoid_: local-only-launcher, offlineprofil, modellserver, bundled klient,
+auto-detektert BYOK
 
 **Systemklient**:
 En separat bruker- eller organisasjonsinstallert OpenCode- eller Copilot CLI-
@@ -85,24 +85,3 @@ Den eksakte `.gitignore`-markøren fra OpenCode 1.18.20-testbaselinen. Targetet
 inkluderer den, og terminal-launcheren oppretter bare den manglende brukerfilen
 før cplt gjør OpenCode-configen read-only.
 _Avoid_: configsynk, managed OpenCode-config
-
-**Lifecycle-manager**:
-Den valgfrie high-assurance-flyten for verifisert installasjon, launch og
-rollback av en release-bundle.
-_Avoid_: påkrevd cplt-oppsett, native cplt-flyt
-
-**Runtimeprofil**:
-Et modellnøytralt sett med deklarative grenser for lokal, cloudbasert eller
-hybrid kjøring gjennom lifecycle-manageren.
-_Avoid_: modellpreset, providerkonfigurasjon
-
-**`local`**:
-En lokal-kapabel runtimeprofil som tillater en navngitt lokal provider uten å
-garantere fravær av annen nettverkstrafikk. Dette er en lifecycle-manager-
-profil, ikke kommandoen `grillmester local`.
-_Avoid_: local-only, local-model-launcher
-
-**`local-only`**:
-En fail-closed runtimeprofil som tillater en navngitt lokal provider og
-blokkerer ekstern egress innenfor den dokumenterte plattformgrensen.
-_Avoid_: local

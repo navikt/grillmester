@@ -1,24 +1,25 @@
 # Lokale modeller med Grillmester
 
-En lokal modell krever ikke lenger automatisk et annet harness enn GitHub
-Copilot. Velg inngang etter hvilken klient- og nettverksprofil du trenger:
+En lokal modell kan brukes i både OpenCode og Copilot CLI uten et eget
+sikkerhetsharness. `grillmester local` binder inferensen til én eksplisitt
+loopbackprovider og lar cplt eie sandbox, nettverk, GitHub- og Git-grenser.
+Web, dokumentasjon og GitHub kan være tilgjengelig når cplt-policyen tillater
+det; kommandoen er ikke en offlineprofil.
 
-Standardeksemplene med `grillmester` bruker en brukerinstallert OpenCode 1.x fra
-`1.18.20` og cplt fra testbaselinen `2026.08.17-062831-1008a92` eller en nyere,
-datostemplet release. `1.18.20` er den eksakte release-testbaselinen. Den
-eksplisitte local-flyten krever eksakt OpenCode `1.18.20` eller Copilot CLI
-`1.0.80`, samt eksakt cplt `2026.08.17-062831-1008a92`; argument-, discovery-,
-modell- og secret-semantikk gates som én reviewet kombinasjon. Den valgfrie
-lifecycle-manageren krever fortsatt nøyaktig de dokumenterte pinnene og Python
-`3.11` eller nyere; installer og versjonskontroller dem som beskrevet i
-[OpenCode-guiden](opencode.md#avansert-manuell-binding-og-verifisering).
+Local-flyten bruker brukerinstallerte systemklienter med samme
+kompatibilitetsgrense som standardlauncheren: OpenCode `>=1.18.20,<2`, Copilot
+CLI `>=1.0.79,<2` og cplt fra testbaselinen eller en nyere, gyldig datostemplet
+release. De eksakte versjonene i CI er release-testinput, ikke pinner som gjør
+hver klientoppgradering til en Grillmester-release. Grillmester tilbyr ingen
+egen offlineprofil; strengere egress må konfigureres og eies i cplt eller
+organisasjonens runtimepolicy.
 
 | Behov | Anbefalt inngang |
 | --- | --- |
 | Behold Copilot-pluginen og kjent CLI-flyt | Copilot CLI med BYOK mot LM Studio eller `llama-server` |
 | Behold Copilot-appens UI | Copilot app BYOK i public preview; verifiser Grillmester-agent og modellvalg eksplisitt |
 | Kjør Grillmester i et uavhengig, modellnøytralt harness | Det native OpenCode 1-targetet |
-| Dokumenterbart bare lokal inference fra harnesset | `grillmester local` med OpenCode eller Copilot CLI på macOS; begge bruker samme cplt-håndhevede forced-proxy-grense uten cloud-fallback |
+| Bruk lokal modell med web og GitHub | `grillmester local` med OpenCode eller Copilot CLI på macOS |
 | Eksperimenter med provider/modell per session | OpenCode; targetet arver valgt sessionmodell |
 | Behold primary-agenten i skyen, men kjør Kokk lokalt | OpenCode med bruker-eid `agent.kokk.model`-override |
 
@@ -30,8 +31,6 @@ telemetri eller update-sjekker lokale av seg selv.
 Native OpenCode-discovery og deterministisk runtime-smoke validerer plumbing og
 permissions, ikke modellkvalitet. Ingen lokal eller open-weight cloudmodell kan
 omtales som «like god som Copilot» uten en separat, representativ kvalitetsgate.
-`cloud-open-weight` uttrykker ønsket routing, men attesterer ikke vekter, lisens
-eller den modellen brukeren faktisk velger.
 
 ## Anbefalt flyt: ett lokalt oppsett, begge terminalklienter
 
@@ -39,17 +38,38 @@ Start en OpenAI-kompatibel modellserver på loopback først. Grillmester eier
 ikke serveren, modellfilen eller klientbinærene. Kjør deretter:
 
 ```bash
+cd /path/to/consumer-repo
 grillmester local setup
 grillmester local
 ```
 
+Før Homebrew-formelen er publisert, kjører du de samme stegene fra en checkout:
+
+```bash
+cd /path/to/consumer-repo
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
+```
+
+For en sesjon som faktisk trenger GitHub, gjør tilgangen eksplisitt:
+
+```bash
+cd /path/to/consumer-repo
+GH_TOKEN="$(gh auth token)" \
+  python3 /absolute/path/to/grillmester/scripts/grillmester.py \
+  local launch --client opencode --github-access
+```
+
+Her kjører du selv `gh auth token` i skallet før launcheren starter; launcheren
+resolver eller kjører aldri en ambient `gh`-binær utenfor cplt.
+Bytt til `--client copilot` for samme eksplisitte bro i Copilot-local.
+
 `setup` finner OpenCode og Copilot CLI på `PATH` uten å starte dem. Finnes én
 klient, velges den automatisk; finnes begge, spør launcheren. OpenCode-sessions
-trenger også ripgrep fra `PATH` (`brew install ripgrep`); launcheren kopierer
-en digest-bundet `rg` inn i den private sessioncachen fordi egressgrensen
-blokkerer OpenCodes egen nedlasting. Uten `rg` starter sessionen likevel, men
-Glob- og Grep-verktøyene er utilgjengelige og `local doctor` varsler. Standardendepunkt
-er `http://127.0.0.1:8080/v1`. Launcheren leser `/v1/models`, velger automatisk
+bruker ripgrep fra `PATH`; installer det med `brew install ripgrep` dersom
+`grillmester local doctor` varsler. Standardendepunktet er
+`http://127.0.0.1:8080/v1`. Launcheren leser `/v1/models`, velger automatisk
 når serveren annonserer én modell og lagrer bare tilkoblingsbeskrivelsen i
 `~/.config/grillmester/local.json`. En API-nøkkel lagres aldri; bruk eventuelt
 `--api-key-env NAVN` eller `--api-key-file /absolutt/privat/fil` med Copilot
@@ -61,7 +81,7 @@ subprosesser arve provider-miljøet og godtar derfor bare en nøkkelfri loopback
 server i local-flyten. Dette feiler lukket i `setup`; bruk Copilot CLI når
 lokalserveren krever autentisering.
 
-Hver launch bruker focused Barista med seks utviklingsskills. Bytt klient eller
+Hver launch bruker focused Barista med sju utviklingsskills. Bytt klient eller
 be om full 7-agent/42-skill-kontekst for én sesjon uten å endre defaulten:
 
 ```bash
@@ -79,51 +99,53 @@ nøkkelen, skrive sessionstate eller kjøre klientprober. Previewen er bevisst
 ikke en copy/paste-kommando fordi kortlivede policyfiler og secret-miljø ikke
 materialiseres. Kjør `setup` på nytt for å endre lagret default.
 
-Local-flyten krever den eksakte cplt-releasen som er reviewet sammen med
-Grillmester og eksakt reviewet klientversjon. En uavhengig cplt- eller
-klientoppgradering kan derfor gjøre local midlertidig utilgjengelig i stedet
-for å kjøre med uprøvd policy-, argument- eller secret-semantikk. Installer det
-publiserte settet med
-`brew update && brew upgrade grillmester navikt/tap/cplt`; hvis tapet ennå ikke
-har støtte for den installerte klienten, vent på Grillmester-releasen i stedet
-for å omgå gaten. Vanlig `grillmester` beholder sin bredere, kompatible
-klientrange.
+Local-flyten har ingen cloudmodell-fallback, men den kan være tilkoblet.
+Launcheren åpner den valgte localhost-porten og krever cplts forced proxy,
+`gh`-guard og Git-guard. Brukerens og organisasjonens cplt-config forblir
+autoritativ; Grillmester åpner ikke alle domener eller legger en annen sandbox
+oppå. Webverktøy og dokumentasjonskilder virker når den effektive policyen og
+klientens godkjenninger tillater det. Dette er ikke en egen Grillmester-
+egressattest.
 
-Local-flyten har ingen cloud-fallback. Den bruker forced proxy, tillater bare
-den valgte loopback-porten, saniterer miljøet, deaktiverer remote/MCP/update-
-flater og gir hver launch privat HOME, XDG og klientstate. Bare de to nyeste
-avsluttede sessionmappene beholdes ved sekvensiell bruk; parallelle aktive
-sessioner kan midlertidig etterlate flere til neste launch. Owner binder PID og
-prosess-starttid. Hver retained mappe inneholder private cplt-/klientkopier, så
-to mapper kan bruke omtrent 300–330 MB med dagens klienter. `doctor` og preview
-oppretter ingen sessionmappe. Aktive eller ukjente mapper røres ikke.
+Ingen local-klient får GitHub-credential som default. Når brukeren eksplisitt setter
+`GH_TOKEN` i caller-miljøet og velger `--github-access`, validerer launcheren
+verdien uten å kjøre `gh` og sender den bare til den valgte child-klienten.
+Launcheren skriver ikke tokenet til config, sessionstate eller preview, men
+klienten og godkjente tool-subprosesser kan lese og eventuelt persistere det i
+sin skrivbare sessionstate. `doctor --github-access` viser om broen kan brukes;
+uten opt-in virker offentlig web fortsatt. Dette er en myk grense: bruk riktig
+GitHub-konto og minst mulig scope, og godkjenn sideeffekter bevisst. En fremtidig
+generisk cplt-mediering bør erstatte tokenbroen.
 
-Local-only avviser repoets `.cplt.toml`-forslag og alle auto-discoverede
-klientkomponenter som kan skygge den reviewede payloaden. For OpenCode gjelder
-det `opencode.json[c]`, `.opencode/`, `.agents/skills/` og `.claude/skills/`.
-Ukjente eller utrygge `.cplt.toml`-deny-felt avvises også før cplt, slik at en
-tiltenkt deny aldri forsvinner fordi hele repokonfigurasjonen blir forkastet.
-For Copilot gjelder det prosjektagenter/-skills, MCP, LSP, hooks, extensions og
-Copilot-settings. Copilot får et isolert HOME og `COPILOT_HOME`; eksisterende
-personlige agent-, skill-, konto- og keychain-stier deny-es av cplt. Hooks,
-remote, experimental, built-in MCP og de irrelevante cloud-/media-skillsene er
-av. Copilot-flagg som kan bytte configrot, gjenoppta state, aktivere memory,
-skrive logg/conversation utenfor privat state eller starte admin-/ACP-modus
-avvises. Repoets vanlige `AGENTS.md` kan fortsatt gi stående prosjektkontekst.
+Child-prosessen får ikke lese noen eksisterende host-path som GitHub CLI kan
+bruke som rå credentialstore. Den ser bare den eksplisitt valgte tokenverdien.
+
+Copilot CLIs innebygde GitHub MCP er av i local-flyten; bruk eksplisitt
+`--github-access` og guarded `gh` for GitHub-operasjoner. Høy-nivåkommandoer
+som `gh issue create` går dermed gjennom cplts repo-scope, mens Git push
+forblir under Git-guard. OpenCodes websearch er aktiv, men targetets permission
+krever godkjenning før bruk.
+
+Hver launch lar cplt-parenten beholde hostens `HOME`, men gir child-klienten
+isolert XDG-, provider- og klientstate og den
+distribuerte payloaden. Ambient OpenCode- og Copilot-komponenter som kan skygge
+agentteamet avvises; repoets vanlige `AGENTS.md` kan fortsatt gi stående
+prosjektkontekst. Dette er payloadisolasjon, ikke en egen runtime-sandbox. Bare
+de to nyeste avsluttede sessionmappene beholdes ved sekvensiell bruk; `doctor`
+og preview oppretter ingen sessionmappe.
 
 En reell Qwen3.8-27B Q6-pilot med samme korte oppgave målte 8 024 mot 13 667
 inputtokens i OpenCode focused/full og 15 841 mot 20 117 i Copilot CLI. Det er
-henholdsvis 41,3 og 21,3 prosent mindre inputkontekst. Alle fire kjedene gikk
-gjennom eksakt cplt til loopback, og Copilot rapporterte null premium requests;
-målingen er runtime-evidens, ikke generell kvalitetsparitet.
+henholdsvis 41,3 og 21,3 prosent mindre inputkontekst. Piloten brukte den
+opprinnelige focused-rosteren med seks skills, før issue management ble lagt
+til. Alle fire kjedene gikk gjennom cplt til loopback, og Copilot rapporterte
+null premium requests. Tallene er historisk runtime-evidens, ikke en måling av
+dagens sju-skill-roster eller generell kvalitetsparitet.
 
 Vanlig `grillmester` beholder hele agentteamet og klientens normale
-modellregler. OpenCode-targetet er modellnøytralt; den kanoniske Copilot-
-pluginen beholder sine reviewede modellpinner. Den eksplisitte local-flyten
-binder i stedet valgt loopbackmodell og setter kvalifisert `inherit` for normal
-subagentdelegering. Copilots `task`-schema tillater fortsatt at modellen sender
-en eksplisitt modell-ID per kall. Forced proxy holder også et slikt request på
-valgt loopback-provider, men provideren må avvise ukjente ID-er eller ha en
+modellregler. Den eksplisitte local-flyten binder i stedet valgt
+loopbackmodell og setter kvalifisert `inherit` for normal
+subagentdelegering. Provideren bør avvise ukjente modell-ID-er eller ha en
 bevisst aliaspolicy; se [trustgrensen](trust-and-client-support.md).
 
 ## Qwen3.8-27B på M4 Pro: forstå innstillingene
@@ -328,30 +350,7 @@ grillmester --client opencode --agent grillmester \
 ```
 
 Bruk `--allow-localhost 8080` for `llama-server`. Dette er nok for vanlig
-kompatibilitet; ingen lifecycle-manager eller nav-pilot-agent er nødvendig.
-
-Bare når teamet eksplisitt har valgt den strengere assurance-kontrakten, bruker
-du managerens `local`- eller `local-only`-profil:
-
-```bash
-cd /path/to/consumer-repo
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile local \
-  --provider-id lmstudio \
-  --provider-base-url lmstudio=http://127.0.0.1:1234/v1 \
-  --provider-model lmstudio/replace-with-id-from-v1-models \
-  --local-port 1234
-```
-
-I managerkommandoen bruker du `--provider-id llamacpp`,
-`--provider-base-url llamacpp=http://127.0.0.1:8080/v1`,
-`--provider-model llamacpp/qwen3.8-27b-local` og `--local-port 8080` for
-`llama-server`. Manageren kopierer bare eksplisitt valgte providers og modeller
-til den isolerte sessionconfigen og verifiserer at hver `baseURL` og modell-ID
-matcher launcherinputet. Den kjører aldri fra source-targetet: den verifiserer
-aktiv installert release, lager en unik
-read-only stage og åpner bare den eksakte localhost-porten gjennom cplt. Velg
-modellen i `/models` etter oppstart.
+kompatibilitet; ingen annen runtime eller `nav-pilot-agent` er nødvendig.
 
 OpenCode-agentene har ingen modellpin. Når Grillmester delegerer til Kokk,
 Grill-inspektør eller Researcher, arver subagenten primary-agentens valgte
@@ -393,16 +392,8 @@ startagent:
 
 ```bash
 cd /path/to/dedicated-worktree
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile local \
-  --provider-id lmstudio \
-  --provider-base-url lmstudio=http://127.0.0.1:1234/v1 \
-  --provider-model lmstudio/replace-with-id-from-v1-models \
-  --local-port 1234 \
-  --runtime-agent barista \
-  -- run \
-    --model lmstudio/replace-with-id-from-v1-models \
-    "Gjør denne tydelig avgrensede oppgaven og kjør de avtalte testene."
+grillmester local --client opencode --agent barista -- run \
+  "Gjør denne tydelig avgrensede oppgaven og kjør de avtalte testene."
 ```
 
 OpenCode dokumenterer `--agent` og `--model provider/model` for
@@ -436,7 +427,6 @@ export COPILOT_PROVIDER_WIRE_MODEL=REPLACE_WITH_LM_STUDIO_MODEL_ID
 export COPILOT_MODEL=REPLACE_WITH_LM_STUDIO_MODEL_ID
 export COPILOT_PROVIDER_MAX_PROMPT_TOKENS=28672
 export COPILOT_PROVIDER_MAX_OUTPUT_TOKENS=4096
-export COPILOT_OFFLINE=true
 export COPILOT_AUTO_UPDATE=false
 export COPILOT_OTEL_ENABLED=false
 export NO_PROXY=127.0.0.1,localhost
@@ -452,7 +442,6 @@ grillmester --client copilot --agent barista \
   --pass-env COPILOT_PROVIDER_MAX_PROMPT_TOKENS \
   --pass-env COPILOT_PROVIDER_MAX_OUTPUT_TOKENS \
   --pass-env COPILOT_MODEL \
-  --pass-env COPILOT_OFFLINE \
   --pass-env COPILOT_AUTO_UPDATE \
   --pass-env COPILOT_OTEL_ENABLED \
   --pass-env NO_PROXY \
@@ -499,84 +488,36 @@ ikke Grillmester-pluginagenten. Se GitHubs
 og
 [modelloppløsning for custom agents](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#custom-agent-frontmatter-fields).
 
-Den native pluginvarianten må installeres eller oppdateres før du går offline.
-Homebrew-launcheren bruker i stedet sin bundle-inkluderte plugin gjennom
-`--plugin-dir`, slik kommandoen over viser. Med
-`COPILOT_OFFLINE=true` forsøker CLI-en ikke GitHub-auth, sender ikke telemetri og
-gjør bare nettverkskall til BYOK-provider. Når provider også er localhost, er
-dette GitHubs dokumenterte local-only-flyt. `/delegate`, GitHub MCP og GitHub
-Code Search er da ikke tilgjengelige. Se
-[autentisering og offline mode](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli#offline-mode).
+Homebrew-launcheren bruker sin bundle-inkluderte plugin gjennom `--plugin-dir`,
+slik kommandoen over viser. Grillmester legger ikke en egen offlinevariant oppå
+denne manuelle BYOK-flyten; strengere egress eies av cplt eller organisasjonens
+runtimepolicy.
 
 ## Copilot app med lokal provider er en egen pilot
 
 GitHub Copilot app kan også kobles til LM Studio, Ollama eller et vilkårlig
 OpenAI-kompatibelt HTTP-endepunkt gjennom **Settings → Model providers**. Dette
-er foreløpig public preview. Appen krever GitHub-innlogging, og GitHubs
-dokumentasjon gir ikke samme `COPILOT_OFFLINE`-garanti som CLI-guiden.
+er foreløpig public preview, og appen krever GitHub-innlogging.
 
 Behandle derfor app + Grillmester-plugin + lokal Qwen som en separat
 klientprofil: bekreft plugin-/agentdiscovery, faktisk valgt modell, tool calls,
-delegering og nettverkstrafikk før den omtales som lokal eller local-only. Se
+delegering og nettverkstrafikk før den omtales som lokal. Se
 GitHubs [BYOK-guide for Copilot app](https://docs.github.com/en/copilot/how-tos/github-copilot-app/use-byok-models).
 
-## «Lokal modell» og «local-only» er to profiler
+## Lokal inference er ikke offline
 
-Hold disse valgene eksplisitt atskilt:
+`grillmester local` binder modellrequests til localhost. Web, dokumentasjon og
+GitHub kan virke når klientgodkjenninger og den effektive cplt-policyen tillater
+det. Launcheren krever forced proxy, `gh`-guard og Git-guard, men overstyrer ikke
+brukerens eller organisasjonens domeneconfig og gir ingen egen Grillmester-
+egressattest. Modellserveren kjører utenfor cplt og må vurderes for binær,
+vekter, logging og egen nettverkstrafikk.
 
-- **Local model:** inference går til localhost, men harnesset kan fortsatt ha
-  webtools, MCP-er, telemetry, model-catalog-fetch og update-sjekker. Den vanlige
-  `local`-profilen tillater fortsatt cplts OpenCode-infrastruktur. Manageren
-  binder provider/base-URL/modell-ID, men attesterer ikke vektene eller hva
-  serveren faktisk leverer bak ID-en.
-- **Local-only:** harnessets eneste tillatte nettverksmål er den lokale
-  providerprosessen; remote providers, webtools, remote MCP-er, deling og
-  update-/catalog-fetch er av. Providerprosessen kjører utenfor cplt, må være
-  betrodd og trenger sin egen egresspolicy dersom hele kjeden skal være offline.
-
-Copilot CLI har en dokumentert `COPILOT_OFFLINE`-profil. OpenCode 1 har lokale
-providers og brytere som `OPENCODE_DISABLE_AUTOUPDATE` og
-`OPENCODE_DISABLE_MODELS_FETCH`, men miljøvariablene alene er ikke en
-OS-egressgrense. Grillmesters eksplisitte `local-only`-profil kombinerer dem
-derfor med cplts forced proxy, en ikke-tom fail-closed allowlist og block av hele
-OpenCode-defaultlisten i den reviewede cplt-releasen. Den kunstige `.invalid`-
-sentinelen står i både allow- og blocklisten, så den gjør listen ikke-tom uten å
-åpne et eksternt mål:
-
-```bash
-cd /path/to/consumer-repo
-python3 -I -S /path/to/grillmester-opencode-v1/scripts/manage_opencode.py launch \
-  --profile local-only \
-  --provider-id lmstudio \
-  --provider-base-url lmstudio=http://127.0.0.1:1234/v1 \
-  --provider-model lmstudio/replace-with-id-from-v1-models \
-  --local-port 1234
-```
-
-Profilen forbyr `--provider-domain`, remote model-catalog/update, default
-plugins, Exa og sharing. Alle Grillmester-profiler legger dessuten på den siste
-OpenCode-overlayen `share: "disabled"`, så prosjektconfig ikke kan slå manuell
-deling på igjen. De setter også pure mode og avviser eksterne bruker- og
-prosjektplugins før start, siden pure alene ikke hindrer all import-time kode i
-den pinnede klienten. `local-only` er pinnet til cplt
-`2026.08.17-062831-1008a92` og nekter `--direct`; den skal re-gates når cplt-
-allowlisten endres. `local`, `cloud-open-weight` og `hybrid` krever den samme
-eksakte cplt-releasen fordi også deres sandbox-, flagg- og allowlistkontrakt er
-release-gated.
-
-Den pinnede cplt-releasen har full forced-proxy-håndheving på macOS. På Linux
-gir kernel `6.7` eller nyere portbaserte Landlock-regler, men en ekstern host
-som svarer på proxyens ephemeral-port er en dokumentert restkanal; eldre Linux
-har bare filesystem-enforcement. `local-only` skal derfor feile lukket på Linux
-med denne pinnen. Bruk ikke profilnavnet som offline-evidens der.
-
-Den vanlige `local`-profilen åpner samme eksakte localhost-port, men beholder
-cplt strict sin innebygde OpenCode-infrastrukturallowlist, inkludert
-`opencode.ai`. Den er derfor lokal-kapabel, ikke en håndheving av lokal
-inference: brukeren må fortsatt kontrollere at endpointet faktisk serverer de
-reviewede vektene bak valgt ID. Standard-
-targetets rolle- og toolpolicy er lik i begge profiler; egressprofilen er en
-separat launchbeslutning.
+Grillmester tilbyr ingen egen `local-only`-profil. Dersom arbeidet krever at
+hele harnesset er offline eller har en eksplisitt domeneallowlist, må den
+kontrakten eies og verifiseres i cplt eller organisasjonens runtimepolicy. Ikke
+rapporter en vanlig local-session som offline bare fordi inferensen går til
+`127.0.0.1`.
 
 ## Capability-smoke før modellen får bakgrunnsarbeid
 

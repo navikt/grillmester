@@ -1,13 +1,13 @@
 ---
 name: grillmester-issue-management
-description: Creates, updates, links, inspects or closes GitHub issues after the work has been shaped. Use for explicit tracker requests and native issue mechanics; do not use it to design, implement or decompose a plan.
+description: "Creates, updates, links, inspects or closes GitHub issues after the work has been shaped. Use for explicit tracker requests and native issue mechanics; do not use it to design, implement or decompose a plan."
 ---
-
 # Issue Management
 
-Apply GitHub issue mechanics to work that is already understood. The caller owns
-`grillmester-grilling`, planning, specifications, and ticket decomposition;
-this skill owns the resulting tracker mutations.
+> **OpenCode v1:** Backticked `grillmester-*` names below are skill IDs, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+
+Apply GitHub issue mechanics to work that is already understood. The caller owns problem shaping, planning, specifications, and ticket
+decomposition; this skill owns the resulting tracker mutations.
 
 ## 1. Discover tracker context
 

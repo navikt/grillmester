@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Configure and launch Grillmester against one explicit local model.
 
-This module deliberately owns neither the model server nor the terminal clients.
-It stores only a strict connection description, probes an OpenAI-compatible
-loopback endpoint, and constructs a local-only cplt invocation for a caller-
-supplied OpenCode or Copilot CLI binary.
+This module owns neither the model server, terminal clients nor their sandbox.
+It stores a small connection description, binds inference to an explicit
+OpenAI-compatible loopback endpoint, and delegates runtime enforcement to cplt.
+External tools remain available through the client's normal approval model and
+cplt's proxy, GitHub guard and Git guard.
 """
 
 from __future__ import annotations
@@ -23,12 +24,11 @@ import stat
 import subprocess
 import sys
 import tempfile
-import tomllib
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Callable, Mapping, NamedTuple, Sequence
+from typing import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
 
 
@@ -108,12 +108,12 @@ OPENCODE_SAFE_VALUE_OPTIONS = frozenset(
         "--variant",
     }
 )
-LOCAL_SENTINEL_DOMAIN = "grillmester-local-only.invalid"
 COPILOT_SECRET_ENV = "COPILOT_PROVIDER_API_KEY"
+GITHUB_SECRET_ENV = "GH_TOKEN"
 MAX_CONFIG_BYTES = 64 * 1024
 MAX_SECRET_BYTES = 16 * 1024
+MAX_GITHUB_TOKEN_BYTES = 4 * 1024
 MAX_PROBE_BYTES = 256 * 1024
-MAX_EXECUTABLE_BYTES = 512 * 1024 * 1024
 DEFAULT_PROBE_TIMEOUT = 5.0
 DEFAULT_BASE_URL = "http://127.0.0.1:8080/v1"
 RETAINED_INACTIVE_SESSIONS = 2
@@ -137,7 +137,7 @@ OPENCODE_LOCAL_ENVIRONMENT = {
     "OPENCODE_EXPERIMENTAL_CODE_MODE": "false",
     "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER": "true",
     "OPENCODE_AUTO_SHARE": "false",
-    "OPENCODE_ENABLE_EXA": "false",
+    "OPENCODE_ENABLE_EXA": "true",
     "OPENCODE_DB": ":memory:",
     "OPENCODE_PURE": "true",
 }
@@ -169,7 +169,7 @@ SAFE_HOST_ENVIRONMENT = (
 
 
 class LocalModeError(RuntimeError):
-    """Raised when a local-only configuration or launch is unsafe."""
+    """Raised when a local-model configuration or launch is unsafe."""
 
 
 @dataclass(frozen=True)
@@ -207,15 +207,10 @@ class _ResolvedSecret:
 @dataclass(frozen=True)
 class RuntimePaths:
     root: Path
-    trusted_bin: Path
-    home: Path
     xdg_config: Path
     xdg_cache: Path
     xdg_data: Path
     xdg_state: Path
-    cplt_config: Path
-    allowed_domains: Path
-    blocked_domains: Path
     copilot_home: Path
 
 
@@ -251,6 +246,68 @@ def _environment_home(environment: Mapping[str, str]) -> Path:
     if not home.is_absolute():
         raise LocalModeError("HOME must be an absolute path")
     return home
+
+
+def _github_config_candidate(raw: str, home: Path) -> Path:
+    if raw == "~":
+        candidate = home
+    elif raw.startswith("~/"):
+        candidate = home / raw[2:]
+    else:
+        candidate = Path(raw)
+    if not candidate.is_absolute():
+        raise LocalModeError("GitHub CLI config paths must resolve to absolute paths")
+    try:
+        return candidate.resolve(strict=False)
+    except OSError as exc:
+        raise LocalModeError(
+            f"could not resolve host GitHub CLI config directory {candidate}: {exc}"
+        ) from exc
+
+
+def _host_github_config_candidates(
+    environment: Mapping[str, str],
+) -> tuple[Path, ...]:
+    """Resolve every host gh directory cplt or gh could otherwise discover."""
+
+    home = _environment_home(environment)
+    candidates: list[Path] = []
+    configured = environment.get("GH_CONFIG_DIR")
+    if configured:
+        candidates.append(_github_config_candidate(configured, home))
+    xdg = environment.get("XDG_CONFIG_HOME")
+    if xdg:
+        xdg_root = _github_config_candidate(xdg, home)
+        candidates.append(_github_config_candidate(str(xdg_root / "gh"), home))
+    candidates.append(_github_config_candidate(str(home / ".config" / "gh"), home))
+    return tuple(dict.fromkeys(candidates))
+
+
+def _host_github_config_dir(environment: Mapping[str, str]) -> Path:
+    """Resolve gh's effective host directory before client XDG is redirected."""
+
+    return _host_github_config_candidates(environment)[0]
+
+
+def _existing_host_github_config_dirs(
+    environment: Mapping[str, str],
+) -> tuple[Path, ...]:
+    existing: list[Path] = []
+    for candidate in _host_github_config_candidates(environment):
+        try:
+            observed = candidate.stat()
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise LocalModeError(
+                f"could not inspect host GitHub CLI config directory {candidate}: {exc}"
+            ) from exc
+        if not stat.S_ISDIR(observed.st_mode):
+            raise LocalModeError(
+                f"host GitHub CLI config path must be a directory: {candidate}"
+            )
+        existing.append(candidate)
+    return tuple(existing)
 
 
 def config_path(environment: Mapping[str, str] | None = None) -> Path:
@@ -696,21 +753,13 @@ def probe_model(
 
 
 def _runtime_paths(root: Path) -> RuntimePaths:
-    home = root / "home"
     xdg = root / "xdg"
-    policy = root / "policy"
-    cplt = root / "cplt"
     return RuntimePaths(
         root=root,
-        trusted_bin=root / "trusted-bin",
-        home=home,
         xdg_config=xdg / "config",
         xdg_cache=xdg / "cache",
         xdg_data=xdg / "data",
         xdg_state=xdg / "state",
-        cplt_config=cplt / "config.toml",
-        allowed_domains=policy / "allowed-domains.txt",
-        blocked_domains=policy / "blocked-domains.txt",
         copilot_home=root / "copilot",
     )
 
@@ -839,27 +888,7 @@ def _prune_inactive_sessions(
     inactive.sort(reverse=True)
     for _, candidate in inactive[retain:]:
         try:
-            trusted_bin = candidate / "trusted-bin"
-            try:
-                flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-                flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-                descriptor = os.open(trusted_bin, flags)
-            except FileNotFoundError:
-                descriptor = None
-            if descriptor is not None:
-                try:
-                    staged = os.fstat(descriptor)
-                    if (
-                        not stat.S_ISDIR(staged.st_mode)
-                        or (hasattr(os, "geteuid") and staged.st_uid != os.geteuid())
-                    ):
-                        raise LocalModeError(
-                            f"trusted executable staging is not user-owned: {trusted_bin}"
-                        )
-                    os.fchmod(descriptor, 0o700)
-                finally:
-                    os.close(descriptor)
-            shutil.rmtree(candidate)
+            _remove_owned_session_tree(candidate)
         except FileNotFoundError:
             # Concurrent pruning has already achieved the intended state.
             continue
@@ -867,6 +896,49 @@ def _prune_inactive_sessions(
             raise LocalModeError(
                 f"could not remove stale private local session {candidate}: {exc}"
             ) from exc
+
+
+def _remove_owned_session_tree(session: Path) -> None:
+    """Remove one user-owned session, including legacy sealed directories.
+
+    Early local-launcher builds staged binaries below mode-0500 directories.
+    A normal ``shutil.rmtree`` cannot traverse or unlink those trees.  Repair
+    permissions only inside the already validated, user-owned session and
+    never follow a symlink while doing so.
+    """
+
+    def repair_and_retry(function: object, raw_path: str, _error: object) -> None:
+        path = Path(raw_path)
+        try:
+            observed = path.lstat()
+        except FileNotFoundError:
+            return
+        if hasattr(os, "geteuid") and observed.st_uid != os.geteuid():
+            raise PermissionError(f"refusing to change foreign session entry {path}")
+
+        parent = path.parent
+        try:
+            parent_observed = parent.lstat()
+        except FileNotFoundError:
+            return
+        if (
+            stat.S_ISDIR(parent_observed.st_mode)
+            and not stat.S_ISLNK(parent_observed.st_mode)
+            and (
+                not hasattr(os, "geteuid")
+                or parent_observed.st_uid == os.geteuid()
+            )
+        ):
+            os.chmod(parent, 0o700, follow_symlinks=False)
+
+        if stat.S_ISDIR(observed.st_mode) and not stat.S_ISLNK(observed.st_mode):
+            os.chmod(path, 0o700, follow_symlinks=False)
+        retry = function
+        if not callable(retry):
+            raise TypeError("session cleanup callback is not callable")
+        retry(raw_path)
+
+    shutil.rmtree(session, onerror=repair_and_retry)
 
 
 def _session_lock_descriptor(session_parent: Path) -> int:
@@ -938,22 +1010,14 @@ def _prepare_runtime(environment: Mapping[str, str], client: str) -> RuntimePath
         raise LocalModeError(f"could not canonicalize private local state {root}: {exc}") from exc
     runtime = _runtime_paths(root)
     for directory in (
-        runtime.trusted_bin,
-        runtime.home,
         runtime.xdg_config.parent,
         runtime.xdg_config,
         runtime.xdg_cache,
         runtime.xdg_data,
         runtime.xdg_state,
-        runtime.allowed_domains.parent,
-        runtime.cplt_config.parent,
         runtime.copilot_home,
     ):
         _ensure_private_directory(directory)
-    _atomic_private_write(runtime.cplt_config, b"")
-    sentinel = f"{LOCAL_SENTINEL_DOMAIN}\n".encode("ascii")
-    _atomic_private_write(runtime.allowed_domains, sentinel)
-    _atomic_private_write(runtime.blocked_domains, sentinel)
     return runtime
 
 
@@ -996,84 +1060,19 @@ def _binary_detail(
     return f"{path} ({version})"
 
 
-class StagedExecutable(NamedTuple):
-    path: Path
-    sha256: str
-
-
-# One roster for the fail-closed cplt sandbox posture. The launch command and
-# the parent launcher's version probe must run under the same contract, so
-# both consume this constant instead of maintaining their own copies.
+# cplt owns the sandbox contract. Grillmester only requires the guards and
+# forced proxy needed by its connected-local promise. It deliberately does not
+# override cplt's domain allow/block policy; user and managed cplt config remain
+# authoritative. The exact model endpoint is opened separately below.
 LOCAL_CPLT_HARDENING_FLAGS = (
-    "--preset",
-    "standard",
-    "--with-proxy",
     "--proxy-forced",
     "--gh-guard",
     "--git-guard",
-    "--no-allow-localhost-any",
-    "--no-allow-env-files",
-    "--no-allow-tmp-exec",
-    "--no-allow-docker",
-    "--no-allow-lifecycle-scripts",
+    # cplt's current parent-side audit invokes repository-configured Git
+    # helpers outside the sandbox. Keep it off until upstream disables hooks,
+    # fsmonitor and repository config for that audit.
+    "--no-audit",
 )
-
-
-def _stage_checked_executable(
-    value: object,
-    *,
-    source: Path,
-    destination_directory: Path,
-    name: str,
-    label: str,
-) -> StagedExecutable:
-    """Copy one checked identity into private state and bind it by digest."""
-
-    expected_digest = getattr(value, "sha256", None)
-    if expected_digest is not None and (
-        not isinstance(expected_digest, str)
-        or re.fullmatch(r"[0-9a-f]{64}", expected_digest) is None
-    ):
-        raise LocalModeError(f"{label} has an invalid checked sha256 identity")
-    destination = destination_directory / name
-    digest = hashlib.sha256()
-    copied = 0
-    try:
-        with source.open("rb") as source_file, destination.open("xb") as output:
-            observed = os.fstat(source_file.fileno())
-            if (
-                not stat.S_ISREG(observed.st_mode)
-                or observed.st_mode & 0o111 == 0
-                or observed.st_size > MAX_EXECUTABLE_BYTES
-            ):
-                raise LocalModeError(
-                    f"{label} must be an executable regular file no larger than "
-                    f"{MAX_EXECUTABLE_BYTES} bytes"
-                )
-            while chunk := source_file.read(1024 * 1024):
-                copied += len(chunk)
-                if copied > MAX_EXECUTABLE_BYTES:
-                    raise LocalModeError(
-                        f"{label} grew beyond the executable staging limit"
-                    )
-                digest.update(chunk)
-                output.write(chunk)
-            output.flush()
-            os.fsync(output.fileno())
-        destination.chmod(0o500)
-    except BaseException:
-        try:
-            destination.unlink()
-        except FileNotFoundError:
-            pass
-        raise
-    observed_digest = digest.hexdigest()
-    if expected_digest is not None and observed_digest != expected_digest:
-        destination.unlink()
-        raise LocalModeError(
-            f"{label} changed after its sandboxed version check; run the command again"
-        )
-    return StagedExecutable(destination, observed_digest)
 
 
 CLIENT_INSTALL_HINTS = {
@@ -1105,31 +1104,25 @@ def _resolve_ripgrep(environment: Mapping[str, str]) -> Path | None:
     return resolved
 
 
-def _stage_opencode_ripgrep(
-    runtime: RuntimePaths, *, environment: Mapping[str, str]
-) -> Path | None:
-    """Seed the private session cache with the PATH-resolved ripgrep.
+def _explicit_github_token(environment: Mapping[str, str]) -> _ResolvedSecret:
+    """Read a GitHub capability only after the caller explicitly opts in."""
 
-    OpenCode 1.18.20 downloads ripgrep on first use, the local egress
-    boundary blocks that download, and every session starts from an empty
-    private cache. A staged copy keeps Glob/Grep working without opening
-    egress; a missing rg degrades only those tools.
-    """
-
-    source = _resolve_ripgrep(environment)
-    if source is None:
-        print(f"warning: {RIPGREP_HINT}", file=sys.stderr)
-        return None
-    bin_directory = runtime.xdg_cache / "opencode" / "bin"
-    bin_directory.parent.mkdir(mode=0o700)
-    bin_directory.mkdir(mode=0o700)
-    return _stage_checked_executable(
-        None,
-        source=source,
-        destination_directory=bin_directory,
-        name="rg",
-        label="ripgrep",
-    ).path
+    token = environment.get(GITHUB_SECRET_ENV)
+    if token is None or not token:
+        raise LocalModeError(
+            "--github-access requires GH_TOKEN in the caller environment; for "
+            "example: GH_TOKEN=\"$(gh auth token)\" grillmester local "
+            "--github-access"
+        )
+    try:
+        encoded = token.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise LocalModeError("GH_TOKEN must contain only ASCII characters") from exc
+    if len(encoded) > MAX_GITHUB_TOKEN_BYTES or re.fullmatch(
+        r"[A-Za-z0-9_-]+", token
+    ) is None:
+        raise LocalModeError("GH_TOKEN has an invalid value")
+    return _ResolvedSecret(token)
 
 
 def _client_search_directory(
@@ -1172,157 +1165,6 @@ def _physical_repository_root(project: Path) -> tuple[Path, bool]:
     return project, False
 
 
-def _read_cplt_toml(path: Path, *, label: str) -> bytes:
-    try:
-        observed = path.lstat()
-    except FileNotFoundError:
-        return b""
-    except OSError as exc:
-        raise LocalModeError(f"could not inspect {label} at {path}: {exc}") from exc
-    if stat.S_ISLNK(observed.st_mode) or not stat.S_ISREG(observed.st_mode):
-        raise LocalModeError(f"{label} must be a regular, non-symlink file: {path}")
-    if observed.st_size > MAX_CONFIG_BYTES:
-        raise LocalModeError(f"{label} exceeds the {MAX_CONFIG_BYTES}-byte limit")
-    try:
-        return path.read_bytes()
-    except OSError as exc:
-        raise LocalModeError(f"could not read {label} at {path}: {exc}") from exc
-
-
-def _reject_nonempty_proposals(content: bytes, *, label: str) -> None:
-    if not content:
-        return
-    try:
-        value = tomllib.loads(content.decode("utf-8"))
-    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
-        raise LocalModeError(f"{label} is not valid UTF-8 TOML") from exc
-    # Pinned cplt drops the complete repository config on a serde or path-safety
-    # error. Mirror that exact accepted schema so an intended deny can never
-    # disappear silently before local-only starts.
-    unknown = sorted(set(value) - {"deny", "propose"})
-    if unknown:
-        raise LocalModeError(f"{label} has unsupported top-level keys: {unknown}")
-    deny = value.get("deny", {})
-    if not isinstance(deny, dict):
-        raise LocalModeError(f"{label} [deny] must be a table")
-    unknown_deny = sorted(set(deny) - {"env", "paths"})
-    if unknown_deny:
-        raise LocalModeError(f"{label} [deny] has unsupported keys: {unknown_deny}")
-    denied_environment = deny.get("env", [])
-    if not isinstance(denied_environment, list) or any(
-        not isinstance(name, str)
-        or not name
-        or any(
-            not (
-                character.isascii()
-                and (character.isalnum() or character == "_")
-            )
-            for character in name
-        )
-        for name in denied_environment
-    ):
-        raise LocalModeError(
-            f"{label} deny.env must contain [A-Za-z0-9_] identifiers"
-        )
-    denied_paths = deny.get("paths", [])
-    unsafe = {'"', ")", "(", ";", "\\", "\n", "\r", "\0"}
-    if not isinstance(denied_paths, list) or any(
-        not isinstance(path, str)
-        or ".." in Path(path).parts
-        or any(character in path for character in unsafe)
-        for path in denied_paths
-    ):
-        raise LocalModeError(
-            f"{label} deny.paths contains traversal or unsafe characters"
-        )
-    proposed = value.get("propose", {})
-    if not isinstance(proposed, dict):
-        raise LocalModeError(f"{label} [propose] must be a table")
-    if proposed:
-        raise LocalModeError(
-            f"local-only mode refuses non-empty [propose] permissions in {label}"
-        )
-
-
-def _trusted_git_binary() -> Path:
-    for candidate in (Path("/usr/bin/git"), Path("/opt/homebrew/bin/git"), Path("/usr/local/bin/git")):
-        try:
-            observed = candidate.stat()
-        except OSError:
-            continue
-        if stat.S_ISREG(observed.st_mode) and os.access(candidate, os.X_OK):
-            return candidate
-    raise LocalModeError("could not inspect committed .cplt.toml without a trusted git binary")
-
-
-def _git_command(git: Path, root: Path, arguments: Sequence[str]) -> subprocess.CompletedProcess[bytes]:
-    environment = {
-        "PATH": "/usr/bin:/bin",
-        "HOME": "/nonexistent-grillmester-local-git-home",
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_CONFIG_GLOBAL": "/dev/null",
-        "GIT_NO_LAZY_FETCH": "1",
-        "GIT_OPTIONAL_LOCKS": "0",
-        "GIT_TERMINAL_PROMPT": "0",
-        "LC_ALL": "C",
-    }
-    try:
-        return subprocess.run(
-            [str(git), "-C", str(root), *arguments],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=environment,
-            timeout=5,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise LocalModeError(f"could not inspect committed .cplt.toml: {exc}") from exc
-
-
-def _committed_cplt_toml(root: Path) -> bytes:
-    git = _trusted_git_binary()
-    head_result = _git_command(git, root, ("rev-parse", "--verify", "-q", "HEAD"))
-    if head_result.returncode != 0:
-        return b""
-    head = head_result.stdout.decode("ascii", errors="strict").strip()
-    if not re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", head):
-        raise LocalModeError("repository HEAD did not resolve to one exact object ID")
-    object_name = f"{head}:.cplt.toml"
-    listing = _git_command(git, root, ("ls-tree", "--name-only", head, "--", ".cplt.toml"))
-    if listing.returncode != 0:
-        raise LocalModeError("could not inspect committed .cplt.toml tree entry")
-    if listing.stdout == b"":
-        return b""
-    if listing.stdout != b".cplt.toml\n":
-        raise LocalModeError("committed .cplt.toml has an unexpected tree identity")
-    size_result = _git_command(git, root, ("cat-file", "-s", object_name))
-    try:
-        size = int(size_result.stdout.decode("ascii").strip())
-    except (UnicodeDecodeError, ValueError) as exc:
-        raise LocalModeError("could not determine committed .cplt.toml size") from exc
-    if size_result.returncode != 0 or size < 0 or size > MAX_CONFIG_BYTES:
-        raise LocalModeError(
-            f"committed .cplt.toml exceeds the {MAX_CONFIG_BYTES}-byte limit"
-        )
-    content = _git_command(git, root, ("show", "--no-ext-diff", "--no-textconv", object_name))
-    if content.returncode != 0 or len(content.stdout) != size:
-        raise LocalModeError("could not read the exact committed .cplt.toml object")
-    return content.stdout
-
-
-def reject_repository_cplt_proposals(project: Path) -> Path:
-    """Fail closed on every repo permission proposal local-only could inherit."""
-
-    root, is_git = _physical_repository_root(project)
-    worktree = _read_cplt_toml(root / ".cplt.toml", label="worktree .cplt.toml")
-    _reject_nonempty_proposals(worktree, label="worktree .cplt.toml")
-    if is_git:
-        committed = _committed_cplt_toml(root)
-        _reject_nonempty_proposals(committed, label="committed .cplt.toml")
-    return root
-
-
 def reject_project_opencode_extensions(project: Path) -> None:
     """Reject OpenCode's project-level executable/config discovery surface."""
 
@@ -1352,7 +1194,7 @@ def reject_project_opencode_extensions(project: Path) -> None:
             if stat.S_ISLNK(observed.st_mode) or not stat.S_ISREG(observed.st_mode):
                 raise LocalModeError(f"project OpenCode config is unsafe: {candidate}")
             raise LocalModeError(
-                f"local-only mode refuses auto-discovered project OpenCode config: {candidate}"
+                f"local mode refuses auto-discovered project OpenCode config: {candidate}"
             )
         extension_root = directory / ".opencode"
         try:
@@ -1373,7 +1215,7 @@ def reject_project_opencode_extensions(project: Path) -> None:
             ) from exc
         if entries:
             raise LocalModeError(
-                "local-only mode refuses auto-discovered project OpenCode entry: "
+                "local mode refuses auto-discovered project OpenCode entry: "
                 f"{entries[0]}"
             )
 def _reject_nonempty_project_component_root(
@@ -1399,7 +1241,7 @@ def _reject_nonempty_project_component_root(
         ) from exc
     if entries:
         raise LocalModeError(
-            f"local-only mode refuses auto-discovered project {client} {component}: "
+            f"local mode refuses auto-discovered project {client} {component}: "
             f"{entries[0]}"
         )
 
@@ -1454,7 +1296,7 @@ def reject_project_copilot_hooks(project: Path) -> None:
                     f"could not inspect project Copilot executable config {candidate}: {exc}"
                 ) from exc
             raise LocalModeError(
-                "local-only mode refuses auto-discovered project Copilot executable config: "
+                "local mode refuses auto-discovered project Copilot executable config: "
                 f"{candidate}"
             )
 
@@ -1482,7 +1324,7 @@ def reject_project_copilot_hooks(project: Path) -> None:
                 ) from exc
             if entries:
                 raise LocalModeError(
-                    "local-only mode refuses auto-discovered project Copilot extension: "
+                    "local mode refuses auto-discovered project Copilot extension: "
                     f"{entries[0]}"
                 )
 
@@ -1508,7 +1350,7 @@ def reject_project_copilot_hooks(project: Path) -> None:
         for entry in entries:
             if entry.name.casefold().endswith(".json"):
                 raise LocalModeError(
-                    "local-only mode refuses auto-discovered project Copilot hook: "
+                    "local mode refuses auto-discovered project Copilot hook: "
                     f"{entry}"
                 )
 
@@ -1657,7 +1499,6 @@ def _opencode_config_content(config: LocalConfig) -> str:
 def _copilot_settings() -> bytes:
     value = {
         "autoUpdate": False,
-        "customAgents": {"defaultLocalOnly": True},
         "disableAllHooks": True,
         "disabledSkills": list(COPILOT_DISABLED_BUILTIN_SKILLS),
         "experimental": False,
@@ -1677,29 +1518,57 @@ def _sanitized_environment(
     cplt: Path,
     client_search_directory: Path,
 ) -> dict[str, str]:
+    host_home = _environment_home(source)
+    github_config = _host_github_config_dir(source)
     result = {
         name: source[name]
         for name in SAFE_HOST_ENVIRONMENT
         if name in source and "\x00" not in source[name]
     }
     path_entries: list[str] = []
-    for entry in (client_search_directory, cplt.parent, Path("/usr/bin"), Path("/bin"), Path("/usr/sbin"), Path("/sbin")):
-        rendered = str(entry)
+    candidates = [client_search_directory, cplt.parent]
+    candidates.extend(
+        Path(raw)
+        for raw in source.get("PATH", "").split(os.pathsep)
+        if raw and Path(raw).is_absolute() and "\x00" not in raw
+    )
+    candidates.extend(
+        (Path("/usr/bin"), Path("/bin"), Path("/usr/sbin"), Path("/sbin"))
+    )
+    for entry in candidates:
+        try:
+            resolved = entry.resolve(strict=True)
+            observed = resolved.stat()
+        except OSError:
+            continue
+        if not stat.S_ISDIR(observed.st_mode) or not os.access(resolved, os.X_OK):
+            continue
+        rendered = str(resolved)
         if rendered not in path_entries:
             path_entries.append(rendered)
     result.update(
         {
             "PATH": os.pathsep.join(path_entries),
-            "HOME": str(runtime.home),
+            # cplt, rather than a synthetic HOME, owns host-account isolation.
+            # Explicit deny rules below hide raw gh/client state from the
+            # child, while client-owned state remains redirected.
+            "HOME": str(host_home),
+            # Preserve caller context for cplt itself. This value is
+            # intentionally not included in --pass-env for the child.
+            "GH_CONFIG_DIR": str(github_config),
             "XDG_CONFIG_HOME": str(runtime.xdg_config),
             "XDG_CACHE_HOME": str(runtime.xdg_cache),
             "XDG_DATA_HOME": str(runtime.xdg_data),
             "XDG_STATE_HOME": str(runtime.xdg_state),
-            "CPLT_CONFIG": str(runtime.cplt_config),
             "NO_PROXY": "127.0.0.1,localhost,::1",
             "no_proxy": "127.0.0.1,localhost,::1",
         }
     )
+    cplt_config = source.get("CPLT_CONFIG")
+    if cplt_config is not None:
+        if not cplt_config or "\x00" in cplt_config:
+            raise LocalModeError("CPLT_CONFIG must be a non-empty path")
+        result["CPLT_CONFIG"] = cplt_config
     return result
 
 
@@ -1708,9 +1577,7 @@ def _copilot_sensitive_paths(home: Path) -> tuple[Path, ...]:
         home / ".copilot",
         home / ".agents",
         home / ".claude",
-        home / ".config" / "gh",
         home / ".config" / "github-copilot",
-        home / "Library" / "Keychains",
         home / "Library" / "Application Support" / "GitHub Copilot",
     )
     result: list[Path] = []
@@ -1903,7 +1770,7 @@ def _validate_opencode_option_allowlist(arguments: Sequence[str]) -> None:
                 # Everything after -- is the reviewed run message.
                 return
             raise LocalModeError(
-                "local-only OpenCode accepts the TUI, 'run', --help, or "
+                "local OpenCode accepts the TUI, 'run', --help, or "
                 "--version; use the system OpenCode command directly for "
                 "other modes"
             )
@@ -1914,7 +1781,7 @@ def _validate_opencode_option_allowlist(arguments: Sequence[str]) -> None:
             # Outside run, a positional would select an OpenCode command or
             # an unscanned project directory.
             raise LocalModeError(
-                "local-only OpenCode accepts the TUI, 'run', --help, or "
+                "local OpenCode accepts the TUI, 'run', --help, or "
                 "--version; use the system OpenCode command directly for "
                 "other modes"
             )
@@ -2010,7 +1877,7 @@ def _validate_copilot_option_allowlist(arguments: Sequence[str]) -> None:
 
 
 def _reject_copilot_command_mode(arguments: Sequence[str]) -> None:
-    """Keep local-only Copilot in a fresh TUI or prompt session.
+    """Keep local Copilot in a fresh TUI or prompt session.
 
     Copilot's admin commands are accepted after global options.  Parse only the
     documented, allowed value-taking options so a prompt value is not mistaken
@@ -2027,7 +1894,7 @@ def _reject_copilot_command_mode(arguments: Sequence[str]) -> None:
         if argument == "--":
             if index + 1 < len(arguments):
                 raise LocalModeError(
-                    "local-only Copilot does not accept command-mode positional arguments; "
+                    "local Copilot does not accept command-mode positional arguments; "
                     "run the system copilot command directly for admin commands"
                 )
             return
@@ -2057,12 +1924,16 @@ def _reject_copilot_command_mode(arguments: Sequence[str]) -> None:
                 index += 1
             continue
         raise LocalModeError(
-            "local-only Copilot does not accept command-mode positional arguments; "
+            "local Copilot does not accept command-mode positional arguments; "
             "run the system copilot command directly for admin commands"
         )
 
 
-def _client_arguments(config: LocalConfig, payload: Path, arguments: Sequence[str]) -> list[str]:
+def _client_arguments(
+    config: LocalConfig,
+    payload: Path,
+    arguments: Sequence[str],
+) -> list[str]:
     _validate_client_arguments(config.client, arguments)
     if config.client == "opencode":
         binding = ["--agent", config.agent, "--model", config.qualified_model]
@@ -2075,7 +1946,7 @@ def _client_arguments(config: LocalConfig, payload: Path, arguments: Sequence[st
         if arguments[0].startswith("-"):
             return [*binding, *arguments]
         raise LocalModeError(
-            "local-only OpenCode accepts the TUI, 'run', --help, or --version; "
+            "local OpenCode accepts the TUI, 'run', --help, or --version; "
             "use the system OpenCode command directly for admin commands or another project"
         )
     return [
@@ -2106,18 +1977,18 @@ def build_local_launch(
     client: object,
     client_arguments: Sequence[str] = (),
     environment: Mapping[str, str] | None = None,
+    github_access: bool = False,
     resolve_credentials: bool = True,
     resolved_secret: _ResolvedSecret | None = None,
     prepare_state: bool = True,
     platform: str | None = None,
 ) -> LocalLaunch:
-    """Build one local-only command without executing cplt or either client."""
+    """Build one cplt-backed local-inference command without executing it."""
 
     platform = sys.platform if platform is None else platform
     if platform != "darwin":
         raise LocalModeError(
-            "local-only launch is currently supported only on macOS, where the "
-            "tested cplt baseline enforces forced-proxy egress"
+            "the packaged local launcher is currently supported only on macOS"
         )
     config = validate_config(config, check_key_file=resolve_credentials)
     source_environment = os.environ if environment is None else environment
@@ -2139,7 +2010,6 @@ def build_local_launch(
             "apiKeyFile must be outside the consumer project so the sandboxed "
             "client can never read the original credential file"
         )
-    reject_repository_cplt_proposals(project)
     if config.client == "opencode":
         reject_project_opencode_extensions(project)
     else:
@@ -2157,32 +2027,12 @@ def build_local_launch(
         if prepare_state
         else _planned_runtime(source_environment, config.client)
     )
-    if prepare_state:
-        launch_cplt_path = _stage_checked_executable(
-            cplt,
-            source=cplt_path,
-            destination_directory=runtime.trusted_bin,
-            name="cplt",
-            label="cplt",
-        ).path
-        _stage_checked_executable(
-            client,
-            source=client_path,
-            destination_directory=runtime.trusted_bin,
-            name=config.client,
-            label=config.client,
-        )
-        if config.client == "opencode":
-            _stage_opencode_ripgrep(runtime, environment=source_environment)
-        runtime.trusted_bin.chmod(0o500)
-        client_search_directory = runtime.trusted_bin
-    else:
-        launch_cplt_path = cplt_path
-        client_search_directory = _client_search_directory(
-            client_path,
-            expected_name=config.client,
-            environment=source_environment,
-        )
+    launch_cplt_path = cplt_path
+    client_search_directory = _client_search_directory(
+        client_path,
+        expected_name=config.client,
+        environment=source_environment,
+    )
     child_environment = _sanitized_environment(
         source=source_environment,
         runtime=runtime,
@@ -2203,8 +2053,14 @@ def build_local_launch(
         child_environment.update(OPENCODE_LOCAL_ENVIRONMENT)
         child_environment["OPENCODE_CONFIG_DIR"] = str(payload)
         child_environment["OPENCODE_CONFIG_CONTENT"] = _opencode_config_content(config)
+        child_environment["OPENCODE_AUTH_CONTENT"] = "{}"
         passed_environment.extend(
-            ["OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG_CONTENT", *sorted(OPENCODE_LOCAL_ENVIRONMENT)]
+            [
+                "OPENCODE_CONFIG_DIR",
+                "OPENCODE_CONFIG_CONTENT",
+                "OPENCODE_AUTH_CONTENT",
+                *sorted(OPENCODE_LOCAL_ENVIRONMENT),
+            ]
         )
         secret_names = frozenset()
     else:
@@ -2230,7 +2086,6 @@ def build_local_launch(
                 "COPILOT_PROVIDER_MAX_PROMPT_TOKENS": "28672",
                 "COPILOT_PROVIDER_MAX_OUTPUT_TOKENS": "4096",
                 "COPILOT_MODEL": config.model_id,
-                "COPILOT_OFFLINE": "true",
                 "COPILOT_AUTO_UPDATE": "false",
                 "COPILOT_OTEL_ENABLED": "false",
             }
@@ -2240,44 +2095,47 @@ def build_local_launch(
         )
         secret_names = frozenset({COPILOT_SECRET_ENV})
 
+    if github_access:
+        github_secret = (
+            _explicit_github_token(source_environment).value
+            if resolve_credentials
+            else "<redacted>"
+        )
+        assert github_secret is not None
+        child_environment[GITHUB_SECRET_ENV] = github_secret
+        passed_environment.append(GITHUB_SECRET_ENV)
+        secret_names = secret_names | {GITHUB_SECRET_ENV}
+
     command = [
         str(launch_cplt_path),
         "--yes",
         "--scratch-dir",
         "--deny-clipboard",
-        # cplt's parent-side post-session Git audit can execute a consumer
-        # core.fsmonitor command outside the sandbox. Normal Grillmester keeps
-        # the audit; local-only disables it to preserve the host boundary.
-        "--no-audit",
         "--no-quiet",
         "--agent",
         config.client,
         "--project-dir",
         str(project),
         *LOCAL_CPLT_HARDENING_FLAGS,
-        "--allowed-domains",
-        str(runtime.allowed_domains),
-        "--blocked-domains",
-        str(runtime.blocked_domains),
         "--allow-localhost",
         str(config.port),
         "--allow-read",
         str(payload),
     ]
+    sensitive_paths = list(_existing_host_github_config_dirs(source_environment))
     if config.client == "copilot":
         # Copilot extracts its signed runtime and native addon below its isolated
         # HOME cache. cplt blocks mmap/exec from caches unless this exact private
         # subdirectory is named explicitly.
         command.extend(("--allow-cache-exec", "copilot"))
-        sensitive_paths = list(
+        sensitive_paths.extend(
             _copilot_sensitive_paths(_environment_home(source_environment))
         )
         if config.api_key_file is not None:
             sensitive_paths.append(config.api_key_file)
-        for sensitive in dict.fromkeys(sensitive_paths):
-            command.extend(("--deny-path", str(sensitive)))
+    for sensitive in dict.fromkeys(sensitive_paths):
+        command.extend(("--deny-path", str(sensitive)))
     for writable in (
-        runtime.home,
         runtime.xdg_config,
         runtime.xdg_cache,
         runtime.xdg_data,
@@ -2305,6 +2163,7 @@ def doctor_local(
     project_dir: Path,
     cplt: object,
     client: object,
+    github_access: bool = False,
     environment: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
     platform: str | None = None,
@@ -2324,6 +2183,7 @@ def doctor_local(
         project_dir=project_dir,
         cplt=cplt,
         client=client,
+        github_access=github_access,
         environment=environment,
         resolved_secret=resolved_secret,
         prepare_state=False,
@@ -2340,6 +2200,7 @@ def execute_local(
     cplt: object,
     client: object,
     client_arguments: Sequence[str] = (),
+    github_access: bool = False,
     environment: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
     exec_callback: Callable[[str, Sequence[str], Mapping[str, str]], object] = os.execvpe,
@@ -2363,6 +2224,7 @@ def execute_local(
         cplt=cplt,
         client=client,
         client_arguments=client_arguments,
+        github_access=github_access,
         environment=environment,
         resolved_secret=resolved_secret,
         platform=platform,
@@ -2489,8 +2351,8 @@ def _parser() -> argparse.ArgumentParser:
             "  grillmester local --full --agent grillmester\n"
             "  grillmester local doctor\n"
             "  grillmester local --print-command\n\n"
-            "The model server and terminal clients are user-installed. Every launch "
-            "uses exact reviewed cplt with no cloud fallback."
+            "The model server and terminal clients are user-installed. Inference is "
+            "bound to localhost; network tools remain available through cplt."
         ),
     )
     subparsers = parser.add_subparsers(
@@ -2572,6 +2434,14 @@ def _parser() -> argparse.ArgumentParser:
     doctor.add_argument(
         "--full", action="store_true", help="validate the full context payload"
     )
+    doctor.add_argument(
+        "--github-access",
+        action="store_true",
+        help=(
+            "pass caller-supplied GH_TOKEN to the client; gh invocations "
+            "remain guarded by cplt"
+        ),
+    )
     launch = subparsers.add_parser(
         "launch",
         allow_abbrev=False,
@@ -2603,9 +2473,17 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     launch.add_argument(
+        "--github-access",
+        action="store_true",
+        help=(
+            "pass caller-supplied GH_TOKEN to the client; gh invocations "
+            "remain guarded by cplt"
+        ),
+    )
+    launch.add_argument(
         "client_arguments",
         nargs=argparse.REMAINDER,
-        help="client arguments after -- (restricted by local-only mode)",
+        help="client arguments after -- (restricted by local mode)",
     )
     return parser
 
@@ -2647,7 +2525,8 @@ def main(
             print(f"Saved local model configuration to {destination}")
             print(
                 f"Selected {config.client} with {config.model_id} "
-                f"({config.context} {config.agent})"
+                f"({config.context} {config.agent}); local inference with "
+                "connected tools through cplt"
             )
             return 0
 
@@ -2664,7 +2543,7 @@ def main(
         if binary_resolver is None:
             raise LocalModeError(
                 "doctor and launch must run through the top-level 'grillmester local' "
-                "launcher so exact reviewed cplt and client binaries are verified"
+                "launcher so compatible cplt and client versions are verified"
             )
 
         config = replace(
@@ -2695,6 +2574,7 @@ def main(
                 project_dir=arguments.project_dir,
                 cplt=cplt,
                 client=client,
+                github_access=arguments.github_access,
                 environment=environment,
             )
             project = arguments.project_dir.expanduser().resolve(strict=True)
@@ -2709,6 +2589,16 @@ def main(
             print(f"ok  endpoint {probe.base_url}")
             print(f"ok  model {probe.model_id}")
             print(f"ok  payload {launch.payload}")
+            if arguments.github_access:
+                print(
+                    "ok  github explicit GH_TOKEN passed to client "
+                    "(soft boundary); gh guarded by cplt"
+                )
+            else:
+                print(
+                    "skip github credential not exposed; use --github-access "
+                    "with an explicit GH_TOKEN when needed"
+                )
             if config.client == "opencode":
                 ripgrep = _resolve_ripgrep(environment)
                 if ripgrep is None:
@@ -2728,6 +2618,7 @@ def main(
                 cplt=cplt,
                 client=client,
                 client_arguments=client_arguments,
+                github_access=arguments.github_access,
                 environment=environment,
                 resolve_credentials=False,
                 prepare_state=False,
@@ -2741,6 +2632,7 @@ def main(
             cplt=cplt,
             client=client,
             client_arguments=client_arguments,
+            github_access=arguments.github_access,
             environment=environment,
             exec_callback=exec_callback,
         )

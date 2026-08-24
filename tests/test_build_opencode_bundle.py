@@ -28,7 +28,7 @@ sys.modules[SPEC.name] = BUILDER
 SPEC.loader.exec_module(BUILDER)
 
 SOURCE_SHA = "0123456789abcdef0123456789abcdef01234567"
-ARCHIVE_ROOT = "grillmester-opencode-v1"
+ARCHIVE_ROOT = "grillmester-terminal-v1"
 CONTENT_LOCK = json.loads((ROOT / "policy/content-lock.json").read_text(encoding="utf-8"))
 AGENT_IDS = tuple(sorted(CONTENT_LOCK["agents"]))
 SKILL_IDS = tuple(sorted(CONTENT_LOCK["skills"]))
@@ -49,54 +49,16 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
 
     def make_source(self, name: str = "source") -> Path:
         source = self.root / name
-        manager = source / "scripts/manage_opencode.py"
-        manager.parent.mkdir(parents=True)
-        manager.write_bytes(
-            b"#!/usr/bin/env python3\n"
-            b"SUPPORTED_OPENCODE_VERSION = \"1.18.20\"\n"
-            b"SUPPORTED_CPLT_RELEASE = \"2026.08.17-062831-1008a92\"\n"
-            b"PERMISSION_COMPOSER_SHA256 = "
-            + repr(sha256(b"# permission composer fixture\n")).encode()
-            + b"\n"
-            b"PINNED_CPLT_BINARY_SHA256 = "
-            + repr(
-                {
-                    ("darwin", "arm64"): "423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2",
-                    ("darwin", "x86_64"): "36592c1b2bcfd7ab2d9083842b0aa7f51737cdf12ec1752d351bd9467dab5c02",
-                    ("linux", "aarch64"): "56715bc8c63d4dd7323d17a48d3c8d64fdfa3450848651a9ac360f6124d12789",
-                    ("linux", "x86_64"): "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5",
-                }
-            ).encode()
-            + b"\n"
-            b"PINNED_OPENCODE_BINARY_SHA256 = "
-            + repr(
-                {
-                    ("darwin", "arm64", "default"): "9598c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952",
-                    ("darwin", "x86_64", "default"): "96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60",
-                    ("linux", "aarch64", "glibc"): "cc9923aa75f8817261326e81fc56f9cb8203d282c0fab9bff7845cae9f6fe740",
-                    ("linux", "aarch64", "musl"): "556ca2125cba1c1508052d055ee87ada1f28dde8a501986edbdbdf476083e4a6",
-                    ("linux", "x86_64", "glibc"): "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16",
-                    ("linux", "x86_64", "musl"): "ca872f52047dd9e56b0a7a14da5cda064c3249a4a1116e71b31cab11864a3967",
-                }
-            ).encode()
-            + b"\n"
-            b"print('manager')\n"
-        )
-        manager.chmod(0o644)
-        composer = source / "scripts/compose_opencode_permissions.py"
-        composer.write_text("# permission composer fixture\n", encoding="utf-8")
-        composer.chmod(0o644)
-        verifier = source / "scripts/verify_client_artifact.py"
-        verifier.write_bytes(
-            (ROOT / "scripts/verify_client_artifact.py").read_bytes()
-        )
-        verifier.chmod(0o644)
+        scripts = source / "scripts"
+        scripts.mkdir(parents=True)
         launcher = source / "scripts/grillmester.py"
         launcher.write_bytes((ROOT / "scripts/grillmester.py").read_bytes())
         launcher.chmod(0o644)
         for name in (
             "grillmester_local.py",
+            "generate_copilot_manifest.py",
             "generate_context_projections.py",
+            "release_test_baseline.py",
             "smoke_grillmester_local.py",
         ):
             support = source / "scripts" / name
@@ -106,7 +68,6 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         shutil.copytree(ROOT / "plugin", source / "plugin")
 
         for source_relative, destination_relative in (
-            ("policy/client-artifacts.json", "policy/client-artifacts.json"),
             ("policy/content-lock.json", "policy/content-lock.json"),
             ("policy/focused-context-v1.json", "policy/focused-context-v1.json"),
             ("LICENSE", "LICENSE"),
@@ -117,65 +78,6 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / source_relative).read_bytes())
             destination.chmod(0o644)
-
-        profiles = source / "profiles/opencode"
-        profiles.mkdir(parents=True)
-        base_environment = {
-            "OPENCODE_CONFIG_CONTENT": '{"autoupdate":false,"share":"disabled"}',
-            "OPENCODE_DISABLE_AUTOUPDATE": "true",
-            "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "true",
-            "OPENCODE_DISABLE_CLAUDE_CODE_PROMPT": "true",
-            "OPENCODE_DISABLE_DEFAULT_PLUGINS": "true",
-            "OPENCODE_DISABLE_EXTERNAL_SKILLS": "true",
-            "OPENCODE_DISABLE_SHARE": "true",
-            "OPENCODE_DISABLE_MODELS_FETCH": "true",
-            "OPENCODE_DISABLE_LSP_DOWNLOAD": "true",
-            "OPENCODE_DISABLE_PROJECT_CONFIG": "true",
-            "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER": "true",
-            "OPENCODE_EXPERIMENTAL": "false",
-            "OPENCODE_EXPERIMENTAL_CODE_MODE": "false",
-            "OPENCODE_PURE": "true",
-            "OPENCODE_DB": ":memory:",
-        }
-        profile_shapes = {
-            "local": ("strict", "required", "forbidden"),
-            "cloud-open-weight": ("strict", "forbidden", "required"),
-            "hybrid": ("strict", "required", "required"),
-            "local-only": ("local-only", "required", "forbidden"),
-        }
-        for profile_id, (
-            cplt_policy,
-            local_ports,
-            provider_domains,
-        ) in profile_shapes.items():
-            profile = {
-                "schemaVersion": 1,
-                "id": profile_id,
-                "description": f"Test profile {profile_id}",
-                "cpltPolicy": cplt_policy,
-                "cpltRelease": "2026.08.17-062831-1008a92",
-                "localPorts": local_ports,
-                "providerDomains": provider_domains,
-                "environment": dict(base_environment),
-            }
-            if profile_id == "local-only":
-                profile["environment"].update(
-                    {
-                        "OPENCODE_DISABLE_MODELS_FETCH": "true",
-                        "OPENCODE_DISABLE_LSP_DOWNLOAD": "true",
-                        "OPENCODE_AUTO_SHARE": "false",
-                        "OPENCODE_ENABLE_EXA": "false",
-                    }
-                )
-                profile["allowedDomain"] = "grillmester-local-only.invalid"
-                profile["blockedDomains"] = sorted(
-                    BUILDER.LOCAL_ONLY_BLOCKED_DOMAINS
-                )
-            (profiles / f"{profile_id}.json").write_text(
-                json.dumps(profile, sort_keys=True) + "\n", encoding="utf-8"
-            )
-        for profile in profiles.iterdir():
-            profile.chmod(0o644)
 
         target = source / "targets/opencode-v1"
         target.mkdir(parents=True)
@@ -249,6 +151,20 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             encoding="utf-8",
         )
         focused_manifest_path.chmod(0o644)
+        focused_copilot_manifest_path = (
+            source / "targets/copilot-cli-focused-v1/manifest.json"
+        )
+        focused_copilot_manifest = json.loads(
+            focused_copilot_manifest_path.read_text(encoding="utf-8")
+        )
+        focused_copilot_manifest["source"]["payloadManifestSha256"] = sha256(
+            (source / "plugin/manifest.json").read_bytes()
+        )
+        focused_copilot_manifest_path.write_text(
+            json.dumps(focused_copilot_manifest, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        focused_copilot_manifest_path.chmod(0o644)
         return source
 
     def test_build_is_byte_reproducible_and_manifested_exactly(self) -> None:
@@ -288,20 +204,10 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 f"{ARCHIVE_ROOT}/LICENSE",
                 f"{ARCHIVE_ROOT}/PROVENANCE.md",
                 f"{ARCHIVE_ROOT}/THIRD_PARTY_NOTICES.md",
-                f"{ARCHIVE_ROOT}/policy/client-artifacts.json",
                 f"{ARCHIVE_ROOT}/policy/content-lock.json",
                 f"{ARCHIVE_ROOT}/policy/focused-context-v1.json",
-                f"{ARCHIVE_ROOT}/scripts/manage_opencode.py",
                 f"{ARCHIVE_ROOT}/scripts/grillmester.py",
                 f"{ARCHIVE_ROOT}/scripts/grillmester_local.py",
-                f"{ARCHIVE_ROOT}/scripts/generate_context_projections.py",
-                f"{ARCHIVE_ROOT}/scripts/smoke_grillmester_local.py",
-                f"{ARCHIVE_ROOT}/scripts/compose_opencode_permissions.py",
-                f"{ARCHIVE_ROOT}/scripts/verify_client_artifact.py",
-                f"{ARCHIVE_ROOT}/profiles/opencode/cloud-open-weight.json",
-                f"{ARCHIVE_ROOT}/profiles/opencode/hybrid.json",
-                f"{ARCHIVE_ROOT}/profiles/opencode/local.json",
-                f"{ARCHIVE_ROOT}/profiles/opencode/local-only.json",
                 f"{ARCHIVE_ROOT}/targets/opencode-v1/manifest.json",
             }
             target_manifest = json.loads(
@@ -339,14 +245,24 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
 
             self.assertEqual(distribution["schemaVersion"], 1)
             self.assertEqual(distribution["sourceSha"], SOURCE_SHA)
-            self.assertEqual(distribution["target"], "opencode-v1")
-            self.assertEqual(distribution["opencodeVersion"], "1.18.20")
             self.assertEqual(
-                distribution["cpltRelease"], "2026.08.17-062831-1008a92"
+                distribution["distribution"], "grillmester-terminal-v1"
+            )
+            self.assertEqual(
+                distribution["releaseTest"],
+                {
+                    "opencodeVersion": "1.18.20",
+                    "copilotVersion": "1.0.80",
+                    "cpltRelease": "2026.08.17-062831-1008a92",
+                },
             )
             self.assertEqual(
                 distribution["targetManifestSha256"],
                 sha256(target_manifest_bytes),
+            )
+            self.assertEqual(
+                distribution["copilotFullManifestSha256"],
+                sha256((source / "plugin/manifest.json").read_bytes()),
             )
             self.assertEqual(
                 distribution["focusedContextPolicySha256"],
@@ -375,14 +291,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 self.assertEqual(metadata["mode"], f"{member.mode:04o}")
 
             self.assertEqual(
-                files[f"{ARCHIVE_ROOT}/scripts/manage_opencode.py"].mode, 0o755
-            )
-            self.assertEqual(
                 files[f"{ARCHIVE_ROOT}/scripts/grillmester.py"].mode, 0o755
-            )
-            self.assertEqual(
-                files[f"{ARCHIVE_ROOT}/scripts/verify_client_artifact.py"].mode,
-                0o755,
             )
             self.assertEqual(
                 files[
@@ -450,20 +359,51 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                     self.root / "linked-plugin.tar.gz",
                 )
 
-    def test_rejects_launcher_client_pin_drift(self) -> None:
+    def test_rejects_copilot_full_payload_manifest_drift_and_extras(self) -> None:
+        tampered = self.make_source("tampered-copilot-full")
+        license_path = tampered / "plugin/LICENSE"
+        license_path.write_text(
+            license_path.read_text(encoding="utf-8") + "tampered\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError,
+            "Copilot full payload differs from its manifest: LICENSE",
+        ):
+            BUILDER.build_bundle(
+                tampered,
+                SOURCE_SHA,
+                self.root / "tampered-copilot-full.tar.gz",
+            )
+
+        unmanifested = self.make_source("unmanifested-copilot-full")
+        (unmanifested / "plugin/unmanifested.md").write_text(
+            "unexpected\n", encoding="utf-8"
+        )
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError,
+            "Copilot full payload tree differs from its manifest.*unmanifested",
+        ):
+            BUILDER.build_bundle(
+                unmanifested,
+                SOURCE_SHA,
+                self.root / "unmanifested-copilot-full.tar.gz",
+            )
+
+    def test_rejects_launcher_opencode_minimum_drift(self) -> None:
         source = self.make_source("launcher-pin-drift")
         launcher = source / "scripts/grillmester.py"
         launcher.write_text(
             launcher.read_text(encoding="utf-8").replace(
-                'REVIEWED_LOCAL_OPENCODE_VERSION = "1.18.20"',
-                'REVIEWED_LOCAL_OPENCODE_VERSION = "1.18.21"',
+                'MINIMUM_OPENCODE_VERSION_TEXT = "1.18.20"',
+                'MINIMUM_OPENCODE_VERSION_TEXT = "1.18.21"',
             ),
             encoding="utf-8",
         )
 
         with self.assertRaisesRegex(
             BUILDER.BundleBuildError,
-            "launcher must pin REVIEWED_LOCAL_OPENCODE_VERSION",
+            "launcher must pin MINIMUM_OPENCODE_VERSION_TEXT",
         ):
             BUILDER.build_bundle(
                 source,
@@ -471,46 +411,51 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 self.root / "launcher-pin-drift.tar.gz",
             )
 
-    def test_rejects_launcher_copilot_pin_drift(self) -> None:
+    def test_release_test_opencode_bump_does_not_raise_runtime_minimum(self) -> None:
+        source = self.make_source("independent-opencode-baselines")
+        original_contract = BUILDER._release_test_contract(source)
+        changed_contract = json.loads(json.dumps(original_contract))
+        changed_contract["releaseTest"]["opencodeVersion"] = "1.99.0"
+
+        with mock.patch.object(
+            BUILDER, "_release_test_contract", return_value=changed_contract
+        ):
+            files = BUILDER.collect_bundle_files(source, SOURCE_SHA)
+
+        manifest = json.loads(
+            next(
+                entry.content
+                for entry in files
+                if entry.path == BUILDER.OUTER_MANIFEST
+            )
+        )
+        self.assertEqual("1.99.0", manifest["releaseTest"]["opencodeVersion"])
+        launcher = next(
+            entry.content.decode("utf-8")
+            for entry in files
+            if entry.path == BUILDER.LAUNCHER_PATH
+        )
+        self.assertIn('MINIMUM_OPENCODE_VERSION_TEXT = "1.18.20"', launcher)
+
+    def test_rejects_launcher_copilot_minimum_drift(self) -> None:
         source = self.make_source("launcher-copilot-pin-drift")
         launcher = source / "scripts/grillmester.py"
         launcher.write_text(
             launcher.read_text(encoding="utf-8").replace(
-                'REVIEWED_LOCAL_COPILOT_VERSION = "1.0.80"',
-                'REVIEWED_LOCAL_COPILOT_VERSION = "1.0.81"',
+                "MINIMUM_COPILOT_VERSION = (1, 0, 79)",
+                "MINIMUM_COPILOT_VERSION = (1, 0, 80)",
             ),
             encoding="utf-8",
         )
 
         with self.assertRaisesRegex(
             BUILDER.BundleBuildError,
-            "launcher must pin REVIEWED_LOCAL_COPILOT_VERSION",
+            "launcher must pin MINIMUM_COPILOT_VERSION",
         ):
             BUILDER.build_bundle(
                 source,
                 SOURCE_SHA,
                 self.root / "launcher-copilot-pin-drift.tar.gz",
-            )
-
-    def test_rejects_local_smoke_copilot_pin_drift(self) -> None:
-        source = self.make_source("local-smoke-copilot-pin-drift")
-        smoke = source / "scripts/smoke_grillmester_local.py"
-        smoke.write_text(
-            smoke.read_text(encoding="utf-8").replace(
-                'EXPECTED_COPILOT_VERSION = "1.0.80"',
-                'EXPECTED_COPILOT_VERSION = "1.0.81"',
-            ),
-            encoding="utf-8",
-        )
-
-        with self.assertRaisesRegex(
-            BUILDER.BundleBuildError,
-            "local smoke must pin EXPECTED_COPILOT_VERSION",
-        ):
-            BUILDER.build_bundle(
-                source,
-                SOURCE_SHA,
-                self.root / "local-smoke-copilot-pin-drift.tar.gz",
             )
 
     def test_rejects_re_manifested_agent_skill_and_command_roster_drift(self) -> None:
@@ -582,8 +527,8 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
 
     def test_rejects_oversized_sparse_input_before_reading_it(self) -> None:
         source = self.make_source("oversized")
-        manager = source / "scripts/manage_opencode.py"
-        with manager.open("r+b") as output:
+        notices = source / "THIRD_PARTY_NOTICES.md"
+        with notices.open("r+b") as output:
             output.truncate(BUILDER.MAX_FILE_BYTES + 1)
 
         with self.assertRaisesRegex(BUILDER.BundleBuildError, "safety limit"):
@@ -705,7 +650,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             ):
                 BUILDER.collect_bundle_files(source, SOURCE_SHA)
 
-    def test_distribution_manifest_cannot_exceed_the_manager_json_limit(self) -> None:
+    def test_distribution_manifest_cannot_exceed_the_json_limit(self) -> None:
         source = self.make_source("distribution-manifest-limit")
         files = BUILDER.collect_bundle_files(source, SOURCE_SHA)
         manifest_size = len(
@@ -718,7 +663,11 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         support_files = BUILDER._distribution_support_files(source)
         input_json_sizes = [
             (source / "targets/opencode-v1/manifest.json").stat().st_size,
-            *(path.stat().st_size for path in (source / "profiles/opencode").iterdir()),
+            (source / "targets/opencode-v1-focused/manifest.json").stat().st_size,
+            (source / "targets/copilot-cli-focused-v1/manifest.json").stat().st_size,
+            (source / "plugin/manifest.json").stat().st_size,
+            (source / "policy/content-lock.json").stat().st_size,
+            (source / "policy/focused-context-v1.json").stat().st_size,
         ]
         self.assertGreater(manifest_size, max(input_json_sizes))
 
@@ -762,21 +711,14 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         with self.assertRaisesRegex(BUILDER.BundleBuildError, "portable USTAR"):
             BUILDER.build_bundle(source, SOURCE_SHA, self.root / "long-path.tar.gz")
 
-        unsafe_profile = self.make_source("unsafe-profile")
-        (unsafe_profile / "profiles/opencode/bad\\name.json").write_text("{}\n")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "safe portable path"):
-            BUILDER.build_bundle(
-                unsafe_profile, SOURCE_SHA, self.root / "unsafe-profile.tar.gz"
-            )
-
     def test_output_cannot_alias_or_overwrite_any_source_input(self) -> None:
         source = self.make_source("protected-source")
-        manager = source / "scripts/manage_opencode.py"
-        original = manager.read_bytes()
+        launcher = source / "scripts/grillmester.py"
+        original = launcher.read_bytes()
 
         with self.assertRaisesRegex(BUILDER.BundleBuildError, "outside.*source root"):
-            BUILDER.build_bundle(source, SOURCE_SHA, manager)
-        self.assertEqual(manager.read_bytes(), original)
+            BUILDER.build_bundle(source, SOURCE_SHA, launcher)
+        self.assertEqual(launcher.read_bytes(), original)
 
         nested_output = source / "dist/bundle.tar.gz"
         with self.assertRaisesRegex(BUILDER.BundleBuildError, "outside.*source root"):
@@ -816,141 +758,21 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         alias = source.with_name("caseprotectedsource")
         if not alias.exists():
             self.skipTest("filesystem is case-sensitive")
-        manager = source / "scripts/manage_opencode.py"
-        original = manager.read_bytes()
+        launcher = source / "scripts/grillmester.py"
+        original = launcher.read_bytes()
 
         with self.assertRaisesRegex(BUILDER.BundleBuildError, "outside.*source root"):
             BUILDER.build_bundle(
                 source,
                 SOURCE_SHA,
-                alias / "scripts/manage_opencode.py",
+                alias / "scripts/grillmester.py",
             )
 
-        self.assertEqual(manager.read_bytes(), original)
+        self.assertEqual(launcher.read_bytes(), original)
 
-    def test_required_profiles_and_client_contract_are_exact(self) -> None:
-        missing = self.make_source("missing-profile")
-        (missing / "profiles/opencode/hybrid.json").unlink()
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "profiles must be exactly"):
-            BUILDER.build_bundle(missing, SOURCE_SHA, self.root / "missing.tar.gz")
-
-        wrong_id = self.make_source("wrong-profile-id")
-        profile_path = wrong_id / "profiles/opencode/local.json"
-        profile = json.loads(profile_path.read_text(encoding="utf-8"))
-        profile["id"] = "hybrid"
-        profile_path.write_text(json.dumps(profile), encoding="utf-8")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "invalid schema or id"):
-            BUILDER.build_bundle(wrong_id, SOURCE_SHA, self.root / "wrong-id.tar.gz")
-
-        wrong_pin = self.make_source("wrong-profile-pin")
-        profile_path = wrong_pin / "profiles/opencode/hybrid.json"
-        profile = json.loads(profile_path.read_text(encoding="utf-8"))
-        profile["cpltRelease"] += "-unreviewed"
-        profile_path.write_text(json.dumps(profile), encoding="utf-8")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "must pin cplt"):
-            BUILDER.build_bundle(wrong_pin, SOURCE_SHA, self.root / "wrong-pin.tar.gz")
-
-        wrong_manager = self.make_source("wrong-manager-pin")
-        manager = wrong_manager / "scripts/manage_opencode.py"
-        manager.write_text(
-            manager.read_text(encoding="utf-8").replace("1.18.20", "1.18.21"),
-            encoding="utf-8",
-        )
-        with self.assertRaisesRegex(
-            BUILDER.BundleBuildError, "SUPPORTED_OPENCODE_VERSION"
-        ):
-            BUILDER.build_bundle(
-                wrong_manager, SOURCE_SHA, self.root / "wrong-manager.tar.gz"
-            )
-
-    def test_artifact_and_legal_distribution_inputs_are_required_and_validated(
+    def test_legal_and_content_distribution_inputs_are_required_and_validated(
         self,
     ) -> None:
-        missing_artifacts = self.make_source("missing-artifacts")
-        (missing_artifacts / "policy/client-artifacts.json").unlink()
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "client artifact lock"):
-            BUILDER.build_bundle(
-                missing_artifacts,
-                SOURCE_SHA,
-                self.root / "missing-artifacts.tar.gz",
-            )
-
-        mismatched_integrity = self.make_source("mismatched-integrity")
-        artifacts_path = mismatched_integrity / "policy/client-artifacts.json"
-        artifacts = json.loads(artifacts_path.read_text(encoding="utf-8"))
-        artifacts["opencode"]["artifacts"][0]["archive"]["sha512"] = "0" * 128
-        artifacts_path.write_text(json.dumps(artifacts), encoding="utf-8")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "integrity does not match"):
-            BUILDER.build_bundle(
-                mismatched_integrity,
-                SOURCE_SHA,
-                self.root / "mismatched-integrity.tar.gz",
-            )
-
-        missing_homebrew_digest = self.make_source("missing-homebrew-digest")
-        artifacts_path = missing_homebrew_digest / "policy/client-artifacts.json"
-        artifacts = json.loads(artifacts_path.read_text(encoding="utf-8"))
-        artifacts["opencode"]["artifacts"][0]["archive"].pop("sha256")
-        artifacts_path.write_text(json.dumps(artifacts), encoding="utf-8")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "contain exactly"):
-            BUILDER.build_bundle(
-                missing_homebrew_digest,
-                SOURCE_SHA,
-                self.root / "missing-homebrew-digest.tar.gz",
-            )
-
-        false_github_evidence = self.make_source("false-github-evidence")
-        artifacts_path = false_github_evidence / "policy/client-artifacts.json"
-        artifacts = json.loads(artifacts_path.read_text(encoding="utf-8"))
-        artifacts["cplt"]["artifacts"][0]["archive"]["digestEvidence"][
-            "reportedDigest"
-        ] = "sha256:" + "0" * 64
-        artifacts_path.write_text(json.dumps(artifacts), encoding="utf-8")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "GitHub asset digest"):
-            BUILDER.build_bundle(
-                false_github_evidence,
-                SOURCE_SHA,
-                self.root / "false-github-evidence.tar.gz",
-            )
-
-        false_checksum_row = self.make_source("false-checksum-row")
-        artifacts_path = false_checksum_row / "policy/client-artifacts.json"
-        artifacts = json.loads(artifacts_path.read_text(encoding="utf-8"))
-        checksum = artifacts["cplt"]["checksumManifest"]
-        checksum["content"] = checksum["content"].replace(
-            "fb1fd69f5ff42deb1cf2e510d97a58ff5f7ddf913e1cd4f7533815a16588eeda",
-            "0" * 64,
-            1,
-        )
-        checksum["sha256"] = sha256(checksum["content"].encode("utf-8"))
-        artifacts_path.write_text(json.dumps(artifacts), encoding="utf-8")
-        with mock.patch.object(
-            BUILDER, "CPLT_CHECKSUMS_SHA256", checksum["sha256"]
-        ), self.assertRaisesRegex(BUILDER.BundleBuildError, "SHA256SUMS rows"):
-            BUILDER.build_bundle(
-                false_checksum_row,
-                SOURCE_SHA,
-                self.root / "false-checksum-row.tar.gz",
-            )
-
-        manager_digest_drift = self.make_source("manager-digest-drift")
-        manager_path = manager_digest_drift / "scripts/manage_opencode.py"
-        manager_path.write_text(
-            manager_path.read_text(encoding="utf-8").replace(
-                "423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2",
-                "0" * 64,
-            ),
-            encoding="utf-8",
-        )
-        with self.assertRaisesRegex(
-            BUILDER.BundleBuildError, "PINNED_CPLT_BINARY_SHA256 must match"
-        ):
-            BUILDER.build_bundle(
-                manager_digest_drift,
-                SOURCE_SHA,
-                self.root / "manager-digest-drift.tar.gz",
-            )
-
         missing_notices = self.make_source("missing-notices")
         (missing_notices / "THIRD_PARTY_NOTICES.md").unlink()
         with self.assertRaisesRegex(BUILDER.BundleBuildError, "third-party notices"):

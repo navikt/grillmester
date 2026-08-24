@@ -33,7 +33,8 @@ FIGMA_KEY_PATHS = {
     "targets/opencode-v1/skills/grillmester-design-prototype/references/aksel-figma-katalog.json",
 }
 OPENCODE_MANIFEST_PATH = "targets/opencode-v1/manifest.json"
-CLIENT_ARTIFACTS_PATH = "policy/client-artifacts.json"
+COPILOT_FULL_MANIFEST_PATH = "plugin/manifest.json"
+RELEASE_TEST_BASELINE_PATH = "scripts/release_test_baseline.py"
 SHA256_DIGEST = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
 ARTIFACT_HEX_DIGEST = re.compile(
     r"(?<![0-9a-f])(?:[0-9a-f]{128}|[0-9a-f]{64})(?![0-9a-f])"
@@ -854,11 +855,15 @@ def validate_content(
         if national_id_matches and (
             relative_path in FIGMA_KEY_PATHS
             or relative_path == OPENCODE_MANIFEST_PATH
-            or relative_path == CLIENT_ARTIFACTS_PATH
+            or relative_path == COPILOT_FULL_MANIFEST_PATH
+            or relative_path == RELEASE_TEST_BASELINE_PATH
         ):
-            if relative_path == OPENCODE_MANIFEST_PATH:
+            if relative_path in {
+                OPENCODE_MANIFEST_PATH,
+                COPILOT_FULL_MANIFEST_PATH,
+            }:
                 digest_pattern = SHA256_DIGEST
-            elif relative_path == CLIENT_ARTIFACTS_PATH:
+            elif relative_path == RELEASE_TEST_BASELINE_PATH:
                 digest_pattern = ARTIFACT_HEX_DIGEST
             else:
                 digest_pattern = FIGMA_COMPONENT_KEY
@@ -907,6 +912,9 @@ def validate_layout(root: Path, errors: list[str]) -> None:
         root / "plugin/.github/plugin/marketplace.json",
         root / "plugin/marketplace.json",
         root / "marketplace.json",
+        root / "profiles/opencode",
+        root / "scripts/manage_opencode.py",
+        root / "scripts/compose_opencode_permissions.py",
         root / "dist",
     ]
     for path in forbidden:
@@ -1000,6 +1008,28 @@ def validate_opencode_projection(root: Path, errors: list[str]) -> None:
         )
 
 
+def validate_copilot_full_manifest(root: Path, errors: list[str]) -> None:
+    generator = _load_projection_generator(
+        root,
+        errors,
+        script="scripts/generate_copilot_manifest.py",
+        label="Copilot full payload manifest generator",
+    )
+    if generator is None:
+        return
+    try:
+        expected = generator.build_manifest(root)
+        differences = generator.compare_manifest(root, expected)
+    except (OSError, ValueError) as exc:
+        errors.append(f"Copilot full payload manifest validation failed: {exc}")
+        return
+    if differences:
+        errors.append(
+            "Copilot full payload manifest is stale: "
+            + _summarize_projection_differences(differences)
+        )
+
+
 def validate_focused_context_projections(root: Path, errors: list[str]) -> None:
     generator = _load_projection_generator(
         root,
@@ -1035,6 +1065,7 @@ def validate_repo(root: Path) -> list[str]:
     validate_assets(root, errors)
     validate_manifests(root, errors)
     validate_opencode_projection(root, errors)
+    validate_copilot_full_manifest(root, errors)
     validate_focused_context_projections(root, errors)
     sources, agent_contracts, skill_contracts = load_content_lock(root, errors)
     validate_attribution(root, sources, errors)

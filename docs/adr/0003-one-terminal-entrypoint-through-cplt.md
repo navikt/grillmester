@@ -8,7 +8,9 @@ date: 2026-08-22
 Klienteierskapet og Homebrew-distribusjonen i denne ADR-en er senere supersedert
 av [ADR 0004](0004-use-user-installed-terminal-clients.md): standardlauncheren
 bruker systeminstallerte OpenCode- og Copilot CLI-binærer, mens beslutningen om
-én inngang gjennom cplt uten direkte fallback gjelder fortsatt.
+én inngang gjennom cplt uten direkte fallback gjelder fortsatt. Den valgfrie,
+upubliserte lifecycle-manageren som ADR-en fortsatt henviste til, er fjernet av
+[ADR 0007](0007-remove-the-lifecycle-manager.md).
 
 ## Kontekst
 
@@ -74,8 +76,8 @@ eller erstatte den distribuerte pluginpathen avvises. `--role` beholdes som
 kompatibelt alias for det kanoniske `--agent`.
 
 Den deterministiske release-bundle-en utvides med den kanoniske `plugin/`-flaten
-og launcheren. OpenCode-manageren fra ADR 0002 forblir den eneste valgfrie,
-managed/high-assurance livssyklusen. Den nye kommandoen er normal terminal-UX,
+og launcheren. ADR 0007 fjerner den separate OpenCode-manageren, slik at
+kommandoen er den eneste Grillmester-eide terminalflyten. Den er terminal-UX,
 ikke en ny filsynk eller installasjon inn i klientenes globale configområder.
 
 Den opprinnelige Homebrew-beslutningen, senere supersedert av ADR 0004,
@@ -137,6 +139,5 @@ til en separat løsning er testet.
   alltid stoppe med installasjonsveiledning.
 - **Bruk cplt for Copilot app eller VS Code:** cplt starter terminalprosesser og
   gir ingen dokumentert installasjons- eller runtimegrense for disse klientene.
-- **Gjør lifecycle-manageren obligatorisk:** påfører normal bruk dens smale
-  providerprofil, private klientstaging og high-assurance-policy uten at brukeren
-  har valgt det behovet.
+- **Behold en separat lifecycle-manager:** dupliserer cplts runtimeansvar og
+  skaper en ekstra profil-, staging- og vedlikeholdsflate. ADR 0007 fjerner den.

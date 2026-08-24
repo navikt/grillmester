@@ -17,8 +17,10 @@ En reell A/B-pilot med Qwen3.8-27B Q6 og samme korte oppgave målte 8 024 mot
 13 667 inputtokens for focused/full OpenCode Barista og 15 841 mot 20 117 for
 focused/full Copilot CLI. Det er henholdsvis 41,3 og 21,3 prosent mindre
 inputkontekst. Alle fire kjedene gikk gjennom eksakt cplt til loopback, uten en
-GitHub Copilot-cloudmodell eller premium request. Målingen er evidens for denne
-oppgaven og modellkonfigurasjonen, ikke generell kvalitetsparitet.
+GitHub Copilot-cloudmodell eller premium request. Dette var den opprinnelige
+seks-skill-baselinen, før issue management ble tatt inn. Tallene dokumenterer
+designretningen for den oppgaven og modellkonfigurasjonen; de er ikke en måling
+av dagens sju-skill-roster eller generell kvalitetsparitet.
 
 Permission-filteret alene er ikke en ærlig distribusjonsflate. En OpenCode-
 command som peker på en denied skill er fortsatt synlig, men kan ikke utføres.
@@ -39,18 +41,23 @@ Begge targetene bruker samme reviewede roster:
 
 - agentene `barista` og `grill-inspektor`
 - skillsene `grillmester-diagnosing-bugs`,
-  `grillmester-integration-tests`, `grillmester-pull-request`,
-  `grillmester-review`, `grillmester-security-review` og `grillmester-tdd`
-- nøyaktig seks OpenCode-commands, én for hver inkluderte skill
+  `grillmester-integration-tests`, `grillmester-issue-management`,
+  `grillmester-pull-request`, `grillmester-review`,
+  `grillmester-security-review` og `grillmester-tdd`
+- nøyaktig sju OpenCode-commands, én for hver inkluderte skill
 
 Security review inngår fordi Baristas kanoniske kontrakt krever den når
 beskrivelsen matcher. Grill-inspektor inngår fordi Barista kan tilby uavhengig
-review uten å laste resten av agentteamet.
+review uten å laste resten av agentteamet. Issue management inngår slik at en
+focused utviklingsflyt kan lese og opprette reviewbare GitHub Issues gjennom
+local-launcherens cplt-guardede `gh`-vei.
 
 `policy/focused-context-v1.json` eier roster, eksakte source-/outputpaths og
-full-context-handoffen. `scripts/generate_context_projections.py` avleder begge
-targetene og nekter å bygge fra et OpenCode-fulltarget som ikke matcher sitt
-eget manifest. Genererte targets skal aldri håndredigeres.
+full-context-handoffen. `scripts/generate_copilot_manifest.py` manifesterer den
+fulle Copilot-payloaden, og `scripts/generate_context_projections.py` avleder
+begge focused-targetene. Generatoren nekter å bygge fra et fulltarget som ikke
+matcher sitt eget manifest. Genererte manifester og targets skal aldri
+håndredigeres.
 
 OpenCode-projeksjonen kopierer reviewede OpenCode-adaptere, overlays,
 permissions og command-wrappere fra fulltargetet. Den fjerner permissionlinjer
@@ -85,12 +92,14 @@ til klienten. Den er ikke en runtimeprofil og gir ingen garanti om lokal-only,
 egress, sandbox, provider eller samlet kontekstbruk. Prosjekt- og brukereide
 skills kan fortsatt øke klientens ambient kontekst etter klientens vanlige
 precedence-regler når targetet brukes direkte. Den separate local-launcheren
-lukker denne ambientflaten med privat HOME/klientstate og avviser kjente
-prosjektkomponenter; dette er en runtimegaranti, ikke en egenskap ved
-projeksjonen.
+beholder hostens `HOME` for cplts native integrasjoner, men isolerer XDG-/
+klientstate og avviser kjente prosjektkomponenter. Dette er en runtimegaranti,
+ikke en egenskap ved projeksjonen.
 
-Begge manifestene binder policyen, source-manifestet eller pluginmanifestet,
-alle genererte bytes og filmodi. Den fokuserte Copilot-projeksjonen kopierer
+Begge focused-manifestene binder policyen, det respektive fulltargetmanifestet,
+alle genererte bytes og filmodi. Copilot/full-manifestet binder på sin side
+alle filer og modi under `plugin/`, bortsett fra seg selv. Den fokuserte
+Copilot-projeksjonen kopierer
 den kanoniske, releaseversjonerte `plugin.json` byte-eksakt. En RC-til-stable-
 versjonsendring regenererer derfor også den private pluginen og dens manifest,
 selv når agent- og skillinnholdet ellers er uendret. Releasekontrakten må
@@ -112,8 +121,9 @@ regresjonskontrakter. En focused-endring kan ikke endre eller erstatte dem.
   repoet. Begge targetene er immutable releaseinnhold.
 - Spesialistoppgaver krever eksplisitt full kontekst. Dette er synlig adferd,
   ikke en stille kvalitetsreduksjon.
-- Local-launcheren gir Copilot CLI et privat HOME og `COPILOT_HOME`, binder bare
-  valgt `--plugin-dir` og setter kvalifiserte
+- Local-launcheren beholder hostens `HOME`, gir Copilot CLI et privat
+  `COPILOT_HOME` og isolert XDG-state, binder bare valgt `--plugin-dir` og setter
+  kvalifiserte
   `subagents.agents.grillmester:<id>.model: inherit`-regler for alle syv
   agenter. Den deterministiske release-smoken tvinger normal delegering i både
   focused og full kontekst og krever at hovedagent, underagent og retur bruker

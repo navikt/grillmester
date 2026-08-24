@@ -38,7 +38,9 @@ class DoctorWhoNoShellContractTests(unittest.TestCase):
 
         self.assertIn("For Doctor Who", issue_management)
         self.assertIn("Never\nfall back to `gh`, shell, raw HTTP", issue_management)
-        self.assertIn("Do not substitute `gh`, shell or raw HTTP", issue_management)
+        self.assertIn("cplt-guarded `gh issue` commands", issue_management)
+        self.assertIn("Outside that explicit cplt context", issue_management)
+        self.assertIn("Never use raw HTTP for a\ntracker mutation", issue_management)
         self.assertIn("Status: NEEDS_INPUT", issue_management)
 
         self.assertIn("agent is Doctor Who", security_review)

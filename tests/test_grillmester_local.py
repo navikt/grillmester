@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import hashlib
 import io
 import json
 import os
@@ -112,6 +111,7 @@ class LocalModeTests(unittest.TestCase):
         self.opencode = self._binary("opencode")
         self.copilot = self._binary("copilot")
         self.ripgrep = self._binary("rg")
+        self.gh = self._binary("gh")
         self.environment = {
             "PATH": str(self.bin),
             "HOME": str(self.root / "home"),
@@ -152,6 +152,7 @@ class LocalModeTests(unittest.TestCase):
         config: LOCAL.LocalConfig | None = None,
         *,
         arguments: tuple[str, ...] = (),
+        github_access: bool = False,
     ) -> LOCAL.LocalLaunch:
         config = config or self._config()
         client = self.opencode if config.client == "opencode" else self.copilot
@@ -162,6 +163,7 @@ class LocalModeTests(unittest.TestCase):
             cplt=SimpleNamespace(path=str(self.cplt), version="reviewed"),
             client=SimpleNamespace(path=str(client), version="reviewed"),
             client_arguments=arguments,
+            github_access=github_access,
             environment=self.environment,
             platform="darwin",
         )
@@ -349,42 +351,35 @@ class LocalModeTests(unittest.TestCase):
             )
         self.assertNotIn("do-not-print", str(raised.exception))
 
-    def test_opencode_launch_is_native_local_only_and_uses_focused_payload(self) -> None:
+    def test_opencode_launch_uses_cplt_connected_policy_and_focused_payload(self) -> None:
         launch = self._launch()
         command = list(launch.command)
         separator = command.index("--")
 
-        self.assertEqual(str(launch.runtime.trusted_bin / "cplt"), command[0])
+        self.assertEqual(str(self.cplt.resolve(strict=True)), command[0])
+        self.assertEqual(str(self.bin.resolve(strict=True)), launch.environment["PATH"].split(os.pathsep)[0])
         self.assertEqual(
-            str(launch.runtime.trusted_bin),
-            launch.environment["PATH"].split(os.pathsep)[0],
+            self.opencode.resolve(strict=True),
+            Path(shutil.which("opencode", path=launch.environment["PATH"])).resolve(strict=True),
         )
         self.assertEqual(
-            self.opencode.read_bytes(),
-            (launch.runtime.trusted_bin / "opencode").read_bytes(),
+            self.gh.resolve(strict=True),
+            Path(shutil.which("gh", path=launch.environment["PATH"])).resolve(strict=True),
         )
         self.assertEqual(["--agent", "opencode"], command[command.index("--agent") : command.index("--agent") + 2])
-        self.assertIn("--preset", command)
-        self.assertEqual("standard", command[command.index("--preset") + 1])
         for flag in (
-            "--with-proxy",
             "--proxy-forced",
             "--gh-guard",
             "--git-guard",
-            "--no-allow-localhost-any",
-            "--no-allow-env-files",
-            "--no-allow-tmp-exec",
-            "--no-allow-docker",
-            "--no-allow-lifecycle-scripts",
-            "--deny-clipboard",
             "--no-audit",
+            "--deny-clipboard",
         ):
             self.assertIn(flag, command[:separator])
         for forbidden in (
             "exec",
             "shell",
-            "--default-allowlist",
             "--allow-all-domains",
+            "--default-allowlist",
             "--inherit-env",
         ):
             self.assertNotIn(forbidden, command[:separator])
@@ -398,23 +393,52 @@ class LocalModeTests(unittest.TestCase):
             launch.payload,
         )
 
-    def test_policy_is_fail_closed_and_not_writable_by_the_client(self) -> None:
+    def test_network_and_sandbox_policy_are_delegated_to_cplt(self) -> None:
         launch = self._launch()
         command = list(launch.command)
-        allowed = Path(command[command.index("--allowed-domains") + 1])
-        blocked = Path(command[command.index("--blocked-domains") + 1])
-        self.assertEqual(f"{LOCAL.LOCAL_SENTINEL_DOMAIN}\n", allowed.read_text())
-        self.assertEqual(allowed.read_bytes(), blocked.read_bytes())
-        self.assertEqual(0o600, stat.S_IMODE(allowed.stat().st_mode))
+        self.assertIn("--proxy-forced", command)
+        self.assertIn("--gh-guard", command)
+        self.assertIn("--git-guard", command)
+        self.assertNotIn("--allow-all-domains", command)
+        self.assertNotIn("--preset", command)
+        self.assertNotIn("--allowed-domains", command)
+        self.assertNotIn("--blocked-domains", command)
         writable = {
             command[index + 1]
             for index, value in enumerate(command)
             if value == "--allow-write"
         }
         self.assertNotIn(str(launch.runtime.root), writable)
-        self.assertNotIn(str(allowed.parent), writable)
-        self.assertNotIn(str(launch.runtime.cplt_config.parent), writable)
-        self.assertEqual(b"", launch.runtime.cplt_config.read_bytes())
+        self.assertNotIn(str(launch.runtime.root), writable)
+
+    def test_caller_cplt_policy_is_preserved_without_being_passed_to_child(self) -> None:
+        policy = self.root / "managed-cplt.toml"
+        policy.write_text(
+            '[proxy]\nallowed_domains = "/managed/allowlist.txt"\n',
+            encoding="utf-8",
+        )
+        self.environment["CPLT_CONFIG"] = str(policy)
+
+        launch = self._launch()
+
+        self.assertEqual(str(policy), launch.environment["CPLT_CONFIG"])
+        command = list(launch.command)
+        passed = {
+            command[index + 1]
+            for index, value in enumerate(command)
+            if value == "--pass-env"
+        }
+        self.assertNotIn("CPLT_CONFIG", passed)
+        self.assertNotIn("--allow-all-domains", command)
+
+    def test_repository_cplt_proposals_are_left_to_cplt(self) -> None:
+        (self.project / ".cplt.toml").write_text(
+            "[propose.allow]\nlocalhost = [9999]\n", encoding="utf-8"
+        )
+
+        launch = self._launch()
+
+        self.assertNotIn("--accept-repo-config", launch.command)
 
     def test_each_launch_gets_a_private_isolated_session_root(self) -> None:
         first = self._launch()
@@ -518,6 +542,30 @@ class LocalModeTests(unittest.TestCase):
         ]
         self.assertEqual(LOCAL.RETAINED_INACTIVE_SESSIONS, len(sessions))
 
+    def test_pruning_migrates_legacy_sealed_binary_session_without_following_links(self) -> None:
+        parent = LOCAL.state_root(self.environment) / "sessions"
+        parent.mkdir(parents=True)
+        parent.chmod(0o700)
+        stale = parent / "opencode-legacy"
+        trusted_bin = stale / "trusted-bin"
+        trusted_bin.mkdir(parents=True, mode=0o700)
+        (stale / LOCAL.SESSION_OWNER_FILE).write_text(
+            "999999999\n", encoding="ascii"
+        )
+        staged = trusted_bin / "cplt"
+        staged.write_bytes(b"legacy staged binary")
+        staged.chmod(0o500)
+        outside = self.root / "outside"
+        outside.write_text("keep", encoding="ascii")
+        (trusted_bin / "outside-link").symlink_to(outside)
+        trusted_bin.chmod(0o500)
+        stale.chmod(0o500)
+
+        LOCAL._prune_inactive_sessions(parent, retain=0)
+
+        self.assertFalse(stale.exists())
+        self.assertEqual("keep", outside.read_text(encoding="ascii"))
+
     def test_concurrent_session_pruning_tolerates_the_same_victim_disappearing(self) -> None:
         parent = LOCAL.state_root(self.environment) / "sessions"
         parent.mkdir(parents=True)
@@ -536,9 +584,9 @@ class LocalModeTests(unittest.TestCase):
         barrier = threading.Barrier(2)
         failures: list[BaseException] = []
 
-        def racing_rmtree(path: Path) -> None:
+        def racing_rmtree(path: Path, *args: object, **kwargs: object) -> None:
             barrier.wait(timeout=5)
-            original_rmtree(path)
+            original_rmtree(path, *args, **kwargs)
 
         def prune() -> None:
             try:
@@ -560,30 +608,12 @@ class LocalModeTests(unittest.TestCase):
             LOCAL.RETAINED_INACTIVE_SESSIONS,
         )
 
-    def test_opencode_sessions_stage_ripgrep_into_the_private_cache(self) -> None:
+    def test_opencode_sessions_keep_path_ripgrep_available(self) -> None:
         launch = self._launch()
-
-        staged = Path(launch.environment["XDG_CACHE_HOME"]) / "opencode/bin/rg"
-        self.assertTrue(staged.is_file())
-        self.assertEqual(0o500, stat.S_IMODE(staged.stat().st_mode))
-        self.assertEqual(self.ripgrep.read_bytes(), staged.read_bytes())
-
-    def test_missing_ripgrep_warns_but_never_blocks_an_opencode_launch(self) -> None:
-        self.ripgrep.unlink()
-        stderr = io.StringIO()
-
-        with redirect_stderr(stderr):
-            launch = self._launch()
-
-        cache = Path(launch.environment["XDG_CACHE_HOME"])
-        self.assertFalse((cache / "opencode/bin/rg").exists())
-        self.assertIn("brew install ripgrep", stderr.getvalue())
-
-    def test_copilot_sessions_do_not_stage_ripgrep(self) -> None:
-        launch = self._launch(self._config(client="copilot"))
-
-        cache = Path(launch.environment["XDG_CACHE_HOME"])
-        self.assertFalse((cache / "opencode").exists())
+        self.assertEqual(
+            self.ripgrep.resolve(strict=True),
+            Path(shutil.which("rg", path=launch.environment["PATH"])).resolve(strict=True),
+        )
 
     def test_install_hints_match_the_parent_launcher(self) -> None:
         cli_spec = importlib.util.spec_from_file_location(
@@ -640,6 +670,109 @@ class LocalModeTests(unittest.TestCase):
         provider = config_content["provider"]["llamacpp"]
         self.assertEqual("@ai-sdk/openai-compatible", provider["npm"])
         self.assertNotIn("apiKey", provider["options"])
+        self.assertEqual("{}", launch.environment["OPENCODE_AUTH_CONTENT"])
+        self.assertEqual("true", launch.environment["OPENCODE_ENABLE_EXA"])
+
+    def test_opencode_never_executes_ambient_gh_outside_cplt(self) -> None:
+        marker = self.root / "ambient-gh-executed"
+        self.gh.write_text(
+            f"#!/bin/sh\ntouch {marker}\nprintf '%s\\n' github_pat_test_secret\n",
+            encoding="utf-8",
+        )
+        self.gh.chmod(0o700)
+
+        launch = self._launch()
+
+        self.assertFalse(marker.exists())
+        self.assertNotIn("GH_TOKEN", launch.environment)
+        self.assertNotIn("GH_TOKEN", launch.secret_environment)
+
+    def test_clients_deny_every_existing_host_gh_config_directory(self) -> None:
+        custom = self.root / "work-gh-config"
+        custom.mkdir()
+        xdg = Path(self.environment["XDG_CONFIG_HOME"]) / "gh"
+        xdg.mkdir(parents=True)
+        default = Path(self.environment["HOME"]) / ".config" / "gh"
+        default.mkdir(parents=True)
+        self.environment["GH_CONFIG_DIR"] = str(custom)
+
+        for client in ("opencode", "copilot"):
+            with self.subTest(client=client):
+                launch = self._launch(self._config(client=client))
+                command = list(launch.command)
+                denied = {
+                    command[index + 1]
+                    for index, value in enumerate(command)
+                    if value == "--deny-path"
+                }
+                passed = {
+                    command[index + 1]
+                    for index, value in enumerate(command)
+                    if value == "--pass-env"
+                }
+
+                self.assertEqual(
+                    str(custom.resolve(strict=True)),
+                    launch.environment["GH_CONFIG_DIR"],
+                )
+                self.assertTrue(
+                    {
+                        str(custom.resolve(strict=True)),
+                        str(xdg.resolve(strict=True)),
+                        str(default.resolve(strict=True)),
+                    }.issubset(denied)
+                )
+                self.assertNotIn("GH_CONFIG_DIR", passed)
+
+    def test_github_access_requires_explicit_environment_capability_for_each_client(self) -> None:
+        without_token = {**self.environment}
+        without_token.pop("GH_TOKEN")
+        for client, binary in (("opencode", self.opencode), ("copilot", self.copilot)):
+            with self.subTest(client=client), self.assertRaisesRegex(
+                LOCAL.LocalModeError, "GH_TOKEN"
+            ):
+                LOCAL.build_local_launch(
+                    self._config(client=client),
+                    distribution_root=self.distribution,
+                    project_dir=self.project,
+                    cplt=self.cplt,
+                    client=binary,
+                    environment=without_token,
+                    github_access=True,
+                    platform="darwin",
+                )
+
+            launch = LOCAL.build_local_launch(
+                self._config(client=client),
+                distribution_root=self.distribution,
+                project_dir=self.project,
+                cplt=self.cplt,
+                client=binary,
+                environment=self.environment,
+                github_access=True,
+                platform="darwin",
+            )
+
+            self.assertEqual("must-not-cross", launch.environment["GH_TOKEN"])
+            self.assertEqual("<redacted>", launch.redacted_environment["GH_TOKEN"])
+            self.assertIn("GH_TOKEN", launch.secret_environment)
+            self.assertIn("GH_TOKEN", launch.command)
+            self.assertNotIn("must-not-cross", repr(launch))
+            if client == "copilot":
+                command = list(launch.command)
+                passed = {
+                    command[index + 1]
+                    for index, value in enumerate(command)
+                    if value == "--pass-env"
+                }
+                child = command[command.index("--") + 1 :]
+                self.assertIn("GH_TOKEN", passed)
+                self.assertIn(
+                    "--secret-env-vars=COPILOT_PROVIDER_API_KEY", child
+                )
+                self.assertNotIn(
+                    "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN", child
+                )
 
     def test_opencode_rejects_provider_credentials_before_state_is_created(self) -> None:
         for config in (
@@ -651,45 +784,6 @@ class LocalModeTests(unittest.TestCase):
             ):
                 LOCAL.validate_config(config, check_key_file=False)
         self.assertFalse((self.root / "state").exists())
-
-    def test_final_path_uses_private_client_copy_after_source_changes(self) -> None:
-        expected = self.opencode.read_bytes()
-        launch = self._launch()
-
-        self.opencode.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
-        self.opencode.chmod(0o700)
-
-        staged = launch.runtime.trusted_bin / "opencode"
-        self.assertEqual(expected, staged.read_bytes())
-        self.assertEqual(
-            staged,
-            Path(
-                shutil.which(
-                    "opencode", path=launch.environment["PATH"]
-                )
-            ).resolve(strict=True),
-        )
-
-    def test_client_changed_after_probe_digest_fails_before_launch(self) -> None:
-        expected_digest = hashlib.sha256(self.opencode.read_bytes()).hexdigest()
-        checked_client = SimpleNamespace(
-            path=str(self.opencode), version="reviewed", sha256=expected_digest
-        )
-        self.opencode.write_text("#!/bin/sh\nexit 98\n", encoding="utf-8")
-        self.opencode.chmod(0o700)
-
-        with self.assertRaisesRegex(
-            LOCAL.LocalModeError, "changed after its sandboxed version check"
-        ):
-            LOCAL.build_local_launch(
-                self._config(),
-                distribution_root=self.distribution,
-                project_dir=self.project,
-                cplt=SimpleNamespace(path=str(self.cplt), version="reviewed"),
-                client=checked_client,
-                environment=self.environment,
-                platform="darwin",
-            )
 
     def test_open_code_full_projection_and_subcommand_classification(self) -> None:
         config = self._config(context="full", agent="grillmester")
@@ -730,7 +824,7 @@ class LocalModeTests(unittest.TestCase):
             ):
                 self._launch(arguments=arguments)
 
-    def test_copilot_launch_is_offline_isolated_and_secret_redacted(self) -> None:
+    def test_copilot_launch_binds_local_inference_and_keeps_tools_connected(self) -> None:
         self.environment["LOCAL_MODEL_TOKEN"] = "private-token"
         config = self._config(
             client="copilot", api_key_env="LOCAL_MODEL_TOKEN"
@@ -750,7 +844,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("--no-remote-export", client)
         self.assertIn("--disable-builtin-mcps", client)
         self.assertIn("--secret-env-vars=COPILOT_PROVIDER_API_KEY", client)
-        self.assertEqual("true", launch.environment["COPILOT_OFFLINE"])
+        self.assertNotIn("COPILOT_OFFLINE", launch.environment)
         self.assertEqual("false", launch.environment["COPILOT_AUTO_UPDATE"])
         self.assertEqual("false", launch.environment["COPILOT_OTEL_ENABLED"])
         self.assertEqual("private-token", launch.environment["COPILOT_PROVIDER_API_KEY"])
@@ -764,7 +858,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIs(settings["memory"], False)
         self.assertIs(settings["experimental"], False)
         self.assertEqual({"autoConnect": False}, settings["ide"])
-        self.assertEqual({"defaultLocalOnly": True}, settings["customAgents"])
+        self.assertNotIn("customAgents", settings)
         self.assertEqual(
             set(LOCAL.COPILOT_INHERIT_AGENTS),
             set(settings["subagents"]["agents"]),
@@ -781,58 +875,6 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual("local", launch.environment["COPILOT_PROVIDER_API_KEY"])
         self.assertEqual("<redacted>", launch.redacted_environment["COPILOT_PROVIDER_API_KEY"])
         self.assertNotIn("'COPILOT_PROVIDER_API_KEY': 'local'", repr(launch))
-
-    def test_nonempty_worktree_cplt_proposals_fail_closed(self) -> None:
-        (self.project / ".cplt.toml").write_text(
-            "[propose.allow]\nlocalhost = [9999]\n", encoding="utf-8"
-        )
-        with self.assertRaisesRegex(LOCAL.LocalModeError, "non-empty.*propose"):
-            self._launch()
-
-    def test_repository_cplt_deny_schema_cannot_fail_open(self) -> None:
-        invalid = (
-            '[deny]\npaths = ["secrets"]\ntypo = true\n',
-            '[deny]\nenv = ["INVALID-NAME"]\n',
-            '[deny]\npaths = ["../AGENTS.md"]\n',
-            "[deny]\npaths = ['safe\" ) (allow file-read*)']\n",
-            '[deny]\nenv = ["SECRET"]\n[unknown]\nvalue = true\n',
-        )
-        cplt_toml = self.project / ".cplt.toml"
-        for content in invalid:
-            with self.subTest(content=content):
-                cplt_toml.write_text(content, encoding="utf-8")
-                with self.assertRaises(LOCAL.LocalModeError):
-                    self._launch()
-
-        cplt_toml.write_text(
-            '[deny]\nenv = ["SECRET_1"]\npaths = ["AGENTS.md"]\n',
-            encoding="utf-8",
-        )
-        self._launch()
-
-    def test_invalid_committed_cplt_deny_is_rejected_after_worktree_deletion(self) -> None:
-        cplt_toml = self.project / ".cplt.toml"
-        cplt_toml.write_text(
-            '[deny]\npaths = ["secrets"]\ntypo = true\n', encoding="utf-8"
-        )
-        for command in (
-            ("git", "init", "-q"),
-            ("git", "add", ".cplt.toml"),
-            (
-                "git",
-                "-c",
-                "user.name=Test",
-                "-c",
-                "user.email=test@example.invalid",
-                "commit",
-                "-qm",
-                "fixture",
-            ),
-        ):
-            subprocess.run(command, cwd=self.project, check=True)
-        cplt_toml.unlink()
-        with self.assertRaisesRegex(LOCAL.LocalModeError, "unsupported keys"):
-            self._launch()
 
     def test_project_opencode_config_and_extension_surfaces_fail_closed(self) -> None:
         candidates = (
@@ -953,9 +995,7 @@ class LocalModeTests(unittest.TestCase):
                 platform="darwin",
             )
 
-    def test_no_audit_blocks_parent_side_core_fsmonitor_surface(self) -> None:
-        import subprocess
-
+    def test_cplt_post_session_audit_is_disabled_for_untrusted_repository_config(self) -> None:
         marker = self.root / "fsmonitor-executed"
         subprocess.run(("git", "init", "-q"), cwd=self.project, check=True)
         subprocess.run(
@@ -967,116 +1007,6 @@ class LocalModeTests(unittest.TestCase):
         separator = launch.command.index("--")
         self.assertIn("--no-audit", launch.command[:separator])
         self.assertFalse(marker.exists())
-
-    def test_nonempty_committed_cplt_proposals_fail_closed_when_file_is_deleted(self) -> None:
-        cplt_toml = self.project / ".cplt.toml"
-        cplt_toml.write_text("[propose.allow]\nlocalhost = [9999]\n", encoding="utf-8")
-        commands = (
-            ("git", "init", "-q"),
-            ("git", "add", ".cplt.toml"),
-            (
-                "git",
-                "-c",
-                "user.name=Test",
-                "-c",
-                "user.email=test@example.invalid",
-                "commit",
-                "-qm",
-                "fixture",
-            ),
-        )
-        import subprocess
-
-        for command in commands:
-            subprocess.run(command, cwd=self.project, check=True)
-        cplt_toml.unlink()
-        with self.assertRaisesRegex(LOCAL.LocalModeError, "propose.*committed"):
-            self._launch()
-
-    def test_committed_cplt_inspection_never_lazy_fetches_or_runs_remote_helper(self) -> None:
-        git = LOCAL._trusted_git_binary()
-        touch = Path("/usr/bin/touch")
-        if not touch.is_file():
-            self.skipTest("the offline remote-helper fixture requires /usr/bin/touch")
-
-        origin = self.root / "partial-origin.git"
-        clone = self.root / "partial-clone"
-        marker = self.root / "remote-helper-ran"
-
-        def run(
-            arguments: tuple[str, ...],
-            *,
-            input_bytes: bytes | None = None,
-            environment: dict[str, str] | None = None,
-        ) -> subprocess.CompletedProcess[bytes]:
-            return subprocess.run(
-                (str(git), *arguments),
-                input=input_bytes,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=environment,
-                check=True,
-            )
-
-        run(("init", "--bare", "-q", str(origin)))
-        blob = run(
-            ("--git-dir", str(origin), "hash-object", "-w", "--stdin"),
-            input_bytes=b"[deny]\nenv=[]\n",
-        ).stdout.decode("ascii").strip()
-        tree = run(
-            ("--git-dir", str(origin), "mktree", "-z"),
-            input_bytes=f"100644 blob {blob}\t.cplt.toml\0".encode("ascii"),
-        ).stdout.decode("ascii").strip()
-        identity = {
-            **os.environ,
-            "GIT_AUTHOR_NAME": "Grillmester test",
-            "GIT_AUTHOR_EMAIL": "test@example.invalid",
-            "GIT_COMMITTER_NAME": "Grillmester test",
-            "GIT_COMMITTER_EMAIL": "test@example.invalid",
-        }
-        commit = run(
-            ("--git-dir", str(origin), "commit-tree", tree),
-            input_bytes=b"fixture\n",
-            environment=identity,
-        ).stdout.decode("ascii").strip()
-        run(("--git-dir", str(origin), "update-ref", "refs/heads/main", commit))
-        run(("--git-dir", str(origin), "symbolic-ref", "HEAD", "refs/heads/main"))
-        run(("--git-dir", str(origin), "config", "uploadpack.allowFilter", "true"))
-        run(
-            (
-                "--git-dir",
-                str(origin),
-                "config",
-                "uploadpack.allowAnySHA1InWant",
-                "true",
-            )
-        )
-        run(
-            (
-                "-c",
-                "protocol.file.allow=always",
-                "clone",
-                "-q",
-                "--filter=blob:none",
-                "--no-checkout",
-                origin.as_uri(),
-                str(clone),
-            )
-        )
-        run(("-C", str(clone), "config", "protocol.ext.allow", "always"))
-        run(
-            (
-                "-C",
-                str(clone),
-                "config",
-                "remote.origin.url",
-                f"ext::{touch} {marker}",
-            )
-        )
-
-        with self.assertRaisesRegex(LOCAL.LocalModeError, "committed \\.cplt\\.toml"):
-            LOCAL._committed_cplt_toml(clone)
-        self.assertFalse(marker.exists(), "Git attempted the configured promisor helper")
 
     def test_print_shape_does_not_read_api_key_environment_or_file(self) -> None:
         missing_file = self.root / "does-not-exist.key"
@@ -1102,6 +1032,23 @@ class LocalModeTests(unittest.TestCase):
             read_secret.assert_not_called()
             self.assertIn("--pass-env", launch.command)
             self.assertFalse((self.root / "state").exists())
+
+    def test_opencode_print_shape_redacts_explicit_github_credential(self) -> None:
+        launch = LOCAL.build_local_launch(
+            self._config(),
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            cplt=self.cplt,
+            client=self.opencode,
+            environment=self.environment,
+            github_access=True,
+            resolve_credentials=False,
+            prepare_state=False,
+            platform="darwin",
+        )
+
+        self.assertEqual("<redacted>", launch.environment["GH_TOKEN"])
+        self.assertIn("GH_TOKEN", launch.secret_environment)
 
     def test_reserved_client_arguments_cannot_override_local_binding(self) -> None:
         for client, option in (
@@ -1362,17 +1309,17 @@ class LocalModeTests(unittest.TestCase):
         with self.assertRaisesRegex(LOCAL.LocalModeError, "digest mismatch"):
             self._launch()
 
-    def test_copilot_uses_only_exact_cache_exec_and_denies_existing_account_state(self) -> None:
+    def test_copilot_preserves_host_home_but_denies_raw_gh_state(self) -> None:
         account_home = Path(self.environment["HOME"])
         sensitive = (
             account_home / ".copilot",
             account_home / ".agents",
             account_home / ".claude",
-            account_home / ".config/gh",
-            account_home / "Library/Keychains",
         )
         for path in sensitive:
             path.mkdir(parents=True)
+        expected_gh_config = Path(self.environment["XDG_CONFIG_HOME"]) / "gh"
+        expected_gh_config.mkdir(parents=True)
         launch = self._launch(self._config(client="copilot"))
         command = list(launch.command)
         self.assertEqual("copilot", command[command.index("--allow-cache-exec") + 1])
@@ -1381,8 +1328,24 @@ class LocalModeTests(unittest.TestCase):
             for index, value in enumerate(command)
             if value == "--deny-path"
         }
-        self.assertEqual({str(path.resolve(strict=True)) for path in sensitive}, denied)
-        self.assertEqual(str(launch.runtime.home), launch.environment["HOME"])
+        self.assertEqual(
+            {str(path.resolve(strict=True)) for path in sensitive}
+            | {str(expected_gh_config.resolve(strict=False))},
+            denied,
+        )
+        self.assertEqual(str(account_home), launch.environment["HOME"])
+        self.assertEqual(
+            str(expected_gh_config.resolve(strict=False)),
+            launch.environment["GH_CONFIG_DIR"],
+        )
+        command = list(launch.command)
+        passed = {
+            command[index + 1]
+            for index, value in enumerate(command)
+            if value == "--pass-env"
+        }
+        self.assertNotIn("GH_CONFIG_DIR", passed)
+        self.assertNotIn(str(account_home / "Library" / "Keychains"), denied)
         self.assertEqual(
             str(launch.runtime.copilot_home), launch.environment["COPILOT_HOME"]
         )
@@ -1441,8 +1404,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(1, len(calls))
         executable = Path(calls[0][0])
         self.assertEqual("cplt", executable.name)
-        self.assertEqual("trusted-bin", executable.parent.name)
-        self.assertEqual(self.cplt.read_bytes(), executable.read_bytes())
+        self.assertEqual(self.cplt.resolve(strict=True), executable.resolve(strict=True))
         self.assertEqual("qwen3.8-local", ProbeHandler.models[0])
 
     def test_execute_binds_one_secret_value_to_probe_and_launch(self) -> None:
@@ -1497,7 +1459,7 @@ class LocalModeTests(unittest.TestCase):
 
         read_secret.assert_not_called()
 
-    def test_local_only_launch_fails_closed_off_macos(self) -> None:
+    def test_local_launch_fails_closed_off_macos(self) -> None:
         with self.assertRaisesRegex(LOCAL.LocalModeError, "only on macOS"):
             LOCAL.build_local_launch(
                 self._config(),

@@ -4,7 +4,8 @@ This repository owns the portable Grillmester Copilot plugin in `plugin/`,
 the generated full OpenCode 1 target in `targets/opencode-v1/`, and the focused
 local-model projections in `targets/opencode-v1-focused/` and
 `targets/copilot-cli-focused-v1/`. The Copilot source and target-neutral prompt
-bodies remain canonical; regenerate the full OpenCode projection through
+bodies remain canonical; regenerate `plugin/manifest.json` through
+`scripts/generate_copilot_manifest.py`, the full OpenCode projection through
 `scripts/generate_opencode.py`, then the focused projections through
 `scripts/generate_context_projections.py`, instead of editing targets by hand.
 Keep every target deterministic and independent of any single consumer
@@ -38,7 +39,8 @@ Run before publishing a change:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
-python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_homebrew_formula.py scripts/generate_context_projections.py
+python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_homebrew_formula.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py
+python3 scripts/generate_copilot_manifest.py --check
 python3 scripts/generate_opencode.py --check
 python3 scripts/generate_context_projections.py --check
 python3 scripts/validate.py
@@ -59,7 +61,7 @@ current `cplt` documentation, and select the agent with `/agent`.
 Never use a consumer repository as a write target for a smoke test.
 The OpenCode smoke test must likewise use its disposable consumer repository,
 isolated home/config directories, and exactly OpenCode `1.18.20`. Every
-cplt-backed lifecycle-manager profile is release-gated to exactly cplt
+cplt-backed release smoke is gated with exactly cplt
 `2026.08.17-062831-1008a92`; the runtime smoke must exercise that wrapper and
 use only its deterministic loopback provider. It must not contact a real model
 or reuse an ambient provider credential. Build release bundles only through
@@ -71,9 +73,9 @@ CLI binaries through all four focused/full scenarios. Its Copilot scenarios
 must complete the forced Grill-inspektor delegation with the exact loopback
 model in every request. It must not use a GitHub Copilot cloud model.
 
-Treat those exact versions as release-test inputs and high-assurance manager
-pins, not as client binaries shipped by the standard Homebrew formula. The
-standard launcher resolves user-installed OpenCode `>=1.18.20,<2`, Copilot CLI
-`>=1.0.79`, and cplt at the tested baseline or a newer dated release from
-`PATH`. Formula and launcher tests must prove missing-client diagnostics,
-Copilot-only operation, and the absence of private `libexec/clients` copies.
+Treat those exact versions only as release-test inputs, not as runtime pins or
+client binaries shipped by the Homebrew formula. The launchers resolve
+user-installed OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.79,<2`, and cplt at
+the tested baseline or a newer dated release from `PATH`. Formula and launcher
+tests must prove missing-client diagnostics, Copilot-only operation, and the
+absence of private `libexec/clients` copies.

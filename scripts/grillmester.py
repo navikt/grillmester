@@ -6,11 +6,9 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import errno
-import hashlib
 import importlib.util
 import json
 import os
-import platform as host_platform
 import re
 import selectors
 import shlex
@@ -32,16 +30,8 @@ MINIMUM_OPENCODE_VERSION = tuple(
     int(part) for part in MINIMUM_OPENCODE_VERSION_TEXT.split(".")
 )
 SUPPORTED_OPENCODE_MAJOR = MINIMUM_OPENCODE_VERSION[0]
-REVIEWED_LOCAL_OPENCODE_VERSION = "1.18.20"
-REVIEWED_LOCAL_OPENCODE_VERSION_TUPLE = tuple(
-    int(part) for part in REVIEWED_LOCAL_OPENCODE_VERSION.split(".")
-)
 MINIMUM_COPILOT_VERSION = (1, 0, 79)
 SUPPORTED_COPILOT_MAJOR = MINIMUM_COPILOT_VERSION[0]
-REVIEWED_LOCAL_COPILOT_VERSION = "1.0.80"
-REVIEWED_LOCAL_COPILOT_VERSION_TUPLE = tuple(
-    int(part) for part in REVIEWED_LOCAL_COPILOT_VERSION.split(".")
-)
 CLIENTS = ("copilot", "opencode")
 PUBLIC_AGENTS = ("grillmester", "barista", "designer", "doctor-who")
 OPENCODE_COMMANDS = frozenset(
@@ -257,13 +247,13 @@ def load_distribution(root: Path | None = None) -> Distribution:
             focused_opencode / "manifest.json",
             "focused OpenCode target manifest",
             "opencode-v1-focused",
-            {"agents": 2, "skills": 6, "commands": 6},
+            {"agents": 2, "skills": 7, "commands": 7},
         ),
         (
             focused_copilot / "manifest.json",
             "focused Copilot CLI target manifest",
             "copilot-cli-focused-v1",
-            {"agents": 2, "skills": 6},
+            {"agents": 2, "skills": 7},
         ),
     )
     for manifest_path, label, expected_target, expected_counts in focused_contracts:
@@ -664,6 +654,10 @@ def build_launch_command(
     )
     command = [
         cplt,
+        # cplt's current parent-side audit may execute repository-configured
+        # Git helpers outside the sandbox. Disable it until upstream runs the
+        # audit with repository config, hooks and fsmonitor disabled.
+        "--no-audit",
         "--agent",
         invocation.client,
         "--project-dir",
@@ -868,144 +862,8 @@ def _client_probe(
     command, environment = build_launch_command(
         invocation, distribution, cplt=cplt.path
     )
-    command[1:1] = ["--yes", "--quiet", "--no-audit"]
+    command[1:1] = ["--yes", "--quiet"]
     return command, environment
-
-
-def _local_client_probe(
-    client: str,
-    *,
-    cplt: CheckedBinary,
-    client_path: str,
-    probe_root: Path,
-) -> tuple[list[str], dict[str, str], str, str]:
-    """Build a credential-free, fail-closed version probe for local mode."""
-
-    probe_root.chmod(0o700)
-    project = probe_root / "project"
-    home = probe_root / "home"
-    xdg = home / ".xdg"
-    binary_directory = probe_root / "trusted-bin"
-    policy = probe_root / "policy"
-    for directory in (
-        project,
-        home,
-        xdg / "config",
-        xdg / "cache",
-        xdg / "data",
-        xdg / "state",
-        binary_directory,
-        policy,
-    ):
-        directory.mkdir(parents=True, mode=0o700)
-        directory.chmod(0o700)
-
-    cplt_source = Path(cplt.path).resolve(strict=True)
-    client_source = Path(client_path).resolve(strict=True)
-
-    local_mode = _load_local_mode_module()
-
-    def stage(source: Path, name: str) -> tuple[Path, str]:
-        try:
-            staged = local_mode._stage_checked_executable(
-                None,
-                source=source,
-                destination_directory=binary_directory,
-                name=name,
-                label=name,
-            )
-        except local_mode.LocalModeError as exc:
-            raise LauncherError(
-                f"could not stage exact {name} for local version probe: {exc}"
-            ) from None
-        return Path(staged.path), staged.sha256
-
-    cplt_path, cplt_digest = stage(cplt_source, "cplt")
-    resolved_client, client_digest = stage(client_source, client)
-    binary_directory.chmod(0o500)
-
-    empty_cplt_config = probe_root / "cplt-config.toml"
-    allowed_domains = policy / "allowed-domains.txt"
-    blocked_domains = policy / "blocked-domains.txt"
-    for path, content in (
-        (empty_cplt_config, b""),
-        (allowed_domains, b"grillmester-version-probe.invalid\n"),
-        (blocked_domains, b"grillmester-version-probe.invalid\n"),
-    ):
-        path.write_bytes(content)
-        path.chmod(0o600)
-
-    path_entries = [
-        str(binary_directory),
-        "/usr/bin",
-        "/bin",
-        "/usr/sbin",
-        "/sbin",
-    ]
-    source = os.environ
-    environment = {
-        "CPLT_CONFIG": str(empty_cplt_config),
-        "HOME": str(home),
-        "XDG_CONFIG_HOME": str(xdg / "config"),
-        "XDG_CACHE_HOME": str(xdg / "cache"),
-        "XDG_DATA_HOME": str(xdg / "data"),
-        "XDG_STATE_HOME": str(xdg / "state"),
-        "PATH": os.pathsep.join(dict.fromkeys(path_entries)),
-        "LANG": source.get("LANG", "en_US.UTF-8"),
-        "LC_ALL": "C",
-        "TERM": "dumb",
-        "NO_PROXY": "127.0.0.1,localhost,::1",
-        "no_proxy": "127.0.0.1,localhost,::1",
-    }
-    passed_environment = (
-        "HOME",
-        "XDG_CONFIG_HOME",
-        "XDG_CACHE_HOME",
-        "XDG_DATA_HOME",
-        "XDG_STATE_HOME",
-        "NO_PROXY",
-        "no_proxy",
-    )
-    command = [
-        str(cplt_path),
-        "--yes",
-        "--quiet",
-        "--scratch-dir",
-        "--deny-clipboard",
-        "--no-audit",
-        "--agent",
-        client,
-        "--project-dir",
-        str(project.resolve(strict=True)),
-        *local_mode.LOCAL_CPLT_HARDENING_FLAGS,
-        "--allowed-domains",
-        str(allowed_domains),
-        "--blocked-domains",
-        str(blocked_domains),
-    ]
-    if client == "copilot":
-        copilot_home = home / ".copilot"
-        copilot_home.mkdir(mode=0o700)
-        environment.update(
-            {
-                "COPILOT_HOME": str(copilot_home),
-                "COPILOT_AUTO_UPDATE": "false",
-                "COPILOT_OFFLINE": "true",
-                "COPILOT_OTEL_ENABLED": "false",
-            }
-        )
-        command.extend(("--allow-cache-exec", "copilot"))
-        passed_environment = (
-            *passed_environment,
-            "COPILOT_HOME",
-            "COPILOT_AUTO_UPDATE",
-            "COPILOT_OFFLINE",
-            "COPILOT_OTEL_ENABLED",
-        )
-    for name in passed_environment:
-        command.extend(("--pass-env", name))
-    command.extend(("--", "--version"))
-    return command, environment, cplt_digest, client_digest
 
 
 def _sandboxed_client_version(
@@ -1028,111 +886,6 @@ def _sandboxed_client_version(
             environment=environment,
         )
     return _strict_client_version_output(client, returncode, stdout, stderr)
-
-
-def _local_sandboxed_client_version(
-    client: str,
-    *,
-    cplt: CheckedBinary,
-    client_path: str,
-) -> tuple[str, str, str]:
-    home_value = os.environ.get("HOME")
-    if not home_value:
-        raise LauncherError("HOME is required for an isolated local client probe")
-    try:
-        host_home = Path(home_value).expanduser().resolve(strict=True)
-        observed_home = host_home.stat()
-    except OSError as exc:
-        raise LauncherError(f"could not resolve HOME for local client probe: {exc}") from exc
-    if not stat.S_ISDIR(observed_home.st_mode):
-        raise LauncherError("HOME must be a directory for local client probe")
-    if hasattr(os, "geteuid") and observed_home.st_uid != os.geteuid():
-        raise LauncherError("HOME is not owned by the current user for local client probe")
-    # cplt/Copilot cannot mmap the extracted native runtime below macOS's
-    # /private/var/folders tree. Keep the disposable isolated HOME below the
-    # caller-owned home, matching the final local session's executable-cache
-    # boundary, and remove it on every exit.
-    with tempfile.TemporaryDirectory(
-        prefix=".grillmester-local-client-probe-", dir=host_home
-    ) as directory:
-        probe_root = Path(directory)
-        command, environment, cplt_digest, client_digest = _local_client_probe(
-            client,
-            cplt=cplt,
-            client_path=client_path,
-            probe_root=probe_root,
-        )
-        if cplt.sha256 is None or cplt_digest != cplt.sha256:
-            raise LauncherError(
-                "cplt on PATH does not match the reviewed local-only artifact "
-                f"lock for {SUPPORTED_CPLT_RELEASE}. Run 'brew update && brew "
-                "upgrade grillmester navikt/tap/cplt' to install a reviewed "
-                "pair; local-only never bypasses this gate"
-            )
-        staged_cplt_version = _trusted_cplt_version_output(
-            command[0], environment=environment
-        )
-        if staged_cplt_version != cplt.version:
-            raise LauncherError(
-                "staged cplt changed identity during local version probing"
-            )
-        returncode, stdout, stderr = _bounded_command_output(
-            command,
-            environment=environment,
-        )
-    version = _strict_client_version_output(client, returncode, stdout, stderr)
-    return version, cplt_digest, client_digest
-
-
-def check_local_cplt(distribution: Distribution) -> CheckedBinary:
-    """Resolve cplt without executing it and bind it to the bundled artifact lock."""
-
-    binary = _resolve_binary("cplt")
-    policy = _read_json_object(
-        distribution.root / "policy" / "client-artifacts.json",
-        label="client artifact policy",
-    )
-    cplt_policy = policy.get("cplt")
-    if not isinstance(cplt_policy, dict) or cplt_policy.get("release") != SUPPORTED_CPLT_RELEASE:
-        raise LauncherError(
-            "client artifact policy does not match the reviewed local-only cplt release"
-        )
-    machine = host_platform.machine().lower()
-    architecture = {
-        "aarch64": "arm64",
-        "arm64": "arm64",
-        "amd64": "x86_64",
-        "x86_64": "x86_64",
-    }.get(machine)
-    if sys.platform != "darwin" or architecture is None:
-        raise LauncherError(
-            "local-only cplt artifact verification supports macOS arm64 and x86_64"
-        )
-    artifacts = cplt_policy.get("artifacts")
-    if not isinstance(artifacts, list):
-        raise LauncherError("client artifact policy has no cplt artifact roster")
-    matching = [
-        artifact
-        for artifact in artifacts
-        if isinstance(artifact, dict)
-        and artifact.get("platform") == "darwin"
-        and artifact.get("architecture") == architecture
-        and artifact.get("variant") == "default"
-    ]
-    if len(matching) != 1:
-        raise LauncherError(
-            f"client artifact policy has no unique cplt artifact for darwin/{architecture}"
-        )
-    executable = matching[0].get("executable")
-    digest = executable.get("sha256") if isinstance(executable, dict) else None
-    if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
-        raise LauncherError("client artifact policy has an invalid cplt executable digest")
-    return CheckedBinary(
-        "cplt",
-        binary,
-        f"cplt {SUPPORTED_CPLT_RELEASE}",
-        digest,
-    )
 
 
 def _strict_client_version_output(
@@ -1261,39 +1014,6 @@ def check_client_runtime(
                 f"{minimum}; found {version!r}"
             )
     return CheckedBinary(client, binary, version)
-
-
-def check_local_runtime(
-    client: str,
-    *,
-    cplt: CheckedBinary,
-    distribution: Distribution,
-) -> tuple[CheckedBinary, CheckedBinary]:
-    """Probe immutable copies, then bind both final binaries to their digests."""
-
-    binary = _resolve_binary(client)
-    version, cplt_digest, client_digest = _local_sandboxed_client_version(
-        client,
-        cplt=cplt,
-        client_path=binary,
-    )
-    if client == "opencode":
-        observed = _opencode_semver(version)
-        if observed != REVIEWED_LOCAL_OPENCODE_VERSION_TUPLE:
-            raise LauncherError(
-                "local-only OpenCode requires exact reviewed version "
-                f"{REVIEWED_LOCAL_OPENCODE_VERSION}; found {version!r}"
-            )
-    elif _copilot_semver(version) != REVIEWED_LOCAL_COPILOT_VERSION_TUPLE:
-        raise LauncherError(
-            "local-only Copilot CLI requires exact reviewed version "
-            f"{REVIEWED_LOCAL_COPILOT_VERSION}; found {version!r}"
-        )
-    checked_cplt = CheckedBinary(
-        cplt.label, cplt.path, cplt.version, cplt_digest
-    )
-    checked_client = CheckedBinary(client, binary, version, client_digest)
-    return checked_cplt, checked_client
 
 
 def check_client(
@@ -1653,13 +1373,8 @@ def _run_local_mode(arguments: Sequence[str]) -> int:
                     CheckedBinary("cplt", _resolve_binary("cplt")),
                     CheckedBinary(client, _resolve_binary(client)),
                 )
-            cplt = check_local_cplt(distribution)
-            cplt, client_runtime = check_local_runtime(
-                client,
-                cplt=cplt,
-                distribution=distribution,
-            )
-            return cplt, client_runtime
+            checks = check_client(client, distribution=distribution)
+            return checks.cplt, checks.client
 
         binary_resolver = resolve_local_binaries
 
