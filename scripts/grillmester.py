@@ -611,6 +611,10 @@ def _contains_short_option(arguments: Sequence[str], option: str) -> bool:
 def _reject_reserved_arguments(
     cplt_args: Sequence[str], client_args: Sequence[str], *, client: str
 ) -> None:
+    if _contains_option(cplt_args, "--no-audit"):
+        raise LauncherError(
+            "cplt --no-audit is already enforced by Grillmester; remove it"
+        )
     for option in ("--agent", "--project-dir"):
         if _contains_option(cplt_args, option):
             raise LauncherError(

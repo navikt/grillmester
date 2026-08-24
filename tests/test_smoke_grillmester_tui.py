@@ -17,6 +17,15 @@ SPEC.loader.exec_module(SMOKE)
 
 
 class GrillmesterTuiSmokeTest(unittest.TestCase):
+    def test_launcher_owns_no_audit_hardening(self) -> None:
+        command = SMOKE._launcher_command(
+            launcher=Path("/opt/homebrew/bin/grillmester"),
+            project_dir=Path("/tmp/consumer"),
+        )
+
+        self.assertNotIn("--no-audit", command)
+        self.assertIn("--preset", command)
+
     def test_ready_requires_the_selected_version_and_tui_markers(self) -> None:
         marker = SMOKE._version_marker("1.19.3")
 

@@ -159,6 +159,28 @@ def _terminate_child(child_pid: int, *, grace_seconds: float = 2.0) -> int:
     return os.waitpid(child_pid, 0)[1]
 
 
+def _launcher_command(*, launcher: Path, project_dir: Path) -> list[str]:
+    """Build the public launcher invocation exercised by the TUI smoke."""
+
+    return [
+        str(launcher),
+        "--client",
+        "opencode",
+        "--agent",
+        "grillmester",
+        "--project-dir",
+        str(project_dir),
+        "--yes",
+        "--quiet",
+        "--preset",
+        "strict",
+        "--",
+        "--print-logs",
+        "--log-level",
+        "INFO",
+    ]
+
+
 def _run_tui_smoke_in_state(
     *,
     launcher: Path,
@@ -189,24 +211,7 @@ def _run_tui_smoke_in_state(
     if _resolved_on_path("cplt", environment) != cplt:
         raise TuiSmokeError("isolated PATH does not select the reviewed cplt binary")
 
-    command = [
-        str(launcher),
-        "--client",
-        "opencode",
-        "--agent",
-        "grillmester",
-        "--project-dir",
-        str(project_dir),
-        "--yes",
-        "--quiet",
-        "--no-audit",
-        "--preset",
-        "strict",
-        "--",
-        "--print-logs",
-        "--log-level",
-        "INFO",
-    ]
+    command = _launcher_command(launcher=launcher, project_dir=project_dir)
     child_pid, descriptor = pty.fork()
     if child_pid == 0:
         os.chdir(project_dir)

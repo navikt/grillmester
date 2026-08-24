@@ -1180,6 +1180,12 @@ class GrillmesterCliTests(unittest.TestCase):
                 ["--client", "opencode", "exec", "sh"], cwd=ROOT
             )
 
+    def test_launcher_owned_no_audit_cannot_be_duplicated(self) -> None:
+        with self.assertRaisesRegex(CLI.LauncherError, "already enforced"):
+            CLI.parse_invocation(
+                ["--client", "opencode", "--no-audit"], cwd=ROOT
+            )
+
     def test_reserved_client_agent_cannot_replace_selected_agent(self) -> None:
         with self.assertRaisesRegex(CLI.LauncherError, "put --agent before"):
             CLI.parse_invocation(
