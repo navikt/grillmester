@@ -35,8 +35,8 @@ EXPECTED_OPENCODE_VERSION = _BASELINE_MODULE.CONTRACT["releaseTest"][
 PRIMARY_AGENTS = frozenset({"grillmester", "barista", "designer", "doctor-who"})
 SUBAGENTS = frozenset({"kokk", "grill-inspektor", "researcher"})
 EXPECTED_AGENTS = PRIMARY_AGENTS | SUBAGENTS
-EXPECTED_SKILLS = 42
-EXPECTED_COMMANDS = 42
+EXPECTED_SKILLS = 43
+EXPECTED_COMMANDS = 43
 HYBRID_PROVIDER_ID = "lmstudio"
 HYBRID_MODEL_ID = "grillmester-smoke"
 USER_DENIED_READ_PATTERN = "*.user-denied"
@@ -438,7 +438,7 @@ def validate_resolved_config(
     if not isinstance(agents, dict) or set(agents) != inventory.agents:
         raise SmokeError("resolved config did not discover exactly seven Grillmester agents")
     if not isinstance(commands, dict) or set(commands) != inventory.commands:
-        raise SmokeError("resolved config did not discover exactly 42 Grillmester commands")
+        raise SmokeError("resolved config did not discover exactly 43 Grillmester commands")
     if value.get("plugin") != []:
         raise SmokeError("external plugins were not disabled for the OpenCode smoke")
     if value.get("share") != "disabled":
@@ -788,7 +788,7 @@ def smoke(
                 )
             )
         if discovered_skills != inventory.skills:
-            raise SmokeError("debug skill did not discover all 42 Grillmester skills")
+            raise SmokeError("debug skill did not discover all 43 Grillmester skills")
 
         consumer_context = run_json(
             [

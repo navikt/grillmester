@@ -7,7 +7,7 @@
   },
   "counts": {
     "agents": 7,
-    "skills": 42
+    "skills": 43
   },
   "agents": [
     "barista",
@@ -35,6 +35,7 @@
     "grillmester-grill-me",
     "grillmester-grill-with-docs",
     "grillmester-grilling",
+    "grillmester-guided-review",
     "grillmester-handoff",
     "grillmester-improve-codebase-architecture",
     "grillmester-integration-tests",
@@ -273,6 +274,10 @@
     },
     "skills/grillmester-grilling/SKILL.md": {
       "sha256": "eb645d506d0edae57a9b36cdcd528dfa5a8c7609989146bc223fcad27e5a64f7",
+      "mode": "0644"
+    },
+    "skills/grillmester-guided-review/SKILL.md": {
+      "sha256": "97a7a9f15b0bb3d443ad061277aac438d37a5e2e47ad3f0880b56bd9cef2c5d8",
       "mode": "0644"
     },
     "skills/grillmester-handoff/SKILL.md": {

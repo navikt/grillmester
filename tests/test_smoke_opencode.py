@@ -248,7 +248,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
             target = self.create_target(Path(temp))
             (target / "commands/grillmester-fixture-00.md").unlink()
 
-            with self.assertRaisesRegex(SMOKE.SmokeError, "42 commands"):
+            with self.assertRaisesRegex(SMOKE.SmokeError, "43 commands"):
                 SMOKE.target_inventory(target)
 
     def test_missing_binary_skips_unless_required(self) -> None:
@@ -429,8 +429,8 @@ class OpenCodeSmokeTest(unittest.TestCase):
         self.assertEqual(SMOKE.EXPECTED_OPENCODE_VERSION, report.version)
         self.assertEqual(4, report.primary_agents)
         self.assertEqual(3, report.subagents)
-        self.assertEqual(42, report.skills)
-        self.assertEqual(42, report.commands)
+        self.assertEqual(43, report.skills)
+        self.assertEqual(43, report.commands)
 
 
 if __name__ == "__main__":

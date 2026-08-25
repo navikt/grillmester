@@ -42,9 +42,9 @@ committer et eget target i `targets/opencode-v1/` med:
 
 - syv native agentfiler i `agents/`; offentlige roller er `primary`, interne
   roller er skjulte `subagent`-er
-- 42 native `SKILL.md`-trær i `skills/`, inkludert relative scripts,
+- 43 native `SKILL.md`-trær i `skills/`, inkludert relative scripts,
   referanser og assets
-- 42 native command-wrappere i `commands/` som beholder den eksplisitte
+- 43 native command-wrappere i `commands/` som beholder den eksplisitte
   `/grillmester-*`-opplevelsen og sender argumenter videre til riktig skill
 - en minimal `opencode.json` med schemareferanse, men uten valg av provider,
   modell, MCP-server, credentials eller standardagent

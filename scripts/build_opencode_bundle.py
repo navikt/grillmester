@@ -271,9 +271,9 @@ def _distribution_support_files(source_root: Path) -> list[BundleFile]:
         or not isinstance(content_lock.get("agents"), dict)
         or len(content_lock["agents"]) != 7
         or not isinstance(content_lock.get("skills"), dict)
-        or len(content_lock["skills"]) != 42
+        or len(content_lock["skills"]) != 43
     ):
-        raise BundleBuildError("content lock must be the complete 7-agent/42-skill BOM")
+        raise BundleBuildError("content lock must be the complete 7-agent/43-skill BOM")
 
     result = [BundleFile(CONTENT_LOCK_PATH, content_lock_content, 0o644)]
     for source_path, distribution_path, label in (
@@ -475,11 +475,11 @@ def _target_files(
         "agents": 7,
         "primaryAgents": 4,
         "subagents": 3,
-        "skills": 42,
-        "commands": 42,
+        "skills": 43,
+        "commands": 43,
     }
     if manifest.get("counts") != expected_counts:
-        raise BundleBuildError("OpenCode target manifest has the wrong 7/42/42 counts")
+        raise BundleBuildError("OpenCode target manifest has the wrong 7/43/43 counts")
     capabilities = manifest.get("skillCapabilities")
     expected_capabilities = {
         skill_id: (
@@ -614,6 +614,7 @@ def _focused_target_files(
                 "grillmester-doctor",
                 "grillmester-grill-me",
                 "grillmester-grill-with-docs",
+                "grillmester-guided-review",
                 "grillmester-handoff",
             ],
         }

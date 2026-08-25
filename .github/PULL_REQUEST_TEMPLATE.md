@@ -14,7 +14,7 @@
 - [ ] Endringer i tools, modeller, writes eller approval-grenser er eksplisitt beskrevet.
 - [ ] `policy/content-lock.json`, provenance og tredjepartsnotiser er oppdatert når nødvendig.
 - [ ] Consumer-/teamspesifikke fakta er fjernet eller dokumentert som bevisst lokal evidens.
-- [ ] Pluginen valideres som nøyaktig 7 agenter og 42 skills uten døde
+- [ ] Pluginen valideres som nøyaktig 7 agenter og 43 skills uten døde
       kryssreferanser.
 
 ## Verifikasjon

@@ -29,7 +29,7 @@ installasjonen skal være reproduserbar.
 ## Innhold
 
 `grillmester@grillmester` er hele produktet: fire offentlige agenter, tre
-interne roller og 42 kuraterte skills for metode, design, produktarbeid,
+interne roller og 43 kuraterte skills for metode, design, produktarbeid,
 levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
 ## Felles terminaloppsett på macOS
@@ -527,7 +527,7 @@ ikke skal påvirke resultatet.
 ## OpenCode
 
 Grillmester har et deterministisk generert, native target for OpenCode 1.x fra
-`1.18.20`. Det gir hele flaten med 7 agenter, 42 skills, 42 slash commands,
+`1.18.20`. Det gir hele flaten med 7 agenter, 43 skills, 43 slash commands,
 native delegering og native permissions. `1.18.20` er den eksakte
 release-testbaselinen; standardlauncheren godtar nyere 1.x-versjoner, mens
 OpenCode 2 er en separat, ikke-verifisert flate. Installer og oppdater OpenCode

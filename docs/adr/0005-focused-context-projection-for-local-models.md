@@ -8,7 +8,7 @@ date: 2026-08-23
 ## Kontekst
 
 Den kanoniske pluginen og det fulle OpenCode 1-targetet gir hele Grillmester-
-flaten: syv agenter og 42 skills, med 42 eksplisitte OpenCode-commands. Dette er
+flaten: syv agenter og 43 skills, med 43 eksplisitte OpenCode-commands. Dette er
 riktig default for GitHub Copilot, Copilot app og vanlig OpenCode-bruk, men
 discovery-katalogen bruker en stor del av kontekstvinduet til mindre lokale
 modeller før brukerens oppgave er behandlet.
@@ -106,7 +106,7 @@ selv når agent- og skillinnholdet ellers er uendret. Releasekontrakten må
 behandle dette som forventet avledet endring og aldri gjenbruke et eldre
 focused-target under et nytt versjonsnummer.
 
-Fulltargetenes 7/42-inventar og marketplace-pluginen er separate
+Fulltargetenes 7/43-inventar og marketplace-pluginen er separate
 regresjonskontrakter. En focused-endring kan ikke endre eller erstatte dem.
 
 ## Konsekvenser
@@ -141,7 +141,7 @@ regresjonskontrakter. En focused-endring kan ikke endre eller erstatte dem.
 - **Gjør focused til ny standard overalt:** ville redusere den reviewede
   GitHub Copilot-flaten og gjøre spesialistteamet usynlig for cloudmodeller som
   tåler full katalog.
-- **Behold 42 filer og bruk bare permissions:** sparer for lite kontekst og
+- **Behold 43 filer og bruk bare permissions:** sparer for lite kontekst og
   etterlater commands som peker på denied skills.
 - **Installer et brukerdefinert agentutvalg:** skaper mange artefaktvarianter,
   supportkombinasjoner og en ny mutable installasjonslivssyklus.

@@ -51,6 +51,7 @@ class PackageSpec(NamedTuple):
     path: str
     agents: int
     skills: int
+    is_current_payload: bool
 
     @property
     def qualified_name(self) -> str:
@@ -58,11 +59,11 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 7, 42),
+    PackageSpec("grillmester", "plugin", 7, 43, True),
 )
-LEGACY_CORE = PackageSpec("grillmester", "plugin", 7, 34)
-LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10)
-PREVIOUS_UNIFIED_PACKAGE = PackageSpec("grillmester", "plugin", 7, 43)
+LEGACY_CORE = PackageSpec("grillmester", "plugin", 7, 34, False)
+LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10, False)
+PREVIOUS_UNIFIED_PACKAGE = PackageSpec("grillmester", "plugin", 7, 43, False)
 PREVIOUS_PACKAGES = (LEGACY_CORE, LEGACY_ADD_ON)
 LEGACY_ADD_ON_SKILLS = (
     "grillmester-api-design",
@@ -78,6 +79,7 @@ LEGACY_ADD_ON_SKILLS = (
 )
 SAME_PACKAGE_REMOVED_SKILLS = ("grillmester-nav-architecture-review",)
 HISTORICAL_REMOVED_SKILLS = ("grillmester-kotlin-spring",)
+CURRENT_ONLY_SKILLS = ("grillmester-guided-review",)
 REMOVED_SKILLS = SAME_PACKAGE_REMOVED_SKILLS + HISTORICAL_REMOVED_SKILLS
 PACKAGE_BY_NAME = {package.name: package for package in PACKAGES}
 PLUGIN_NAME = PACKAGES[0].name
@@ -349,6 +351,13 @@ def prepare_upgrade_marketplace(
             shutil.copytree(source_package, staged_marketplace / package.path)
 
     previous_core = previous_plugins[PLUGIN_NAME]
+    for skill_id in CURRENT_ONLY_SKILLS:
+        current_only_skill = previous_core / "skills" / skill_id
+        if not current_only_skill.is_dir():
+            raise RuntimeError(
+                f"current-only skill is missing from current payload: {skill_id}"
+            )
+        shutil.rmtree(current_only_skill)
     add_removed_skill_fixtures(previous_core, SAME_PACKAGE_REMOVED_SKILLS)
 
     previous_unified_plugin = staged_marketplace / "previous-unified-plugin"
@@ -568,7 +577,7 @@ def verify_installed_package(
     if skill_count != package.skills:
         raise RuntimeError(f"installed {skill_count} skills; expected {package.skills}")
 
-    if package == PACKAGES[0]:
+    if package.is_current_payload:
         assert_removed_skills_absent(installed)
 
     for required in ("LICENSE", "THIRD_PARTY_NOTICES.md"):

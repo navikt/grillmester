@@ -89,7 +89,7 @@ server i local-flyten. Dette feiler lukket i `setup`; bruk Copilot CLI når
 lokalserveren krever autentisering.
 
 Hver launch bruker focused Barista med sju utviklingsskills. Bytt klient eller
-be om full 7-agent/42-skill-kontekst for én sesjon uten å endre defaulten:
+be om full 7-agent/43-skill-kontekst for én sesjon uten å endre defaulten:
 
 ```bash
 grillmester local --client copilot

@@ -166,6 +166,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     "grillmester-doctor",
                     "grillmester-grill-me",
                     "grillmester-grill-with-docs",
+                    "grillmester-guided-review",
                     "grillmester-handoff",
                 ],
             },

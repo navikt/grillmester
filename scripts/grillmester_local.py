@@ -2992,7 +2992,7 @@ def _parser() -> argparse.ArgumentParser:
         action="store_const",
         const="full",
         dest="context",
-        help="save full 7-agent/42-skill context",
+        help="save full 7-agent/43-skill context",
     )
     setup.add_argument(
         "--provider-id",

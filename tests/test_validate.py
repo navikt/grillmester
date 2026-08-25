@@ -106,6 +106,20 @@ class PackageValidationTest(unittest.TestCase):
             f"expected {fragment!r} in validation errors: {errors}",
         )
 
+    def test_guided_review_is_manual_and_preserves_human_control(self) -> None:
+        path = self.root / "plugin/skills/grillmester-guided-review/SKILL.md"
+        frontmatter, body = VALIDATE.parse_frontmatter(path)
+
+        self.assertEqual("grillmester-guided-review", frontmatter["name"])
+        self.assertIs(True, frontmatter["disable-model-invocation"])
+        self.assertNotIn("user-invocable", frontmatter)
+        self.assertIn("Present exactly one reading step", body)
+        self.assertIn("Then wait for the human", body)
+        self.assertIn("every in-scope changed file", body)
+        self.assertIn("grillmester-security-review", body)
+        self.assertIn("human explicitly approves the exact", body)
+        self.assertIn("Ask the human for their merge-readiness decision", body)
+
     def regenerate_focused_targets(self) -> None:
         manifest = COPILOT_MANIFEST.build_manifest(self.root)
         COPILOT_MANIFEST.update_manifest(self.root, manifest)
@@ -673,7 +687,7 @@ class PackageValidationTest(unittest.TestCase):
             path.parent.name
             for path in (self.root / "plugin/skills").glob("*/SKILL.md")
         }
-        self.assertEqual(42, len(locked))
+        self.assertEqual(43, len(locked))
         self.assertEqual(locked, installed)
 
     def test_nav_specialist_skill_is_part_of_the_single_plugin(self) -> None:
