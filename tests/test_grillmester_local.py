@@ -227,30 +227,6 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(16_384, value["maxOutputTokens"])
         self.assertEqual(config, LOCAL.load_config(environment=self.environment))
 
-    def test_legacy_config_gets_safe_context_defaults(self) -> None:
-        path = LOCAL.config_path(self.environment)
-        path.parent.mkdir(parents=True)
-        path.write_text(
-            json.dumps(
-                {
-                    "schemaVersion": 1,
-                    "client": "opencode",
-                    "agent": "barista",
-                    "context": "focused",
-                    "providerId": "llamacpp",
-                    "baseUrl": "http://127.0.0.1:8080/v1",
-                    "modelId": "qwen3.8-local",
-                }
-            ),
-            encoding="utf-8",
-        )
-        path.chmod(0o600)
-
-        loaded = LOCAL.load_config(environment=self.environment)
-
-        self.assertEqual(LOCAL.DEFAULT_CONTEXT_WINDOW, loaded.context_window)
-        self.assertEqual(LOCAL.DEFAULT_MAX_OUTPUT_TOKENS, loaded.max_output_tokens)
-
     def test_config_rejects_symlink_and_group_readable_file(self) -> None:
         path = LOCAL.config_path(self.environment)
         path.parent.mkdir(parents=True)
@@ -287,7 +263,7 @@ class LocalModeTests(unittest.TestCase):
         with self.assertRaisesRegex(LOCAL.LocalModeError, "unexpected"):
             LOCAL.load_config(environment=self.environment)
 
-        for invalid_version in (True, 1.0, 3):
+        for invalid_version in (True, 1, 1.0, 3):
             value.pop("credential", None)
             value["schemaVersion"] = invalid_version
             path.write_text(json.dumps(value), encoding="utf-8")
@@ -355,7 +331,7 @@ class LocalModeTests(unittest.TestCase):
                 LOCAL.LocalModeError, "contextWindow"
             ):
                 LOCAL.validate_config(self._config(context_window=context_window))
-        for max_output_tokens in (True, 0, -1, 32_768):
+        for max_output_tokens in (True, 0, -1, LOCAL.DEFAULT_CONTEXT_WINDOW):
             with self.subTest(
                 max_output_tokens=max_output_tokens
             ), self.assertRaisesRegex(LOCAL.LocalModeError, "maxOutputTokens"):
@@ -824,7 +800,11 @@ class LocalModeTests(unittest.TestCase):
         self.assertNotIn("apiKey", provider["options"])
         model = provider["models"]["qwen3.8-local"]
         self.assertEqual(
-            {"context": 32_768, "output": 8_192}, model["limit"]
+            {
+                "context": LOCAL.DEFAULT_CONTEXT_WINDOW,
+                "output": LOCAL.DEFAULT_MAX_OUTPUT_TOKENS,
+            },
+            model["limit"],
         )
         self.assertEqual({"auto": True}, config_content["compaction"])
         self.assertEqual("{}", launch.environment["OPENCODE_AUTH_CONTENT"])
@@ -2243,8 +2223,12 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual("qwen3.8-local", config.model_id)
         self.assertEqual("focused", config.context)
         self.assertEqual("barista", config.agent)
-        self.assertEqual(32_768, config.context_window)
+        self.assertEqual(57_344, config.context_window)
         self.assertEqual(8_192, config.max_output_tokens)
+        self.assertEqual(
+            LOCAL.RECOMMENDED_LOCAL_SERVER_CONTEXT_WINDOW,
+            config.context_window + config.max_output_tokens,
+        )
 
     def test_explicit_setup_requires_present_client_and_advertised_model(self) -> None:
         opencode_only = self.root / "explicit-opencode"
@@ -2456,7 +2440,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("ok  context focused", output)
         self.assertIn(f"ok  endpoint {server.base_url}", output)
         self.assertIn("ok  model qwen3.8-local", output)
-        self.assertIn("ok  context-window 32768", output)
+        self.assertIn("ok  context-window 57344", output)
         self.assertIn("ok  max-output-tokens 8192", output)
         self.assertIn("targets/opencode-v1-focused", output)
         self.assertIn(

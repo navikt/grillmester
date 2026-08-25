@@ -34,7 +34,6 @@ from urllib.parse import urlsplit
 
 
 CONFIG_SCHEMA_VERSION = 2
-LEGACY_CONFIG_SCHEMA_VERSION = 1
 CONFIG_FILE = "local.json"
 CLIENTS = frozenset({"copilot", "opencode"})
 CONTEXTS = frozenset({"focused", "full"})
@@ -116,8 +115,14 @@ MAX_GITHUB_TOKEN_BYTES = 4 * 1024
 MAX_PROBE_BYTES = 256 * 1024
 DEFAULT_PROBE_TIMEOUT = 5.0
 DEFAULT_BASE_URL = "http://127.0.0.1:8080/v1"
-DEFAULT_CONTEXT_WINDOW = 32_768
+RECOMMENDED_LOCAL_SERVER_CONTEXT_WINDOW = 65_536
 DEFAULT_MAX_OUTPUT_TOKENS = 8_192
+# Keep one output-sized margin between the server capacity and the context
+# advertised to the harness. OpenCode and Copilot can add tool and protocol
+# overhead outside the model-visible conversation budget.
+DEFAULT_CONTEXT_WINDOW = (
+    RECOMMENDED_LOCAL_SERVER_CONTEXT_WINDOW - DEFAULT_MAX_OUTPUT_TOKENS
+)
 DEFAULT_COPILOT_REASONING_EFFORT = "medium"
 # The focused prompt and OpenCode's native preflight compaction both need real
 # headroom. Smaller windows can fail before a useful conversation exists to
@@ -687,7 +692,7 @@ def load_config(
         raise LocalModeError(f"local config is not valid UTF-8 JSON: {path}") from exc
     if not isinstance(raw, dict):
         raise LocalModeError("local config must be a JSON object")
-    common_v1 = {
+    common = {
         "schemaVersion",
         "client",
         "agent",
@@ -695,19 +700,12 @@ def load_config(
         "providerId",
         "baseUrl",
         "modelId",
+        "contextWindow",
+        "maxOutputTokens",
     }
-    common_v2 = common_v1 | {"contextWindow", "maxOutputTokens"}
     observed_fields = set(raw)
     schema_version = raw.get("schemaVersion")
-    common = (
-        common_v1
-        if type(schema_version) is int
-        and schema_version == LEGACY_CONFIG_SCHEMA_VERSION
-        else common_v2
-        if type(schema_version) is int and schema_version == CONFIG_SCHEMA_VERSION
-        else None
-    )
-    if common is None:
+    if type(schema_version) is not int or schema_version != CONFIG_SCHEMA_VERSION:
         raise LocalModeError("local config uses an unsupported schemaVersion")
     if observed_fields not in (
         common,
@@ -731,16 +729,8 @@ def load_config(
         provider_id=raw["providerId"],
         base_url=raw["baseUrl"],
         model_id=raw["modelId"],
-        context_window=(
-            raw["contextWindow"]
-            if schema_version == CONFIG_SCHEMA_VERSION
-            else DEFAULT_CONTEXT_WINDOW
-        ),
-        max_output_tokens=(
-            raw["maxOutputTokens"]
-            if schema_version == CONFIG_SCHEMA_VERSION
-            else DEFAULT_MAX_OUTPUT_TOKENS
-        ),
+        context_window=raw["contextWindow"],
+        max_output_tokens=raw["maxOutputTokens"],
         api_key_env=api_key_env,
         api_key_file=Path(api_key_file) if api_key_file is not None else None,
     )
@@ -3074,7 +3064,7 @@ def _parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_CONTEXT_WINDOW,
         help=(
-            "active model-server context window in tokens "
+            "safe client context budget in tokens "
             f"(default: {DEFAULT_CONTEXT_WINDOW})"
         ),
     )
