@@ -1177,6 +1177,21 @@ def run_matrix(
     return tuple(reports)
 
 
+def verify_release_payloads_unchanged(distribution_root: Path) -> None:
+    """Recheck immutable inputs after clients have completed runtime work."""
+
+    seen: set[tuple[Path, str]] = set()
+    for relative, target in LOCAL.PAYLOADS.values():
+        record = (relative, target)
+        if record in seen:
+            continue
+        seen.add(record)
+        LOCAL._verify_manifested_payload(
+            (distribution_root / relative).resolve(strict=True),
+            expected_target=target,
+        )
+
+
 def run_npm_access_matrix(
     *,
     distribution_root: Path,
@@ -1794,6 +1809,7 @@ def main(
             timeout=arguments.timeout,
             platform=platform,
         )
+        verify_release_payloads_unchanged(distribution_root)
     except (LocalSmokeError, LOCAL.LocalModeError, OSError) as exc:
         print(f"Grillmester local smoke failed: {exc}", file=sys.stderr)
         return 1
@@ -1809,7 +1825,7 @@ def main(
         "fake-gh current-repo issue allowed while cross-repo, destructive and "
         "token-extraction calls were blocked; npm token absent by default and "
         "available only by explicit project-bound opt-in in both clients; consumer "
-        "clean; credentials scrubbed."
+        "clean; release payloads unchanged; credentials scrubbed."
     )
     return 0
 

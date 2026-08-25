@@ -220,14 +220,18 @@ For OpenCode:
 
 1. resolver `cplt` og `opencode` fra `PATH`
 2. kontrollerer kompatibel versjon gjennom cplt
-3. binder det genererte targetet med `OPENCODE_CONFIG_DIR` og `--allow-read`
+3. digestverifiserer det genererte targetet og kopierer de samme bytene til en
+   privat, sesjonseid `OPENCODE_CONFIG_DIR`
 4. setter valgt offentlig agent på riktig plass for TUI eller `run`
 5. lar cplt eie sandbox, proxy, repo-policy og `gh`-/Git-guards
 
 Den installerer ingen klient, skriver ingen agent-/skillfiler i consumer-repoet
 og har ingen direkte fallback uten cplt. OpenCodes vanlige brukerconfig eier
 provider og modell i standardmodus. Local-modus bruker privat providerconfig og
-avviser ambient komponenter som kan skygge den distribuerte payloaden.
+avviser ambient komponenter som kan skygge den distribuerte payloaden. Den
+sesjonseide kopien er skrivbar fordi OpenCode materialiserer egne
+runtime-avhengigheter der; release-targetet forblir urørt og verifiserbart også
+etter flere kjøringer.
 
 ## Agenter, commands og forwarding
 

@@ -288,11 +288,14 @@ maskinen.
 
 Hver launch lar cplt-parenten beholde hostens `HOME`, men gir child-klienten
 isolert XDG-, provider- og klientstate og den
-distribuerte payloaden. Ambient OpenCode- og Copilot-komponenter som kan skygge
-agentteamet avvises; repoets vanlige `AGENTS.md` kan fortsatt gi stående
-prosjektkontekst. Dette er payloadisolasjon, ikke en egen runtime-sandbox. Bare
-de to nyeste avsluttede sessionmappene beholdes ved sekvensiell bruk; `doctor`
-og preview oppretter ingen sessionmappe.
+distribuerte payloaden. OpenCode får en byteidentisk, sessioneid kopi etter at
+manifest og digester er verifisert, slik at klientens runtime-packagefiler ikke
+kan forsøple release-targetet. Copilot leser pluginpayloaden direkte.
+Ambient OpenCode- og Copilot-komponenter som kan skygge agentteamet avvises;
+repoets vanlige `AGENTS.md` kan fortsatt gi stående prosjektkontekst. Dette er
+payloadisolasjon, ikke en egen runtime-sandbox. Bare de to nyeste avsluttede
+sessionmappene beholdes ved sekvensiell bruk; `doctor` og preview oppretter ingen
+sessionmappe.
 
 For OpenCode kan prosjektets `.opencode/` fortsatt inneholde vanlig, inert
 metadata som `.gitignore`, packagefiler og `node_modules`, samt andre filer som

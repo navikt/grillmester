@@ -454,6 +454,7 @@ class LocalModeTests(unittest.TestCase):
         launch = self._launch()
         command = list(launch.command)
         separator = command.index("--")
+        opencode_config = Path(launch.environment["OPENCODE_CONFIG_DIR"])
 
         self.assertEqual(str(self.cplt.resolve(strict=True)), command[0])
         self.assertEqual(
@@ -492,6 +493,33 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(
             (self.distribution / "targets/opencode-v1-focused").resolve(strict=True),
             launch.payload,
+        )
+        self.assertEqual(launch.runtime.xdg_config / "opencode", opencode_config)
+        self.assertNotEqual(launch.payload, opencode_config)
+        self.assertTrue((opencode_config / "manifest.json").is_file())
+        self.assertNotIn(str(launch.payload), command[:separator])
+
+    def test_opencode_runtime_artifacts_do_not_mutate_or_break_release_payload(self) -> None:
+        source = self.distribution / "targets/opencode-v1-focused"
+        first = self._launch()
+        runtime_config = Path(first.environment["OPENCODE_CONFIG_DIR"])
+
+        (runtime_config / "package.json").write_text("{}\n", encoding="utf-8")
+        (runtime_config / "node_modules").mkdir()
+        (runtime_config / "node_modules/runtime.js").write_text(
+            "export {};\n", encoding="utf-8"
+        )
+
+        second = self._launch()
+
+        self.assertFalse((source / "package.json").exists())
+        self.assertFalse((source / "node_modules").exists())
+        self.assertNotEqual(
+            first.environment["OPENCODE_CONFIG_DIR"],
+            second.environment["OPENCODE_CONFIG_DIR"],
+        )
+        self.assertTrue(
+            (Path(second.environment["OPENCODE_CONFIG_DIR"]) / "manifest.json").is_file()
         )
 
     def test_homebrew_opencode_alias_may_resolve_to_opencode_exe(self) -> None:

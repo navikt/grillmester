@@ -47,6 +47,10 @@ den distribuerte focused- eller full-payloaden og avviser ambient
 klientkomponenter som kan skygge agentteamet. Dette beskytter hvilken metode og
 modell som lastes; det er ikke en parallell sandboximplementasjon. Focused
 Barista er default, mens `--full` bruker den kanoniske fullpayloaden. OpenCodes
+target digestverifiseres og materialiseres byteidentisk i hver private
+sessionconfig før klienten starter. OpenCode kan skrive sine egne package- og
+cacheartefakter i sesjonen uten å mutere det immutable release-targetet.
+OpenCodes
 egne inerte `.opencode`-metadata og andre ikke-lastbare prosjektfiler kan
 sameksistere; gaten retter seg mot prosjektconfig og kjente lastbare
 komponentrøtter, ikke mot hele katalogen.

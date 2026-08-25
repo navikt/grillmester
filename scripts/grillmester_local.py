@@ -2301,6 +2301,34 @@ def _verify_manifested_payload(payload: Path, *, expected_target: str) -> None:
         raise LocalModeError(f"local payload is missing manifested files: {', '.join(missing)}")
 
 
+def _materialize_opencode_config(
+    payload: Path,
+    runtime: RuntimePaths,
+    *,
+    expected_target: str,
+) -> Path:
+    """Copy one verified payload into OpenCode's disposable writable config."""
+
+    destination = runtime.xdg_config / "opencode"
+    try:
+        shutil.copytree(
+            payload,
+            destination,
+            symlinks=True,
+            copy_function=shutil.copy2,
+        )
+        destination.chmod(0o700)
+    except OSError as exc:
+        raise LocalModeError(
+            f"could not materialize private OpenCode config from {payload}: {exc}"
+        ) from exc
+    # copytree preserves symlinks so the same exact-manifest verifier rejects a
+    # source entry swapped after the first verification. Runtime artifacts are
+    # added only after cplt starts OpenCode and never touch the release payload.
+    _verify_manifested_payload(destination, expected_target=expected_target)
+    return destination
+
+
 def _opencode_config_content(config: LocalConfig) -> str:
     options: dict[str, object] = {"baseURL": config.base_url}
     value = {
@@ -3026,8 +3054,18 @@ def build_local_launch(
     child_environment.update(npm_environment)
     passed_environment.extend(npm_environment)
     if config.client == "opencode":
+        expected_target = PAYLOADS[(config.client, config.context)][1]
+        opencode_config = (
+            _materialize_opencode_config(
+                payload,
+                runtime,
+                expected_target=expected_target,
+            )
+            if prepare_state
+            else runtime.xdg_config / "opencode"
+        )
         child_environment.update(OPENCODE_LOCAL_ENVIRONMENT)
-        child_environment["OPENCODE_CONFIG_DIR"] = str(payload)
+        child_environment["OPENCODE_CONFIG_DIR"] = str(opencode_config)
         child_environment["OPENCODE_CONFIG_CONTENT"] = _opencode_config_content(config)
         child_environment["OPENCODE_AUTH_CONTENT"] = "{}"
         passed_environment.extend(
@@ -3101,10 +3139,10 @@ def build_local_launch(
         "--allow-localhost",
         str(config.port),
         "--allow-read",
-        str(payload),
-        "--allow-read",
         str(runtime.trusted_bin),
     ]
+    if config.client == "copilot":
+        command.extend(("--allow-read", str(payload)))
     if github_executable is not None:
         # cplt's gh wrapper executes the resolved user-owned binary through the
         # trusted-bin symlink. Grant read access to that exact file so a gh

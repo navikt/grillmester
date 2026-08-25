@@ -120,6 +120,27 @@ class MatrixTests(unittest.TestCase):
 
             self.assertNotEqual(before, SMOKE._tree_snapshot(root))
 
+    def test_release_payloads_are_reverified_after_client_execution(self) -> None:
+        with mock.patch.object(
+            SMOKE.LOCAL, "_verify_manifested_payload"
+        ) as verify:
+            SMOKE.verify_release_payloads_unchanged(ROOT)
+
+        self.assertEqual(4, verify.call_count)
+        observed = {
+            (call.args[0], call.kwargs["expected_target"])
+            for call in verify.call_args_list
+        }
+        self.assertEqual(
+            {
+                (ROOT / "targets/opencode-v1-focused", "opencode-v1-focused"),
+                (ROOT / "targets/opencode-v1", "opencode-v1"),
+                (ROOT / "targets/copilot-cli-focused-v1", "copilot-cli-focused-v1"),
+                (ROOT / "plugin", "copilot-full-v1"),
+            },
+            observed,
+        )
+
     def test_matrix_uses_local_launcher_and_proves_payload_prompt_and_scrubbing(self) -> None:
         observed: list[tuple[str, str, tuple[str, ...]]] = []
         with tempfile.TemporaryDirectory() as directory:

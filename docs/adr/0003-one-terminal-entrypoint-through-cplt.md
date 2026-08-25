@@ -50,8 +50,9 @@ Kommandoen gjør bare klientbindingen som må være lik og repeterbar:
   usandboxet klientstart
 - sender den distribuerte pluginen til Copilot CLI med det native
   `--plugin-dir`-flagget
-- setter og videresender `OPENCODE_CONFIG_DIR`, samt gir eksakt read-tilgang til
-  targetet, for OpenCode
+- digestverifiserer OpenCode-targetet, kopierer de samme bytene til en privat
+  sessionconfig og setter `OPENCODE_CONFIG_DIR` til den kopien; OpenCodes egne
+  runtimefiler kan dermed ikke mutere release-targetet
 - velger den samme offentlige Grillmester-agenten i begge klienter
 - videresender eksplisitte cplt-flagg før `--` og klientflagg etter `--`
 - tilbyr en modellfri `doctor` som kontrollerer payload, klienter og release-
