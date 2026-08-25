@@ -77,8 +77,25 @@ klient, velges den automatisk; finnes begge, spør launcheren. OpenCode-sessions
 bruker ripgrep fra `PATH`; installer det med `brew install ripgrep` dersom
 `grillmester local doctor` varsler. Standardendepunktet er
 `http://127.0.0.1:8080/v1`. Launcheren leser `/v1/models`, velger automatisk
-når serveren annonserer én modell og lagrer bare tilkoblingsbeskrivelsen i
-`~/.config/grillmester/local.json`. En API-nøkkel lagres aldri; bruk eventuelt
+når serveren annonserer én modell og lagrer tilkoblingsbeskrivelsen og
+modellens kontekstkontrakt i `~/.config/grillmester/local.json`. Defaulten er
+32 768 tokens kontekst og 8 192 tokens maksimal output. Verdiene må samsvare
+med den aktive modellserveren; angi dem eksplisitt når du bruker en annen
+størrelse:
+
+```bash
+grillmester local setup \
+  --context-window 65536 \
+  --max-output-tokens 16384
+```
+
+OpenCode får grensene i providerkonfigurasjonen og kan dermed komprimere
+automatisk før modellen overskrider vinduet. Copilot CLI får det samme samlede
+budsjettet. Grillmester injiserer ikke egne context-hints og har ingen separat
+komprimeringsmekanisme. Kjør `setup` på nytt hvis serverens aktive
+kontekstvindu endres.
+
+En API-nøkkel lagres aldri; bruk eventuelt
 `--api-key-env NAVN` eller `--api-key-file /absolutt/privat/fil` med Copilot
 CLI. Miljøvariabelen må være dedikert og kan ikke være en bevart terminal-
 variabel som `LANG` eller `TERM`. Nøkkelfilen må være bruker-eid, 0600, uten
@@ -97,14 +114,20 @@ grillmester local --client opencode
 grillmester local --full --agent grillmester
 ```
 
-`grillmester local status` viser valget, `grillmester local doctor` verifiserer
-og viser cplt-/klientpath og versjon, prosjekt, agent, kontekst, endpoint,
-modell og payload. `grillmester local --help` og
+`grillmester local status` viser valget og tokenbudsjettet. `grillmester local
+doctor` verifiserer og viser cplt-/klientpath og versjon, prosjekt, agent,
+kontekst, kontekstvindu, maksimal output, endpoint, modell og payload.
+`grillmester local --help` og
 `grillmester local launch --help` viser hele brukerflaten, og
 `grillmester local --print-command` viser en redigert kommando uten å lese
 nøkkelen, skrive sessionstate eller kjøre klientprober. Previewen er bevisst
 ikke en copy/paste-kommando fordi kortlivede policyfiler og secret-miljø ikke
 materialiseres. Kjør `setup` på nytt for å endre lagret default.
+
+Vanlig `grillmester local` er en direkte, interaktiv klientreise: du snakker
+med den valgte agenten i OpenCode- eller Copilot-TUI-en, og modellen svarer
+normalt etter eget skjønn. Launcheren krever eller tolker ingen strukturert
+sluttstatus.
 
 ### Avgrenset kjøring
 
@@ -130,9 +153,11 @@ verifikasjon. En exitkode `0` betyr at klientprosessen fullførte, ikke at
 oppgaven er semantisk løst. Modellen kan fortsatt avslutte med
 `Status: NEEDS_INPUT` eller `Status: NEEDS_FULL_CONTEXT`. Les sluttsvaret og
 kontroller minst `git status`, hele diffen og avtalte tester før du bruker
-resultatet. `--agent` og `--full` er engangsoverstyringer; lagret default endres
-ikke. `--print-command` viser den redigerte kommandoformen uten å probe modellen
-eller klientversjonen.
+resultatet. Statusene er menneskelesbare agent-signaler, ikke en protokoll som
+launcheren parser eller bruker til å stoppe prosessen; en vanlig oppgave trenger
+ikke en egen `Status: DONE`-kontrakt. `--agent` og `--full` er
+engangsoverstyringer; lagret default endres ikke. `--print-command` viser den
+redigerte kommandoformen uten å probe modellen eller klientversjonen.
 
 Autentisert GitHub-tilgang er av som default for begge klientene. Copilot legger
 i tillegg inn en `shell(gh:*)`-deny som defense-in-depth, ikke som en hard
@@ -335,7 +360,7 @@ llama-server \
   --no-mmproj \
   --jinja \
   --reasoning on \
-  --reasoning-effort xhigh \
+  --reasoning-effort medium \
   --temp 1.0 \
   --top-p 0.95 \
   --top-k 20 \
@@ -349,9 +374,11 @@ reviewede vision-projectoren bare når oppgaven faktisk trenger bilder.
 `llama-server` dokumenterer `q8_0` for begge cachetypene, contextstørrelse,
 parallelle slots, Metal/GPU-offload og localhost-binding i sin
 [serverreferanse](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md).
-Sampling- og thinkingverdiene følger Qwens anbefalte thinking-profil i
-modellkortet; registrer dem som del av forsøket i stedet for å la en appversjon
-endre dem stille.
+Samplingverdiene følger Qwens anbefalte thinking-profil i modellkortet.
+`medium` er Grillmesters anbefalte correctness-baseline for utviklingsoppgaver;
+det settes ikke et separat hardt reasoning-budgett. Registrer innstillingene,
+tidsbruk, komprimering og resultatkvalitet som del av forsøket i stedet for å
+la en appversjon endre dem stille.
 
 Hvis modellen ikke lastes uten memory pressure eller swapping, reduser context
 først. Deretter vurder Q5 XL eller Q4 XL som et eksplisitt kvalitets-/minnevalg;
@@ -503,8 +530,8 @@ export COPILOT_PROVIDER_WIRE_API=completions
 export COPILOT_PROVIDER_MODEL_ID=REPLACE_WITH_LM_STUDIO_MODEL_ID
 export COPILOT_PROVIDER_WIRE_MODEL=REPLACE_WITH_LM_STUDIO_MODEL_ID
 export COPILOT_MODEL=REPLACE_WITH_LM_STUDIO_MODEL_ID
-export COPILOT_PROVIDER_MAX_PROMPT_TOKENS=28672
-export COPILOT_PROVIDER_MAX_OUTPUT_TOKENS=4096
+export COPILOT_PROVIDER_MAX_PROMPT_TOKENS=24576
+export COPILOT_PROVIDER_MAX_OUTPUT_TOKENS=8192
 export COPILOT_AUTO_UPDATE=false
 export COPILOT_OTEL_ENABLED=false
 export NO_PROXY=127.0.0.1,localhost
@@ -523,7 +550,7 @@ grillmester --client copilot --agent barista \
   --pass-env COPILOT_AUTO_UPDATE \
   --pass-env COPILOT_OTEL_ENABLED \
   --pass-env NO_PROXY \
-  -- --model "$COPILOT_MODEL" --effort low \
+  -- --model "$COPILOT_MODEL" --effort medium \
   --no-auto-update --no-remote --no-remote-export \
   --disable-builtin-mcps \
   --secret-env-vars=COPILOT_PROVIDER_API_KEY

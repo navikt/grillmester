@@ -33,7 +33,8 @@ from typing import Callable, Mapping, Sequence
 from urllib.parse import urlsplit
 
 
-CONFIG_SCHEMA_VERSION = 1
+CONFIG_SCHEMA_VERSION = 2
+LEGACY_CONFIG_SCHEMA_VERSION = 1
 CONFIG_FILE = "local.json"
 CLIENTS = frozenset({"copilot", "opencode"})
 CONTEXTS = frozenset({"focused", "full"})
@@ -115,6 +116,13 @@ MAX_GITHUB_TOKEN_BYTES = 4 * 1024
 MAX_PROBE_BYTES = 256 * 1024
 DEFAULT_PROBE_TIMEOUT = 5.0
 DEFAULT_BASE_URL = "http://127.0.0.1:8080/v1"
+DEFAULT_CONTEXT_WINDOW = 32_768
+DEFAULT_MAX_OUTPUT_TOKENS = 8_192
+DEFAULT_COPILOT_REASONING_EFFORT = "medium"
+# The focused prompt and OpenCode's native preflight compaction both need real
+# headroom. Smaller windows can fail before a useful conversation exists to
+# compact, so they are outside the supported local coding profile.
+MINIMUM_CONTEXT_WINDOW = 32_768
 RETAINED_INACTIVE_SESSIONS = 2
 SESSION_OWNER_FILE = "owner.pid"
 
@@ -227,6 +235,8 @@ class LocalConfig:
     provider_id: str
     base_url: str
     model_id: str
+    context_window: int = DEFAULT_CONTEXT_WINDOW
+    max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS
     api_key_env: str | None = None
     api_key_file: Path | None = None
 
@@ -576,6 +586,21 @@ def validate_config(config: LocalConfig, *, check_key_file: bool = True) -> Loca
         )
     if not MODEL_ID_PATTERN.fullmatch(config.model_id):
         raise LocalModeError("modelId contains unsupported characters or length")
+    if (
+        type(config.context_window) is not int
+        or config.context_window < MINIMUM_CONTEXT_WINDOW
+    ):
+        raise LocalModeError(
+            f"contextWindow must be an integer of at least {MINIMUM_CONTEXT_WINDOW}"
+        )
+    if (
+        type(config.max_output_tokens) is not int
+        or config.max_output_tokens <= 0
+        or config.max_output_tokens >= config.context_window
+    ):
+        raise LocalModeError(
+            "maxOutputTokens must be a positive integer smaller than contextWindow"
+        )
     _validated_base_url(config.base_url)
     if config.api_key_env is not None and config.api_key_file is not None:
         raise LocalModeError("configure at most one of apiKeyEnv and apiKeyFile")
@@ -621,6 +646,8 @@ def _config_object(config: LocalConfig) -> dict[str, object]:
         "providerId": config.provider_id,
         "baseUrl": config.base_url,
         "modelId": config.model_id,
+        "contextWindow": config.context_window,
+        "maxOutputTokens": config.max_output_tokens,
     }
     if config.api_key_env is not None:
         result["apiKeyEnv"] = config.api_key_env
@@ -660,7 +687,7 @@ def load_config(
         raise LocalModeError(f"local config is not valid UTF-8 JSON: {path}") from exc
     if not isinstance(raw, dict):
         raise LocalModeError("local config must be a JSON object")
-    common = {
+    common_v1 = {
         "schemaVersion",
         "client",
         "agent",
@@ -669,11 +696,25 @@ def load_config(
         "baseUrl",
         "modelId",
     }
+    common_v2 = common_v1 | {"contextWindow", "maxOutputTokens"}
     observed_fields = set(raw)
-    if observed_fields not in (common, common | {"apiKeyEnv"}, common | {"apiKeyFile"}):
-        raise LocalModeError("local config has unexpected or missing fields")
-    if raw.get("schemaVersion") != CONFIG_SCHEMA_VERSION:
+    schema_version = raw.get("schemaVersion")
+    common = (
+        common_v1
+        if type(schema_version) is int
+        and schema_version == LEGACY_CONFIG_SCHEMA_VERSION
+        else common_v2
+        if type(schema_version) is int and schema_version == CONFIG_SCHEMA_VERSION
+        else None
+    )
+    if common is None:
         raise LocalModeError("local config uses an unsupported schemaVersion")
+    if observed_fields not in (
+        common,
+        common | {"apiKeyEnv"},
+        common | {"apiKeyFile"},
+    ):
+        raise LocalModeError("local config has unexpected or missing fields")
     string_fields = ("client", "agent", "context", "providerId", "baseUrl", "modelId")
     if any(not isinstance(raw.get(name), str) for name in string_fields):
         raise LocalModeError("local config fields must be strings")
@@ -690,6 +731,16 @@ def load_config(
         provider_id=raw["providerId"],
         base_url=raw["baseUrl"],
         model_id=raw["modelId"],
+        context_window=(
+            raw["contextWindow"]
+            if schema_version == CONFIG_SCHEMA_VERSION
+            else DEFAULT_CONTEXT_WINDOW
+        ),
+        max_output_tokens=(
+            raw["maxOutputTokens"]
+            if schema_version == CONFIG_SCHEMA_VERSION
+            else DEFAULT_MAX_OUTPUT_TOKENS
+        ),
         api_key_env=api_key_env,
         api_key_file=Path(api_key_file) if api_key_file is not None else None,
     )
@@ -1950,6 +2001,7 @@ def _opencode_config_content(config: LocalConfig) -> str:
     options: dict[str, object] = {"baseURL": config.base_url}
     value = {
         "autoupdate": False,
+        "compaction": {"auto": True},
         "share": "disabled",
         "provider": {
             config.provider_id: {
@@ -1961,6 +2013,10 @@ def _opencode_config_content(config: LocalConfig) -> str:
                         "name": config.model_id,
                         "tool_call": True,
                         "modalities": {"input": ["text"], "output": ["text"]},
+                        "limit": {
+                            "context": config.context_window,
+                            "output": config.max_output_tokens,
+                        },
                     }
                 },
             }
@@ -2413,7 +2469,7 @@ def _copilot_binding_arguments(
         "--model",
         config.model_id,
         "--effort",
-        "low",
+        DEFAULT_COPILOT_REASONING_EFFORT,
         "--no-auto-update",
         "--no-experimental",
         "--no-remote",
@@ -2634,8 +2690,12 @@ def build_local_launch(
                 "COPILOT_PROVIDER_WIRE_API": "completions",
                 "COPILOT_PROVIDER_MODEL_ID": config.model_id,
                 "COPILOT_PROVIDER_WIRE_MODEL": config.model_id,
-                "COPILOT_PROVIDER_MAX_PROMPT_TOKENS": "28672",
-                "COPILOT_PROVIDER_MAX_OUTPUT_TOKENS": "4096",
+                "COPILOT_PROVIDER_MAX_PROMPT_TOKENS": str(
+                    config.context_window - config.max_output_tokens
+                ),
+                "COPILOT_PROVIDER_MAX_OUTPUT_TOKENS": str(
+                    config.max_output_tokens
+                ),
                 "COPILOT_MODEL": config.model_id,
                 "COPILOT_AUTO_UPDATE": "false",
                 "COPILOT_OTEL_ENABLED": "false",
@@ -2927,6 +2987,8 @@ def _setup_config(
         provider_id=arguments.provider_id,
         base_url=base_url,
         model_id=model_id or "model-discovery",
+        context_window=arguments.context_window,
+        max_output_tokens=arguments.max_output_tokens,
         api_key_env=arguments.api_key_env,
         api_key_file=arguments.api_key_file,
     )
@@ -3006,6 +3068,24 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument(
         "--model-id",
         help="exact model advertised by /v1/models (prompted when omitted)",
+    )
+    setup.add_argument(
+        "--context-window",
+        type=int,
+        default=DEFAULT_CONTEXT_WINDOW,
+        help=(
+            "active model-server context window in tokens "
+            f"(default: {DEFAULT_CONTEXT_WINDOW})"
+        ),
+    )
+    setup.add_argument(
+        "--max-output-tokens",
+        type=int,
+        default=DEFAULT_MAX_OUTPUT_TOKENS,
+        help=(
+            "maximum tokens reserved for one model response "
+            f"(default: {DEFAULT_MAX_OUTPUT_TOKENS})"
+        ),
     )
     auth = setup.add_mutually_exclusive_group()
     auth.add_argument(
@@ -3161,6 +3241,8 @@ def _status_text(config: LocalConfig) -> str:
             f"provider: {config.provider_id}",
             f"endpoint: {config.base_url}",
             f"model: {config.model_id}",
+            f"context window: {config.context_window}",
+            f"max output tokens: {config.max_output_tokens}",
             f"authentication: {authentication}",
         )
     )
@@ -3280,6 +3362,8 @@ def main(
             print(f"ok  context {config.context}")
             print(f"ok  endpoint {probe.base_url}")
             print(f"ok  model {probe.model_id}")
+            print(f"ok  context-window {config.context_window}")
+            print(f"ok  max-output-tokens {config.max_output_tokens}")
             print(f"ok  payload {launch.payload}")
             if github_capability_error is not None:
                 print(f"error github {github_capability_error}")

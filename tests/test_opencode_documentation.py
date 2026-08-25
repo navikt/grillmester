@@ -49,6 +49,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "**Launcherpreferanse**",
             "**Systemklient**",
             "**Local-model-launcher**",
+            "**Modellens kontekstkontrakt**",
             "**Avgrenset kjøring**",
         ):
             with self.subTest(term=term):
@@ -324,12 +325,20 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "focused Barista",
             "grillmester local doctor",
             "OpenCode og Copilot CLI på `PATH`",
+            "--context-window 65536",
+            "--max-output-tokens 16384",
+            "komprimere automatisk",
+            "injiserer ikke egne context-hints",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, value)
 
         self.assertIn("binder inferensen til én eksplisitt loopbackprovider", normalized(self.local_models))
         self.assertIn("Grillmester eier ikke serveren", normalized(self.local_models))
+        self.assertIn("--reasoning-effort medium", self.local_models)
+        self.assertIn("--effort medium", self.local_models)
+        self.assertNotIn("--reasoning-effort xhigh", self.local_models)
+        self.assertNotIn("--effort low", self.local_models)
 
     def test_local_run_documents_the_bounded_worktree_and_github_boundary(
         self,
@@ -346,6 +355,10 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "ikke at oppgaven er semantisk løst",
             "`Status: NEEDS_INPUT`",
             "`Status: NEEDS_FULL_CONTEXT`",
+            "direkte, interaktiv klientreise",
+            "krever eller tolker ingen strukturert sluttstatus",
+            "ikke en protokoll",
+            "trenger ikke en egen `Status: DONE`-kontrakt",
             "dedikert, fine-grained token",
             "myk grense",
             "GitHub-skrivinger som er eksplisitt autorisert i prompten",

@@ -48,6 +48,14 @@ klientkomponenter som kan skygge agentteamet. Dette beskytter hvilken metode og
 modell som lastes; det er ikke en parallell sandboximplementasjon. Focused
 Barista er default, mens `--full` bruker den kanoniske fullpayloaden.
 
+`setup` lagrer modellserverens aktive kontekstvindu og maksimale
+outputbudsjett som én klientnøytral kontekstkontrakt. OpenCode får grensene i
+providerkonfigurasjonen og bruker sin native auto-compaction før
+provider-overflow; Copilot CLI får samme samlede budsjett fordelt mellom prompt
+og output. Grillmester estimerer ikke gjenværende kontekst, injiserer ikke egne
+context-hints og eier ingen alternativ compactionmekanisme. Brukeren må kjøre
+`setup` på nytt dersom serverens aktive kontekstvindu endres.
+
 ### Interaktiv launch og avgrenset kjøring
 
 Den eksisterende `grillmester local`-/`launch`-reisen beholder klientens
@@ -141,6 +149,9 @@ eies av cplt eller organisasjonens runtimepolicy, ikke av en parallell launcher.
   ærlig i trustdokumentasjonen.
 - Modellserverens binær, vekter, logging og egen egress forblir en separat
   tillitsgrense.
+- Klientene kan komprimere før modellserverens kontekstvindu overskrides fordi
+  begge får en eksplisitt kontrakt; kontrakten må holdes lik serverens aktive
+  innstilling.
 - Nye klientversjoner krever ikke løpende arbeid; bare nye majorversjoner eller
   nye rå passthrough-flagg utvider den reviewede kompatibilitetsflaten.
 - Små og mellomstore oppgaver kan bruke én klientnøytral, avgrenset kjøring,
