@@ -10,8 +10,7 @@ Grillmester er Navs agentteam for GitHub Copilot og OpenCode: fire agenter, tre 
 
 ### Copilot CLI og OpenCode i terminalen
 
-Grillmester-formelen er **ikke tilgjengelig ennå**. Installer cplt og én klient,
-og kjør checkouten fra consumer-repoet:
+Grillmester-formelen er **ikke tilgjengelig ennå**. Installer cplt og én klient; kjør checkouten fra consumer-repoet:
 
 ```bash
 brew install navikt/tap/cplt
@@ -22,19 +21,16 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py
 python3 /absolute/path/to/grillmester/scripts/grillmester.py doctor
 ```
 
-[Native GitHub Copilot CLI](docs/installation.md#alternativ-native-copilot-cli-installasjon-med-automatisk-oppdatering) kan i stedet installere pluginen direkte. Etter tap-review blir terminalinstallasjonen:
+[Native GitHub Copilot CLI](docs/installation.md#alternativ-native-copilot-cli-installasjon-med-automatisk-oppdatering) kan installere direkte. Etter tap-review:
 
 ```bash
 brew install navikt/tap/cplt navikt/tap/grillmester
-```
-
-Start deretter den installerte launcheren:
-
-```bash
 grillmester
 ```
 
-Launcheren viser klienter fra `PATH`. Alle terminalsesjoner går gjennom cplt; valgt klient versjonssjekkes før lagring. `grillmester choose` bytter. En manglende klient gir installasjonskommando, aldri fallback.
+Launcheren viser klienter fra `PATH`. Alle terminalsesjoner går gjennom cplt.
+`grillmester choose` bytter default. En manglende klient gir
+installasjonskommando, aldri fallback.
 
 Eksplisitt:
 
@@ -44,18 +40,26 @@ grillmester --client opencode --agent barista
 grillmester doctor
 ```
 
-Standardkommandoen beholder hele agentteamet og klientens vanlige modellregler.
-For loopback starter du først en OpenAI-kompatibel modellserver og kjører fra
-consumer-repoet:
+Standardkommandoen beholder hele agentteamet.
+
+#### Test Qwen i OpenCode fra checkout
+
+Her starter du først en OpenAI-kompatibel modellserver på loopback. Fra consumer-repoet:
 
 ```bash
 cd /path/to/consumer-repo
-python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup --client opencode
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch  # interaktivt
-python3 /absolute/path/to/grillmester/scripts/grillmester.py local run "Fiks den avgrensede oppgaven og kjør testene"  # alternativt
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local run "Fiks den avgrensede oppgaven"
 ```
 
-`launch` og `run` er alternativer. `run` krever eget, rent worktree. Web/GitHub følger cplt-policy. Uten opt-in sendes ingen støttet `GH_TOKEN`. OpenCode isolerer ambient GitHub-konto; Copilot kan mediere native credential via macOS Keychain. Se [lokale modeller](docs/local-models.md).
+Ikke lag `opencode.json`: `local setup` finner modellen på
+`http://127.0.0.1:8080/v1`, lagrer valg og tokenbudsjett, og launcheren lager
+isolert OpenCode-config per sesjon. `launch` og `run` er alternativer;
+`run` krever worktree. Web/GitHub følger cplt-policy. Uten opt-in sendes
+ingen støttet `GH_TOKEN`; Copilot kan mediere native credential via macOS
+Keychain. Se [Qwen-oppsett og GitHub-tilgang](docs/local-models.md).
 
 ### Oppdatere terminalinstallasjonen
 

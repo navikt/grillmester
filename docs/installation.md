@@ -184,7 +184,13 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py \
 `setup` oppdager installerte klienter uten å kjøre dem og kan hente modellene
 fra `/v1/models`. Defaulten lagres separat i
 `~/.config/grillmester/local.json`; den vanlige `preferences.json`-flyten
-berøres ikke. Focused Barista er default. Bruk `--client copilot`,
+berøres ikke. Den lagrede kontekstkontrakten er som default 32 768 tokens
+kontekst og 8 192 tokens maksimal output. Verdiene må matche den aktive
+modellserveren; bruk for eksempel `grillmester local setup --context-window
+65536 --max-output-tokens 16384` for et 64k-vindu. OpenCode bruker kontrakten
+til native auto-compaction, og Grillmester injiserer ikke egne context-hints.
+Kjør `setup` på nytt hvis serverinnstillingen endres. Focused Barista er
+default. Bruk `--client copilot`,
 `--client opencode` eller `--full --agent grillmester` som engangsvalg.
 OpenCode-local krever en nøkkelfri loopback-server fordi klientens tool-
 subprosesser arver provider-miljøet. Copilot CLI kan bruke `--api-key-env` eller

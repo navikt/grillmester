@@ -68,6 +68,14 @@ runtimegrenser.
 _Avoid_: local-only-launcher, offlineprofil, modellserver, bundled klient,
 auto-detektert BYOK
 
+**Modellens kontekstkontrakt**:
+Det eksplisitt lagrede, aktive kontekstvinduet og maksimale outputbudsjettet
+for den bruker-eide lokalmodellen. Begge klientene får samme kontrakt:
+OpenCode kan dermed komprimere før provider-overflow, og Copilot CLI får et
+tilsvarende samlet tokenbudsjett. Kontrakten må matche modellserveren og er
+verken reasoning-budgett, runtimeprofil eller klientpin.
+_Avoid_: context-hint, launcher-compaction, antatt modellgrense
+
 **Avgrenset kjøring**:
 Den eksplisitte `grillmester local run`-formen for én ferdig spesifisert,
 non-interaktiv oppgave. Prosessen kjører i foreground, mens klienten
