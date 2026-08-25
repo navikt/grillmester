@@ -274,11 +274,16 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
 
         for document in (local_models, installation, trust, decision):
             with self.subTest(document=document[:60]):
-                self.assertIn("NPM_AUTH_TOKEN", document)
                 self.assertIn("`--npm-access`", document)
                 self.assertIn("session-eid", document)
                 self.assertIn(".npmrc", document)
 
+        for token_name in ("NPM_AUTH_TOKEN", "NODE_AUTH_TOKEN", "NPM_TOKEN"):
+            self.assertIn(token_name, local_models)
+            self.assertIn(token_name, installation)
+        self.assertIn("`--npm-token-env NAME`", local_models)
+        self.assertIn("`--npm-token-env NAME`", trust)
+        self.assertIn("user- og globalconfig", decision)
         self.assertIn("separat capability", decision)
         self.assertIn("dedikert token", local_models)
         self.assertIn("package-read-rettigheter", local_models)

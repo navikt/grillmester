@@ -222,9 +222,13 @@ NPM_AUTH_TOKEN="$NAV_PACKAGE_READ_TOKEN" \
 ```
 
 Launcheren bruker consumerens prosjekt-eide `.npmrc`, men erstatter hostens
-npm-userconfig med en tom, session-eid fil. Tokenet lagres ikke og sendes aldri
-uten `--npm-access`; prosjektets `.npmrc` kontrollerer registry-destinasjonen.
-Se [local-modellguiden](local-models.md) for trustgrensen.
+npm user- og globalconfig med tomme, session-eide filer. `--npm-access` finner
+nøyaktig én `_authToken`-placeholder med navnet `NPM_AUTH_TOKEN`,
+`NODE_AUTH_TOKEN` eller `NPM_TOKEN`. Egendefinerte navn velges eksplisitt med
+`--npm-token-env NAME`, må beskrive en package-token og ende på `_TOKEN`, og
+aktiverer samtidig tilgangen. Tokenet lagres ikke;
+prosjektets `.npmrc` kontrollerer registry-destinasjonen. Se
+[local-modellguiden](local-models.md) for trustgrensen.
 
 Bare modellrequests bindes til loopback. Launcheren åpner den eksakte
 localhost-porten og krever cplts forced proxy, `gh`-guard og Git-guard; den

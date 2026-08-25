@@ -136,20 +136,23 @@ autorisasjonen i prompten og kjøres i et separat worktree.
 
 ### Private package registries
 
-Local-launcheren arver ikke ambient package credentials eller hostens
-`~/.npmrc`. Hver child får i stedet en tom, session-eid npm-userconfig. Dette
+Local-launcheren arver ikke ambient package credentials eller hostens npm user-
+og globalconfig. Hver child får i stedet tomme, session-eide configfiler. Dette
 hindrer utilsiktet bruk av brukerens globale registry- og credentialoppsett,
 mens consumerens prosjekt-eide `.npmrc` fortsatt kan beskrive nødvendige
 package scopes og registries.
 
 `--npm-access` er en separat capability fra `--github-access`. Ved eksplisitt
-opt-in validerer launcheren caller-eid `NPM_AUTH_TOKEN`, redigerer det fra egne
-previews og sender det bare i child-miljøet. Tokenet skrives ikke til config,
-sessionstate, preview eller den tomme npm-userconfigen. Prosjektets `.npmrc`
+opt-in velger launcheren nøyaktig én kjent `_authToken`-placeholder fra
+prosjektets `.npmrc`; custom navn krever et eksplisitt `--npm-token-env NAME` og
+en package-`*_TOKEN`-konvensjon, og kan ikke kollidere med kontrollmiljøet. Det
+caller-eide tokenet valideres,
+redigeres fra egne previews og sendes bare i child-miljøet. Tokenet skrives ikke
+til config, sessionstate, preview eller npm-configfilene. Prosjektets `.npmrc`
 bestemmer likevel hvor package manageren kan sende tokenet, og modellen eller
 godkjente subprocesser kan lese, logge eller persistere det. Brukeren må derfor
 bruke et dedikert package-read-token og stole på consumer-repoet og cplts
-effektive nettverkspolicy.
+effektive nettverkspolicy. Capabilityen gjelder én sesjon og lagres aldri.
 
 Når repoets deklarerte verifikasjon er blokkert av manglende credentials,
 dependencies eller eksakt verktøy, skal Barista rapportere den blokkerte

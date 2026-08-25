@@ -353,6 +353,109 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(("gh", "issue", "delete", "1"), observed[2])
         self.assertEqual(("gh", "auth", "token"), observed[3])
 
+    def test_npm_access_matrix_covers_default_deny_and_explicit_access_per_client(
+        self,
+    ) -> None:
+        observed: list[tuple[str, bool]] = []
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binaries = root / "bin"
+            home = root / "home"
+            state = root / "state"
+            for path in (binaries, home, state):
+                path.mkdir()
+            cplt = executable(binaries / "cplt")
+            opencode = executable(binaries / "opencode")
+            copilot = executable(binaries / "copilot")
+            ripgrep = executable(binaries / "rg")
+            executable(binaries / "npm")
+            environment = {
+                "HOME": str(home),
+                "XDG_STATE_HOME": str(state),
+                "PATH": str(binaries),
+                "LANG": "en_US.UTF-8",
+            }
+
+            def run_process(
+                command: tuple[str, ...],
+                cwd: Path,
+                child_environment: dict[str, str],
+                timeout: float,
+            ) -> SMOKE.CommandResult:
+                self.assertGreater(timeout, 0)
+                client = command[command.index("--client") + 1]
+                npm_access = "--npm-access" in command
+                self.assertIn(
+                    f"_authToken=${{{SMOKE.NPM_ACCESS_ENVIRONMENT}}}",
+                    (cwd / ".npmrc").read_text(encoding="utf-8"),
+                )
+                config = SMOKE.LOCAL.load_config(environment=child_environment)
+                assert config is not None
+                with urllib.request.build_opener(
+                    urllib.request.ProxyHandler({})
+                ).open(f"{config.base_url}/models", timeout=5):
+                    pass
+                registry = config.base_url.removesuffix("/v1") + "/npm/-/ping"
+                headers = {}
+                if npm_access:
+                    headers["Authorization"] = (
+                        "Bearer "
+                        f"{SMOKE.CREDENTIAL_CANARY_PREFIX}"
+                        f"{SMOKE.NPM_ACCESS_ENVIRONMENT}"
+                    )
+                request = urllib.request.Request(registry, headers=headers)
+                with urllib.request.build_opener(
+                    urllib.request.ProxyHandler({})
+                ).open(request, timeout=5):
+                    pass
+                stream = post_completion(
+                    config.base_url,
+                    {
+                        "model": SMOKE.MODEL_ID,
+                        "stream": True,
+                        "messages": [{"role": "system", "content": "# Barista ☕"}],
+                        "tools": [
+                            {"type": "function", "function": {"name": "bash"}}
+                        ],
+                    },
+                )
+                stream += post_completion(
+                    config.base_url,
+                    {
+                        "model": SMOKE.MODEL_ID,
+                        "stream": True,
+                        "messages": [
+                            {"role": "tool", "content": SMOKE.NPM_ACCESS_SENTINEL}
+                        ],
+                        "tools": [
+                            {"type": "function", "function": {"name": "bash"}}
+                        ],
+                    },
+                )
+                observed.append((client, npm_access))
+                return SMOKE.CommandResult(0, stream)
+
+            SMOKE.run_npm_access_matrix(
+                distribution_root=ROOT,
+                cplt=cplt,
+                opencode=opencode,
+                copilot=copilot,
+                ripgrep=ripgrep,
+                environment=environment,
+                run_process=run_process,
+                platform="darwin",
+            )
+
+        self.assertEqual(
+            [
+                ("opencode", False),
+                ("opencode", True),
+                ("copilot", False),
+                ("copilot", True),
+            ],
+            observed,
+        )
+
     def test_provider_validation_rejects_the_wrong_context_projection(self) -> None:
         scenario = SMOKE.Scenario("copilot", "focused")
         state = SMOKE.ProviderState(scenario)

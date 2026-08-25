@@ -72,10 +72,10 @@ rå `gh`-config og caller-kontrollerte PATH-verktøy. Copilots cplt-profil tilla
 likevel macOS Keychain; velg OpenCode dersom hard isolasjon fra en ambient
 GitHub-konto er et krav.
 
-Private npm-pakker er en separat opt-in. Local-flyten arver aldri ambient
-`NPM_AUTH_TOKEN` eller bruker hostens `~/.npmrc`. Når consumer-repoets egen
-`.npmrc` peker på en privat registry, gi child-klienten et caller-eid token med
-`--npm-access`:
+Private npm-pakker er en separat opt-in. Local-flyten videresender aldri et
+ambient package-token og bruker ikke hostens npm user- eller globalconfig. Når
+consumer-repoets egen `.npmrc` peker på en privat registry, gi child-klienten
+ett caller-eid token med `--npm-access`:
 
 ```bash
 NPM_AUTH_TOKEN="$NAV_PACKAGE_READ_TOKEN" \
@@ -84,12 +84,26 @@ NPM_AUTH_TOKEN="$NAV_PACKAGE_READ_TOKEN" \
 ```
 
 Bruk et dedikert token med bare nødvendige package-read-rettigheter. Launcheren
-validerer tokenformatet, redigerer verdien fra egne previews og skriver den ikke
-til config, sessionstate eller npm-userconfig. En tom, session-eid
-npm-userconfig hindrer package manageren i å bruke hostens `.npmrc`; prosjektets
-`.npmrc` lastes fortsatt og bestemmer hvilken registry tokenet kan sendes til.
-Modellen og godkjente subprocesser kan lese tokenet, og cplts effektive
-nettverkspolicy er fortsatt autoritativ.
+leser kun `_authToken=${NAME}`-direktiver i en avgrenset, vanlig prosjektfil.
+`NPM_AUTH_TOKEN`, `NODE_AUTH_TOKEN` og `NPM_TOKEN` gjenkjennes automatisk når
+nøyaktig ett navn er deklarert. Et custom navn må velges eksplisitt med
+`--npm-token-env NAME` og må stå i samme `.npmrc`. Navnet må beskrive en
+package-credential og ende på `_TOKEN`:
+
+```bash
+NAV_PACKAGE_READ_TOKEN="$TOKEN" \
+  grillmester local run --npm-token-env NAV_PACKAGE_READ_TOKEN \
+  "Fiks oppgaven og kjør repoets deklarerte verifikasjon"
+```
+
+Kontrollvariabler som `HOME`, `NPM_CONFIG_*`, `OPENCODE_*` og `COPILOT_*` kan
+ikke velges som package-token. Launcheren validerer tokenformatet, redigerer
+verdien fra egne previews og skriver den ikke til config eller sessionstate.
+Tomme, session-eide npm user- og globalconfigfiler hindrer package manageren i
+å bruke hostconfig; prosjektets `.npmrc` bestemmer hvilken registry tokenet kan
+sendes til. Modellen og godkjente subprocesser kan lese tokenet, og cplts
+effektive nettverkspolicy er fortsatt autoritativ. Valget gjelder bare den ene
+sesjonen og lagres aldri som default.
 
 `setup` finner OpenCode og Copilot CLI på `PATH` uten å starte dem. Finnes én
 klient, velges den automatisk; finnes begge, spør launcheren. OpenCode-sessions

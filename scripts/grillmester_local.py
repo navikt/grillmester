@@ -109,11 +109,16 @@ COPILOT_GITHUB_SECRET_ENVIRONMENTS = (
     "COPILOT_GITHUB_TOKEN",
 )
 GITHUB_SECRET_ENV = "GH_TOKEN"
-NPM_SECRET_ENV = "NPM_AUTH_TOKEN"
+NPM_TOKEN_ENVIRONMENTS = (
+    "NPM_AUTH_TOKEN",
+    "NODE_AUTH_TOKEN",
+    "NPM_TOKEN",
+)
 MAX_CONFIG_BYTES = 64 * 1024
 MAX_SECRET_BYTES = 16 * 1024
 MAX_GITHUB_TOKEN_BYTES = 4 * 1024
 MAX_NPM_TOKEN_BYTES = 4 * 1024
+MAX_PROJECT_NPMRC_BYTES = 64 * 1024
 MAX_PROBE_BYTES = 256 * 1024
 DEFAULT_PROBE_TIMEOUT = 5.0
 DEFAULT_BASE_URL = "http://127.0.0.1:8080/v1"
@@ -137,6 +142,7 @@ LOCAL_ROUTABLE_VALUE_OPTIONS = (
     "--project-dir",
     "--client",
     "--agent",
+    "--npm-token-env",
 )
 LOCAL_ROUTABLE_FLAG_OPTIONS = (
     "--full",
@@ -273,6 +279,12 @@ class _ResolvedSecret:
 class _ResolvedGithubCapability:
     secret: _ResolvedSecret = field(repr=False)
     executable: Path
+
+
+@dataclass(frozen=True, repr=False)
+class _ResolvedNpmCapability:
+    environment_name: str
+    secret: _ResolvedSecret = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -1465,6 +1477,8 @@ def prepare_client_version_probe(
             cplt=cplt_path,
             client_search_directory=client_path.parent,
         )
+        npm_environment = _isolated_npm_environment(runtime, prepare_state=True)
+        sanitized.update(npm_environment)
         passed_environment = [
             "HOME",
             "XDG_CACHE_HOME",
@@ -1473,6 +1487,7 @@ def prepare_client_version_probe(
             "XDG_STATE_HOME",
             "NO_PROXY",
             "no_proxy",
+            *npm_environment,
         ]
         if client_name == "opencode":
             opencode_config = runtime.xdg_config / "opencode"
@@ -1591,8 +1606,12 @@ GITHUB_ACCESS_HELP = (
     "caller-PATH tools stay isolated, while cplt's gh guard is a soft boundary"
 )
 NPM_ACCESS_HELP = (
-    "pass a caller-supplied NPM_AUTH_TOKEN to local tools for project-declared "
-    "package registries; the child can read it and project .npmrc controls use"
+    "pass the single recognized npm token referenced by project .npmrc to local "
+    "tools; the child can read it and project .npmrc controls use"
+)
+NPM_TOKEN_ENV_HELP = (
+    "select a custom package ${NAME} ending in _TOKEN from project .npmrc; "
+    "this implies --npm-access and never stores the token"
 )
 
 
@@ -1653,25 +1672,258 @@ def _explicit_github_capability(
     return _ResolvedGithubCapability(token, executable)
 
 
-def _explicit_npm_token(environment: Mapping[str, str]) -> _ResolvedSecret:
-    """Read one package-registry credential only after explicit opt-in."""
+def _project_npm_environment_references(project: Path) -> tuple[str, ...]:
+    """Read bounded `${NAME}` references from one project-owned npm config."""
 
-    token = environment.get(NPM_SECRET_ENV)
+    path = project / ".npmrc"
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except FileNotFoundError:
+        return ()
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise LocalModeError(f"project .npmrc must not be a symlink: {path}") from exc
+        raise LocalModeError(f"could not open project .npmrc at {path}: {exc}") from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise LocalModeError(f"project .npmrc must be a regular file: {path}")
+        if before.st_size > MAX_PROJECT_NPMRC_BYTES:
+            raise LocalModeError(
+                f"project .npmrc exceeds the {MAX_PROJECT_NPMRC_BYTES}-byte limit"
+            )
+        chunks: list[bytes] = []
+        remaining = MAX_PROJECT_NPMRC_BYTES + 1
+        while remaining > 0:
+            chunk = os.read(descriptor, min(remaining, 8192))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        content = b"".join(chunks)
+        after = os.fstat(descriptor)
+        if len(content) > MAX_PROJECT_NPMRC_BYTES:
+            raise LocalModeError(
+                f"project .npmrc exceeds the {MAX_PROJECT_NPMRC_BYTES}-byte limit"
+            )
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        ):
+            raise LocalModeError("project .npmrc changed while it was being read")
+    finally:
+        os.close(descriptor)
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise LocalModeError("project .npmrc is not valid UTF-8") from exc
+    references: list[str] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(("#", ";")) or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        normalized_key = key.strip().lower()
+        if not (
+            normalized_key == "_authtoken"
+            or normalized_key.endswith(":_authtoken")
+        ):
+            continue
+        references.extend(
+            re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]{0,127})\}", value)
+        )
+    return tuple(dict.fromkeys(references))
+
+
+def _npm_environment_name(name: str) -> str:
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,127}", name) is None:
+        raise LocalModeError(
+            "--npm-token-env must name a valid environment variable"
+        )
+    if name in NPM_TOKEN_ENVIRONMENTS:
+        return name
+    canonical = name.upper()
+    package_markers = {
+        "NPM",
+        "PACKAGE",
+        "PACKAGES",
+        "REGISTRY",
+        "ARTIFACT",
+        "ARTIFACTORY",
+        "JFROG",
+    }
+    if not canonical.endswith("_TOKEN") or not (
+        package_markers & set(canonical.split("_"))
+    ):
+        raise LocalModeError(
+            "custom --npm-token-env names must describe a package credential "
+            "and end in _TOKEN; map other values to NPM_AUTH_TOKEN for the command"
+        )
+    blocked_exact = {
+        *(value.upper() for value in SAFE_HOST_ENVIRONMENT),
+        "HOME",
+        "PATH",
+        "NODE_OPTIONS",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "NO_PROXY",
+    }
+    blocked_prefixes = (
+        "XDG_",
+        "CPLT_",
+        "NPM_CONFIG_",
+        "OPENCODE_",
+        "COPILOT_",
+        "GH_",
+        "GITHUB_",
+        "DYLD_",
+        "LD_",
+    )
+    if canonical in blocked_exact or canonical.startswith(blocked_prefixes):
+        raise LocalModeError(
+            f"--npm-token-env {name} collides with launcher or client control state"
+        )
+    return name
+
+
+def _selectable_npm_environment_names(references: Sequence[str]) -> tuple[str, ...]:
+    selectable: list[str] = []
+    for name in references:
+        try:
+            selectable.append(_npm_environment_name(name))
+        except LocalModeError:
+            continue
+    return tuple(selectable)
+
+
+def _select_npm_environment(
+    project: Path, requested_environment: str | None = None
+) -> str:
+    """Select one project-declared npm auth placeholder without reading a secret."""
+
+    references = _project_npm_environment_references(project)
+    if requested_environment is not None:
+        environment_name = _npm_environment_name(requested_environment)
+        if environment_name not in references:
+            raise LocalModeError(
+                f"--npm-token-env {environment_name} is not referenced as "
+                f"${{{environment_name}}} in project .npmrc"
+            )
+    else:
+        if len(references) > 1:
+            selectable = _selectable_npm_environment_names(references)
+            if not selectable:
+                raise LocalModeError(
+                    "project .npmrc has no supported package-token placeholder; "
+                    "map one value to NPM_AUTH_TOKEN, NODE_AUTH_TOKEN or NPM_TOKEN"
+                )
+            raise LocalModeError(
+                "project .npmrc has multiple npm auth placeholders; "
+                "select one with --npm-token-env NAME"
+            )
+        if not references:
+            raise LocalModeError(
+                "--npm-access found no ${TOKEN_NAME} reference in project .npmrc"
+            )
+        environment_name = references[0]
+        if environment_name not in NPM_TOKEN_ENVIRONMENTS:
+            try:
+                _npm_environment_name(environment_name)
+            except LocalModeError as exc:
+                raise LocalModeError(
+                    f"project .npmrc uses unsupported auth placeholder "
+                    f"{environment_name}; map it to NPM_AUTH_TOKEN, "
+                    "NODE_AUTH_TOKEN or NPM_TOKEN"
+                ) from exc
+            raise LocalModeError(
+                f"project .npmrc uses custom environment variable "
+                f"{environment_name}; select it explicitly with "
+                "--npm-token-env NAME"
+            )
+    return environment_name
+
+
+def _npm_access_advice(project: Path) -> tuple[str, str] | None:
+    """Describe project npm auth without enabling or persisting a capability."""
+
+    try:
+        references = _project_npm_environment_references(project)
+    except LocalModeError as exc:
+        return (
+            "warn",
+            f"project .npmrc could not be inspected ({exc}); package access remains off",
+        )
+    if not references:
+        return None
+    if len(references) > 1:
+        selectable = _selectable_npm_environment_names(references)
+        if not selectable:
+            return (
+                "warn",
+                "project .npmrc has no supported package-token placeholder; map "
+                "one value to NPM_AUTH_TOKEN, NODE_AUTH_TOKEN or NPM_TOKEN",
+            )
+        return (
+            "info",
+            "project .npmrc has multiple auth placeholders; select one with "
+            "--npm-token-env NAME when private package access is needed",
+        )
+    name = references[0]
+    if name in NPM_TOKEN_ENVIRONMENTS:
+        return (
+            "info",
+            f"project .npmrc expects {name}; use --npm-access when private "
+            "package access is needed",
+        )
+    try:
+        _npm_environment_name(name)
+    except LocalModeError:
+        return (
+            "warn",
+            f"project .npmrc uses unsupported auth placeholder {name}; map it to "
+            "NPM_AUTH_TOKEN, NODE_AUTH_TOKEN or NPM_TOKEN before enabling access",
+        )
+    return (
+        "info",
+        f"project .npmrc expects custom {name}; use --npm-token-env {name} when "
+        "private package access is needed",
+    )
+
+
+def _explicit_npm_capability(
+    environment: Mapping[str, str],
+    project: Path,
+    requested_environment: str | None = None,
+) -> _ResolvedNpmCapability:
+    """Resolve one package credential only after explicit caller opt-in."""
+
+    environment_name = _select_npm_environment(project, requested_environment)
+
+    token = environment.get(environment_name)
     if token is None or not token:
         raise LocalModeError(
-            "--npm-access requires NPM_AUTH_TOKEN in the caller environment"
+            f"npm access requires {environment_name} in the caller environment"
         )
     try:
         encoded = token.encode("ascii")
     except UnicodeEncodeError as exc:
         raise LocalModeError(
-            "NPM_AUTH_TOKEN must contain only ASCII characters"
+            f"{environment_name} must contain only ASCII characters"
         ) from exc
-    if len(encoded) > MAX_NPM_TOKEN_BYTES or re.fullmatch(
-        r"[A-Za-z0-9_-]+", token
-    ) is None:
-        raise LocalModeError("NPM_AUTH_TOKEN has an invalid value")
-    return _ResolvedSecret(token)
+    if len(encoded) > MAX_NPM_TOKEN_BYTES or any(
+        byte < 0x21 or byte > 0x7E for byte in encoded
+    ):
+        raise LocalModeError(f"{environment_name} has an invalid value")
+    return _ResolvedNpmCapability(environment_name, _ResolvedSecret(token))
 
 
 def _client_search_directory(
@@ -2157,6 +2409,23 @@ def _sanitized_environment(
     return result
 
 
+def _isolated_npm_environment(
+    runtime: RuntimePaths, *, prepare_state: bool
+) -> dict[str, str]:
+    """Redirect user and global npm config to empty, session-owned files."""
+
+    npm_root = runtime.xdg_config / "npm"
+    user_config = npm_root / "npmrc"
+    global_config = npm_root / "global-npmrc"
+    if prepare_state:
+        _atomic_private_write(user_config, b"")
+        _atomic_private_write(global_config, b"")
+    return {
+        "NPM_CONFIG_USERCONFIG": str(user_config),
+        "NPM_CONFIG_GLOBALCONFIG": str(global_config),
+    }
+
+
 def _copilot_sensitive_paths(home: Path) -> tuple[Path, ...]:
     candidates = (
         home / ".copilot",
@@ -2509,7 +2778,7 @@ def _copilot_binding_arguments(
     payload: Path,
     *,
     github_access: bool = False,
-    npm_access: bool = False,
+    npm_token_environment: str | None = None,
 ) -> list[str]:
     secret_environment = [
         COPILOT_SECRET_ENV,
@@ -2517,10 +2786,13 @@ def _copilot_binding_arguments(
     ]
     if not github_access:
         secret_environment.insert(1, "GH_TOKEN")
-    # Copilot's secret-env list removes names from tool subprocesses. Keep the
-    # package token there by default, but omit it after explicit npm opt-in.
-    if not npm_access:
-        secret_environment.append(NPM_SECRET_ENV)
+    # Copilot's secret-env list removes names from tool subprocesses. Strip
+    # every conventional npm token except the one explicitly selected.
+    secret_environment.extend(
+        name
+        for name in NPM_TOKEN_ENVIRONMENTS
+        if name != npm_token_environment
+    )
     return [
         "--plugin-dir",
         str(payload),
@@ -2553,7 +2825,7 @@ def _client_arguments(
     *,
     run_prompt: str | None = None,
     github_access: bool = False,
-    npm_access: bool = False,
+    npm_token_environment: str | None = None,
 ) -> list[str]:
     if run_prompt is not None:
         if arguments:
@@ -2579,7 +2851,7 @@ def _client_arguments(
                 config,
                 payload,
                 github_access=github_access,
-                npm_access=npm_access,
+                npm_token_environment=npm_token_environment,
             ),
             "--prompt",
             run_prompt,
@@ -2607,7 +2879,7 @@ def _client_arguments(
             config,
             payload,
             github_access=github_access,
-            npm_access=npm_access,
+            npm_token_environment=npm_token_environment,
         ),
         *arguments,
     ]
@@ -2625,10 +2897,11 @@ def build_local_launch(
     environment: Mapping[str, str] | None = None,
     github_access: bool = False,
     npm_access: bool = False,
+    npm_token_env: str | None = None,
     resolve_credentials: bool = True,
     resolved_secret: _ResolvedSecret | None = None,
     resolved_github_capability: _ResolvedGithubCapability | None = None,
-    resolved_npm_secret: _ResolvedSecret | None = None,
+    resolved_npm_capability: _ResolvedNpmCapability | None = None,
     prepare_state: bool = True,
     platform: str | None = None,
 ) -> LocalLaunch:
@@ -2668,14 +2941,24 @@ def build_local_launch(
             github_executable = capability.executable
         else:
             github_secret = "<redacted>"
+    npm_enabled = npm_access or npm_token_env is not None
+    npm_environment_name: str | None = None
     npm_secret: str | None = None
-    if npm_access:
+    if npm_enabled:
+        npm_environment_name = _select_npm_environment(project, npm_token_env)
         if resolve_credentials:
-            npm_secret = (
-                _explicit_npm_token(source_environment).value
-                if resolved_npm_secret is None
-                else resolved_npm_secret.value
+            capability = (
+                _explicit_npm_capability(
+                    source_environment, project, npm_token_env
+                )
+                if resolved_npm_capability is None
+                else resolved_npm_capability
             )
+            if capability.environment_name != npm_environment_name:
+                raise LocalModeError(
+                    "resolved npm capability does not match project .npmrc"
+                )
+            npm_secret = capability.secret.value
         else:
             npm_secret = "<redacted>"
     project, distribution, cplt_path, client_path = _validate_launch_trust_roots(
@@ -2737,11 +3020,11 @@ def build_local_launch(
         "NO_PROXY",
         "no_proxy",
     ]
-    npm_user_config = runtime.xdg_config / "npm" / "npmrc"
-    if prepare_state:
-        _atomic_private_write(npm_user_config, b"")
-    child_environment["NPM_CONFIG_USERCONFIG"] = str(npm_user_config)
-    passed_environment.append("NPM_CONFIG_USERCONFIG")
+    npm_environment = _isolated_npm_environment(
+        runtime, prepare_state=prepare_state
+    )
+    child_environment.update(npm_environment)
+    passed_environment.extend(npm_environment)
     if config.client == "opencode":
         child_environment.update(OPENCODE_LOCAL_ENVIRONMENT)
         child_environment["OPENCODE_CONFIG_DIR"] = str(payload)
@@ -2798,11 +3081,11 @@ def build_local_launch(
         passed_environment.append(GITHUB_SECRET_ENV)
         secret_names = secret_names | {GITHUB_SECRET_ENV}
 
-    if npm_access:
-        assert npm_secret is not None
-        child_environment[NPM_SECRET_ENV] = npm_secret
-        passed_environment.append(NPM_SECRET_ENV)
-        secret_names = secret_names | {NPM_SECRET_ENV}
+    if npm_enabled:
+        assert npm_environment_name is not None and npm_secret is not None
+        child_environment[npm_environment_name] = npm_secret
+        passed_environment.append(npm_environment_name)
+        secret_names = secret_names | {npm_environment_name}
 
     command = [
         str(launch_cplt_path),
@@ -2857,7 +3140,7 @@ def build_local_launch(
             client_arguments,
             run_prompt=run_prompt,
             github_access=github_access,
-            npm_access=npm_access,
+            npm_token_environment=npm_environment_name,
         )
     )
     return LocalLaunch(
@@ -2878,21 +3161,26 @@ def doctor_local(
     client: object,
     github_access: bool = False,
     npm_access: bool = False,
+    npm_token_env: str | None = None,
     resolved_github_capability: _ResolvedGithubCapability | None = None,
-    resolved_npm_secret: _ResolvedSecret | None = None,
+    resolved_npm_capability: _ResolvedNpmCapability | None = None,
     environment: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
     platform: str | None = None,
 ) -> tuple[ModelProbe, LocalLaunch]:
     environment = os.environ if environment is None else environment
     config = validate_config(config)
+    project = _resolve_project_directory(project_dir)
     if github_access and resolved_github_capability is None:
         resolved_github_capability = _explicit_github_capability(environment)
-    if npm_access and resolved_npm_secret is None:
-        resolved_npm_secret = _explicit_npm_token(environment)
+    npm_enabled = npm_access or npm_token_env is not None
+    if npm_enabled and resolved_npm_capability is None:
+        resolved_npm_capability = _explicit_npm_capability(
+            environment, project, npm_token_env
+        )
     _validate_launch_trust_roots(
         distribution_root=distribution_root,
-        project_dir=project_dir,
+        project_dir=project,
         cplt=cplt,
         client=client,
         client_name=config.client,
@@ -2919,10 +3207,11 @@ def doctor_local(
         client=client,
         github_access=github_access,
         npm_access=npm_access,
+        npm_token_env=npm_token_env,
         environment=environment,
         resolved_secret=resolved_secret,
         resolved_github_capability=resolved_github_capability,
-        resolved_npm_secret=resolved_npm_secret,
+        resolved_npm_capability=resolved_npm_capability,
         prepare_state=False,
         platform=platform,
     )
@@ -2940,6 +3229,7 @@ def execute_local(
     run_prompt: str | None = None,
     github_access: bool = False,
     npm_access: bool = False,
+    npm_token_env: str | None = None,
     environment: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
     exec_callback: Callable[[str, Sequence[str], Mapping[str, str]], object] = os.execvpe,
@@ -2958,10 +3248,16 @@ def execute_local(
     resolved_github_capability = (
         _explicit_github_capability(environment) if github_access else None
     )
-    resolved_npm_secret = _explicit_npm_token(environment) if npm_access else None
+    project = _resolve_project_directory(project_dir)
+    npm_enabled = npm_access or npm_token_env is not None
+    resolved_npm_capability = (
+        _explicit_npm_capability(environment, project, npm_token_env)
+        if npm_enabled
+        else None
+    )
     _validate_launch_trust_roots(
         distribution_root=distribution_root,
-        project_dir=project_dir,
+        project_dir=project,
         cplt=cplt,
         client=client,
         client_name=config.client,
@@ -2990,10 +3286,11 @@ def execute_local(
         run_prompt=run_prompt,
         github_access=github_access,
         npm_access=npm_access,
+        npm_token_env=npm_token_env,
         environment=environment,
         resolved_secret=resolved_secret,
         resolved_github_capability=resolved_github_capability,
-        resolved_npm_secret=resolved_npm_secret,
+        resolved_npm_capability=resolved_npm_capability,
         platform=platform,
     )
     return exec_callback(launch.command[0], launch.command, launch.environment)
@@ -3117,7 +3414,8 @@ def _parser() -> argparse.ArgumentParser:
             "  grillmester local setup\n"
             "  grillmester local\n"
             '  grillmester local run "Fix the failing test"\n'
-            "  grillmester local run --npm-access \"Run the repository checks\"\n"
+            "  NPM_AUTH_TOKEN=... grillmester local run --npm-access "
+            "\"Run the repository checks\"\n"
             "  grillmester local --client copilot\n"
             "  grillmester local --full --agent grillmester\n"
             "  grillmester local doctor\n"
@@ -3242,6 +3540,11 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help=NPM_ACCESS_HELP,
     )
+    doctor.add_argument(
+        "--npm-token-env",
+        metavar="NAME",
+        help=NPM_TOKEN_ENV_HELP,
+    )
     launch = subparsers.add_parser(
         "launch",
         allow_abbrev=False,
@@ -3281,6 +3584,11 @@ def _parser() -> argparse.ArgumentParser:
         "--npm-access",
         action="store_true",
         help=NPM_ACCESS_HELP,
+    )
+    launch.add_argument(
+        "--npm-token-env",
+        metavar="NAME",
+        help=NPM_TOKEN_ENV_HELP,
     )
     launch.add_argument(
         "client_arguments",
@@ -3340,9 +3648,14 @@ def _parser() -> argparse.ArgumentParser:
         "--npm-access",
         action="store_true",
         help=(
-            "authorize package-manager use of a caller-supplied NPM_AUTH_TOKEN; "
-            "the child can read it and project .npmrc controls where it is sent"
+            "authorize the single recognized npm token referenced by project "
+            ".npmrc; the child can read it and .npmrc controls where it is sent"
         ),
+    )
+    run.add_argument(
+        "--npm-token-env",
+        metavar="NAME",
+        help=NPM_TOKEN_ENV_HELP,
     )
     run.add_argument("prompt", help="one quoted task prompt")
     return parser
@@ -3461,11 +3774,18 @@ def main(
                     )
                 except LocalModeError as exc:
                     github_capability_error = exc
+            npm_enabled = (
+                arguments.npm_access or arguments.npm_token_env is not None
+            )
             npm_credential_error: LocalModeError | None = None
-            resolved_npm_secret: _ResolvedSecret | None = None
-            if arguments.npm_access:
+            resolved_npm_capability: _ResolvedNpmCapability | None = None
+            if npm_enabled:
                 try:
-                    resolved_npm_secret = _explicit_npm_token(environment)
+                    resolved_npm_capability = _explicit_npm_capability(
+                        environment,
+                        arguments.project_dir,
+                        arguments.npm_token_env,
+                    )
                 except LocalModeError as exc:
                     npm_credential_error = exc
             probe, launch = doctor_local(
@@ -3477,11 +3797,14 @@ def main(
                 github_access=(
                     arguments.github_access and github_capability_error is None
                 ),
-                npm_access=(
-                    arguments.npm_access and npm_credential_error is None
+                npm_access=npm_enabled and npm_credential_error is None,
+                npm_token_env=(
+                    arguments.npm_token_env
+                    if npm_credential_error is None
+                    else None
                 ),
                 resolved_github_capability=resolved_github_capability,
-                resolved_npm_secret=resolved_npm_secret,
+                resolved_npm_capability=resolved_npm_capability,
                 environment=environment,
             )
             project = arguments.project_dir.expanduser().resolve(strict=True)
@@ -3518,16 +3841,20 @@ def main(
                     )
             if npm_credential_error is not None:
                 print(f"error npm {npm_credential_error}")
-            elif arguments.npm_access:
+            elif npm_enabled:
+                assert resolved_npm_capability is not None
                 print(
-                    "ok  npm explicit NPM_AUTH_TOKEN accepted "
+                    "ok  npm explicit "
+                    f"{resolved_npm_capability.environment_name} accepted "
                     "(soft boundary; doctor sends no credential)"
                 )
             else:
-                print(
-                    "skip npm credential not exposed; use --npm-access with an "
-                    "explicit NPM_AUTH_TOKEN for private packages"
-                )
+                npm_advice = _npm_access_advice(arguments.project_dir)
+                if npm_advice is None:
+                    print("skip npm no project _authToken placeholder detected")
+                else:
+                    level, message = npm_advice
+                    print(f"{level} npm {message}")
             if config.client == "opencode":
                 print(
                     "info websearch OpenCode sends approved search queries to Exa "
@@ -3553,6 +3880,12 @@ def main(
                 "use one-task mode: place 'run' immediately after "
                 "'grillmester local', before --client and other options"
             )
+        npm_enabled = arguments.npm_access or arguments.npm_token_env is not None
+        if not npm_enabled:
+            npm_advice = _npm_access_advice(arguments.project_dir)
+            if npm_advice is not None:
+                level, message = npm_advice
+                print(f"{level}: npm {message}", file=sys.stderr)
         if arguments.print_command:
             launch = build_local_launch(
                 config,
@@ -3564,6 +3897,7 @@ def main(
                 run_prompt=arguments.prompt if arguments.command == "run" else None,
                 github_access=arguments.github_access,
                 npm_access=arguments.npm_access,
+                npm_token_env=arguments.npm_token_env,
                 environment=environment,
                 resolve_credentials=False,
                 prepare_state=False,
@@ -3580,6 +3914,7 @@ def main(
             run_prompt=arguments.prompt if arguments.command == "run" else None,
             github_access=arguments.github_access,
             npm_access=arguments.npm_access,
+            npm_token_env=arguments.npm_token_env,
             environment=environment,
             exec_callback=exec_callback,
         )

@@ -55,11 +55,11 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py local run "Fiks den
 ```
 
 Ikke lag `opencode.json`: `local setup` finner modellen på
-`http://127.0.0.1:8080/v1`, lagrer valg og tokenbudsjett, og launcheren lager
+`http://127.0.0.1:8080/v1`, og launcheren lager
 isolert OpenCode-config per sesjon. `launch` og `run` er alternativer;
 `run` krever worktree. Web/GitHub følger cplt-policy. Uten opt-in sendes
 ingen støttet `GH_TOKEN`; Copilot kan mediere native credential via macOS
-Keychain. Privat npm: `NPM_AUTH_TOKEN`/`--npm-access`; [guide](docs/local-models.md).
+Keychain. Privat npm: prosjektets `.npmrc` + `--npm-access`; [guide](docs/local-models.md).
 
 ### Oppdatere terminalinstallasjonen
 
