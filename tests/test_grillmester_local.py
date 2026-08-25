@@ -1554,9 +1554,23 @@ class LocalModeTests(unittest.TestCase):
         candidates = (
             self.project / "opencode.json",
             self.project / "opencode.jsonc",
+            self.project / ".opencode" / "opencode.json",
+            self.project / ".opencode" / "opencode.jsonc",
             self.project / ".opencode" / "plugins" / "evil.js",
+            self.project / ".opencode" / "plugin" / "evil.js",
+            self.project / ".opencode" / "agents" / "evil.md",
+            self.project / ".opencode" / "agent" / "evil.md",
+            self.project / ".opencode" / "commands" / "evil.md",
+            self.project / ".opencode" / "command" / "evil.md",
+            self.project / ".opencode" / "modes" / "evil.md",
+            self.project / ".opencode" / "mode" / "evil.md",
             self.project / ".opencode" / "mcp.json",
             self.project / ".opencode" / "skills" / "evil" / "SKILL.md",
+            self.project / ".opencode" / "skill" / "evil" / "SKILL.md",
+            self.project / ".opencode" / "themes" / "evil.json",
+            self.project / ".opencode" / "theme" / "evil.json",
+            self.project / ".opencode" / "tools" / "evil.ts",
+            self.project / ".opencode" / "tool" / "evil.ts",
             self.project / ".claude" / "skills" / "evil" / "SKILL.md",
             self.project / ".agents" / "skills" / "evil" / "SKILL.md",
         )
@@ -1582,6 +1596,31 @@ class LocalModeTests(unittest.TestCase):
                         (self.project / name).unlink()
                     except FileNotFoundError:
                         pass
+
+    def test_project_opencode_metadata_and_rules_can_coexist(self) -> None:
+        metadata = {
+            self.project / ".opencode" / ".gitignore": "node_modules\n",
+            self.project / ".opencode" / "AGENTS.md": "# Project guidance\n",
+            self.project / ".opencode" / "package.json": "{}\n",
+            self.project / ".opencode" / "package-lock.json": "{}\n",
+            self.project / ".opencode" / "bun.lock": "",
+            self.project
+            / ".opencode"
+            / "node_modules"
+            / "@opencode-ai"
+            / "plugin"
+            / "package.json": "{}\n",
+        }
+        for path, content in metadata.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+
+        launch = self._launch()
+
+        self.assertEqual(
+            "true", launch.environment["OPENCODE_DISABLE_PROJECT_CONFIG"]
+        )
+        self.assertEqual("true", launch.environment["OPENCODE_PURE"])
 
     def test_opencode_alternate_project_cannot_bypass_extension_scan(self) -> None:
         alternate = self.project / "subdir"

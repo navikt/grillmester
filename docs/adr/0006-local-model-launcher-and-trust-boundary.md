@@ -46,7 +46,10 @@ Launcheren lager fortsatt en privat provider- og klientkonfigurasjon, binder
 den distribuerte focused- eller full-payloaden og avviser ambient
 klientkomponenter som kan skygge agentteamet. Dette beskytter hvilken metode og
 modell som lastes; det er ikke en parallell sandboximplementasjon. Focused
-Barista er default, mens `--full` bruker den kanoniske fullpayloaden.
+Barista er default, mens `--full` bruker den kanoniske fullpayloaden. OpenCodes
+egne inerte `.opencode`-metadata og andre ikke-lastbare prosjektfiler kan
+sameksistere; gaten retter seg mot prosjektconfig og kjente lastbare
+komponentrøtter, ikke mot hele katalogen.
 
 `setup` lagrer modellserverens aktive kontekstvindu og maksimale
 outputbudsjett som én klientnøytral kontekstkontrakt. OpenCode får grensene i

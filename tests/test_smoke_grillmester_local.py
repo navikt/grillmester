@@ -154,7 +154,14 @@ class MatrixTests(unittest.TestCase):
                 timeout: float,
             ) -> SMOKE.CommandResult:
                 self.assertGreater(timeout, 0)
-                self.assertEqual([cwd / ".git"], list(cwd.iterdir()))
+                client = command[command.index("--client") + 1]
+                expected_entries = {".git"}
+                if client == "opencode":
+                    expected_entries.update({".opencode", "AGENTS.md"})
+                    self.assertTrue((cwd / ".opencode" / ".gitignore").is_file())
+                    self.assertTrue((cwd / ".opencode" / "AGENTS.md").is_file())
+                    self.assertTrue((cwd / ".opencode" / "package.json").is_file())
+                self.assertEqual(expected_entries, {entry.name for entry in cwd.iterdir()})
                 self.assertEqual(("-I", "-S"), command[1:3])
                 self.assertEqual("grillmester.py", Path(command[3]).name)
                 self.assertEqual(("local", "run"), command[4:6])
@@ -163,7 +170,6 @@ class MatrixTests(unittest.TestCase):
                 self.assertNotIn("CPLT_CONFIG", child_environment)
                 for name in SMOKE.GITHUB_CREDENTIAL_ENVIRONMENT:
                     self.assertNotIn(name, child_environment)
-                client = command[command.index("--client") + 1]
                 context = "full" if "--full" in command else "focused"
                 config = SMOKE.LOCAL.load_config(environment=child_environment)
                 self.assertIsNotNone(config)

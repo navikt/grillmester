@@ -910,6 +910,22 @@ def _run_scenario(
         raise LocalSmokeError(
             f"{scenario.name} could not seed the cplt audit escape regression: {exc}"
         ) from exc
+    if scenario.client == "opencode":
+        (consumer / "AGENTS.md").write_text(
+            "# Disposable project guidance\n",
+            encoding="utf-8",
+        )
+        project_config = consumer / ".opencode"
+        project_config.mkdir(mode=0o700)
+        (project_config / ".gitignore").write_text(
+            "node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n",
+            encoding="utf-8",
+        )
+        (project_config / "AGENTS.md").write_text(
+            "# Inert OpenCode-local metadata fixture\n",
+            encoding="utf-8",
+        )
+        (project_config / "package.json").write_text("{}\n", encoding="utf-8")
     before = _tree_snapshot(consumer)
     scenario_environment = _scenario_environment(
         environment,

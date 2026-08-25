@@ -1681,7 +1681,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertIn(resolved_cplt, result.stdout)
         self.assertIn("--agent copilot", result.stdout)
         self.assertIn("--agent grillmester:barista", result.stdout)
-        self.assertNotIn("opencode", result.stdout.lower())
+        self.assertNotIn("opencode", shlex.split(result.stdout))
 
     def test_local_print_command_locates_binaries_without_executing_version_probes(self) -> None:
         observed: dict[str, object] = {}

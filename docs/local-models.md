@@ -234,6 +234,14 @@ prosjektkontekst. Dette er payloadisolasjon, ikke en egen runtime-sandbox. Bare
 de to nyeste avsluttede sessionmappene beholdes ved sekvensiell bruk; `doctor`
 og preview oppretter ingen sessionmappe.
 
+For OpenCode kan prosjektets `.opencode/` fortsatt inneholde vanlig, inert
+metadata som `.gitignore`, packagefiler og `node_modules`, samt andre filer som
+ikke er en lastbar klientkomponent. Prosjektets `opencode.json` og lastbare
+agent-, command-, mode-, plugin-, skill-, theme- og toolrøtter avvises fortsatt.
+Legg stående prosjektinstrukser i `AGENTS.md` i repo-roten; en
+`.opencode/AGENTS.md` kan eksistere, men er ikke OpenCodes dokumenterte
+prosjektregelsti og bindes ikke av Grillmester.
+
 Copilot-local feiler konservativt på enhver ikke-tom repo-lokal agent- eller
 skillrot fordi klienten ikke tilbyr full discovery-disable. Det omfatter også
 ikke-kolliderende innhold synket av nav-pilot. Standard/pluginflyten kan fortsatt
