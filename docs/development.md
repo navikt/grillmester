@@ -40,11 +40,14 @@ policyinnhold endres, regenerer targetene i denne rekkefølgen:
 python3 scripts/generate_copilot_manifest.py
 python3 scripts/generate_opencode.py
 python3 scripts/generate_context_projections.py
+python3 scripts/generate_agentpakke_manifest.py
 ```
 
 Ikke håndrediger `plugin/manifest.json`, `targets/opencode-v1/`,
 `targets/opencode-v1-focused/` eller
-`targets/copilot-cli-focused-v1/`. CI verifiserer blant annet katalogpinning,
+`targets/copilot-cli-focused-v1/`. Ikke håndrediger
+`.nav-pilot/agentpakke.json`; den peker deterministisk på disse fire
+payloadene og avledes sist. CI verifiserer blant annet katalogpinning,
 innholdslås, full og fokusert agent-/skillroster, OpenCode-projeksjon,
 progressive lenker og install–oppgradering–rollback–avinstallering.
 
@@ -80,10 +83,11 @@ Kjør den lokale hovedgaten:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
-python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_homebrew_formula.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py
+python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_homebrew_formula.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py scripts/generate_agentpakke_manifest.py
 python3 scripts/generate_copilot_manifest.py --check
 python3 scripts/generate_opencode.py --check
 python3 scripts/generate_context_projections.py --check
+python3 scripts/generate_agentpakke_manifest.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/grillmester-design-prototype/scripts/server.js
@@ -139,8 +143,9 @@ og tvinger normal Copilot-delegering til Grill-inspektøren. En separat fake-`gh
 beviser current-repo issue-opprettelse med eksplisitt token og cplt-blokkering av
 cross-repo, destruktive og tokenuttrekkende kommandoer. Ingen GitHub-request eller
 cloudmodell brukes. Smoken erstatter ikke en separat kvalitetspilot med den
-konkrete lokale modellen. Bundle-en har ingen avhengighet til `nav-pilot-agent`
-eller en installert Copilot-agent.
+konkrete lokale modellen. Agentpakkemanifestet er en kildekontrakt for
+`nav-pilot` og inngår ikke i terminalbundle-en; launcherne har ingen runtime-
+avhengighet til `nav-pilot` eller en installert Copilot-agent.
 
 Launcher- og formeltestene skal i tillegg bevise systemklientkontrakten: en
 manglende OpenCode-installasjon gir `brew install opencode`, installert Copilot

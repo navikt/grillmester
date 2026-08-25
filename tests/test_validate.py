@@ -145,6 +145,11 @@ class PackageValidationTest(unittest.TestCase):
         path.write_text("{}\n", encoding="utf-8")
         self.assert_error("Copilot full payload manifest is stale")
 
+    def test_stale_agentpakke_manifest_is_rejected(self) -> None:
+        path = self.root / ".nav-pilot/agentpakke.json"
+        path.write_text("{}\n", encoding="utf-8")
+        self.assert_error("nav-pilot agentpakke manifest validation failed")
+
     def test_unmanifested_copilot_payload_file_is_rejected(self) -> None:
         (self.root / "plugin/unmanifested.md").write_text(
             "unexpected\n", encoding="utf-8"

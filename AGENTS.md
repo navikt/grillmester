@@ -7,7 +7,9 @@ local-model projections in `targets/opencode-v1-focused/` and
 bodies remain canonical; regenerate `plugin/manifest.json` through
 `scripts/generate_copilot_manifest.py`, the full OpenCode projection through
 `scripts/generate_opencode.py`, then the focused projections through
-`scripts/generate_context_projections.py`, instead of editing targets by hand.
+`scripts/generate_context_projections.py`, and finally the nav-pilot contract
+through `scripts/generate_agentpakke_manifest.py`, instead of editing generated
+targets or `.nav-pilot/agentpakke.json` by hand.
 Keep every target deterministic and independent of any single consumer
 repository.
 
@@ -39,10 +41,11 @@ Run before publishing a change:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
-python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_homebrew_formula.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py
+python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_homebrew_formula.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py scripts/generate_agentpakke_manifest.py
 python3 scripts/generate_copilot_manifest.py --check
 python3 scripts/generate_opencode.py --check
 python3 scripts/generate_context_projections.py --check
+python3 scripts/generate_agentpakke_manifest.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/grillmester-design-prototype/scripts/server.js

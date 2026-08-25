@@ -163,11 +163,17 @@ mindre sannsynlige, men semantisk overlapp kan fortsatt finnes. Installer bare
 én Grillmester-plugin, og bruk `/grillmester-doctor` til å synliggjøre overlapp
 før teamet eventuelt rydder i repo-lokale komponenter.
 
-Før stabil lansering bredt i Nav må eierne avtale om Grillmester skal anbefales
-eller katalogføres gjennom `nav-pilot`/onboarding, hvilke MCP Registry-ID-er som
-er støttet, og hvem som eier overlappende innhold. Inntil det er avklart
-installeres Grillmester separat og eksplisitt — det er ikke en stille del av
-den andre synkflyten.
+Grillmester publiserer `.nav-pilot/agentpakke.json` som en Tier 2-kontrakt over
+de fire deterministiske payloadene Copilot CLI/OpenCode × full/fokusert.
+Kontrakten lar `nav-pilot` validere samme innhold uten en ny sync eller en
+nav-pilot-spesifikk kopi. Installasjon og launch gjennom `nav-pilot` annonseres
+først når den aktuelle nav-pilot-milestolpen støtter Tier 2 ende-til-ende og de
+fire scenarioene er differensialtestet mot Grillmesters egne launchere.
+
+Før stabil lansering bredt i Nav må eierne i tillegg avtale hvilke MCP
+Registry-ID-er som er støttet, og hvem som eier overlappende innhold. Inntil
+det er avklart er agentpakken eksplisitt opt-in; den blir ikke en stille del av
+en eksisterende consumer-sync.
 
 En repo-lokal agent eller skill med samme ID kan ha presedens og skygge
 plugininnhold. Unngå slike navn med mindre overstyringen er bevisst og testet.

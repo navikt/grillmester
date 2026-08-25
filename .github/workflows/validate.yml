@@ -29,6 +29,26 @@ jobs:
       - name: Check generated Copilot full payload manifest
         run: python3 scripts/generate_copilot_manifest.py --check
 
+      - name: Check generated nav-pilot agentpakke manifest
+        run: python3 scripts/generate_agentpakke_manifest.py --check
+
+      - name: Validate agentpakke with released nav-pilot contract
+        shell: bash
+        env:
+          NAV_PILOT_URL: https://github.com/navikt/copilot/releases/download/nav-pilot/2026.08.24-134023-dc66d1e/nav-pilot-linux-amd64
+          NAV_PILOT_SHA256: 99987f338db9d5de31d2018fa5d237983352b92dd6c91a7158dc0f4a3ef97e27
+        run: |
+          set -euo pipefail
+          binary="${RUNNER_TEMP}/nav-pilot"
+          curl --config /dev/null --fail --location --silent --show-error \
+            --proto '=https' --tlsv1.2 --retry 3 \
+            --output "${binary}" "${NAV_PILOT_URL}"
+          actual_sha256="$(sha256sum "${binary}" | cut -d' ' -f1)"
+          [[ "${actual_sha256}" == "${NAV_PILOT_SHA256}" ]]
+          [[ "$(stat -c '%s' "${binary}")" == "18215074" ]]
+          chmod 0555 "${binary}"
+          "${binary}" validate --source "${GITHUB_WORKSPACE}" --json
+
       - name: Validate plugin package
         run: python3 scripts/validate.py
 

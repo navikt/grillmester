@@ -524,6 +524,27 @@ class PublishWorkflowContractTest(unittest.TestCase):
             for line in curl_lines:
                 self.assertIn("curl --config /dev/null", line, workflow.name)
 
+    def test_agentpakke_gate_uses_the_released_nav_pilot_contract(self) -> None:
+        text = VALIDATE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn(
+            "python3 scripts/generate_agentpakke_manifest.py --check",
+            text,
+        )
+        self.assertIn(
+            "https://github.com/navikt/copilot/releases/download/"
+            "nav-pilot/2026.08.24-134023-dc66d1e/nav-pilot-linux-amd64",
+            text,
+        )
+        self.assertIn(
+            "99987f338db9d5de31d2018fa5d237983352b92dd6c91a7158dc0f4a3ef97e27",
+            text,
+        )
+        self.assertIn("18215074", text)
+        self.assertIn(
+            'validate --source "${GITHUB_WORKSPACE}" --json',
+            text,
+        )
+
     def test_every_copilot_install_pins_node_first_in_the_same_job(self) -> None:
         for workflow in (
             VALIDATE_WORKFLOW,

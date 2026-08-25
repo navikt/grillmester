@@ -1,0 +1,49 @@
+{
+  "contractVersion": "1",
+  "name": "grillmester",
+  "description": "A Copilot agent team for clarified software delivery, design, and product work with portable progressive skills.",
+  "owner": {
+    "repo": "navikt/grillmester",
+    "team": "Team eSyfo"
+  },
+  "clients": {
+    "copilot": {
+      "primaryAgents": [
+        "grillmester",
+        "barista",
+        "designer",
+        "doctor-who"
+      ],
+      "compatibility": ">=1.0.79,<2",
+      "defaultModel": "inherit",
+      "defaultContext": "full",
+      "payloads": {
+        "full": {
+          "path": "plugin"
+        },
+        "focused": {
+          "path": "targets/copilot-cli-focused-v1"
+        }
+      }
+    },
+    "opencode": {
+      "primaryAgents": [
+        "grillmester",
+        "barista",
+        "designer",
+        "doctor-who"
+      ],
+      "compatibility": ">=1.18.20,<2",
+      "defaultModel": "inherit",
+      "defaultContext": "full",
+      "payloads": {
+        "full": {
+          "path": "targets/opencode-v1"
+        },
+        "focused": {
+          "path": "targets/opencode-v1-focused"
+        }
+      }
+    }
+  }
+}
