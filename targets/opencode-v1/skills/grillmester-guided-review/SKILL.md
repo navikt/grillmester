@@ -49,18 +49,29 @@ steps and the ledger covers the full diff.
 
 ## 3. Present exactly one reading step
 
-Present one meaningful code or artifact section only. Name its path and lines,
-then explain:
+Present one visible review card for one meaningful code or artifact section
+only. Keep the card compact and use this predictable order:
 
-- its purpose in the change;
-- its behavior and control/data flow;
-- the relevant surrounding context and regression surface;
-- the current assessment, including concrete uncertainty.
+1. **Location** — name the path and exact lines or changed range.
+2. **Excerpt** — show an exact, focused code, diff, or artifact excerpt with
+   enough local context to understand the change.
+3. **Explanation** — cover its purpose in the change, behavior and control/data
+   flow, relevant surrounding context and regression surface, and current
+   assessment including concrete uncertainty.
+
+Do not turn the card into a full-file dump. For long, generated, or
+mechanically repetitive text, show a representative exact excerpt and state
+what ranges or repetition were omitted; identify generated content and its
+source when known. For binary or otherwise non-renderable artifacts, replace
+the text excerpt with truthful artifact metadata and an exact available diff
+or tool summary, and state that no text excerpt is available. Keep every
+omitted or summarized changed file explicitly accounted for in the ledger.
 
 Update candidate findings and questions, but do not present a final verdict.
-Then wait for the human. Let them discuss, request deeper inspection, skip,
-adjust the remaining route, or stop. Do not continue to the next reading step
-in the same response.
+Keep the walkthrough read-only: proposed fixes remain drafts and no
+implementation occurs. Then wait for the human. Let them discuss, request
+deeper inspection, skip, adjust the remaining route, or stop. Do not continue
+to the next reading step in the same response.
 
 Complete this step only after the human responds.
 
