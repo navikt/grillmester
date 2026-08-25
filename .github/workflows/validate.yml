@@ -65,20 +65,26 @@ jobs:
           validation_json="$("${binary}" validate --source "${GITHUB_WORKSPACE}" --json)"
           post_validation_sha256="$(sha256sum "${binary}" | cut -d' ' -f1)"
           [[ "${post_validation_sha256}" == "${NAV_PILOT_CONTRACT_BASELINE_SHA256}" ]]
-          printf '%s\n' "${validation_json}" | python3 -c '
+          printf '%s\n' "${validation_json}" | python3 -I -S -c '
           import json
           import sys
 
           result = json.load(sys.stdin)
-          assert result["command"] == "validate"
-          assert result["kind"] == "agentpakke"
-          assert result["valid"] is True
-          assert result["problems"] == []
-          assert result["notes"] == [
+          expected_notes = [
               "manifest: .nav-pilot/agentpakke.json",
               "agentpakke: grillmester (contract version 1)",
               "clients: copilot (tier 2), opencode (tier 2)",
           ]
+          if result.get("command") != "validate":
+              raise SystemExit("nav-pilot returned an unexpected command")
+          if result.get("kind") != "agentpakke":
+              raise SystemExit("nav-pilot returned an unexpected validation kind")
+          if result.get("valid") is not True:
+              raise SystemExit("nav-pilot did not validate the agentpakke")
+          if result.get("problems") != []:
+              raise SystemExit("nav-pilot reported agentpakke problems")
+          if result.get("notes") != expected_notes:
+              raise SystemExit("nav-pilot returned unexpected contract notes")
           '
           printf '%s\n' "${validation_json}"
 

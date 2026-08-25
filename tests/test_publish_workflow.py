@@ -557,12 +557,17 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'export NAV_PILOT_CONFIG="${isolated_home}/config.toml"',
             '"last_checked"',
             '"latest_version"',
+            '[[ "${actual_sha256}" == "${NAV_PILOT_CONTRACT_BASELINE_SHA256}" ]]',
+            '[[ "$(stat -c \'%s\' "${binary}")" == "${NAV_PILOT_CONTRACT_BASELINE_SIZE}" ]]',
             'validation_json="$("${binary}" validate',
             'post_validation_sha256="$(sha256sum "${binary}"',
-            'result["command"] == "validate"',
-            'result["kind"] == "agentpakke"',
-            'result["valid"] is True',
-            'result["problems"] == []',
+            '[[ "${post_validation_sha256}" == "${NAV_PILOT_CONTRACT_BASELINE_SHA256}" ]]',
+            "python3 -I -S -c '",
+            'result.get("command") != "validate"',
+            'result.get("kind") != "agentpakke"',
+            'result.get("valid") is not True',
+            'result.get("problems") != []',
+            'result.get("notes") != expected_notes',
             '"manifest: .nav-pilot/agentpakke.json"',
             '"agentpakke: grillmester (contract version 1)"',
             '"clients: copilot (tier 2), opencode (tier 2)"',
@@ -570,15 +575,38 @@ class PublishWorkflowContractTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, step)
 
+        telemetry_off = step.index('NAV_PILOT_TELEMETRY_ENABLED: "0"')
+        isolated_home = step.index('isolated_home="${RUNNER_TEMP}/nav-pilot-home"')
+        auto_update_off = step.index("printf 'auto_update = false\\n'")
+        home_export = step.index('export HOME="${isolated_home}"')
         download = step.index('curl --config /dev/null')
         first_checksum = step.index('actual_sha256="$(sha256sum')
+        first_checksum_check = step.index(
+            '[[ "${actual_sha256}" == "${NAV_PILOT_CONTRACT_BASELINE_SHA256}" ]]'
+        )
+        size_check = step.index(
+            '[[ "$(stat -c \'%s\' "${binary}")" == '
+            '"${NAV_PILOT_CONTRACT_BASELINE_SIZE}" ]]'
+        )
         execute = step.index('validation_json="$("${binary}" validate')
         second_checksum = step.index('post_validation_sha256="$(sha256sum')
-        semantic_validation = step.index('result["command"] == "validate"')
+        second_checksum_check = step.index(
+            '[[ "${post_validation_sha256}" == '
+            '"${NAV_PILOT_CONTRACT_BASELINE_SHA256}" ]]'
+        )
+        semantic_validation = step.index('result.get("command") != "validate"')
+        self.assertLess(telemetry_off, execute)
+        self.assertLess(isolated_home, auto_update_off)
+        self.assertLess(auto_update_off, home_export)
+        self.assertLess(home_export, execute)
         self.assertLess(download, first_checksum)
-        self.assertLess(first_checksum, execute)
+        self.assertLess(first_checksum, first_checksum_check)
+        self.assertLess(first_checksum_check, size_check)
+        self.assertLess(size_check, execute)
         self.assertLess(execute, second_checksum)
-        self.assertLess(second_checksum, semantic_validation)
+        self.assertLess(second_checksum, second_checksum_check)
+        self.assertLess(second_checksum_check, semantic_validation)
+        self.assertNotIn("assert result", step)
 
     def test_every_copilot_install_pins_node_first_in_the_same_job(self) -> None:
         for workflow in (
