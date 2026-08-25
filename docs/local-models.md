@@ -79,21 +79,24 @@ bruker ripgrep fra `PATH`; installer det med `brew install ripgrep` dersom
 `http://127.0.0.1:8080/v1`. Launcheren leser `/v1/models`, velger automatisk
 når serveren annonserer én modell og lagrer tilkoblingsbeskrivelsen og
 modellens kontekstkontrakt i `~/.config/grillmester/local.json`. Defaulten er
-32 768 tokens kontekst og 8 192 tokens maksimal output. Verdiene må samsvare
-med den aktive modellserveren; angi dem eksplisitt når du bruker en annen
-størrelse:
+57 344 tokens trygt klientbudsjett og 8 192 tokens maksimal output, beregnet
+for en modellserver med 65 536 tokens context. Den ekstra servermarginen på
+8 192 tokens tar høyde for protokoll-, tool- og harness-overhead som ikke
+nødvendigvis vises likt i klientens budsjett. Defaultene kan angis eksplisitt
+når oppsettet skal være selvforklarende:
 
 ```bash
 grillmester local setup \
-  --context-window 65536 \
-  --max-output-tokens 16384
+  --context-window 57344 \
+  --max-output-tokens 8192
 ```
 
 OpenCode får grensene i providerkonfigurasjonen og kan dermed komprimere
 automatisk før modellen overskrider vinduet. Copilot CLI får det samme samlede
 budsjettet. Grillmester injiserer ikke egne context-hints og har ingen separat
-komprimeringsmekanisme. Kjør `setup` på nytt hvis serverens aktive
-kontekstvindu endres.
+komprimeringsmekanisme. Sett et lavere klientbudsjett hvis serveren har mindre
+context eller maskinen får memory pressure. Kjør `setup` på nytt hvis serverens
+aktive kontekstvindu endres.
 
 En API-nøkkel lagres aldri; bruk eventuelt
 `--api-key-env NAVN` eller `--api-key-file /absolutt/privat/fil` med Copilot
@@ -283,17 +286,20 @@ Fra modellarkitekturen gir `q8_0` K/V grovt omtrent 1,1 / 2,1 / 4,3 GiB ved
 annet DeltaNet-state, allocator, batching, vision og midlertidige buffere, så
 mål faktisk memory pressure i stedet for å fylle hele den native contextgrensen.
 
-Et forsiktig M4 Pro-utgangspunkt er:
+Teamets foreløpige M4 Pro-utgangspunkt er:
 
 - Q6 XL bare når unified memory har god margin over vektfilen; 24 GB er for
   lite, og også større maskiner trenger plass til KV-cache, runtime, OS, IDE og
   repoarbeid
-- 32k context først; mål 64k etterpå hvis memory pressure og lange prefill-
-  tider er akseptable
-- `q8_0` for både K og V som et testbart cachekompromiss; sammenlign kvalitet
-  og hastighet med `f16` før du standardiserer
+- 65 536 server-context, mens Grillmester annonserer et konservativt
+  klientbudsjett på 57 344 med 8 192 maksimal output
+- `f16` for både K og V som correctness-baseline når memory pressure er grønt;
+  fall tilbake til `q8_0` hvis maskinen begynner å swappe eller trenger mer
+  margin til IDE og repoarbeid
 - én server-slot og én tung lokal agentoppgave om gangen
-- ingen MTP-/draftmodell i første correctness-baseline; mål det separat senere
+- preserved reasoning og `medium` reasoning effort
+- ingen MTP-/draftmodell i første correctness-baseline; støtten er lovende,
+  men eksperimentell og må A/B-måles mot samme oppgave og runtimeversjon
 - en separat Git-worktree per avgrenset kjøring som kan skrive
 
 På en minnebåndbreddebegrenset maskin gjør flere samtidige requests vanligvis
@@ -315,8 +321,9 @@ og et
 
 1. Last ned eller importer en reviewet Qwen3.8-27B GGUF og verifiser artifact-
    revision/checksum.
-2. Bruk memory-estimatet før lasting. Start med 32k context, maksimal trygg
-   GPU-offload og én parallell request.
+2. Bruk memory-estimatet før lasting. På den testede M4 Pro-profilen starter du
+   med 65 536 context, maksimal trygg GPU-offload og én parallell request.
+   Reduser først context dersom memory pressure eller swapping tilsier det.
 3. Start den lokale serveren i Developer-fanen eller med `lms server start`.
 4. Hent det eksakte model-ID-et fra `GET /v1/models`; ikke gjett filnavnet:
 
@@ -335,8 +342,9 @@ skriver ikke i repoet. Den er en capability-smoke, ikke en kvalitetsbenchmark,
 en context-/minnetest eller bevis på at resten av prosessen har null egress.
 
 LM Studio eksponerer ikke nødvendigvis samme detaljerte KV-cachevalg i alle
-engine-/appversjoner. Når eksakt `q8_0` for K og V er en del av forsøket, bruk
-den reproduserbare `llama.cpp`-flyten under og registrer binærversjonen.
+engine-/appversjoner. Når eksakt `f16` eller `q8_0` for K og V er en del av
+forsøket, bruk den reproduserbare `llama.cpp`-flyten under og registrer
+binærversjonen.
 
 ## Reproduserbar baseline med llama.cpp
 
@@ -351,16 +359,18 @@ llama-server \
   --alias qwen3.8-27b-local \
   --host 127.0.0.1 \
   --port 8080 \
-  --ctx-size 32768 \
+  --ctx-size 65536 \
   --parallel 1 \
   --n-gpu-layers all \
   --flash-attn on \
-  --cache-type-k q8_0 \
-  --cache-type-v q8_0 \
+  --cache-type-k f16 \
+  --cache-type-v f16 \
   --no-mmproj \
   --jinja \
   --reasoning on \
   --reasoning-effort medium \
+  --reasoning-preserve \
+  --chat-template-kwargs '{"preserve_thinking":true}' \
   --temp 1.0 \
   --top-p 0.95 \
   --top-k 20 \
@@ -371,14 +381,17 @@ llama-server \
 
 `--no-mmproj` holder tekst-/kodepiloten mindre; fjern flagget og last den
 reviewede vision-projectoren bare når oppgaven faktisk trenger bilder.
-`llama-server` dokumenterer `q8_0` for begge cachetypene, contextstørrelse,
+`llama-server` dokumenterer cachetype for K og V, contextstørrelse,
 parallelle slots, Metal/GPU-offload og localhost-binding i sin
 [serverreferanse](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md).
 Samplingverdiene følger Qwens anbefalte thinking-profil i modellkortet.
 `medium` er Grillmesters anbefalte correctness-baseline for utviklingsoppgaver;
-det settes ikke et separat hardt reasoning-budgett. Registrer innstillingene,
-tidsbruk, komprimering og resultatkvalitet som del av forsøket i stedet for å
-la en appversjon endre dem stille.
+`--reasoning-preserve` og template-flagget bevarer reasoning mellom turer. Det
+settes ikke et separat hardt reasoning-budgett. MTP kan prøves separat med
+llama.cpps draft-MTP-støtte, men er fortsatt eksperimentelt og er derfor ikke
+med i baselinekommandoen. Registrer innstillingene, tidsbruk, komprimering og
+resultatkvalitet som del av forsøket i stedet for å la en appversjon endre dem
+stille.
 
 Hvis modellen ikke lastes uten memory pressure eller swapping, reduser context
 først. Deretter vurder Q5 XL eller Q4 XL som et eksplisitt kvalitets-/minnevalg;
@@ -417,7 +430,7 @@ model-ID-et med den eksakte verdien fra `/v1/models`:
             "output": ["text"]
           },
           "limit": {
-            "context": 32768,
+            "context": 57344,
             "output": 8192
           }
         }
@@ -515,8 +528,9 @@ og sammenligning. GitHub dokumenterer lokale OpenAI Chat
 Completions-kompatible providers,
 blant annet Ollama, vLLM og andre lokale endepunkter. Modellen må støtte både
 streaming og tool calling; GitHub anbefaler minst 128k context for best resultat.
-Qwen-piloten på 32k er derfor en bevisst redusert laptopprofil som må testes
-mot Grillmesters reelle oppgaver, ikke en påstått fullgod standard.
+Qwen-piloten bruker derfor en bevisst redusert laptopprofil: 65 536 på serveren
+og et trygt klientbudsjett på 57 344. Den må testes mot Grillmesters reelle
+oppgaver, ikke behandles som en påstått fullgod standard.
 
 Mot LM Studio setter du den eksakte modellen fra `/v1/models`. `local` under er
 en ufarlig plassholder når serveren ikke krever autentisering; bruk en egen
@@ -530,7 +544,7 @@ export COPILOT_PROVIDER_WIRE_API=completions
 export COPILOT_PROVIDER_MODEL_ID=REPLACE_WITH_LM_STUDIO_MODEL_ID
 export COPILOT_PROVIDER_WIRE_MODEL=REPLACE_WITH_LM_STUDIO_MODEL_ID
 export COPILOT_MODEL=REPLACE_WITH_LM_STUDIO_MODEL_ID
-export COPILOT_PROVIDER_MAX_PROMPT_TOKENS=24576
+export COPILOT_PROVIDER_MAX_PROMPT_TOKENS=49152
 export COPILOT_PROVIDER_MAX_OUTPUT_TOKENS=8192
 export COPILOT_AUTO_UPDATE=false
 export COPILOT_OTEL_ENABLED=false

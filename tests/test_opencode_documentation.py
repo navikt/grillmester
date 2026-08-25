@@ -325,8 +325,8 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "focused Barista",
             "grillmester local doctor",
             "OpenCode og Copilot CLI på `PATH`",
-            "--context-window 65536",
-            "--max-output-tokens 16384",
+            "--context-window 57344",
+            "--max-output-tokens 8192",
             "komprimere automatisk",
             "injiserer ikke egne context-hints",
         ):
@@ -336,6 +336,12 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("binder inferensen til én eksplisitt loopbackprovider", normalized(self.local_models))
         self.assertIn("Grillmester eier ikke serveren", normalized(self.local_models))
         self.assertIn("--reasoning-effort medium", self.local_models)
+        self.assertIn("--ctx-size 65536", self.local_models)
+        self.assertIn("--cache-type-k f16", self.local_models)
+        self.assertIn("--cache-type-v f16", self.local_models)
+        self.assertIn("--reasoning-preserve", self.local_models)
+        self.assertIn("MTP", self.local_models)
+        self.assertIn("eksperiment", normalized(self.local_models).lower())
         self.assertIn("--effort medium", self.local_models)
         self.assertNotIn("--reasoning-effort xhigh", self.local_models)
         self.assertNotIn("--effort low", self.local_models)
