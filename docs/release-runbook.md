@@ -390,7 +390,7 @@ assets before publishing the draft (`prerelease` and
 `latest=false` for an RC).
 Published assets are never replaced. The following read-only
 `remote-smoke` job peels the published tag back to the expected catalog commit,
-installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/42-skill
+installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/43-skill
 Copilot payload, downloads the exact three-asset roster, verifies the detached
 checksum before safe extraction, regenerates and byte-compares the formula,
 and exercises the launcher's install contract. A failed

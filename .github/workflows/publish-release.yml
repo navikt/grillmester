@@ -1138,11 +1138,11 @@ jobs:
               or manifest.get("generator") != {
                   "path": "scripts/generate_copilot_manifest.py", "version": 1,
               }
-              or manifest.get("counts") != {"agents": 7, "skills": 42}
+              or manifest.get("counts") != {"agents": 7, "skills": 43}
               or not isinstance(manifest.get("agents"), list)
               or len(manifest["agents"]) != 7
               or not isinstance(manifest.get("skills"), list)
-              or len(manifest["skills"]) != 42
+              or len(manifest["skills"]) != 43
           ):
               fail("manifest identity or roster is invalid")
           contracts = manifest.get("files")
@@ -1745,7 +1745,7 @@ jobs:
             .marketplace.owner == "Team eSyfo" and
             (.marketplace.description | type == "string" and length > 0) and
             .packages == [
-              {name: "grillmester", path: "plugin", agents: 7, skills: 42}
+              {name: "grillmester", path: "plugin", agents: 7, skills: 43}
             ]
           ' "${package_manifest_file}" >/dev/null
           jq -e \

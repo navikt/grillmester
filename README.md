@@ -4,7 +4,7 @@
   <img src="docs/assets/grillmester-hero.jpg" alt="En retro robotgrillmester ved en kullgrill i et norsk landskap" width="100%">
 </p>
 
-Grillmester er Navs agentteam for GitHub Copilot og OpenCode: fire agenter, tre interne roller og 42 skills. Tilgang og tillatt bruk styres av Navs gjeldende policy.
+Grillmester er Navs agentteam for GitHub Copilot og OpenCode: fire agenter, tre interne roller og 43 skills. Tilgang og tillatt bruk styres av Navs gjeldende policy.
 
 ## Kom i gang
 

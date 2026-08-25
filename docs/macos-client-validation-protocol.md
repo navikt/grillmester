@@ -23,7 +23,7 @@ write scenario in an active developer worktree. The same RC tag, catalog SHA,
 and source SHA must be recorded for every client. A client that cannot resolve
 that identity is `UNVERIFIED` or `FAIL`, never `PASS`.
 
-This protocol excludes execution of the full client matrix, all 42 individual
+This protocol excludes execution of the full client matrix, all 43 individual
 skills, Windows, Linux, cloud agent, and OpenCode.
 
 ## 2. Prepare the run

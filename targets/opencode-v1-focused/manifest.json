@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "2f111c2de18caedc5b66c9f1ae65a16e04da5869d4efdc42d99750bd759cd2b7",
+    "targetManifestSha256": "013952e534104e17bb7374ef5c5f419f987f7a3fce064d8591eee8dcfedafd17",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "5fe33032e71361e42c42729f5c0ca43fe67ca7e90dff898819ed01bcddf33283"
   },
@@ -20,6 +20,7 @@
       "grillmester-doctor",
       "grillmester-grill-me",
       "grillmester-grill-with-docs",
+      "grillmester-guided-review",
       "grillmester-handoff"
     ]
   },

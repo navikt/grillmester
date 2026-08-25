@@ -138,6 +138,7 @@
     "grillmester-grill-me": {"source": "pilot", "sourcePath": ".github/skills/grill-me", "disposition": "adapted", "disable-model-invocation": true},
     "grillmester-grill-with-docs": {"source": "pilot", "sourcePath": ".github/skills/grill-with-docs", "disposition": "adapted", "disable-model-invocation": true},
     "grillmester-grilling": {"source": "pilot", "sourcePath": ".github/skills/grilling", "disposition": "adapted"},
+    "grillmester-guided-review": {"source": "pilot", "sourcePath": ".github/skills/review", "disposition": "adapted", "disable-model-invocation": true},
     "grillmester-handoff": {"source": "pilot", "sourcePath": ".github/skills/handoff", "disposition": "adapted", "disable-model-invocation": true},
     "grillmester-improve-codebase-architecture": {"source": "pilot", "sourcePath": ".github/skills/improve-codebase-architecture", "disposition": "adapted"},
     "grillmester-integration-tests": {"source": "pilot", "sourcePath": ".github/skills/integration-tests", "disposition": "adapted"},

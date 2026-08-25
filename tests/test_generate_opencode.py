@@ -114,14 +114,16 @@ class OpenCodeGenerationTest(unittest.TestCase):
         self.assertEqual(7, manifest["counts"]["agents"])
         self.assertEqual(4, manifest["counts"]["primaryAgents"])
         self.assertEqual(3, manifest["counts"]["subagents"])
-        self.assertEqual(42, manifest["counts"]["skills"])
-        self.assertEqual(42, manifest["counts"]["commands"])
+        self.assertEqual(43, manifest["counts"]["skills"])
+        self.assertEqual(43, manifest["counts"]["commands"])
         self.assertEqual(7, sum(path.startswith("agents/") for path in files))
-        self.assertEqual(42, sum(path.startswith("commands/") for path in files))
+        self.assertEqual(43, sum(path.startswith("commands/") for path in files))
         self.assertEqual(
-            42,
+            43,
             sum(path.startswith("skills/") and path.endswith("/SKILL.md") for path in files),
         )
+        self.assertIn("skills/grillmester-guided-review/SKILL.md", files)
+        self.assertIn("commands/grillmester-guided-review.md", files)
         self.assertIn(".gitignore", files)
         self.assertEqual(
             b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n",

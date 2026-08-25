@@ -14,6 +14,7 @@ permission:
     grillmester-doctor: ask
     grillmester-grill-me: ask
     grillmester-grill-with-docs: ask
+    grillmester-guided-review: ask
     grillmester-handoff: ask
   task:
     "*": deny

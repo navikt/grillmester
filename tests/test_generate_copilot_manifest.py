@@ -37,7 +37,7 @@ class CopilotManifestGenerationTest(unittest.TestCase):
         actual = GENERATOR.collect_payload_files(ROOT / "plugin")
 
         self.assertEqual("copilot-full-v1", manifest["target"])
-        self.assertEqual({"agents": 7, "skills": 42}, manifest["counts"])
+        self.assertEqual({"agents": 7, "skills": 43}, manifest["counts"])
         self.assertNotIn("manifest.json", manifest["files"])
         self.assertEqual(set(actual), set(manifest["files"]))
         for relative, (content, mode) in actual.items():

@@ -20,8 +20,8 @@
     "agents": 7,
     "primaryAgents": 4,
     "subagents": 3,
-    "skills": 42,
-    "commands": 42
+    "skills": 43,
+    "commands": 43
   },
   "skillCapabilities": {
     "grillmester-accessibility-review": "native",
@@ -40,6 +40,7 @@
     "grillmester-grill-me": "native",
     "grillmester-grill-with-docs": "native",
     "grillmester-grilling": "native",
+    "grillmester-guided-review": "native",
     "grillmester-handoff": "native",
     "grillmester-improve-codebase-architecture": "native",
     "grillmester-integration-tests": "native",
@@ -76,6 +77,7 @@
       "grillmester-doctor",
       "grillmester-grill-me",
       "grillmester-grill-with-docs",
+      "grillmester-guided-review",
       "grillmester-handoff"
     ]
   },
@@ -85,27 +87,27 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "c3956cf6900bf37693faf65c4108f26726e7b9ec93ae0588983db70dee59bb5e",
+      "sha256": "229360d3e5e3d681521d9636f1eeafcea32453615b7b532521d0e1b8a2b1aeac",
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "55fb34b47fe0f5cf1ac20ecacec9292f5c16fc1cda51ccb19cd42c7d4357a846",
+      "sha256": "4951d8616e830018575417a28a5d86163487fa1f27dbf3d32616395964349cd2",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
-      "sha256": "88cf01513180dd0dff8d9515b8dbbf9b23434ec99927221fb8e75698df8b92fc",
+      "sha256": "a36cb3761ed666d7404c2dc0e08e2f5e54728f4e618382df5feb931d46b470eb",
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "210c530bbdc5bcc1190703ea97eb982ad52c658722225db0ea5cb019e7b4fd4d",
+      "sha256": "2f6c2b99672234430e5d94fd850356e9e460df407bfbd7e5e60e236ccf360386",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "f0565770128a619b0e6697d115b669b79e26a4a0ab28b8a87ff57ea79eafcd70",
+      "sha256": "f9087bc6ecb0baa7e480ac09e75eea7fc939d80e96410256394cbc65b17e1cb3",
       "mode": "0644"
     },
     "agents/kokk.md": {
-      "sha256": "501fa4ce7f2437d3c5c090a0173c5d5e9768a493e54c0676cdf2e72ee07d1f86",
+      "sha256": "09e1f6dfb2c0801eee3bdf2c6d51f25c5dffb6b4021f5c830ebb9aafdb49555a",
       "mode": "0644"
     },
     "agents/researcher.md": {
@@ -174,6 +176,10 @@
     },
     "commands/grillmester-grilling.md": {
       "sha256": "9e4e8385c2720c0c0e3cf66abd8478bf775a72f253140429c3c9e3dabb593079",
+      "mode": "0644"
+    },
+    "commands/grillmester-guided-review.md": {
+      "sha256": "079ff819930640492a78c0c45184b8732ade34f7172c6f6e2a7d01f096c309c1",
       "mode": "0644"
     },
     "commands/grillmester-handoff.md": {
@@ -454,6 +460,10 @@
     },
     "skills/grillmester-grilling/SKILL.md": {
       "sha256": "9505224b32fd3594389d026937c51142d0d4bde0297ade3eb5bbf2c56ed4a99c",
+      "mode": "0644"
+    },
+    "skills/grillmester-guided-review/SKILL.md": {
+      "sha256": "ff6f6579ffee0cd6fdf52022e55f24cca81185e1be5658b4490b2cdfe0c4e953",
       "mode": "0644"
     },
     "skills/grillmester-handoff/SKILL.md": {

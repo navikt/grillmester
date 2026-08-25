@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: seven agents and 42 skills. The sources below record attribution
+`plugin/`: seven agents and 43 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -80,6 +80,10 @@ Imported skills:
   `nav-troubleshoot`, `observability-setup`, `postgresql-review`, `prototype`,
   `pull-request`, `readme-update`, `review`, `security-review`, `tdd`,
   `to-issues`, `to-spec`, `triage`, `wayfinder`
+
+`guided-review` is a Grillmester adaptation of the pilot review boundary. It
+keeps complete diff coverage and deterministic evidence while adding a
+manual-only, one-step-at-a-time walkthrough and explicit human merge decision.
 
 The portable adaptation preserves the pilot's role split, risk routing,
 one-writer boundary, specification and ADR workflows, deterministic evidence,

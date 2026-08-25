@@ -57,11 +57,11 @@ tekniske grensen.
 
 | Klient | Nåstatus | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
-| **Copilot CLI** | Referanseklient. Native marketplace-installasjon og Homebrew-launch gjennom cplt bruker samme pluginpayload. | Den nye 42-skill-pakken, immutable kandidat, resolved modell, delegering og runtime-toolbruk i representativt repo. |
+| **Copilot CLI** | Referanseklient. Native marketplace-installasjon og Homebrew-launch gjennom cplt bruker samme pluginpayload. | Den nye 43-skill-pakken, immutable kandidat, resolved modell, delegering og runtime-toolbruk i representativt repo. |
 | **Copilot app** | Native Plugins-UI. Appen tilbyr også BYOK mot LM Studio og OpenAI-kompatible endepunkter i public preview. | Discovery, oppdatering, resolved source, delegering, write/deny og lokal BYOK må observeres i appen; terminalens cplt-grense gjelder ikke. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær, ikke-verifisert kompatibilitetsflate utenfor første release-løfte. | Faktisk installasjon og oppdatering med to Grillmester-versjoner. |
-| **OpenCode 1.x fra 1.18.20** | Deterministisk target med 7 agenter, 42 skills og 42 commands. Brukerinstallert klient startes gjennom cplt. | Hver konkret modell må kvalitetsvalideres; nyere 1.x er kompatibilitetsflate, ikke de eksakte testbytene. |
+| **OpenCode 1.x fra 1.18.20** | Deterministisk target med 7 agenter, 43 skills og 43 commands. Brukerinstallert klient startes gjennom cplt. | Hver konkret modell må kvalitetsvalideres; nyere 1.x er kompatibilitetsflate, ikke de eksakte testbytene. |
 | **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en avgrenset kjøring med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web avhenger av cplt-policy; eksplisitt `GH_TOKEN` krever opt-in. OpenCode isolerer ambient GitHub-konto, mens Copilot-profilen kan mediere en native Keychain-credential. `run` krever et separat worktree og etterkontroll. |
 | **OpenCode 2 beta** | Forventet filkompatibilitet, men ingen støttet runtimeflate. | Permissions, provider/model-adferd og full runtimeparitet må testes separat. |
 
@@ -167,7 +167,7 @@ Bruk den versjonerte
 Minstekrav:
 
 1. Installer eksakt immutable RC og bekreft modelloppløsning i Copilot CLI.
-2. Bekreft 7 agenter og 42 skills uten kollisjoner eller døde referanser.
+2. Bekreft 7 agenter og 43 skills uten kollisjoner eller døde referanser.
 3. Test de fire offentlige agentene og gyldig delegering til interne roller.
 4. Godkjenn én ufarlig write og avvis én; bekreft faktiske sideeffekter.
 5. Gjenta i Copilot app og repoaktivert cloud agent med Navs policy.

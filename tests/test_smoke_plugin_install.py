@@ -160,6 +160,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                         for skill_id in SMOKE.LEGACY_ADD_ON_SKILLS
                         if skill_id not in SMOKE.HISTORICAL_REMOVED_SKILLS
                     ),
+                    *SMOKE.CURRENT_ONLY_SKILLS,
                 ]
                 self.assertEqual(package.skills, len(skill_ids))
                 for skill_id in skill_ids:
@@ -379,6 +380,40 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "retained removed skill"):
                     SMOKE.assert_removed_skills_absent(installed)
 
+    def test_removed_skill_check_only_applies_to_current_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            installed = Path(temp)
+            SMOKE.write_json_object(
+                installed / "plugin.json",
+                {"name": SMOKE.PLUGIN_NAME},
+            )
+            for index in range(SMOKE.PACKAGES[0].agents):
+                (installed / "agents").mkdir(exist_ok=True)
+                (installed / "agents" / f"agent-{index}.agent.md").touch()
+            for index in range(SMOKE.PACKAGES[0].skills):
+                skill = installed / "skills" / f"skill-{index}" / "SKILL.md"
+                skill.parent.mkdir(parents=True)
+                skill.touch()
+            (installed / "LICENSE").touch()
+            (installed / "THIRD_PARTY_NOTICES.md").touch()
+
+            with mock.patch.object(
+                SMOKE, "assert_payload_matches"
+            ), mock.patch.object(SMOKE, "assert_removed_skills_absent") as removed:
+                SMOKE.verify_installed_package(
+                    installed,
+                    installed,
+                    SMOKE.PREVIOUS_UNIFIED_PACKAGE,
+                )
+                removed.assert_not_called()
+
+                SMOKE.verify_installed_package(
+                    installed,
+                    installed,
+                    SMOKE.PACKAGES[0],
+                )
+                removed.assert_called_once_with(installed)
+
     def test_unavailable_documented_toggle_is_an_explicit_skip(self) -> None:
         unavailable = subprocess.CompletedProcess(
             args=[],
@@ -414,7 +449,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
         ) as run, mock.patch.object(
             SMOKE,
             "verify_installed_package",
-            return_value=(7, 42),
+            return_value=(7, 43),
         ) as verify, mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled") as uninstalled:
@@ -428,7 +463,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 source_root=Path("/tmp/source"),
             )
 
-        self.assertEqual((7, 42), result)
+        self.assertEqual((7, 43), result)
         self.assertEqual(
             [
                 "copilot",
@@ -472,7 +507,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             "run",
             side_effect=["", "", "grillmester@grillmester", ""],
         ), mock.patch.object(
-            SMOKE, "verify_installed_package", return_value=(7, 42)
+            SMOKE, "verify_installed_package", return_value=(7, 43)
         ), mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled"):
@@ -487,7 +522,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 allow_floating_marketplace=True,
             )
 
-        self.assertEqual((7, 42), result)
+        self.assertEqual((7, 43), result)
 
     def test_remote_install_rejects_floating_marketplace_without_explicit_opt_in(
         self,

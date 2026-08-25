@@ -96,13 +96,13 @@ python3 scripts/smoke_grillmester_local.py \
   --cplt cplt --opencode opencode --copilot copilot
 ```
 
-Plugin-smoken skal bekrefte 7 agenter, 42 skills og byte-eksakt installasjon,
+Plugin-smoken skal bekrefte 7 agenter, 43 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
 minimumsklienten Copilot CLI `1.0.79` annonserer hele flaggrosteren som local-run
 eier i `--help`, uten modell- eller nettverkskall. Den eksakte local-smoken
 kjører flaggene med release-testklienten. OpenCode-smoken bruker
 OpenCode `1.18.20`, kopierer targetet til en skrivbar tempmappe og bekrefter native
-discovery av 7 agenter, 42 skills, 42 commands, fravær av modellpin,
+discovery av 7 agenter, 43 skills, 43 commands, fravær av modellpin,
 deklarerte permissionregler og at native `read` løser consumerens `AGENTS.md`
 fra riktig repo uten å kontakte en modell. Den beviser derfor ikke
 at `AGENTS.md` faktisk påvirker et modellsvar, modelldrevet skillbruk,
