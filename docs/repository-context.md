@@ -169,6 +169,11 @@ Kontrakten lar `nav-pilot` validere samme innhold uten en ny sync eller en
 nav-pilot-spesifikk kopi. Installasjon og launch gjennom `nav-pilot` annonseres
 først når den aktuelle nav-pilot-milestolpen støtter Tier 2 ende-til-ende og de
 fire scenarioene er differensialtestet mot Grillmesters egne launchere.
+Agentpakke v1 uttrykker agentrosteren per klient, mens focused-payloadene bare
+har Barista som primæragent. Focused-launch gjennom nav-pilot venter derfor på
+en oppstrøms kontrakt for kontekstspesifikk agenttilgjengelighet; Grillmester
+gjetter ikke på et privat felt eller lover de fire fullagentene i focused-
+kontekst.
 
 Før stabil lansering bredt i Nav må eierne i tillegg avtale hvilke MCP
 Registry-ID-er som er støttet, og hvem som eier overlappende innhold. Inntil

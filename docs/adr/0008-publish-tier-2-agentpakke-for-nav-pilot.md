@@ -33,10 +33,20 @@ standardstøtten i release-testkontrakten. Alle fire payloadstier og
 payloadmanifestenes target-identitet valideres før agentpakkemanifestet kan
 oppdateres.
 
-Begge klienter bruker `defaultModel: inherit`. Agentpakken velger dermed aldri
-en cloud- eller lokal modell på brukerens vegne. Begge bruker full kontekst som
-standard, mens fokusert kontekst er et eksplisitt valg for lokal modell eller
-andre kontekstbegrensede kjøringer.
+Begge klienter bruker `defaultModel: inherit`. Agentpakkemanifestet velger
+dermed ingen fallbackmodell på brukerens vegne. Modellfelt som allerede finnes
+i den valgte payloadens agentfrontmatter beholder klientens normale presedens;
+full Copilot-payload beholder de reviewede agentmodellene, mens focused-
+payloadene arver modell fra klienten eller brukervalget. Begge klienter bruker
+full kontekst som standard, mens fokusert kontekst er et eksplisitt valg for
+lokal modell eller andre kontekstbegrensede kjøringer.
+
+Kontrakt v1 uttrykker `primaryAgents` på klientnivå, men Grillmesters focused-
+payloads eksponerer bare Barista som primæragent og Grill-inspektør som
+underagent. Manifestet er derfor gyldig for M1-validering, men M2-launch av
+focused-kontekst må vente til nav-pilot har definert kontekstspesifikk
+agenttilgjengelighet eller eksplisitt skjæringssemantikk. Grillmester legger
+ikke til et privat manifestfelt før den kontrakten er avtalt oppstrøms.
 
 Manifestet inneholder foreløpig ingen `minNavPilotVersion`, policyprofil eller
 provenance-påstand. De feltene legges først til når en faktisk runtimekontrakt
@@ -51,7 +61,8 @@ avhengighet.
   launcherne, uten å håndredigere eller vendore dem.
 - Endringer i offentlig agentroster, standard klientstøtte eller payloadtarget
   gjør manifestet stale og blokkeres av validatoren til det regenereres.
-- nav-pilot-installasjon annonseres ikke før Tier 2-staging og launch er levert
-  og differensialtestet for alle fire klient-/kontekstscenarier.
+- nav-pilot-installasjon annonseres ikke før Tier 2-staging og launch er levert,
+  focused-agentsemantikken er avklart og alle fire klient-/kontekstscenarier er
+  differensialtestet.
 - Terminalbundle og eksisterende pluginflyt fortsetter å virke uavhengig av
   nav-pilot.

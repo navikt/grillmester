@@ -35,19 +35,52 @@ jobs:
       - name: Validate agentpakke with released nav-pilot contract
         shell: bash
         env:
-          NAV_PILOT_URL: https://github.com/navikt/copilot/releases/download/nav-pilot/2026.08.24-134023-dc66d1e/nav-pilot-linux-amd64
-          NAV_PILOT_SHA256: 99987f338db9d5de31d2018fa5d237983352b92dd6c91a7158dc0f4a3ef97e27
+          NAV_PILOT_CONTRACT_BASELINE_VERSION: 2026.08.24-134023-dc66d1e
+          NAV_PILOT_CONTRACT_BASELINE_URL: https://github.com/navikt/copilot/releases/download/nav-pilot/2026.08.24-134023-dc66d1e/nav-pilot-linux-amd64
+          NAV_PILOT_CONTRACT_BASELINE_SHA256: 99987f338db9d5de31d2018fa5d237983352b92dd6c91a7158dc0f4a3ef97e27
+          NAV_PILOT_CONTRACT_BASELINE_SIZE: "18215074"
+          NAV_PILOT_TELEMETRY_ENABLED: "0"
         run: |
           set -euo pipefail
           binary="${RUNNER_TEMP}/nav-pilot"
+          isolated_home="${RUNNER_TEMP}/nav-pilot-home"
+          mkdir -m 0700 "${isolated_home}" "${isolated_home}/.nav-pilot"
+          printf 'auto_update = false\n' > "${isolated_home}/config.toml"
+          printf '{"last_checked":"%s","latest_version":"%s"}\n' \
+            "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            "${NAV_PILOT_CONTRACT_BASELINE_VERSION}" \
+            > "${isolated_home}/.nav-pilot/cache.json"
+          chmod 0600 \
+            "${isolated_home}/config.toml" \
+            "${isolated_home}/.nav-pilot/cache.json"
+          export HOME="${isolated_home}"
+          export NAV_PILOT_CONFIG="${isolated_home}/config.toml"
           curl --config /dev/null --fail --location --silent --show-error \
             --proto '=https' --tlsv1.2 --retry 3 \
-            --output "${binary}" "${NAV_PILOT_URL}"
+            --output "${binary}" "${NAV_PILOT_CONTRACT_BASELINE_URL}"
           actual_sha256="$(sha256sum "${binary}" | cut -d' ' -f1)"
-          [[ "${actual_sha256}" == "${NAV_PILOT_SHA256}" ]]
-          [[ "$(stat -c '%s' "${binary}")" == "18215074" ]]
+          [[ "${actual_sha256}" == "${NAV_PILOT_CONTRACT_BASELINE_SHA256}" ]]
+          [[ "$(stat -c '%s' "${binary}")" == "${NAV_PILOT_CONTRACT_BASELINE_SIZE}" ]]
           chmod 0555 "${binary}"
-          "${binary}" validate --source "${GITHUB_WORKSPACE}" --json
+          validation_json="$("${binary}" validate --source "${GITHUB_WORKSPACE}" --json)"
+          post_validation_sha256="$(sha256sum "${binary}" | cut -d' ' -f1)"
+          [[ "${post_validation_sha256}" == "${NAV_PILOT_CONTRACT_BASELINE_SHA256}" ]]
+          printf '%s\n' "${validation_json}" | python3 -c '
+          import json
+          import sys
+
+          result = json.load(sys.stdin)
+          assert result["command"] == "validate"
+          assert result["kind"] == "agentpakke"
+          assert result["valid"] is True
+          assert result["problems"] == []
+          assert result["notes"] == [
+              "manifest: .nav-pilot/agentpakke.json",
+              "agentpakke: grillmester (contract version 1)",
+              "clients: copilot (tier 2), opencode (tier 2)",
+          ]
+          '
+          printf '%s\n' "${validation_json}"
 
       - name: Validate plugin package
         run: python3 scripts/validate.py

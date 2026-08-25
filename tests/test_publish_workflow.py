@@ -526,6 +526,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
 
     def test_agentpakke_gate_uses_the_released_nav_pilot_contract(self) -> None:
         text = VALIDATE_WORKFLOW.read_text(encoding="utf-8")
+        step = text.split(
+            "      - name: Validate agentpakke with released nav-pilot contract\n",
+            maxsplit=1,
+        )[1].split("\n      - name:", maxsplit=1)[0]
         self.assertIn(
             "python3 scripts/generate_agentpakke_manifest.py --check",
             text,
@@ -542,8 +546,39 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("18215074", text)
         self.assertIn(
             'validate --source "${GITHUB_WORKSPACE}" --json',
-            text,
+            step,
         )
+        for marker in (
+            'NAV_PILOT_TELEMETRY_ENABLED: "0"',
+            'isolated_home="${RUNNER_TEMP}/nav-pilot-home"',
+            'mkdir -m 0700 "${isolated_home}" "${isolated_home}/.nav-pilot"',
+            "printf 'auto_update = false\\n'",
+            'export HOME="${isolated_home}"',
+            'export NAV_PILOT_CONFIG="${isolated_home}/config.toml"',
+            '"last_checked"',
+            '"latest_version"',
+            'validation_json="$("${binary}" validate',
+            'post_validation_sha256="$(sha256sum "${binary}"',
+            'result["command"] == "validate"',
+            'result["kind"] == "agentpakke"',
+            'result["valid"] is True',
+            'result["problems"] == []',
+            '"manifest: .nav-pilot/agentpakke.json"',
+            '"agentpakke: grillmester (contract version 1)"',
+            '"clients: copilot (tier 2), opencode (tier 2)"',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, step)
+
+        download = step.index('curl --config /dev/null')
+        first_checksum = step.index('actual_sha256="$(sha256sum')
+        execute = step.index('validation_json="$("${binary}" validate')
+        second_checksum = step.index('post_validation_sha256="$(sha256sum')
+        semantic_validation = step.index('result["command"] == "validate"')
+        self.assertLess(download, first_checksum)
+        self.assertLess(first_checksum, execute)
+        self.assertLess(execute, second_checksum)
+        self.assertLess(second_checksum, semantic_validation)
 
     def test_every_copilot_install_pins_node_first_in_the_same_job(self) -> None:
         for workflow in (
