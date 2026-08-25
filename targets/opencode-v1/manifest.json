@@ -87,7 +87,7 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "229360d3e5e3d681521d9636f1eeafcea32453615b7b532521d0e1b8a2b1aeac",
+      "sha256": "1afc22ab9bd84cd65b5566096106617cb7b19ef4c77b6acca96015131a224347",
       "mode": "0644"
     },
     "agents/designer.md": {
@@ -631,7 +631,7 @@
       "mode": "0644"
     },
     "skills/grillmester-pull-request/SKILL.md": {
-      "sha256": "c348dbbeba482d67d17ba8570e8d664dc12761a0eb50f33ae9a4f6fa1f02d9d2",
+      "sha256": "43a2e65eeb9ff2a4d156080891f0b0832ac7f19850c4b0da81079ee40782e1c9",
       "mode": "0644"
     },
     "skills/grillmester-readme-update/SKILL.md": {

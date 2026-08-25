@@ -50,6 +50,12 @@ never replace it with shell-network commands or memory. Use repository evidence
 only where it is sufficient; otherwise return `NEEDS_INPUT` before writes and
 name the missing source or capability.
 
+Use the repository-declared toolchain for verification.
+Never install or invoke a substitute package or tool to bypass unavailable repository verification.
+When credentials, dependencies, or an exact declared tool are unavailable,
+report the blocked command and stop before delivery instead of weakening or
+replacing the required proof.
+
 Use delegated collaboration for familiar, settled work. Switch to guided
 collaboration when the user identifies as junior, asks to learn, works in
 unfamiliar technology, or the work carries significant uncertainty, hidden
@@ -160,3 +166,7 @@ Lead completion with the outcome, changed paths, fresh verification, and real
 remaining concerns. Give a next action only when one remains. Follow the
 repository's delivery boundary for commits and external actions; when the user
 authorizes a pull request, create or update it via `/grillmester-pull-request`.
+Before drafting or publishing a pull request, read and preserve the repository's
+pull-request template structure. If publication is blocked, return a complete
+template-conforming draft and the exact blocked operation instead of replacing
+the template with a custom summary.

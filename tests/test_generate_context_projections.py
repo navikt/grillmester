@@ -94,6 +94,62 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     },
                 )
 
+    def test_barista_never_substitutes_tools_to_bypass_blocked_verification(self) -> None:
+        guardrail = (
+            "Never install or invoke a substitute package or tool to bypass "
+            "unavailable repository verification."
+        )
+        for relative in (
+            "plugin/agents/barista.agent.md",
+            "targets/opencode-v1/agents/barista.md",
+            "targets/opencode-v1-focused/agents/barista.md",
+            "targets/copilot-cli-focused-v1/agents/barista.agent.md",
+        ):
+            with self.subTest(path=relative):
+                self.assertIn(
+                    guardrail,
+                    " ".join(
+                        (ROOT / relative).read_text(encoding="utf-8").split()
+                    ),
+                )
+
+    def test_barista_preserves_consumer_pull_request_templates(self) -> None:
+        guardrail = (
+            "Before drafting or publishing a pull request, read and preserve "
+            "the repository's pull-request template structure."
+        )
+        for relative in (
+            "plugin/agents/barista.agent.md",
+            "targets/opencode-v1/agents/barista.md",
+            "targets/opencode-v1-focused/agents/barista.md",
+            "targets/copilot-cli-focused-v1/agents/barista.agent.md",
+        ):
+            with self.subTest(path=relative):
+                self.assertIn(
+                    guardrail,
+                    " ".join(
+                        (ROOT / relative).read_text(encoding="utf-8").split()
+                    ),
+                )
+
+        template_contract = (
+            "Preserve the template's headings, order, and checklist; fill its "
+            "sections instead of replacing them with a custom structure."
+        )
+        for relative in (
+            "plugin/skills/grillmester-pull-request/SKILL.md",
+            "targets/opencode-v1/skills/grillmester-pull-request/SKILL.md",
+            "targets/opencode-v1-focused/skills/grillmester-pull-request/SKILL.md",
+            "targets/copilot-cli-focused-v1/skills/grillmester-pull-request/SKILL.md",
+        ):
+            with self.subTest(path=relative):
+                self.assertIn(
+                    template_contract,
+                    " ".join(
+                        (ROOT / relative).read_text(encoding="utf-8").split()
+                    ),
+                )
+
     def test_focused_content_is_derived_with_only_the_reviewed_transforms(self) -> None:
         projections, _ = GENERATOR.build_projections(ROOT)
         opencode = projections["opencode"]

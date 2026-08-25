@@ -72,6 +72,25 @@ rå `gh`-config og caller-kontrollerte PATH-verktøy. Copilots cplt-profil tilla
 likevel macOS Keychain; velg OpenCode dersom hard isolasjon fra en ambient
 GitHub-konto er et krav.
 
+Private npm-pakker er en separat opt-in. Local-flyten arver aldri ambient
+`NPM_AUTH_TOKEN` eller bruker hostens `~/.npmrc`. Når consumer-repoets egen
+`.npmrc` peker på en privat registry, gi child-klienten et caller-eid token med
+`--npm-access`:
+
+```bash
+NPM_AUTH_TOKEN="$NAV_PACKAGE_READ_TOKEN" \
+  grillmester local run --npm-access \
+  "Fiks oppgaven og kjør repoets deklarerte verifikasjon"
+```
+
+Bruk et dedikert token med bare nødvendige package-read-rettigheter. Launcheren
+validerer tokenformatet, redigerer verdien fra egne previews og skriver den ikke
+til config, sessionstate eller npm-userconfig. En tom, session-eid
+npm-userconfig hindrer package manageren i å bruke hostens `.npmrc`; prosjektets
+`.npmrc` lastes fortsatt og bestemmer hvilken registry tokenet kan sendes til.
+Modellen og godkjente subprocesser kan lese tokenet, og cplts effektive
+nettverkspolicy er fortsatt autoritativ.
+
 `setup` finner OpenCode og Copilot CLI på `PATH` uten å starte dem. Finnes én
 klient, velges den automatisk; finnes begge, spør launcheren. OpenCode-sessions
 bruker ripgrep fra `PATH`; installer det med `brew install ripgrep` dersom
@@ -185,6 +204,14 @@ child-klienten kan lese det, og direkte API-kall kan omgå cplts best-effort
 issueinnhold eller annen bruker-eid beslutning ikke allerede er autorisert, skal
 Barista returnere et utkast med `Status: NEEDS_INPUT` i stedet for å skrive.
 
+Oppgaver som må installere eller verifisere private npm-pakker bruker
+`--npm-access` i tillegg. `--github-access` og `--npm-access` er separate fordi
+GitHub API-/CLI-tilgang og package registry-tilgang kan ha ulike tokens og
+rettigheter. Hvis repoets deklarerte verifikasjon stopper på manglende
+credentials, dependencies eller eksakt verktøy, skal Barista rapportere den
+blokkerte kommandoen. Den skal ikke hente en navnelik erstatningspakke med
+`npx` eller på annen måte svekke verifikasjonen.
+
 Local-flyten har ingen cloudmodell-fallback, men den kan være tilkoblet.
 Launcheren åpner den valgte localhost-porten og krever cplts forced proxy,
 `gh`-guard og Git-guard. Brukerens og organisasjonens cplt-config forblir
@@ -219,6 +246,25 @@ konto og minst mulig scope. Interaktiv launch spør før sideeffekter;
 Høy-nivåkommandoer som `gh issue create` går fortsatt gjennom cplts `gh`-guard,
 og Git push går gjennom Git-guard. `gh`-guarden er en myk, best-effort
 kommandogrense; et eksplisitt token kan også brukes i direkte API-kall.
+
+Som default blokkerer Git-guard all push. For en dedikert agent-worktree kan
+brukeren velge cplts smalere leveringspolicy globalt. Innstillingen
+`git_guard.protect_default_branch_only=true` settes slik:
+
+```bash
+cplt config set git_guard.protect_default_branch_only true --force
+```
+
+Da kan cplt-wrappede agentkommandoer normalt pushe vanlige feature branches og
+kjøre `gh pr create --draft` for det aktuelle repoet. cplt-policyen er ment å
+fortsette å blokkere push til `main`/`master`, force-push og PR-merge, men er en
+best-effort-kommandogrense — ikke hard branch-autorisasjon. Repository rules og
+branch protection er den autoritative default-branch-grensen. Dette er
+cplt-config, ikke et Grillmester-flagg, og påvirker alle cplt-sesjoner for
+brukeren. Kontroller effektiv verdi med
+`cplt config get git_guard.protect_default_branch_only`. Grillmester sender
+fortsatt alltid `--git-guard` og tilbyr ingen `--no-git-guard`-omvei.
+
 OpenCodes websearch er aktiv,
 og Grillmester velger Exa som provider. Når websearch brukes, sendes
 søketeksten til Exa: interaktiv launch krever klientgodkjenning, mens `local

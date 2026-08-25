@@ -188,6 +188,7 @@ class LocalModeTests(unittest.TestCase):
         *,
         arguments: tuple[str, ...] = (),
         github_access: bool = False,
+        npm_access: bool = False,
     ) -> LOCAL.LocalLaunch:
         config = config or self._config()
         client = self.opencode if config.client == "opencode" else self.copilot
@@ -199,6 +200,7 @@ class LocalModeTests(unittest.TestCase):
             client=SimpleNamespace(path=str(client), version="reviewed"),
             client_arguments=arguments,
             github_access=github_access,
+            npm_access=npm_access,
             environment=self.environment,
             platform="darwin",
         )
@@ -940,7 +942,7 @@ class LocalModeTests(unittest.TestCase):
                 child = command[command.index("--") + 1 :]
                 self.assertIn("GH_TOKEN", passed)
                 self.assertIn(
-                    "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN",
+                    "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN,NPM_AUTH_TOKEN",
                     child,
                 )
                 self.assertNotIn(
@@ -1361,7 +1363,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("--no-remote-export", client)
         self.assertIn("--disable-builtin-mcps", client)
         self.assertIn(
-            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN",
+            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN,NPM_AUTH_TOKEN",
             client,
         )
         self.assertNotIn("COPILOT_OFFLINE", launch.environment)
@@ -1413,7 +1415,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("--no-ask-user", client)
         self.assertIn("--deny-tool=shell(gh:*)", client)
         self.assertIn(
-            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN",
+            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN,NPM_AUTH_TOKEN",
             client,
         )
         self.assertNotIn("--allow-all-paths", client)
@@ -1543,6 +1545,110 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual("must-not-cross", launch.environment["GH_TOKEN"])
         self.assertEqual("<redacted>", launch.redacted_environment["GH_TOKEN"])
         self.assertIn("GH_TOKEN", launch.secret_environment)
+
+    def test_npm_access_is_explicit_redacted_and_passed_to_both_clients(self) -> None:
+        self.environment["NPM_AUTH_TOKEN"] = "npm_test_token"
+
+        for client_name in ("opencode", "copilot"):
+            with self.subTest(client=client_name):
+                launch = self._launch(
+                    self._config(client=client_name), npm_access=True
+                )
+                passed = {
+                    launch.command[index + 1]
+                    for index, value in enumerate(launch.command[:-1])
+                    if value == "--pass-env"
+                }
+                client = list(launch.command[launch.command.index("--") + 1 :])
+
+                self.assertEqual(
+                    "npm_test_token", launch.environment["NPM_AUTH_TOKEN"]
+                )
+                self.assertEqual(
+                    "<redacted>", launch.redacted_environment["NPM_AUTH_TOKEN"]
+                )
+                self.assertIn("NPM_AUTH_TOKEN", launch.secret_environment)
+                self.assertIn("NPM_AUTH_TOKEN", passed)
+                if client_name == "copilot":
+                    secret_option = next(
+                        value
+                        for value in client
+                        if value.startswith("--secret-env-vars=")
+                    )
+                    self.assertNotIn(
+                        "NPM_AUTH_TOKEN",
+                        secret_option.split("=", 1)[1].split(","),
+                    )
+
+        copilot_without_access = self._launch(self._config(client="copilot"))
+        copilot_client = list(
+            copilot_without_access.command[
+                copilot_without_access.command.index("--") + 1 :
+            ]
+        )
+        secret_option = next(
+            value
+            for value in copilot_client
+            if value.startswith("--secret-env-vars=")
+        )
+        self.assertIn(
+            "NPM_AUTH_TOKEN",
+            secret_option.split("=", 1)[1].split(","),
+        )
+
+    def test_ambient_npm_token_is_scrubbed_without_explicit_access(self) -> None:
+        self.environment["NPM_AUTH_TOKEN"] = "must-not-cross"
+
+        launch = self._launch()
+
+        self.assertNotIn("NPM_AUTH_TOKEN", launch.environment)
+        self.assertNotIn("NPM_AUTH_TOKEN", launch.secret_environment)
+        self.assertNotIn("NPM_AUTH_TOKEN", launch.command)
+
+    def test_local_launch_uses_empty_session_owned_npm_user_config(self) -> None:
+        host_config = Path(self.environment["HOME"]) / ".npmrc"
+        host_config.write_text("//registry.example/:_authToken=ambient\n", encoding="utf-8")
+
+        launch = self._launch()
+
+        user_config = Path(launch.environment["NPM_CONFIG_USERCONFIG"])
+        passed = {
+            launch.command[index + 1]
+            for index, value in enumerate(launch.command[:-1])
+            if value == "--pass-env"
+        }
+        self.assertTrue(user_config.is_relative_to(launch.runtime.xdg_config))
+        self.assertNotEqual(host_config, user_config)
+        self.assertEqual("", user_config.read_text(encoding="utf-8"))
+        self.assertEqual(0o600, stat.S_IMODE(user_config.stat().st_mode))
+        self.assertIn("NPM_CONFIG_USERCONFIG", passed)
+
+    def test_npm_access_requires_a_valid_caller_token(self) -> None:
+        for label, token in (
+            ("missing", None),
+            ("empty", ""),
+            ("whitespace", "bad token"),
+            ("unicode", "bad😀token"),
+        ):
+            with self.subTest(token=label):
+                environment = {**self.environment}
+                if token is None:
+                    environment.pop("NPM_AUTH_TOKEN", None)
+                else:
+                    environment["NPM_AUTH_TOKEN"] = token
+                with self.assertRaisesRegex(
+                    LOCAL.LocalModeError, "NPM_AUTH_TOKEN"
+                ):
+                    LOCAL.build_local_launch(
+                        self._config(),
+                        distribution_root=self.distribution,
+                        project_dir=self.project,
+                        cplt=self.cplt,
+                        client=self.opencode,
+                        npm_access=True,
+                        environment=environment,
+                        platform="darwin",
+                    )
 
     def test_copilot_without_auth_uses_only_redacted_local_placeholder(self) -> None:
         launch = self._launch(self._config(client="copilot"))
@@ -1762,6 +1868,27 @@ class LocalModeTests(unittest.TestCase):
 
         self.assertEqual("<redacted>", launch.environment["GH_TOKEN"])
         self.assertIn("GH_TOKEN", launch.secret_environment)
+
+    def test_print_shape_redacts_npm_credential_without_reading_it(self) -> None:
+        environment = {**self.environment}
+        environment.pop("NPM_AUTH_TOKEN", None)
+
+        launch = LOCAL.build_local_launch(
+            self._config(),
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            cplt=self.cplt,
+            client=self.opencode,
+            environment=environment,
+            npm_access=True,
+            resolve_credentials=False,
+            prepare_state=False,
+            platform="darwin",
+        )
+
+        self.assertEqual("<redacted>", launch.environment["NPM_AUTH_TOKEN"])
+        self.assertIn("NPM_AUTH_TOKEN", launch.secret_environment)
+        self.assertFalse((self.root / "state").exists())
 
     def test_reserved_client_arguments_cannot_override_local_binding(self) -> None:
         for client, option in (
@@ -2580,6 +2707,46 @@ class LocalModeTests(unittest.TestCase):
             self.assertFalse((self.root / "state").exists())
 
     @mock.patch.object(LOCAL.sys, "platform", "darwin")
+    def test_doctor_aggregates_missing_explicit_npm_credential(self) -> None:
+        environment = {
+            key: value
+            for key, value in self.environment.items()
+            if key != "NPM_AUTH_TOKEN"
+        }
+        with ProbeServer() as server:
+            LOCAL.save_config(
+                self._config(base_url=server.base_url), environment=environment
+            )
+
+            def resolve(client: str, checked: bool, project: Path) -> tuple[object, object]:
+                self.assertEqual(self.project.resolve(), project)
+                self.assertEqual("opencode", client)
+                self.assertTrue(checked)
+                return (
+                    SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
+                    SimpleNamespace(path=str(self.opencode), version="1.18.20"),
+                )
+
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                result = LOCAL.main(
+                    [
+                        "doctor",
+                        "--npm-access",
+                        "--project-dir",
+                        str(self.project),
+                    ],
+                    distribution_root=self.distribution,
+                    binary_resolver=resolve,
+                    environment=environment,
+                )
+
+        self.assertEqual(1, result)
+        self.assertIn("error npm", stdout.getvalue())
+        self.assertIn("NPM_AUTH_TOKEN", stdout.getvalue())
+        self.assertFalse((self.root / "state").exists())
+
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
     def test_remainder_print_token_cannot_disable_checked_binary_resolution(self) -> None:
         with ProbeServer() as server:
             LOCAL.save_config(
@@ -2706,6 +2873,7 @@ class LocalModeTests(unittest.TestCase):
                     "--full",
                     "--print-command",
                     "--github-access",
+                    "--npm-access",
                     "run",
                     "task",
                 ],
@@ -2719,6 +2887,7 @@ class LocalModeTests(unittest.TestCase):
                     "--full",
                     "--print-command",
                     "--github-access",
+                    "--npm-access",
                     "task",
                 ],
             ),

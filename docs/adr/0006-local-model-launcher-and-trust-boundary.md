@@ -134,6 +134,28 @@ local-session med en GitHub-konto innenfor ønsket scope. Interaktive sessions
 godkjenner sideeffekter som vanlig; en avgrenset kjøring må få hele
 autorisasjonen i prompten og kjøres i et separat worktree.
 
+### Private package registries
+
+Local-launcheren arver ikke ambient package credentials eller hostens
+`~/.npmrc`. Hver child får i stedet en tom, session-eid npm-userconfig. Dette
+hindrer utilsiktet bruk av brukerens globale registry- og credentialoppsett,
+mens consumerens prosjekt-eide `.npmrc` fortsatt kan beskrive nødvendige
+package scopes og registries.
+
+`--npm-access` er en separat capability fra `--github-access`. Ved eksplisitt
+opt-in validerer launcheren caller-eid `NPM_AUTH_TOKEN`, redigerer det fra egne
+previews og sender det bare i child-miljøet. Tokenet skrives ikke til config,
+sessionstate, preview eller den tomme npm-userconfigen. Prosjektets `.npmrc`
+bestemmer likevel hvor package manageren kan sende tokenet, og modellen eller
+godkjente subprocesser kan lese, logge eller persistere det. Brukeren må derfor
+bruke et dedikert package-read-token og stole på consumer-repoet og cplts
+effektive nettverkspolicy.
+
+Når repoets deklarerte verifikasjon er blokkert av manglende credentials,
+dependencies eller eksakt verktøy, skal Barista rapportere den blokkerte
+kommandoen og stoppe før levering. Den skal ikke installere en navnelik
+erstatningspakke eller svekke den avtalte verifikasjonen.
+
 ### Ingen egen offlineprofil
 
 Denne beslutningen etablerer ingen offlinegaranti. Grillmester tilbyr ikke en
@@ -150,6 +172,8 @@ eies av cplt eller organisasjonens runtimepolicy, ikke av en parallell launcher.
   cplt eller organisasjonens runtimepolicy.
 - Det eksplisitte opt-in-tokenet og cplts guards er myke grenser og må omtales
   ærlig i trustdokumentasjonen.
+- Private package credentials krever egen opt-in og er fortsatt lesbare for
+  child-klienten; consumerens `.npmrc` og cplt-policyen er del av trustgrensen.
 - Modellserverens binær, vekter, logging og egen egress forblir en separat
   tillitsgrense.
 - Klientene kan komprimere før modellserverens kontekstvindu overskrides fordi

@@ -109,9 +109,11 @@ COPILOT_GITHUB_SECRET_ENVIRONMENTS = (
     "COPILOT_GITHUB_TOKEN",
 )
 GITHUB_SECRET_ENV = "GH_TOKEN"
+NPM_SECRET_ENV = "NPM_AUTH_TOKEN"
 MAX_CONFIG_BYTES = 64 * 1024
 MAX_SECRET_BYTES = 16 * 1024
 MAX_GITHUB_TOKEN_BYTES = 4 * 1024
+MAX_NPM_TOKEN_BYTES = 4 * 1024
 MAX_PROBE_BYTES = 256 * 1024
 DEFAULT_PROBE_TIMEOUT = 5.0
 DEFAULT_BASE_URL = "http://127.0.0.1:8080/v1"
@@ -140,6 +142,7 @@ LOCAL_ROUTABLE_FLAG_OPTIONS = (
     "--full",
     "--print-command",
     "--github-access",
+    "--npm-access",
 )
 
 PROVIDER_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
@@ -1587,6 +1590,10 @@ GITHUB_ACCESS_HELP = (
     "pass a caller-supplied GH_TOKEN to local tools; host gh config and "
     "caller-PATH tools stay isolated, while cplt's gh guard is a soft boundary"
 )
+NPM_ACCESS_HELP = (
+    "pass a caller-supplied NPM_AUTH_TOKEN to local tools for project-declared "
+    "package registries; the child can read it and project .npmrc controls use"
+)
 
 
 def _resolve_path_executable(
@@ -1644,6 +1651,27 @@ def _explicit_github_capability(
             "brew install gh"
         )
     return _ResolvedGithubCapability(token, executable)
+
+
+def _explicit_npm_token(environment: Mapping[str, str]) -> _ResolvedSecret:
+    """Read one package-registry credential only after explicit opt-in."""
+
+    token = environment.get(NPM_SECRET_ENV)
+    if token is None or not token:
+        raise LocalModeError(
+            "--npm-access requires NPM_AUTH_TOKEN in the caller environment"
+        )
+    try:
+        encoded = token.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise LocalModeError(
+            "NPM_AUTH_TOKEN must contain only ASCII characters"
+        ) from exc
+    if len(encoded) > MAX_NPM_TOKEN_BYTES or re.fullmatch(
+        r"[A-Za-z0-9_-]+", token
+    ) is None:
+        raise LocalModeError("NPM_AUTH_TOKEN has an invalid value")
+    return _ResolvedSecret(token)
 
 
 def _client_search_directory(
@@ -2477,7 +2505,11 @@ def _reject_copilot_command_mode(arguments: Sequence[str]) -> None:
 
 
 def _copilot_binding_arguments(
-    config: LocalConfig, payload: Path, *, github_access: bool = False
+    config: LocalConfig,
+    payload: Path,
+    *,
+    github_access: bool = False,
+    npm_access: bool = False,
 ) -> list[str]:
     secret_environment = [
         COPILOT_SECRET_ENV,
@@ -2485,6 +2517,10 @@ def _copilot_binding_arguments(
     ]
     if not github_access:
         secret_environment.insert(1, "GH_TOKEN")
+    # Copilot's secret-env list removes names from tool subprocesses. Keep the
+    # package token there by default, but omit it after explicit npm opt-in.
+    if not npm_access:
+        secret_environment.append(NPM_SECRET_ENV)
     return [
         "--plugin-dir",
         str(payload),
@@ -2517,6 +2553,7 @@ def _client_arguments(
     *,
     run_prompt: str | None = None,
     github_access: bool = False,
+    npm_access: bool = False,
 ) -> list[str]:
     if run_prompt is not None:
         if arguments:
@@ -2539,7 +2576,10 @@ def _client_arguments(
             ]
         return [
             *_copilot_binding_arguments(
-                config, payload, github_access=github_access
+                config,
+                payload,
+                github_access=github_access,
+                npm_access=npm_access,
             ),
             "--prompt",
             run_prompt,
@@ -2563,7 +2603,12 @@ def _client_arguments(
             "OpenCode command for admin commands or another project"
         )
     return [
-        *_copilot_binding_arguments(config, payload, github_access=github_access),
+        *_copilot_binding_arguments(
+            config,
+            payload,
+            github_access=github_access,
+            npm_access=npm_access,
+        ),
         *arguments,
     ]
 
@@ -2579,9 +2624,11 @@ def build_local_launch(
     run_prompt: str | None = None,
     environment: Mapping[str, str] | None = None,
     github_access: bool = False,
+    npm_access: bool = False,
     resolve_credentials: bool = True,
     resolved_secret: _ResolvedSecret | None = None,
     resolved_github_capability: _ResolvedGithubCapability | None = None,
+    resolved_npm_secret: _ResolvedSecret | None = None,
     prepare_state: bool = True,
     platform: str | None = None,
 ) -> LocalLaunch:
@@ -2621,6 +2668,16 @@ def build_local_launch(
             github_executable = capability.executable
         else:
             github_secret = "<redacted>"
+    npm_secret: str | None = None
+    if npm_access:
+        if resolve_credentials:
+            npm_secret = (
+                _explicit_npm_token(source_environment).value
+                if resolved_npm_secret is None
+                else resolved_npm_secret.value
+            )
+        else:
+            npm_secret = "<redacted>"
     project, distribution, cplt_path, client_path = _validate_launch_trust_roots(
         distribution_root=distribution_root,
         project_dir=project,
@@ -2680,6 +2737,11 @@ def build_local_launch(
         "NO_PROXY",
         "no_proxy",
     ]
+    npm_user_config = runtime.xdg_config / "npm" / "npmrc"
+    if prepare_state:
+        _atomic_private_write(npm_user_config, b"")
+    child_environment["NPM_CONFIG_USERCONFIG"] = str(npm_user_config)
+    passed_environment.append("NPM_CONFIG_USERCONFIG")
     if config.client == "opencode":
         child_environment.update(OPENCODE_LOCAL_ENVIRONMENT)
         child_environment["OPENCODE_CONFIG_DIR"] = str(payload)
@@ -2736,6 +2798,12 @@ def build_local_launch(
         passed_environment.append(GITHUB_SECRET_ENV)
         secret_names = secret_names | {GITHUB_SECRET_ENV}
 
+    if npm_access:
+        assert npm_secret is not None
+        child_environment[NPM_SECRET_ENV] = npm_secret
+        passed_environment.append(NPM_SECRET_ENV)
+        secret_names = secret_names | {NPM_SECRET_ENV}
+
     command = [
         str(launch_cplt_path),
         "--yes",
@@ -2789,6 +2857,7 @@ def build_local_launch(
             client_arguments,
             run_prompt=run_prompt,
             github_access=github_access,
+            npm_access=npm_access,
         )
     )
     return LocalLaunch(
@@ -2808,7 +2877,9 @@ def doctor_local(
     cplt: object,
     client: object,
     github_access: bool = False,
+    npm_access: bool = False,
     resolved_github_capability: _ResolvedGithubCapability | None = None,
+    resolved_npm_secret: _ResolvedSecret | None = None,
     environment: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
     platform: str | None = None,
@@ -2817,6 +2888,8 @@ def doctor_local(
     config = validate_config(config)
     if github_access and resolved_github_capability is None:
         resolved_github_capability = _explicit_github_capability(environment)
+    if npm_access and resolved_npm_secret is None:
+        resolved_npm_secret = _explicit_npm_token(environment)
     _validate_launch_trust_roots(
         distribution_root=distribution_root,
         project_dir=project_dir,
@@ -2845,9 +2918,11 @@ def doctor_local(
         cplt=cplt,
         client=client,
         github_access=github_access,
+        npm_access=npm_access,
         environment=environment,
         resolved_secret=resolved_secret,
         resolved_github_capability=resolved_github_capability,
+        resolved_npm_secret=resolved_npm_secret,
         prepare_state=False,
         platform=platform,
     )
@@ -2864,6 +2939,7 @@ def execute_local(
     client_arguments: Sequence[str] = (),
     run_prompt: str | None = None,
     github_access: bool = False,
+    npm_access: bool = False,
     environment: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
     exec_callback: Callable[[str, Sequence[str], Mapping[str, str]], object] = os.execvpe,
@@ -2882,6 +2958,7 @@ def execute_local(
     resolved_github_capability = (
         _explicit_github_capability(environment) if github_access else None
     )
+    resolved_npm_secret = _explicit_npm_token(environment) if npm_access else None
     _validate_launch_trust_roots(
         distribution_root=distribution_root,
         project_dir=project_dir,
@@ -2912,9 +2989,11 @@ def execute_local(
         client_arguments=client_arguments,
         run_prompt=run_prompt,
         github_access=github_access,
+        npm_access=npm_access,
         environment=environment,
         resolved_secret=resolved_secret,
         resolved_github_capability=resolved_github_capability,
+        resolved_npm_secret=resolved_npm_secret,
         platform=platform,
     )
     return exec_callback(launch.command[0], launch.command, launch.environment)
@@ -3038,6 +3117,7 @@ def _parser() -> argparse.ArgumentParser:
             "  grillmester local setup\n"
             "  grillmester local\n"
             '  grillmester local run "Fix the failing test"\n'
+            "  grillmester local run --npm-access \"Run the repository checks\"\n"
             "  grillmester local --client copilot\n"
             "  grillmester local --full --agent grillmester\n"
             "  grillmester local doctor\n"
@@ -3157,6 +3237,11 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help=GITHUB_ACCESS_HELP,
     )
+    doctor.add_argument(
+        "--npm-access",
+        action="store_true",
+        help=NPM_ACCESS_HELP,
+    )
     launch = subparsers.add_parser(
         "launch",
         allow_abbrev=False,
@@ -3191,6 +3276,11 @@ def _parser() -> argparse.ArgumentParser:
         "--github-access",
         action="store_true",
         help=GITHUB_ACCESS_HELP,
+    )
+    launch.add_argument(
+        "--npm-access",
+        action="store_true",
+        help=NPM_ACCESS_HELP,
     )
     launch.add_argument(
         "client_arguments",
@@ -3244,6 +3334,14 @@ def _parser() -> argparse.ArgumentParser:
             "authorize prompt-described GitHub writes without tool prompts using a "
             "dedicated fine-grained GH_TOKEN supplied by the caller; the child can "
             "read it and cplt's gh guard is a soft boundary"
+        ),
+    )
+    run.add_argument(
+        "--npm-access",
+        action="store_true",
+        help=(
+            "authorize package-manager use of a caller-supplied NPM_AUTH_TOKEN; "
+            "the child can read it and project .npmrc controls where it is sent"
         ),
     )
     run.add_argument("prompt", help="one quoted task prompt")
@@ -3363,6 +3461,13 @@ def main(
                     )
                 except LocalModeError as exc:
                     github_capability_error = exc
+            npm_credential_error: LocalModeError | None = None
+            resolved_npm_secret: _ResolvedSecret | None = None
+            if arguments.npm_access:
+                try:
+                    resolved_npm_secret = _explicit_npm_token(environment)
+                except LocalModeError as exc:
+                    npm_credential_error = exc
             probe, launch = doctor_local(
                 config,
                 distribution_root=root,
@@ -3372,7 +3477,11 @@ def main(
                 github_access=(
                     arguments.github_access and github_capability_error is None
                 ),
+                npm_access=(
+                    arguments.npm_access and npm_credential_error is None
+                ),
                 resolved_github_capability=resolved_github_capability,
+                resolved_npm_secret=resolved_npm_secret,
                 environment=environment,
             )
             project = arguments.project_dir.expanduser().resolve(strict=True)
@@ -3407,6 +3516,18 @@ def main(
                         "skip github credential not exposed; use --github-access "
                         "with an explicit GH_TOKEN when needed"
                     )
+            if npm_credential_error is not None:
+                print(f"error npm {npm_credential_error}")
+            elif arguments.npm_access:
+                print(
+                    "ok  npm explicit NPM_AUTH_TOKEN accepted "
+                    "(soft boundary; doctor sends no credential)"
+                )
+            else:
+                print(
+                    "skip npm credential not exposed; use --npm-access with an "
+                    "explicit NPM_AUTH_TOKEN for private packages"
+                )
             if config.client == "opencode":
                 print(
                     "info websearch OpenCode sends approved search queries to Exa "
@@ -3417,7 +3538,10 @@ def main(
                     print(f"warn  {RIPGREP_HINT}")
                 else:
                     print(f"ok  rg {ripgrep}")
-            if github_capability_error is not None:
+            if (
+                github_capability_error is not None
+                or npm_credential_error is not None
+            ):
                 return 1
             return 0
 
@@ -3439,6 +3563,7 @@ def main(
                 client_arguments=client_arguments,
                 run_prompt=arguments.prompt if arguments.command == "run" else None,
                 github_access=arguments.github_access,
+                npm_access=arguments.npm_access,
                 environment=environment,
                 resolve_credentials=False,
                 prepare_state=False,
@@ -3454,6 +3579,7 @@ def main(
             client_arguments=client_arguments,
             run_prompt=arguments.prompt if arguments.command == "run" else None,
             github_access=arguments.github_access,
+            npm_access=arguments.npm_access,
             environment=environment,
             exec_callback=exec_callback,
         )

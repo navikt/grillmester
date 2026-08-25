@@ -59,7 +59,7 @@ Ikke lag `opencode.json`: `local setup` finner modellen på
 isolert OpenCode-config per sesjon. `launch` og `run` er alternativer;
 `run` krever worktree. Web/GitHub følger cplt-policy. Uten opt-in sendes
 ingen støttet `GH_TOKEN`; Copilot kan mediere native credential via macOS
-Keychain. Se [Qwen-oppsett og GitHub-tilgang](docs/local-models.md).
+Keychain. Privat npm: `NPM_AUTH_TOKEN`/`--npm-access`; [guide](docs/local-models.md).
 
 ### Oppdatere terminalinstallasjonen
 

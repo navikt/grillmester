@@ -237,6 +237,12 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self.assertIn("innebygde GitHub MCP er av", local_models)
         self.assertIn("`gh issue create`", local_models)
         self.assertIn("Git push går gjennom Git-guard", local_models)
+        self.assertIn("`git_guard.protect_default_branch_only=true`", local_models)
+        self.assertIn("feature branches", local_models)
+        self.assertIn("`gh pr create --draft`", local_models)
+        self.assertIn("force-push", local_models)
+        self.assertIn("best-effort-kommandogrense", local_models)
+        self.assertIn("branch protection", local_models)
         self.assertIn("OpenCodes websearch er aktiv", local_models)
         self.assertIn("interaktiv launch krever klientgodkjenning", local_models)
         self.assertIn("`local run` auto-godkjenner", local_models)
@@ -259,6 +265,28 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn("`--github-access`", document)
                 self.assertIn("uten å starte", document)
                 self.assertRegex(document, r"persistere")
+
+    def test_local_private_package_access_is_explicit_and_isolated(self) -> None:
+        local_models = normalized(self.local_models)
+        installation = normalized(self.installation)
+        trust = normalized(self.trust)
+        decision = normalized(self.adrs["0006"])
+
+        for document in (local_models, installation, trust, decision):
+            with self.subTest(document=document[:60]):
+                self.assertIn("NPM_AUTH_TOKEN", document)
+                self.assertIn("`--npm-access`", document)
+                self.assertIn("session-eid", document)
+                self.assertIn(".npmrc", document)
+
+        self.assertIn("separat capability", decision)
+        self.assertIn("dedikert token", local_models)
+        self.assertIn("package-read-rettigheter", local_models)
+        self.assertIn("redigerer verdien fra egne previews", local_models)
+        self.assertIn(
+            "Modellen og godkjente subprocesser kan lese tokenet",
+            local_models,
+        )
 
     def test_opencode_guide_starts_with_the_homebrew_launcher(self) -> None:
         self.assertLess(

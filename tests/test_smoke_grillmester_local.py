@@ -167,6 +167,7 @@ class MatrixTests(unittest.TestCase):
                 self.assertEqual(("local", "run"), command[4:6])
                 self.assertEqual(SMOKE.PROMPT, command[-1])
                 self.assertNotIn("--github-access", command)
+                self.assertNotIn("--npm-access", command)
                 self.assertNotIn("CPLT_CONFIG", child_environment)
                 for name in SMOKE.GITHUB_CREDENTIAL_ENVIRONMENT:
                     self.assertNotIn(name, child_environment)
