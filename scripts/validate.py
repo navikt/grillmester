@@ -1125,6 +1125,21 @@ def validate_focused_context_projections(root: Path, errors: list[str]) -> None:
         errors.append(f"focused context target validation failed: {exc}")
 
 
+def validate_agentpakke_manifest(root: Path, errors: list[str]) -> None:
+    generator = _load_projection_generator(
+        root,
+        errors,
+        script="scripts/generate_agentpakke_manifest.py",
+        label="nav-pilot agentpakke manifest generator",
+    )
+    if generator is None:
+        return
+    try:
+        generator.check_manifest(root)
+    except (OSError, ValueError, RuntimeError) as exc:
+        errors.append(f"nav-pilot agentpakke manifest validation failed: {exc}")
+
+
 def validate_repo(root: Path) -> list[str]:
     root = root.resolve()
     plugin_root = root / "plugin"
@@ -1137,6 +1152,7 @@ def validate_repo(root: Path) -> list[str]:
     validate_opencode_projection(root, errors)
     validate_copilot_full_manifest(root, errors)
     validate_focused_context_projections(root, errors)
+    validate_agentpakke_manifest(root, errors)
     sources, agent_contracts, skill_contracts = load_content_lock(root, errors)
     validate_launcher_public_agents(root, agent_contracts, errors)
     validate_attribution(root, sources, errors)

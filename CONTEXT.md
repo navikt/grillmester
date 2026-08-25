@@ -29,6 +29,13 @@ skill- og commandflate for eksplisitt lokal modellkjøring, men velger ikke
 provider, modell, sandbox eller egresspolicy.
 _Avoid_: lite-plugin, local-only-target, runtimeprofil
 
+**Agentpakke**:
+Den manifestdeklarerte samlingen av Grillmesters eksisterende klienttargeter
+som `nav-pilot` kan validere, stage og starte. Manifestet peker på full og
+fokusert kontekst for Copilot CLI og OpenCode; det kopierer ikke innhold og
+overtar ikke eierskapet til generering, modellvalg eller runtimepolicy.
+_Avoid_: distro, ny plugin, innholdssync, nav-pilot-fork
+
 **Release-bundle**:
 Det immutable, checksumverifiserbare sluttbrukerartefaktet som pakker den
 kanoniske pluginen, OpenCode 1-targetet og terminal-launcheren.
