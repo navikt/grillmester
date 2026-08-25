@@ -103,7 +103,11 @@ Tomme, session-eide npm user- og globalconfigfiler hindrer package manageren i
 å bruke hostconfig; prosjektets `.npmrc` bestemmer hvilken registry tokenet kan
 sendes til. Modellen og godkjente subprocesser kan lese tokenet, og cplts
 effektive nettverkspolicy er fortsatt autoritativ. Valget gjelder bare den ene
-sesjonen og lagres aldri som default.
+sesjonen og lagres aldri som default. Runtimekontrakten forteller modellen om
+package-tilgangen: med `--npm-access` kan repoets deklarerte package manager
+installere det som trengs for verifikasjonen brukeren ba om; uten flagget skal
+modellen bruke det som allerede er installert og rapportere manglende
+dependencies.
 
 `setup` finner OpenCode og Copilot CLI på `PATH` uten å starte dem. Finnes én
 klient, velges den automatisk; finnes begge, spør launcheren. OpenCode-sessions
@@ -183,6 +187,17 @@ promptmodus. Begge auto-godkjenner prosjektwrites, shellkommandoer og URL-er
 innenfor den effektive klient- og cplt-policyen. cplt beskytter ikke
 prosjektfilene mot overskriving, sletting eller destruktive Git-operasjoner som
 modellen selv starter.
+
+Launcheren legger en kort runtimekontrakt foran oppgaveteksten i `run`. Den
+forklarer modellen at `EPERM`, `Operation not permitted` og eksplisitte
+blokkeringer kan være tilsiktet cplt-policy, at en policyblokk ikke skal
+feilsøkes eller omgås, og at uavhengig implementasjon skal fortsette selv om én
+verifikasjon er blokkert. Et Git-avvik som modellen ikke kan lese, skal ikke
+tilskrives kjøringen eller røres; det rapporteres separat som uavklart. Vanlige
+oppgavespesifikke Git- og GitHub-operasjoner som cplt tillater, forblir tillatt.
+Den opprinnelige oppgaven står uendret etter kontrakten. Dette gjelder bare
+non-interaktiv `local run`; den kanoniske agentpakken og vanlig
+Copilot-/OpenCode-bruk får ingen ekstra promptstøy.
 
 `run` er derfor for små til middels store oppgaver med tydelig mål, scope og
 verifikasjon. En exitkode `0` betyr at klientprosessen fullførte, ikke at

@@ -216,6 +216,7 @@ class MatrixTests(unittest.TestCase):
                         if client == "copilot"
                         else "Select Grillmester (`grillmester`) for complex work"
                     )
+                prompt += f"\n{SMOKE.LOCAL._bound_run_prompt(SMOKE.PROMPT)}"
                 stream = post_completion(
                     base_url,
                     {
@@ -434,7 +435,17 @@ class MatrixTests(unittest.TestCase):
                     {
                         "model": SMOKE.MODEL_ID,
                         "stream": True,
-                        "messages": [{"role": "system", "content": "# Barista ☕"}],
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": (
+                                    "# Barista ☕\n"
+                                    + SMOKE.LOCAL._bound_run_prompt(
+                                        SMOKE.PROMPT, npm_access=npm_access
+                                    )
+                                ),
+                            }
+                        ],
                         "tools": [
                             {"type": "function", "function": {"name": "bash"}}
                         ],
@@ -668,6 +679,37 @@ class MatrixTests(unittest.TestCase):
             SMOKE.LocalSmokeError,
             "required 'bash' tool; advertised function tools: shell, read",
         ):
+            SMOKE.validate_provider_state(state)
+
+    def test_provider_validation_requires_the_runtime_sandbox_contract(self) -> None:
+        scenario = SMOKE.Scenario("opencode", "full")
+        state = SMOKE.ProviderState(scenario)
+        state.model_requests.append({})
+        state.completions.append(
+            SMOKE.CompletionRecord(
+                path="/v1/chat/completions",
+                headers={},
+                payload={
+                    "model": SMOKE.MODEL_ID,
+                    "stream": True,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "# Barista ☕\n"
+                                "Select Grillmester (`grillmester`) for complex work\n"
+                                f"{SMOKE.PROMPT}"
+                            ),
+                        }
+                    ],
+                    "tools": [
+                        {"type": "function", "function": {"name": "bash"}}
+                    ],
+                },
+            )
+        )
+
+        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "bound local-run prompt"):
             SMOKE.validate_provider_state(state)
 
 

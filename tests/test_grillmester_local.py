@@ -1310,7 +1310,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual("run", client[0])
         self.assertIn("--auto", client)
         self.assertIn("grillmester", client)
-        self.assertEqual("fix the test", client[-1])
+        self.assertEqual(LOCAL._bound_run_prompt("fix the test"), client[-1])
 
         for arguments in (("--help",), ("-v",)):
             with self.subTest(arguments=arguments):
@@ -1342,6 +1342,7 @@ class LocalModeTests(unittest.TestCase):
         command = list(launch.command)
         self.assertEqual("cplt", Path(command[0]).name)
         self.assertIn(str(self.project.resolve(strict=True)), command)
+        client = command[command.index("--") + 1 :]
         self.assertEqual(
             [
                 "run",
@@ -1353,12 +1354,23 @@ class LocalModeTests(unittest.TestCase):
                 "--title",
                 "Grillmester local run",
                 "--",
-                "Fix the failing test",
             ],
-            command[command.index("--") + 1 :],
+            client[:-1],
         )
+        self.assertEqual(LOCAL._bound_run_prompt("Fix the failing test"), client[-1])
+        self.assertIn("inside a cplt sandbox", client[-1])
+        self.assertTrue(client[-1].endswith("User task:\nFix the failing test"))
         self.assertNotIn("GH_TOKEN", launch.environment)
         self.assertNotIn("GH_TOKEN", launch.secret_environment)
+
+    def test_bound_run_prompt_preserves_multiline_unicode_task_exactly(self) -> None:
+        task = "  Rett ødelagt test 🧪\n\nBehold avsluttende mellomrom  "
+
+        bound = LOCAL._bound_run_prompt(task)
+
+        self.assertTrue(bound.endswith(f"{LOCAL.LOCAL_RUN_TASK_HEADER}{task}"))
+        self.assertIn(LOCAL.LOCAL_RUN_PACKAGE_ACCESS_DISABLED, bound)
+        self.assertNotIn(LOCAL.LOCAL_RUN_PACKAGE_ACCESS_ENABLED, bound)
 
     def test_run_rejects_nul_in_prompt_before_building_the_client_command(self) -> None:
         with self.assertRaisesRegex(LOCAL.LocalModeError, "must not contain NUL"):
@@ -1439,7 +1451,10 @@ class LocalModeTests(unittest.TestCase):
         command = list(launch.command)
         client = command[command.index("--") + 1 :]
         self.assertIn("--prompt", client)
-        self.assertEqual("Fix the failing test", client[client.index("--prompt") + 1])
+        self.assertEqual(
+            LOCAL._bound_run_prompt("Fix the failing test"),
+            client[client.index("--prompt") + 1],
+        )
         self.assertIn("--allow-all-tools", client)
         self.assertIn("--allow-all-urls", client)
         self.assertIn("--no-ask-user", client)
@@ -1603,6 +1618,32 @@ class LocalModeTests(unittest.TestCase):
                 )
                 self.assertIn("NPM_AUTH_TOKEN", launch.secret_environment)
                 self.assertIn("NPM_AUTH_TOKEN", passed)
+                run_launch = LOCAL.build_local_launch(
+                    self._config(client=client_name),
+                    distribution_root=self.distribution,
+                    project_dir=self.project,
+                    cplt=SimpleNamespace(path=str(self.cplt), version="reviewed"),
+                    client=SimpleNamespace(
+                        path=str(
+                            self.opencode if client_name == "opencode" else self.copilot
+                        ),
+                        version="reviewed",
+                    ),
+                    run_prompt="Run the requested verification",
+                    npm_access=True,
+                    environment=self.environment,
+                    platform="darwin",
+                )
+                run_client = list(
+                    run_launch.command[run_launch.command.index("--") + 1 :]
+                )
+                run_prompt = (
+                    run_client[-1]
+                    if client_name == "opencode"
+                    else run_client[run_client.index("--prompt") + 1]
+                )
+                self.assertIn(LOCAL.LOCAL_RUN_PACKAGE_ACCESS_ENABLED, run_prompt)
+                self.assertNotIn(LOCAL.LOCAL_RUN_PACKAGE_ACCESS_DISABLED, run_prompt)
                 if client_name == "copilot":
                     secret_option = next(
                         value
@@ -2779,7 +2820,7 @@ class LocalModeTests(unittest.TestCase):
                 "--title",
                 "Grillmester local run",
                 "--",
-                "Fix the failing test",
+                LOCAL._bound_run_prompt("Fix the failing test"),
             ],
             command[command.index("--") + 1 :],
         )

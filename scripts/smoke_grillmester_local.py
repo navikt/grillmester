@@ -744,6 +744,10 @@ def validate_provider_state(state: ProviderState) -> None:
             raise LocalSmokeError(
                 f"{state.scenario.name} did not load the full Barista projection"
             )
+    if LOCAL._bound_run_prompt(PROMPT) not in text:
+        raise LocalSmokeError(
+            f"{state.scenario.name} did not receive the exact bound local-run prompt"
+        )
 
 
 def validate_npm_provider_state(
@@ -791,6 +795,14 @@ def validate_npm_provider_state(
     if len(state.model_requests) != 1:
         raise LocalSmokeError(
             f"{state.scenario.name} npm probe did not use exactly one model probe"
+        )
+    text = _request_text(state.completions[0].payload)
+    expected_prompt = LOCAL._bound_run_prompt(
+        PROMPT, npm_access=expected_environment_value is not None
+    )
+    if expected_prompt not in text:
+        raise LocalSmokeError(
+            f"{state.scenario.name} npm probe did not receive its exact bound run prompt"
         )
 
 

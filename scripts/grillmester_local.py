@@ -131,6 +131,36 @@ DEFAULT_CONTEXT_WINDOW = (
     RECOMMENDED_LOCAL_SERVER_CONTEXT_WINDOW - DEFAULT_MAX_OUTPUT_TOKENS
 )
 DEFAULT_COPILOT_REASONING_EFFORT = "medium"
+LOCAL_RUN_SANDBOX_CONTEXT = (
+    "Runtime boundary supplied by Grillmester:\n"
+    "- This task runs inside a cplt sandbox. EPERM, Operation not permitted, "
+    "and messages that explicitly say blocked or restricted can be intentional "
+    "policy decisions, not host defects.\n"
+    "- Do not troubleshoot or bypass a policy denial, or alter protected Git "
+    "internals, hooks, credentials, push controls, or network policy to work "
+    "around it. Normal task-scoped file, Git, and GitHub operations that cplt "
+    "permits remain allowed.\n"
+    "- When protected tracked bytes are unreadable, sandboxed Git cannot "
+    "establish whether a reported difference is real or pre-existing. Do not "
+    "touch it or attribute it to this run; report it separately as unresolved.\n"
+    "- Continue implementation and verification that do not depend on a blocked "
+    "operation. Report the exact blocked command or evidence at the end; never "
+    "claim blocked proof passed.\n"
+)
+LOCAL_RUN_PACKAGE_ACCESS_ENABLED = (
+    "- Package access is enabled. Use only the repository-declared package "
+    "manager, and install only dependencies needed for verification the user "
+    "requested.\n"
+)
+LOCAL_RUN_PACKAGE_ACCESS_DISABLED = (
+    "- Package access is not enabled. Use the already-installed toolchain and "
+    "report missing dependencies; do not fetch or install them.\n"
+)
+LOCAL_RUN_TASK_HEADER = (
+    "- Never substitute a different tool to bypass blocked verification.\n"
+    "\n"
+    "User task:\n"
+)
 # The focused prompt and OpenCode's native preflight compaction both need real
 # headroom. Smaller windows can fail before a useful conversation exists to
 # compact, so they are outside the supported local coding profile.
@@ -2846,6 +2876,21 @@ def _validate_run_prompt(run_prompt: str) -> None:
         raise LocalModeError("local run prompt must not be empty")
 
 
+def _bound_run_prompt(run_prompt: str, *, npm_access: bool = False) -> str:
+    """Add the stable local-run boundary without changing canonical agents."""
+
+    _validate_run_prompt(run_prompt)
+    package_contract = (
+        LOCAL_RUN_PACKAGE_ACCESS_ENABLED
+        if npm_access
+        else LOCAL_RUN_PACKAGE_ACCESS_DISABLED
+    )
+    return (
+        f"{LOCAL_RUN_SANDBOX_CONTEXT}{package_contract}"
+        f"{LOCAL_RUN_TASK_HEADER}{run_prompt}"
+    )
+
+
 def _client_arguments(
     config: LocalConfig,
     payload: Path,
@@ -2860,7 +2905,9 @@ def _client_arguments(
             raise LocalModeError(
                 "local run owns the client command line and accepts only one prompt"
             )
-        _validate_run_prompt(run_prompt)
+        bound_prompt = _bound_run_prompt(
+            run_prompt, npm_access=npm_token_environment is not None
+        )
         if config.client == "opencode":
             return [
                 "run",
@@ -2872,7 +2919,7 @@ def _client_arguments(
                 "--title",
                 "Grillmester local run",
                 "--",
-                run_prompt,
+                bound_prompt,
             ]
         return [
             *_copilot_binding_arguments(
@@ -2882,7 +2929,7 @@ def _client_arguments(
                 npm_token_environment=npm_token_environment,
             ),
             "--prompt",
-            run_prompt,
+            bound_prompt,
             "--allow-all-tools",
             "--allow-all-urls",
             "--no-ask-user",
