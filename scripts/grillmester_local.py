@@ -1687,7 +1687,14 @@ def _physical_repository_root(project: Path) -> tuple[Path, bool]:
 
 
 def reject_project_opencode_extensions(project: Path) -> None:
-    """Reject OpenCode's project-level executable/config discovery surface."""
+    """Reject OpenCode project components that can override the local binding.
+
+    OpenCode keeps inert dependency metadata in ``.opencode`` during normal
+    use, including a generated ``.gitignore``.  Project rules may also coexist
+    with Grillmester.  Inspect only the config and component roots OpenCode can
+    load; the launch environment separately disables project config and
+    external components for the local session.
+    """
 
     root, _ = _physical_repository_root(project)
     if root not in (project, *project.parents):
@@ -1728,17 +1735,44 @@ def reject_project_opencode_extensions(project: Path) -> None:
             ) from exc
         if stat.S_ISLNK(observed_root.st_mode) or not stat.S_ISDIR(observed_root.st_mode):
             raise LocalModeError(f"project OpenCode directory is unsafe: {extension_root}")
-        try:
-            entries = sorted(extension_root.iterdir(), key=lambda entry: entry.name)
-        except OSError as exc:
+
+        for name in ("opencode.json", "opencode.jsonc", "mcp.json"):
+            candidate = extension_root / name
+            try:
+                candidate.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                raise LocalModeError(
+                    f"could not inspect project OpenCode config {candidate}: {exc}"
+                ) from exc
             raise LocalModeError(
-                f"could not enumerate project OpenCode directory {extension_root}: {exc}"
-            ) from exc
-        if entries:
-            raise LocalModeError(
-                "local mode refuses auto-discovered project OpenCode entry: "
-                f"{entries[0]}"
+                f"local mode refuses auto-discovered project OpenCode config: {candidate}"
             )
+
+        for name, component in (
+            ("agent", "agent"),
+            ("agents", "agent"),
+            ("command", "command"),
+            ("commands", "command"),
+            ("mode", "mode"),
+            ("modes", "mode"),
+            ("plugin", "plugin"),
+            ("plugins", "plugin"),
+            ("skill", "skill"),
+            ("skills", "skill"),
+            ("theme", "theme"),
+            ("themes", "theme"),
+            ("tool", "tool"),
+            ("tools", "tool"),
+        ):
+            _reject_nonempty_project_component_root(
+                extension_root / name,
+                client="OpenCode",
+                component=component,
+            )
+
+
 def _reject_nonempty_project_component_root(
     candidate: Path, *, client: str, component: str
 ) -> None:

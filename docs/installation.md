@@ -251,6 +251,9 @@ nekter å kjøre trusted-bin derfra. De to nyeste avsluttede sessionmappene beho
 diagnostikk; `doctor` og `--print-command` oppretter ingen slik mappe. Ambient
 klientkomponenter som kan skygge den distribuerte payloaden avvises. Dette er
 payloadisolasjon; cplt eier runtime-sandboxen.
+OpenCodes inerte `.opencode`-metadata og andre ikke-lastbare filer kan
+sameksistere med local-flyten; prosjektconfig og lastbare komponentrøtter kan
+ikke det. Stående prosjektinstrukser hører hjemme i repoets `AGENTS.md`.
 For Copilot-local betyr fail-closed-gaten at enhver ikke-tom repo-lokal agent-
 eller skillrot avvises, også nav-pilot-innhold uten navnekollisjon. Bruk
 OpenCode-local eller en eksplisitt pilotbranch/fixture uten røttene; vanlig
