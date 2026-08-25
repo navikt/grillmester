@@ -578,7 +578,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
         telemetry_off = step.index('NAV_PILOT_TELEMETRY_ENABLED: "0"')
         isolated_home = step.index('isolated_home="${RUNNER_TEMP}/nav-pilot-home"')
         auto_update_off = step.index("printf 'auto_update = false\\n'")
+        cache_initialized = step.index("printf '{\"last_checked\":\"%s\"")
         home_export = step.index('export HOME="${isolated_home}"')
+        config_export = step.index(
+            'export NAV_PILOT_CONFIG="${isolated_home}/config.toml"'
+        )
         download = step.index('curl --config /dev/null')
         first_checksum = step.index('actual_sha256="$(sha256sum')
         first_checksum_check = step.index(
@@ -597,8 +601,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         semantic_validation = step.index('result.get("command") != "validate"')
         self.assertLess(telemetry_off, execute)
         self.assertLess(isolated_home, auto_update_off)
-        self.assertLess(auto_update_off, home_export)
-        self.assertLess(home_export, execute)
+        self.assertLess(auto_update_off, cache_initialized)
+        self.assertLess(cache_initialized, home_export)
+        self.assertLess(home_export, config_export)
+        self.assertLess(config_export, execute)
         self.assertLess(download, first_checksum)
         self.assertLess(first_checksum, first_checksum_check)
         self.assertLess(first_checksum_check, size_check)
