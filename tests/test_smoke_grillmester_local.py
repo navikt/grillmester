@@ -120,6 +120,27 @@ class MatrixTests(unittest.TestCase):
 
             self.assertNotEqual(before, SMOKE._tree_snapshot(root))
 
+    def test_release_payloads_are_reverified_after_client_execution(self) -> None:
+        with mock.patch.object(
+            SMOKE.LOCAL, "_verify_manifested_payload"
+        ) as verify:
+            SMOKE.verify_release_payloads_unchanged(ROOT)
+
+        self.assertEqual(4, verify.call_count)
+        observed = {
+            (call.args[0], call.kwargs["expected_target"])
+            for call in verify.call_args_list
+        }
+        self.assertEqual(
+            {
+                (ROOT / "targets/opencode-v1-focused", "opencode-v1-focused"),
+                (ROOT / "targets/opencode-v1", "opencode-v1"),
+                (ROOT / "targets/copilot-cli-focused-v1", "copilot-cli-focused-v1"),
+                (ROOT / "plugin", "copilot-full-v1"),
+            },
+            observed,
+        )
+
     def test_matrix_uses_local_launcher_and_proves_payload_prompt_and_scrubbing(self) -> None:
         observed: list[tuple[str, str, tuple[str, ...]]] = []
         with tempfile.TemporaryDirectory() as directory:
@@ -167,6 +188,7 @@ class MatrixTests(unittest.TestCase):
                 self.assertEqual(("local", "run"), command[4:6])
                 self.assertEqual(SMOKE.PROMPT, command[-1])
                 self.assertNotIn("--github-access", command)
+                self.assertNotIn("--npm-access", command)
                 self.assertNotIn("CPLT_CONFIG", child_environment)
                 for name in SMOKE.GITHUB_CREDENTIAL_ENVIRONMENT:
                     self.assertNotIn(name, child_environment)
@@ -194,6 +216,7 @@ class MatrixTests(unittest.TestCase):
                         if client == "copilot"
                         else "Select Grillmester (`grillmester`) for complex work"
                     )
+                prompt += f"\n{SMOKE.LOCAL._bound_run_prompt(SMOKE.PROMPT)}"
                 stream = post_completion(
                     base_url,
                     {
@@ -351,6 +374,119 @@ class MatrixTests(unittest.TestCase):
         self.assertIn("--repo", observed[1])
         self.assertEqual(("gh", "issue", "delete", "1"), observed[2])
         self.assertEqual(("gh", "auth", "token"), observed[3])
+
+    def test_npm_access_matrix_covers_default_deny_and_explicit_access_per_client(
+        self,
+    ) -> None:
+        observed: list[tuple[str, bool]] = []
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binaries = root / "bin"
+            home = root / "home"
+            state = root / "state"
+            for path in (binaries, home, state):
+                path.mkdir()
+            cplt = executable(binaries / "cplt")
+            opencode = executable(binaries / "opencode")
+            copilot = executable(binaries / "copilot")
+            ripgrep = executable(binaries / "rg")
+            executable(binaries / "npm")
+            environment = {
+                "HOME": str(home),
+                "XDG_STATE_HOME": str(state),
+                "PATH": str(binaries),
+                "LANG": "en_US.UTF-8",
+            }
+
+            def run_process(
+                command: tuple[str, ...],
+                cwd: Path,
+                child_environment: dict[str, str],
+                timeout: float,
+            ) -> SMOKE.CommandResult:
+                self.assertGreater(timeout, 0)
+                client = command[command.index("--client") + 1]
+                npm_access = "--npm-access" in command
+                self.assertIn(
+                    f"_authToken=${{{SMOKE.NPM_ACCESS_ENVIRONMENT}}}",
+                    (cwd / ".npmrc").read_text(encoding="utf-8"),
+                )
+                config = SMOKE.LOCAL.load_config(environment=child_environment)
+                assert config is not None
+                with urllib.request.build_opener(
+                    urllib.request.ProxyHandler({})
+                ).open(f"{config.base_url}/models", timeout=5):
+                    pass
+                registry = config.base_url.removesuffix("/v1") + "/npm/-/ping"
+                headers = {}
+                if npm_access:
+                    headers["Authorization"] = (
+                        "Bearer "
+                        f"{SMOKE.CREDENTIAL_CANARY_PREFIX}"
+                        f"{SMOKE.NPM_ACCESS_ENVIRONMENT}"
+                    )
+                request = urllib.request.Request(registry, headers=headers)
+                with urllib.request.build_opener(
+                    urllib.request.ProxyHandler({})
+                ).open(request, timeout=5):
+                    pass
+                stream = post_completion(
+                    config.base_url,
+                    {
+                        "model": SMOKE.MODEL_ID,
+                        "stream": True,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": (
+                                    "# Barista ☕\n"
+                                    + SMOKE.LOCAL._bound_run_prompt(
+                                        SMOKE.PROMPT, npm_access=npm_access
+                                    )
+                                ),
+                            }
+                        ],
+                        "tools": [
+                            {"type": "function", "function": {"name": "bash"}}
+                        ],
+                    },
+                )
+                stream += post_completion(
+                    config.base_url,
+                    {
+                        "model": SMOKE.MODEL_ID,
+                        "stream": True,
+                        "messages": [
+                            {"role": "tool", "content": SMOKE.NPM_ACCESS_SENTINEL}
+                        ],
+                        "tools": [
+                            {"type": "function", "function": {"name": "bash"}}
+                        ],
+                    },
+                )
+                observed.append((client, npm_access))
+                return SMOKE.CommandResult(0, stream)
+
+            SMOKE.run_npm_access_matrix(
+                distribution_root=ROOT,
+                cplt=cplt,
+                opencode=opencode,
+                copilot=copilot,
+                ripgrep=ripgrep,
+                environment=environment,
+                run_process=run_process,
+                platform="darwin",
+            )
+
+        self.assertEqual(
+            [
+                ("opencode", False),
+                ("opencode", True),
+                ("copilot", False),
+                ("copilot", True),
+            ],
+            observed,
+        )
 
     def test_provider_validation_rejects_the_wrong_context_projection(self) -> None:
         scenario = SMOKE.Scenario("copilot", "focused")
@@ -543,6 +679,37 @@ class MatrixTests(unittest.TestCase):
             SMOKE.LocalSmokeError,
             "required 'bash' tool; advertised function tools: shell, read",
         ):
+            SMOKE.validate_provider_state(state)
+
+    def test_provider_validation_requires_the_runtime_sandbox_contract(self) -> None:
+        scenario = SMOKE.Scenario("opencode", "full")
+        state = SMOKE.ProviderState(scenario)
+        state.model_requests.append({})
+        state.completions.append(
+            SMOKE.CompletionRecord(
+                path="/v1/chat/completions",
+                headers={},
+                payload={
+                    "model": SMOKE.MODEL_ID,
+                    "stream": True,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "# Barista ☕\n"
+                                "Select Grillmester (`grillmester`) for complex work\n"
+                                f"{SMOKE.PROMPT}"
+                            ),
+                        }
+                    ],
+                    "tools": [
+                        {"type": "function", "function": {"name": "bash"}}
+                    ],
+                },
+            )
+        )
+
+        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "bound local-run prompt"):
             SMOKE.validate_provider_state(state)
 
 

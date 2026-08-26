@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "013952e534104e17bb7374ef5c5f419f987f7a3fce064d8591eee8dcfedafd17",
+    "targetManifestSha256": "d19594ff4f24e156780ad21e9c3664cd70796b569a19d7758e04bd4c337cccf7",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "5fe33032e71361e42c42729f5c0ca43fe67ca7e90dff898819ed01bcddf33283"
   },
@@ -48,7 +48,7 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "2447b05a7fc13dc0bae62b2cf2e27e7fb52a754523c17121dc7be9395461e2e7",
+      "sha256": "37b6b3eca5ca490407f0dccbe6bee7f7f90df0fe3b010cc8474284b4ee4f55e0",
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
@@ -104,7 +104,7 @@
       "mode": "0644"
     },
     "skills/grillmester-pull-request/SKILL.md": {
-      "sha256": "c348dbbeba482d67d17ba8570e8d664dc12761a0eb50f33ae9a4f6fa1f02d9d2",
+      "sha256": "43a2e65eeb9ff2a4d156080891f0b0832ac7f19850c4b0da81079ee40782e1c9",
       "mode": "0644"
     },
     "skills/grillmester-review/SKILL.md": {

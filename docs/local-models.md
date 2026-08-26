@@ -72,6 +72,43 @@ rå `gh`-config og caller-kontrollerte PATH-verktøy. Copilots cplt-profil tilla
 likevel macOS Keychain; velg OpenCode dersom hard isolasjon fra en ambient
 GitHub-konto er et krav.
 
+Private npm-pakker er en separat opt-in. Local-flyten videresender aldri et
+ambient package-token og bruker ikke hostens npm user- eller globalconfig. Når
+consumer-repoets egen `.npmrc` peker på en privat registry, gi child-klienten
+ett caller-eid token med `--npm-access`:
+
+```bash
+NPM_AUTH_TOKEN="$NAV_PACKAGE_READ_TOKEN" \
+  grillmester local run --npm-access \
+  "Fiks oppgaven og kjør repoets deklarerte verifikasjon"
+```
+
+Bruk et dedikert token med bare nødvendige package-read-rettigheter. Launcheren
+leser kun `_authToken=${NAME}`-direktiver i en avgrenset, vanlig prosjektfil.
+`NPM_AUTH_TOKEN`, `NODE_AUTH_TOKEN` og `NPM_TOKEN` gjenkjennes automatisk når
+nøyaktig ett navn er deklarert. Et custom navn må velges eksplisitt med
+`--npm-token-env NAME` og må stå i samme `.npmrc`. Navnet må beskrive en
+package-credential og ende på `_TOKEN`:
+
+```bash
+NAV_PACKAGE_READ_TOKEN="$TOKEN" \
+  grillmester local run --npm-token-env NAV_PACKAGE_READ_TOKEN \
+  "Fiks oppgaven og kjør repoets deklarerte verifikasjon"
+```
+
+Kontrollvariabler som `HOME`, `NPM_CONFIG_*`, `OPENCODE_*` og `COPILOT_*` kan
+ikke velges som package-token. Launcheren validerer tokenformatet, redigerer
+verdien fra egne previews og skriver den ikke til config eller sessionstate.
+Tomme, session-eide npm user- og globalconfigfiler hindrer package manageren i
+å bruke hostconfig; prosjektets `.npmrc` bestemmer hvilken registry tokenet kan
+sendes til. Modellen og godkjente subprocesser kan lese tokenet, og cplts
+effektive nettverkspolicy er fortsatt autoritativ. Valget gjelder bare den ene
+sesjonen og lagres aldri som default. Runtimekontrakten forteller modellen om
+package-tilgangen: med `--npm-access` kan repoets deklarerte package manager
+installere det som trengs for verifikasjonen brukeren ba om; uten flagget skal
+modellen bruke det som allerede er installert og rapportere manglende
+dependencies.
+
 `setup` finner OpenCode og Copilot CLI på `PATH` uten å starte dem. Finnes én
 klient, velges den automatisk; finnes begge, spør launcheren. OpenCode-sessions
 bruker ripgrep fra `PATH`; installer det med `brew install ripgrep` dersom
@@ -151,6 +188,17 @@ innenfor den effektive klient- og cplt-policyen. cplt beskytter ikke
 prosjektfilene mot overskriving, sletting eller destruktive Git-operasjoner som
 modellen selv starter.
 
+Launcheren legger en kort runtimekontrakt foran oppgaveteksten i `run`. Den
+forklarer modellen at `EPERM`, `Operation not permitted` og eksplisitte
+blokkeringer kan være tilsiktet cplt-policy, at en policyblokk ikke skal
+feilsøkes eller omgås, og at uavhengig implementasjon skal fortsette selv om én
+verifikasjon er blokkert. Et Git-avvik som modellen ikke kan lese, skal ikke
+tilskrives kjøringen eller røres; det rapporteres separat som uavklart. Vanlige
+oppgavespesifikke Git- og GitHub-operasjoner som cplt tillater, forblir tillatt.
+Den opprinnelige oppgaven står uendret etter kontrakten. Dette gjelder bare
+non-interaktiv `local run`; den kanoniske agentpakken og vanlig
+Copilot-/OpenCode-bruk får ingen ekstra promptstøy.
+
 `run` er derfor for små til middels store oppgaver med tydelig mål, scope og
 verifikasjon. En exitkode `0` betyr at klientprosessen fullførte, ikke at
 oppgaven er semantisk løst. Modellen kan fortsatt avslutte med
@@ -184,6 +232,14 @@ child-klienten kan lese det, og direkte API-kall kan omgå cplts best-effort
 `gh`-guard. Ikke behandle flagget som hard repository-scoping. Hvis eksakt
 issueinnhold eller annen bruker-eid beslutning ikke allerede er autorisert, skal
 Barista returnere et utkast med `Status: NEEDS_INPUT` i stedet for å skrive.
+
+Oppgaver som må installere eller verifisere private npm-pakker bruker
+`--npm-access` i tillegg. `--github-access` og `--npm-access` er separate fordi
+GitHub API-/CLI-tilgang og package registry-tilgang kan ha ulike tokens og
+rettigheter. Hvis repoets deklarerte verifikasjon stopper på manglende
+credentials, dependencies eller eksakt verktøy, skal Barista rapportere den
+blokkerte kommandoen. Den skal ikke hente en navnelik erstatningspakke med
+`npx` eller på annen måte svekke verifikasjonen.
 
 Local-flyten har ingen cloudmodell-fallback, men den kan være tilkoblet.
 Launcheren åpner den valgte localhost-porten og krever cplts forced proxy,
@@ -219,6 +275,25 @@ konto og minst mulig scope. Interaktiv launch spør før sideeffekter;
 Høy-nivåkommandoer som `gh issue create` går fortsatt gjennom cplts `gh`-guard,
 og Git push går gjennom Git-guard. `gh`-guarden er en myk, best-effort
 kommandogrense; et eksplisitt token kan også brukes i direkte API-kall.
+
+Som default blokkerer Git-guard all push. For en dedikert agent-worktree kan
+brukeren velge cplts smalere leveringspolicy globalt. Innstillingen
+`git_guard.protect_default_branch_only=true` settes slik:
+
+```bash
+cplt config set git_guard.protect_default_branch_only true --force
+```
+
+Da kan cplt-wrappede agentkommandoer normalt pushe vanlige feature branches og
+kjøre `gh pr create --draft` for det aktuelle repoet. cplt-policyen er ment å
+fortsette å blokkere push til `main`/`master`, force-push og PR-merge, men er en
+best-effort-kommandogrense — ikke hard branch-autorisasjon. Repository rules og
+branch protection er den autoritative default-branch-grensen. Dette er
+cplt-config, ikke et Grillmester-flagg, og påvirker alle cplt-sesjoner for
+brukeren. Kontroller effektiv verdi med
+`cplt config get git_guard.protect_default_branch_only`. Grillmester sender
+fortsatt alltid `--git-guard` og tilbyr ingen `--no-git-guard`-omvei.
+
 OpenCodes websearch er aktiv,
 og Grillmester velger Exa som provider. Når websearch brukes, sendes
 søketeksten til Exa: interaktiv launch krever klientgodkjenning, mens `local
@@ -228,11 +303,14 @@ maskinen.
 
 Hver launch lar cplt-parenten beholde hostens `HOME`, men gir child-klienten
 isolert XDG-, provider- og klientstate og den
-distribuerte payloaden. Ambient OpenCode- og Copilot-komponenter som kan skygge
-agentteamet avvises; repoets vanlige `AGENTS.md` kan fortsatt gi stående
-prosjektkontekst. Dette er payloadisolasjon, ikke en egen runtime-sandbox. Bare
-de to nyeste avsluttede sessionmappene beholdes ved sekvensiell bruk; `doctor`
-og preview oppretter ingen sessionmappe.
+distribuerte payloaden. OpenCode får en byteidentisk, sessioneid kopi etter at
+manifest og digester er verifisert, slik at klientens runtime-packagefiler ikke
+kan forsøple release-targetet. Copilot leser pluginpayloaden direkte.
+Ambient OpenCode- og Copilot-komponenter som kan skygge agentteamet avvises;
+repoets vanlige `AGENTS.md` kan fortsatt gi stående prosjektkontekst. Dette er
+payloadisolasjon, ikke en egen runtime-sandbox. Bare de to nyeste avsluttede
+sessionmappene beholdes ved sekvensiell bruk; `doctor` og preview oppretter ingen
+sessionmappe.
 
 For OpenCode kan prosjektets `.opencode/` fortsatt inneholde vanlig, inert
 metadata som `.gitignore`, packagefiler og `node_modules`, samt andre filer som

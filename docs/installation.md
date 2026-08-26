@@ -213,6 +213,23 @@ den i foreground i en egen terminal og i et rent, dedikert worktree; kontroller
 sluttsvar, diff og tester etterpå. Se [local-modellguiden](local-models.md#avgrenset-kjøring)
 for GitHub-opt-in, credentialgrensen og full sikkerhetskontrakt.
 
+Repoer med private npm-pakker bruker en separat, eksplisitt capability:
+
+```bash
+NPM_AUTH_TOKEN="$NAV_PACKAGE_READ_TOKEN" \
+  grillmester local run --npm-access \
+  "Fiks oppgaven og kjør repoets deklarerte verifikasjon"
+```
+
+Launcheren bruker consumerens prosjekt-eide `.npmrc`, men erstatter hostens
+npm user- og globalconfig med tomme, session-eide filer. `--npm-access` finner
+nøyaktig én `_authToken`-placeholder med navnet `NPM_AUTH_TOKEN`,
+`NODE_AUTH_TOKEN` eller `NPM_TOKEN`. Egendefinerte navn velges eksplisitt med
+`--npm-token-env NAME`, må beskrive en package-token og ende på `_TOKEN`, og
+aktiverer samtidig tilgangen. Tokenet lagres ikke;
+prosjektets `.npmrc` kontrollerer registry-destinasjonen. Se
+[local-modellguiden](local-models.md) for trustgrensen.
+
 Bare modellrequests bindes til loopback. Launcheren åpner den eksakte
 localhost-porten og krever cplts forced proxy, `gh`-guard og Git-guard; den
 overstyrer ikke brukerens eller organisasjonens cplt-domeneconfig. Web,
@@ -241,6 +258,14 @@ API-kall. Bruk riktig GitHub-konto og minst mulig scope. I interaktiv launch
 godkjenner brukeren sideeffektene i klienten; `local run` utfører den
 opprinnelige, avgrensede prompten uten en ny tool-dialog. Offentlig web kan
 fortsatt virke uten opt-in når cplt-policyen tillater det.
+
+Git-guard blokkerer push som default. Dersom en dedikert agent-worktree skal
+kunne levere en feature branch og opprette draft-PR, kan brukeren velge
+`git_guard.protect_default_branch_only=true` i cplt. Denne globale
+cplt-innstillingen er ment å beholde blokkering av default branch, force-push og
+merge, men erstatter ikke repository rules eller branch protection. Se
+[local-modellguiden](local-models.md#avgrenset-kjøring) for kommando,
+best-effort-grense og konsekvenser. Grillmester slår aldri av Git-guard.
 
 Hver launch lar cplt-parenten beholde hostens `HOME`, men gir child-klienten
 isolert XDG-, provider- og

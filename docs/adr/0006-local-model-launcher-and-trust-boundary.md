@@ -47,6 +47,10 @@ den distribuerte focused- eller full-payloaden og avviser ambient
 klientkomponenter som kan skygge agentteamet. Dette beskytter hvilken metode og
 modell som lastes; det er ikke en parallell sandboximplementasjon. Focused
 Barista er default, mens `--full` bruker den kanoniske fullpayloaden. OpenCodes
+target digestverifiseres og materialiseres byteidentisk i hver private
+sessionconfig før klienten starter. OpenCode kan skrive sine egne package- og
+cacheartefakter i sesjonen uten å mutere det immutable release-targetet.
+OpenCodes
 egne inerte `.opencode`-metadata og andre ikke-lastbare prosjektfiler kan
 sameksistere; gaten retter seg mot prosjektconfig og kjente lastbare
 komponentrøtter, ikke mot hele katalogen.
@@ -134,6 +138,31 @@ local-session med en GitHub-konto innenfor ønsket scope. Interaktive sessions
 godkjenner sideeffekter som vanlig; en avgrenset kjøring må få hele
 autorisasjonen i prompten og kjøres i et separat worktree.
 
+### Private package registries
+
+Local-launcheren arver ikke ambient package credentials eller hostens npm user-
+og globalconfig. Hver child får i stedet tomme, session-eide configfiler. Dette
+hindrer utilsiktet bruk av brukerens globale registry- og credentialoppsett,
+mens consumerens prosjekt-eide `.npmrc` fortsatt kan beskrive nødvendige
+package scopes og registries.
+
+`--npm-access` er en separat capability fra `--github-access`. Ved eksplisitt
+opt-in velger launcheren nøyaktig én kjent `_authToken`-placeholder fra
+prosjektets `.npmrc`; custom navn krever et eksplisitt `--npm-token-env NAME` og
+en package-`*_TOKEN`-konvensjon, og kan ikke kollidere med kontrollmiljøet. Det
+caller-eide tokenet valideres,
+redigeres fra egne previews og sendes bare i child-miljøet. Tokenet skrives ikke
+til config, sessionstate, preview eller npm-configfilene. Prosjektets `.npmrc`
+bestemmer likevel hvor package manageren kan sende tokenet, og modellen eller
+godkjente subprocesser kan lese, logge eller persistere det. Brukeren må derfor
+bruke et dedikert package-read-token og stole på consumer-repoet og cplts
+effektive nettverkspolicy. Capabilityen gjelder én sesjon og lagres aldri.
+
+Når repoets deklarerte verifikasjon er blokkert av manglende credentials,
+dependencies eller eksakt verktøy, skal Barista rapportere den blokkerte
+kommandoen og stoppe før levering. Den skal ikke installere en navnelik
+erstatningspakke eller svekke den avtalte verifikasjonen.
+
 ### Ingen egen offlineprofil
 
 Denne beslutningen etablerer ingen offlinegaranti. Grillmester tilbyr ikke en
@@ -150,6 +179,8 @@ eies av cplt eller organisasjonens runtimepolicy, ikke av en parallell launcher.
   cplt eller organisasjonens runtimepolicy.
 - Det eksplisitte opt-in-tokenet og cplts guards er myke grenser og må omtales
   ærlig i trustdokumentasjonen.
+- Private package credentials krever egen opt-in og er fortsatt lesbare for
+  child-klienten; consumerens `.npmrc` og cplt-policyen er del av trustgrensen.
 - Modellserverens binær, vekter, logging og egen egress forblir en separat
   tillitsgrense.
 - Klientene kan komprimere før modellserverens kontekstvindu overskrides fordi

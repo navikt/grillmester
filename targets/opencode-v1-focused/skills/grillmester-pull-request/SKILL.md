@@ -18,7 +18,9 @@ itself authorization to publish it.
    and untracked content. Stop if unrelated work cannot be separated safely.
 3. Read the repository's pull-request template and contribution instructions
    when present. Follow existing title, issue-linking, language, reviewer, and
-   merge conventions rather than inventing replacements.
+   merge conventions rather than inventing replacements. Preserve the
+   template's headings, order, and checklist; fill its sections instead of
+   replacing them with a custom structure.
 4. Confirm that acceptance criteria are covered and that required gates were
    run after the final diff change. Record exact commands, relevant output, and
    exit codes. Label missing or environment-only proof honestly.
@@ -38,6 +40,9 @@ Prepare a concise title and body containing:
 Avoid implementation diaries, generated filler, copied secrets or personal
 data, and claims that exceed the supplied evidence. Present the complete draft
 and target base/head to the user when authorization is not already explicit.
+If push or PR creation is blocked, keep the local commit intact and return the
+exact blocked operation together with the complete template-conforming draft;
+never claim that the branch or pull request was published.
 
 ## Create or update
 

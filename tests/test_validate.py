@@ -612,6 +612,29 @@ class PackageValidationTest(unittest.TestCase):
         path.write_text(text + '\nUNSAFE_EXAMPLE = "12345' + '678901"\n', encoding="utf-8")
         self.assert_error("looks like a national ID")
 
+    def test_focused_manifest_digests_are_not_mistaken_for_national_ids(self) -> None:
+        path = self.root / "targets/copilot-cli-focused-v1/manifest.json"
+        text = path.read_text(encoding="utf-8")
+        digest = next(VALIDATE.SHA256_DIGEST.finditer(text))
+        shaped_digest = ("a" * 20) + "35278" + "204128" + ("b" * 33)
+        self.assertEqual(64, len(shaped_digest))
+        path.write_text(
+            text[: digest.start()] + shaped_digest + text[digest.end() :],
+            encoding="utf-8",
+        )
+
+        self.assertFalse(
+            any("looks like a national ID" in error for error in self.errors())
+        )
+
+        path.write_text(
+            path.read_text(encoding="utf-8")
+            + '\n{"unsafeExample":"12345'
+            + '678901"}\n',
+            encoding="utf-8",
+        )
+        self.assert_error("looks like a national ID")
+
     def test_plugin_file_symlink_is_rejected_before_reading_target(self) -> None:
         outside = Path(self.temp.name) / "invalid-agent.md"
         outside.write_bytes(b"---\nname: barista\n---\n\xff")

@@ -35,6 +35,15 @@ FIGMA_KEY_PATHS = {
 }
 OPENCODE_MANIFEST_PATH = "targets/opencode-v1/manifest.json"
 COPILOT_FULL_MANIFEST_PATH = "plugin/manifest.json"
+FOCUSED_MANIFEST_PATHS = {
+    "targets/opencode-v1-focused/manifest.json",
+    "targets/copilot-cli-focused-v1/manifest.json",
+}
+CONTENT_MANIFEST_PATHS = {
+    OPENCODE_MANIFEST_PATH,
+    COPILOT_FULL_MANIFEST_PATH,
+    *FOCUSED_MANIFEST_PATHS,
+}
 RELEASE_TEST_BASELINE_PATH = "scripts/release_test_baseline.py"
 SHA256_DIGEST = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
 ARTIFACT_HEX_DIGEST = re.compile(
@@ -922,14 +931,10 @@ def validate_content(
         national_id_matches = list(REALISTIC_NATIONAL_ID.finditer(text))
         if national_id_matches and (
             relative_path in FIGMA_KEY_PATHS
-            or relative_path == OPENCODE_MANIFEST_PATH
-            or relative_path == COPILOT_FULL_MANIFEST_PATH
+            or relative_path in CONTENT_MANIFEST_PATHS
             or relative_path == RELEASE_TEST_BASELINE_PATH
         ):
-            if relative_path in {
-                OPENCODE_MANIFEST_PATH,
-                COPILOT_FULL_MANIFEST_PATH,
-            }:
+            if relative_path in CONTENT_MANIFEST_PATHS:
                 digest_pattern = SHA256_DIGEST
             elif relative_path == RELEASE_TEST_BASELINE_PATH:
                 digest_pattern = ARTIFACT_HEX_DIGEST

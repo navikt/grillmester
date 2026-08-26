@@ -55,6 +55,8 @@ SERVER_HOST = "127.0.0.1"
 PROMPT = "Return the deterministic Grillmester local smoke sentinel only."
 SUBAGENT_PROMPT = "Return SUBAGENT_LOCAL_ONLY and do not use tools."
 TOOL_SENTINEL = "GRILLMESTER_LOCAL_TOOL_OK"
+NPM_ACCESS_SENTINEL = "GRILLMESTER_LOCAL_NPM_ACCESS_OK"
+NPM_ACCESS_ENVIRONMENT = "NODE_AUTH_TOKEN"
 MAX_REQUEST_BYTES = 2 * 1024 * 1024
 MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 DEFAULT_TIMEOUT = 45.0
@@ -75,6 +77,8 @@ CREDENTIAL_ENVIRONMENT = (
     "GOOGLE_API_KEY",
     "GRILLMESTER_LOCAL_API_KEY",
     "HF_TOKEN",
+    "NPM_AUTH_TOKEN",
+    "NODE_AUTH_TOKEN",
     "NPM_TOKEN",
     "OPENAI_API_KEY",
 )
@@ -151,7 +155,10 @@ class CompletionRecord:
 @dataclass
 class ProviderState:
     scenario: Scenario
+    tool_command: str | None = None
+    final_content: str | None = None
     model_requests: list[Mapping[str, str]] = field(default_factory=list)
+    npm_requests: list[Mapping[str, str]] = field(default_factory=list)
     completions: list[CompletionRecord] = field(default_factory=list)
     violations: list[str] = field(default_factory=list)
     last_content_type: str = ""
@@ -164,6 +171,10 @@ class ProviderState:
     def record_models(self, headers: Mapping[str, str]) -> None:
         with self.lock:
             self.model_requests.append(headers)
+
+    def record_npm(self, headers: Mapping[str, str]) -> None:
+        with self.lock:
+            self.npm_requests.append(headers)
 
     def violate(self, message: str) -> None:
         with self.lock:
@@ -268,9 +279,9 @@ def _task_stream_body(scenario: Scenario) -> bytes:
     ) + b"data: [DONE]\n\n"
 
 
-def _bash_stream_body(scenario: Scenario) -> bytes:
+def _bash_stream_body(scenario: Scenario, command: str | None = None) -> bytes:
     arguments = json.dumps(
-        {"command": f"/usr/bin/printf {TOOL_SENTINEL}"},
+        {"command": command or f"/usr/bin/printf {TOOL_SENTINEL}"},
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -339,6 +350,16 @@ def _exposes_function_tool(record: CompletionRecord, name: str) -> bool:
 
 def _stream_body(state: ProviderState) -> bytes:
     request_number = len(state.completions)
+    if state.tool_command is not None:
+        if request_number == 1 and _exposes_function_tool(
+            state.completions[0], "bash"
+        ):
+            return _bash_stream_body(state.scenario, state.tool_command)
+        return _content_stream_body(
+            state.scenario,
+            state.final_content or sentinel_for(state.scenario),
+            suffix="npm-final",
+        )
     if (
         state.scenario == Scenario("opencode", "focused")
         and request_number == 1
@@ -379,12 +400,15 @@ class _ProviderHandler(BaseHTTPRequestHandler):
         self._send(status, body, "application/json")
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler contract
+        headers = {name.lower(): value for name, value in self.headers.items()}
+        if self.path.startswith("/npm/"):
+            self.server.state.record_npm(headers)
+            self._send(200, b'{"ok":true}\n', "application/json")
+            return
         if self.path != "/v1/models":
             self._reject(404, f"unsupported GET {self.path}")
             return
-        self.server.state.record_models(
-            {name.lower(): value for name, value in self.headers.items()}
-        )
+        self.server.state.record_models(headers)
         body = json.dumps(
             {"object": "list", "data": [{"id": MODEL_ID, "object": "model"}]},
             sort_keys=True,
@@ -443,8 +467,18 @@ class _ProviderHandler(BaseHTTPRequestHandler):
 class LoopbackProvider:
     """A bounded local provider for one scenario."""
 
-    def __init__(self, scenario: Scenario):
-        self.state = ProviderState(scenario)
+    def __init__(
+        self,
+        scenario: Scenario,
+        *,
+        tool_command: str | None = None,
+        final_content: str | None = None,
+    ):
+        self.state = ProviderState(
+            scenario,
+            tool_command=tool_command,
+            final_content=final_content,
+        )
         self.server = _ProviderHTTPServer(self.state)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
@@ -710,6 +744,66 @@ def validate_provider_state(state: ProviderState) -> None:
             raise LocalSmokeError(
                 f"{state.scenario.name} did not load the full Barista projection"
             )
+    if LOCAL._bound_run_prompt(PROMPT) not in text:
+        raise LocalSmokeError(
+            f"{state.scenario.name} did not receive the exact bound local-run prompt"
+        )
+
+
+def validate_npm_provider_state(
+    state: ProviderState, *, expected_environment_value: str | None
+) -> None:
+    """Validate one synthetic package-token tool round trip."""
+
+    if state.violations:
+        raise LocalSmokeError(
+            f"{state.scenario.name} npm provider protocol violation: "
+            + "; ".join(state.violations)
+        )
+    if len(state.completions) != 2:
+        raise LocalSmokeError(
+            f"{state.scenario.name} npm probe made {len(state.completions)} "
+            "completion requests; expected exactly two"
+        )
+    if not _exposes_function_tool(state.completions[0], "bash"):
+        raise LocalSmokeError(
+            f"{state.scenario.name} npm probe did not expose the bash tool"
+        )
+    if not state.npm_requests:
+        raise LocalSmokeError(
+            f"{state.scenario.name} npm probe made no registry request"
+        )
+    authorizations = tuple(
+        request.get("authorization") for request in state.npm_requests
+    )
+    unresolved_authorization = f"Bearer ${{{NPM_ACCESS_ENVIRONMENT}}}"
+    if expected_environment_value is None and any(
+        value not in {None, unresolved_authorization} for value in authorizations
+    ):
+        raise LocalSmokeError(
+            f"{state.scenario.name} npm probe sent an unexpected authorization "
+            "value without opt-in"
+        )
+    if expected_environment_value is not None:
+        expected_authorization = f"Bearer {expected_environment_value}"
+        if expected_authorization not in authorizations or any(
+            value not in {None, expected_authorization} for value in authorizations
+        ):
+            raise LocalSmokeError(
+                f"{state.scenario.name} npm probe did not send the selected token"
+            )
+    if len(state.model_requests) != 1:
+        raise LocalSmokeError(
+            f"{state.scenario.name} npm probe did not use exactly one model probe"
+        )
+    text = _request_text(state.completions[0].payload)
+    expected_prompt = LOCAL._bound_run_prompt(
+        PROMPT, npm_access=expected_environment_value is not None
+    )
+    if expected_prompt not in text:
+        raise LocalSmokeError(
+            f"{state.scenario.name} npm probe did not receive its exact bound run prompt"
+        )
 
 
 def _tree_snapshot(root: Path) -> tuple[tuple[str, str, int, str], ...]:
@@ -1093,6 +1187,192 @@ def run_matrix(
                 )
             )
     return tuple(reports)
+
+
+def verify_release_payloads_unchanged(distribution_root: Path) -> None:
+    """Recheck immutable inputs after clients have completed runtime work."""
+
+    seen: set[tuple[Path, str]] = set()
+    for relative, target in LOCAL.PAYLOADS.values():
+        record = (relative, target)
+        if record in seen:
+            continue
+        seen.add(record)
+        LOCAL._verify_manifested_payload(
+            (distribution_root / relative).resolve(strict=True),
+            expected_target=target,
+        )
+
+
+def run_npm_access_matrix(
+    *,
+    distribution_root: Path,
+    cplt: Path,
+    opencode: Path,
+    copilot: Path,
+    ripgrep: Path,
+    environment: Mapping[str, str] | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
+    run_process: RunCommand = run_command,
+    platform: str | None = None,
+) -> None:
+    """Prove tool-subprocess token absence and explicit access in both clients."""
+
+    platform = sys.platform if platform is None else platform
+    if platform != "darwin":
+        raise LocalSmokeError("the npm access smoke is supported only on macOS")
+    source = os.environ if environment is None else environment
+    home_value = source.get("HOME")
+    if not home_value:
+        raise LocalSmokeError("HOME is required for the npm access smoke")
+    home = Path(home_value).expanduser().resolve(strict=True)
+    distribution_root = distribution_root.resolve(strict=True)
+    cplt = cplt.resolve(strict=True)
+    opencode = opencode.resolve(strict=True)
+    copilot = copilot.resolve(strict=True)
+    ripgrep = ripgrep.resolve(strict=True)
+    npm_raw = shutil.which("npm", path=source.get("PATH"))
+    if npm_raw is None:
+        raise LocalSmokeError("npm is required for the package-access smoke")
+    npm_entry = Path(npm_raw).expanduser()
+    npm = npm_entry.resolve(strict=True)
+    if not npm.is_file() or not os.access(npm, os.X_OK):
+        raise LocalSmokeError("npm must resolve to an executable regular file")
+    with tempfile.TemporaryDirectory(
+        prefix=".grillmester-npm-access-smoke-", dir=home
+    ) as directory:
+        root = Path(directory).resolve(strict=True)
+        for client_name, client in (("opencode", opencode), ("copilot", copilot)):
+            for npm_access in (False, True):
+                label = "allowed" if npm_access else "denied"
+                scenario = Scenario(client_name, "focused")
+                scenario_root = root / f"{client_name}-{label}"
+                scenario_root.mkdir(mode=0o700)
+                consumer = scenario_root / "consumer"
+                consumer.mkdir(mode=0o700)
+                scenario_environment = _scenario_environment(
+                    source,
+                    scenario_root,
+                    cplt=cplt,
+                    client=client,
+                    client_name=client_name,
+                    ripgrep=ripgrep,
+                )
+                scenario_environment["PATH"] = os.pathsep.join(
+                    dict.fromkeys(
+                        (
+                            str(npm_entry.parent),
+                            *scenario_environment["PATH"].split(os.pathsep),
+                        )
+                    )
+                )
+                scenario_environment[NPM_ACCESS_ENVIRONMENT] = (
+                    f"{CREDENTIAL_CANARY_PREFIX}{NPM_ACCESS_ENVIRONMENT}"
+                )
+                tool_command = "npm ping"
+                final_content = f"{NPM_ACCESS_SENTINEL}_{client_name}_{label}"
+                with LoopbackProvider(
+                    scenario,
+                    tool_command=tool_command,
+                    final_content=final_content,
+                ) as provider:
+                    registry = provider.base_url.removesuffix("/v1") + "/npm/"
+                    registry_authority = registry.removeprefix("http:")
+                    (consumer / ".npmrc").write_text(
+                        f"registry={registry}\n"
+                        f"{registry_authority}:_authToken="
+                        f"${{{NPM_ACCESS_ENVIRONMENT}}}\n",
+                        encoding="utf-8",
+                    )
+                    before = _tree_snapshot(consumer)
+                    config = LOCAL.LocalConfig(
+                        client=client_name,
+                        agent="barista",
+                        context="focused",
+                        provider_id=PROVIDER_ID,
+                        base_url=provider.base_url,
+                        model_id=MODEL_ID,
+                    )
+                    LOCAL.save_config(config, environment=scenario_environment)
+                    preview = LOCAL.build_local_launch(
+                        config,
+                        distribution_root=distribution_root,
+                        project_dir=consumer,
+                        cplt=cplt,
+                        client=client,
+                        run_prompt=PROMPT,
+                        environment=scenario_environment,
+                        npm_access=npm_access,
+                        resolve_credentials=False,
+                        prepare_state=False,
+                        platform="darwin",
+                    )
+                    if npm_access:
+                        if (
+                            preview.redacted_environment.get(NPM_ACCESS_ENVIRONMENT)
+                            != "<redacted>"
+                            or NPM_ACCESS_ENVIRONMENT
+                            not in preview.secret_environment
+                        ):
+                            raise LocalSmokeError(
+                                f"{client_name} npm preview did not redact selected token"
+                            )
+                    elif NPM_ACCESS_ENVIRONMENT in preview.environment:
+                        raise LocalSmokeError(
+                            f"{client_name} npm preview exposed token without opt-in"
+                        )
+                    public_command = [
+                        sys.executable,
+                        "-I",
+                        "-S",
+                        str(distribution_root / "scripts/grillmester.py"),
+                        "local",
+                        "run",
+                        "--client",
+                        client_name,
+                        "--agent",
+                        "barista",
+                        "--project-dir",
+                        str(consumer),
+                    ]
+                    if npm_access:
+                        public_command.append("--npm-access")
+                    public_command.append(PROMPT)
+                    result = run_process(
+                        tuple(public_command),
+                        consumer,
+                        dict(scenario_environment),
+                        timeout,
+                    )
+                if result.returncode != 0 or final_content not in result.output:
+                    raise LocalSmokeError(
+                        f"{client_name} npm {label} probe failed: "
+                        f"{result.output[-3000:]}"
+                    )
+                try:
+                    validate_npm_provider_state(
+                        provider.state,
+                        expected_environment_value=(
+                            scenario_environment[NPM_ACCESS_ENVIRONMENT]
+                            if npm_access
+                            else None
+                        ),
+                    )
+                except LocalSmokeError as exc:
+                    raise LocalSmokeError(
+                        f"{client_name} npm {label} provider validation failed: {exc}; "
+                        f"client output: {result.output[-2000:]}"
+                    ) from exc
+                if _tree_snapshot(consumer) != before:
+                    raise LocalSmokeError(
+                        f"{client_name} npm {label} probe changed the consumer"
+                    )
+                token = scenario_environment[NPM_ACCESS_ENVIRONMENT]
+                if token in result.output or token in _record_text(provider.state):
+                    raise LocalSmokeError(
+                        f"{client_name} npm {label} probe leaked the synthetic token "
+                        "to the client transcript or model"
+                    )
 
 
 def run_github_guard_matrix(
@@ -1523,6 +1803,16 @@ def main(
             timeout=arguments.timeout,
             platform=platform,
         )
+        run_npm_access_matrix(
+            distribution_root=distribution_root,
+            cplt=prerequisites.cplt,
+            opencode=prerequisites.opencode,
+            copilot=prerequisites.copilot,
+            ripgrep=prerequisites.ripgrep,
+            environment=source,
+            timeout=arguments.timeout,
+            platform=platform,
+        )
         run_github_guard_matrix(
             distribution_root=distribution_root,
             cplt=prerequisites.cplt,
@@ -1531,6 +1821,7 @@ def main(
             timeout=arguments.timeout,
             platform=platform,
         )
+        verify_release_payloads_unchanged(distribution_root)
     except (LocalSmokeError, LOCAL.LocalModeError, OSError) as exc:
         print(f"Grillmester local smoke failed: {exc}", file=sys.stderr)
         return 1
@@ -1544,7 +1835,9 @@ def main(
         "scenarios through the release-test cplt baseline; ripgrep available on "
         "PATH; cplt audit escape and caller-PATH parent tools blocked; explicit "
         "fake-gh current-repo issue allowed while cross-repo, destructive and "
-        "token-extraction calls were blocked; consumer clean; credentials scrubbed."
+        "token-extraction calls were blocked; npm token absent by default and "
+        "available only by explicit project-bound opt-in in both clients; consumer "
+        "clean; release payloads unchanged; credentials scrubbed."
     )
     return 0
 

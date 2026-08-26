@@ -188,6 +188,8 @@ class LocalModeTests(unittest.TestCase):
         *,
         arguments: tuple[str, ...] = (),
         github_access: bool = False,
+        npm_access: bool = False,
+        npm_token_env: str | None = None,
     ) -> LOCAL.LocalLaunch:
         config = config or self._config()
         client = self.opencode if config.client == "opencode" else self.copilot
@@ -199,6 +201,8 @@ class LocalModeTests(unittest.TestCase):
             client=SimpleNamespace(path=str(client), version="reviewed"),
             client_arguments=arguments,
             github_access=github_access,
+            npm_access=npm_access,
+            npm_token_env=npm_token_env,
             environment=self.environment,
             platform="darwin",
         )
@@ -450,6 +454,7 @@ class LocalModeTests(unittest.TestCase):
         launch = self._launch()
         command = list(launch.command)
         separator = command.index("--")
+        opencode_config = Path(launch.environment["OPENCODE_CONFIG_DIR"])
 
         self.assertEqual(str(self.cplt.resolve(strict=True)), command[0])
         self.assertEqual(
@@ -488,6 +493,33 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(
             (self.distribution / "targets/opencode-v1-focused").resolve(strict=True),
             launch.payload,
+        )
+        self.assertEqual(launch.runtime.xdg_config / "opencode", opencode_config)
+        self.assertNotEqual(launch.payload, opencode_config)
+        self.assertTrue((opencode_config / "manifest.json").is_file())
+        self.assertNotIn(str(launch.payload), command[:separator])
+
+    def test_opencode_runtime_artifacts_do_not_mutate_or_break_release_payload(self) -> None:
+        source = self.distribution / "targets/opencode-v1-focused"
+        first = self._launch()
+        runtime_config = Path(first.environment["OPENCODE_CONFIG_DIR"])
+
+        (runtime_config / "package.json").write_text("{}\n", encoding="utf-8")
+        (runtime_config / "node_modules").mkdir()
+        (runtime_config / "node_modules/runtime.js").write_text(
+            "export {};\n", encoding="utf-8"
+        )
+
+        second = self._launch()
+
+        self.assertFalse((source / "package.json").exists())
+        self.assertFalse((source / "node_modules").exists())
+        self.assertNotEqual(
+            first.environment["OPENCODE_CONFIG_DIR"],
+            second.environment["OPENCODE_CONFIG_DIR"],
+        )
+        self.assertTrue(
+            (Path(second.environment["OPENCODE_CONFIG_DIR"]) / "manifest.json").is_file()
         )
 
     def test_homebrew_opencode_alias_may_resolve_to_opencode_exe(self) -> None:
@@ -940,7 +972,7 @@ class LocalModeTests(unittest.TestCase):
                 child = command[command.index("--") + 1 :]
                 self.assertIn("GH_TOKEN", passed)
                 self.assertIn(
-                    "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN",
+                    "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN,NPM_AUTH_TOKEN,NODE_AUTH_TOKEN,NPM_TOKEN",
                     child,
                 )
                 self.assertNotIn(
@@ -1278,7 +1310,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual("run", client[0])
         self.assertIn("--auto", client)
         self.assertIn("grillmester", client)
-        self.assertEqual("fix the test", client[-1])
+        self.assertEqual(LOCAL._bound_run_prompt("fix the test"), client[-1])
 
         for arguments in (("--help",), ("-v",)):
             with self.subTest(arguments=arguments):
@@ -1310,6 +1342,7 @@ class LocalModeTests(unittest.TestCase):
         command = list(launch.command)
         self.assertEqual("cplt", Path(command[0]).name)
         self.assertIn(str(self.project.resolve(strict=True)), command)
+        client = command[command.index("--") + 1 :]
         self.assertEqual(
             [
                 "run",
@@ -1321,12 +1354,23 @@ class LocalModeTests(unittest.TestCase):
                 "--title",
                 "Grillmester local run",
                 "--",
-                "Fix the failing test",
             ],
-            command[command.index("--") + 1 :],
+            client[:-1],
         )
+        self.assertEqual(LOCAL._bound_run_prompt("Fix the failing test"), client[-1])
+        self.assertIn("inside a cplt sandbox", client[-1])
+        self.assertTrue(client[-1].endswith("User task:\nFix the failing test"))
         self.assertNotIn("GH_TOKEN", launch.environment)
         self.assertNotIn("GH_TOKEN", launch.secret_environment)
+
+    def test_bound_run_prompt_preserves_multiline_unicode_task_exactly(self) -> None:
+        task = "  Rett ødelagt test 🧪\n\nBehold avsluttende mellomrom  "
+
+        bound = LOCAL._bound_run_prompt(task)
+
+        self.assertTrue(bound.endswith(f"{LOCAL.LOCAL_RUN_TASK_HEADER}{task}"))
+        self.assertIn(LOCAL.LOCAL_RUN_PACKAGE_ACCESS_DISABLED, bound)
+        self.assertNotIn(LOCAL.LOCAL_RUN_PACKAGE_ACCESS_ENABLED, bound)
 
     def test_run_rejects_nul_in_prompt_before_building_the_client_command(self) -> None:
         with self.assertRaisesRegex(LOCAL.LocalModeError, "must not contain NUL"):
@@ -1361,7 +1405,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("--no-remote-export", client)
         self.assertIn("--disable-builtin-mcps", client)
         self.assertIn(
-            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN",
+            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN,NPM_AUTH_TOKEN,NODE_AUTH_TOKEN,NPM_TOKEN",
             client,
         )
         self.assertNotIn("COPILOT_OFFLINE", launch.environment)
@@ -1407,13 +1451,16 @@ class LocalModeTests(unittest.TestCase):
         command = list(launch.command)
         client = command[command.index("--") + 1 :]
         self.assertIn("--prompt", client)
-        self.assertEqual("Fix the failing test", client[client.index("--prompt") + 1])
+        self.assertEqual(
+            LOCAL._bound_run_prompt("Fix the failing test"),
+            client[client.index("--prompt") + 1],
+        )
         self.assertIn("--allow-all-tools", client)
         self.assertIn("--allow-all-urls", client)
         self.assertIn("--no-ask-user", client)
         self.assertIn("--deny-tool=shell(gh:*)", client)
         self.assertIn(
-            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN",
+            "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN,NPM_AUTH_TOKEN,NODE_AUTH_TOKEN,NPM_TOKEN",
             client,
         )
         self.assertNotIn("--allow-all-paths", client)
@@ -1543,6 +1590,319 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual("must-not-cross", launch.environment["GH_TOKEN"])
         self.assertEqual("<redacted>", launch.redacted_environment["GH_TOKEN"])
         self.assertIn("GH_TOKEN", launch.secret_environment)
+
+    def test_npm_access_is_explicit_redacted_and_passed_to_both_clients(self) -> None:
+        (self.project / ".npmrc").write_text(
+            "//registry.example/:_authToken=${NPM_AUTH_TOKEN}\n",
+            encoding="utf-8",
+        )
+        self.environment["NPM_AUTH_TOKEN"] = "npm_test_token"
+
+        for client_name in ("opencode", "copilot"):
+            with self.subTest(client=client_name):
+                launch = self._launch(
+                    self._config(client=client_name), npm_access=True
+                )
+                passed = {
+                    launch.command[index + 1]
+                    for index, value in enumerate(launch.command[:-1])
+                    if value == "--pass-env"
+                }
+                client = list(launch.command[launch.command.index("--") + 1 :])
+
+                self.assertEqual(
+                    "npm_test_token", launch.environment["NPM_AUTH_TOKEN"]
+                )
+                self.assertEqual(
+                    "<redacted>", launch.redacted_environment["NPM_AUTH_TOKEN"]
+                )
+                self.assertIn("NPM_AUTH_TOKEN", launch.secret_environment)
+                self.assertIn("NPM_AUTH_TOKEN", passed)
+                run_launch = LOCAL.build_local_launch(
+                    self._config(client=client_name),
+                    distribution_root=self.distribution,
+                    project_dir=self.project,
+                    cplt=SimpleNamespace(path=str(self.cplt), version="reviewed"),
+                    client=SimpleNamespace(
+                        path=str(
+                            self.opencode if client_name == "opencode" else self.copilot
+                        ),
+                        version="reviewed",
+                    ),
+                    run_prompt="Run the requested verification",
+                    npm_access=True,
+                    environment=self.environment,
+                    platform="darwin",
+                )
+                run_client = list(
+                    run_launch.command[run_launch.command.index("--") + 1 :]
+                )
+                run_prompt = (
+                    run_client[-1]
+                    if client_name == "opencode"
+                    else run_client[run_client.index("--prompt") + 1]
+                )
+                self.assertIn(LOCAL.LOCAL_RUN_PACKAGE_ACCESS_ENABLED, run_prompt)
+                self.assertNotIn(LOCAL.LOCAL_RUN_PACKAGE_ACCESS_DISABLED, run_prompt)
+                if client_name == "copilot":
+                    secret_option = next(
+                        value
+                        for value in client
+                        if value.startswith("--secret-env-vars=")
+                    )
+                    self.assertNotIn(
+                        "NPM_AUTH_TOKEN",
+                        secret_option.split("=", 1)[1].split(","),
+                    )
+
+        copilot_without_access = self._launch(self._config(client="copilot"))
+        copilot_client = list(
+            copilot_without_access.command[
+                copilot_without_access.command.index("--") + 1 :
+            ]
+        )
+        secret_option = next(
+            value
+            for value in copilot_client
+            if value.startswith("--secret-env-vars=")
+        )
+        self.assertIn(
+            "NPM_AUTH_TOKEN",
+            secret_option.split("=", 1)[1].split(","),
+        )
+        self.assertIn(
+            "NODE_AUTH_TOKEN",
+            secret_option.split("=", 1)[1].split(","),
+        )
+        self.assertIn(
+            "NPM_TOKEN",
+            secret_option.split("=", 1)[1].split(","),
+        )
+
+    def test_ambient_npm_token_is_scrubbed_without_explicit_access(self) -> None:
+        self.environment["NPM_AUTH_TOKEN"] = "must-not-cross"
+
+        launch = self._launch()
+
+        self.assertNotIn("NPM_AUTH_TOKEN", launch.environment)
+        self.assertNotIn("NPM_AUTH_TOKEN", launch.secret_environment)
+        self.assertNotIn("NPM_AUTH_TOKEN", launch.command)
+
+    def test_local_launch_uses_empty_session_owned_npm_configs(self) -> None:
+        host_config = Path(self.environment["HOME"]) / ".npmrc"
+        host_config.write_text("//registry.example/:_authToken=ambient\n", encoding="utf-8")
+
+        launch = self._launch()
+
+        user_config = Path(launch.environment["NPM_CONFIG_USERCONFIG"])
+        global_config = Path(launch.environment["NPM_CONFIG_GLOBALCONFIG"])
+        passed = {
+            launch.command[index + 1]
+            for index, value in enumerate(launch.command[:-1])
+            if value == "--pass-env"
+        }
+        self.assertTrue(user_config.is_relative_to(launch.runtime.xdg_config))
+        self.assertNotEqual(host_config, user_config)
+        self.assertEqual("", user_config.read_text(encoding="utf-8"))
+        self.assertEqual(0o600, stat.S_IMODE(user_config.stat().st_mode))
+        self.assertIn("NPM_CONFIG_USERCONFIG", passed)
+        self.assertTrue(global_config.is_relative_to(launch.runtime.xdg_config))
+        self.assertNotEqual(user_config, global_config)
+        self.assertEqual("", global_config.read_text(encoding="utf-8"))
+        self.assertEqual(0o600, stat.S_IMODE(global_config.stat().st_mode))
+        self.assertIn("NPM_CONFIG_GLOBALCONFIG", passed)
+
+    def test_npm_access_requires_a_valid_caller_token(self) -> None:
+        (self.project / ".npmrc").write_text(
+            "//registry.example/:_authToken=${NPM_AUTH_TOKEN}\n",
+            encoding="utf-8",
+        )
+        for label, token in (
+            ("missing", None),
+            ("empty", ""),
+            ("whitespace", "bad token"),
+            ("unicode", "bad😀token"),
+        ):
+            with self.subTest(token=label):
+                environment = {**self.environment}
+                if token is None:
+                    environment.pop("NPM_AUTH_TOKEN", None)
+                else:
+                    environment["NPM_AUTH_TOKEN"] = token
+                with self.assertRaisesRegex(
+                    LOCAL.LocalModeError, "NPM_AUTH_TOKEN"
+                ):
+                    LOCAL.build_local_launch(
+                        self._config(),
+                        distribution_root=self.distribution,
+                        project_dir=self.project,
+                        cplt=self.cplt,
+                        client=self.opencode,
+                        npm_access=True,
+                        environment=environment,
+                        platform="darwin",
+                    )
+
+    def test_npm_access_detects_node_token_and_accepts_printable_symbols(self) -> None:
+        (self.project / ".npmrc").write_text(
+            "//registry.example/:_authToken=${NODE_AUTH_TOKEN}\n",
+            encoding="utf-8",
+        )
+        self.environment["NODE_AUTH_TOKEN"] = "jwt.part+/="
+
+        launch = self._launch(npm_access=True)
+
+        self.assertEqual("jwt.part+/=", launch.environment["NODE_AUTH_TOKEN"])
+        self.assertEqual("<redacted>", launch.redacted_environment["NODE_AUTH_TOKEN"])
+        self.assertNotIn("NPM_AUTH_TOKEN", launch.environment)
+
+    def test_custom_npm_token_env_must_be_auth_referenced_and_not_control_state(self) -> None:
+        npmrc = self.project / ".npmrc"
+        npmrc.write_text(
+            "//registry.example/:_authToken=${NAV_PACKAGE_READ_TOKEN}\n",
+            encoding="utf-8",
+        )
+        self.environment["NAV_PACKAGE_READ_TOKEN"] = "custom-token"
+
+        launch = self._launch(npm_token_env="NAV_PACKAGE_READ_TOKEN")
+
+        self.assertEqual(
+            "custom-token", launch.environment["NAV_PACKAGE_READ_TOKEN"]
+        )
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "not referenced"):
+            self._launch(npm_token_env="ANOTHER_PACKAGE_TOKEN")
+
+        npmrc.write_text(
+            "//registry.example/:_authToken=${NPM_CONFIG_PACKAGE_TOKEN}\n",
+            encoding="utf-8",
+        )
+        self.environment["NPM_CONFIG_PACKAGE_TOKEN"] = "attacker-value"
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "control state"):
+            self._launch(npm_token_env="NPM_CONFIG_PACKAGE_TOKEN")
+
+        npmrc.write_text(
+            "//registry.example/:_authToken=${OPENAI_API_KEY}\n",
+            encoding="utf-8",
+        )
+        self.environment["OPENAI_API_KEY"] = "not-a-package-token"
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "package credential"):
+            self._launch(npm_token_env="OPENAI_API_KEY")
+
+        npmrc.write_text(
+            "//registry.example/:_authToken=${nav_package_read_token}\n",
+            encoding="utf-8",
+        )
+        self.environment["nav_package_read_token"] = "lowercase-custom-token"
+        launch = self._launch(npm_token_env="nav_package_read_token")
+        self.assertEqual(
+            "lowercase-custom-token",
+            launch.environment["nav_package_read_token"],
+        )
+
+    def test_npm_advice_is_nonblocking_and_never_recommends_unsafe_names(self) -> None:
+        npmrc = self.project / ".npmrc"
+        victim = self.root / "ambient-npmrc"
+        victim.write_text("_authToken=${NPM_AUTH_TOKEN}\n", encoding="utf-8")
+        npmrc.symlink_to(victim)
+
+        advice = LOCAL._npm_access_advice(self.project)
+
+        assert advice is not None
+        self.assertEqual("warn", advice[0])
+        self.assertIn("package access remains off", advice[1])
+
+        npmrc.unlink()
+        npmrc.write_text("_authToken=${OPENAI_API_KEY}\n", encoding="utf-8")
+        advice = LOCAL._npm_access_advice(self.project)
+        assert advice is not None
+        self.assertEqual("warn", advice[0])
+        self.assertIn("unsupported auth placeholder", advice[1])
+        self.assertNotIn("--npm-token-env OPENAI_API_KEY", advice[1])
+
+        npmrc.write_text(
+            "//one.example/:_authToken=${OPENAI_API_KEY}\n"
+            "//two.example/:_authToken=${GITHUB_TOKEN}\n",
+            encoding="utf-8",
+        )
+        advice = LOCAL._npm_access_advice(self.project)
+        assert advice is not None
+        self.assertEqual("warn", advice[0])
+        self.assertIn("no supported package-token", advice[1])
+        self.assertNotIn("--npm-token-env", advice[1])
+
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
+    def test_run_preflight_hints_about_project_npm_token_without_enabling_it(
+        self,
+    ) -> None:
+        (self.project / ".npmrc").write_text(
+            "//registry.example/:_authToken=${NODE_AUTH_TOKEN}\n",
+            encoding="utf-8",
+        )
+        LOCAL.save_config(self._config(), environment=self.environment)
+        stderr = io.StringIO()
+        stdout = io.StringIO()
+
+        def resolve(
+            _client: str, checked: bool, _project: Path
+        ) -> tuple[Path, Path]:
+            self.assertFalse(checked)
+            return self.cplt, self.opencode
+
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            result = LOCAL.main(
+                [
+                    "run",
+                    "--print-command",
+                    "--project-dir",
+                    str(self.project),
+                    "task",
+                ],
+                distribution_root=self.distribution,
+                binary_resolver=resolve,
+                environment=self.environment,
+            )
+
+        self.assertEqual(0, result)
+        self.assertIn("use --npm-access", stderr.getvalue())
+        self.assertNotIn("--pass-env NODE_AUTH_TOKEN", stdout.getvalue())
+
+    def test_npm_access_fails_closed_on_missing_or_ambiguous_auth_placeholder(self) -> None:
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "no .* reference"):
+            self._launch(npm_access=True)
+
+        (self.project / ".npmrc").write_text(
+            "//one.example/:_authToken=${NPM_AUTH_TOKEN}\n"
+            "//two.example/:_authToken=${NODE_AUTH_TOKEN}\n",
+            encoding="utf-8",
+        )
+        self.environment["NPM_AUTH_TOKEN"] = "one"
+        self.environment["NODE_AUTH_TOKEN"] = "two"
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "multiple npm auth"):
+            self._launch(npm_access=True)
+
+        (self.project / ".npmrc").write_text(
+            "//one.example/:_authToken=${NPM_AUTH_TOKEN}\n"
+            "//two.example/:_authToken=${NAV_PACKAGE_READ_TOKEN}\n",
+            encoding="utf-8",
+        )
+        self.environment["NAV_PACKAGE_READ_TOKEN"] = "two"
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "multiple npm auth"):
+            self._launch(npm_access=True)
+
+        (self.project / ".npmrc").write_text(
+            "//registry.example/:_authToken=${OPENAI_API_KEY}\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "map it to NPM_AUTH_TOKEN"):
+            self._launch(npm_access=True)
+
+        (self.project / ".npmrc").write_text(
+            "//one.example/:_authToken=${OPENAI_API_KEY}\n"
+            "//two.example/:_authToken=${GITHUB_TOKEN}\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "no supported package-token"):
+            self._launch(npm_access=True)
 
     def test_copilot_without_auth_uses_only_redacted_local_placeholder(self) -> None:
         launch = self._launch(self._config(client="copilot"))
@@ -1762,6 +2122,31 @@ class LocalModeTests(unittest.TestCase):
 
         self.assertEqual("<redacted>", launch.environment["GH_TOKEN"])
         self.assertIn("GH_TOKEN", launch.secret_environment)
+
+    def test_print_shape_redacts_npm_credential_without_reading_it(self) -> None:
+        environment = {**self.environment}
+        environment.pop("NPM_AUTH_TOKEN", None)
+        (self.project / ".npmrc").write_text(
+            "//registry.example/:_authToken=${NPM_AUTH_TOKEN}\n",
+            encoding="utf-8",
+        )
+
+        launch = LOCAL.build_local_launch(
+            self._config(),
+            distribution_root=self.distribution,
+            project_dir=self.project,
+            cplt=self.cplt,
+            client=self.opencode,
+            environment=environment,
+            npm_access=True,
+            resolve_credentials=False,
+            prepare_state=False,
+            platform="darwin",
+        )
+
+        self.assertEqual("<redacted>", launch.environment["NPM_AUTH_TOKEN"])
+        self.assertIn("NPM_AUTH_TOKEN", launch.secret_environment)
+        self.assertFalse((self.root / "state").exists())
 
     def test_reserved_client_arguments_cannot_override_local_binding(self) -> None:
         for client, option in (
@@ -2435,7 +2820,7 @@ class LocalModeTests(unittest.TestCase):
                 "--title",
                 "Grillmester local run",
                 "--",
-                "Fix the failing test",
+                LOCAL._bound_run_prompt("Fix the failing test"),
             ],
             command[command.index("--") + 1 :],
         )
@@ -2580,6 +2965,83 @@ class LocalModeTests(unittest.TestCase):
             self.assertFalse((self.root / "state").exists())
 
     @mock.patch.object(LOCAL.sys, "platform", "darwin")
+    def test_doctor_aggregates_missing_explicit_npm_credential(self) -> None:
+        (self.project / ".npmrc").write_text(
+            "//registry.example/:_authToken=${NPM_AUTH_TOKEN}\n",
+            encoding="utf-8",
+        )
+        environment = {
+            key: value
+            for key, value in self.environment.items()
+            if key != "NPM_AUTH_TOKEN"
+        }
+        with ProbeServer() as server:
+            LOCAL.save_config(
+                self._config(base_url=server.base_url), environment=environment
+            )
+
+            def resolve(client: str, checked: bool, project: Path) -> tuple[object, object]:
+                self.assertEqual(self.project.resolve(), project)
+                self.assertEqual("opencode", client)
+                self.assertTrue(checked)
+                return (
+                    SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
+                    SimpleNamespace(path=str(self.opencode), version="1.18.20"),
+                )
+
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                result = LOCAL.main(
+                    [
+                        "doctor",
+                        "--npm-access",
+                        "--project-dir",
+                        str(self.project),
+                    ],
+                    distribution_root=self.distribution,
+                    binary_resolver=resolve,
+                    environment=environment,
+                )
+
+        self.assertEqual(1, result)
+        self.assertIn("error npm", stdout.getvalue())
+        self.assertIn("NPM_AUTH_TOKEN", stdout.getvalue())
+        self.assertFalse((self.root / "state").exists())
+
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
+    def test_doctor_warns_but_stays_green_for_uninspectable_npmrc_without_opt_in(
+        self,
+    ) -> None:
+        victim = self.root / "ambient-npmrc"
+        victim.write_text("_authToken=${NPM_AUTH_TOKEN}\n", encoding="utf-8")
+        (self.project / ".npmrc").symlink_to(victim)
+        with ProbeServer() as server:
+            LOCAL.save_config(
+                self._config(base_url=server.base_url), environment=self.environment
+            )
+
+            def resolve(
+                _client: str, checked: bool, _project: Path
+            ) -> tuple[object, object]:
+                self.assertTrue(checked)
+                return (
+                    SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
+                    SimpleNamespace(path=str(self.opencode), version="1.18.20"),
+                )
+
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                result = LOCAL.main(
+                    ["doctor", "--project-dir", str(self.project)],
+                    distribution_root=self.distribution,
+                    binary_resolver=resolve,
+                    environment=self.environment,
+                )
+
+        self.assertEqual(0, result)
+        self.assertIn("warn npm project .npmrc could not be inspected", stdout.getvalue())
+
+    @mock.patch.object(LOCAL.sys, "platform", "darwin")
     def test_remainder_print_token_cannot_disable_checked_binary_resolution(self) -> None:
         with ProbeServer() as server:
             LOCAL.save_config(
@@ -2706,6 +3168,7 @@ class LocalModeTests(unittest.TestCase):
                     "--full",
                     "--print-command",
                     "--github-access",
+                    "--npm-access",
                     "run",
                     "task",
                 ],
@@ -2719,6 +3182,7 @@ class LocalModeTests(unittest.TestCase):
                     "--full",
                     "--print-command",
                     "--github-access",
+                    "--npm-access",
                     "task",
                 ],
             ),

@@ -73,7 +73,7 @@
       "mode": "0644"
     },
     "agents/barista.agent.md": {
-      "sha256": "98c01eaa863d3f9b5b2f6cab8981c1527b563375ee196abb73a6b7073d02065d",
+      "sha256": "c396d9ff0b57a85d7c0e5f0b78d09e09380100813c4e0b765bdd9acc70aa7e22",
       "mode": "0644"
     },
     "agents/designer.agent.md": {
@@ -101,7 +101,7 @@
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "5e5ec05e54df0618a338ad13b6d5c2a253ba10aa67f69ea32d4313369ea404f2",
+      "sha256": "54f5d61a341f989508cabd63757514b8b09db357ad4d59e6ad245307ee7ae0bd",
       "mode": "0644"
     },
     "skills/grillmester-accessibility-review/SKILL.md": {
@@ -445,7 +445,7 @@
       "mode": "0644"
     },
     "skills/grillmester-pull-request/SKILL.md": {
-      "sha256": "f6b83a965dfe43fdf4590837866bf43312e935eaf4600a3e5ab8490ff713a7da",
+      "sha256": "72bcf9337ce0f4f37fdf18ce57a9af32dc56457318204b5eb02ca64f89c74f54",
       "mode": "0644"
     },
     "skills/grillmester-readme-update/SKILL.md": {

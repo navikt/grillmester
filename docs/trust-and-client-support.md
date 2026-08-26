@@ -62,7 +62,7 @@ tekniske grensen.
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær, ikke-verifisert kompatibilitetsflate utenfor første release-løfte. | Faktisk installasjon og oppdatering med to Grillmester-versjoner. |
 | **OpenCode 1.x fra 1.18.20** | Deterministisk target med 7 agenter, 43 skills og 43 commands. Brukerinstallert klient startes gjennom cplt. | Hver konkret modell må kvalitetsvalideres; nyere 1.x er kompatibilitetsflate, ikke de eksakte testbytene. |
-| **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en avgrenset kjøring med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web avhenger av cplt-policy; eksplisitt `GH_TOKEN` krever opt-in. OpenCode isolerer ambient GitHub-konto, mens Copilot-profilen kan mediere en native Keychain-credential. `run` krever et separat worktree og etterkontroll. |
+| **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en avgrenset kjøring med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web avhenger av cplt-policy; eksplisitte GitHub- og package-tokens krever separate opt-in-flagg. OpenCode isolerer ambient GitHub-konto, mens Copilot-profilen kan mediere en native Keychain-credential. `run` krever et separat worktree og etterkontroll. |
 | **OpenCode 2 beta** | Forventet filkompatibilitet, men ingen støttet runtimeflate. | Permissions, provider/model-adferd og full runtimeparitet må testes separat. |
 
 Discovery-smoken kontakter ingen modell. OpenCodes runtime-smoke bruker en
@@ -108,6 +108,18 @@ best-effort-grenser. Bruk riktig konto og minst mulig scope, og godkjenn
 sideeffekter bevisst. Uten opt-in virker offentlig web fortsatt når den
 effektive cplt-policyen tillater det.
 
+Private package registries har en egen capability. Ambient package-tokens
+videresendes aldri, og package manageren får tomme, session-eide npm user- og
+globalconfigfiler i stedet for hostconfig. Med `--npm-access` velges nøyaktig
+én kjent `_authToken=${NAME}`-placeholder fra consumerens prosjekt-eide
+`.npmrc`; `--npm-token-env NAME` kreves for et custom navn og impliserer opt-in.
+Navnet må følge en package-`*_TOKEN`-konvensjon og kan ikke kollidere med
+launcher- eller klientkontroll. Det caller-eide
+tokenet valideres, redigeres fra launcherens preview og persisteres ikke.
+Prosjektets `.npmrc` bestemmer likevel registry-destinasjonen, og modellen eller
+godkjente subprocesser kan lese eller lekke tokenet. Bruk et dedikert
+package-read-token og la cplt-policyen begrense nettverkstrafikken.
+
 `grillmester local run` er bevisst annerledes enn den interaktive reisen:
 OpenCode og Copilot auto-godkjenner prosjektwrites, shelltools og URLs.
 Ingen av klientene får GitHub-token med mindre brukeren eksplisitt velger
@@ -119,6 +131,12 @@ direkte API-kall kan omgå cplts `gh`-wrapper; repo-guard og credentialbro er
 derfor fortsatt en myk grense, ikke hard repository-scoping. Kjør `run` i et
 rent, dedikert worktree uten samtidige endringer, og verifiser sluttsvar, diff
 og tester selv. cplt beskytter ikke prosjektfilene mot modellens egne writes.
+Git-guard blokkerer all push som default. Brukeren kan velge cplts globale
+`git_guard.protect_default_branch_only=true` for å tillate feature-branch-push
+og draft-PR. Beskyttelsen av default branch, force-push og merge er fortsatt en
+best-effort cplt-kommandogrense; repository rules og branch protection er
+autoritative. Grillmester sender fortsatt `--git-guard` og kan ikke svekke en
+strengere organisjonspolicy.
 
 OpenCode-local velger Exa som websearch-provider. Når websearch brukes, mottar
 Exa den oppgaveavledede søketeksten gjennom den effektive cplt-
