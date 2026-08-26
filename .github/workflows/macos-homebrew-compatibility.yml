@@ -144,13 +144,13 @@ jobs:
           if hashlib.sha256(content).hexdigest() != expected_digest:
               raise SystemExit("verified release formula digest differs")
           flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
-          descriptor = os.open(destination, flags, 0o400)
+          descriptor = os.open(destination, flags, 0o444)
           try:
               with os.fdopen(descriptor, "wb", closefd=False) as output:
                   output.write(content)
                   output.flush()
                   os.fsync(descriptor)
-              os.fchmod(descriptor, 0o400)
+              os.fchmod(descriptor, 0o444)
           finally:
               os.close(descriptor)
           PY
