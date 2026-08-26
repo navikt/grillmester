@@ -1404,6 +1404,9 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("--no-remote", client)
         self.assertIn("--no-remote-export", client)
         self.assertIn("--disable-builtin-mcps", client)
+        self.assertNotIn("--allow-all-tools", client)
+        self.assertNotIn("--allow-all-paths", client)
+        self.assertNotIn("--allow-all-urls", client)
         self.assertIn(
             "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN,NPM_AUTH_TOKEN,NODE_AUTH_TOKEN,NPM_TOKEN",
             client,
