@@ -423,8 +423,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
             'encoded = os.environ["SEALED_FORMULA_BASE64"]',
             "base64.b64decode(encoded, validate=True)",
             "hashlib.sha256(content).hexdigest() != expected_digest",
-            "os.fchmod(descriptor, 0o444)",
+            "os.fchmod(descriptor, 0o400)",
             'cp "${sealed_formula}" "${formula}"',
+            'chmod 0644 "${formula}"',
         ):
             self.assertIn(marker, install)
         self.assertIn('cmp -s "${expected_formula}" "${formula}"', install)
