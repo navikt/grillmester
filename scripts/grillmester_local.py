@@ -2931,6 +2931,7 @@ def _client_arguments(
             "--prompt",
             bound_prompt,
             "--allow-all-tools",
+            "--allow-all-paths",
             "--allow-all-urls",
             "--no-ask-user",
             *([] if github_access else ["--deny-tool=shell(gh:*)"]),

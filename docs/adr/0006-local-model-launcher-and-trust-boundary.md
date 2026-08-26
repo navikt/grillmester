@@ -125,6 +125,11 @@ prompten skje uten en ny tool-dialog. Reisen krever et dedikert, fine-grained
 token med minst mulig repository- og permission-scope. Grensen er myk: child
 kan lese tokenet, og direkte API-kall kan omgå cplts best-effort `gh`-guard.
 
+Non-interaktiv Copilot-run auto-godkjenner klientens tool-, URL- og path-lag.
+Path-godkjenningen er nødvendig for å kjøre tillatte verktøy uten en umulig
+dialog i headless modus, og utvider ikke den effektive filesystemflaten: hele
+Copilot-prosessen kjører fortsatt innenfor cplts håndhevede policy.
+
 Release-smoken stager syntetiske caller-PATH-varianter av `gh`, `git`, `which`,
 `sandbox-exec`, `uname`, `mise` og `asdf`. `gh` gir bare et canary-token dersom
 cplt får den ambient configpathen. Testen krever at ingen av canary-verktøyene

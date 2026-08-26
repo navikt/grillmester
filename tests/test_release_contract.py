@@ -975,7 +975,20 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("`grillmester-terminal-v1`", notes)
         self.assertIn("release-test metadata, not runtime pins", normalized_notes)
         self.assertIn("inner native OpenCode target remains `opencode-v1`", normalized_notes)
-        self.assertIn("brew install --formula ./grillmester.rb", notes)
+        self.assertIn("brew tap-new --no-git grillmester/rc-pilot", notes)
+        self.assertIn(
+            "install -m 0644 ./grillmester.rb \\\n"
+            '  "$(brew --repository grillmester/rc-pilot)/Formula/grillmester.rb"',
+            notes,
+        )
+        self.assertIn(
+            "brew install --formula grillmester/rc-pilot/grillmester", notes
+        )
+        self.assertIn(
+            "brew upgrade --formula grillmester/rc-pilot/grillmester", notes
+        )
+        self.assertNotIn("brew install --formula ./grillmester.rb", notes)
+        self.assertIn("Homebrew 6 rejects formula files outside a tap", notes)
         self.assertIn("stable-only Homebrew tap", notes)
         self.assertIn(
             "Do not use `brew install navikt/tap/cplt navikt/tap/grillmester`",

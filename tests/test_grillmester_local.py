@@ -1404,6 +1404,9 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("--no-remote", client)
         self.assertIn("--no-remote-export", client)
         self.assertIn("--disable-builtin-mcps", client)
+        self.assertNotIn("--allow-all-tools", client)
+        self.assertNotIn("--allow-all-paths", client)
+        self.assertNotIn("--allow-all-urls", client)
         self.assertIn(
             "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN,NPM_AUTH_TOKEN,NODE_AUTH_TOKEN,NPM_TOKEN",
             client,
@@ -1456,6 +1459,7 @@ class LocalModeTests(unittest.TestCase):
             client[client.index("--prompt") + 1],
         )
         self.assertIn("--allow-all-tools", client)
+        self.assertIn("--allow-all-paths", client)
         self.assertIn("--allow-all-urls", client)
         self.assertIn("--no-ask-user", client)
         self.assertIn("--deny-tool=shell(gh:*)", client)
@@ -1463,7 +1467,6 @@ class LocalModeTests(unittest.TestCase):
             "--secret-env-vars=COPILOT_PROVIDER_API_KEY,GH_TOKEN,GITHUB_TOKEN,COPILOT_GITHUB_TOKEN,NPM_AUTH_TOKEN,NODE_AUTH_TOKEN,NPM_TOKEN",
             client,
         )
-        self.assertNotIn("--allow-all-paths", client)
         self.assertNotIn("GH_TOKEN", launch.environment)
         self.assertNotIn("GH_TOKEN", launch.secret_environment)
         passed_environment = {
