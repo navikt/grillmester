@@ -44,6 +44,11 @@ CONTENT_MANIFEST_PATHS = {
     COPILOT_FULL_MANIFEST_PATH,
     *FOCUSED_MANIFEST_PATHS,
 }
+STABLE_RIGHTS_APPROVAL_PATH = "policy/stable-rights-approval.json"
+SHA256_DIGEST_PATHS = {
+    *CONTENT_MANIFEST_PATHS,
+    STABLE_RIGHTS_APPROVAL_PATH,
+}
 RELEASE_TEST_BASELINE_PATH = "scripts/release_test_baseline.py"
 SHA256_DIGEST = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
 ARTIFACT_HEX_DIGEST = re.compile(
@@ -931,10 +936,10 @@ def validate_content(
         national_id_matches = list(REALISTIC_NATIONAL_ID.finditer(text))
         if national_id_matches and (
             relative_path in FIGMA_KEY_PATHS
-            or relative_path in CONTENT_MANIFEST_PATHS
+            or relative_path in SHA256_DIGEST_PATHS
             or relative_path == RELEASE_TEST_BASELINE_PATH
         ):
-            if relative_path in CONTENT_MANIFEST_PATHS:
+            if relative_path in SHA256_DIGEST_PATHS:
                 digest_pattern = SHA256_DIGEST
             elif relative_path == RELEASE_TEST_BASELINE_PATH:
                 digest_pattern = ARTIFACT_HEX_DIGEST
