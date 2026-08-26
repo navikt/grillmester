@@ -1416,13 +1416,24 @@ jobs:
               for component_id, contract in sorted(contracts.items()):
                   if not isinstance(contract, dict):
                       fail(f"content lock {kind} contract is invalid")
-                  source_ids = {contract.get("source")}
+                  raw_source_ids = contract.get("source")
+                  if isinstance(raw_source_ids, str):
+                      source_ids = {raw_source_ids}
+                  elif (
+                      isinstance(raw_source_ids, list)
+                      and raw_source_ids
+                      and all(isinstance(source_id, str) for source_id in raw_source_ids)
+                  ):
+                      source_ids = set(raw_source_ids)
+                  else:
+                      fail(f"content lock {kind} {component_id} source is invalid")
                   lineage = contract.get("lineage", [])
                   if not isinstance(lineage, list) or not all(
-                      isinstance(entry, dict) for entry in lineage
+                      isinstance(entry, dict) and isinstance(entry.get("source"), str)
+                      for entry in lineage
                   ):
                       fail(f"content lock {kind} lineage is invalid")
-                  source_ids.update(entry.get("source") for entry in lineage)
+                  source_ids.update(entry["source"] for entry in lineage)
                   if "hovmester" in source_ids:
                       expected_components[kind][component_id] = component_digest(
                           kind, component_id

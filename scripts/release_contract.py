@@ -457,17 +457,28 @@ def _hovmester_component_digests(source_repo: Path) -> dict[str, dict[str, str]]
         for component_id, contract in sorted(contracts.items()):
             if not isinstance(component_id, str) or not isinstance(contract, dict):
                 raise ReleaseContractError(f"content lock {kind} entry is invalid")
-            source_ids = {contract.get("source")}
-            lineage = contract.get("lineage", [])
-            if not isinstance(lineage, list):
+            raw_source_ids = contract.get("source")
+            if isinstance(raw_source_ids, str):
+                source_ids = {raw_source_ids}
+            elif (
+                isinstance(raw_source_ids, list)
+                and raw_source_ids
+                and all(isinstance(source_id, str) for source_id in raw_source_ids)
+            ):
+                source_ids = set(raw_source_ids)
+            else:
                 raise ReleaseContractError(
-                    f"content lock {kind} {component_id} lineage must be a list"
+                    f"content lock {kind} {component_id} source must name one or more sources"
                 )
-            source_ids.update(
-                entry.get("source")
+            lineage = contract.get("lineage", [])
+            if not isinstance(lineage, list) or not all(
+                isinstance(entry, dict) and isinstance(entry.get("source"), str)
                 for entry in lineage
-                if isinstance(entry, dict)
-            )
+            ):
+                raise ReleaseContractError(
+                    f"content lock {kind} {component_id} lineage must contain source objects"
+                )
+            source_ids.update(entry["source"] for entry in lineage)
             if "hovmester" not in source_ids:
                 continue
             component_path = (
