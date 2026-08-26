@@ -612,6 +612,31 @@ class PackageValidationTest(unittest.TestCase):
         path.write_text(text + '\nUNSAFE_EXAMPLE = "12345' + '678901"\n', encoding="utf-8")
         self.assert_error("looks like a national ID")
 
+    def test_stable_rights_digests_are_not_mistaken_for_national_ids(self) -> None:
+        path = self.root / "policy/stable-rights-approval.json"
+        shaped_digest = ("a" * 20) + "47237" + "886730" + ("b" * 33)
+        self.assertEqual(64, len(shaped_digest))
+        path.write_text(
+            json.dumps({"digest": shaped_digest}) + "\n",
+            encoding="utf-8",
+        )
+
+        self.assertFalse(
+            any("looks like a national ID" in error for error in self.errors())
+        )
+
+        path.write_text(
+            json.dumps(
+                {
+                    "digest": shaped_digest,
+                    "unsafeExample": "12345" + "678901",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self.assert_error("looks like a national ID")
+
     def test_focused_manifest_digests_are_not_mistaken_for_national_ids(self) -> None:
         path = self.root / "targets/copilot-cli-focused-v1/manifest.json"
         text = path.read_text(encoding="utf-8")
