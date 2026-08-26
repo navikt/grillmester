@@ -1955,6 +1955,16 @@ jobs:
                end' \
               <<<"${pages}"
           }
+          wait_for_release() {
+            local value status
+            for _ in {1..10}; do
+              value="$(find_release)" && { printf '%s\n' "${value}"; return; }
+              status=$?
+              (( status == 4 )) || return "${status}"
+              sleep 2
+            done
+            return 4
+          }
           download_asset_from_release() {
             local name="$1" destination="$2" asset_id
             asset_id="$(jq -er --arg name "${name}" \
@@ -1980,7 +1990,7 @@ jobs:
             )
             [[ "${CHANNEL}" == "rc" ]] && create_args+=(--prerelease)
             gh "${create_args[@]}"
-            release="$(find_release)"
+            release="$(wait_for_release)"
           else
             echo "Could not unambiguously inspect an existing release for ${TAG}." >&2
             exit 1
