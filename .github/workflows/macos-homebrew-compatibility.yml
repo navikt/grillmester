@@ -155,6 +155,7 @@ jobs:
               os.close(descriptor)
           PY
             cp "${sealed_formula}" "${formula}"
+            chmod 0644 "${formula}"
           fi
           python3 -I -S scripts/generate_homebrew_formula.py \
             --tag "${tag}" --bundle-name "${bundle_name}" \
