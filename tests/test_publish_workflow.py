@@ -1587,8 +1587,15 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn(".label == \"Homebrew formula\"", write_job)
         self.assertIn(".digest == $bundle_digest", write_job)
         self.assertIn("find_release()", write_job)
+        self.assertIn("wait_for_release()", write_job)
         self.assertIn('release_lookup_status}" == "4"', write_job)
         self.assertIn("return 10", write_job)
+        self.assertIn("for _ in {1..10}", write_job)
+        self.assertIn("sleep 2", write_job)
+        self.assertIn(
+            'release="$(wait_for_release)"',
+            write_job,
+        )
         self.assertIn("download_asset_from_release()", write_job)
         self.assertIn(
             'cmp -s "${bundle}" "${published_assets}/${BUNDLE_NAME}"',
