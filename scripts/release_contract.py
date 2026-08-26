@@ -1046,8 +1046,15 @@ brew install --formula grillmester/rc-pilot/grillmester
 ```
 
 Reuse the same temporary tap for later candidates and replace its formula only
-with another exact, reviewed formula asset;
-`brew upgrade grillmester` follows the stable tap and is not the RC update path.
+with another exact, reviewed formula asset. Upgrade an installed candidate with
+the fully qualified temporary-tap name:
+
+```bash
+brew upgrade --formula grillmester/rc-pilot/grillmester
+```
+
+The unqualified `brew upgrade grillmester` follows the stable tap and is not
+the RC update path.
 """
         update_commands = """The candidate formula is replaced only from an exact,
 reviewed release asset as described above. cplt, OpenCode, and GitHub Copilot CLI

@@ -984,6 +984,9 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn(
             "brew install --formula grillmester/rc-pilot/grillmester", notes
         )
+        self.assertIn(
+            "brew upgrade --formula grillmester/rc-pilot/grillmester", notes
+        )
         self.assertNotIn("brew install --formula ./grillmester.rb", notes)
         self.assertIn("Homebrew 6 rejects formula files outside a tap", notes)
         self.assertIn("stable-only Homebrew tap", notes)
