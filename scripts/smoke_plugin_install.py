@@ -173,6 +173,7 @@ def verify_local_cli_help_surface(
         "--secret-env-vars",
         "--prompt",
         "--allow-all-tools",
+        "--allow-all-paths",
         "--allow-all-urls",
         "--no-ask-user",
         "--deny-tool",

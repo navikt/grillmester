@@ -122,6 +122,8 @@ package-read-token og la cplt-policyen begrense nettverkstrafikken.
 
 `grillmester local run` er bevisst annerledes enn den interaktive reisen:
 OpenCode og Copilot auto-godkjenner prosjektwrites, shelltools og URLs.
+Copilot-run auto-godkjenner i tillegg klientens path-lag; cplt forblir den
+håndhevende filesystemgrensen for hele klientprosessen.
 Ingen av klientene får GitHub-token med mindre brukeren eksplisitt velger
 `--github-access`. Copilot-run legger i tillegg inn `shell(gh:*)`-deny som
 defense-in-depth; andre shellformer kan omgå den. Med opt-in kan

@@ -1035,13 +1035,18 @@ The stable-only Homebrew tap does not publish release candidates. Do not use
 `brew install navikt/tap/cplt navikt/tap/grillmester` to evaluate `{tag}`: that command selects
 the stable version currently present in the tap, if any. Download the
 `grillmester.rb` asset attached to this exact release, verify it as part of the
-release-candidate pilot, then install that local formula explicitly:
+release-candidate pilot, then place it in a temporary local tap before installing it.
+Homebrew 6 rejects formula files outside a tap:
 
 ```bash
-brew install --formula ./grillmester.rb
+brew tap-new --no-git grillmester/rc-pilot
+install -m 0644 ./grillmester.rb \\
+  "$(brew --repository grillmester/rc-pilot)/Formula/grillmester.rb"
+brew install --formula grillmester/rc-pilot/grillmester
 ```
 
-Replace an installed candidate only with another exact, reviewed formula asset;
+Reuse the same temporary tap for later candidates and replace its formula only
+with another exact, reviewed formula asset;
 `brew upgrade grillmester` follows the stable tap and is not the RC update path.
 """
         update_commands = """The candidate formula is replaced only from an exact,

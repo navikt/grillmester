@@ -188,6 +188,12 @@ innenfor den effektive klient- og cplt-policyen. cplt beskytter ikke
 prosjektfilene mot overskriving, sletting eller destruktive Git-operasjoner som
 modellen selv starter.
 
+Copilot-run auto-godkjenner også klientens eget path-lag. Dette utvider ikke
+cplt-policyen: hele Copilot-prosessen er fortsatt underlagt cplts håndhevede
+filesystemgrenser. Godkjenningen hindrer bare at en non-interaktiv kjøring
+stopper på en dialog når et tillatt verktøy, for eksempel en Python-tolk på
+`PATH`, ligger utenfor prosjektkatalogen.
+
 Launcheren legger en kort runtimekontrakt foran oppgaveteksten i `run`. Den
 forklarer modellen at `EPERM`, `Operation not permitted` og eksplisitte
 blokkeringer kan være tilsiktet cplt-policy, at en policyblokk ikke skal
