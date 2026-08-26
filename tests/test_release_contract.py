@@ -144,7 +144,7 @@ def write_stable_rights_fixture(root: Path) -> dict[str, object]:
             "doctor-who": {"source": "hovmester"},
         },
         "skills": {
-            "grillmester-aksel-design": {"source": "hovmester"},
+            "grillmester-aksel-design": {"source": ["pilot", "hovmester"]},
         },
     }
     (policy / "content-lock.json").write_text(
@@ -568,6 +568,22 @@ class ReleaseContractTest(unittest.TestCase):
                 CONTRACT.ReleaseContractError, "placeholder"
             ):
                 CONTRACT.validate_stable_rights_approval(source)
+
+    def test_stable_rights_scope_rejects_an_invalid_component_source_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp)
+            write_stable_rights_fixture(source)
+            content_lock_path = source / CONTRACT.CONTENT_LOCK_PATH
+            content_lock = json.loads(content_lock_path.read_text())
+            content_lock["skills"]["grillmester-aksel-design"]["source"] = {
+                "hovmester": True
+            }
+            content_lock_path.write_text(json.dumps(content_lock) + "\n")
+
+            with self.assertRaisesRegex(
+                CONTRACT.ReleaseContractError, "source must name one or more sources"
+            ):
+                CONTRACT._hovmester_component_digests(source)
 
     def test_stable_promotion_rejects_payload_drift(self) -> None:
         stable = CONTRACT.Catalog(

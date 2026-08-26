@@ -1851,6 +1851,8 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("Independently enforce stable rights approval", verify_job)
         self.assertIn('blob("policy/stable-rights-approval.json")', verify_job)
         self.assertIn('git("ls-tree", "-rz", source_sha, "--", prefix)', verify_job)
+        self.assertIn("if isinstance(raw_source_ids, str):", verify_job)
+        self.assertIn("source_ids = set(raw_source_ids)", verify_job)
         self.assertIn("expected_components[kind][component_id] = component_digest", verify_job)
         self.assertIn("scope[\"components\"] != expected_components", verify_job)
         self.assertIn("dt.date.fromisoformat", verify_job)
