@@ -35,10 +35,10 @@ jobs:
       - name: Validate agentpakke with released nav-pilot contract
         shell: bash
         env:
-          NAV_PILOT_CONTRACT_BASELINE_VERSION: 2026.08.24-134023-dc66d1e
-          NAV_PILOT_CONTRACT_BASELINE_URL: https://github.com/navikt/copilot/releases/download/nav-pilot/2026.08.24-134023-dc66d1e/nav-pilot-linux-amd64
-          NAV_PILOT_CONTRACT_BASELINE_SHA256: 99987f338db9d5de31d2018fa5d237983352b92dd6c91a7158dc0f4a3ef97e27
-          NAV_PILOT_CONTRACT_BASELINE_SIZE: "18215074"
+          NAV_PILOT_CONTRACT_BASELINE_VERSION: 2026.08.27-085149-2c9bf30
+          NAV_PILOT_CONTRACT_BASELINE_URL: https://github.com/navikt/copilot/releases/download/nav-pilot/2026.08.27-085149-2c9bf30/nav-pilot-linux-amd64
+          NAV_PILOT_CONTRACT_BASELINE_SHA256: eece6dcfac150a8523e4bf264618e2234e5a497c9ded259adffeeee40f04225f
+          NAV_PILOT_CONTRACT_BASELINE_SIZE: "18272418"
           NAV_PILOT_TELEMETRY_ENABLED: "0"
         run: |
           set -euo pipefail

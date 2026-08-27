@@ -538,14 +538,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertIn(
             "https://github.com/navikt/copilot/releases/download/"
-            "nav-pilot/2026.08.24-134023-dc66d1e/nav-pilot-linux-amd64",
+            "nav-pilot/2026.08.27-085149-2c9bf30/nav-pilot-linux-amd64",
             text,
         )
         self.assertIn(
-            "99987f338db9d5de31d2018fa5d237983352b92dd6c91a7158dc0f4a3ef97e27",
+            "eece6dcfac150a8523e4bf264618e2234e5a497c9ded259adffeeee40f04225f",
             text,
         )
-        self.assertIn("18215074", text)
+        self.assertIn("18272418", text)
         self.assertIn(
             'validate --source "${GITHUB_WORKSPACE}" --json',
             step,
