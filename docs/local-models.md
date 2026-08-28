@@ -35,15 +35,9 @@ omtales som «like god som Copilot» uten en separat, representativ kvalitetsgat
 ## Anbefalt flyt: ett lokalt oppsett, begge terminalklienter
 
 Start en OpenAI-kompatibel modellserver på loopback først. Grillmester eier
-ikke serveren, modellfilen eller klientbinærene. Kjør deretter:
-
-```bash
-cd /path/to/consumer-repo
-grillmester local setup
-grillmester local
-```
-
-Før Homebrew-formelen er publisert, kjører du de samme stegene fra en checkout:
+ikke serveren, modellfilen eller klientbinærene. Homebrew-kanalen for
+Grillmester er ikke aktivert, så local-flyten piloteres foreløpig fra en lokal
+checkout:
 
 ```bash
 cd /path/to/consumer-repo
@@ -51,6 +45,10 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
 ```
+
+I resten av guiden brukes `grillmester` som kortform. I checkout-piloten
+erstattes den med
+`python3 /absolute/path/to/grillmester/scripts/grillmester.py`.
 
 Uten opt-in sender launcheren ingen støttet GitHub-tokenvariabel til child.
 OpenCode starter uten ambient GitHub-konto; Copilot kan likevel mediere en

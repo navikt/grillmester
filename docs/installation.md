@@ -1,19 +1,25 @@
 # Installere og starte Grillmester
 
-Denne guiden starter med den anbefalte terminalflyten og skiller deretter
-mellom Copilot app, native plugininstallasjon, repoaktivering og
-enterprise-policy.
+Denne guiden skiller mellom den anbefalte native plugininstallasjonen,
+Copilot app, OpenCode-piloten fra checkout, den foreløpig pausede
+Homebrew-kanalen, repoaktivering og enterprise-policy.
 
 ## Før du begynner
 
-- Den felles Homebrew-terminalflyten støttes bare på macOS i denne releasen.
-  Formelen er ferdig, men installasjonskommandoen aktiveres først etter første
-  stabile release og bootstrap av `navikt/homebrew-tap`.
-- OpenCode og GitHub Copilot CLI er separate, valgfrie klienter. Installer minst
-  én av dem; Grillmester bruker den installerte binæren fra `PATH`.
-- cplt er alltid påkrevd for terminalflyten. Homebrew-formelen installerer cplt
-  gjennom den separate `navikt/tap/cplt`-avhengigheten, ikke som en privat
-  Grillmester-binær.
+- Installer Grillmester som native plugin i Copilot CLI eller Copilot app for
+  den tilgjengelige brukerreisen nå.
+- Homebrew-formelen for Grillmester er ferdig, men kanalen er ikke aktivert.
+  OpenCode og lokale modeller kan foreløpig piloteres fra checkout; videre
+  terminaldistribusjon samordnes med nav-pilot. Ikke annonser
+  Homebrew-installasjonskommandoen ennå.
+- For checkout-launcheren er OpenCode og GitHub Copilot CLI separate, valgfrie
+  klienter. Installer minst én av dem; launcheren bruker den installerte
+  binæren fra `PATH`.
+- cplt er alltid påkrevd når du bruker Grillmesters terminal-launcher.
+  Homebrew-formelen vil installere cplt gjennom den separate
+  `navikt/tap/cplt`-avhengigheten, ikke som en privat Grillmester-binær. Native
+  pluginbruk i Copilot CLI følger klientens egen runtime og krever ikke
+  Grillmester-launcheren.
 - Copilot app bruker sin egen Plugins-UI og startes ikke gjennom cplt.
 
 Bruk `marketplace`-branchen for løpende native Copilot-oppdateringer, eller velg
@@ -32,14 +38,71 @@ installasjonen skal være reproduserbar.
 interne roller og 43 kuraterte skills for metode, design, produktarbeid,
 levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
-## Felles terminaloppsett på macOS
+## Installer i Copilot CLI
 
-Homebrew-oppføringen er foreløpig **ikke tilgjengelig**. Ikke annonser eller
-automatiser kommandoen under før release-runbookens tap-bootstrap og clean
-install er fullført. Frem til da kan Copilot CLI bruke den native
-plugininstallasjonen i neste seksjon. OpenCode kan valideres fra en checkout;
-når en kandidat-release er publisert, kan den også releaseverifiseres gjennom
-den manuelle bundle-en i [OpenCode-guiden](opencode.md#hent-og-verifiser-en-grillmester-bundle).
+Installer Grillmester:
+
+```bash
+copilot plugin marketplace add navikt/grillmester#marketplace
+copilot plugin install grillmester@grillmester
+```
+
+Start Copilot slik du vanligvis gjør i Nav, åpne `/agent`, og velg
+`grillmester:grillmester`. Installasjonen ligger i brukerens Copilot-home og er
+tilgjengelig i alle repoer på maskinen. Den skriver ikke agent- eller
+skillfiler inn i repoene.
+
+`marketplace` er en flytende oppdateringskanal. En maintainer avanserer den ved
+å eksplisitt promotere en eksakt, validert source-SHA fra `main`; en vanlig
+merge til `main` endrer ikke kanalen. Bruk en reviewet `v<versjon>`-tagg i
+stedet når installasjonen skal være reproduserbar.
+
+Denne imperative flyten slår ikke på automatisk oppdatering. Se den valgfrie
+auto-update-flyten lenger ned, eller oppdater manuelt med:
+
+```bash
+copilot plugin marketplace update grillmester
+copilot plugin update grillmester@grillmester
+```
+
+Kontroller installasjonen ved behov med `copilot plugin list`.
+
+En personlig installasjon aktiverer ikke automatisk pluginen for andre
+utviklere eller Copilot cloud agent. Bruk repoaktivering når teamet skal dele
+samme versjon.
+
+## Copilot app
+
+1. [Legg til Grillmester-markedsplassen](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Fmarketplace%2Fadd%3Fsource%3Dnavikt%252Fgrillmester)
+2. [Installer Grillmester](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester%2540grillmester)
+
+GitHubs
+[plugin-deep-links](https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/github-copilot-app/open-with-deep-links#open-plugin-flows)
+åpner **Settings → Plugins** med en ferdig utfylt verdi. De installerer eller
+registrerer ingenting før brukeren bekrefter i appen.
+
+App-lenken for marketplace tar `OWNER/REPO` eller Git-URL, ikke CLIs
+`OWNER/REPO#ref`. Den følger derfor default branch og er en enkel onboarding,
+ikke bevis for en immutable release. For RC-/stable-evidens må testen registrere
+hvilken katalog og source-SHA appen faktisk resolver.
+
+App-installasjonen gjelder brukerens app-oppsett og skriver ikke pluginfiler
+eller aktivering inn i repoet. Den aktiverer heller ikke cloud agent for teamet;
+bruk repoaktivering for det.
+
+For å oppdatere en installert plugin må du foreløpig velge **Update** under
+**Settings → Plugins** i Copilot app. Dette er en kjent klientbegrensning.
+GitHub dokumenterer foreløpig ikke automatisk oppdatering av en personlig
+installasjon fra en egendefinert marketplace. Dette må observeres med to
+faktiske Grillmester-versjoner før det loves som App-adferd.
+
+## Terminal-launcher og Homebrew på macOS — satt på vent
+
+Homebrew-oppføringen er **ikke tilgjengelig**. Ikke annonser eller automatiser
+kommandoen under. Copilot CLI kan bruke den native plugininstallasjonen over.
+OpenCode kan valideres fra en checkout
+eller releaseverifiseres gjennom den manuelle bundle-en i
+[OpenCode-guiden](opencode.md#hent-og-verifiser-en-grillmester-bundle).
 
 En checkout installerer ikke shellkommandoen `grillmester`. Med cplt og minst
 én klient på `PATH` bruker du standardlauncheren fra repoet du vil arbeide i:
@@ -54,7 +117,7 @@ Bytt ut `/absolute/path/to/grillmester` med checkoutens absolutte path. Disse
 kommandoene bruker payloaden i checkouten og er utviklings-/pilotevidens, ikke
 en installert eller immutable release.
 
-Etter aktivering installerer du Grillmester og cplt fra Navs Homebrew-tap:
+Hvis kanalen aktiveres senere, er den planlagte installasjonen:
 
 ```bash
 brew install navikt/tap/cplt navikt/tap/grillmester
@@ -160,17 +223,8 @@ Distribusjonen inneholder også to deterministiske focused-targets og den
 lokale launcheren. Modellserveren og terminalklientene er fortsatt brukereide;
 Grillmester laster ikke ned, starter, stopper eller oppgraderer dem.
 
-Med en OpenAI-kompatibel server på loopback:
-
-```bash
-cd /path/to/consumer-repo
-grillmester local setup
-grillmester local
-grillmester local run "Fiks den avgrensede oppgaven og kjør testene"
-```
-
-Før Homebrew-formelen er publisert bruker du samme consumer-repo, men den
-absolutte launcherpathen fra checkouten:
+Med en OpenAI-kompatibel server på loopback bruker dagens checkout-pilot den
+absolutte launcherpathen:
 
 ```bash
 cd /path/to/consumer-repo
@@ -180,6 +234,10 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
 python3 /absolute/path/to/grillmester/scripts/grillmester.py \
   local run "Fiks den avgrensede oppgaven og kjør testene"
 ```
+
+I resten av guiden brukes `grillmester` som kortform. I checkout-piloten
+erstattes den med
+`python3 /absolute/path/to/grillmester/scripts/grillmester.py`.
 
 `setup` oppdager installerte klienter uten å kjøre dem og kan hente modellene
 fra `/v1/models`. Defaulten lagres separat i
@@ -302,7 +360,7 @@ cplt-kommandoen uten å starte cplt eller klienten, versjonssjekke dem eller
 endre runtime-støttefiler. Hvis en interaktiv `--print-command` trenger et
 midlertidig klient-/agentvalg, brukes det bare i utskriften og lagres ikke.
 
-## Alternativ: native Copilot CLI-installasjon med automatisk oppdatering
+## Valgfritt: automatisk oppdatering i Copilot CLI
 
 Hvis du ikke vil bruke Homebrew-launcheren, kan Copilot CLI installere pluginen
 direkte fra en flytende marketplace-kanal og oppdatere ved sesjonsstart. Merge
@@ -355,68 +413,6 @@ CLI og alle plugins. Bruk den bare etter å ha lest previewen.
 Start deretter Copilot slik du vanligvis gjør i Nav. Copilot CLI sjekker etter
 pluginoppdateringer når en ny sesjon starter. Andre klienter har egne
 oppdateringsmekanismer.
-
-## Manuell personlig installasjon i Copilot CLI
-
-Installer Grillmester:
-
-```bash
-copilot plugin marketplace add navikt/grillmester#marketplace
-copilot plugin install grillmester@grillmester
-copilot plugin list
-```
-
-`marketplace` er en flytende oppdateringskanal. For reproduserbar installasjon bruker
-du samme kommando med en reviewet `v<versjon>`-tagg i stedet.
-
-En maintainer avanserer `marketplace` ved å eksplisitt promotere en eksakt,
-validert source-SHA fra `main`. En vanlig merge til `main` endrer ikke den
-flytende kanalen. For brukere med `autoUpdate: true` blir versjonen tilgjengelig
-etter denne promoteringen. Bruk en immutable release-tag når oppdateringen må
-vente på en separat godkjenning.
-
-Denne imperative flyten slår ikke på automatisk oppdatering for en
-egendefinert marketplace. Bruk brukeroppsettet over, eller oppdater manuelt
-med:
-
-```bash
-copilot plugin marketplace update grillmester
-copilot plugin update grillmester@grillmester
-```
-
-Start Copilot slik du vanligvis gjør i Nav, åpne `/agent`, og velg
-`grillmester:grillmester`. Installasjonen ligger i brukerens Copilot-home og er
-tilgjengelig i alle repoer på maskinen. Den skriver ikke agent- eller
-skillfiler inn i repoene.
-
-En personlig installasjon aktiverer ikke automatisk pluginen for andre
-utviklere eller Copilot cloud agent. Bruk repoaktivering når teamet skal dele
-samme versjon.
-
-## Copilot app
-
-1. [Legg til Grillmester-markedsplassen](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Fmarketplace%2Fadd%3Fsource%3Dnavikt%252Fgrillmester)
-2. [Installer Grillmester](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester%2540grillmester)
-
-GitHubs
-[plugin-deep-links](https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/github-copilot-app/open-with-deep-links#open-plugin-flows)
-åpner **Settings → Plugins** med en ferdig utfylt verdi. De installerer eller
-registrerer ingenting før brukeren bekrefter i appen.
-
-App-lenken for marketplace tar `OWNER/REPO` eller Git-URL, ikke CLIs
-`OWNER/REPO#ref`. Den følger derfor default branch og er en enkel onboarding,
-ikke bevis for en immutable release. For RC-/stable-evidens må testen registrere
-hvilken katalog og source-SHA appen faktisk resolver.
-
-App-installasjonen gjelder brukerens app-oppsett og skriver ikke pluginfiler
-eller aktivering inn i repoet. Den aktiverer heller ikke cloud agent for teamet;
-bruk repoaktivering for det.
-
-For å oppdatere en installert plugin må du foreløpig velge **Update** under
-**Settings → Plugins** i Copilot app. Dette er en kjent klientbegrensning.
-GitHub dokumenterer foreløpig ikke automatisk oppdatering av en personlig
-installasjon fra en egendefinert marketplace. Dette må observeres med to
-faktiske Grillmester-versjoner før det loves som App-adferd.
 
 ## Eksterne GitHub-capabilities
 
