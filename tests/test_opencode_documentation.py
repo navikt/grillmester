@@ -202,9 +202,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, local_models)
 
-        self.assertIn(
-            "web/github følger cplt-policy", normalized(self.readme).casefold()
-        )
+        self.assertNotIn("web/github følger cplt-policy", normalized(self.readme).casefold())
         self.assertIn("Websearch, dokumentasjon og GitHub", trust)
         self.assertIn("lokal inference, ikke offline", normalized(self.guide))
         self.assertIn("ingen offlinegaranti", decision)
@@ -293,7 +291,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             local_models,
         )
 
-    def test_opencode_guide_starts_with_the_homebrew_launcher(self) -> None:
+    def test_opencode_guide_starts_with_the_checkout_pilot(self) -> None:
         self.assertLess(
             self.guide.index("## Kom i gang"),
             self.guide.index("## Avansert: manuell binding og verifisering"),
@@ -303,18 +301,16 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         )[0]
         value = normalized(quick_start)
 
-        self.assertLess(
-            value.index("ikke tilgjengelig"),
-            value.index("brew install navikt/tap/cplt navikt/tap/grillmester"),
-        )
+        self.assertNotIn("brew install navikt/tap/grillmester", value)
         for marker in (
-            "brew install opencode",
+            "brew install navikt/tap/cplt opencode",
             "resolver `opencode` fra `PATH`",
-            "grillmester choose",
-            "ingen stille fallback til Copilot",
+            "pilotinput, ikke en installert eller immutable release",
+            "python3 /absolute/path/to/grillmester/scripts/grillmester.py doctor",
+            "--client opencode --agent grillmester",
             "starter alltid OpenCode gjennom cplt",
             "### Lokal modell på macOS",
-            "grillmester local setup --client opencode",
+            "scripts/grillmester.py local setup --client opencode",
             "### Cloud-provider",
             "--pass-env MODEL_PROVIDER_API_KEY",
         ):
@@ -405,15 +401,13 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, value)
 
-        self.assertIn(
-            'local run "Fiks den avgrensede oppgaven', normalized(self.readme)
-        )
+        self.assertNotIn("grillmester local run", normalized(self.readme))
         for name, document in (
             ("installation", self.installation),
             ("OpenCode", self.guide),
         ):
             with self.subTest(document=name):
-                self.assertIn("grillmester local run", normalized(document))
+                self.assertIn("local run", normalized(document))
 
         self.assertNotIn(
             "grillmester local --client opencode --agent barista -- run",
@@ -551,8 +545,8 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         installation = normalized(self.installation)
         system_clients = normalized(self.adrs["0004"])
 
-        self.assertIn("`grillmester update` oppdaterer Grillmester", readme)
-        self.assertIn("OpenCode, Copilot CLI og cplt følger sine egne pakkekanaler", readme)
+        self.assertNotIn("grillmester update", readme)
+        self.assertNotIn("brew install navikt/tap/grillmester", readme)
         self.assertIn("`brew upgrade grillmester`", installation)
         self.assertIn("Ingen pakkeoperasjon eller oppdateringsforespørsel skjer under vanlig launch", installation)
         self.assertIn("`grillmester update` oppdaterer Grillmester-formelen", system_clients)

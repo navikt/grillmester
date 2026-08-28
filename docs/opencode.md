@@ -8,68 +8,48 @@ launcheren godtar kompatible nyere 1.x-versjoner.
 
 ## Kom i gang
 
-Den felles macOS-launcheren er ferdig, men Homebrew-oppføringen publiseres først
-etter første stabile release og review i `navikt/homebrew-tap`. Kommandoen er
-derfor foreløpig **ikke tilgjengelig**:
+Homebrew-kanalen for Grillmester er ikke aktivert. OpenCode kan foreløpig
+piloteres fra en lokal Grillmester-checkout; videre terminaldistribusjon
+samordnes med nav-pilot. Installer cplt og den bruker-eide OpenCode-klienten:
 
 ```bash
-brew install navikt/tap/cplt navikt/tap/grillmester
-brew install opencode
+brew install navikt/tap/cplt opencode
 ```
 
 OpenCode er en brukerinstallert terminalklient. Grillmester resolver
 `opencode` fra `PATH`; den installerer, erstatter eller skygger aldri klienten.
 Den vises derfor ikke som app i Launchpad eller `/Applications`.
 
-Start fra repoet du vil arbeide i:
+Du trenger en lokal checkout av `navikt/grillmester`. Den er utviklings- og
+pilotinput, ikke en installert eller immutable release. Kontroller oppsettet og
+start deretter fra repoet du vil arbeide i:
 
 ```bash
 cd /path/to/consumer-repo
-grillmester
+python3 /absolute/path/to/grillmester/scripts/grillmester.py doctor
+python3 /absolute/path/to/grillmester/scripts/grillmester.py \
+  --client opencode --agent grillmester
 ```
 
-Velg **OpenCode** og deretter Grillmester, Barista, Designer eller Doctor Who.
-Bare valgt klient versjonssjekkes gjennom cplt mot en tom mappe før valget kan
-lagres. `grillmester choose` endrer defaulten. Mangler OpenCode, får du
-`brew install opencode`; det skjer ingen stille fallback til Copilot.
-
-En eksplisitt sesjon ser slik ut:
-
-```bash
-grillmester --client opencode --agent grillmester
-```
+I resten av guiden brukes `grillmester` som kortform. I checkout-piloten
+erstattes den med
+`python3 /absolute/path/to/grillmester/scripts/grillmester.py`.
 
 Launcheren binder det distribuerte targetet og starter alltid OpenCode gjennom
 cplt. Den vanlige kommandoen velger ikke provider eller modell; bruk din
 brukereide OpenCode-config og `/models`.
-
-Kontroller installasjonen uten å starte en agentsesjon:
-
-```bash
-grillmester doctor --client opencode
-```
 
 Proben har timeout og outputgrense, bruker en disponibel 0700-prosjektmappe og
 gir aldri klienten skriverettighet i consumer-repoet.
 
 ### Lokal modell på macOS
 
-Start en OpenAI-kompatibel modellserver på loopback og kjør:
+Start en OpenAI-kompatibel modellserver på loopback og bruk checkoutens
+virkelige launcherpath, ikke en ikke-installert `grillmester`-kommando:
 
 ```bash
 cd /path/to/consumer-repo
-grillmester local setup --client opencode
-grillmester local
-grillmester local run "Fiks den avgrensede oppgaven og kjør testene"
-grillmester local --full --agent grillmester
-```
-
-Fra en checkout bruker du den virkelige launcherpathen, ikke en ikke-installert
-`grillmester`-kommando:
-
-```bash
-cd /path/to/consumer-repo
-python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup
+python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup --client opencode
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
 python3 /absolute/path/to/grillmester/scripts/grillmester.py \
@@ -267,9 +247,10 @@ writes—ikke kvaliteten til en vilkårlig modell.
 
 ## Oppdatering og rollback
 
-`grillmester update` oppdaterer den installerte Grillmester-formelen. OpenCode
-og cplt følger sine egne pakkekanaler. En kompatibel 1.x-oppgradering krever
-normalt ingen Grillmester-release.
+Hvis Homebrew-kanalen aktiveres senere, vil `grillmester update` oppdatere den
+installerte Grillmester-formelen. Kommandoen er ikke del av dagens
+checkout-pilot. OpenCode og cplt følger sine egne pakkekanaler. En kompatibel
+1.x-oppgradering krever normalt ingen Grillmester-release.
 
 En immutable Grillmester-release rulles tilbake ved å installere forrige
 reviewede versjon eller repinne marketplace-ref-en. Start en ny agentsesjon;

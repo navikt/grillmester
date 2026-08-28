@@ -60,60 +60,35 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertNotIn("Copilot app — to bekreftelser", self.text)
         self.assertNotIn("strukturert designunderlag", self.text)
 
-    def test_terminal_install_precedes_the_single_start_flow(self) -> None:
-        terminal = self.text.split(
-            "### Copilot CLI og OpenCode i terminalen", 1
+    def test_native_plugin_precedes_the_checkout_pilot(self) -> None:
+        plugin = self.text.split(
+            "### Copilot CLI — anbefalt nå", 1
         )[1].split("### Copilot app", 1)[0]
-        normalized = " ".join(terminal.split())
+        pilot = self.text.split(
+            "### OpenCode og lokale modeller — pilot fra checkout", 1
+        )[1].split("## Velg agent", 1)[0]
+        normalized = " ".join(pilot.split())
         self.assertLess(
-            terminal.index("ikke tilgjengelig ennå"),
-            terminal.index("brew install navikt/tap/cplt"),
+            self.text.index("copilot plugin marketplace add navikt/grillmester#marketplace"),
+            self.text.index("### Copilot app"),
         )
         self.assertLess(
-            terminal.index("brew install navikt/tap/cplt"),
-            terminal.index("brew install opencode"),
+            self.text.index("### Copilot app"),
+            self.text.index("### OpenCode og lokale modeller — pilot fra checkout"),
         )
-        self.assertLess(
-            terminal.index("brew install opencode"),
-            terminal.index(
-                "python3 /absolute/path/to/grillmester/scripts/grillmester.py"
-            ),
-        )
-        self.assertLess(
-            terminal.index(
-                "python3 /absolute/path/to/grillmester/scripts/grillmester.py"
-            ),
-            terminal.index(
-                "brew install navikt/tap/cplt navikt/tap/grillmester"
-            ),
-        )
-        self.assertLess(
-            terminal.index(
-                "brew install navikt/tap/cplt navikt/tap/grillmester"
-            ),
-            terminal.index("\ngrillmester\n"),
-        )
+        self.assertIn("copilot plugin install grillmester@grillmester", plugin)
+        self.assertIn("`grillmester:grillmester`", plugin)
         for marker in (
-            "Grillmester-formelen er **ikke tilgjengelig ennå**",
-            "Launcheren viser klienter fra `PATH`",
-            "brew install opencode",
+            "brew install navikt/tap/cplt opencode",
             "brew install --cask copilot-cli",
-            "GitHub Copilot CLI",
             "OpenCode",
-            "grillmester choose",
-            "En manglende klient gir installasjonskommando, aldri fallback",
-            "--client copilot --agent grillmester",
             "--client opencode --agent barista",
-            "grillmester doctor",
-            "Alle terminalsesjoner går gjennom cplt",
-            "grillmester update",
-            "`launch` og `run` er alternativer",
-            "Uten opt-in sendes ingen støttet `GH_TOKEN`",
-            "Copilot kan mediere native credential via macOS Keychain",
             "python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup",
             "python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch",
             "starter du først en OpenAI-kompatibel modellserver",
             "cd /path/to/consumer-repo",
+            "Homebrew-kanalen for Grillmester er ikke aktivert",
+            "Videre terminaldistribusjon samordnes med nav-pilot",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, normalized)
@@ -127,6 +102,8 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
 
         self.assertNotIn('"autoUpdate"', self.text)
         self.assertIn('"autoUpdate"', self.installation)
+        self.assertNotIn("brew install navikt/tap/grillmester", self.text)
+        self.assertNotIn("grillmester update", self.text)
 
         baseline_heading = "### Installer den eksakte testbaselinen manuelt"
         self.assertLess(
@@ -153,7 +130,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         baseline = self.opencode_guide.split(
             baseline_heading, 1
         )[1].split("### Hent og verifiser en Grillmester-bundle", 1)[0]
-        self.assertIn("brew install opencode", standard_setup)
+        self.assertIn("brew install navikt/tap/cplt opencode", standard_setup)
         self.assertIn("resolver `opencode` fra `PATH`", " ".join(standard_setup.split()))
         self.assertNotIn("npm install --global opencode-ai@", standard_setup)
         self.assertNotIn("private `trusted-bin`", standard_setup)
@@ -163,7 +140,10 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertIn("ikke som runtimekrav", baseline)
         self.assertNotIn("manage_opencode.py", self.opencode_guide)
         self.assertNotIn("trusted-bin", self.opencode_guide)
-        self.assertIn("grillmester local setup --client opencode", self.opencode_guide)
+        self.assertIn(
+            "scripts/grillmester.py local setup --client opencode",
+            self.opencode_guide,
+        )
         self.assertIn("--pass-env MODEL_PROVIDER_API_KEY", self.opencode_guide)
 
     def test_readme_distinguishes_roles_and_support_compactly(self) -> None:
@@ -177,9 +157,9 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         normalized = " ".join(self.text.split())
         for marker in (
             "GitHub Copilot CLI er referanseklienten",
-            "Homebrew støttes på macOS",
+            "OpenCode og lokale modeller er foreløpig en checkout-pilot på macOS",
             "Linux og VS Code er utenfor release-løftet",
-            "Standardlauncheren støtter OpenCode 1.x fra `1.18.20`",
+            "Checkout-launcheren støtter OpenCode 1.x fra `1.18.20`",
             "Copilot CLI 1.x fra `1.0.79`",
             "cplt fra testbaselinen",
             "Hver modell må kvalitetsvalideres separat",
@@ -215,9 +195,10 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
 
     def test_advanced_installation_details_remain_in_the_guide(self) -> None:
         for marker in (
-            "Homebrew-terminalflyten støttes bare på macOS i denne releasen",
+            "Homebrew-formelen for Grillmester er ferdig",
+            "kanalen er ikke aktivert",
             "Copilot app",
-            "Alternativ: native Copilot CLI-installasjon med automatisk oppdatering",
+            "Valgfritt: automatisk oppdatering i Copilot CLI",
             '"enabledPlugins"',
             '"marketplace"',
             "velge **Update** under\n**Settings → Plugins**",
