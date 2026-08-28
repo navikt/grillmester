@@ -538,14 +538,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertIn(
             "https://github.com/navikt/copilot/releases/download/"
-            "nav-pilot/2026.08.27-085149-2c9bf30/nav-pilot-linux-amd64",
+            "nav-pilot/2026.08.28-091813-dc3e4ff/nav-pilot-linux-amd64",
             text,
         )
         self.assertIn(
-            "eece6dcfac150a8523e4bf264618e2234e5a497c9ded259adffeeee40f04225f",
+            "4be22c75be1424eb2691c00eae0a287facbd0afa95fd9249cb9c00e3071dcb72",
             text,
         )
-        self.assertIn("18272418", text)
+        self.assertIn("18395298", text)
         self.assertIn(
             'validate --source "${GITHUB_WORKSPACE}" --json',
             step,
@@ -573,6 +573,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             '"manifest: .nav-pilot/agentpakke.json"',
             '"agentpakke: grillmester (contract version 1)"',
             '"clients: copilot (tier 2), opencode (tier 2)"',
+            '"minNavPilotVersion: 2026.08.28-091813-dc3e4ff"',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, step)

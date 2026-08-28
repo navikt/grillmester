@@ -35,10 +35,10 @@ jobs:
       - name: Validate agentpakke with released nav-pilot contract
         shell: bash
         env:
-          NAV_PILOT_CONTRACT_BASELINE_VERSION: 2026.08.27-085149-2c9bf30
-          NAV_PILOT_CONTRACT_BASELINE_URL: https://github.com/navikt/copilot/releases/download/nav-pilot/2026.08.27-085149-2c9bf30/nav-pilot-linux-amd64
-          NAV_PILOT_CONTRACT_BASELINE_SHA256: eece6dcfac150a8523e4bf264618e2234e5a497c9ded259adffeeee40f04225f
-          NAV_PILOT_CONTRACT_BASELINE_SIZE: "18272418"
+          NAV_PILOT_CONTRACT_BASELINE_VERSION: 2026.08.28-091813-dc3e4ff
+          NAV_PILOT_CONTRACT_BASELINE_URL: https://github.com/navikt/copilot/releases/download/nav-pilot/2026.08.28-091813-dc3e4ff/nav-pilot-linux-amd64
+          NAV_PILOT_CONTRACT_BASELINE_SHA256: 4be22c75be1424eb2691c00eae0a287facbd0afa95fd9249cb9c00e3071dcb72
+          NAV_PILOT_CONTRACT_BASELINE_SIZE: "18395298"
           NAV_PILOT_TELEMETRY_ENABLED: "0"
         run: |
           set -euo pipefail
@@ -74,6 +74,7 @@ jobs:
               "manifest: .nav-pilot/agentpakke.json",
               "agentpakke: grillmester (contract version 1)",
               "clients: copilot (tier 2), opencode (tier 2)",
+              "minNavPilotVersion: 2026.08.28-091813-dc3e4ff",
           ]
           if result.get("command") != "validate":
               raise SystemExit("nav-pilot returned an unexpected command")

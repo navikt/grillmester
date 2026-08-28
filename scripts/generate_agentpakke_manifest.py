@@ -16,6 +16,7 @@ from typing import Any, Mapping, Sequence
 
 OUTPUT = Path(".nav-pilot/agentpakke.json")
 MAX_JSON_BYTES = 4 * 1024 * 1024
+MIN_NAV_PILOT_VERSION = "2026.08.28-091813-dc3e4ff"
 EXPECTED_PAYLOAD_TARGETS = {
     "plugin": "copilot-full-v1",
     "targets/copilot-cli-focused-v1": "copilot-cli-focused-v1",
@@ -179,7 +180,36 @@ def _compatibility_ranges(root: Path) -> tuple[str, str]:
     return f">={copilot_minimum},<2", f">={opencode_minimum},<2"
 
 
-def _validate_payloads(root: Path) -> None:
+def _manifest_agent_ids(manifest: Mapping[str, Any], relative: str) -> list[str]:
+    files = manifest.get("files")
+    if not isinstance(files, dict):
+        raise AgentpakkeManifestError(f"{relative}/manifest.json files must be an object")
+    suffix = ".agent.md" if relative in {
+        "plugin",
+        "targets/copilot-cli-focused-v1",
+    } else ".md"
+    agents = [
+        path.removeprefix("agents/").removesuffix(suffix)
+        for path in files
+        if isinstance(path, str)
+        and path.startswith("agents/")
+        and path.endswith(suffix)
+        and "/" not in path.removeprefix("agents/")
+    ]
+    if not agents or len(set(agents)) != len(agents):
+        raise AgentpakkeManifestError(
+            f"{relative}/manifest.json must contain unique agent files"
+        )
+    declared_agents = manifest.get("agents")
+    if declared_agents is not None and declared_agents != agents:
+        raise AgentpakkeManifestError(
+            f"{relative}/manifest.json agents differ from its files"
+        )
+    return agents
+
+
+def _validate_payloads(root: Path) -> dict[str, list[str]]:
+    payload_agents: dict[str, list[str]] = {}
     for relative, expected_target in EXPECTED_PAYLOAD_TARGETS.items():
         payload_path = root / relative
         current = root
@@ -202,13 +232,47 @@ def _validate_payloads(root: Path) -> None:
             raise AgentpakkeManifestError(
                 f"{relative}/manifest.json target must be {expected_target!r}"
             )
+        payload_agents[relative] = _manifest_agent_ids(manifest, relative)
+    return payload_agents
+
+
+def _focused_agents(root: Path, payload_agents: Mapping[str, list[str]]) -> list[str]:
+    policy = _load_json_object(root / "policy/focused-context-v1.json")
+    agents = policy.get("agents")
+    if (
+        not isinstance(agents, list)
+        or not agents
+        or not all(isinstance(agent, str) and agent for agent in agents)
+        or len(set(agents)) != len(agents)
+    ):
+        raise AgentpakkeManifestError(
+            "focused-context-v1 agents must be a non-empty list of unique strings"
+        )
+    for relative in (
+        "targets/copilot-cli-focused-v1",
+        "targets/opencode-v1-focused",
+    ):
+        if payload_agents[relative] != agents:
+            raise AgentpakkeManifestError(
+                f"focused-context-v1 agents differ from {relative}/manifest.json"
+            )
+    return agents
 
 
 def build_manifest(root: Path) -> dict[str, Any]:
     root = root.resolve()
     public_agents = _public_agents(root)
     copilot_compatibility, opencode_compatibility = _compatibility_ranges(root)
-    _validate_payloads(root)
+    payload_agents = _validate_payloads(root)
+    focused_agents = _focused_agents(root, payload_agents)
+    for relative in ("plugin", "targets/opencode-v1"):
+        missing = [
+            agent for agent in public_agents if agent not in payload_agents[relative]
+        ]
+        if missing:
+            raise AgentpakkeManifestError(
+                f"public agents are missing from {relative}/manifest.json: {missing}"
+            )
     plugin_metadata = _load_json_object(root / "plugin/plugin.json")
     description = plugin_metadata.get("description")
     if (
@@ -224,25 +288,36 @@ def build_manifest(root: Path) -> dict[str, Any]:
         "name": "grillmester",
         "description": description,
         "owner": {"repo": "navikt/grillmester", "team": "Team eSyfo"},
+        "minNavPilotVersion": MIN_NAV_PILOT_VERSION,
         "clients": {
             "copilot": {
-                "primaryAgents": public_agents,
                 "compatibility": copilot_compatibility,
                 "defaultModel": "inherit",
                 "defaultContext": "full",
                 "payloads": {
-                    "full": {"path": "plugin"},
-                    "focused": {"path": "targets/copilot-cli-focused-v1"},
+                    "full": {
+                        "path": "plugin",
+                        "primaryAgents": list(public_agents),
+                    },
+                    "focused": {
+                        "path": "targets/copilot-cli-focused-v1",
+                        "primaryAgents": list(focused_agents),
+                    },
                 },
             },
             "opencode": {
-                "primaryAgents": public_agents,
                 "compatibility": opencode_compatibility,
                 "defaultModel": "inherit",
                 "defaultContext": "full",
                 "payloads": {
-                    "full": {"path": "targets/opencode-v1"},
-                    "focused": {"path": "targets/opencode-v1-focused"},
+                    "full": {
+                        "path": "targets/opencode-v1",
+                        "primaryAgents": list(public_agents),
+                    },
+                    "focused": {
+                        "path": "targets/opencode-v1-focused",
+                        "primaryAgents": list(focused_agents),
+                    },
                 },
             },
         },

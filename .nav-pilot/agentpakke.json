@@ -6,42 +6,51 @@
     "repo": "navikt/grillmester",
     "team": "Team eSyfo"
   },
+  "minNavPilotVersion": "2026.08.28-091813-dc3e4ff",
   "clients": {
     "copilot": {
-      "primaryAgents": [
-        "grillmester",
-        "barista",
-        "designer",
-        "doctor-who"
-      ],
       "compatibility": ">=1.0.79,<2",
       "defaultModel": "inherit",
       "defaultContext": "full",
       "payloads": {
         "full": {
-          "path": "plugin"
+          "path": "plugin",
+          "primaryAgents": [
+            "grillmester",
+            "barista",
+            "designer",
+            "doctor-who"
+          ]
         },
         "focused": {
-          "path": "targets/copilot-cli-focused-v1"
+          "path": "targets/copilot-cli-focused-v1",
+          "primaryAgents": [
+            "barista",
+            "grill-inspektor"
+          ]
         }
       }
     },
     "opencode": {
-      "primaryAgents": [
-        "grillmester",
-        "barista",
-        "designer",
-        "doctor-who"
-      ],
       "compatibility": ">=1.18.20,<2",
       "defaultModel": "inherit",
       "defaultContext": "full",
       "payloads": {
         "full": {
-          "path": "targets/opencode-v1"
+          "path": "targets/opencode-v1",
+          "primaryAgents": [
+            "grillmester",
+            "barista",
+            "designer",
+            "doctor-who"
+          ]
         },
         "focused": {
-          "path": "targets/opencode-v1-focused"
+          "path": "targets/opencode-v1-focused",
+          "primaryAgents": [
+            "barista",
+            "grill-inspektor"
+          ]
         }
       }
     }

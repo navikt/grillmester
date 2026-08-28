@@ -166,14 +166,16 @@ før teamet eventuelt rydder i repo-lokale komponenter.
 Grillmester publiserer `.nav-pilot/agentpakke.json` som en Tier 2-kontrakt over
 de fire deterministiske payloadene Copilot CLI/OpenCode × full/fokusert.
 Kontrakten lar `nav-pilot` validere samme innhold uten en ny sync eller en
-nav-pilot-spesifikk kopi. Installasjon og launch gjennom `nav-pilot` annonseres
-først når den aktuelle nav-pilot-milestolpen støtter Tier 2 ende-til-ende og de
-fire scenarioene er differensialtestet mot Grillmesters egne launchere.
-Agentpakke v1 uttrykker agentrosteren per klient, mens focused-payloadene bare
-har Barista som primæragent. Focused-launch gjennom nav-pilot venter derfor på
-en oppstrøms kontrakt for kontekstspesifikk agenttilgjengelighet; Grillmester
-gjetter ikke på et privat felt eller lover de fire fullagentene i focused-
-kontekst.
+nav-pilot-spesifikk innholdskopi. Hver payload oppgir sin faktiske agentroster:
+full har de fire offentlige agentene, mens focused har Barista som standard og
+Grill-inspektør som underagent. Manifestet krever første nav-pilot-release som
+støtter denne kontrakten og installert, revisjonspinnet Tier 2-materialisering.
+
+nav-pilot verifiserer den valgte payloaden mot manifestdigestene ved launch.
+Dette er integritetskontroll innenfor samme brukergrense, ikke en signert
+provenancepåstand; en prosess som kan endre både payload og manifest kan fortsatt
+omgå kontrollen. Bred installasjon annonseres først når de fire scenarioene er
+differensialtestet mot Grillmesters egne launchere.
 
 Før stabil lansering bredt i Nav må eierne i tillegg avtale hvilke MCP
 Registry-ID-er som er støttet, og hvem som eier overlappende innhold. Inntil
