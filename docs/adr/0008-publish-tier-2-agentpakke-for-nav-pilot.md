@@ -27,11 +27,16 @@ deterministisk av `scripts/generate_agentpakke_manifest.py` og peker på:
 - `plugin/` og `targets/copilot-cli-focused-v1/` for Copilot CLI
 - `targets/opencode-v1/` og `targets/opencode-v1-focused/` for OpenCode
 
-Generatoren avleder primæragentene fra launcherens offentlige agenter og
-verifiserer dem mot innholdslåsen. Kompatibilitetsintervallene avledes fra
-standardstøtten i release-testkontrakten. Alle fire payloadstier og
-payloadmanifestenes target-identitet valideres før agentpakkemanifestet kan
-oppdateres.
+Hver payload oppgir sine egne `primaryAgents`. Full payload bruker de fire
+offentlige agentene Grillmester, Barista, Designer og Doctor Who. Focused-
+payload bruker Barista og Grill-inspektør, med Barista først og dermed som
+standard. Generatoren avleder fullrosteren fra launcherens offentlige agenter,
+verifiserer den mot innholdslåsen og krever at focused-rosteren stemmer med
+både focused-policyen og de to genererte payloadmanifestene.
+
+Kompatibilitetsintervallene avledes fra standardstøtten i release-
+testkontrakten. Alle fire payloadstier, agentrostre og payloadmanifestenes
+target-identitet valideres før agentpakkemanifestet kan oppdateres.
 
 Begge klienter bruker `defaultModel: inherit`. Agentpakkemanifestet velger
 dermed ingen fallbackmodell på brukerens vegne. Modellfelt som allerede finnes
@@ -41,28 +46,30 @@ payloadene arver modell fra klienten eller brukervalget. Begge klienter bruker
 full kontekst som standard, mens fokusert kontekst er et eksplisitt valg for
 lokal modell eller andre kontekstbegrensede kjøringer.
 
-Kontrakt v1 uttrykker `primaryAgents` på klientnivå, men Grillmesters focused-
-payloads eksponerer bare Barista som primæragent og Grill-inspektør som
-underagent. Manifestet er derfor gyldig for M1-validering, men M2-launch av
-focused-kontekst må vente til nav-pilot har definert kontekstspesifikk
-agenttilgjengelighet eller eksplisitt skjæringssemantikk. Grillmester legger
-ikke til et privat manifestfelt før den kontrakten er avtalt oppstrøms.
+Manifestet krever nav-pilot `2026.08.28-091813-dc3e4ff` eller nyere. Dette er
+første release som både forstår payloadspesifikke primæragenter og installerer
+en ekstern Tier 2-pakke som en lokal, revisjonspinnet materialisering. Den
+samme releasete nav-pilot-binæren brukes som ekstern konformansvalidator i CI,
+men er ikke en avhengighet for Grillmesters frittstående launchere.
 
-Manifestet inneholder foreløpig ingen `minNavPilotVersion`, policyprofil eller
-provenance-påstand. De feltene legges først til når en faktisk runtimekontrakt
-eller en sann, digestbundet base finnes. Den releasete nav-pilot-binæren brukes
-som ekstern konformansvalidator i CI, men er ikke en Grillmester-runtime-
-avhengighet.
+For pinnede repo-kilder verifiserer nav-pilot hele pakken ved installasjon og
+den valgte payloaden mot manifestdigestene ved launch. Dette oppdager endringer
+i payloadfiler, men manifestet er ikke kryptografisk signert: en prosess med
+samme brukertilgang kan endre både en fil og den tilhørende digesten. Denne
+grensen er akseptert i nav-pilots kontrakt. cplt beholder ansvaret for
+runtimeisolasjon; agentpakkemanifestet gjør ingen sterkere provenance-påstand.
 
 ## Konsekvenser
 
 - Grillmester beholder én kanonisk plugin og sine eksisterende generatorer.
-- nav-pilot kan stage eksakt de samme payloadene som de frittstående
+- nav-pilot kan installere eksakt de samme payloadene som de frittstående
   launcherne, uten å håndredigere eller vendore dem.
 - Endringer i offentlig agentroster, standard klientstøtte eller payloadtarget
   gjør manifestet stale og blokkeres av validatoren til det regenereres.
-- nav-pilot-installasjon annonseres ikke før Tier 2-staging og launch er levert,
-  focused-agentsemantikken er avklart og alle fire klient-/kontekstscenarier er
-  differensialtestet.
+- Manifestet deklarerer bare klientpayloads og ingen nav-pilot-layout. Det kan
+  derfor ikke treffe tvetydigheten som gjør at en Tier 2-pakke med begge deler
+  avvises.
+- Bred nav-pilot-bruk annonseres først når alle fire klient-/kontekstscenarier
+  er differensialtestet mot Grillmesters egne launchere.
 - Terminalbundle og eksisterende pluginflyt fortsetter å virke uavhengig av
   nav-pilot.

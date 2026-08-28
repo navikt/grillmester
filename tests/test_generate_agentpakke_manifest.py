@@ -36,12 +36,22 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
         self.assertEqual("1", manifest["contractVersion"])
         self.assertEqual("grillmester", manifest["name"])
         self.assertEqual(
-            ["grillmester", "barista", "designer", "doctor-who"],
-            manifest["clients"]["copilot"]["primaryAgents"],
+            "2026.08.28-091813-dc3e4ff",
+            manifest["minNavPilotVersion"],
         )
+        self.assertNotIn("primaryAgents", manifest["clients"]["copilot"])
+        self.assertNotIn("primaryAgents", manifest["clients"]["opencode"])
         self.assertEqual(
-            manifest["clients"]["copilot"]["primaryAgents"],
-            manifest["clients"]["opencode"]["primaryAgents"],
+            {
+                "path": "plugin",
+                "primaryAgents": [
+                    "grillmester",
+                    "barista",
+                    "designer",
+                    "doctor-who",
+                ],
+            },
+            manifest["clients"]["copilot"]["payloads"]["full"],
         )
         self.assertEqual(
             ">=1.0.79,<2", manifest["clients"]["copilot"]["compatibility"]
@@ -51,23 +61,98 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "full": {"path": "plugin"},
-                "focused": {"path": "targets/copilot-cli-focused-v1"},
+                "full": {
+                    "path": "plugin",
+                    "primaryAgents": [
+                        "grillmester",
+                        "barista",
+                        "designer",
+                        "doctor-who",
+                    ],
+                },
+                "focused": {
+                    "path": "targets/copilot-cli-focused-v1",
+                    "primaryAgents": ["barista", "grill-inspektor"],
+                },
             },
             manifest["clients"]["copilot"]["payloads"],
         )
         self.assertEqual(
             {
-                "full": {"path": "targets/opencode-v1"},
-                "focused": {"path": "targets/opencode-v1-focused"},
+                "full": {
+                    "path": "targets/opencode-v1",
+                    "primaryAgents": [
+                        "grillmester",
+                        "barista",
+                        "designer",
+                        "doctor-who",
+                    ],
+                },
+                "focused": {
+                    "path": "targets/opencode-v1-focused",
+                    "primaryAgents": ["barista", "grill-inspektor"],
+                },
             },
             manifest["clients"]["opencode"]["payloads"],
         )
         for client in manifest["clients"].values():
             self.assertEqual("inherit", client["defaultModel"])
             self.assertEqual("full", client["defaultContext"])
-        self.assertNotIn("minNavPilotVersion", manifest)
         self.assertNotIn("provenance", manifest)
+
+    def test_focused_roster_must_match_both_generated_payloads(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            policy_path = root / "policy/focused-context-v1.json"
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            policy["agents"] = ["grill-inspektor", "barista"]
+            policy_path.write_text(
+                json.dumps(policy, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                GENERATOR.AgentpakkeManifestError,
+                "focused-context-v1 agents differ",
+            ):
+                GENERATOR.build_manifest(root)
+        finally:
+            temporary.cleanup()
+
+    def test_public_agents_must_exist_in_both_full_payloads(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            manifest_path = root / "targets/opencode-v1/manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files"].pop("agents/grillmester.md")
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                GENERATOR.AgentpakkeManifestError,
+                "public agents are missing from targets/opencode-v1/manifest.json",
+            ):
+                GENERATOR.build_manifest(root)
+        finally:
+            temporary.cleanup()
+
+    def test_declared_payload_agents_must_match_manifested_files(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            manifest_path = root / "targets/opencode-v1-focused/manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["agents"] = ["barista", "not-in-payload"]
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                GENERATOR.AgentpakkeManifestError,
+                "agents differ from its files",
+            ):
+                GENERATOR.build_manifest(root)
+        finally:
+            temporary.cleanup()
 
     def test_standard_support_ranges_are_derived_from_release_contract(self) -> None:
         temporary, root = self.copy_repository()
