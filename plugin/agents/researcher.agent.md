@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: "Internal read-only researcher for one claimed Wayfinder research ticket that needs sourced facts from repository material or authoritative external documentation."
-model: "gpt-5.6-sol"
+model: "gpt-5.6-terra"
 user-invocable: false
 disable-model-invocation: false
 tools:

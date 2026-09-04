@@ -210,7 +210,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
             relative = f"agents/{agent}.agent.md"
             source = (ROOT / "plugin" / relative).read_text(encoding="utf-8")
             focused = copilot[relative][0].decode("utf-8")
-            self.assertRegex(source.split("---", 2)[1], r'(?m)^model: "gpt-5\.6-sol"$')
+            self.assertRegex(source.split("---", 2)[1], r'(?m)^model: ".+"$')
             self.assertNotRegex(focused.split("---", 2)[1], r"(?m)^model:")
 
         opencode_manifest = json.loads(opencode["manifest.json"][0])
