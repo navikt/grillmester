@@ -48,13 +48,6 @@ OPENCODE_DISTRIBUTION_FILES = (
     "scripts/release_contract.py",
     "scripts/smoke_grillmester_local.py",
 )
-STABLE_GATE_HARNESS_FILES = (
-    "scripts/release_test_baseline.py",
-    "scripts/smoke_grillmester_tui.py",
-    "scripts/smoke_plugin_install.py",
-    "scripts/smoke_opencode.py",
-    "scripts/smoke_opencode_runtime.py",
-)
 _BASELINE_SPEC = importlib.util.spec_from_file_location(
     "grillmester_release_test_baseline_for_release_contract",
     Path(__file__).with_name("release_test_baseline.py"),
