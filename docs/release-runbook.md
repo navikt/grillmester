@@ -311,14 +311,19 @@ another authorized repository writer. Existing workflow validation, protected
 `main`, and environment review remain defense-in-depth controls, not proof of
 strict writer separation.
 
-## Release a candidate
+## Publish a release
 
-1. Set `plugin/plugin.json.version` to a strict prerelease SemVer, for example
-   `0.3.0-rc.1`. Build metadata is not accepted, and a version must never be
-   reused for different payload bytes.
+There is one release flow and one channel. A version is just a version: a
+strict SemVer prerelease suffix marks the GitHub Release as a prerelease, and a
+plain version marks it as the latest stable release. Nothing else distinguishes
+them, and no release is promoted from another.
+
+1. Set `plugin/plugin.json.version` to a strict SemVer, for example `0.3.2`, or
+   `0.3.2-rc.1` for a prerelease. Build metadata is not accepted, and a version
+   must never be reused for different payload bytes.
 2. Merge that source change normally. From current `main`, explicitly dispatch
-   **Publish marketplace catalog** with `channel=rc`, the exact lowercase
-   40-character `source_sha` to promote, and an empty `rc_tag`. Wait for it to
+   **Publish marketplace catalog** with the exact lowercase 40-character
+   `source_sha` to promote. Wait for it to
    complete, then resolve the exact catalog-only commit containing the version:
 
    ```bash
@@ -328,7 +333,7 @@ strict writer separation.
    ```
 
 3. Optionally dispatch **Validate immutable release** from the `main` branch
-   with `channel=rc`, the full `catalog_sha`, and an empty `rc_tag`. A run from
+   with the full `catalog_sha`. A run from
    another selected ref fails rather than being skipped. This preflight is
    read-only and is not a publication request.
 4. Open a separate PR that changes only `.github/release-request.json`:
@@ -336,10 +341,8 @@ strict writer separation.
    ```json
    {
      "schemaVersion": 1,
-     "requestId": "v0.3.0-rc.1-1",
-     "channel": "rc",
-     "catalogSha": "0123456789abcdef0123456789abcdef01234567",
-     "rcTag": ""
+     "requestId": "v0.3.2-1",
+     "catalogSha": "0123456789abcdef0123456789abcdef01234567"
    }
    ```
 
@@ -412,48 +415,6 @@ machine, context limit, focused/full input tokens, tool calls, delegation,
 output quality and that Copilot reports zero premium requests. Use an empty,
 disposable consumer repository and no cloud model. Passing a Qwen pilot does
 not extend the support claim to another model or quantization.
-
-## Promote a reviewed candidate to stable
-
-Stable is a new version, source commit, catalog commit, tag, and GitHub Release;
-it is never a second label on the RC catalog. Create a source commit whose
-plugin manifest uses the stable version, such as `0.3.0`. Apart from that exact
-`version` value, the corresponding generated `plugin/manifest.json` digest and
-the focused Copilot manifest's two derived digests, the package payload and
-manifest formats must be byte-identical to the named candidate. The release
-contract must also be byte-identical. OpenCode distribution inputs — generated
-target, launchers and bundle-builder contract — must also be byte-identical
-between RC and
-stable; the outer bundle manifest and checksum are expected to change because
-they bind the new stable source SHA. Before either validation or publication can
-promote stable, the workflow also downloads the named RC's two public assets,
-requires their API and detached digests, rebuilds the RC archive from the exact
-source SHA, and requires byte identity. Explicitly
-dispatch **Publish
-marketplace catalog** from current `main` with `channel=stable`, the new stable
-source commit as `source_sha`, and the exact reviewed prerelease tag (for
-example `v0.3.0-rc.1`) as `rc_tag`. That publisher revalidates the public RC
-release, rights approval, source parity, rebuilt RC bundle, API asset digests,
-and detached checksum before it creates the new stable-versioned catalog.
-
-Optionally run the read-only validator with `channel=stable`, the new catalog
-SHA, and the reviewed prerelease tag. Then merge a separate request-file PR:
-
-```json
-{
-  "schemaVersion": 1,
-  "requestId": "v0.3.0-1",
-  "channel": "stable",
-  "catalogSha": "fedcba9876543210fedcba9876543210fedcba98",
-  "rcTag": "v0.3.0-rc.1"
-}
-```
-
-The publisher peels the named RC tag, verifies its prerelease, requires the RC
-and stable versions to share `major.minor.patch`, verifies both catalog/source chains, and
-allows no payload change beyond the manifest version and its mechanically
-derived hashes. It then creates the new
-stable tag and release. Never retag the RC catalog.
 
 ## Idempotency and interrupted publication
 
