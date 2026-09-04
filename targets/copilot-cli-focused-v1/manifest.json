@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "5bc3b73e222dad11c7fc4d7e5cae2eb3423c90bae6374eb362a11d42379a5470",
+    "payloadManifestSha256": "5c3b867e82b5a86d8344280e703900cf4e0a1d883d9a8bb62d4d40fb43ce2e3b",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "5fe33032e71361e42c42729f5c0ca43fe67ca7e90dff898819ed01bcddf33283"
   },
@@ -57,7 +57,7 @@
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "145e0d370b03dd289f7ade82e0861379255eed9578c5e923a830884b260cd420",
+      "sha256": "acfdb4f1615fd6898d2a6a51e2aca55d1e791466b8b08b83692133222ce6c87e",
       "mode": "0644"
     },
     "skills/grillmester-diagnosing-bugs/SKILL.md": {
