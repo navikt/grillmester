@@ -255,12 +255,10 @@ jobs:
           [[ "$(jq -r '.immutable' <<<"${rc_release}")" == "true" ]]
           rc_bundle_name="grillmester-terminal-${RC_TAG}.tar.gz"
           rc_checksum_name="${rc_bundle_name}.sha256"
-          rc_formula_name="grillmester.rb"
           jq -e \
             --arg bundle "${rc_bundle_name}" --arg checksum "${rc_checksum_name}" \
-            --arg formula "${rc_formula_name}" \
-            '(.assets | length) == 3 and
-             ([.assets[].name] | sort) == ([$bundle, $checksum, $formula] | sort) and
+            '(.assets | length) == 2 and
+             ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
              all(.assets[];
                .state == "uploaded" and
                (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")) and
@@ -269,22 +267,16 @@ jobs:
              any(.assets[];
                .name == $bundle and .label == "Grillmester terminal bundle") and
              any(.assets[];
-               .name == $checksum and .label == "SHA-256 checksum") and
-             any(.assets[];
-               .name == $formula and .label == "Homebrew formula")' \
+               .name == $checksum and .label == "SHA-256 checksum")' \
             <<<"${rc_release}" >/dev/null
           rc_assets="${RUNNER_TEMP}/stable-gate-rc-assets"
           mkdir -p "${rc_assets}"
           rc_published_bundle="${rc_assets}/${rc_bundle_name}"
           rc_published_checksum="${rc_assets}/${rc_checksum_name}"
-          rc_published_formula="${rc_assets}/${rc_formula_name}"
           rc_bundle_url="$(jq -er --arg name "${rc_bundle_name}" \
             '.assets[] | select(.name == $name) | .browser_download_url' \
             <<<"${rc_release}")"
           rc_checksum_url="$(jq -er --arg name "${rc_checksum_name}" \
-            '.assets[] | select(.name == $name) | .browser_download_url' \
-            <<<"${rc_release}")"
-          rc_formula_url="$(jq -er --arg name "${rc_formula_name}" \
             '.assets[] | select(.name == $name) | .browser_download_url' \
             <<<"${rc_release}")"
           curl --config /dev/null --fail-with-body --silent --show-error --location \
@@ -295,10 +287,6 @@ jobs:
             --proto '=https' --tlsv1.2 --proto-redir '=https' \
             --max-filesize 1024 \
             "${rc_checksum_url}" --output "${rc_published_checksum}"
-          curl --config /dev/null --fail-with-body --silent --show-error --location \
-            --proto '=https' --tlsv1.2 --proto-redir '=https' \
-            --max-filesize 100000 \
-            "${rc_formula_url}" --output "${rc_published_formula}"
           rc_rebuilt_bundle="${RUNNER_TEMP}/rebuilt-${rc_bundle_name}"
           python3 "${rc_source_repo}/scripts/build_opencode_bundle.py" \
             --source-root "${rc_source_repo}" --source-sha "${rc_source_sha}" \
@@ -306,28 +294,17 @@ jobs:
           cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"
           rc_bundle_sha256="$(sha256sum "${rc_published_bundle}" | cut -d' ' -f1)"
           rc_checksum_sha256="$(sha256sum "${rc_published_checksum}" | cut -d' ' -f1)"
-          rc_formula_sha256="$(sha256sum "${rc_published_formula}" | cut -d' ' -f1)"
           [[ "$(jq -er --arg name "${rc_bundle_name}" \
             '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
             "sha256:${rc_bundle_sha256}" ]]
           [[ "$(jq -er --arg name "${rc_checksum_name}" \
             '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
             "sha256:${rc_checksum_sha256}" ]]
-          [[ "$(jq -er --arg name "${rc_formula_name}" \
-            '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
-            "sha256:${rc_formula_sha256}" ]]
           expected_checksum="${RUNNER_TEMP}/expected-${rc_checksum_name}"
           printf '%s  %s\n' \
             "${rc_bundle_sha256}" "${rc_bundle_name}" > "${expected_checksum}"
           cmp -s "${expected_checksum}" "${rc_published_checksum}"
           (cd "${rc_assets}" && sha256sum --check --strict "${rc_checksum_name}")
-          rc_expected_formula="${RUNNER_TEMP}/expected-rc-grillmester.rb"
-          python3 "${rc_source_repo}/scripts/generate_homebrew_formula.py" \
-            --tag "${RC_TAG}" --bundle-name "${rc_bundle_name}" \
-            --bundle-sha256 "${rc_bundle_sha256}" \
-            --output "${rc_expected_formula}"
-          ruby -c "${rc_published_formula}"
-          cmp -s "${rc_expected_formula}" "${rc_published_formula}"
 
       - name: Validate exact source against sealed catalog
         shell: bash

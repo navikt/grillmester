@@ -87,7 +87,6 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             "python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch",
             "starter du først en OpenAI-kompatibel modellserver",
             "cd /path/to/consumer-repo",
-            "Homebrew-kanalen for Grillmester er ikke aktivert",
             "Videre terminaldistribusjon samordnes med nav-pilot",
         ):
             with self.subTest(marker=marker):
@@ -195,8 +194,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
 
     def test_advanced_installation_details_remain_in_the_guide(self) -> None:
         for marker in (
-            "Homebrew-formelen for Grillmester er ferdig",
-            "kanalen er ikke aktivert",
+            "terminaldistribusjon samordnes med nav-pilot",
             "Copilot app",
             "Valgfritt: automatisk oppdatering i Copilot CLI",
             '"enabledPlugins"',

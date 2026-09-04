@@ -676,7 +676,6 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertIn("--print-command", stdout.getvalue())
         self.assertIn("choose    change and save", stdout.getvalue())
         self.assertIn("doctor    verify", stdout.getvalue())
-        self.assertIn("update    update", stdout.getvalue())
         self.assertIn("version   show", stdout.getvalue())
         self.assertIn("Examples:", stdout.getvalue())
         self.assertIn("grillmester local setup", stdout.getvalue())
@@ -736,106 +735,6 @@ class GrillmesterCliTests(unittest.TestCase):
         prompt.assert_not_called()
         save.assert_not_called()
         runtime.assert_not_called()
-
-    def test_update_commands_run_homebrew_without_launching_a_client(self) -> None:
-        for command in ("update", "upgrade"):
-            with self.subTest(command=command), tempfile.TemporaryDirectory() as directory:
-                brew = Path(directory) / "brew"
-                brew.write_text("fixture\n", encoding="utf-8")
-                brew.chmod(0o700)
-                refreshed = CLI.subprocess.CompletedProcess([str(brew), "update"], 0)
-                with mock.patch.object(
-                    CLI, "_homebrew_managed_installation", return_value=True
-                ), mock.patch.object(
-                    CLI.shutil, "which", return_value=str(brew)
-                ), mock.patch.object(
-                    CLI.subprocess, "run", return_value=refreshed
-                ) as run, mock.patch.object(
-                    CLI.os, "execv"
-                ) as execute, mock.patch.object(
-                    CLI, "load_preferences"
-                ) as load, mock.patch.object(
-                    CLI, "check_client"
-                ) as check_client, redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                    result = CLI.main([command])
-
-                self.assertEqual(0, result)
-                resolved_brew = str(brew.resolve(strict=True))
-                run.assert_called_once_with([resolved_brew, "update"], check=False)
-                execute.assert_called_once_with(
-                    resolved_brew, [resolved_brew, "upgrade", "grillmester"]
-                )
-                load.assert_not_called()
-                check_client.assert_not_called()
-
-    def test_update_commands_reject_arguments_before_preferences_or_brew(self) -> None:
-        for command in ("update", "upgrade"):
-            with self.subTest(command=command):
-                stderr = io.StringIO()
-                with mock.patch.object(
-                    CLI, "load_preferences"
-                ) as load, mock.patch.object(
-                    CLI, "update_installation"
-                ) as update, redirect_stdout(io.StringIO()), redirect_stderr(stderr):
-                    result = CLI.main([command, "--greedy"])
-
-                self.assertEqual(2, result)
-                self.assertIn(
-                    f"grillmester {command} takes no arguments", stderr.getvalue()
-                )
-                load.assert_not_called()
-                update.assert_not_called()
-
-    def test_failed_homebrew_refresh_never_attempts_the_upgrade(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            brew = Path(directory) / "brew"
-            brew.write_text("fixture\n", encoding="utf-8")
-            brew.chmod(0o700)
-            refreshed = CLI.subprocess.CompletedProcess([str(brew), "update"], 1)
-            stderr = io.StringIO()
-            with mock.patch.object(
-                CLI, "_homebrew_managed_installation", return_value=True
-            ), mock.patch.object(
-                CLI.shutil, "which", return_value=str(brew)
-            ), mock.patch.object(
-                CLI.subprocess, "run", return_value=refreshed
-            ), mock.patch.object(
-                CLI.os, "execv"
-            ) as execute, redirect_stdout(io.StringIO()), redirect_stderr(stderr):
-                result = CLI.main(["update"])
-
-        self.assertEqual(2, result)
-        self.assertIn("was not upgraded", stderr.getvalue())
-        execute.assert_not_called()
-
-    def test_update_without_homebrew_has_an_actionable_error(self) -> None:
-        stderr = io.StringIO()
-        with mock.patch.object(
-            CLI, "_homebrew_managed_installation", return_value=True
-        ), mock.patch.object(
-            CLI.shutil, "which", return_value=None
-        ), redirect_stdout(io.StringIO()), redirect_stderr(stderr):
-            result = CLI.main(["update"])
-
-        self.assertEqual(2, result)
-        self.assertIn("https://brew.sh/", stderr.getvalue())
-
-    def test_update_outside_a_homebrew_keg_is_refused_before_brew_runs(self) -> None:
-        stderr = io.StringIO()
-        with mock.patch.object(
-            CLI.shutil, "which"
-        ) as which, mock.patch.object(
-            CLI.subprocess, "run"
-        ) as run, mock.patch.object(
-            CLI.os, "execv"
-        ) as execute, redirect_stdout(io.StringIO()), redirect_stderr(stderr):
-            result = CLI.main(["update"])
-
-        self.assertEqual(2, result)
-        self.assertIn("does not run from a Homebrew installation", stderr.getvalue())
-        which.assert_not_called()
-        run.assert_not_called()
-        execute.assert_not_called()
 
     def test_arguments_without_selection_require_a_saved_default_noninteractively(
         self,

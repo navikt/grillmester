@@ -37,8 +37,8 @@ påkrevd.
 
 ### OpenCode og lokale modeller — pilot fra checkout
 
-OpenCode laster ikke Copilot-plugins. Homebrew-kanalen for Grillmester er ikke
-aktivert; OpenCode og lokale modeller kan foreløpig piloteres fra en checkout.
+OpenCode laster ikke Copilot-plugins. OpenCode og lokale modeller kan
+foreløpig piloteres fra en checkout.
 Videre terminaldistribusjon samordnes med nav-pilot. Installer cplt og ønsket
 klient:
 

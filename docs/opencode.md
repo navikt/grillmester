@@ -8,7 +8,7 @@ launcheren godtar kompatible nyere 1.x-versjoner.
 
 ## Kom i gang
 
-Homebrew-kanalen for Grillmester er ikke aktivert. OpenCode kan foreløpig
+OpenCode kan foreløpig
 piloteres fra en lokal Grillmester-checkout; videre terminaldistribusjon
 samordnes med nav-pilot. Installer cplt og den bruker-eide OpenCode-klienten:
 
@@ -126,8 +126,8 @@ beholder den effektive cplt-policyen og åpner bare den valgte loopback-porten.
 
 ## Avansert: manuell binding og verifisering
 
-Resten er for utvikling og releaseverifisering. Normal Homebrew-bruk trenger
-ikke disse stegene.
+Resten er for utvikling og releaseverifisering. Normal bruk trenger ikke
+disse stegene.
 
 ### Bind et checkout-target manuelt
 
@@ -180,9 +180,9 @@ runtimepinner.
 
 ### Hent og verifiser en Grillmester-bundle
 
-En GitHub Release publiserer én deterministisk terminal-`tar.gz`, detached
-`.sha256` og Homebrew-formelen. GitHubs automatisk genererte source-arkiv er
-ikke installasjonsartefaktet:
+En GitHub Release publiserer én deterministisk terminal-`tar.gz` og en
+detached `.sha256`. GitHubs automatisk genererte source-arkiv er ikke
+installasjonsartefaktet:
 
 ```bash
 tag=vREPLACE_WITH_VERSION

@@ -179,7 +179,7 @@ class LaunchChecks:
 
 
 def distribution_root() -> Path:
-    """Resolve through a Homebrew/bin symlink to the immutable bundle root."""
+    """Resolve through a symlink to the immutable bundle root."""
 
     return Path(__file__).resolve(strict=True).parent.parent
 
@@ -539,7 +539,6 @@ def parse_invocation(
             "  choose    change and save the default without launching\n"
             "  doctor    verify the distribution and installed clients\n"
             "  local     use one configured loopback model (focused by default)\n"
-            "  update    update the Homebrew installation\n"
             "  help      show this help\n"
             "  version   show the installed Grillmester version\n\n"
             "Examples:\n"
@@ -1082,51 +1081,6 @@ def discover_clients(candidates: Sequence[str] = CLIENTS) -> tuple[str, ...]:
     return tuple(available)
 
 
-def _homebrew_managed_installation() -> bool:
-    """Report whether this launcher runs from a Homebrew keg."""
-
-    try:
-        script = Path(__file__).resolve(strict=True)
-    except OSError:
-        return False
-    if "Cellar" in script.parts:
-        return True
-    cellar = os.environ.get("HOMEBREW_CELLAR")
-    if not cellar:
-        return False
-    try:
-        return script.is_relative_to(Path(cellar).resolve())
-    except OSError:
-        return False
-
-
-def update_installation() -> None:
-    """Refresh Homebrew metadata and replace this installation explicitly."""
-
-    if not _homebrew_managed_installation():
-        raise LauncherError(
-            "this Grillmester does not run from a Homebrew installation, so "
-            "'grillmester update' would not update it; update the checkout or "
-            "distribution through its own channel instead"
-        )
-    resolved = shutil.which("brew")
-    if resolved is None:
-        raise LauncherError(
-            "Homebrew was not found on PATH; install it from https://brew.sh/"
-        )
-    try:
-        brew = str(Path(resolved).resolve(strict=True))
-        refreshed = subprocess.run([brew, "update"], check=False)
-    except OSError as exc:
-        raise LauncherError(f"could not run Homebrew update: {exc}") from exc
-    if refreshed.returncode != 0:
-        raise LauncherError(
-            f"brew update failed with exit {refreshed.returncode}; "
-            "Grillmester was not upgraded"
-        )
-    os.execv(brew, [brew, "upgrade", "grillmester"])
-
-
 def doctor(client: str | None, *, root: Path | None = None) -> int:
     distribution = load_distribution(root)
     print(f"ok  distribution {distribution.root} (v{distribution.version})")
@@ -1474,13 +1428,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
             return doctor(options.client)
         if arguments in (["--help"], ["-h"], ["help"]):
             parse_invocation(["--help"])
-            return 0
-        if arguments[:1] in (["update"], ["upgrade"]):
-            if len(arguments) != 1:
-                raise LauncherError(
-                    f"grillmester {arguments[0]} takes no arguments"
-                )
-            update_installation()
             return 0
         if arguments == ["--version"] or arguments == ["version"]:
             distribution = load_distribution()

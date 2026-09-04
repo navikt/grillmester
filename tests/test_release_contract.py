@@ -58,7 +58,6 @@ def write_opencode_distribution_inputs(root: Path, content: str = "reviewed\n") 
         "build_opencode_bundle.py",
         "generate_copilot_manifest.py",
         "generate_context_projections.py",
-        "generate_homebrew_formula.py",
         "grillmester.py",
         "grillmester_local.py",
         "release_test_baseline.py",
@@ -905,7 +904,7 @@ class ReleaseContractTest(unittest.TestCase):
                         )
                     path.write_bytes(reviewed)
 
-    def test_stable_promotion_rejects_launcher_and_formula_generator_drift(
+    def test_stable_promotion_rejects_launcher_drift(
         self,
     ) -> None:
         stable = CONTRACT.Catalog(
@@ -914,10 +913,7 @@ class ReleaseContractTest(unittest.TestCase):
         rc = CONTRACT.Catalog(
             version=CONTRACT.parse_version("1.4.0-rc.2"), source_sha="2" * 40
         )
-        protected = (
-            "scripts/grillmester.py",
-            "scripts/generate_homebrew_formula.py",
-        )
+        protected = ("scripts/grillmester.py",)
         for relative in protected:
             self.assertIn(relative, CONTRACT.OPENCODE_DISTRIBUTION_FILES)
         self.assertIn(
@@ -984,35 +980,22 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("catalog source →", notes)
         self.assertIn("navikt/grillmester#v0.2.0-poc.4", notes)
         self.assertIn("grillmester@grillmester", notes)
-        self.assertIn("Test the terminal launcher release candidate", notes)
+        self.assertIn("Install the terminal launcher", notes)
         self.assertIn("Run with Copilot CLI from PATH", notes)
         self.assertIn("Run with OpenCode from PATH", notes)
         self.assertIn("Grillmester terminal bundle (no client binaries)", notes)
         self.assertIn("`grillmester-terminal-v1`", notes)
         self.assertIn("release-test metadata, not runtime pins", normalized_notes)
         self.assertIn("inner native OpenCode target remains `opencode-v1`", normalized_notes)
-        self.assertIn("brew tap-new --no-git grillmester/rc-pilot", notes)
         self.assertIn(
-            "install -m 0644 ./grillmester.rb \\\n"
-            '  "$(brew --repository grillmester/rc-pilot)/Formula/grillmester.rb"',
-            notes,
+            "shasum -a 256 -c grillmester-terminal-v0.2.0-poc.4.tar.gz.sha256", notes
         )
-        self.assertIn(
-            "brew install --formula grillmester/rc-pilot/grillmester", notes
-        )
-        self.assertIn(
-            "brew upgrade --formula grillmester/rc-pilot/grillmester", notes
-        )
-        self.assertNotIn("brew install --formula ./grillmester.rb", notes)
-        self.assertIn("Homebrew 6 rejects formula files outside a tap", notes)
-        self.assertIn("stable-only Homebrew tap", notes)
-        self.assertIn(
-            "Do not use `brew install navikt/tap/cplt navikt/tap/grillmester`",
-            normalized_notes,
-        )
+        self.assertIn("tar -xzf grillmester-terminal-v0.2.0-poc.4.tar.gz", notes)
+        self.assertIn("`scripts/grillmester.py` is the launcher", notes)
+        self.assertNotIn("grillmester.rb", notes)
+        self.assertNotIn("Homebrew", notes)
         self.assertIn("brew install opencode", notes)
         self.assertIn("brew install --cask copilot-cli", notes)
-        self.assertIn("`brew upgrade grillmester` follows the stable tap", notes)
         self.assertIn("grillmester doctor --client copilot", notes)
         self.assertIn("grillmester --client copilot --agent grillmester", notes)
         self.assertIn("Install directly in Copilot CLI", notes)
@@ -1067,7 +1050,7 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertNotIn("grillmester-nav@grillmester", notes)
         self.assertIn("never\nmoved", notes)
 
-    def test_stable_release_notes_gate_tap_install_on_exact_version(self) -> None:
+    def test_stable_release_notes_use_the_direct_bundle_install(self) -> None:
         notes = CONTRACT.render_notes(
             channel="stable",
             tag="v0.2.0",
@@ -1075,23 +1058,14 @@ class ReleaseContractTest(unittest.TestCase):
             source_sha="2" * 40,
             rc_tag="v0.2.0-rc.4",
         )
-        normalized_notes = " ".join(notes.split())
 
-        self.assertIn("Install the terminal launcher after tap publication", notes)
+        self.assertIn("Install the terminal launcher", notes)
         self.assertIn(
-            "does not by itself prove that the tap already serves `v0.2.0`",
-            normalized_notes,
+            "shasum -a 256 -c grillmester-terminal-v0.2.0.tar.gz.sha256", notes
         )
-        self.assertIn("reviewed tap-bootstrap PR must merge", normalized_notes)
-        self.assertIn(
-            "brew info navikt/tap/grillmester` reports this exact version",
-            normalized_notes,
-        )
-        self.assertIn(
-            "```bash\nbrew install navikt/tap/cplt navikt/tap/grillmester\n```",
-            notes,
-        )
-        self.assertIn("brew upgrade grillmester", notes)
+        self.assertIn("tar -xzf grillmester-terminal-v0.2.0.tar.gz", notes)
+        self.assertNotIn("navikt/tap/grillmester", notes)
+        self.assertNotIn("Homebrew", notes)
 
     def test_release_notes_keep_a_range_for_standard_use_and_exact_gate_input(
         self,

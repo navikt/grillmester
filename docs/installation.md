@@ -1,23 +1,20 @@
 # Installere og starte Grillmester
 
 Denne guiden skiller mellom den anbefalte native plugininstallasjonen,
-Copilot app, OpenCode-piloten fra checkout, den foreløpig pausede
-Homebrew-kanalen, repoaktivering og enterprise-policy.
+Copilot app, OpenCode-piloten fra checkout, terminal-launcheren,
+repoaktivering og enterprise-policy.
 
 ## Før du begynner
 
 - Installer Grillmester som native plugin i Copilot CLI eller Copilot app for
   den tilgjengelige brukerreisen nå.
-- Homebrew-formelen for Grillmester er ferdig, men kanalen er ikke aktivert.
-  OpenCode og lokale modeller kan foreløpig piloteres fra checkout; videre
-  terminaldistribusjon samordnes med nav-pilot. Ikke annonser
-  Homebrew-installasjonskommandoen ennå.
+- OpenCode og lokale modeller kan foreløpig piloteres fra checkout; videre
+  terminaldistribusjon samordnes med nav-pilot.
 - For checkout-launcheren er OpenCode og GitHub Copilot CLI separate, valgfrie
   klienter. Installer minst én av dem; launcheren bruker den installerte
   binæren fra `PATH`.
-- cplt er alltid påkrevd når du bruker Grillmesters terminal-launcher.
-  Homebrew-formelen vil installere cplt gjennom den separate
-  `navikt/tap/cplt`-avhengigheten, ikke som en privat Grillmester-binær. Native
+- cplt er alltid påkrevd når du bruker Grillmesters terminal-launcher, og
+  installeres separat. Grillmester pakker den aldri som en privat binær. Native
   pluginbruk i Copilot CLI følger klientens egen runtime og krever ikke
   Grillmester-launcheren.
 - Copilot app bruker sin egen Plugins-UI og startes ikke gjennom cplt.
@@ -96,10 +93,9 @@ GitHub dokumenterer foreløpig ikke automatisk oppdatering av en personlig
 installasjon fra en egendefinert marketplace. Dette må observeres med to
 faktiske Grillmester-versjoner før det loves som App-adferd.
 
-## Terminal-launcher og Homebrew på macOS — satt på vent
+## Terminal-launcher på macOS
 
-Homebrew-oppføringen er **ikke tilgjengelig**. Ikke annonser eller automatiser
-kommandoen under. Copilot CLI kan bruke den native plugininstallasjonen over.
+Copilot CLI kan bruke den native plugininstallasjonen over.
 OpenCode kan valideres fra en checkout
 eller releaseverifiseres gjennom den manuelle bundle-en i
 [OpenCode-guiden](opencode.md#hent-og-verifiser-en-grillmester-bundle).
@@ -117,42 +113,20 @@ Bytt ut `/absolute/path/to/grillmester` med checkoutens absolutte path. Disse
 kommandoene bruker payloaden i checkouten og er utviklings-/pilotevidens, ikke
 en installert eller immutable release.
 
-Hvis kanalen aktiveres senere, er den planlagte installasjonen:
+Fra en publisert release henter du i stedet den deterministiske
+terminal-`tar.gz`-en, verifiserer den detached `.sha256`-filen og pakker ut
+arkivet. Den utpakkede `scripts/grillmester.py` er launcheren. Bundle-en
+inneholder Copilot-pluginen og det genererte OpenCode-targetet, og oppdateres
+ved å pakke ut en nyere release. OpenCode og Copilot CLI er brukereide
+systemklienter: Grillmester installerer, erstatter eller skygger dem aldri, og
+cplt installeres separat.
 
-```bash
-brew install navikt/tap/cplt navikt/tap/grillmester
-```
-
-Begge formlene navngis fullt kvalifisert slik at Homebrew gir item-level trust
-til akkurat Grillmester og cplt, ikke til alle nåværende og fremtidige elementer
-i `navikt/tap`. Grillmester-formelen installerer den checksummede
-Grillmester-distribusjonen og Python-runtimen launcheren bruker, og deklarerer
-cplt som en ekstern Homebrew-avhengighet. Den
-bundle-inkluderte Copilot-pluginen og det genererte OpenCode-targetet oppdateres
-atomisk med `brew upgrade grillmester`. OpenCode og Copilot CLI er derimot
-brukereide systemklienter: formelen installerer, erstatter eller skygger dem
-aldri.
-
-Terminalkanalen oppdaterer ikke automatisk. Hent tap-oppdateringer og installer
-nytt Grillmester-innhold og launcher med:
-
-```bash
-grillmester update
-```
-
-Kommandoen kjører eksplisitt `brew update` og deretter
-`brew upgrade grillmester`; `grillmester upgrade` er et alias. Ingen
-pakkeoperasjon eller oppdateringsforespørsel skjer under vanlig launch. Nye
-versjoner annonseres som [Grillmester
-Releases](https://github.com/navikt/grillmester/releases). OpenCode og Copilot
-CLI oppdateres gjennom sine egne pakkekanaler; cplt følger den separate
-Homebrew-formelen. En klientoppgradering endrer ikke Grillmester-payloaden, men
-nye kompatibilitetsgrenser må fortsatt gjennom de dokumenterte releasegatene.
-
-Releasegaten krever samme formeltest på Apple Silicon og GitHubs hostede
-Intel-miljø. Installering og oppgradering krever nettverk for å hente de
-checksummede releaseassetene og eventuelle eksterne klientpakker. Etter
-installasjon kan selve runtime-en være offline når valgt klient, modell og
+Ingen pakkeoperasjon eller oppdateringsforespørsel skjer under vanlig launch.
+Nye versjoner annonseres som [Grillmester
+Releases](https://github.com/navikt/grillmester/releases). En klientoppgradering
+endrer ikke Grillmester-payloaden, men nye kompatibilitetsgrenser må fortsatt
+gjennom de dokumenterte releasegatene. Nedlasting krever nettverk; etter
+utpakking kan selve runtime-en være offline når valgt klient, modell og
 cplt-policy støtter det.
 
 Installer minst én terminalklient. Du kan ha begge samtidig og oppdatere dem
@@ -344,9 +318,9 @@ pluginbruk kan fortsatt sameksistere med dem.
 Se [hele
 local-modellflyten](local-models.md#anbefalt-flyt-ett-lokalt-oppsett-begge-terminalklienter).
 
-`brew uninstall grillmester` fjerner Grillmester-formelen, men ikke den separat
-installerte OpenCode- eller Copilot CLI-klienten. Homebrew avgjør på vanlig måte
-om en ekstern dependency fortsatt er i bruk. Avinstallasjonen bevarer det
+Å slette den utpakkede bundle-katalogen fjerner Grillmester, men ikke den
+separat installerte OpenCode- eller Copilot CLI-klienten, og heller ikke cplt.
+Fjerningen bevarer det
 brukereide `preferences.json`, `local.json`, privat local-sessionstate (eller
 tilsvarende XDG-stier som ennå ikke er automatisk prunet) og en eventuell
 OpenCode-`.gitignore` som allerede kan være i bruk. Slett disse eksplisitt hvis
@@ -362,7 +336,7 @@ midlertidig klient-/agentvalg, brukes det bare i utskriften og lagres ikke.
 
 ## Valgfritt: automatisk oppdatering i Copilot CLI
 
-Hvis du ikke vil bruke Homebrew-launcheren, kan Copilot CLI installere pluginen
+Hvis du ikke vil bruke terminal-launcheren, kan Copilot CLI installere pluginen
 direkte fra en flytende marketplace-kanal og oppdatere ved sesjonsstart. Merge
 dette i din egen `~/.copilot/settings.json`:
 
@@ -562,8 +536,8 @@ Grillmester har et deterministisk generert, native target for OpenCode 1.x fra
 native delegering og native permissions. `1.18.20` er den eksakte
 release-testbaselinen; standardlauncheren godtar nyere 1.x-versjoner, mens
 OpenCode 2 er en separat, ikke-verifisert flate. Installer og oppdater OpenCode
-selv med `brew install opencode`. Homebrew-formelen for Grillmester verken
-installerer eller skygger klienten. Start den lagrede defaulten eller oppgi
+selv med `brew install opencode`. Grillmester verken installerer eller skygger
+klienten. Start den lagrede defaulten eller oppgi
 OpenCode eksplisitt:
 
 ```bash

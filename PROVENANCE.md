@@ -15,8 +15,8 @@ revision.
 OpenCode, GitHub Copilot CLI and cplt are not imported plugin content. The
 standard launcher resolves separately installed client executables from
 `PATH`; the Grillmester bundle does not contain or shadow OpenCode or Copilot
-CLI. The Homebrew formula declares cplt through its own tap formula rather than
-redistributing a private cplt binary.
+cplt is likewise installed separately rather than redistributed as a private
+binary.
 
 [`scripts/release_test_baseline.py`](scripts/release_test_baseline.py) is the
 single executable source contract for the exact upstream client versions,
