@@ -100,7 +100,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn(marker, decision)
 
         self.assertIn("brukereide systemklienter", installation)
-        self.assertIn("formelen installerer, erstatter eller skygger dem aldri", installation)
+        self.assertIn("Grillmester installerer, erstatter eller skygger dem aldri", installation)
         self.assertIn("resolver `opencode` fra `PATH`", guide)
         self.assertIn("installerer, erstatter eller skygger aldri klienten", guide)
         self.assertIn(
@@ -547,21 +547,15 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
 
         self.assertNotIn("grillmester update", readme)
         self.assertNotIn("brew install navikt/tap/grillmester", readme)
-        self.assertIn("`brew upgrade grillmester`", installation)
         self.assertIn("Ingen pakkeoperasjon eller oppdateringsforespørsel skjer under vanlig launch", installation)
         self.assertIn("`grillmester update` oppdaterer Grillmester-formelen", system_clients)
         self.assertIn("Vanlig launch gjør fortsatt ingen oppdaterings- eller nettverkskontroll utenfor cplt", system_clients)
 
-    def test_release_runbook_keeps_test_evidence_and_lightweight_tap_updates(self) -> None:
+    def test_release_runbook_keeps_test_evidence(self) -> None:
         runbook = normalized(self.release_runbook)
         for marker in (
-            "one reviewed bootstrap PR",
-            "not one PR per Grillmester release",
-            "ordinary Grillmester releases require no maintainer PR",
-            "latest non-draft, non-prerelease",
             "Apple Silicon and Intel",
-            "exact three-asset roster",
-            "OpenCode-TUI startup through cplt without a model call",
+            "exact two-asset roster",
             "reproducible release-test input, not local-launcher runtime pins",
         ):
             with self.subTest(marker=marker):
@@ -574,7 +568,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         guide = normalized(self.guide)
         installation = normalized(self.installation)
 
-        self.assertIn("Homebrew-checksum binder Grillmester-bundle-en, ikke disse klientbinærene", trust)
+        self.assertIn("bundle-checksum binder Grillmester-bundle-en, ikke disse klientbinærene", trust)
         self.assertIn("release-gatekode, ikke runtimepinner", trust)
         self.assertIn("OpenCode 1.18.20 forsøker å skrive `.gitignore`", guide)
         self.assertIn("Endre aldri en eksisterende brukerfil automatisk", guide)
