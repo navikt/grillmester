@@ -93,6 +93,43 @@ GitHub dokumenterer foreløpig ikke automatisk oppdatering av en personlig
 installasjon fra en egendefinert marketplace. Dette må observeres med to
 faktiske Grillmester-versjoner før det loves som App-adferd.
 
+## Agentpakke for nav-pilot
+
+Grillmester publiserer en Tier 2-agentpakke i `.nav-pilot/agentpakke.json`.
+[nav-pilot](https://github.com/navikt/copilot) installerer den som en lokal,
+revisjonspinnet materialisering av de samme payloadene som plugin- og
+checkout-veiene bruker.
+
+```bash
+brew install navikt/tap/nav-pilot
+nav-pilot install --source navikt/grillmester
+```
+
+Pakka dekker begge klientene med hver sin payload:
+
+| Klient | Full kontekst | Fokusert kontekst |
+| --- | --- | --- |
+| Copilot CLI | `plugin` | `targets/copilot-cli-focused-v1` |
+| OpenCode | `targets/opencode-v1` | `targets/opencode-v1-focused` |
+
+Full kontekst er standard. Fokusert kontekst er et eksplisitt valg for lokal
+modell eller andre kontekstbegrensede kjøringer.
+
+Agentpakka setter ingen fallbackmodell: `defaultModel` er `inherit`, så
+modellen kommer fra klienten eller ditt eget valg. Modellene som ligger i
+payloadens agent-frontmatter følger med den pinnede revisjonen, så en
+modellendring i Grillmester krever ingen endring i manifestet — bare at pinnen
+flyttes.
+
+nav-pilot verifiserer hele pakka ved installasjon og den valgte payloaden mot
+manifestdigestene ved launch. Digestene gir integritet, ikke godkjenning:
+manifestet ligger i samme repo som payloaden og er skrevet av samme part. Se
+[ADR 0008](adr/0008-publish-tier-2-agentpakke-for-nav-pilot.md) for hva
+kontrakten binder og hvor grensen går.
+
+Krever nav-pilot `2026.08.28-091813-dc3e4ff` eller nyere. Veien er under
+utrulling; den native plugininstallasjonen er fortsatt den anbefalte.
+
 ## Terminal-launcher på macOS
 
 Copilot CLI kan bruke den native plugininstallasjonen over.

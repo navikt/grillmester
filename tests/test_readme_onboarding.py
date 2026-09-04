@@ -33,8 +33,11 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         cls.cplt_release = baseline.CONTRACT["releaseTest"]["cpltRelease"]
 
     def test_readme_is_a_short_four_agent_onboarding(self) -> None:
-        self.assertLessEqual(len(self.text.splitlines()), 115)
-        self.assertLessEqual(len(self.text.split()), 575)
+        # Budsjettet ble hevet da nav-pilot-agentpakka ble en fjerde
+        # installasjonsvei. Det er fortsatt en grense mot creep, ikke en
+        # invitasjon: utvid det bare for en ny kanal, ikke for mer prosa.
+        self.assertLessEqual(len(self.text.splitlines()), 125)
+        self.assertLessEqual(len(self.text.split()), 605)
         self.assertEqual(
             self.text.split("\n## ", 1)[1].splitlines()[0], "Kom i gang"
         )

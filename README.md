@@ -35,6 +35,19 @@ installeres før du bekrefter. Appen startes ikke gjennom cplt. Se
 default branch; bruk Copilot CLI med en reviewet versjonstagg når pinning er
 påkrevd.
 
+### nav-pilot — agentpakke
+
+Grillmester publiserer en Tier 2-agentpakke for
+[nav-pilot](https://github.com/navikt/copilot), med samme payloads for Copilot
+CLI og OpenCode:
+
+```bash
+nav-pilot install --source navikt/grillmester
+```
+
+Under utrulling; plugininstallasjonen over er fortsatt den anbefalte. Se
+[agentpakke-installasjon](docs/installation.md#agentpakke-for-nav-pilot).
+
 ### OpenCode og lokale modeller — pilot fra checkout
 
 OpenCode laster ikke Copilot-plugins. OpenCode og lokale modeller kan
