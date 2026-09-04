@@ -912,8 +912,17 @@ jobs:
           client_path="${RUNNER_TEMP}/verified-darwin-bin:/usr/bin:/bin:/usr/sbin:/sbin"
           doctor_output="$(PATH="${client_path}" \
             "${launcher}" doctor --client opencode)"
-          grep -F "ok  cplt ${CPLT_BIN} (cplt " <<<"${doctor_output}"
-          grep -F "ok  opencode ${OPENCODE_BIN} (${RELEASE_TEST_OPENCODE_VERSION})" \
+          # The launcher reports fully resolved paths, so compare against the
+          # same canonical form rather than the raw environment values.
+          canonical() {
+            python3 -I -S -c \
+              'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve(strict=True))' \
+              "$1"
+          }
+          cplt_resolved="$(canonical "${CPLT_BIN}")"
+          opencode_resolved="$(canonical "${OPENCODE_BIN}")"
+          grep -F "ok  cplt ${cplt_resolved} (cplt " <<<"${doctor_output}"
+          grep -F "ok  opencode ${opencode_resolved} (${RELEASE_TEST_OPENCODE_VERSION})" \
             <<<"${doctor_output}"
           python3 -I -S scripts/smoke_grillmester_tui.py \
             --launcher "${launcher}" \

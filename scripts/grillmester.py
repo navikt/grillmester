@@ -1433,6 +1433,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
             distribution = load_distribution()
             print(f"grillmester {distribution.version}")
             return 0
+        if arguments[:1] in (["update"], ["upgrade"]):
+            raise LauncherError(
+                f"grillmester {arguments[0]} is no longer a command; Grillmester "
+                "is updated by extracting a newer release bundle over this one"
+            )
         if arguments[:1] == ["choose"]:
             if len(arguments) != 1:
                 raise LauncherError("grillmester choose takes no arguments")
