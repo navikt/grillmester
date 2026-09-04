@@ -1,7 +1,7 @@
 ---
 name: designer
 description: "Designhjelp for Nav-designere — utforsking med Aksel, Visual Companion og Figma-klare leveranser; kan skrive Figma eller Issue når runtime faktisk støtter det. Velges som grillmester:designer."
-model: "gpt-5.6-sol"
+model: "claude-opus-5"
 user-invocable: true
 disable-model-invocation: true
 ---
