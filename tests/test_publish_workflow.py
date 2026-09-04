@@ -330,10 +330,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 self.assertIn("persist-credentials: false", block, workflow.name)
 
     def test_workflow_downloads_ignore_ambient_curl_configuration(self) -> None:
+        # PROMOTE_WORKFLOW er utelatt: den er en ren lesevalidator uten
+        # nedlastinger etter at kanalsplitten forsvant.
         for workflow in (
             VALIDATE_WORKFLOW,
             WORKFLOW,
-            PROMOTE_WORKFLOW,
             RELEASE_WORKFLOW,
             MACOS_WORKFLOW,
         ):
@@ -342,9 +343,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 if "curl " in line
             ]
             if not curl_lines:
-                self.assertIn(
-                    "scripts/release_test_baseline.py install",
+                # Installereren kalles både som bar sti og som
+                # "${SOURCE_ROOT}/scripts/release_test_baseline.py" install.
+                self.assertRegex(
                     workflow.read_text(encoding="utf-8"),
+                    r'release_test_baseline\.py"?\s+install',
                     workflow.name,
                 )
             for line in curl_lines:
@@ -631,44 +634,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         trigger = text.split("\nconcurrency:", maxsplit=1)[0]
         self.assertIn("workflow_dispatch:", trigger)
-        self.assertIn("channel:", trigger)
         self.assertIn("source_sha:", trigger)
-        self.assertIn("rc_tag:", trigger)
         self.assertIn("required: true", trigger)
         self.assertIn("type: string", trigger)
         self.assertNotIn("push:", trigger)
         self.assertNotIn("paths:", trigger)
-
-    def test_stable_marketplace_write_is_gated_by_rc_payload_rights_and_assets(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-        validate_job = text.split("\n  validate:\n", maxsplit=1)[1].split(
-            "\n  copilot-compatibility:\n", maxsplit=1
-        )[0]
-        publish_job = text.split("\n  publish:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
-        for marker in (
-            'CHANNEL: ${{ inputs.channel }}',
-            'RC_TAG: ${{ inputs.rc_tag }}',
-            'validate-source-promotion',
-            '--rc-source-repo "${rc_source_repo}"',
-            'policy/stable-rights-approval.json',
-            'git cat-file -t "refs/tags/${RC_TAG}"',
-            '(.assets | length) == 2',
-            "'.immutable'",
-            'python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"',
-            'cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"',
-            'sha256sum --check --strict',
-        ):
-            with self.subTest(marker=marker):
-                self.assertIn(marker, validate_job)
-        self.assertLess(
-            validate_job.index("validate-source-promotion"),
-            validate_job.index(
-                'python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"'
-            ),
-        )
-        self.assertNotIn("validate-source-promotion", publish_job)
 
     def test_promotion_requires_current_main_and_exact_reachable_source_sha(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
@@ -757,8 +727,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
             '[.plugins[].name] == ["grillmester"]', text
         )
         self.assertNotIn('path: "plugin-nav"', text)
-        self.assertIn("api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RC_TAG}", text)
-        self.assertIn('[[ "$(jq -r \'.immutable\' <<<"${rc_release}")" == "true" ]]', text)
         self.assertIn("contents: read", text)
         self.assertNotIn("contents: write", text)
         self.assertNotIn("GH_TOKEN", text)
@@ -808,7 +776,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn('- ".github/release-request.json"', text)
         self.assertNotIn("workflow_dispatch", text)
         self.assertIn(
-            '(keys | sort) == ["catalogSha", "channel", "rcTag", "requestId", "schemaVersion"]',
+            '(keys | sort) == ["catalogSha", "requestId", "schemaVersion"]',
             text,
         )
         self.assertIn('git show "${MAIN_SHA}:.github/release-request.json"', text)
@@ -876,38 +844,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("origin/marketplace", write_job)
         self.assertIn("--verify-tag", write_job)
         self.assertIn('cmp -s "${regenerated_catalog}" "${catalog_file}"', write_job)
-        self.assertIn("jq -cS 'del(.version)'", write_job)
-        self.assertIn(
-            'cmp -s "${normalized_standard_manifest}" "${rc_standard_manifest_file}"',
-            write_job,
-        )
-        self.assertIn(
-            'cmp -s "${package_manifest_file}" "${rc_package_manifest_file}"',
-            write_job,
-        )
         self.assertIn(
             'git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/opencode.json"',
             write_job,
         )
-        for path in (
-            "targets/opencode-v1",
-            "targets/opencode-v1-focused",
-            "policy/focused-context-v1.json",
-            "scripts/generate_context_projections.py",
-            "scripts/grillmester_local.py",
-            "scripts/smoke_grillmester_local.py",
-        ):
-            self.assertIn(path, write_job)
-        self.assertIn("targets/copilot-cli-focused-v1", verify_job)
-        self.assertIn("stable_focused_digest", verify_job)
-        self.assertIn(
-            'cmp -s "${regenerated_rc_catalog}" "${rc_catalog_file}"', write_job
-        )
-        self.assertIn('full_root="plugin"', verify_job)
-        self.assertIn(":(exclude)${full_root}/plugin.json", verify_job)
-        self.assertIn(":(exclude)${full_root}/manifest.json", verify_job)
-        self.assertNotIn("plugin-nav", write_job)
-        self.assertIn('git ls-tree -r "${RC_CATALOG_SHA}"', write_job)
         self.assertIn("'.tag_name'", write_job)
         self.assertIn('git cat-file -t "${object}"', write_job)
         self.assertIn("Refusing non-annotated release tag", write_job)
@@ -998,25 +938,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 'python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py"'
             ),
         )
-        self.assertLess(
-            validate_job.index(
-                'python3 -I -S "${rc_source_repo}/scripts/generate_copilot_manifest.py"'
-            ),
-            validate_job.index(
-                'python3 -I -S "${rc_source_repo}/scripts/generate_context_projections.py"'
-            ),
-        )
-        self.assertLess(
-            validate_job.index(
-                'python3 -I -S "${rc_source_repo}/scripts/generate_context_projections.py"'
-            ),
-            validate_job.index(
-                'python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"'
-            ),
-        )
-        # Two current-source reproducibility builds plus one conditional RC
-        # rebuild that binds stable promotion to the published candidate asset.
-        self.assertEqual(3, validate_job.count("scripts/build_opencode_bundle.py"))
+        # To reproduserbarhetsbygg fra samme kilde; RC-gjenoppbyggingen falt
+        # bort sammen med kanalsplitten.
+        self.assertEqual(2, validate_job.count("scripts/build_opencode_bundle.py"))
         self.assertIn('cmp -s "${bundle}" "${repeated}"', validate_job)
         self.assertNotIn("--client-artifacts", validate_job)
         for output in (
@@ -1108,7 +1032,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )[1].split("Install exact OpenCode release-test baseline", maxsplit=1)[0]
         for value in (
             "REQUEST_ID",
-            "CHANNEL",
             "TAG",
             "CATALOG_SHA",
             "SOURCE_SHA",
@@ -1142,7 +1065,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
                     "BUNDLE_SHA256": "b" * 64,
                     "BUNDLE_SIZE": "4567",
                     "CATALOG_SHA": "c" * 40,
-                    "CHANNEL": "stable",
                     "REQUEST_ID": "release-9.8.7",
                     "SOURCE_SHA": "a" * 40,
                     "TAG": "v9.8.7",
@@ -1401,48 +1323,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("opencode-install", remote)
         self.assertNotIn("state.json", remote)
 
-    def test_stable_release_cannot_drift_terminal_distribution_inputs(self) -> None:
-        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        verify_job = text.split("\n  verify-release-assets:\n", maxsplit=1)[1].split(
-            "\n  release:\n", maxsplit=1
-        )[0]
-        write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
-        for path in (
-            "targets/opencode-v1",
-            "targets/opencode-v1-focused",
-            "policy/focused-context-v1.json",
-            "scripts/generate_context_projections.py",
-            "scripts/grillmester_local.py",
-        ):
-            self.assertIn(path, write_job)
-        self.assertIn("targets/copilot-cli-focused-v1", verify_job)
-        self.assertIn("Independently verify Copilot full payload manifest", verify_job)
-        self.assertIn('"copilotFullManifestSha256"', verify_job)
-        self.assertIn("scripts/generate_copilot_manifest.py", verify_job)
-        self.assertIn("stable_focused_digest", verify_job)
-        self.assertNotIn("profiles/opencode", write_job)
-        self.assertNotIn("scripts/manage_opencode.py", write_job)
-        self.assertNotIn("scripts/compose_opencode_permissions.py", write_job)
-        self.assertIn("scripts/release_contract.py", write_job)
-        for harness in (
-            "scripts/smoke_plugin_install.py",
-            "scripts/smoke_opencode.py",
-            "scripts/smoke_opencode_runtime.py",
-            "scripts/smoke_grillmester_local.py",
-            "scripts/smoke_grillmester_tui.py",
-        ):
-            self.assertIn(harness, write_job)
-        for path in (
-            "LICENSE",
-            "PROVENANCE.md",
-            "THIRD_PARTY_NOTICES.md",
-            "policy/content-lock.json",
-            "scripts/release_test_baseline.py",
-        ):
-            self.assertIn(path, write_job)
-
     def test_stable_rights_gate_is_independent_and_recomputes_immutable_scope(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         verify_job = text.split("\n  verify-release-assets:\n", maxsplit=1)[1].split(
@@ -1457,65 +1337,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("scope[\"components\"] != expected_components", verify_job)
         self.assertIn("dt.date.fromisoformat", verify_job)
         self.assertIn("decision_date > dt.date.today()", verify_job)
-
-    def test_stable_promotion_rebinds_the_published_rc_assets(self) -> None:
-        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        preflight = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
-        validate_job = text.split("\n  validate:\n", maxsplit=1)[1].split(
-            "\n  release:\n", maxsplit=1
-        )[0]
-        write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
-        self.assertIn('rc_bundle_name="grillmester-terminal-${rc_tag}.tar.gz"', validate_job)
-        self.assertIn(
-            'python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"',
-            validate_job,
-        )
-        self.assertIn(
-            'cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"',
-            validate_job,
-        )
-        self.assertIn("rc_bundle_sha256=", validate_job)
-        self.assertIn("rc_bundle_checksum_sha256=", validate_job)
-        for output in (
-            "rc_bundle_name",
-            "rc_bundle_sha256",
-            "rc_bundle_checksum_name",
-            "rc_bundle_checksum_sha256",
-        ):
-            self.assertIn(f"steps.contract.outputs.{output}", text)
-        self.assertIn('.digest == $bundle_digest', write_job)
-        self.assertIn('gh release download "${RC_TAG}"', write_job)
-        self.assertIn('"${RC_BUNDLE_SHA256}"', write_job)
-        self.assertIn('"${RC_BUNDLE_CHECKSUM_SHA256}"', write_job)
-        self.assertIn('git cat-file -t "refs/tags/${rc_tag}"', validate_job)
-        self.assertIn('git cat-file -t "refs/tags/${RC_TAG}"', preflight)
-        self.assertIn('git cat-file -t "refs/tags/${RC_TAG}"', write_job)
-        for workflow in (validate_job, preflight):
-            self.assertIn("(.assets | length) == 2", workflow)
-            self.assertIn('[[ "$(jq -r \'.immutable\' <<<"${rc_release}")" == "true" ]]', workflow)
-            self.assertIn('.label == "Grillmester terminal bundle"', workflow)
-            self.assertIn('.label == "SHA-256 checksum"', workflow)
-            self.assertIn(".browser_download_url", workflow)
-            self.assertIn('--proto \'=https\' --tlsv1.2', workflow)
-            self.assertIn("--proto-redir '=https'", workflow)
-            self.assertIn("--max-filesize 61000000", workflow)
-            self.assertIn("--max-filesize 1024", workflow)
-            self.assertIn(
-                'python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"',
-                workflow,
-            )
-            self.assertIn(
-                'cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"',
-                workflow,
-            )
-            self.assertLess(
-                workflow.index(
-                    "Complete the workflow-owned, read-only contract before executing"
-                ),
-                workflow.index('python3 "${rc_source_repo}/scripts/build_opencode_bundle.py"'),
-            )
 
     def test_release_validates_one_complete_plugin_and_remote_smokes_tag(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")

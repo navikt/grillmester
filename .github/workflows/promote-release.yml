@@ -3,20 +3,9 @@ name: Validate immutable release
 on:
   workflow_dispatch:
     inputs:
-      channel:
-        description: Validate a release candidate or stable release
-        required: true
-        type: choice
-        options:
-          - rc
-          - stable
       catalog_sha:
         description: Exact catalog-only commit on the marketplace branch
         required: true
-        type: string
-      rc_tag:
-        description: Existing reviewed RC tag (required only for stable)
-        required: false
         type: string
 
 concurrency:
@@ -35,10 +24,8 @@ jobs:
       source-sha: ${{ steps.contract.outputs.source_sha }}
     env:
       CATALOG_SHA: ${{ inputs.catalog_sha }}
-      CHANNEL: ${{ inputs.channel }}
       DISPATCH_SHA: ${{ github.sha }}
       DISPATCH_REF: ${{ github.ref }}
-      RC_TAG: ${{ inputs.rc_tag }}
     steps:
       - name: Check out trusted validation tooling
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -61,21 +48,6 @@ jobs:
             echo "catalog_sha must be a lowercase 40-character SHA." >&2
             exit 1
           }
-          if [[ "${CHANNEL}" == "rc" ]]; then
-            [[ -z "${RC_TAG}" ]] || {
-              echo "rc_tag must be empty for an RC." >&2
-              exit 1
-            }
-          elif [[ "${CHANNEL}" == "stable" ]]; then
-            [[ "${RC_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-[0-9A-Za-z.-]+$ ]] || {
-              echo "stable validation requires a prerelease rc_tag." >&2
-              exit 1
-            }
-          else
-            echo "channel must be rc or stable." >&2
-            exit 1
-          fi
-
           git fetch --no-tags origin \
             "refs/heads/main:refs/remotes/origin/main" \
             "refs/heads/marketplace:refs/remotes/origin/marketplace"
@@ -121,106 +93,11 @@ jobs:
           contract_args=(
             validate
             --catalog "${catalog}"
-            --channel "${CHANNEL}"
             --catalog-repo "${catalog_repo}"
             --catalog-sha "${CATALOG_SHA}"
             --source-repo "${source_repo}"
           )
-          if [[ "${CHANNEL}" == "stable" ]]; then
-            git fetch --no-tags origin "refs/tags/${RC_TAG}:refs/tags/${RC_TAG}"
-            [[ "$(git cat-file -t "refs/tags/${RC_TAG}")" == "tag" ]]
-            rc_catalog_sha="$(git rev-parse "refs/tags/${RC_TAG}^{}")"
-            git merge-base --is-ancestor \
-              "${rc_catalog_sha}" refs/remotes/origin/marketplace
-            rc_catalog_repo="${RUNNER_TEMP}/rc-catalog"
-            git worktree add --detach "${rc_catalog_repo}" "${rc_catalog_sha}"
-            rc_catalog="${rc_catalog_repo}/.github/plugin/marketplace.json"
-            rc_values="${RUNNER_TEMP}/rc-values"
-            python3 scripts/release_contract.py inspect \
-              --catalog "${rc_catalog}" --channel rc \
-              --github-output "${rc_values}"
-            [[ "${RC_TAG}" == "$(sed -n 's/^tag=//p' "${rc_values}")" ]]
-            rc_source_sha="$(sed -n 's/^source_sha=//p' "${rc_values}")"
-            git cat-file -e "${rc_source_sha}^{commit}"
-            git merge-base --is-ancestor \
-              "${rc_source_sha}" refs/remotes/origin/main
-            rc_source_repo="${RUNNER_TEMP}/rc-source"
-            git worktree add --detach "${rc_source_repo}" "${rc_source_sha}"
-            contract_args+=(
-              --rc-tag "${RC_TAG}"
-              --rc-catalog "${rc_catalog}"
-              --rc-catalog-repo "${rc_catalog_repo}"
-              --rc-catalog-sha "${rc_catalog_sha}"
-              --rc-source-repo "${rc_source_repo}"
-            )
-            # Complete the workflow-owned, read-only contract before executing
-            # the selected RC source's bundle builder.
-            python3 scripts/release_contract.py "${contract_args[@]}"
-            rc_release="$(curl --config /dev/null --fail-with-body --silent --show-error \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2026-03-10' \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RC_TAG}")"
-            [[ "$(jq -r '.tag_name' <<<"${rc_release}")" == "${RC_TAG}" ]]
-            [[ "$(jq -r '.draft' <<<"${rc_release}")" == "false" ]]
-            [[ "$(jq -r '.prerelease' <<<"${rc_release}")" == "true" ]]
-            [[ "$(jq -r '.immutable' <<<"${rc_release}")" == "true" ]]
-            rc_bundle_name="grillmester-terminal-${RC_TAG}.tar.gz"
-            rc_bundle_checksum_name="${rc_bundle_name}.sha256"
-            jq -e \
-              --arg bundle "${rc_bundle_name}" \
-              --arg checksum "${rc_bundle_checksum_name}" \
-              '(.assets | length) == 2 and
-               ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
-               all(.assets[];
-                 .state == "uploaded" and
-                 (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")) and
-                 (.browser_download_url | type == "string" and
-                   startswith("https://github.com/"))) and
-               any(.assets[];
-                 .name == $bundle and .label == "Grillmester terminal bundle") and
-               any(.assets[];
-                 .name == $checksum and .label == "SHA-256 checksum")' \
-              <<<"${rc_release}" >/dev/null
-            rc_assets="${RUNNER_TEMP}/rc-assets"
-            mkdir -p "${rc_assets}"
-            rc_published_bundle="${rc_assets}/${rc_bundle_name}"
-            rc_published_checksum="${rc_assets}/${rc_bundle_checksum_name}"
-            rc_bundle_url="$(jq -er --arg name "${rc_bundle_name}" \
-              '.assets[] | select(.name == $name) | .browser_download_url' \
-              <<<"${rc_release}")"
-            rc_checksum_url="$(jq -er --arg name "${rc_bundle_checksum_name}" \
-              '.assets[] | select(.name == $name) | .browser_download_url' \
-              <<<"${rc_release}")"
-            curl --config /dev/null --fail-with-body --silent --show-error --location \
-              --proto '=https' --tlsv1.2 --proto-redir '=https' \
-              --max-filesize 61000000 \
-              "${rc_bundle_url}" --output "${rc_published_bundle}"
-            curl --config /dev/null --fail-with-body --silent --show-error --location \
-              --proto '=https' --tlsv1.2 --proto-redir '=https' \
-              --max-filesize 1024 \
-              "${rc_checksum_url}" --output "${rc_published_checksum}"
-            rc_rebuilt_bundle="${RUNNER_TEMP}/rebuilt-${rc_bundle_name}"
-            python3 "${rc_source_repo}/scripts/build_opencode_bundle.py" \
-              --source-root "${rc_source_repo}" --source-sha "${rc_source_sha}" \
-              --output "${rc_rebuilt_bundle}"
-            cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"
-            rc_bundle_sha256="$(sha256sum "${rc_published_bundle}" | cut -d' ' -f1)"
-            rc_checksum_sha256="$(sha256sum "${rc_published_checksum}" | cut -d' ' -f1)"
-            [[ "$(jq -er --arg name "${rc_bundle_name}" \
-              '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
-              "sha256:${rc_bundle_sha256}" ]]
-            [[ "$(jq -er --arg name "${rc_bundle_checksum_name}" \
-              '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
-              "sha256:${rc_checksum_sha256}" ]]
-            rc_expected_checksum="${RUNNER_TEMP}/expected-${rc_bundle_checksum_name}"
-            printf '%s  %s\n' \
-              "${rc_bundle_sha256}" "${rc_bundle_name}" > "${rc_expected_checksum}"
-            cmp -s "${rc_expected_checksum}" "${rc_published_checksum}"
-            (cd "${rc_assets}" && \
-              sha256sum --check --strict "${rc_bundle_checksum_name}")
-          else
-            python3 scripts/release_contract.py "${contract_args[@]}"
-          fi
+          python3 scripts/release_contract.py "${contract_args[@]}"
 
           {
             echo "SOURCE_SHA=${source_sha}"
