@@ -23,8 +23,8 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "954c06d3bd1ea5c9d365064c03b47237886730f75a35076d7e636b1d5ed299e5",
-        "doctor-who": "df56d620a350f1e4e85f472b9697e8d4a5e540d5690ae86e6533fad94aec5c45"
+        "designer": "197dfba287c65bbd7d305607a4673c22e4b84d44c35cb29e01077f7572bf4669",
+        "doctor-who": "31386cec5f0a604b4ac1a7e7145ae054f6a234beb505151fb0ccc98c51ad20a6"
       },
       "skills": {
         "grillmester-accessibility-review": "90e8abafddd2d146b7f3371bd67db09886b447809c41b375e529461a6f5188d6",
@@ -41,11 +41,11 @@
         "grillmester-workshop-design": "7f8a01f932a5c0a6e59e5f288c122426dd20a982a05b4c43db522ba721138fe5"
       }
     },
-    "contentLockSha256": "77d382865dfd391ba9100e99b81bc7632c9416fec015dfe6d8a05ba45489ab5e",
+    "contentLockSha256": "9f1489b693cd766fcdb34e60fd815ebd096305f1da530480c917f44e21c447bf",
     "hovmester": {
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "3c0517aa3013e72240743aa65ebdf21e79a4199cdddb234ac1fc617cbdf82f6d"
+    "provenanceSha256": "fd9cfeae7a43966cefc146b4626b21463cfce02520bb819ac269b844877bfabd"
   }
 }
