@@ -3,20 +3,9 @@ name: Publish marketplace catalog
 on:
   workflow_dispatch:
     inputs:
-      channel:
-        description: Publish a release candidate or stable catalog
-        required: true
-        type: choice
-        options:
-          - rc
-          - stable
       source_sha:
         description: Exact lowercase 40-character source SHA reachable from main
         required: true
-        type: string
-      rc_tag:
-        description: Existing reviewed RC tag (required only for stable)
-        required: false
         type: string
 
 concurrency:
@@ -46,10 +35,8 @@ jobs:
         id: source
         shell: bash
         env:
-          CHANNEL: ${{ inputs.channel }}
           DISPATCH_REF: ${{ github.ref }}
           DISPATCH_SHA: ${{ github.sha }}
-          RC_TAG: ${{ inputs.rc_tag }}
           SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
           set -euo pipefail
@@ -66,21 +53,6 @@ jobs:
             echo "source_sha must be a lowercase 40-character SHA." >&2
             exit 1
           }
-          if [[ "${CHANNEL}" == "rc" ]]; then
-            [[ -z "${RC_TAG}" ]] || {
-              echo "rc_tag must be empty for an RC marketplace promotion." >&2
-              exit 1
-            }
-          elif [[ "${CHANNEL}" == "stable" ]]; then
-            [[ "${RC_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-[0-9A-Za-z.-]+$ ]] || {
-              echo "stable marketplace promotion requires a prerelease rc_tag." >&2
-              exit 1
-            }
-          else
-            echo "channel must be rc or stable." >&2
-            exit 1
-          fi
-
           git fetch --no-tags origin \
             "refs/heads/main:refs/remotes/origin/main"
           [[ "${DISPATCH_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
@@ -189,122 +161,19 @@ jobs:
             echo "catalog_version=$(jq -er '.metadata.version' "${catalog}")"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Gate catalog channel and stable RC ancestry before publication
+      - name: Validate the prospective catalog and source before publication
         shell: bash
         env:
           CATALOG_SHA256: ${{ steps.publication.outputs.catalog_sha256 }}
-          CHANNEL: ${{ inputs.channel }}
-          RC_TAG: ${{ inputs.rc_tag }}
           SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
           SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
           set -euo pipefail
           catalog="${SOURCE_ROOT}/.github/plugin/marketplace.json"
           [[ "$(sha256sum "${catalog}" | cut -d' ' -f1)" == "${CATALOG_SHA256}" ]]
-
-          if [[ "${CHANNEL}" == "rc" ]]; then
-            [[ -z "${RC_TAG}" ]]
-            python3 scripts/release_contract.py validate-source-promotion \
-              --catalog "${catalog}" --channel rc \
-              --source-repo "${SOURCE_ROOT}"
-            exit 0
-          fi
-
-          [[ "${CHANNEL}" == "stable" ]]
-          [[ "${RC_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-[0-9A-Za-z.-]+$ ]]
-          git fetch --no-tags origin \
-            "refs/heads/main:refs/remotes/origin/main" \
-            "refs/heads/marketplace:refs/remotes/origin/marketplace" \
-            "refs/tags/${RC_TAG}:refs/tags/${RC_TAG}"
-          [[ "$(git cat-file -t "refs/tags/${RC_TAG}")" == "tag" ]]
-          rc_catalog_sha="$(git rev-parse "refs/tags/${RC_TAG}^{}")"
-          git merge-base --is-ancestor \
-            "${rc_catalog_sha}" refs/remotes/origin/marketplace
-          rc_catalog_repo="${RUNNER_TEMP}/stable-gate-rc-catalog"
-          git worktree add --detach "${rc_catalog_repo}" "${rc_catalog_sha}"
-          rc_catalog="${rc_catalog_repo}/.github/plugin/marketplace.json"
-          rc_values="${RUNNER_TEMP}/stable-gate-rc-values"
-          python3 scripts/release_contract.py inspect \
-            --catalog "${rc_catalog}" --channel rc \
-            --github-output "${rc_values}"
-          [[ "${RC_TAG}" == "$(sed -n 's/^tag=//p' "${rc_values}")" ]]
-          rc_source_sha="$(sed -n 's/^source_sha=//p' "${rc_values}")"
-          [[ "${rc_source_sha}" =~ ^[0-9a-f]{40}$ ]]
-          git cat-file -e "${rc_source_sha}^{commit}"
-          git merge-base --is-ancestor \
-            "${rc_source_sha}" refs/remotes/origin/main
-          rc_source_repo="${RUNNER_TEMP}/stable-gate-rc-source"
-          git worktree add --detach "${rc_source_repo}" "${rc_source_sha}"
-
-          # The trusted contract recomputes and binds the exact imported rights scope.
-          git cat-file -e "${SOURCE_SHA}:policy/stable-rights-approval.json"
           python3 scripts/release_contract.py validate-source-promotion \
-            --catalog "${catalog}" --channel stable \
-            --source-repo "${SOURCE_ROOT}" \
-            --rc-tag "${RC_TAG}" --rc-catalog "${rc_catalog}" \
-            --rc-source-repo "${rc_source_repo}"
-
-          # Bind stable publication to the already published immutable RC bytes.
-          rc_release="$(curl --config /dev/null --fail-with-body --silent --show-error \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2026-03-10' \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RC_TAG}")"
-          [[ "$(jq -r '.tag_name' <<<"${rc_release}")" == "${RC_TAG}" ]]
-          [[ "$(jq -r '.draft' <<<"${rc_release}")" == "false" ]]
-          [[ "$(jq -r '.prerelease' <<<"${rc_release}")" == "true" ]]
-          [[ "$(jq -r '.immutable' <<<"${rc_release}")" == "true" ]]
-          rc_bundle_name="grillmester-terminal-${RC_TAG}.tar.gz"
-          rc_checksum_name="${rc_bundle_name}.sha256"
-          jq -e \
-            --arg bundle "${rc_bundle_name}" --arg checksum "${rc_checksum_name}" \
-            '(.assets | length) == 2 and
-             ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
-             all(.assets[];
-               .state == "uploaded" and
-               (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")) and
-               (.browser_download_url | type == "string" and
-                 startswith("https://github.com/"))) and
-             any(.assets[];
-               .name == $bundle and .label == "Grillmester terminal bundle") and
-             any(.assets[];
-               .name == $checksum and .label == "SHA-256 checksum")' \
-            <<<"${rc_release}" >/dev/null
-          rc_assets="${RUNNER_TEMP}/stable-gate-rc-assets"
-          mkdir -p "${rc_assets}"
-          rc_published_bundle="${rc_assets}/${rc_bundle_name}"
-          rc_published_checksum="${rc_assets}/${rc_checksum_name}"
-          rc_bundle_url="$(jq -er --arg name "${rc_bundle_name}" \
-            '.assets[] | select(.name == $name) | .browser_download_url' \
-            <<<"${rc_release}")"
-          rc_checksum_url="$(jq -er --arg name "${rc_checksum_name}" \
-            '.assets[] | select(.name == $name) | .browser_download_url' \
-            <<<"${rc_release}")"
-          curl --config /dev/null --fail-with-body --silent --show-error --location \
-            --proto '=https' --tlsv1.2 --proto-redir '=https' \
-            --max-filesize 61000000 \
-            "${rc_bundle_url}" --output "${rc_published_bundle}"
-          curl --config /dev/null --fail-with-body --silent --show-error --location \
-            --proto '=https' --tlsv1.2 --proto-redir '=https' \
-            --max-filesize 1024 \
-            "${rc_checksum_url}" --output "${rc_published_checksum}"
-          rc_rebuilt_bundle="${RUNNER_TEMP}/rebuilt-${rc_bundle_name}"
-          python3 "${rc_source_repo}/scripts/build_opencode_bundle.py" \
-            --source-root "${rc_source_repo}" --source-sha "${rc_source_sha}" \
-            --output "${rc_rebuilt_bundle}"
-          cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"
-          rc_bundle_sha256="$(sha256sum "${rc_published_bundle}" | cut -d' ' -f1)"
-          rc_checksum_sha256="$(sha256sum "${rc_published_checksum}" | cut -d' ' -f1)"
-          [[ "$(jq -er --arg name "${rc_bundle_name}" \
-            '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
-            "sha256:${rc_bundle_sha256}" ]]
-          [[ "$(jq -er --arg name "${rc_checksum_name}" \
-            '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
-            "sha256:${rc_checksum_sha256}" ]]
-          expected_checksum="${RUNNER_TEMP}/expected-${rc_checksum_name}"
-          printf '%s  %s\n' \
-            "${rc_bundle_sha256}" "${rc_bundle_name}" > "${expected_checksum}"
-          cmp -s "${expected_checksum}" "${rc_published_checksum}"
-          (cd "${rc_assets}" && sha256sum --check --strict "${rc_checksum_name}")
+            --catalog "${catalog}" \
+            --source-repo "${SOURCE_ROOT}"
 
       - name: Validate exact source against sealed catalog
         shell: bash

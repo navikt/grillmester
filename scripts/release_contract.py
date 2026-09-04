@@ -48,13 +48,6 @@ OPENCODE_DISTRIBUTION_FILES = (
     "scripts/release_contract.py",
     "scripts/smoke_grillmester_local.py",
 )
-STABLE_GATE_HARNESS_FILES = (
-    "scripts/release_test_baseline.py",
-    "scripts/smoke_grillmester_tui.py",
-    "scripts/smoke_plugin_install.py",
-    "scripts/smoke_opencode.py",
-    "scripts/smoke_opencode_runtime.py",
-)
 _BASELINE_SPEC = importlib.util.spec_from_file_location(
     "grillmester_release_test_baseline_for_release_contract",
     Path(__file__).with_name("release_test_baseline.py"),
@@ -193,7 +186,7 @@ def read_object(path: Path) -> dict[str, Any]:
     return value
 
 
-def inspect_catalog(path: Path, *, channel: str) -> Catalog:
+def inspect_catalog(path: Path) -> Catalog:
     value = read_object(path)
     if value.get("name") != "grillmester":
         raise ReleaseContractError("catalog has the wrong marketplace name")
@@ -215,10 +208,6 @@ def inspect_catalog(path: Path, *, channel: str) -> Catalog:
     version = parse_version(entries[PLUGIN_NAMES[0]].get("version"))
     if metadata.get("version") != version.text:
         raise ReleaseContractError("catalog metadata and plugin versions differ")
-    if channel == "rc" and version.prerelease is None:
-        raise ReleaseContractError("RC promotion requires a prerelease version")
-    if channel == "stable" and version.prerelease is not None:
-        raise ReleaseContractError("stable promotion requires a stable version")
 
     sources = {name: entry.get("source") for name, entry in entries.items()}
     if any(not isinstance(source, dict) for source in sources.values()):
@@ -600,105 +589,6 @@ def validate_stable_rights_approval(source_repo: Path) -> None:
         )
 
 
-def _validate_focused_copilot_stable_promotion(
-    stable_source: Path,
-    rc_source: Path,
-    *,
-    stable_version: Version,
-    rc_version: Version,
-) -> None:
-    """Allow only the mechanically regenerated hashes caused by a version bump."""
-
-    stable_target = stable_source / FOCUSED_COPILOT_DIRECTORY
-    rc_target = rc_source / FOCUSED_COPILOT_DIRECTORY
-    stable_plugin = stable_target / "plugin.json"
-    rc_plugin = rc_target / "plugin.json"
-    canonical_stable = stable_source / "plugin/plugin.json"
-    canonical_rc = rc_source / "plugin/plugin.json"
-    if stable_plugin.read_bytes() != canonical_stable.read_bytes() or (
-        rc_plugin.read_bytes() != canonical_rc.read_bytes()
-    ):
-        raise ReleaseContractError(
-            "focused Copilot plugin.json must be byte-identical to its canonical plugin"
-        )
-
-    stable_plugin_bytes = stable_plugin.read_bytes()
-    rc_plugin_bytes = rc_plugin.read_bytes()
-    stable_version_bytes = json.dumps(stable_version.text).encode("utf-8")
-    rc_version_bytes = json.dumps(rc_version.text).encode("utf-8")
-    version_field = re.compile(
-        rb'("version"\s*:\s*)' + re.escape(stable_version_bytes)
-    )
-    normalized_plugin, substitutions = version_field.subn(
-        rb"\g<1>" + rc_version_bytes, stable_plugin_bytes
-    )
-    if substitutions != 1 or normalized_plugin != rc_plugin_bytes:
-        raise ReleaseContractError(
-            "focused Copilot plugin.json differs from the RC beyond its version value"
-        )
-
-    stable_full_manifest = _validate_copilot_full_payload_manifest(
-        stable_source, label="stable"
-    )
-    rc_full_manifest = _validate_copilot_full_payload_manifest(
-        rc_source, label="RC"
-    )
-    stable_full_digest = hashlib.sha256(stable_full_manifest).hexdigest()
-    rc_full_digest = hashlib.sha256(rc_full_manifest).hexdigest()
-
-    stable_manifest_path = stable_target / "manifest.json"
-    rc_manifest_path = rc_target / "manifest.json"
-    stable_manifest = read_object(stable_manifest_path)
-    rc_manifest = read_object(rc_manifest_path)
-    stable_plugin_digest = hashlib.sha256(stable_plugin_bytes).hexdigest()
-    rc_plugin_digest = hashlib.sha256(rc_plugin_bytes).hexdigest()
-    for label, manifest, plugin_digest, full_digest in (
-        ("stable", stable_manifest, stable_plugin_digest, stable_full_digest),
-        ("RC", rc_manifest, rc_plugin_digest, rc_full_digest),
-    ):
-        source = manifest.get("source")
-        files = manifest.get("files")
-        if (
-            not isinstance(source, dict)
-            or source.get("payloadManifest") != "plugin/manifest.json"
-            or source.get("payloadManifestSha256") != full_digest
-            or not isinstance(files, dict)
-            or not isinstance(files.get("plugin.json"), dict)
-            or files["plugin.json"].get("sha256") != plugin_digest
-        ):
-            raise ReleaseContractError(
-                f"{label} focused Copilot manifest does not bind its full source payload"
-            )
-    stable_manifest_bytes = stable_manifest_path.read_bytes()
-    if (
-        stable_manifest_bytes.count(stable_plugin_digest.encode("ascii")) != 1
-        or stable_manifest_bytes.count(stable_full_digest.encode("ascii")) != 1
-    ):
-        raise ReleaseContractError(
-            "stable focused Copilot manifest must contain exactly one derived plugin "
-            "and full-payload hash"
-        )
-    normalized_manifest = stable_manifest_bytes.replace(
-        stable_plugin_digest.encode("ascii"), rc_plugin_digest.encode("ascii")
-    ).replace(
-        stable_full_digest.encode("ascii"), rc_full_digest.encode("ascii")
-    )
-    if normalized_manifest != rc_manifest_path.read_bytes():
-        raise ReleaseContractError(
-            "focused Copilot manifest differs from the RC beyond derived plugin hashes"
-        )
-
-    stable_payload = payload_manifest(stable_target)
-    rc_payload = payload_manifest(rc_target)
-    for derived in ("plugin.json", "manifest.json"):
-        stable_payload.pop(derived, None)
-        rc_payload.pop(derived, None)
-    if stable_payload != rc_payload:
-        raise ReleaseContractError(
-            "focused Copilot payload differs from the reviewed RC"
-        )
-
-
 def _validate_copilot_full_payload_manifest(source: Path, *, label: str) -> bytes:
     plugin_root = source / "plugin"
     manifest_path = plugin_root / "manifest.json"
@@ -836,157 +726,6 @@ def _validate_copilot_full_payload_manifest(source: Path, *, label: str) -> byte
     return manifest_bytes
 
 
-def _validate_copilot_full_stable_promotion(
-    stable_source: Path, rc_source: Path
-) -> None:
-    stable_manifest = _validate_copilot_full_payload_manifest(
-        stable_source, label="stable"
-    )
-    rc_manifest = _validate_copilot_full_payload_manifest(rc_source, label="RC")
-    stable_plugin = (stable_source / "plugin/plugin.json").read_bytes()
-    rc_plugin = (rc_source / "plugin/plugin.json").read_bytes()
-    stable_digest = hashlib.sha256(stable_plugin).hexdigest()
-    rc_digest = hashlib.sha256(rc_plugin).hexdigest()
-    if stable_manifest.count(stable_digest.encode("ascii")) != 1:
-        raise ReleaseContractError(
-            "stable Copilot full payload manifest must bind plugin.json exactly once"
-        )
-    normalized = stable_manifest.replace(
-        stable_digest.encode("ascii"), rc_digest.encode("ascii")
-    )
-    if normalized != rc_manifest:
-        raise ReleaseContractError(
-            "stable Copilot full payload manifest differs from the RC beyond the "
-            "derived plugin.json hash"
-        )
-
-
-def validate_stable_promotion(
-    stable: Catalog,
-    stable_source: Path,
-    rc_tag: str,
-    rc: Catalog,
-    rc_source: Path,
-) -> None:
-    if rc_tag != rc.version.tag:
-        raise ReleaseContractError(
-            f"RC tag {rc_tag!r} must equal catalog version tag {rc.version.tag!r}"
-        )
-    if stable.version.core != rc.version.core:
-        raise ReleaseContractError(
-            "stable and RC versions must have the same major.minor.patch"
-        )
-    stable_package_manifest = stable_source / "package-manifest.json"
-    rc_package_manifest = rc_source / "package-manifest.json"
-    try:
-        package_manifest_matches = (
-            stable_package_manifest.read_bytes() == rc_package_manifest.read_bytes()
-        )
-    except FileNotFoundError as exc:
-        raise ReleaseContractError(
-            "stable and RC sources must both contain package-manifest.json"
-        ) from exc
-    if not package_manifest_matches:
-        raise ReleaseContractError(
-            "stable package-manifest.json differs from the reviewed RC"
-        )
-
-    for name in PLUGIN_NAMES:
-        stable_package = stable_source / PLUGIN_PATHS[name]
-        rc_package = rc_source / PLUGIN_PATHS[name]
-        stable_manifest_path = stable_package / "plugin.json"
-        rc_manifest_path = rc_package / "plugin.json"
-        stable_manifest = read_object(stable_manifest_path)
-        rc_manifest = read_object(rc_manifest_path)
-        stable_manifest.pop("version", None)
-        rc_manifest.pop("version", None)
-        if stable_manifest != rc_manifest:
-            raise ReleaseContractError(
-                f"stable {name} manifest differs from the RC beyond its version"
-            )
-        stable_manifest_bytes = stable_manifest_path.read_bytes()
-        stable_version = json.dumps(stable.version.text).encode("utf-8")
-        rc_version = json.dumps(rc.version.text).encode("utf-8")
-        version_field = re.compile(rb'("version"\s*:\s*)' + re.escape(stable_version))
-        normalized_manifest, substitutions = version_field.subn(
-            rb"\g<1>" + rc_version, stable_manifest_bytes
-        )
-        if substitutions != 1 or normalized_manifest != rc_manifest_path.read_bytes():
-            raise ReleaseContractError(
-                f"stable {name}/plugin.json differs byte-for-byte from the RC beyond its version value"
-            )
-
-        stable_payload = payload_manifest(stable_package, exclude_manifest=True)
-        rc_payload = payload_manifest(rc_package, exclude_manifest=True)
-        stable_payload.pop("manifest.json", None)
-        rc_payload.pop("manifest.json", None)
-        if stable_payload != rc_payload:
-            missing = sorted(rc_payload.keys() - stable_payload.keys())
-            added = sorted(stable_payload.keys() - rc_payload.keys())
-            changed = sorted(
-                path
-                for path in stable_payload.keys() & rc_payload.keys()
-                if stable_payload[path] != rc_payload[path]
-            )
-            detail = "; ".join(
-                f"{label}: {', '.join(paths[:5])}"
-                for label, paths in (("missing", missing), ("added", added), ("changed", changed))
-                if paths
-            )
-            raise ReleaseContractError(
-                f"stable {name} payload differs from the reviewed RC beyond plugin.json version"
-                + (f"; {detail}" if detail else "")
-            )
-
-    _validate_copilot_full_stable_promotion(stable_source, rc_source)
-
-    for directory in OPENCODE_DISTRIBUTION_DIRECTORIES:
-        stable_payload = payload_manifest(stable_source / directory)
-        rc_payload = payload_manifest(rc_source / directory)
-        if stable_payload != rc_payload:
-            missing = sorted(rc_payload.keys() - stable_payload.keys())
-            added = sorted(stable_payload.keys() - rc_payload.keys())
-            changed = sorted(
-                path
-                for path in stable_payload.keys() & rc_payload.keys()
-                if stable_payload[path] != rc_payload[path]
-            )
-            detail = "; ".join(
-                f"{label}: {', '.join(paths[:5])}"
-                for label, paths in (("missing", missing), ("added", added), ("changed", changed))
-                if paths
-            )
-            raise ReleaseContractError(
-                f"stable {directory} payload differs from the reviewed RC"
-                + (f"; {detail}" if detail else "")
-            )
-
-    _validate_focused_copilot_stable_promotion(
-        stable_source,
-        rc_source,
-        stable_version=stable.version,
-        rc_version=rc.version,
-    )
-
-    for relative in OPENCODE_DISTRIBUTION_FILES:
-        stable_digest = distribution_file_digest(stable_source / relative)
-        rc_digest = distribution_file_digest(rc_source / relative)
-        if stable_digest != rc_digest:
-            raise ReleaseContractError(
-                f"stable {relative} differs from the reviewed RC"
-            )
-
-    for relative in STABLE_GATE_HARNESS_FILES:
-        stable_digest = distribution_file_digest(stable_source / relative)
-        rc_digest = distribution_file_digest(rc_source / relative)
-        if stable_digest != rc_digest:
-            raise ReleaseContractError(
-                f"stable release-gate harness {relative} differs from the reviewed RC"
-            )
-
-    validate_stable_rights_approval(stable_source)
-
-
 def write_outputs(path: Path, values: dict[str, str]) -> None:
     with path.open("a", encoding="utf-8") as output:
         for key, value in values.items():
@@ -997,47 +736,21 @@ def write_outputs(path: Path, values: dict[str, str]) -> None:
 
 def render_notes(
     *,
-    channel: str,
     tag: str,
     catalog_sha: str,
     source_sha: str,
-    rc_tag: str | None,
 ) -> str:
-    if channel not in {"rc", "stable"}:
-        raise ReleaseContractError(f"unsupported release channel: {channel!r}")
     if not tag.startswith("v"):
         raise ReleaseContractError("release notes need a version tag")
     version = parse_version(tag.removeprefix("v"))
     if tag != version.tag:
         raise ReleaseContractError("release tag must be canonical v<semver>")
-    if channel == "rc" and (version.prerelease is None or rc_tag is not None):
-        raise ReleaseContractError(
-            "RC release notes require a prerelease tag and no RC parent"
-        )
-    if channel == "stable":
-        if version.prerelease is not None or rc_tag is None:
-            raise ReleaseContractError(
-                "stable release notes require a stable tag and an RC parent"
-            )
-        rc_version = parse_version(rc_tag.removeprefix("v"))
-        if rc_tag != rc_version.tag or rc_version.prerelease is None:
-            raise ReleaseContractError("RC parent must be a canonical prerelease tag")
-        if version.core != rc_version.core:
-            raise ReleaseContractError("stable and RC note tags need the same base version")
     if FULL_SHA.fullmatch(catalog_sha) is None:
         raise ReleaseContractError("release notes need a version tag and catalog SHA")
     if FULL_SHA.fullmatch(source_sha) is None:
         raise ReleaseContractError("release notes need an exact source SHA")
 
-    status = "release candidate" if channel == "rc" else "stable release"
-    promoted = (
-        f"\nThis stable release promotes the tested `{rc_tag}` payload. The only "
-        "permitted semantic payload change is the `plugin.json.version` value; "
-        "the full and focused Copilot manifest hashes are regenerated "
-        "mechanically from it.\n"
-        if rc_tag
-        else ""
-    )
+    status = "prerelease" if version.prerelease is not None else "stable release"
     terminal_install = f"""### Install the terminal launcher
 
 Download the bundle and its detached checksum from this release, verify the
@@ -1064,7 +777,7 @@ brew upgrade --cask copilot-cli
 ```"""
     return f"""## Grillmester {tag}
 
-This is a **{status}** with an immutable, two-step provenance chain.{promoted}
+This is a **{status}** with an immutable, two-step provenance chain.
 | Layer | Immutable identity |
 | --- | --- |
 | Release tag | `{tag}` → catalog commit `{catalog_sha}` |
@@ -1174,7 +887,6 @@ a separate lifecycle installation or copy client binaries into its bundle.
 
 def add_common_inspect_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--catalog", type=Path, required=True)
-    parser.add_argument("--channel", choices=("rc", "stable"), required=True)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -1190,11 +902,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     validate.add_argument("--catalog-repo", type=Path, required=True)
     validate.add_argument("--catalog-sha", required=True)
     validate.add_argument("--source-repo", type=Path, required=True)
-    validate.add_argument("--rc-tag")
-    validate.add_argument("--rc-catalog", type=Path)
-    validate.add_argument("--rc-catalog-repo", type=Path)
-    validate.add_argument("--rc-catalog-sha")
-    validate.add_argument("--rc-source-repo", type=Path)
 
     validate_source = commands.add_parser(
         "validate-source-promotion",
@@ -1202,16 +909,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     add_common_inspect_arguments(validate_source)
     validate_source.add_argument("--source-repo", type=Path, required=True)
-    validate_source.add_argument("--rc-tag")
-    validate_source.add_argument("--rc-catalog", type=Path)
-    validate_source.add_argument("--rc-source-repo", type=Path)
 
     notes = commands.add_parser("notes", help="render deterministic release notes")
-    notes.add_argument("--channel", choices=("rc", "stable"), required=True)
     notes.add_argument("--tag", required=True)
     notes.add_argument("--catalog-sha", required=True)
     notes.add_argument("--source-sha", required=True)
-    notes.add_argument("--rc-tag")
     notes.add_argument("--output", type=Path, required=True)
     return parser.parse_args(argv)
 
@@ -1220,7 +922,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         if args.command == "inspect":
-            catalog = inspect_catalog(args.catalog, channel=args.channel)
+            catalog = inspect_catalog(args.catalog)
             values = {
                 "version": catalog.version.text,
                 "tag": catalog.version.tag,
@@ -1229,13 +931,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.github_output:
                 write_outputs(args.github_output, values)
             print(
-                f"{args.channel} catalog is {catalog.version.tag} -> "
-                f"{catalog.source_sha}"
+                f"Catalog is {catalog.version.tag} -> {catalog.source_sha}"
             )
             return 0
 
         if args.command == "validate":
-            catalog = inspect_catalog(args.catalog, channel=args.channel)
+            catalog = inspect_catalog(args.catalog)
             validate_catalog_checkout(args.catalog_repo, args.catalog_sha)
             bind_catalog_bytes(args.catalog, args.catalog_repo)
             validate_source_checkout(args.source_repo, catalog)
@@ -1245,101 +946,32 @@ def main(argv: Sequence[str] | None = None) -> int:
                 source_sha=catalog.source_sha,
             )
 
-            rc_values = (
-                args.rc_tag,
-                args.rc_catalog,
-                args.rc_catalog_repo,
-                args.rc_catalog_sha,
-                args.rc_source_repo,
-            )
-            if args.channel == "rc":
-                if any(value is not None for value in rc_values):
-                    raise ReleaseContractError("RC promotion must not specify an RC parent")
-            else:
-                if any(value is None for value in rc_values):
-                    raise ReleaseContractError(
-                        "stable promotion requires --rc-tag, --rc-catalog, "
-                        "--rc-catalog-repo, --rc-catalog-sha, and --rc-source-repo"
-                    )
-                assert args.rc_tag is not None
-                assert args.rc_catalog is not None
-                assert args.rc_catalog_repo is not None
-                assert args.rc_catalog_sha is not None
-                assert args.rc_source_repo is not None
-                rc = inspect_catalog(args.rc_catalog, channel="rc")
-                validate_catalog_checkout(
-                    args.rc_catalog_repo,
-                    args.rc_catalog_sha,
-                )
-                bind_catalog_bytes(args.rc_catalog, args.rc_catalog_repo)
-                validate_source_checkout(args.rc_source_repo, rc)
-                validate_regenerated_catalog(
-                    catalog_path=args.rc_catalog,
-                    source_repo=args.rc_source_repo,
-                    source_sha=rc.source_sha,
-                )
-                validate_stable_promotion(
-                    catalog,
-                    args.source_repo,
-                    args.rc_tag,
-                    rc,
-                    args.rc_source_repo,
-                )
+            validate_stable_rights_approval(args.source_repo)
             print(
-                f"Validated {args.channel} chain: {catalog.version.tag} -> "
+                f"Validated chain: {catalog.version.tag} -> "
                 f"{args.catalog_sha} -> {catalog.source_sha}"
             )
             return 0
 
         if args.command == "validate-source-promotion":
-            catalog = inspect_catalog(args.catalog, channel=args.channel)
+            catalog = inspect_catalog(args.catalog)
             validate_source_checkout(args.source_repo, catalog)
             validate_regenerated_catalog(
                 catalog_path=args.catalog,
                 source_repo=args.source_repo,
                 source_sha=catalog.source_sha,
             )
-            rc_values = (args.rc_tag, args.rc_catalog, args.rc_source_repo)
-            if args.channel == "rc":
-                if any(value is not None for value in rc_values):
-                    raise ReleaseContractError(
-                        "RC source promotion must not specify an RC parent"
-                    )
-            else:
-                if any(value is None for value in rc_values):
-                    raise ReleaseContractError(
-                        "stable source promotion requires --rc-tag, --rc-catalog, "
-                        "and --rc-source-repo"
-                    )
-                assert args.rc_tag is not None
-                assert args.rc_catalog is not None
-                assert args.rc_source_repo is not None
-                rc = inspect_catalog(args.rc_catalog, channel="rc")
-                validate_source_checkout(args.rc_source_repo, rc)
-                validate_regenerated_catalog(
-                    catalog_path=args.rc_catalog,
-                    source_repo=args.rc_source_repo,
-                    source_sha=rc.source_sha,
-                )
-                validate_stable_promotion(
-                    catalog,
-                    args.source_repo,
-                    args.rc_tag,
-                    rc,
-                    args.rc_source_repo,
-                )
+            validate_stable_rights_approval(args.source_repo)
             print(
-                f"Validated prospective {args.channel} source: "
+                f"Validated prospective source: "
                 f"{catalog.version.tag} -> {catalog.source_sha}"
             )
             return 0
 
         notes = render_notes(
-            channel=args.channel,
             tag=args.tag,
             catalog_sha=args.catalog_sha,
             source_sha=args.source_sha,
-            rc_tag=args.rc_tag,
         )
         args.output.write_text(notes, encoding="utf-8")
         print(f"Wrote release notes: {args.output}")

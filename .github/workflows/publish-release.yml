@@ -28,17 +28,9 @@ jobs:
       bundle-sha256: ${{ steps.bundle.outputs.bundle_sha256 }}
       bundle-size: ${{ steps.bundle.outputs.bundle_size }}
       catalog-sha: ${{ steps.contract.outputs.catalog_sha }}
-      channel: ${{ steps.contract.outputs.channel }}
       main-sha: ${{ steps.contract.outputs.main_sha }}
       notes-base64: ${{ steps.contract.outputs.notes_base64 }}
       notes-sha256: ${{ steps.contract.outputs.notes_sha256 }}
-      rc-catalog-sha: ${{ steps.contract.outputs.rc_catalog_sha }}
-      rc-bundle-checksum-name: ${{ steps.contract.outputs.rc_bundle_checksum_name }}
-      rc-bundle-checksum-sha256: ${{ steps.contract.outputs.rc_bundle_checksum_sha256 }}
-      rc-bundle-name: ${{ steps.contract.outputs.rc_bundle_name }}
-      rc-bundle-sha256: ${{ steps.contract.outputs.rc_bundle_sha256 }}
-      rc-source-sha: ${{ steps.contract.outputs.rc_source_sha }}
-      rc-tag: ${{ steps.contract.outputs.rc_tag }}
       request-id: ${{ steps.contract.outputs.request_id }}
       source-sha: ${{ steps.contract.outputs.source_sha }}
       tag: ${{ steps.contract.outputs.tag }}
@@ -67,19 +59,12 @@ jobs:
           }
           jq -e '
             type == "object" and
-            (keys | sort) == ["catalogSha", "channel", "rcTag", "requestId", "schemaVersion"] and
+            (keys | sort) == ["catalogSha", "requestId", "schemaVersion"] and
             .schemaVersion == 1 and
             (.requestId | type == "string" and test("^[a-z0-9][a-z0-9._-]{0,63}$")) and
-            (.channel == "rc" or .channel == "stable") and
-            (.catalogSha | type == "string" and test("^[0-9a-f]{40}$")) and
-            (.rcTag | type == "string") and
-            (if .channel == "rc" then .rcTag == ""
-             else (.rcTag | test("^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-[0-9A-Za-z.-]+$"))
-             end)
+            (.catalogSha | type == "string" and test("^[0-9a-f]{40}$"))
           ' "${request}" >/dev/null
-          channel="$(jq -er '.channel' "${request}")"
           catalog_sha="$(jq -er '.catalogSha' "${request}")"
-          rc_tag="$(jq -er '.rcTag' "${request}")"
           request_id="$(jq -er '.requestId' "${request}")"
 
           git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main" \
@@ -135,149 +120,30 @@ jobs:
           contract_args=(
             validate
             --catalog "${catalog}"
-            --channel "${channel}"
             --catalog-repo "${catalog_repo}"
             --catalog-sha "${catalog_sha}"
             --source-repo "${source_repo}"
           )
-          rc_catalog_sha=""
-          rc_bundle_checksum_name=""
-          rc_bundle_checksum_sha256=""
-          rc_bundle_name=""
-          rc_bundle_sha256=""
-          rc_source_sha=""
-          if [[ "${channel}" == "stable" ]]; then
-            git fetch --no-tags origin "refs/tags/${rc_tag}:refs/tags/${rc_tag}"
-            [[ "$(git cat-file -t "refs/tags/${rc_tag}")" == "tag" ]]
-            rc_catalog_sha="$(git rev-parse "refs/tags/${rc_tag}^{}")"
-            git merge-base --is-ancestor \
-              "${rc_catalog_sha}" refs/remotes/origin/marketplace
-            rc_catalog_repo="${RUNNER_TEMP}/rc-catalog"
-            git worktree add --detach "${rc_catalog_repo}" "${rc_catalog_sha}"
-            rc_catalog="${rc_catalog_repo}/.github/plugin/marketplace.json"
-            rc_values="${RUNNER_TEMP}/rc-values"
-            python3 scripts/release_contract.py inspect \
-              --catalog "${rc_catalog}" --channel rc \
-              --github-output "${rc_values}"
-            [[ "${rc_tag}" == "$(sed -n 's/^tag=//p' "${rc_values}")" ]]
-            rc_source_sha="$(sed -n 's/^source_sha=//p' "${rc_values}")"
-            git cat-file -e "${rc_source_sha}^{commit}"
-            git merge-base --is-ancestor \
-              "${rc_source_sha}" refs/remotes/origin/main
-            rc_source_repo="${RUNNER_TEMP}/rc-source"
-            git worktree add --detach "${rc_source_repo}" "${rc_source_sha}"
-            contract_args+=(
-              --rc-tag "${rc_tag}"
-              --rc-catalog "${rc_catalog}"
-              --rc-catalog-repo "${rc_catalog_repo}"
-              --rc-catalog-sha "${rc_catalog_sha}"
-              --rc-source-repo "${rc_source_repo}"
-            )
-            # Complete the workflow-owned, read-only contract before executing
-            # the selected RC source's bundle builder.
-            python3 scripts/release_contract.py "${contract_args[@]}"
-            rc_release="$(curl --config /dev/null --fail-with-body --silent --show-error \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2026-03-10' \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${rc_tag}")"
-            [[ "$(jq -r '.tag_name' <<<"${rc_release}")" == "${rc_tag}" ]]
-            [[ "$(jq -r '.draft' <<<"${rc_release}")" == "false" ]]
-            [[ "$(jq -r '.prerelease' <<<"${rc_release}")" == "true" ]]
-            [[ "$(jq -r '.immutable' <<<"${rc_release}")" == "true" ]]
-            rc_bundle_name="grillmester-terminal-${rc_tag}.tar.gz"
-            rc_bundle_checksum_name="${rc_bundle_name}.sha256"
-            jq -e \
-              --arg bundle "${rc_bundle_name}" \
-              --arg checksum "${rc_bundle_checksum_name}" \
-              '(.assets | length) == 2 and
-               ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
-               all(.assets[];
-                 .state == "uploaded" and
-                 (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")) and
-                 (.browser_download_url | type == "string" and
-                   startswith("https://github.com/"))) and
-               any(.assets[];
-                 .name == $bundle and .label == "Grillmester terminal bundle") and
-               any(.assets[];
-                 .name == $checksum and .label == "SHA-256 checksum")' \
-              <<<"${rc_release}" >/dev/null
-
-            rc_assets="${RUNNER_TEMP}/rc-assets"
-            mkdir -p "${rc_assets}"
-            rc_published_bundle="${rc_assets}/${rc_bundle_name}"
-            rc_published_checksum="${rc_assets}/${rc_bundle_checksum_name}"
-            rc_bundle_url="$(jq -er --arg name "${rc_bundle_name}" \
-              '.assets[] | select(.name == $name) | .browser_download_url' \
-              <<<"${rc_release}")"
-            rc_checksum_url="$(jq -er --arg name "${rc_bundle_checksum_name}" \
-              '.assets[] | select(.name == $name) | .browser_download_url' \
-              <<<"${rc_release}")"
-            curl --config /dev/null --fail-with-body --silent --show-error --location \
-              --proto '=https' --tlsv1.2 --proto-redir '=https' \
-              --max-filesize 61000000 \
-              "${rc_bundle_url}" --output "${rc_published_bundle}"
-            curl --config /dev/null --fail-with-body --silent --show-error --location \
-              --proto '=https' --tlsv1.2 --proto-redir '=https' \
-              --max-filesize 1024 \
-              "${rc_checksum_url}" --output "${rc_published_checksum}"
-
-            rc_rebuilt_bundle="${RUNNER_TEMP}/rebuilt-${rc_bundle_name}"
-            python3 -I -S "${rc_source_repo}/scripts/generate_copilot_manifest.py" \
-              --check
-            python3 -I -S "${rc_source_repo}/scripts/generate_context_projections.py" \
-              --check
-            python3 "${rc_source_repo}/scripts/build_opencode_bundle.py" \
-              --source-root "${rc_source_repo}" --source-sha "${rc_source_sha}" \
-              --output "${rc_rebuilt_bundle}"
-            cmp -s "${rc_rebuilt_bundle}" "${rc_published_bundle}"
-            rc_bundle_sha256="$(sha256sum "${rc_published_bundle}" | cut -d' ' -f1)"
-            rc_bundle_checksum_sha256="$(sha256sum "${rc_published_checksum}" | cut -d' ' -f1)"
-            [[ "$(jq -er --arg name "${rc_bundle_name}" \
-              '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
-              "sha256:${rc_bundle_sha256}" ]]
-            [[ "$(jq -er --arg name "${rc_bundle_checksum_name}" \
-              '.assets[] | select(.name == $name) | .digest' <<<"${rc_release}")" == \
-              "sha256:${rc_bundle_checksum_sha256}" ]]
-            rc_expected_checksum="${RUNNER_TEMP}/expected-${rc_bundle_checksum_name}"
-            printf '%s  %s\n' \
-              "${rc_bundle_sha256}" "${rc_bundle_name}" > "${rc_expected_checksum}"
-            cmp -s "${rc_expected_checksum}" "${rc_published_checksum}"
-            (cd "${rc_assets}" && \
-              sha256sum --check --strict "${rc_bundle_checksum_name}")
-          else
-            python3 scripts/release_contract.py "${contract_args[@]}"
-          fi
+          python3 scripts/release_contract.py "${contract_args[@]}"
 
           values="${RUNNER_TEMP}/values"
           python3 scripts/release_contract.py inspect \
-            --catalog "${catalog}" --channel "${channel}" \
+            --catalog "${catalog}" \
             --github-output "${values}"
           tag="$(sed -n 's/^tag=//p' "${values}")"
           [[ "${source_sha}" == "$(sed -n 's/^source_sha=//p' "${values}")" ]]
 
           notes="${RUNNER_TEMP}/release-notes.md"
-          notes_args=(
-            notes --channel "${channel}" --tag "${tag}"
-            --catalog-sha "${catalog_sha}" --source-sha "${source_sha}"
+          python3 scripts/release_contract.py notes --tag "${tag}" \
+            --catalog-sha "${catalog_sha}" --source-sha "${source_sha}" \
             --output "${notes}"
-          )
-          [[ -z "${rc_tag}" ]] || notes_args+=(--rc-tag "${rc_tag}")
-          python3 scripts/release_contract.py "${notes_args[@]}"
 
           {
             echo "before_sha=${BEFORE_SHA}"
             echo "catalog_sha=${catalog_sha}"
-            echo "channel=${channel}"
             echo "main_sha=${MAIN_SHA}"
             echo "notes_base64=$(base64 -w0 "${notes}")"
             echo "notes_sha256=$(sha256sum "${notes}" | cut -d' ' -f1)"
-            echo "rc_catalog_sha=${rc_catalog_sha}"
-            echo "rc_bundle_checksum_name=${rc_bundle_checksum_name}"
-            echo "rc_bundle_checksum_sha256=${rc_bundle_checksum_sha256}"
-            echo "rc_bundle_name=${rc_bundle_name}"
-            echo "rc_bundle_sha256=${rc_bundle_sha256}"
-            echo "rc_source_sha=${rc_source_sha}"
-            echo "rc_tag=${rc_tag}"
             echo "request_id=${request_id}"
             echo "source_sha=${source_sha}"
             echo "tag=${tag}"
@@ -350,7 +216,6 @@ jobs:
           BUNDLE_SHA256: ${{ steps.bundle.outputs.bundle_sha256 }}
           BUNDLE_SIZE: ${{ steps.bundle.outputs.bundle_size }}
           CATALOG_SHA: ${{ steps.contract.outputs.catalog_sha }}
-          CHANNEL: ${{ steps.contract.outputs.channel }}
           REQUEST_ID: ${{ steps.contract.outputs.request_id }}
           SOURCE_SHA: ${{ steps.contract.outputs.source_sha }}
           TAG: ${{ steps.contract.outputs.tag }}
@@ -362,7 +227,6 @@ jobs:
           [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
           [[ "${CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "${CHANNEL}" == "rc" || "${CHANNEL}" == "stable" ]]
           [[ "${REQUEST_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]]
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
@@ -372,7 +236,6 @@ jobs:
             echo "| Field | Sealed value |"
             echo "| --- | --- |"
             echo "| Request | \`${REQUEST_ID}\` |"
-            echo "| Channel | \`${CHANNEL}\` |"
             echo "| Tag | \`${TAG}\` |"
             echo "| Catalog SHA | \`${CATALOG_SHA}\` |"
             echo "| Source SHA | \`${SOURCE_SHA}\` |"
@@ -499,9 +362,7 @@ jobs:
       BUNDLE_NAME: ${{ needs.validate.outputs.bundle-name }}
       BUNDLE_SHA256: ${{ needs.validate.outputs.bundle-sha256 }}
       BUNDLE_SIZE: ${{ needs.validate.outputs.bundle-size }}
-      CHANNEL: ${{ needs.validate.outputs.channel }}
       MAIN_SHA: ${{ needs.validate.outputs.main-sha }}
-      RC_SOURCE_SHA: ${{ needs.validate.outputs.rc-source-sha }}
       RUN_ID: ${{ github.run_id }}
       SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
       TAG: ${{ needs.validate.outputs.tag }}
@@ -1141,10 +1002,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${CHANNEL}" != "stable" ]]; then
-            [[ "${CHANNEL}" == "rc" ]]
-            exit 0
-          fi
           python3 - "${SOURCE_SHA}" <<'PY'
           import datetime as dt
           import hashlib
@@ -1340,55 +1197,6 @@ jobs:
               fail("Doctor Who remains in scope but brand status says renamed")
           PY
 
-      - name: Independently enforce focused Copilot stable parity
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${CHANNEL}" != "stable" ]]; then
-            [[ "${CHANNEL}" == "rc" && -z "${RC_SOURCE_SHA}" ]]
-            exit 0
-          fi
-          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ && \
-             "${RC_SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          git cat-file -e "${RC_SOURCE_SHA}^{commit}"
-          full_root="plugin"
-          git diff --quiet "${RC_SOURCE_SHA}" "${SOURCE_SHA}" -- "${full_root}" \
-            ":(exclude)${full_root}/plugin.json" ":(exclude)${full_root}/manifest.json"
-          stable_plugin_digest="$(git show "${SOURCE_SHA}:${full_root}/plugin.json" | sha256sum | cut -d' ' -f1)"
-          rc_plugin_digest="$(git show "${RC_SOURCE_SHA}:${full_root}/plugin.json" | sha256sum | cut -d' ' -f1)"
-          [[ "$(git show "${SOURCE_SHA}:${full_root}/manifest.json" | \
-            grep -o "${stable_plugin_digest}" | wc -l)" == "1" ]]
-          [[ "$(git show "${RC_SOURCE_SHA}:${full_root}/manifest.json" | \
-            grep -o "${rc_plugin_digest}" | wc -l)" == "1" ]]
-          [[ "$(git show "${SOURCE_SHA}:${full_root}/manifest.json" | \
-            sed "s/${stable_plugin_digest}/${rc_plugin_digest}/g")" == \
-             "$(git show "${RC_SOURCE_SHA}:${full_root}/manifest.json")" ]]
-          stable_full_digest="$(git show "${SOURCE_SHA}:${full_root}/manifest.json" | sha256sum | cut -d' ' -f1)"
-          rc_full_digest="$(git show "${RC_SOURCE_SHA}:${full_root}/manifest.json" | sha256sum | cut -d' ' -f1)"
-          root="targets/copilot-cli-focused-v1"
-          git diff --quiet "${RC_SOURCE_SHA}" "${SOURCE_SHA}" -- "${root}" \
-            ":(exclude)${root}/plugin.json" ":(exclude)${root}/manifest.json"
-          [[ "$(git rev-parse "${SOURCE_SHA}:${root}/plugin.json")" == \
-             "$(git rev-parse "${SOURCE_SHA}:plugin/plugin.json")" ]]
-          [[ "$(git rev-parse "${RC_SOURCE_SHA}:${root}/plugin.json")" == \
-             "$(git rev-parse "${RC_SOURCE_SHA}:plugin/plugin.json")" ]]
-          stable_focused_digest="$(git show "${SOURCE_SHA}:${root}/plugin.json" | sha256sum | cut -d' ' -f1)"
-          rc_focused_digest="$(git show "${RC_SOURCE_SHA}:${root}/plugin.json" | sha256sum | cut -d' ' -f1)"
-          [[ "${stable_focused_digest}" == "${stable_plugin_digest}" ]]
-          [[ "${rc_focused_digest}" == "${rc_plugin_digest}" ]]
-          [[ "$(git show "${SOURCE_SHA}:${root}/manifest.json" | \
-            grep -o "${stable_focused_digest}" | wc -l)" == "1" ]]
-          [[ "$(git show "${RC_SOURCE_SHA}:${root}/manifest.json" | \
-            grep -o "${rc_focused_digest}" | wc -l)" == "1" ]]
-          [[ "$(git show "${SOURCE_SHA}:${root}/manifest.json" | \
-            grep -o "${stable_full_digest}" | wc -l)" == "1" ]]
-          [[ "$(git show "${RC_SOURCE_SHA}:${root}/manifest.json" | \
-            grep -o "${rc_full_digest}" | wc -l)" == "1" ]]
-          [[ "$(git show "${SOURCE_SHA}:${root}/manifest.json" | \
-            sed "s/${stable_focused_digest}/${rc_focused_digest}/g; s/${stable_full_digest}/${rc_full_digest}/g")" == \
-             "$(git show "${RC_SOURCE_SHA}:${root}/manifest.json")" ]]
-
-
   release:
     needs:
       - validate
@@ -1411,17 +1219,9 @@ jobs:
       BUNDLE_SHA256: ${{ needs.validate.outputs.bundle-sha256 }}
       BUNDLE_SIZE: ${{ needs.validate.outputs.bundle-size }}
       CATALOG_SHA: ${{ needs.validate.outputs.catalog-sha }}
-      CHANNEL: ${{ needs.validate.outputs.channel }}
       MAIN_SHA: ${{ needs.validate.outputs.main-sha }}
       NOTES_BASE64: ${{ needs.validate.outputs.notes-base64 }}
       NOTES_SHA256: ${{ needs.validate.outputs.notes-sha256 }}
-      RC_BUNDLE_CHECKSUM_NAME: ${{ needs.validate.outputs.rc-bundle-checksum-name }}
-      RC_BUNDLE_CHECKSUM_SHA256: ${{ needs.validate.outputs.rc-bundle-checksum-sha256 }}
-      RC_BUNDLE_NAME: ${{ needs.validate.outputs.rc-bundle-name }}
-      RC_BUNDLE_SHA256: ${{ needs.validate.outputs.rc-bundle-sha256 }}
-      RC_CATALOG_SHA: ${{ needs.validate.outputs.rc-catalog-sha }}
-      RC_SOURCE_SHA: ${{ needs.validate.outputs.rc-source-sha }}
-      RC_TAG: ${{ needs.validate.outputs.rc-tag }}
       REQUEST_ID: ${{ needs.validate.outputs.request-id }}
       RUN_ID: ${{ github.run_id }}
       SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
@@ -1472,7 +1272,6 @@ jobs:
           [[ "${RUN_ID}" =~ ^[1-9][0-9]*$ ]]
           [[ "${REQUEST_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]]
           [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
-          [[ "${CHANNEL}" == "rc" || "${CHANNEL}" == "stable" ]]
           [[ "${BUNDLE_NAME}" == "grillmester-terminal-${TAG}.tar.gz" ]]
           [[ "${BUNDLE_ARTIFACT_NAME}" == "sealed-${BUNDLE_NAME}-${SOURCE_SHA}" ]]
           [[ "${BUNDLE_CHECKSUM_NAME}" == "${BUNDLE_NAME}.sha256" ]]
@@ -1539,9 +1338,7 @@ jobs:
              ".github/release-request.json" ]]
           request="$(git show "${MAIN_SHA}:.github/release-request.json")"
           [[ "$(jq -r '.schemaVersion' <<<"${request}")" == "1" ]]
-          [[ "$(jq -r '.channel' <<<"${request}")" == "${CHANNEL}" ]]
           [[ "$(jq -r '.catalogSha' <<<"${request}")" == "${CATALOG_SHA}" ]]
-          [[ "$(jq -r '.rcTag' <<<"${request}")" == "${RC_TAG}" ]]
           [[ "$(jq -r '.requestId' <<<"${request}")" == "${REQUEST_ID}" ]]
           validate_catalog() {
             jq -e --arg v "$2" --arg s "$3" \
@@ -1576,11 +1373,8 @@ jobs:
           catalog="$(<"${catalog_file}")"
           version="$(jq -er '.metadata.version' <<<"${catalog}")"
           [[ "${TAG}" == "v${version}" ]]
-          if [[ "${CHANNEL}" == "rc" ]]; then
-            [[ "${version}" == *-* ]]
-          else
-            [[ "${version}" != *-* ]]
-          fi
+          expected_prerelease="false"
+          [[ "${version}" == *-* ]] && expected_prerelease="true"
           validate_catalog "${catalog_file}" "${version}" "${SOURCE_SHA}"
 
           package_manifest_file="${RUNNER_TEMP}/package-manifest.json"
@@ -1623,106 +1417,7 @@ jobs:
             "${version}" "${SOURCE_SHA}" "${regenerated_catalog}"
           cmp -s "${regenerated_catalog}" "${catalog_file}"
 
-          if [[ "${CHANNEL}" == "stable" ]]; then
-            git cat-file -e "${SOURCE_SHA}:policy/stable-rights-approval.json"
-            [[ "${RC_TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
-            [[ "${RC_CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
-            [[ "${RC_SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
-            [[ "${RC_BUNDLE_NAME}" == "grillmester-terminal-${RC_TAG}.tar.gz" ]]
-            [[ "${RC_BUNDLE_CHECKSUM_NAME}" == "${RC_BUNDLE_NAME}.sha256" ]]
-            [[ "${RC_BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
-            [[ "${RC_BUNDLE_CHECKSUM_SHA256}" =~ ^[0-9a-f]{64}$ ]]
-            git fetch --no-tags origin "refs/tags/${RC_TAG}:refs/tags/${RC_TAG}"
-            [[ "$(git cat-file -t "refs/tags/${RC_TAG}")" == "tag" ]]
-            [[ "$(git rev-parse "refs/tags/${RC_TAG}^{}")" == "${RC_CATALOG_SHA}" ]]
-            git merge-base --is-ancestor \
-              "${RC_CATALOG_SHA}" refs/remotes/origin/marketplace
-            expected_rc_tree="100644 blob $(git rev-parse "${RC_CATALOG_SHA}:.github/plugin/marketplace.json")"
-            actual_rc_tree="$(git ls-tree -r "${RC_CATALOG_SHA}")"
-            [[ "${actual_rc_tree}" == "${expected_rc_tree}"$'\t'.github/plugin/marketplace.json ]]
-            rc_catalog_file="${RUNNER_TEMP}/rc-marketplace.json"
-            git show "${RC_CATALOG_SHA}:.github/plugin/marketplace.json" > "${rc_catalog_file}"
-            rc_catalog_version="$(jq -er '.metadata.version' "${rc_catalog_file}")"
-            [[ "v${rc_catalog_version}" == "${RC_TAG}" ]]
-            validate_catalog \
-              "${rc_catalog_file}" "${rc_catalog_version}" "${RC_SOURCE_SHA}"
-            git merge-base --is-ancestor "${RC_SOURCE_SHA}" refs/remotes/origin/main
-            rc_package_manifest_file="${RUNNER_TEMP}/rc-package-manifest.json"
-            rc_standard_manifest_file="${RUNNER_TEMP}/rc-grillmester-plugin.json"
-            git show "${RC_SOURCE_SHA}:package-manifest.json" > "${rc_package_manifest_file}"
-            git show "${RC_SOURCE_SHA}:plugin/plugin.json" > "${rc_standard_manifest_file}"
-            cmp -s "${package_manifest_file}" "${rc_package_manifest_file}"
-            rc_version="$(jq -er '.version' "${rc_standard_manifest_file}")"
-            [[ "v${rc_version}" == "${RC_TAG}" ]]
-            [[ "$(jq -er '.name' "${rc_standard_manifest_file}")" == "grillmester" ]]
-            [[ "$(jq -er '.repository' "${rc_standard_manifest_file}")" == "https://github.com/navikt/grillmester" ]]
-            [[ "${rc_version%%-*}" == "${version}" && "${rc_version}" == *-* ]]
-            [[ "$(jq -cS 'del(.version)' "${standard_manifest_file}")" == "$(jq -cS 'del(.version)' "${rc_standard_manifest_file}")" ]]
-            [[ -z "$(git diff --name-only "${RC_SOURCE_SHA}" "${SOURCE_SHA}" \
-              -- LICENSE PROVENANCE.md THIRD_PARTY_NOTICES.md policy/content-lock.json policy/focused-context-v1.json targets/opencode-v1 targets/opencode-v1-focused \
-                 scripts/build_opencode_bundle.py scripts/grillmester.py scripts/grillmester_local.py scripts/generate_context_projections.py scripts/release_contract.py \
-                 scripts/release_test_baseline.py scripts/smoke_plugin_install.py scripts/smoke_opencode.py scripts/smoke_opencode_runtime.py scripts/smoke_grillmester_local.py scripts/smoke_grillmester_tui.py)" ]]
-
-            stable_version_pattern="${version//./\\.}"
-            [[ "$(grep -Ec "\"version\"[[:space:]]*:[[:space:]]*\"${stable_version_pattern}\"" \
-              "${standard_manifest_file}")" == "1" ]]
-            normalized_standard_manifest="${RUNNER_TEMP}/normalized-grillmester-plugin.json"
-            sed -E \
-              "0,/(\"version\"[[:space:]]*:[[:space:]]*)\"${stable_version_pattern}\"/s//\\1\"${rc_version}\"/" \
-              "${standard_manifest_file}" > "${normalized_standard_manifest}"
-            cmp -s "${normalized_standard_manifest}" "${rc_standard_manifest_file}"
-
-            regenerated_rc_catalog="${RUNNER_TEMP}/regenerated-rc-marketplace.json"
-            regenerate_catalog \
-              "${rc_package_manifest_file}" "${rc_standard_manifest_file}" \
-              "${rc_version}" "${RC_SOURCE_SHA}" "${regenerated_rc_catalog}"
-            cmp -s "${regenerated_rc_catalog}" "${rc_catalog_file}"
-            rc_release="$(gh api \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2026-03-10' \
-              "repos/${REPOSITORY}/releases/tags/${RC_TAG}")"
-            [[ "$(jq -r '.tag_name' <<<"${rc_release}")" == "${RC_TAG}" ]]
-            [[ "$(jq -r '.draft' <<<"${rc_release}")" == "false" ]]
-            [[ "$(jq -r '.prerelease' <<<"${rc_release}")" == "true" ]]
-            [[ "$(jq -r '.immutable' <<<"${rc_release}")" == "true" ]]
-            jq -e \
-              --arg bundle "${RC_BUNDLE_NAME}" \
-              --arg bundle_digest "sha256:${RC_BUNDLE_SHA256}" \
-              --arg checksum "${RC_BUNDLE_CHECKSUM_NAME}" \
-              --arg checksum_digest "sha256:${RC_BUNDLE_CHECKSUM_SHA256}" \
-              '(.assets | length) == 2 and
-               ([.assets[].name] | sort) == ([$bundle, $checksum] | sort) and
-               all(.assets[]; .state == "uploaded") and
-               any(.assets[];
-                 .name == $bundle and
-                 .label == "Grillmester terminal bundle" and
-                 .digest == $bundle_digest) and
-               any(.assets[];
-                 .name == $checksum and
-                 .label == "SHA-256 checksum" and
-                 .digest == $checksum_digest)' \
-              <<<"${rc_release}" >/dev/null
-            current_rc_assets="${RUNNER_TEMP}/current-rc-assets"
-            mkdir -p "${current_rc_assets}"
-            gh release download "${RC_TAG}" --repo "${REPOSITORY}" \
-              --dir "${current_rc_assets}" \
-              --pattern "${RC_BUNDLE_NAME}" \
-              --pattern "${RC_BUNDLE_CHECKSUM_NAME}"
-            [[ "$(sha256sum "${current_rc_assets}/${RC_BUNDLE_NAME}" | cut -d' ' -f1)" == \
-               "${RC_BUNDLE_SHA256}" ]]
-            [[ "$(sha256sum "${current_rc_assets}/${RC_BUNDLE_CHECKSUM_NAME}" | cut -d' ' -f1)" == \
-               "${RC_BUNDLE_CHECKSUM_SHA256}" ]]
-            expected_rc_checksum="${RUNNER_TEMP}/expected-${RC_BUNDLE_CHECKSUM_NAME}"
-            printf '%s  %s\n' \
-              "${RC_BUNDLE_SHA256}" "${RC_BUNDLE_NAME}" > "${expected_rc_checksum}"
-            cmp -s \
-              "${expected_rc_checksum}" \
-              "${current_rc_assets}/${RC_BUNDLE_CHECKSUM_NAME}"
-          else
-            [[ -z "${RC_TAG}" && -z "${RC_CATALOG_SHA}" && -z "${RC_SOURCE_SHA}" ]]
-            [[ -z "${RC_BUNDLE_NAME}" && -z "${RC_BUNDLE_CHECKSUM_NAME}" ]]
-            [[ -z "${RC_BUNDLE_SHA256}" && -z "${RC_BUNDLE_CHECKSUM_SHA256}" ]]
-          fi
+          git cat-file -e "${SOURCE_SHA}:policy/stable-rights-approval.json"
 
           verify_remote_tag() {
             local object target
@@ -1751,8 +1446,6 @@ jobs:
             fi
           fi
 
-          expected_prerelease="false"
-          [[ "${CHANNEL}" == "rc" ]] && expected_prerelease="true"
           verify_release_metadata() {
             local expected_draft="$1"
             [[ "$(jq -r '.tag_name' <<<"${release}")" == "${TAG}" ]]
@@ -1827,7 +1520,7 @@ jobs:
               release create "${TAG}" --verify-tag --draft --latest=false
               --title "Grillmester ${TAG}" --notes-file "${notes}"
             )
-            [[ "${CHANNEL}" == "rc" ]] && create_args+=(--prerelease)
+            [[ "${expected_prerelease}" == "true" ]] && create_args+=(--prerelease)
             gh "${create_args[@]}"
             release="$(wait_for_release)"
           else
@@ -1864,7 +1557,7 @@ jobs:
               release edit "${TAG}" --verify-tag --draft=false
               --title "Grillmester ${TAG}" --notes-file "${notes}"
             )
-            if [[ "${CHANNEL}" == "rc" ]]; then
+            if [[ "${expected_prerelease}" == "true" ]]; then
               publish_args+=(--prerelease=true --latest=false)
             else
               publish_args+=(--prerelease=false --latest)
