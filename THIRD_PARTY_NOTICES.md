@@ -60,9 +60,9 @@ SOFTWARE.
 
 ## navikt/cplt
 
-The Grillmester Homebrew formula declares
-[`navikt/tap/cplt`](https://github.com/navikt/homebrew-tap) as an external
-dependency; it does not redistribute a private cplt binary. Grillmester's
+Grillmester resolves separately installed
+[cplt](https://github.com/navikt/cplt) from `PATH`; it does not redistribute a
+private cplt binary. Grillmester's
 release compatibility tests verify cplt
 `2026.08.17-062831-1008a92` artifacts from
 [`navikt/cplt`](https://github.com/navikt/cplt). This notice is retained for

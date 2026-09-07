@@ -891,3 +891,44 @@ jobs:
                   raise SystemExit("OpenCode did not use Chat Completions")
           PY
           [[ -z "$(git -C "${MACOS_CONSUMER}" status --porcelain)" ]]
+
+      - name: Reach the OpenCode TUI through the extracted launcher and cplt
+        shell: bash
+        env:
+          PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+        run: |
+          set -euo pipefail
+          [[ "$(shasum -a 256 "${OPENCODE_BIN}" | cut -d' ' -f1)" == \
+             "${OPENCODE_BINARY_SHA256}" ]]
+          [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
+             "${CPLT_BINARY_SHA256}" ]]
+          launcher="${BUNDLE_ROOT}/scripts/grillmester.py"
+          [[ -f "${launcher}" && -x "${launcher}" ]]
+          qa_root="${RUNNER_TEMP}/tui-gate"
+          tui_consumer="${qa_root}/tui-consumer"
+          mkdir -m 700 "${qa_root}"
+          mkdir -m 700 "${tui_consumer}"
+          git -C "${tui_consumer}" init --quiet
+          client_path="${RUNNER_TEMP}/verified-darwin-bin:/usr/bin:/bin:/usr/sbin:/sbin"
+          doctor_output="$(PATH="${client_path}" \
+            "${launcher}" doctor --client opencode)"
+          # The launcher reports fully resolved paths, so compare against the
+          # same canonical form rather than the raw environment values.
+          canonical() {
+            python3 -I -S -c \
+              'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve(strict=True))' \
+              "$1"
+          }
+          cplt_resolved="$(canonical "${CPLT_BIN}")"
+          opencode_resolved="$(canonical "${OPENCODE_BIN}")"
+          grep -F "ok  cplt ${cplt_resolved} (cplt " <<<"${doctor_output}"
+          grep -F "ok  opencode ${opencode_resolved} (${RELEASE_TEST_OPENCODE_VERSION})" \
+            <<<"${doctor_output}"
+          python3 -I -S scripts/smoke_grillmester_tui.py \
+            --launcher "${launcher}" \
+            --opencode "${OPENCODE_BIN}" \
+            --opencode-version "${RELEASE_TEST_OPENCODE_VERSION}" \
+            --cplt "${CPLT_BIN}" \
+            --project-dir "${tui_consumer}" \
+            --state-parent "${qa_root}"
+          [[ -z "$(git -C "${tui_consumer}" status --porcelain)" ]]

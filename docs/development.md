@@ -51,8 +51,9 @@ payloadene og avledes sist. CI verifiserer blant annet katalogpinning,
 innholdslås, full og fokusert agent-/skillroster, OpenCode-projeksjon,
 progressive lenker og install–oppgradering–rollback–avinstallering.
 
-Terminalbrukere skal installere den deterministiske release-`tar.gz`-en gjennom
-den genererte Homebrew-formelen, ikke en source-checkout. Checkout-installasjon
+Terminalbrukere skal installere den deterministiske release-`tar.gz`-en ved å
+verifisere checksummen og pakke ut arkivet, ikke fra en source-checkout.
+Checkout-installasjon
 er bare utviklingsinput. Bundlebygget verifiserer Copilot-pluginen, launcheren,
 OpenCode-targetet og focused-targetene og binder dem til eksakt source-SHA i
 `DISTRIBUTION-MANIFEST.json`. Det ytre distribusjonsnavnet er
@@ -66,24 +67,17 @@ python3 scripts/build_opencode_bundle.py \
   --source-sha "$(git rev-parse HEAD)" \
   --output /tmp/grillmester-terminal-v1.tar.gz
 shasum -a 256 /tmp/grillmester-terminal-v1.tar.gz
-
-python3 scripts/generate_homebrew_formula.py \
-  --tag v0.0.0-test \
-  --bundle-name grillmester-terminal-v0.0.0-test.tar.gz \
-  --bundle-sha256 "$(shasum -a 256 /tmp/grillmester-terminal-v1.tar.gz | cut -d' ' -f1)" \
-  --output /tmp/grillmester.rb
-ruby -c /tmp/grillmester.rb
 ```
 
 Et releasebygg skal kjøres to ganger og gi byte-identiske arkiver før den
-detached checksumfilen publiseres. Release-workflowen publiserer bundle,
-checksum og den byte-eksakte formelen som tre immutable assets.
+detached checksumfilen publiseres. Release-workflowen publiserer bundle og
+checksum som to immutable assets.
 
 Kjør den lokale hovedgaten:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
-python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_homebrew_formula.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py scripts/generate_agentpakke_manifest.py
+python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py scripts/generate_agentpakke_manifest.py
 python3 scripts/generate_copilot_manifest.py --check
 python3 scripts/generate_opencode.py --check
 python3 scripts/generate_context_projections.py --check

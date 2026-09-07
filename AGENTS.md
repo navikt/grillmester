@@ -41,7 +41,7 @@ Run before publishing a change:
 
 ```bash
 python3 scripts/generate_marketplace.py --mode development --check
-python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_homebrew_formula.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py scripts/generate_agentpakke_manifest.py
+python3 -m py_compile scripts/grillmester.py scripts/grillmester_local.py scripts/smoke_grillmester_local.py scripts/generate_copilot_manifest.py scripts/generate_context_projections.py scripts/generate_agentpakke_manifest.py
 python3 scripts/generate_copilot_manifest.py --check
 python3 scripts/generate_opencode.py --check
 python3 scripts/generate_context_projections.py --check
@@ -77,8 +77,8 @@ must complete the forced Grill-inspektor delegation with the exact loopback
 model in every request. It must not use a GitHub Copilot cloud model.
 
 Treat those exact versions only as release-test inputs, not as runtime pins or
-client binaries shipped by the Homebrew formula. The launchers resolve
+client binaries shipped in the release bundle. The launchers resolve
 user-installed OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.79,<2`, and cplt at
-the tested baseline or a newer dated release from `PATH`. Formula and launcher
-tests must prove missing-client diagnostics, Copilot-only operation, and the
-absence of private `libexec/clients` copies.
+the tested baseline or a newer dated release from `PATH`. Launcher tests must
+prove missing-client diagnostics, Copilot-only operation, and the absence of
+private `libexec/clients` copies.

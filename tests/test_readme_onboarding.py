@@ -33,8 +33,11 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         cls.cplt_release = baseline.CONTRACT["releaseTest"]["cpltRelease"]
 
     def test_readme_is_a_short_four_agent_onboarding(self) -> None:
-        self.assertLessEqual(len(self.text.splitlines()), 115)
-        self.assertLessEqual(len(self.text.split()), 575)
+        # Budsjettet ble hevet da nav-pilot-agentpakka ble en fjerde
+        # installasjonsvei. Det er fortsatt en grense mot creep, ikke en
+        # invitasjon: utvid det bare for en ny kanal, ikke for mer prosa.
+        self.assertLessEqual(len(self.text.splitlines()), 125)
+        self.assertLessEqual(len(self.text.split()), 605)
         self.assertEqual(
             self.text.split("\n## ", 1)[1].splitlines()[0], "Kom i gang"
         )
@@ -87,7 +90,6 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             "python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch",
             "starter du først en OpenAI-kompatibel modellserver",
             "cd /path/to/consumer-repo",
-            "Homebrew-kanalen for Grillmester er ikke aktivert",
             "Videre terminaldistribusjon samordnes med nav-pilot",
         ):
             with self.subTest(marker=marker):
@@ -195,8 +197,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
 
     def test_advanced_installation_details_remain_in_the_guide(self) -> None:
         for marker in (
-            "Homebrew-formelen for Grillmester er ferdig",
-            "kanalen er ikke aktivert",
+            "terminaldistribusjon samordnes med nav-pilot",
             "Copilot app",
             "Valgfritt: automatisk oppdatering i Copilot CLI",
             '"enabledPlugins"',

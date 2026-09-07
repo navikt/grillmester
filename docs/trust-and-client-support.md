@@ -24,7 +24,7 @@ ikke en teknisk blokkering dersom klienten faktisk tilbyr write.
 
 Standardlauncheren bruker OpenCode og Copilot CLI fra brukerens `PATH`; cplt
 resolveres fra samme miljø.
-Grillmesters Homebrew-checksum binder Grillmester-bundle-en, ikke disse
+Grillmesters bundle-checksum binder Grillmester-bundle-en, ikke disse
 klientbinærene. Installasjons- og oppdateringstillit for systemklientene eies av
 brukeren, organisasjonen og valgt pakkekanal; Grillmester distribuerer, kopierer
 eller skygger dem ikke.
@@ -57,7 +57,7 @@ tekniske grensen.
 
 | Klient | Nåstatus | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
-| **Copilot CLI** | Referanseklient. Native marketplace-installasjon og Homebrew-launch gjennom cplt bruker samme pluginpayload. | Den nye 43-skill-pakken, immutable kandidat, resolved modell, delegering og runtime-toolbruk i representativt repo. |
+| **Copilot CLI** | Referanseklient. Native marketplace-installasjon og terminal-launch gjennom cplt bruker samme pluginpayload. | Den nye 43-skill-pakken, immutable kandidat, resolved modell, delegering og runtime-toolbruk i representativt repo. |
 | **Copilot app** | Native Plugins-UI. Appen tilbyr også BYOK mot LM Studio og OpenAI-kompatible endepunkter i public preview. | Discovery, oppdatering, resolved source, delegering, write/deny og lokal BYOK må observeres i appen; terminalens cplt-grense gjelder ikke. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær, ikke-verifisert kompatibilitetsflate utenfor første release-løfte. | Faktisk installasjon og oppdatering med to Grillmester-versjoner. |
@@ -163,11 +163,10 @@ betyr bare at inference-requestet går til det valgte loopbackendepunktet.
 
 ## Releasegater
 
-De uavhengige macOS-gatene kjører på Apple Silicon og Intel. De bygger bundle-
-en deterministisk, validerer manifestene, installerer den genererte Homebrew-
-formelen, resolver systemklienter fra `PATH`, kjører doctor og starter en
-avgrenset OpenCode-TUI gjennom cplt uten modellkall. Formelen må aldri inneholde
-en privat klientkatalog.
+Den uavhengige macOS-gaten kjører på Apple Silicon og Intel. Den bygger
+bundle-en deterministisk, validerer manifestene, resolver systemklienter fra
+`PATH`, kjører doctor og starter en avgrenset OpenCode-TUI gjennom cplt uten
+modellkall. Bundle-en må aldri inneholde en privat klientkatalog.
 
 Den native gaten henter de eksakte OpenCode-, Copilot CLI- og cplt-artefaktene
 registrert som testinput, verifiserer arkiv- og binærdigester før første kjøring

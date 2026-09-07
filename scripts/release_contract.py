@@ -43,7 +43,6 @@ OPENCODE_DISTRIBUTION_FILES = (
     "scripts/build_opencode_bundle.py",
     "scripts/generate_copilot_manifest.py",
     "scripts/generate_context_projections.py",
-    "scripts/generate_homebrew_formula.py",
     "scripts/grillmester.py",
     "scripts/grillmester_local.py",
     "scripts/release_contract.py",
@@ -1039,66 +1038,26 @@ def render_notes(
         if rc_tag
         else ""
     )
-    if channel == "rc":
-        terminal_install = f"""### Test the terminal launcher release candidate
+    terminal_install = f"""### Install the terminal launcher
 
-The stable-only Homebrew tap does not publish release candidates. Do not use
-`brew install navikt/tap/cplt navikt/tap/grillmester` to evaluate `{tag}`: that command selects
-the stable version currently present in the tap, if any. Download the
-`grillmester.rb` asset attached to this exact release, verify it as part of the
-release-candidate pilot, then place it in a temporary local tap before installing it.
-Homebrew 6 rejects formula files outside a tap:
+Download the bundle and its detached checksum from this release, verify the
+checksum, then extract the archive:
 
 ```bash
-brew tap-new --no-git grillmester/rc-pilot
-install -m 0644 ./grillmester.rb \\
-  "$(brew --repository grillmester/rc-pilot)/Formula/grillmester.rb"
-brew install --formula grillmester/rc-pilot/grillmester
+shasum -a 256 -c grillmester-terminal-{tag}.tar.gz.sha256
+tar -xzf grillmester-terminal-{tag}.tar.gz
 ```
 
-Reuse the same temporary tap for later candidates and replace its formula only
-with another exact, reviewed formula asset. Upgrade an installed candidate with
-the fully qualified temporary-tap name:
-
-```bash
-brew upgrade --formula grillmester/rc-pilot/grillmester
-```
-
-The unqualified `brew upgrade grillmester` follows the stable tap and is not
-the RC update path.
+The extracted `scripts/grillmester.py` is the launcher. Put it on `PATH` as
+`grillmester`, or invoke it by path. It uses the OpenCode and GitHub Copilot CLI
+executables from `PATH` and does not package either client binary. cplt is
+installed and updated separately.
 """
-        update_commands = """The candidate formula is replaced only from an exact,
-reviewed release asset as described above. cplt, OpenCode, and GitHub Copilot CLI
-keep separate update lifecycles:
+    update_commands = """Grillmester, cplt, OpenCode, and GitHub Copilot CLI keep
+separate update lifecycles. Replace the extracted bundle with a newer release to
+update Grillmester, and update each client with its own installer:
 
 ```bash
-brew upgrade navikt/tap/cplt
-brew upgrade opencode
-brew upgrade --cask copilot-cli
-```"""
-    else:
-        terminal_install = f"""### Install the terminal launcher after tap publication
-
-The Homebrew tap accepts stable releases only. This GitHub Release does not by
-itself prove that the tap already serves `{tag}`. For the first stable release,
-the reviewed tap-bootstrap PR must merge; later releases are admitted by the
-tap updater. After `brew info navikt/tap/grillmester` reports this exact version:
-
-```bash
-brew install navikt/tap/cplt navikt/tap/grillmester
-```
-
-Both names are fully qualified so Homebrew trusts only these two formulae,
-not every current and future item in `navikt/tap`.
-
-If the tap still reports an earlier version, wait for the reviewed updater (or
-use the attached `grillmester.rb` only in the release-validation procedure).
-"""
-        update_commands = """Grillmester, cplt, OpenCode, and GitHub Copilot CLI keep
-separate update lifecycles. Update each installed component explicitly:
-
-```bash
-brew upgrade grillmester
 brew upgrade navikt/tap/cplt
 brew upgrade opencode
 brew upgrade --cask copilot-cli
@@ -1117,9 +1076,6 @@ moved after publication.
 
 {terminal_install}
 
-The Homebrew formula installs Grillmester's reviewed content and launcher. It
-uses the OpenCode and GitHub Copilot CLI executables from `PATH` and does not
-package either client binary. cplt is a required, separate Homebrew dependency.
 The bundle manifest identifies the outer distribution as
 `grillmester-terminal-v1`; its exact client versions are release-test metadata,
 not runtime pins. The inner native OpenCode target remains `opencode-v1`.
@@ -1152,7 +1108,7 @@ GitHub Copilot CLI through cplt.
 ### Install directly in Copilot CLI
 
 This alternative registers the immutable marketplace tag in Copilot CLI's own
-plugin store. It is separate from the Homebrew launcher path above.
+plugin store. It is separate from the launcher path above.
 
 ```bash
 copilot plugin marketplace add navikt/grillmester#{tag}
@@ -1210,9 +1166,9 @@ the marketplace at the previous tag, and reinstall the plugin. Tags are
 immutable; never retag an older or
 newer catalog.
 
-For the terminal launcher, stop the active session and install the previously
-reviewed Homebrew version. Grillmester does not create a separate lifecycle
-installation or copy client binaries into its bundle.
+For the terminal launcher, stop the active session and extract the previously
+reviewed release bundle in place of the current one. Grillmester does not create
+a separate lifecycle installation or copy client binaries into its bundle.
 """
 
 

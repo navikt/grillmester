@@ -181,10 +181,3 @@ jobs:
       source_sha: ${{ github.sha }}
     permissions:
       contents: read
-
-  macos-homebrew-compatibility:
-    uses: ./.github/workflows/macos-homebrew-compatibility.yml
-    with:
-      source_sha: ${{ github.sha }}
-    permissions:
-      contents: read
