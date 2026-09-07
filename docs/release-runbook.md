@@ -72,7 +72,7 @@ Three workflows have deliberately separate jobs:
   ID, binds it back to the same workflow run and digest, requires exactly the
   two expected files, and may therefore only publish the already source-bound
   sealed bytes without executing selected-source code. It finally requires the
-  published release object (and an RC used for stable promotion) to report
+  published release object to report
   `immutable: true`. After
   publication, a read-only job verifies the tag target, installs from the
   actual remote `v<version>` marketplace ref, downloads both assets,
@@ -311,14 +311,19 @@ another authorized repository writer. Existing workflow validation, protected
 `main`, and environment review remain defense-in-depth controls, not proof of
 strict writer separation.
 
-## Release a candidate
+## Publish a release
 
-1. Set `plugin/plugin.json.version` to a strict prerelease SemVer, for example
-   `0.3.0-rc.1`. Build metadata is not accepted, and a version must never be
-   reused for different payload bytes.
+There is one release flow and one channel. A version is just a version: a
+strict SemVer prerelease suffix marks the GitHub Release as a prerelease, and a
+plain version marks it as the latest stable release. Nothing else distinguishes
+them, and no release is promoted from another.
+
+1. Set `plugin/plugin.json.version` to a strict SemVer, for example `0.3.2`, or
+   `0.3.2-rc.1` for a prerelease. Build metadata is not accepted, and a version
+   must never be reused for different payload bytes.
 2. Merge that source change normally. From current `main`, explicitly dispatch
-   **Publish marketplace catalog** with `channel=rc`, the exact lowercase
-   40-character `source_sha` to promote, and an empty `rc_tag`. Wait for it to
+   **Publish marketplace catalog** with the exact lowercase 40-character
+   `source_sha` to promote. Wait for it to
    complete, then resolve the exact catalog-only commit containing the version:
 
    ```bash
@@ -328,7 +333,7 @@ strict writer separation.
    ```
 
 3. Optionally dispatch **Validate immutable release** from the `main` branch
-   with `channel=rc`, the full `catalog_sha`, and an empty `rc_tag`. A run from
+   with the full `catalog_sha`. A run from
    another selected ref fails rather than being skipped. This preflight is
    read-only and is not a publication request.
 4. Open a separate PR that changes only `.github/release-request.json`:
@@ -336,16 +341,17 @@ strict writer separation.
    ```json
    {
      "schemaVersion": 1,
-     "requestId": "v0.3.0-rc.1-1",
-     "channel": "rc",
-     "catalogSha": "0123456789abcdef0123456789abcdef01234567",
-     "rcTag": ""
+     "requestId": "v0.3.2-1",
+     "catalogSha": "0123456789abcdef0123456789abcdef01234567"
    }
    ```
 
    Use the real 40-character catalog SHA. `requestId` is a lowercase audit and
    retry identifier; increment its final component when the exact same release
-   must be requested again.
+   must be requested again. The checked-in request is a historical publication
+   record; do not migrate it or replace its catalog SHA with a placeholder in a
+   source or workflow PR. Replace the complete object with the format above
+   only in this separate request-only PR.
 5. After review, merge the request. **Publish reviewed release request** binds
    the request to current `origin/main`, checks that the catalog is reachable
    from `marketplace`, requires the complete merged push range to change only
@@ -371,10 +377,10 @@ before it mutates GitHub. It resolves the same sealed artifact ID through the
 Actions API, requires the expected workflow-run ID and server digest, and checks
 the exact inner bytes and detached checksum again. It creates an annotated tag at the catalog commit,
 then stages a draft GitHub Release with `--verify-tag`. Only an unpublished
-draft may have the three sealed asset names retried with `--clobber`; unexpected
-draft assets fail closed. The step downloads and byte-verifies all three staged
+draft may have the two sealed asset names retried with `--clobber`; unexpected
+draft assets fail closed. The step downloads and byte-verifies both staged
 assets before publishing the draft (`prerelease` and
-`latest=false` for an RC).
+`latest=false` for a prerelease).
 Published assets are never replaced. The following read-only
 `remote-smoke` job peels the published tag back to the expected catalog commit,
 installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/43-skill
@@ -395,7 +401,7 @@ CLI result.
 
 ### Gate the local-model harness
 
-Before an RC is called ready for a local-model pilot, both Apple Silicon and
+Before a release is called ready for a local-model pilot, both Apple Silicon and
 Intel jobs must run the bundled `scripts/smoke_grillmester_local.py` with
 `--require-binaries`. The gate uses checksum-verified cplt, OpenCode and
 Copilot CLI binaries, one deterministic loopback provider and no GitHub Copilot
@@ -405,55 +411,13 @@ three delegation requests uses another model ID, or the fake-`gh` matrix cannot
 allow a current-repository issue while blocking cross-repository, destructive
 and token-extraction commands. The fake CLI never contacts GitHub.
 
-The protocol smoke is not model quality. Before stable promotion, run the same
-immutable RC against at least one actually permitted local model in both
-clients. Record the model artifact/revision, quantization, server version,
+The protocol smoke is not model quality. Before recommending a release for
+local-model use, run that immutable release against at least one actually
+permitted local model in both clients. Record the model artifact/revision, quantization, server version,
 machine, context limit, focused/full input tokens, tool calls, delegation,
 output quality and that Copilot reports zero premium requests. Use an empty,
 disposable consumer repository and no cloud model. Passing a Qwen pilot does
 not extend the support claim to another model or quantization.
-
-## Promote a reviewed candidate to stable
-
-Stable is a new version, source commit, catalog commit, tag, and GitHub Release;
-it is never a second label on the RC catalog. Create a source commit whose
-plugin manifest uses the stable version, such as `0.3.0`. Apart from that exact
-`version` value, the corresponding generated `plugin/manifest.json` digest and
-the focused Copilot manifest's two derived digests, the package payload and
-manifest formats must be byte-identical to the named candidate. The release
-contract must also be byte-identical. OpenCode distribution inputs — generated
-target, launchers and bundle-builder contract — must also be byte-identical
-between RC and
-stable; the outer bundle manifest and checksum are expected to change because
-they bind the new stable source SHA. Before either validation or publication can
-promote stable, the workflow also downloads the named RC's two public assets,
-requires their API and detached digests, rebuilds the RC archive from the exact
-source SHA, and requires byte identity. Explicitly
-dispatch **Publish
-marketplace catalog** from current `main` with `channel=stable`, the new stable
-source commit as `source_sha`, and the exact reviewed prerelease tag (for
-example `v0.3.0-rc.1`) as `rc_tag`. That publisher revalidates the public RC
-release, rights approval, source parity, rebuilt RC bundle, API asset digests,
-and detached checksum before it creates the new stable-versioned catalog.
-
-Optionally run the read-only validator with `channel=stable`, the new catalog
-SHA, and the reviewed prerelease tag. Then merge a separate request-file PR:
-
-```json
-{
-  "schemaVersion": 1,
-  "requestId": "v0.3.0-1",
-  "channel": "stable",
-  "catalogSha": "fedcba9876543210fedcba9876543210fedcba98",
-  "rcTag": "v0.3.0-rc.1"
-}
-```
-
-The publisher peels the named RC tag, verifies its prerelease, requires the RC
-and stable versions to share `major.minor.patch`, verifies both catalog/source chains, and
-allows no payload change beyond the manifest version and its mechanically
-derived hashes. It then creates the new
-stable tag and release. Never retag the RC catalog.
 
 ## Idempotency and interrupted publication
 
@@ -471,7 +435,7 @@ The publisher never moves an existing tag:
 
 Rerun the failed push workflow while its request commit is still current
 `origin/main`. If `main` has moved, open a new request-only PR with the same
-channel/catalog/RC values and a new `requestId`. This preserves a reviewable
+`catalogSha` and a new `requestId`. This preserves a reviewable
 retry without changing or reusing immutable release content.
 
 ## Rollback and containment
