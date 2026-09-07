@@ -2,11 +2,9 @@
 """Validate and describe Grillmester's immutable release chain.
 
 The public release tag identifies a catalog-only commit. The catalog then
-identifies every target payload with one exact GitHub commit SHA. Stable
-releases are new, stable-versioned catalogs whose Copilot and OpenCode
-payloads are identical to a named RC apart from the Copilot manifest version
-and its mechanically derived payload hashes; an RC tag is never moved or
-re-used.
+identifies every target payload with one exact GitHub commit SHA. Each release
+is validated independently; a SemVer prerelease suffix controls its GitHub
+prerelease status. Tags and published assets are never moved or re-used.
 """
 
 from __future__ import annotations
@@ -525,7 +523,7 @@ def _validate_approval_decision(
 
 
 def validate_stable_rights_approval(source_repo: Path) -> None:
-    """Require a reviewed, content-bound legal/rights record for stable only."""
+    """Require a reviewed, content-bound rights record for every release."""
 
     approval_path = source_repo / STABLE_RIGHTS_APPROVAL_PATH
     approval = read_object(approval_path)

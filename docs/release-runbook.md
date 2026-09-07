@@ -72,7 +72,7 @@ Three workflows have deliberately separate jobs:
   ID, binds it back to the same workflow run and digest, requires exactly the
   two expected files, and may therefore only publish the already source-bound
   sealed bytes without executing selected-source code. It finally requires the
-  published release object (and an RC used for stable promotion) to report
+  published release object to report
   `immutable: true`. After
   publication, a read-only job verifies the tag target, installs from the
   actual remote `v<version>` marketplace ref, downloads both assets,
@@ -348,7 +348,10 @@ them, and no release is promoted from another.
 
    Use the real 40-character catalog SHA. `requestId` is a lowercase audit and
    retry identifier; increment its final component when the exact same release
-   must be requested again.
+   must be requested again. The checked-in request is a historical publication
+   record; do not migrate it or replace its catalog SHA with a placeholder in a
+   source or workflow PR. Replace the complete object with the format above
+   only in this separate request-only PR.
 5. After review, merge the request. **Publish reviewed release request** binds
    the request to current `origin/main`, checks that the catalog is reachable
    from `marketplace`, requires the complete merged push range to change only
@@ -374,10 +377,10 @@ before it mutates GitHub. It resolves the same sealed artifact ID through the
 Actions API, requires the expected workflow-run ID and server digest, and checks
 the exact inner bytes and detached checksum again. It creates an annotated tag at the catalog commit,
 then stages a draft GitHub Release with `--verify-tag`. Only an unpublished
-draft may have the three sealed asset names retried with `--clobber`; unexpected
-draft assets fail closed. The step downloads and byte-verifies all three staged
+draft may have the two sealed asset names retried with `--clobber`; unexpected
+draft assets fail closed. The step downloads and byte-verifies both staged
 assets before publishing the draft (`prerelease` and
-`latest=false` for an RC).
+`latest=false` for a prerelease).
 Published assets are never replaced. The following read-only
 `remote-smoke` job peels the published tag back to the expected catalog commit,
 installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/43-skill
@@ -398,7 +401,7 @@ CLI result.
 
 ### Gate the local-model harness
 
-Before an RC is called ready for a local-model pilot, both Apple Silicon and
+Before a release is called ready for a local-model pilot, both Apple Silicon and
 Intel jobs must run the bundled `scripts/smoke_grillmester_local.py` with
 `--require-binaries`. The gate uses checksum-verified cplt, OpenCode and
 Copilot CLI binaries, one deterministic loopback provider and no GitHub Copilot
@@ -408,9 +411,9 @@ three delegation requests uses another model ID, or the fake-`gh` matrix cannot
 allow a current-repository issue while blocking cross-repository, destructive
 and token-extraction commands. The fake CLI never contacts GitHub.
 
-The protocol smoke is not model quality. Before stable promotion, run the same
-immutable RC against at least one actually permitted local model in both
-clients. Record the model artifact/revision, quantization, server version,
+The protocol smoke is not model quality. Before recommending a release for
+local-model use, run that immutable release against at least one actually
+permitted local model in both clients. Record the model artifact/revision, quantization, server version,
 machine, context limit, focused/full input tokens, tool calls, delegation,
 output quality and that Copilot reports zero premium requests. Use an empty,
 disposable consumer repository and no cloud model. Passing a Qwen pilot does
@@ -432,7 +435,7 @@ The publisher never moves an existing tag:
 
 Rerun the failed push workflow while its request commit is still current
 `origin/main`. If `main` has moved, open a new request-only PR with the same
-channel/catalog/RC values and a new `requestId`. This preserves a reviewable
+`catalogSha` and a new `requestId`. This preserves a reviewable
 retry without changing or reusing immutable release content.
 
 ## Rollback and containment
