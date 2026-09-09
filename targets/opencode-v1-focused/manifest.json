@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "36eeeb410a11f2dd1e3b78a38d07612bc7b6aa74a5552ee05ce885d2a875c564",
+    "targetManifestSha256": "6bf2987468c1d9d81abdebe7cc30e52c797f1439c7be7f90d43e3f6fbb6f9a59",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
   },
@@ -87,7 +87,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "282ba1489d0547ed0ef24f98efe1a8d824accef61c61c3768dc95ed16bef0688",
+      "sha256": "80ed208a340039c2df69f0d4e9ac920f7b1c0b8849e89b5e030c3165782cd91b",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
@@ -123,7 +123,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "6fcba42f2b3dfe3259579f8a0ed164fb18a1b445ea532205b7bd266dd10ca065",
+      "sha256": "0e8a0f827a41ca007a98a0da1a9eadacf8b35d4c3fb40383d5a82529926cffa2",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
@@ -135,7 +135,7 @@
       "mode": "0644"
     },
     "skills/tdd/tests.md": {
-      "sha256": "37273171fbc1cf8c8b033c7d23c4f96f30b2e5d87982800446b20f239e996ebf",
+      "sha256": "9fa718b4d69d868a8f47f71aee29dcc69fb5bd40b876c81ea31ad763ad76b50e",
       "mode": "0644"
     }
   }

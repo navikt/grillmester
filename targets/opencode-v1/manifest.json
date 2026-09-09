@@ -406,7 +406,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "9625a6f402d57342a9bb15244498e7aa5b84a47267de9a10aa65098eb19f45c6",
+      "sha256": "e96c02d1abd2db0f9d590e3518d2e11e018e67cdfd561e4f649db33cfff123c4",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
@@ -474,7 +474,7 @@
       "mode": "0644"
     },
     "skills/improve-codebase-architecture/SKILL.md": {
-      "sha256": "b23d6849f5ad10eca6a020dfe50344f66c0e524139186e56b6bf81e9a9d6545e",
+      "sha256": "077daf575641d8da443a8d76d0f8612be06affa2b39dc354ec595de0e5034099",
       "mode": "0644"
     },
     "skills/integration-tests/SKILL.md": {
@@ -570,7 +570,7 @@
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/observability-diagnose.md": {
-      "sha256": "ebc42215b354da70033de5a0e6bef91a1f0050327fec26cbc75e1211f03a24a8",
+      "sha256": "c9376c0e76ec2e4c5bb951d6a39a3073555581c7331c0f4363f6856121dc570f",
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/pod-diagnose.md": {
@@ -654,7 +654,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "79b59a8d875e9132000619a606ef4803416519ce99273eaffdd9e24b0c199e3e",
+      "sha256": "26a27e15cd56b817da0412c36fed14d73a64ea000a2729849476bcdcf3b2b3e2",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
@@ -666,7 +666,7 @@
       "mode": "0644"
     },
     "skills/tdd/tests.md": {
-      "sha256": "b19499e81d9d5ee7910b44aaebfd5c1596369ce85c185aba496ef4edd0c1e648",
+      "sha256": "a76f683f8b0d8a4feeb5175f6ea4c88456bb221203593e88548c456850c9c0b6",
       "mode": "0644"
     },
     "skills/team-status/SKILL.md": {
@@ -682,7 +682,7 @@
       "mode": "0644"
     },
     "skills/to-issues/SKILL.md": {
-      "sha256": "63fcc8b5829ada5638f671416de0ba1a55d5e2f8cb9c60b23ec619d16ef93a44",
+      "sha256": "63d5f0c8a33bcf84a3b70390a315ca81e57adaadd0f93e961f01209e746c757e",
       "mode": "0644"
     },
     "skills/to-spec/SKILL.md": {

@@ -25,6 +25,16 @@
       "repository": "mattpocock/skills",
       "revision": "8b78b531ab965735c5dc74f6f7a219e1e37326df",
       "note": "Reviewed only the diagnosing-bugs redaction and writing-for-agents source-of-truth deltas; this is not a wholesale upstream sync."
+    },
+    "matt-methods": {
+      "repository": "mattpocock/skills",
+      "revision": "3cca18b368ae95cdbdebbff572ccafa662551015",
+      "note": "Adapted independent test expectations and interface/seam vocabulary with scoped architecture exploration; other upstream workflow changes are not imported."
+    },
+    "nav-observability": {
+      "repository": "navikt/copilot",
+      "revision": "ce9abd567a89eb72f1b8f95447435fd16fe805d3",
+      "note": "Adapted trace representativeness guidance from observability-debugging; endpoint and command recipes are not imported."
     }
   },
   "agents": {
@@ -140,7 +150,15 @@
     "grilling": {"source": "pilot", "sourcePath": ".github/skills/grilling", "disposition": "adapted"},
     "guided-review": {"source": "pilot", "sourcePath": ".github/skills/review", "disposition": "adapted", "disable-model-invocation": true},
     "handoff": {"source": "pilot", "sourcePath": ".github/skills/handoff", "disposition": "adapted", "disable-model-invocation": true},
-    "improve-codebase-architecture": {"source": "pilot", "sourcePath": ".github/skills/improve-codebase-architecture", "disposition": "adapted"},
+    "improve-codebase-architecture": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/improve-codebase-architecture",
+      "lineage": [
+        {"source": "matt-methods", "sourcePath": "skills/engineering/codebase-design"},
+        {"source": "matt-methods", "sourcePath": "skills/engineering/improve-codebase-architecture"}
+      ],
+      "disposition": "adapted"
+    },
     "integration-tests": {"source": "pilot", "sourcePath": ".github/skills/integration-tests", "disposition": "adapted"},
     "issue-management": {"source": "pilot", "sourcePath": ".github/skills/issue-management", "disposition": "adapted"},
     "kafka-topic": {"source": "pilot", "sourcePath": ".github/skills/kafka-topic", "disposition": "adapted"},
@@ -148,7 +166,14 @@
     "kotlin-ktor": {"source": "pilot", "sourcePath": ".github/skills/kotlin-ktor", "disposition": "adapted"},
     "lumi-survey": {"source": "hovmester", "sourcePath": ".github/skills/lumi-survey", "disposition": "adapted"},
     "nais-manifest": {"source": "pilot", "sourcePath": ".github/skills/nais-manifest", "disposition": "adapted"},
-    "nav-troubleshoot": {"source": "pilot", "sourcePath": ".github/skills/nav-troubleshoot", "disposition": "adapted"},
+    "nav-troubleshoot": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/nav-troubleshoot",
+      "lineage": [
+        {"source": "nav-observability", "sourcePath": "skills/observability-debugging"}
+      ],
+      "disposition": "adapted"
+    },
     "observability-setup": {"source": "pilot", "sourcePath": ".github/skills/observability-setup", "disposition": "adapted"},
     "okr": {"source": "hovmester", "sourcePath": ".github/skills/okr", "disposition": "adapted"},
     "postgresql-review": {"source": "pilot", "sourcePath": ".github/skills/postgresql-review", "disposition": "adapted"},
@@ -158,7 +183,14 @@
     "readme-update": {"source": "pilot", "sourcePath": ".github/skills/readme-update", "disposition": "adapted"},
     "review": {"source": "pilot", "sourcePath": ".github/skills/review", "disposition": "adapted"},
     "security-review": {"source": "pilot", "sourcePath": ".github/skills/security-review", "disposition": "adapted"},
-    "tdd": {"source": "pilot", "sourcePath": ".github/skills/tdd", "disposition": "adapted"},
+    "tdd": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/tdd",
+      "lineage": [
+        {"source": "matt-methods", "sourcePath": "skills/engineering/tdd"}
+      ],
+      "disposition": "adapted"
+    },
     "team-status": {"source": "hovmester", "sourcePath": ".github/skills/team-status", "disposition": "adapted"},
     "to-issues": {"source": "pilot", "sourcePath": ".github/skills/to-issues", "disposition": "adapted"},
     "to-spec": {"source": "pilot", "sourcePath": ".github/skills/to-spec", "disposition": "adapted"},

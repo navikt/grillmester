@@ -45,6 +45,10 @@ Signals disagree
   labels before trusting a quantile query.
 - A free-text search for «error» across all logs is not a scoped diagnostic.
 - Verify that a trace belongs to the target service before interpreting spans.
+- Use request counts or rates to judge how representative a failing or slow
+  trace is. One trace establishes an instance, not the frequency of the problem.
+- Check sampling, retention and query coverage before treating missing logs or
+  spans as evidence that an event did not occur.
 
 ## Sensitive data
 

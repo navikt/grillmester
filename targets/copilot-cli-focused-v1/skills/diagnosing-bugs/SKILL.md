@@ -36,9 +36,10 @@ defined in the Full-context boundary section.
 
 ## Phase 1 — Build a feedback loop
 
-A repeatable signal for the exact symptom makes experiments and regression
-tests stronger. Read relevant code, logs and configuration to find that signal;
-prefer a runnable reproduction when it is feasible.
+Build a check that fails on the reported symptom and run it before the fix.
+Read relevant code, logs and configuration to construct that check. When access
+or triggering conditions prevent reproduction, use the bounded investigation
+below and identify the missing runtime proof explicitly.
 
 ### Ways to construct one — try them roughly in this order
 

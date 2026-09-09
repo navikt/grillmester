@@ -48,6 +48,10 @@ language. Preserve established domain terms and contract field names exactly.
 
 ## Bad tests
 
+An assertion that duplicates the implementation can repeat its bug. Derive
+expected outcomes independently from the agreed behavior, a worked example or
+a trusted fixture. Check that a plausible wrong result would fail the test.
+
 Interaction-only tests often couple behavior to internal structure:
 
 ```text

@@ -224,13 +224,29 @@ Two later, narrowly scoped deltas were reviewed against `mattpocock/skills` at
 `8b78b531ab965735c5dc74f6f7a219e1e37326df`: secret and personal-data
 redaction before sharing diagnostic artifacts from
 `skills/engineering/diagnosing-bugs`, and the environment-as-authority/docs-
-as-cache principle from `skills/productivity/writing-for-agents`. No other
-upstream behavior from that revision is imported by this change.
+as-cache principle from `skills/productivity/writing-for-agents`. That review
+imported only those two deltas.
+
+The method review at `mattpocock/skills` revision
+`3cca18b368ae95cdbdebbff572ccafa662551015` adds TDD guidance to derive expected
+outcomes independently of the implementation, precise interface/seam vocabulary
+from `codebase-design`, and scoped exploration from `improve-codebase-architecture`.
+Grillmester retains its
+red-green-refactor cycle, existing task authorization and repository test seams.
+It does not import upstream's mandatory seam approval or move refactoring to a
+separate review workflow, or require two adapters as proof of every refactoring.
+
+The observability review at `navikt/copilot` revision
+`ce9abd567a89eb72f1b8f95447435fd16fe805d3` adapts the
+`skills/observability-debugging` guidance on trace representativeness into
+`nav-troubleshoot/references/observability-diagnose.md`. The local adaptation
+also checks sampling and query coverage before interpreting absent signals.
+It does not import endpoint URLs, query recipes or a mandatory signal count.
 
 The UI prototype guidance was also compared with current `mattpocock/skills` at
 `84fdeffd12f2ee307994d1eb6feb48173b6e0502`. Its relevant
-`skills/engineering/prototype/UI.md` is byte-identical to the already reviewed
-revision above. Grillmester therefore
+`skills/engineering/prototype/UI.md` is byte-identical to the reviewed
+`8b78b531ab965735c5dc74f6f7a219e1e37326df` revision. Grillmester therefore
 keeps the existing source pin while applying the reviewed principles of one
 named design question, structurally distinct alternatives, comparable synthetic
 data and an explicit record of the winner, rationale and borrowed elements.

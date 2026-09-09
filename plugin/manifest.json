@@ -69,7 +69,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "846e08346dcc3770ff67b7a16b06d8a1aa3718fe3f8051ca706fd24983b4a8cf",
+      "sha256": "557a82dbcb5254009e1f52f170fc587306e442e3cb9183d9ce261a29ff299f52",
       "mode": "0644"
     },
     "agents/barista.agent.md": {
@@ -221,7 +221,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "796438392590600c883fd1baebb7d06dcaf80799ebbef196c438d6e17b5e6924",
+      "sha256": "e9cd035a922f7e6cb2cdf6f54c31b1a1ce5f9a35a160bb1c8a0df08cb9bb44fa",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
@@ -289,7 +289,7 @@
       "mode": "0644"
     },
     "skills/improve-codebase-architecture/SKILL.md": {
-      "sha256": "93e9cc2f38f1ba915dd1b7ec1771ded4a76a42d9628a296dc2a5f8f2db7e0b52",
+      "sha256": "c5fe501ac5dcf9b1be8127fabbedc9fcb80309b4415c0e617ad0e1cf2a8d4742",
       "mode": "0644"
     },
     "skills/integration-tests/SKILL.md": {
@@ -385,7 +385,7 @@
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/observability-diagnose.md": {
-      "sha256": "ebc42215b354da70033de5a0e6bef91a1f0050327fec26cbc75e1211f03a24a8",
+      "sha256": "c9376c0e76ec2e4c5bb951d6a39a3073555581c7331c0f4363f6856121dc570f",
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/pod-diagnose.md": {
@@ -469,7 +469,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "bc13265c72196e1e14567f1a236365a7d2fab163fa523c8604de311408ca85c1",
+      "sha256": "bde15e5daa15397f0800f97f6f3b7456b1265d98b836275bdf68bb8c155d13e0",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
@@ -481,7 +481,7 @@
       "mode": "0644"
     },
     "skills/tdd/tests.md": {
-      "sha256": "b19499e81d9d5ee7910b44aaebfd5c1596369ce85c185aba496ef4edd0c1e648",
+      "sha256": "a76f683f8b0d8a4feeb5175f6ea4c88456bb221203593e88548c456850c9c0b6",
       "mode": "0644"
     },
     "skills/team-status/SKILL.md": {
@@ -497,7 +497,7 @@
       "mode": "0644"
     },
     "skills/to-issues/SKILL.md": {
-      "sha256": "5fee1c128a0d15ce8566867307fb7efeef15dc3cca0ae2e2514a8e56f6161651",
+      "sha256": "2104e2496c71766811e7831a7624d50596e6a76e9c21ea888aa434e66c7753c7",
       "mode": "0644"
     },
     "skills/to-spec/SKILL.md": {

@@ -23,7 +23,13 @@ stage: findings feed into `grilling`, the active plan and verification.
 
 ## Vocabulary
 
-Use the deep-module vocabulary precisely: a **module** hides an **implementation** behind a small **interface**; **depth** is the amount of complexity the interface hides. A **seam** is the place where the module can be separated from an **adapter**. **Locality** keeps related knowledge together, and **leverage** is how much complexity a single interface carries. Do not drift into "component", "service", "layer" or "API" when these more precise words fit.
+A **module** hides an **implementation** behind an **interface**: everything
+callers must know, including behavior, invariants, error handling and setup,
+not just signatures. **Depth** is the complexity hidden by that interface.
+A **seam** allows behavior or a dependency to be substituted without changing
+the surrounding code; it can be internal. An **adapter** connects the module to
+a particular dependency. **Locality** keeps related knowledge together, and
+**leverage** is how much complexity one interface carries.
 
 **The deletion test** (the operational tool for discovery): would deleting the module *concentrate* complexity (good — it was shallow) or merely move it (then it was real)? A "yes, it concentrates" is the signal you are hunting for.
 
@@ -31,6 +37,8 @@ Use the deep-module vocabulary precisely: a **module** hides an **implementation
 
 ### 1. Explore
 
+Start with the user's named problem or boundary. For a broad assessment,
+prioritize recurring change or test friction, using history when it helps.
 Discover the repository's domain vocabulary, decision records and architecture
 guidance when they exist. Read only the artifacts that touch the area, then walk
 the codebase organically. Do not follow rigid heuristics. Note where you
@@ -111,6 +119,8 @@ Once the chosen deepening has been thoroughly grilled:
   maintained detail goes to the relevant topic document.
 - Break the deepening down into a safe, incremental refactoring plan in the
   active task (optionally on to `to-issues` for grabbable slices).
-- Define what proves the deepening succeeded (tests through a single
-  interface, the seam confirmed by two adapters), and return that to the calling
-  workflow.
+- Define proof against the original friction: behavior preserved through the
+  public interface and less knowledge or coordination required of callers.
+  Where real alternatives exist, verify substitution at the seam; an extra
+  adapter is not a prerequisite for every refactoring. Return the proof to the
+  calling workflow.

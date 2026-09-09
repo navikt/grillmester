@@ -2,6 +2,9 @@
 
 ## mattpocock/skills
 
+Test-outcome and architecture-method guidance was also adapted from revision
+`3cca18b368ae95cdbdebbff572ccafa662551015`.
+
 Portions of the agent skills in this repository are copied or adapted from [`mattpocock/skills`](https://github.com/mattpocock/skills) at the original reviewed revision `2ab958093e83e0ec752e6c1c5932da465bf23e0c`. Narrow diagnostic-redaction and skill-authoring deltas were later reviewed at `8b78b531ab965735c5dc74f6f7a219e1e37326df`. Exact local paths and reviewed source lineage are recorded in [PROVENANCE.md](PROVENANCE.md).
 
 MIT License
@@ -127,6 +130,9 @@ architecture-review skill is adapted from
 [`navikt/copilot`](https://github.com/navikt/copilot), reviewed at revision
 `2d0911b353a91ec9091d252b481acb5777de7059`. Exact local lineage and the
 adaptation boundary are recorded in [PROVENANCE.md](PROVENANCE.md).
+
+Trace representativeness guidance was also adapted from `observability-debugging`
+at revision `ce9abd567a89eb72f1b8f95447435fd16fe805d3`.
 
 MIT License
 

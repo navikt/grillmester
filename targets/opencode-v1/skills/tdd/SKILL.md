@@ -97,7 +97,10 @@ Run the discovered focused command while you work:
 echo "exit: $?"
 ```
 
-A GREEN claim requires fresh evidence in the same message — command + output + exit code. Without it: UNVERIFIED.
+A GREEN claim needs an actual passing run against the relevant code state.
+Report the command, result and exit code. Reuse that evidence while the code and
+relevant environment remain unchanged; rerun affected checks after changes.
+An unrun check remains UNVERIFIED.
 
 ### 4. Refactor
 
@@ -122,7 +125,7 @@ the result to the calling workflow so it can close the verification phase.
 [ ] Test would have survived internal refactoring
 [ ] Code is minimal for this test
 [ ] No speculative features added
-[ ] GREEN proven with fresh command + output + exit code in the same message (otherwise UNVERIFIED)
+[ ] GREEN supported by a passing run against the current relevant code state
 ```
 
 ## Bug fixing is TDD

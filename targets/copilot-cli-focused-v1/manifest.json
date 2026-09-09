@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "9cfa2083c3853e69ddc51b02ea2c66af16c7062e49b2aa416234a33e3bdc9aea",
+    "payloadManifestSha256": "894bfc019accaa3ed9716c5cca4852db556562f2d238682e2dbbb7834c352a13",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
   },
@@ -45,7 +45,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "846e08346dcc3770ff67b7a16b06d8a1aa3718fe3f8051ca706fd24983b4a8cf",
+      "sha256": "557a82dbcb5254009e1f52f170fc587306e442e3cb9183d9ce261a29ff299f52",
       "mode": "0644"
     },
     "agents/barista.agent.md": {
@@ -61,7 +61,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "5112026b0fef1f1d386433880fffb76c585cfb620504b4594d67ad0b32f07f07",
+      "sha256": "e6ca8c4fbca839e0a508166a0b1a6b7770f5f004909d63a9fdc2f649ed724e25",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
@@ -97,7 +97,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "cb8cf2fe560d59f8bf05a99637a69d3aa02b6694ae7f9e144adb840f1bca9593",
+      "sha256": "394fd2b563db7043330d04cdaeab1b25a4d5f4c2ce42f081680337966c1e9236",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
@@ -109,7 +109,7 @@
       "mode": "0644"
     },
     "skills/tdd/tests.md": {
-      "sha256": "37273171fbc1cf8c8b033c7d23c4f96f30b2e5d87982800446b20f239e996ebf",
+      "sha256": "9fa718b4d69d868a8f47f71aee29dcc69fb5bd40b876c81ea31ad763ad76b50e",
       "mode": "0644"
     }
   }
