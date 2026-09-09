@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-08-26",
-      "decisionReference": "navikt/grillmester#56",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#67",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-08-26",
-      "decisionReference": "navikt/grillmester#56",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#67",
       "status": "approved"
     }
   },
@@ -23,29 +23,29 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "197dfba287c65bbd7d305607a4673c22e4b84d44c35cb29e01077f7572bf4669",
-        "doctor-who": "31386cec5f0a604b4ac1a7e7145ae054f6a234beb505151fb0ccc98c51ad20a6"
+        "designer": "eb8665a410dde067ad3aaaeb4b21393a3b2fb087f5cb0192450d9166a1f2d07c",
+        "doctor-who": "aecd0e60c7ce62c121c79e142ce4b01831a89e036f39a3ce5ddc26aa26c759e4"
       },
       "skills": {
-        "grillmester-accessibility-review": "90e8abafddd2d146b7f3371bd67db09886b447809c41b375e529461a6f5188d6",
-        "grillmester-aksel-design": "590fa4f81f0d311ccc441f5a972cb553302c029989199d25dc0fd00c83932de9",
-        "grillmester-architecture-review": "1a2c1f83b262c13f14ff8962f83fb69af0b7f8cc35c5a5b1a7c956a7c6b7e6f3",
-        "grillmester-design-prototype": "9838ea9e6d786e5d4216700dd0ee3146287b89af92d000374c61c7d33df7c7f3",
-        "grillmester-doctor": "42e6e8fa2e0afc37eac4432deb45140adea80e49e11b3b63aa164918acf918a0",
-        "grillmester-dulting": "7ac7338a468946aa5e76cdf6d893bc7d30b0455dccd00f0794d0c28743b6b56b",
-        "grillmester-figma-workflow": "77961926e5588c64a8bcbc0f8e1a7e43563fe71023e92eb4c9b646c08d6dcb04",
-        "grillmester-lumi-survey": "e992145c3313740bdbf779564fa7915fcce7b92002b492a2f749d6f6426a0184",
-        "grillmester-okr": "853145b17c569da14e5787fc67f10fb6f0c37bcd12c82994f7a73e8627303bad",
-        "grillmester-produktledelse": "f7d200b08519c70ae6f1f7c23a03e0e0b095af88f91e20e4943a66be697461e8",
-        "grillmester-team-status": "f1b421024817d84852a1747a93bec0f016d2ee4de67e0f2910a35d51e9c3eee7",
-        "grillmester-workshop-design": "7f8a01f932a5c0a6e59e5f288c122426dd20a982a05b4c43db522ba721138fe5"
+        "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
+        "aksel-design": "cabdc14913c3689523bd2620b36949e1214e7dee891461c11c8def6c1984dcda",
+        "architecture-review": "8bface79bd152ee4ebe7738fec8c60a49be10b94ca7fb7e3661772072f77d474",
+        "design-prototype": "0199913c7acc855c7288bf1b418fd544e4dec07e6334b6f1080300d50aba61d0",
+        "doctor": "536a4f1f117939f1149d2b67aeeb16fba174948f9fa54575de988992b44988f0",
+        "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
+        "figma-workflow": "e10d4091abaa9282aa7f40f597d52677198b65cfec57850ae4cc1394f1f4971e",
+        "lumi-survey": "335b8ff7e9c19f1da22b3f43848544d64bdfb4fa2478aab9b5b8d01c127bb352",
+        "okr": "0a4b1c222d514482991790829f30187f19bc19c6389032fab52da911c910e5ec",
+        "produktledelse": "06e431249342723126ab61cc2400b5fcb7dfc7c50c11e37fddc43700395a5ec2",
+        "team-status": "16a4d8f66a09968029e02ca1ba3213c75e9702a6007b23dc6278a6870f2e271c",
+        "workshop-design": "0418cfc368605512456838621833a375ffda1f0bbdff939491d6c0271ed2af7d"
       }
     },
-    "contentLockSha256": "9f1489b693cd766fcdb34e60fd815ebd096305f1da530480c917f44e21c447bf",
+    "contentLockSha256": "ca0ec0422b13ddc16ecd7708857cc21a243dbf87f9f99aaa34723f3d8fb343d4",
     "hovmester": {
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "fd9cfeae7a43966cefc146b4626b21463cfce02520bb819ac269b844877bfabd"
+    "provenanceSha256": "0f470e77d74bbc26f580d360a421fe153cfc51fa9c761bcde79cb2470987950e"
   }
 }
