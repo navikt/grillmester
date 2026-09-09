@@ -349,7 +349,6 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    outputs:
     permissions:
       actions: read # Authenticate and download this run's exact artifact by ID.
       contents: read
