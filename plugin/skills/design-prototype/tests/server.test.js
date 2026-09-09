@@ -484,6 +484,77 @@ test("symlinked preview and CSS files cannot escape their allowed roots", async 
   }
 });
 
+for (const replacement of ["symlink", "fifo", "missing"]) {
+  test(`a file replaced with ${replacement} immediately before opening is rejected`, {
+    skip: process.platform === "win32" ? "requires POSIX file opening semantics" : false,
+  }, async () => {
+    const projectDir = makeProject();
+    const cssDirectory = path.join(projectDir, "node_modules/@navikt/ds-css/dist");
+    fs.mkdirSync(cssDirectory, { recursive: true });
+    const cssPath = path.join(cssDirectory, "index.min.css");
+    fs.writeFileSync(cssPath, "body { color: green; }");
+    const outsidePath = path.join(makeProject(), "outside.css");
+    const outsideContent = "OUTSIDE-FILE-MUST-NOT-BE-OPENED";
+    fs.writeFileSync(outsidePath, outsideContent);
+    const probePath = path.join(projectDir, "open-probe.json");
+    const preloadPath = path.join(projectDir, "replace-before-open.js");
+    fs.writeFileSync(preloadPath, `"use strict";
+const fs = require("node:fs");
+const { execFileSync } = require("node:child_process");
+const target = fs.realpathSync(process.env.GRILLMESTER_TEST_OPEN_TARGET);
+const originalOpen = fs.openSync;
+let replaced = false;
+fs.openSync = function patchedOpen(filename, ...args) {
+  if (filename !== target || replaced) return originalOpen.call(fs, filename, ...args);
+  replaced = true;
+  fs.unlinkSync(target);
+  if (process.env.GRILLMESTER_TEST_OPEN_REPLACEMENT === "symlink") {
+    fs.symlinkSync(process.env.GRILLMESTER_TEST_OPEN_OUTSIDE, target);
+  } else if (process.env.GRILLMESTER_TEST_OPEN_REPLACEMENT === "fifo") {
+    execFileSync("mkfifo", [target]);
+  }
+  try {
+    const descriptor = originalOpen.call(fs, filename, ...args);
+    fs.writeFileSync(process.env.GRILLMESTER_TEST_OPEN_PROBE, JSON.stringify({ opened: true }));
+    return descriptor;
+  } catch (error) {
+    fs.writeFileSync(process.env.GRILLMESTER_TEST_OPEN_PROBE, JSON.stringify({ opened: false, code: error.code }));
+    throw error;
+  }
+};
+`);
+
+    const running = await startServer(projectDir, [], {
+      GRILLMESTER_TEST_OPEN_TARGET: cssPath,
+      GRILLMESTER_TEST_OPEN_REPLACEMENT: replacement,
+      GRILLMESTER_TEST_OPEN_OUTSIDE: outsidePath,
+      GRILLMESTER_TEST_OPEN_PROBE: probePath,
+      NODE_OPTIONS: `--require=${preloadPath}`,
+    });
+    try {
+      const probe = JSON.parse(fs.readFileSync(probePath, "utf8"));
+      assert.match(running.getStderr(), /Aksel CSS was rejected/);
+      if (replacement === "fifo") {
+        assert.deepEqual(probe, { opened: true });
+        assert.ok(fs.lstatSync(cssPath).isFIFO());
+        assert.match(running.getStderr(), /Refusing non-regular file/);
+      } else {
+        assert.deepEqual(probe, {
+          opened: false,
+          code: replacement === "symlink" ? "ELOOP" : "ENOENT",
+        });
+        if (replacement === "missing") assert.equal(fs.existsSync(cssPath), false);
+      }
+      assert.equal(fs.readFileSync(outsidePath, "utf8"), outsideContent);
+      const response = await fetch(endpoint(running.info.url, "/preview"));
+      assert.equal(response.status, 200);
+      assert.doesNotMatch(await response.text(), /OUTSIDE-FILE-MUST-NOT-BE-OPENED/);
+    } finally {
+      await stopServer(running);
+    }
+  });
+}
+
 test("a file changed in place during a bounded read is rejected", async () => {
   const projectDir = makeProject();
   const cssDirectory = path.join(

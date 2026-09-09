@@ -175,10 +175,18 @@ function existingPrivateDirectory(target, expectedParent) {
 }
 
 function openExistingReadOnly(target) {
-  // The string flag makes the non-creating intent explicit to both Node and
-  // static analysis. Descriptor identity is checked before any bytes are read,
-  // so a path swap between lstat/realpath/open still fails closed.
-  return fs.openSync(target, "r");
+  const { O_NOFOLLOW, O_NONBLOCK } = fs.constants;
+  if (!Number.isInteger(O_NOFOLLOW) || !Number.isInteger(O_NONBLOCK)) {
+    throw new Error("Safe file opening requires O_NOFOLLOW and O_NONBLOCK support.");
+  }
+  // Refuse a symlink swapped in after validation, and never block if a file
+  // becomes a FIFO. Descriptor checks below still verify identity before reads.
+  // No O_CREAT: missing files stay missing; 0600 states the private-file policy.
+  return fs.openSync(
+    target,
+    fs.constants.O_RDONLY | O_NOFOLLOW | O_NONBLOCK,
+    0o600,
+  );
 }
 
 function readDescriptorAtMost(descriptor, maxBytes, target) {

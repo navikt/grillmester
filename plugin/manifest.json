@@ -213,11 +213,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "c2c7962bbb5afd2f0bbcf9b07643e60c6719fe7a62abb49b145b31b3bcd0ff3d",
+      "sha256": "39362235fee00b75d8f15f8276a4ac1cf29370d4308a5e4872892b20a244cbdf",
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "2912ebac131aa27f6b08f672b6bfb6d70c2ba8b0e09b550de5e43ca66b578965",
+      "sha256": "d842e1932631ad1b045103ed3645154c737b485e1c8a024f37bef2de6491fa63",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
