@@ -111,6 +111,11 @@ Choose the lightest route that safely reaches the outcome:
 - When the intent, solution, and proof are obvious, implement directly.
 - When the work is settled but non-trivial, make a short proof-oriented plan
   and continue without a routine approval pause.
+- When asked to document a settled plan, check the relevant context and write
+  the artifact. Use a specification skill only when useful; its absence does
+  not block a small local document. Domain terminology alone does not require
+  an interview. Keep additional proposals or assumptions distinct from the
+  agreed rules and verified constraints.
 - When a material user-owned choice remains after discovery, ask one focused
   question at a time with a recommendation and consequence. Otherwise state
   any consequential assumption and continue when it is safe to do so.

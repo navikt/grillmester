@@ -86,7 +86,7 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "54107b2567964045a56bea506807d4fa32b13b4241f940cac64af8f64428eeb6",
+      "sha256": "c5c0b4eb624cda8b1d732b590ff3ee8701a32a9edff5bc26641a52aa348d59bf",
       "mode": "0644"
     },
     "agents/designer.md": {
@@ -170,7 +170,7 @@
       "mode": "0644"
     },
     "commands/grill-with-docs.md": {
-      "sha256": "74b4499c952c6795642d29ed4209562a87c67ee285d494d340d8249f9c65982b",
+      "sha256": "0a2e1324d372c0f50d9e20107ff3ae04c17d3797fd1b20e03888bd70a3ff2695",
       "mode": "0644"
     },
     "commands/grilling.md": {
@@ -270,7 +270,7 @@
       "mode": "0644"
     },
     "commands/to-spec.md": {
-      "sha256": "8b204773a90a27bbf5b361a6d57e860e84199b6ee02774f0bd5fba8501baf1d2",
+      "sha256": "0c3a2afa1e648445f3d79a3992378fba5e444c5f3adae2f7bff249421b05f9f3",
       "mode": "0644"
     },
     "commands/triage.md": {
@@ -454,7 +454,7 @@
       "mode": "0644"
     },
     "skills/grill-with-docs/SKILL.md": {
-      "sha256": "66e09df5be3e511b8b5cf4cb76c5fb8687aed7e4e2d7e19a36c6ec9f7497606b",
+      "sha256": "0f99191266be96f306b33214b72e024bce32089c8f8780a63a2c384649289b5d",
       "mode": "0644"
     },
     "skills/grilling/SKILL.md": {
@@ -686,7 +686,7 @@
       "mode": "0644"
     },
     "skills/to-spec/SKILL.md": {
-      "sha256": "070fb68020722bae906327fb38fb350508e4083b36479cf882027562c920b106",
+      "sha256": "42e43cd2b52c15f243ce2f03cd3263c02143c8114b4d1f906e246e182305e9a6",
       "mode": "0644"
     },
     "skills/triage/AGENT-BRIEF.md": {

@@ -1,6 +1,6 @@
 ---
 name: to-spec
-description: "Turn resolved requirements and design choices into a concise engineering specification. Use when the user asks to capture an agreed plan for implementation; use `grill-with-docs` for unresolved decisions and `to-issues` for several independently deliverable slices."
+description: "Document resolved requirements and design choices as a concise implementation plan or specification, including a requested local document. Use `grill-with-docs` for unresolved design choices and `to-issues` for several independently deliverable slices."
 ---
 
 # To Spec
@@ -27,6 +27,12 @@ the repository when needed to verify the current state and existing test seams.
 Resolve a material gap in the problem, outcome or scope before committing to
 that part of the specification. Ask only for choices the existing brief cannot
 answer; continue drafting the settled parts without inventing decisions.
+
+Keep confirmed requirements and verified constraints separate from additional
+proposals and assumptions. Locked decisions and invariants may include their
+necessary consequences, but not unchosen behavior or design preferences. A
+reviewable plan can leave an unresolved point explicitly open when the rest
+does not depend on it.
 
 ## 2. Draft the specification
 
