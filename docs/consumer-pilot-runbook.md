@@ -38,6 +38,12 @@ komponentstier, komplett filliste med SHA-256, navnekollisjoner, gamle
 prefiks-ID-er, manifestopplysninger, workflowreferanser og linjenummer for
 instruksjonsreferanser. Den gjengir ikke hele instruksjons- eller workflowlinjer.
 
+Kontroller også at hver valgt klient faktisk finner de bevarte instruksjonene.
+OpenCode laster ikke Copilots `.github`-instruksjoner automatisk gjennom Tier 2.
+En kort repo-eid `AGENTS.md` kan peke på `.github/copilot-instructions.md` og
+be agenten lese relevante path-instruksjoner etter `applyTo`. Behold domenefakta
+og kommandoer i de eksisterende kildene fremfor å vedlikeholde to kopier.
+
 Et Hovmester-manifest viser eierskap, men beviser ikke at filene er uendret.
 For å sammenligne med kjent kildeproveniens kan lokale source-checkouter
 oppgis eksplisitt:

@@ -123,6 +123,10 @@ den gjør ikke instructions til en støttet komponent i Copilot-pluginen.
 Repoets `AGENTS.md`, `copilot-instructions.md` og relevante path-instructions
 forblir repo-eid stående kontekst. Behold konkrete domene-, bygge-, drifts- og
 sikkerhetsregler der, og fjern dupliserte agentroller og foreldede skillkall.
+OpenCode leser ikke `.github/copilot-instructions.md` og Copilots path-instructions
+automatisk. Når samme repo brukes med begge klientene, la en kort repo-eid
+`AGENTS.md` peke på hovedinstruksen og de path-instruksjonene som gjelder filene
+i oppgaven. Behold fakta ett sted; ikke kopier hele instruksjonssettet.
 Ikke legg en Tier 1-layout ved siden av payloadene for å omgå grensen: dagens
 nav-pilot nekter å starte Tier 2-klienten i en slik blandet pakke.
 
