@@ -10,9 +10,9 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "240d9595e2ce2812687acb7b7acc03b12bfd3325e46543f92a2d1ca121292d55",
+    "payloadManifestSha256": "4bc71aee9fd57de4424216b30397ba95c7e3a940679fba82b19e21ebfe3624cf",
     "policy": "policy/focused-context-v1.json",
-    "policySha256": "5fe33032e71361e42c42729f5c0ca43fe67ca7e90dff898819ed01bcddf33283"
+    "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
   },
   "modelSelection": "inherit-provider-or-session",
   "transformations": {
@@ -31,13 +31,13 @@
     "grill-inspektor"
   ],
   "skills": [
-    "grillmester-diagnosing-bugs",
-    "grillmester-integration-tests",
-    "grillmester-issue-management",
-    "grillmester-pull-request",
-    "grillmester-review",
-    "grillmester-security-review",
-    "grillmester-tdd"
+    "diagnosing-bugs",
+    "integration-tests",
+    "issue-management",
+    "pull-request",
+    "review",
+    "security-review",
+    "tdd"
   ],
   "files": {
     "LICENSE": {
@@ -49,67 +49,67 @@
       "mode": "0644"
     },
     "agents/barista.agent.md": {
-      "sha256": "a57cc4483a78510aed00adc3dab35278204128789c0a45c93891d2a27b089c3a",
+      "sha256": "ad7844491d9c8eac79b15f375a8e77336605a936199d77c1823da143af16c0e2",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "caf8bf2a414d921f2f6064a432f6e5b4231b261217a311f3d9d9a212b8e1670d",
+      "sha256": "91647af18b4ba5ffc6099313e7a168c5b4f1c0d03e7b753fe07ba14d0e8110c4",
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "bcf57042c30ad4beac36968727bbbfe1558f3f1dda6084c1b904ebd123a6f056",
+      "sha256": "e5c20fb3279a7c74056c1eab63d827074fba9bcdd7eb24d1104267097b372823",
       "mode": "0644"
     },
-    "skills/grillmester-diagnosing-bugs/SKILL.md": {
-      "sha256": "d0bf67d8a7243d2e2972e772ee3a447f0bae000a52bc4bff7e4bf0907d0e20a7",
+    "skills/diagnosing-bugs/SKILL.md": {
+      "sha256": "63d804fa354d6ab69ee74755aa946e9d4f3735288fc7c9b42ffbfd407d13cf5f",
       "mode": "0644"
     },
-    "skills/grillmester-diagnosing-bugs/scripts/hitl-loop.template.sh": {
+    "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
       "sha256": "a4a1a26c4cc69cad1b4148b78979e2d0e4d0a38350cc25d8c55b2c15d1ec38d3",
       "mode": "0755"
     },
-    "skills/grillmester-integration-tests/SKILL.md": {
-      "sha256": "3a8c609a09bf3f422d4311fed3e699b4cd481da2cf26def20542ed37f32e86d7",
+    "skills/integration-tests/SKILL.md": {
+      "sha256": "3c7a23d6b22e059e80cb88178d8659025cff70026dfc811b2ed96b13e6ac715a",
       "mode": "0644"
     },
-    "skills/grillmester-issue-management/SKILL.md": {
-      "sha256": "b6b7e3b3485cd99d0ccbcab90aafbfaf20ce067cabc842a051cf7603a4d69c9d",
+    "skills/issue-management/SKILL.md": {
+      "sha256": "72508cf3d850a3e77eaa3d433a9dd744bd0bee516443f8a0724214a7df3adcea",
       "mode": "0644"
     },
-    "skills/grillmester-pull-request/SKILL.md": {
-      "sha256": "72bcf9337ce0f4f37fdf18ce57a9af32dc56457318204b5eb02ca64f89c74f54",
+    "skills/pull-request/SKILL.md": {
+      "sha256": "12be0253dcd46d86e9497343a9dca394c636bfd6005e13f41906fcb167c58756",
       "mode": "0644"
     },
-    "skills/grillmester-review/SKILL.md": {
-      "sha256": "b1066831edd3fca59acb80255c4df60c3821073f8ed15b5ffb9388513e9d3429",
+    "skills/review/SKILL.md": {
+      "sha256": "824a616091a9e8c6904f376e1fda7e57f24e9ce277aa8dd48cddd6ce6272c21d",
       "mode": "0644"
     },
-    "skills/grillmester-security-review/SKILL.md": {
-      "sha256": "39396040e0b8af7f1b85463107e3d49611ba2c8c64792e242b0e16091941fffa",
+    "skills/security-review/SKILL.md": {
+      "sha256": "49e6c6b2a41dcab3cfafc8c1121ef632a0daf739efaa0ea0e39da8150e7eb927",
       "mode": "0644"
     },
-    "skills/grillmester-security-review/references/nav-security-review.md": {
+    "skills/security-review/references/nav-security-review.md": {
       "sha256": "1b18149fc5e793f9f5069d8ef0dbff96fe5c2e53f9a40e375937c5acce0bd153",
       "mode": "0644"
     },
-    "skills/grillmester-security-review/references/threat-model.md": {
+    "skills/security-review/references/threat-model.md": {
       "sha256": "00eb790e4385abc8173e0eb67b7729e626bd945c61b5789905adbc70eb43c9fb",
       "mode": "0644"
     },
-    "skills/grillmester-tdd/SKILL.md": {
-      "sha256": "296d9ac10385295f8bd1531fa71c4321dd2374aec742e5d163ef385ecc80292d",
+    "skills/tdd/SKILL.md": {
+      "sha256": "522cde73401bbfeb5d3cff789a3b40ee3f4be493144567cd850dbfe36421045c",
       "mode": "0644"
     },
-    "skills/grillmester-tdd/mocking.md": {
-      "sha256": "f5cc6372548138f2fb78131d86e8b5a24e72a42b2c8080a43b9e8aa1442f8156",
+    "skills/tdd/mocking.md": {
+      "sha256": "f0f865cce8f85e9b520d4396121234f46aa9a19f01529eb1d19476f635c3e883",
       "mode": "0644"
     },
-    "skills/grillmester-tdd/refactoring.md": {
+    "skills/tdd/refactoring.md": {
       "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
-    "skills/grillmester-tdd/tests.md": {
-      "sha256": "2099647931cb08e180693144cf85f3e8dcb196e4396e7a9f64629af5c040d5d3",
+    "skills/tdd/tests.md": {
+      "sha256": "37273171fbc1cf8c8b033c7d23c4f96f30b2e5d87982800446b20f239e996ebf",
       "mode": "0644"
     }
   }

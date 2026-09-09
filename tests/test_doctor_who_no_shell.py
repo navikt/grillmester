@@ -19,7 +19,7 @@ class DoctorWhoNoShellContractTests(unittest.TestCase):
 
     def test_projects_reference_has_no_cli_fallback(self) -> None:
         reference = read(
-            "plugin/skills/grillmester-team-status/references/projects-v2.md"
+            "plugin/skills/team-status/references/projects-v2.md"
         )
 
         self.assertNotIn("gh project", reference)
@@ -29,9 +29,9 @@ class DoctorWhoNoShellContractTests(unittest.TestCase):
         self.assertIn("lime inn eller eksportere", reference)
 
     def test_product_skills_keep_doctor_who_on_semantic_tools(self) -> None:
-        team_status = read("plugin/skills/grillmester-team-status/SKILL.md")
-        issue_management = read("plugin/skills/grillmester-issue-management/SKILL.md")
-        security_review = read("plugin/skills/grillmester-security-review/SKILL.md")
+        team_status = read("plugin/skills/team-status/SKILL.md")
+        issue_management = read("plugin/skills/issue-management/SKILL.md")
+        security_review = read("plugin/skills/security-review/SKILL.md")
 
         self.assertIn("Never use `gh`, shell, raw HTTP", team_status)
         self.assertIn("Status: NEEDS_INPUT", team_status)
@@ -49,7 +49,7 @@ class DoctorWhoNoShellContractTests(unittest.TestCase):
 
     def test_nav_security_reference_preserves_no_shell_evidence_path(self) -> None:
         reference = read(
-            "plugin/skills/grillmester-security-review/references/nav-security-review.md"
+            "plugin/skills/security-review/references/nav-security-review.md"
         )
 
         self.assertIn("Doctor Who or other product/read-only workflow", reference)

@@ -107,7 +107,7 @@
           "sideEffects": [],
           "deviations": [],
           "parityChecks": [
-            "/grillmester-grilling",
+            "/grilling",
             "automatic-skill-routing",
             "wayfinder-delegation",
             "grillmester-kokk-grill-inspektor",
@@ -134,7 +134,7 @@
         {"scenario": "role-barista", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
         {"scenario": "role-designer", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
         {"scenario": "role-doctor-who", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "harness-parity", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": [], "parityChecks": ["/grillmester-grilling", "automatic-skill-routing", "wayfinder-delegation", "grillmester-kokk-grill-inspektor", "visual-companion", "approved-write", "rejected-write"]}
+        {"scenario": "harness-parity", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": [], "parityChecks": ["/grilling", "automatic-skill-routing", "wayfinder-delegation", "grillmester-kokk-grill-inspektor", "visual-companion", "approved-write", "rejected-write"]}
       ]
     },
     {
@@ -153,7 +153,7 @@
         {"scenario": "role-barista", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
         {"scenario": "role-designer", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
         {"scenario": "role-doctor-who", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "harness-parity", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": [], "parityChecks": ["/grillmester-grilling", "automatic-skill-routing", "wayfinder-delegation", "grillmester-kokk-grill-inspektor", "visual-companion", "approved-write", "rejected-write"]}
+        {"scenario": "harness-parity", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": [], "parityChecks": ["/grilling", "automatic-skill-routing", "wayfinder-delegation", "grillmester-kokk-grill-inspektor", "visual-companion", "approved-write", "rejected-write"]}
       ]
     }
   ],

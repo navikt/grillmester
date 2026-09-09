@@ -13,11 +13,17 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
+try:
+    from skill_references import skill_references
+except ModuleNotFoundError:
+    from scripts.skill_references import skill_references
+
+
 PLUGIN_NAME = "grillmester"
 PACKAGE_NAMES = ("grillmester",)
 PACKAGE_PATHS = {"grillmester": "plugin"}
 PLUGIN_REPOSITORY = "navikt/grillmester"
-SKILL_PREFIX = f"{PLUGIN_NAME}-"
+LEGACY_SKILL_PREFIX = f"{PLUGIN_NAME}-"
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SOURCE_ID = re.compile(r"^[a-z][a-z0-9-]*$")
@@ -28,10 +34,10 @@ QUALIFIED_COMPONENT_ID = re.compile(r"`grillmester:([a-z][a-z0-9-]+)`")
 REALISTIC_NATIONAL_ID = re.compile(r"(?<!\d)\d{11}(?!\d)")
 FIGMA_COMPONENT_KEY = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
 FIGMA_KEY_PATHS = {
-    "plugin/skills/grillmester-design-prototype/references/aksel-figma-katalog.md",
-    "plugin/skills/grillmester-design-prototype/references/aksel-figma-katalog.json",
-    "targets/opencode-v1/skills/grillmester-design-prototype/references/aksel-figma-katalog.md",
-    "targets/opencode-v1/skills/grillmester-design-prototype/references/aksel-figma-katalog.json",
+    "plugin/skills/design-prototype/references/aksel-figma-katalog.md",
+    "plugin/skills/design-prototype/references/aksel-figma-katalog.json",
+    "targets/opencode-v1/skills/design-prototype/references/aksel-figma-katalog.md",
+    "targets/opencode-v1/skills/design-prototype/references/aksel-figma-katalog.json",
 }
 OPENCODE_MANIFEST_PATH = "targets/opencode-v1/manifest.json"
 COPILOT_FULL_MANIFEST_PATH = "plugin/manifest.json"
@@ -74,7 +80,7 @@ FORBIDDEN_CONSUMER_MARKERS = {
     "developer-local absolute path": re.compile(r"/Users/[^/\s]+/"),
 }
 CONSUMER_MARKER_EXCEPTIONS = {
-    "consumer instruction path": {"skills/grillmester-doctor/SKILL.md"},
+    "consumer instruction path": {"skills/doctor/SKILL.md"},
 }
 FORBIDDEN_SCAFFOLD_MARKERS = re.compile(
     r"(?:\[TODO:|Structuring This Skill|Replace with the first main section)"
@@ -686,16 +692,18 @@ def validate_skills(
         if skill_id in found:
             errors.append(f"duplicate skill ID {skill_id}: {path} and {found[skill_id]}")
         found[skill_id] = path
-        if not isinstance(skill_id, str) or not skill_id.startswith(SKILL_PREFIX):
+        if not isinstance(skill_id, str) or not SOURCE_ID.fullmatch(skill_id) or len(skill_id) > 64:
             errors.append(
-                f"{path}: plugin skill IDs must use the {SKILL_PREFIX!r} namespace"
+                f"{path}: skill ID must be a lowercase kebab-case name of at most 64 characters"
             )
+        elif skill_id.startswith(LEGACY_SKILL_PREFIX):
+            errors.append(f"{path}: skill ID must use the short canonical name")
         description = frontmatter.get("description")
         if not isinstance(description, str) or not description.strip():
             errors.append(f"{path}: description must be a non-empty string")
         if not body:
             errors.append(f"{path}: skill body is empty")
-        if skill_id == "grillmester-doctor":
+        if skill_id == "doctor":
             normalized_body = " ".join(body.split())
             if DOCTOR_READ_ONLY_FLOOR not in normalized_body:
                 errors.append(
@@ -869,16 +877,15 @@ def validate_content(
     errors: list[str],
 ) -> None:
     known_ids = agent_ids | skill_ids
-    legacy_skill_ids = {
-        skill_id.removeprefix(SKILL_PREFIX)
-        for skill_id in skill_ids
-        if skill_id.startswith(SKILL_PREFIX)
-    }
+    legacy_skill_ids = {LEGACY_SKILL_PREFIX + skill_id for skill_id in skill_ids}
     for path in runtime_markdown(plugin_root):
         text = path.read_text(encoding="utf-8")
         formatted_component_ids = set(COMPONENT_ID.findall(text))
         relative_path = path.relative_to(plugin_root).as_posix()
         forbidden = FORBIDDEN_RUNTIME_IDS.search(text)
+        if relative_path == "skills/doctor/SKILL.md":
+            # The read-only setup audit must name the retired distribution it detects.
+            forbidden = FORBIDDEN_RUNTIME_IDS.search(re.sub(r"\bHovmester\b", "", text, flags=re.IGNORECASE))
         if forbidden:
             errors.append(f"{path}: obsolete runtime ID is not allowed: {forbidden.group(0)}")
         for label, pattern in FORBIDDEN_CONSUMER_MARKERS.items():
@@ -895,13 +902,16 @@ def validate_content(
                 f"{path}: unfinished skill scaffold is not allowed: {scaffold.group(0)}"
             )
         for legacy_skill_id in sorted(legacy_skill_ids, key=len, reverse=True):
-            raw_invocation = re.search(
-                rf"(?<![:/\w-])/{re.escape(legacy_skill_id)}\b", text
-            )
-            if raw_invocation:
+            if re.search(rf"(?<![\w-]){re.escape(legacy_skill_id)}(?![\w-])", text):
                 errors.append(
-                    f"{path}: raw skill invocation must use /{SKILL_PREFIX}{legacy_skill_id}"
+                    f"{path}: obsolete prefixed skill reference: {legacy_skill_id}"
                 )
+        for skill_id in skill_references(text, skill_ids):
+            if skill_id in skill_ids or skill_id in {"agent", "skills", "model", "help"}:
+                continue
+            if skill_id == "health" and relative_path.startswith("skills/design-prototype/"):
+                continue  # Visual Companion's HTTP health endpoint.
+            errors.append(f"{path}: dangling skill invocation: {skill_id}")
         for component_id in COMPONENT_ID.findall(text):
             if component_id not in known_ids and component_id != PLUGIN_NAME:
                 errors.append(f"{path}: dangling Grillmester component reference: {component_id}")

@@ -206,9 +206,9 @@ jobs:
           SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
         run: |
           source_root="${SOURCE_ROOT}"
-          node --check "${source_root}/plugin/skills/grillmester-design-prototype/scripts/server.js"
-          node --check "${source_root}/plugin/skills/grillmester-design-prototype/scripts/helper.js"
-          node --test "${source_root}/plugin/skills/grillmester-design-prototype/tests/server.test.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/server.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/helper.js"
+          node --test "${source_root}/plugin/skills/design-prototype/tests/server.test.js"
 
       - name: Install exact OpenCode release-test baseline
         shell: bash

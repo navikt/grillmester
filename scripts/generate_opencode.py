@@ -16,6 +16,12 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Mapping, Sequence
 
 
+try:
+    from skill_references import rewrite_skill_references
+except ModuleNotFoundError:
+    from scripts.skill_references import rewrite_skill_references
+
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = Path("policy/opencode-v1.json")
 TARGET_ID = "opencode-v1"
@@ -23,7 +29,13 @@ GENERATOR_VERSION = 1
 MAX_JSON_DEPTH = 40
 COMPONENT_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 QUALIFIED_AGENT_ID = re.compile(r"(?<![a-z0-9-])grillmester:([a-z][a-z0-9-]*)")
-SLASH_SKILL_REFERENCE = re.compile(r"`?/((?:grillmester)-[a-z0-9-]+)\b`?")
+
+def slash_skill_reference(skill_ids: set[str]) -> re.Pattern[str]:
+    """Match catalogued skill calls without rewriting URLs or filesystem paths."""
+    names = "|".join(re.escape(name) for name in sorted(skill_ids, key=len, reverse=True))
+    return re.compile(r"`/(" + names + r")`")
+
+
 ALLOWED_ACTIONS = {"allow", "ask", "deny"}
 ALLOWED_CAPABILITIES = {"native", "overlay", "degraded", "unsupported"}
 ALLOWED_SKILL_ACCESS = {"allow-with-manual-ask", "deny"}
@@ -64,7 +76,7 @@ OPENCODE_RUNTIME_GITIGNORE = (
     b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n"
 )
 TARGET_INVOCATION_NOTE = (
-    "> **OpenCode v1:** Backticked `grillmester-*` names below are skill IDs, "
+    "> **OpenCode v1:** Skill names below are exact IDs from the active catalog, "
     "not slash commands. Load them with the native `skill` tool. Slash commands "
     "are direct user entry points only."
 )
@@ -373,6 +385,7 @@ def apply_text_adapter(
     target_path: str,
     policy: Mapping[str, Any],
     agent_ids: set[str],
+    skill_ids: set[str],
     replacement_hits: dict[str, int],
     check_prefix_residue: bool = True,
 ) -> str:
@@ -402,21 +415,17 @@ def apply_text_adapter(
             key = f"path:{target_path}:{index}"
             replacement_hits[key] = replacement_hits.get(key, 0) + count
 
-    def replace_slash_skill(match: re.Match[str]) -> str:
-        skill_id = match.group(1)
-        replacement_hits["slash-skill"] = replacement_hits.get("slash-skill", 0) + 1
-        return f"`{skill_id}`"
-
-    adapted = SLASH_SKILL_REFERENCE.sub(replace_slash_skill, adapted)
+    skill_calls = slash_skill_reference(skill_ids)
+    rewritten = rewrite_skill_references(
+        adapted, {name: f"`{name}`" for name in skill_ids}, slash_only=True
+    )
+    changed_calls = len(skill_calls.findall(adapted)) - len(skill_calls.findall(rewritten))
+    replacement_hits["slash-skill"] = replacement_hits.get("slash-skill", 0) + changed_calls
+    adapted = rewritten
 
     residue = QUALIFIED_AGENT_ID.search(adapted)
     if residue:
         raise ProjectionError(f"{target_path} retains qualified agent ID {residue.group(0)!r}")
-    slash_residue = SLASH_SKILL_REFERENCE.search(adapted)
-    if slash_residue:
-        raise ProjectionError(
-            f"{target_path} retains internal slash skill reference {slash_residue.group(0)!r}"
-        )
     for token in policy["forbiddenRuntimeTokens"]:
         if token in adapted:
             raise ProjectionError(f"{target_path} retains target-specific token {token!r}")
@@ -704,6 +713,7 @@ def build_projection(
             target_path=target,
             policy=policy,
             agent_ids=source_agent_ids,
+            skill_ids=set(skills),
             replacement_hits=replacement_hits,
         )
         adapted_body = apply_text_adapter(
@@ -711,6 +721,7 @@ def build_projection(
             target_path=target,
             policy=policy,
             agent_ids=source_agent_ids,
+            skill_ids=set(skills),
             replacement_hits=replacement_hits,
         )
         rendered = render_agent(
@@ -745,6 +756,7 @@ def build_projection(
                         target_path=target,
                         policy=policy,
                         agent_ids=source_agent_ids,
+                        skill_ids=set(skills),
                         replacement_hits=replacement_hits,
                         check_prefix_residue=check_prefix_residue,
                     )
@@ -753,6 +765,7 @@ def build_projection(
                         target_path=target,
                         policy=policy,
                         agent_ids=source_agent_ids,
+                        skill_ids=set(skills),
                         replacement_hits=replacement_hits,
                         check_prefix_residue=check_prefix_residue,
                     )
@@ -763,6 +776,7 @@ def build_projection(
                         target_path=target,
                         policy=policy,
                         agent_ids=source_agent_ids,
+                        skill_ids=set(skills),
                         replacement_hits=replacement_hits,
                         check_prefix_residue=check_prefix_residue,
                     )
@@ -801,6 +815,7 @@ def build_projection(
                     target_path=target,
                     policy=policy,
                     agent_ids=source_agent_ids,
+                    skill_ids=set(skills),
                     replacement_hits=replacement_hits,
                 )
                 adapted_body = apply_text_adapter(
@@ -808,6 +823,7 @@ def build_projection(
                     target_path=target,
                     policy=policy,
                     agent_ids=source_agent_ids,
+                    skill_ids=set(skills),
                     replacement_hits=replacement_hits,
                 )
                 data = render_skill(name, adapted_description, adapted_body).encode("utf-8")
@@ -817,6 +833,7 @@ def build_projection(
                     target_path=target,
                     policy=policy,
                     agent_ids=source_agent_ids,
+                    skill_ids=set(skills),
                     replacement_hits=replacement_hits,
                 ).encode("utf-8")
         else:

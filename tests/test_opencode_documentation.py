@@ -428,14 +428,14 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         self,
     ) -> None:
         source = normalized(
-            (ROOT / "plugin/skills/grillmester-issue-management/SKILL.md").read_text(
+            (ROOT / "plugin/skills/issue-management/SKILL.md").read_text(
                 encoding="utf-8"
             )
         )
         focused = normalized(
             (
                 ROOT
-                / "targets/opencode-v1-focused/skills/grillmester-issue-management/SKILL.md"
+                / "targets/opencode-v1-focused/skills/issue-management/SKILL.md"
             ).read_text(encoding="utf-8")
         )
         for document in (source, focused):
@@ -486,7 +486,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
     def test_focused_roster_and_measurement_history_are_honest(self) -> None:
         focused = normalized(self.adrs["0005"])
         for marker in (
-            "`grillmester-issue-management`",
+            "`issue-management`",
             "nøyaktig sju OpenCode-commands",
             "opprinnelige seks-skill-baselinen",
             "ikke en måling av dagens sju-skill-roster",

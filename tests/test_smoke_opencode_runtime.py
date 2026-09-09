@@ -76,7 +76,7 @@ class OpenCodeRuntimeSmokeTest(unittest.TestCase):
         state = self.state("skill-reference")
         load = response_text(RUNTIME.provider_response(state, request(system="# Kokk")))
         self.assertIn('"name":"skill"', load)
-        self.assertIn("grillmester-create-a-skill", load)
+        self.assertIn("create-a-skill", load)
         self.assertEqual({"skill"}, state.requested_tool_names())
 
         read = response_text(

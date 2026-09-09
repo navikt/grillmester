@@ -1,0 +1,9 @@
+---
+description: "Guide a human through a pull request or resolved diff one reading step at a time, then prepare review findings. Use when the user wants to understand and assess the change interactively; use `review` for the normal self-review pass."
+---
+
+Use the `skill` tool to load `guided-review`, then follow that skill for this request.
+
+Treat the following as the user's arguments to the skill:
+
+$ARGUMENTS

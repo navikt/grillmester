@@ -57,17 +57,17 @@ MAX_FILE_BYTES = 5_000_000
 MAX_DISTRIBUTION_BYTES = 50_000_000
 MAX_ARCHIVE_MEMBERS = 10_000
 OPENCODE_OVERLAY_SKILL_IDS = frozenset(
-    {"grillmester-create-a-skill", "grillmester-doctor"}
+    {"create-a-skill", "doctor"}
 )
 FOCUSED_AGENT_IDS = ("barista", "grill-inspektor")
 FOCUSED_SKILL_IDS = (
-    "grillmester-diagnosing-bugs",
-    "grillmester-integration-tests",
-    "grillmester-issue-management",
-    "grillmester-pull-request",
-    "grillmester-review",
-    "grillmester-security-review",
-    "grillmester-tdd",
+    "diagnosing-bugs",
+    "integration-tests",
+    "issue-management",
+    "pull-request",
+    "review",
+    "security-review",
+    "tdd",
 )
 
 
@@ -611,11 +611,10 @@ def _focused_target_files(
             "agentEscalation": "full-context-handoff",
             "excludedSkillReferences": "full-context-guidance",
             "skillPermissionEntriesRemoved": [
-                "grillmester-doctor",
-                "grillmester-grill-me",
-                "grillmester-grill-with-docs",
-                "grillmester-guided-review",
-                "grillmester-handoff",
+                "doctor",
+                "grill-me",
+                "guided-review",
+                "handoff",
             ],
         }
     elif client == "copilot":

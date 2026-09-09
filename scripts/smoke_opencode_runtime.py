@@ -274,7 +274,7 @@ def provider_response(state: ProviderState, request: dict[str, Any]) -> bytes:
             if "skill" not in requested:
                 state.record_requested_tool("skill")
                 return completion_chunks(
-                    tool="skill", arguments={"name": "grillmester-create-a-skill"}
+                    tool="skill", arguments={"name": "create-a-skill"}
                 )
             return completion_chunks()
         if "read" not in called:
@@ -689,7 +689,7 @@ def smoke(*, binary: Path, source_target: Path, cplt: Path | None = None) -> Non
 
             reference = (
                 target
-                / "skills/grillmester-create-a-skill/references/opencode-validation.md"
+                / "skills/create-a-skill/references/opencode-validation.md"
             )
             skill_state = run_scenario(
                 binary=binary,

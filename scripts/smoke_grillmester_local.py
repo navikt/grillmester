@@ -2,8 +2,9 @@
 """Gate local-model launches through real cplt and installed terminal clients.
 
 The smoke never contacts a model. A deterministic OpenAI-compatible provider
-binds to loopback, returns one fixed streamed response, and captures the exact
-request made by each client for contract validation.
+binds to loopback, forces bounded tool calls and captures each client request.
+Copilot loads a short skill ID before the Inspector probe; this verifies native
+loading and its source, not autonomous skill selection or skill execution.
 """
 
 from __future__ import annotations
@@ -54,6 +55,7 @@ PROVIDER_ID = "smoke"
 SERVER_HOST = "127.0.0.1"
 PROMPT = "Return the deterministic Grillmester local smoke sentinel only."
 SUBAGENT_PROMPT = "Return SUBAGENT_LOCAL_ONLY and do not use tools."
+SKILL_CALL_ID = "call_local_skill_probe"
 TOOL_SENTINEL = "GRILLMESTER_LOCAL_TOOL_OK"
 NPM_ACCESS_SENTINEL = "GRILLMESTER_LOCAL_NPM_ACCESS_OK"
 NPM_ACCESS_ENVIRONMENT = "NODE_AUTH_TOKEN"
@@ -133,6 +135,12 @@ class Scenario:
             ("copilot", "full"): Path("plugin"),
         }[(self.client, self.context)]
 
+    @property
+    def native_skill_id(self) -> str | None:
+        if self.client != "copilot":
+            return None
+        return "review" if self.context == "focused" else "design-prototype"
+
 
 SCENARIOS = tuple(
     Scenario(client, context)
@@ -155,6 +163,7 @@ class CompletionRecord:
 @dataclass
 class ProviderState:
     scenario: Scenario
+    distribution_root: Path = ROOT
     tool_command: str | None = None
     final_content: str | None = None
     model_requests: list[Mapping[str, str]] = field(default_factory=list)
@@ -279,9 +288,15 @@ def _task_stream_body(scenario: Scenario) -> bytes:
     ) + b"data: [DONE]\n\n"
 
 
-def _bash_stream_body(scenario: Scenario, command: str | None = None) -> bytes:
+def _tool_stream_body(
+    scenario: Scenario,
+    *,
+    tool_name: str,
+    arguments: Mapping[str, str],
+    call_id: str,
+) -> bytes:
     arguments = json.dumps(
-        {"command": command or f"/usr/bin/printf {TOOL_SENTINEL}"},
+        arguments,
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -299,9 +314,9 @@ def _bash_stream_body(scenario: Scenario, command: str | None = None) -> bytes:
                         "tool_calls": [
                             {
                                 "index": 0,
-                                "id": "call_local_tool_probe",
+                                "id": call_id,
                                 "type": "function",
-                                "function": {"name": "bash", "arguments": arguments},
+                                "function": {"name": tool_name, "arguments": arguments},
                             }
                         ],
                     },
@@ -331,6 +346,15 @@ def _bash_stream_body(scenario: Scenario, command: str | None = None) -> bytes:
     ) + b"data: [DONE]\n\n"
 
 
+def _bash_stream_body(scenario: Scenario, command: str | None = None) -> bytes:
+    return _tool_stream_body(
+        scenario,
+        tool_name="bash",
+        arguments={"command": command or f"/usr/bin/printf {TOOL_SENTINEL}"},
+        call_id="call_local_tool_probe",
+    )
+
+
 def _function_tool_names(record: CompletionRecord) -> tuple[str, ...]:
     tools = record.payload.get("tools")
     if not isinstance(tools, list):
@@ -346,6 +370,42 @@ def _function_tool_names(record: CompletionRecord) -> tuple[str, ...]:
 
 def _exposes_function_tool(record: CompletionRecord, name: str) -> bool:
     return name in _function_tool_names(record)
+
+
+def _native_skill_arguments(state: ProviderState) -> dict[str, str]:
+    """Use the native schema observed from the exact reviewed Copilot binary."""
+    record = state.completions[0]
+    tools = record.payload.get("tools", [])
+    native = [
+        tool["function"]
+        for tool in tools
+        if isinstance(tool, dict)
+        and isinstance(tool.get("function"), dict)
+        and tool["function"].get("name") == "skill"
+    ] if isinstance(tools, list) else []
+    if len(native) != 1:
+        advertised = ", ".join(_function_tool_names(record)) or "none"
+        raise LocalSmokeError(
+            f"{state.scenario.name} did not expose exactly one native 'skill' tool; "
+            f"advertised function tools: {advertised}"
+        )
+    schema = native[0].get("parameters")
+    if (
+        not isinstance(schema, dict)
+        or schema.get("type") != "object"
+        or schema.get("required") != ["skill"]
+        or not isinstance(schema.get("properties"), dict)
+        or not isinstance(schema["properties"].get("skill"), dict)
+        or schema["properties"]["skill"].get("type") != "string"
+    ):
+        raise LocalSmokeError(
+            f"{state.scenario.name} native 'skill' schema differs from the reviewed "
+            "required string parameter 'skill'"
+        )
+    skill_id = state.scenario.native_skill_id
+    if skill_id is None:
+        raise LocalSmokeError("the native Copilot skill probe requires a Copilot scenario")
+    return {"skill": skill_id}
 
 
 def _stream_body(state: ProviderState) -> bytes:
@@ -368,8 +428,22 @@ def _stream_body(state: ProviderState) -> bytes:
         return _bash_stream_body(state.scenario)
     if state.scenario.client == "copilot":
         if request_number == 1:
-            return _task_stream_body(state.scenario)
+            try:
+                arguments = _native_skill_arguments(state)
+            except LocalSmokeError as exc:
+                state.violate(str(exc))
+                return _content_stream_body(
+                    state.scenario, sentinel_for(state.scenario), suffix="missing-skill"
+                )
+            return _tool_stream_body(
+                state.scenario,
+                tool_name="skill",
+                arguments=arguments,
+                call_id=SKILL_CALL_ID,
+            )
         if request_number == 2:
+            return _task_stream_body(state.scenario)
+        if request_number == 3:
             return _content_stream_body(
                 state.scenario, "SUBAGENT_LOCAL_ONLY", suffix="subagent"
             )
@@ -471,11 +545,13 @@ class LoopbackProvider:
         self,
         scenario: Scenario,
         *,
+        distribution_root: Path = ROOT,
         tool_command: str | None = None,
         final_content: str | None = None,
     ):
         self.state = ProviderState(
             scenario,
+            distribution_root=distribution_root,
             tool_command=tool_command,
             final_content=final_content,
         )
@@ -641,6 +717,69 @@ def _tool_result_text(payload: Mapping[str, Any]) -> str:
     return _request_text({"messages": contents})
 
 
+def _validate_native_skill_load(state: ProviderState) -> None:
+    expected_arguments = _native_skill_arguments(state)
+    skill_id = expected_arguments["skill"]
+    messages = state.completions[1].payload.get("messages")
+    if not isinstance(messages, list):
+        raise LocalSmokeError(f"{state.scenario.name} has no native skill result messages")
+    calls = [
+        call
+        for message in messages
+        if isinstance(message, dict) and message.get("role") == "assistant"
+        and isinstance(message.get("tool_calls"), list)
+        for call in message["tool_calls"]
+        if isinstance(call, dict) and call.get("id") == SKILL_CALL_ID
+    ]
+    if len(calls) != 1 or not isinstance(calls[0].get("function"), dict):
+        raise LocalSmokeError(f"{state.scenario.name} did not retain the native skill call")
+    function = calls[0]["function"]
+    try:
+        arguments = json.loads(function.get("arguments", ""))
+    except (TypeError, ValueError) as exc:
+        raise LocalSmokeError(f"{state.scenario.name} native skill arguments are invalid") from exc
+    if function.get("name") != "skill" or arguments != expected_arguments:
+        raise LocalSmokeError(
+            f"{state.scenario.name} did not call native skill with exact short ID {skill_id!r}"
+        )
+    results = [
+        message.get("content")
+        for message in messages
+        if isinstance(message, dict) and message.get("role") == "tool"
+        and message.get("tool_call_id") == SKILL_CALL_ID
+    ]
+    if len(results) != 1 or not isinstance(results[0], str) or not results[0].startswith(
+        f'Skill "{skill_id}" loaded successfully.'
+    ):
+        raise LocalSmokeError(
+            f"{state.scenario.name} did not confirm successful native skill loading"
+        )
+    source = (
+        state.distribution_root / state.scenario.relative_payload / "skills" / skill_id
+    ).resolve(strict=True)
+    content = (source / "SKILL.md").read_text(encoding="utf-8")
+    parts = content.split("\n---\n", 1)
+    if len(parts) != 2 or not parts[1].strip():
+        raise LocalSmokeError(f"{state.scenario.name} expected skill has no body")
+    contexts = [
+        message["content"]
+        for message in messages
+        if isinstance(message, dict) and message.get("role") == "user"
+        and isinstance(message.get("content"), str)
+        and message["content"].startswith(f'<skill-context name="{skill_id}">\n')
+    ]
+    if (
+        len(contexts) != 1
+        or f"Base directory for this skill: {source}\n" not in contexts[0]
+        or parts[1].strip() not in contexts[0]
+        or not contexts[0].rstrip().endswith("</skill-context>")
+    ):
+        raise LocalSmokeError(
+            f"{state.scenario.name} native skill context does not match packaged "
+            f"{skill_id!r} identity, source and content"
+        )
+
+
 def validate_provider_state(state: ProviderState) -> None:
     if state.violations:
         raise LocalSmokeError(
@@ -658,7 +797,7 @@ def validate_provider_state(state: ProviderState) -> None:
             f"advertised function tools: {advertised}"
         )
     expected_completions = (
-        3
+        4
         if state.scenario.client == "copilot"
         else 2
         if state.scenario == Scenario("opencode", "focused")
@@ -692,7 +831,8 @@ def validate_provider_state(state: ProviderState) -> None:
                 f"{state.scenario.name} request {index} escaped exact model {MODEL_ID!r}"
             )
     if state.scenario.client == "copilot":
-        delegated_text = _request_text(state.completions[1].payload)
+        _validate_native_skill_load(state)
+        delegated_text = _request_text(state.completions[2].payload)
         if SUBAGENT_PROMPT not in delegated_text:
             raise LocalSmokeError(
                 f"{state.scenario.name} did not dispatch the Grill-inspektor probe"
@@ -1033,7 +1173,7 @@ def _run_scenario(
         *_credential_values(scenario_environment),
         AMBIENT_GITHUB_TOKEN_CANARY,
     )
-    with LoopbackProvider(scenario) as provider:
+    with LoopbackProvider(scenario, distribution_root=distribution_root) as provider:
         config = LOCAL.LocalConfig(
             client=scenario.client,
             agent="barista",
@@ -1826,12 +1966,18 @@ def main(
         print(f"Grillmester local smoke failed: {exc}", file=sys.stderr)
         return 1
     for report in reports:
+        skill_evidence = (
+            f" forced-skill={report.scenario.native_skill_id}"
+            if report.scenario.native_skill_id else ""
+        )
         print(
             f"PASS: {report.scenario.name} model={MODEL_ID} "
-            f"payload={report.payload} requests={report.requests}"
+            f"payload={report.payload} requests={report.requests}{skill_evidence}"
         )
     print(
         "Grillmester local smoke passed: 4/4 focused/full OpenCode/Copilot "
+        "scenarios with forced native short-skill loading and Inspector delegation "
+        "in Copilot; all "
         "scenarios through the release-test cplt baseline; ripgrep available on "
         "PATH; cplt audit escape and caller-PATH parent tools blocked; explicit "
         "fake-gh current-repo issue allowed while cross-repo, destructive and "

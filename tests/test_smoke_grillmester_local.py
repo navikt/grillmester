@@ -49,6 +49,79 @@ def post_completion(base_url: str, payload: dict[str, object]) -> str:
         return response.read().decode("utf-8")
 
 
+def native_skill_tool() -> dict[str, object]:
+    # Schema observed from the isolated reviewed Copilot 1.0.80 binary.
+    return {
+        "type": "function",
+        "function": {
+            "name": "skill",
+            "parameters": {
+                "type": "object",
+                "properties": {"skill": {"type": "string"}},
+                "required": ["skill"],
+            },
+        },
+    }
+
+
+def native_skill_messages(scenario: SMOKE.Scenario) -> list[dict[str, object]]:
+    skill_id = {"focused": "review", "full": "design-prototype"}[scenario.context]
+    source = ROOT / scenario.relative_payload / "skills" / skill_id
+    body = (source / "SKILL.md").read_text(encoding="utf-8").split("\n---\n", 1)[1]
+    return [
+        {
+            "role": "assistant",
+            "tool_calls": [{
+                "id": SMOKE.SKILL_CALL_ID,
+                "type": "function",
+                "function": {
+                    "name": "skill",
+                    "arguments": json.dumps({"skill": skill_id}),
+                },
+            }],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": SMOKE.SKILL_CALL_ID,
+            "content": f'Skill "{skill_id}" loaded successfully. Follow the instructions in the skill context.',
+        },
+        {
+            "role": "user",
+            "content": (
+                f'<skill-context name="{skill_id}">\n'
+                f"Base directory for this skill: {source}\n\n"
+                f"{body}\n</skill-context>"
+            ),
+        },
+    ]
+
+
+def copilot_provider_state(context: str) -> SMOKE.ProviderState:
+    scenario = SMOKE.Scenario("copilot", context)
+    prompt = "# Barista ☕\n" + (
+        "Status: NEEDS_FULL_CONTEXT\nResume with: grillmester local --full"
+        if context == "focused" else "Select grillmester:grillmester for complex work"
+    ) + f"\n{SMOKE.LOCAL._bound_run_prompt(SMOKE.PROMPT)}"
+    payloads = [
+        {
+            "messages": [{"role": "system", "content": prompt}],
+            "tools": [native_skill_tool(), {"type": "function", "function": {"name": "task"}}],
+        },
+        {"messages": native_skill_messages(scenario)},
+        {"messages": [{"role": "user", "content": SMOKE.SUBAGENT_PROMPT}]},
+        {"messages": [{"role": "tool", "content": "SUBAGENT_LOCAL_ONLY"}]},
+    ]
+    state = SMOKE.ProviderState(scenario)
+    state.model_requests.append({})
+    state.completions.extend(
+        SMOKE.CompletionRecord(
+            path="/v1/chat/completions", headers={},
+            payload={"model": SMOKE.MODEL_ID, "stream": True, **payload},
+        ) for payload in payloads
+    )
+    return state
+
+
 class LoopbackProviderTests(unittest.TestCase):
     def test_models_and_chat_completions_stream_have_exact_contract(self) -> None:
         scenario = SMOKE.Scenario("opencode", "focused")
@@ -228,7 +301,7 @@ class MatrixTests(unittest.TestCase):
                                 "type": "function",
                                 "function": {"name": "bash"},
                             }
-                        ],
+                        ] + ([native_skill_tool()] if client == "copilot" else []),
                     },
                 )
                 if client == "opencode" and context == "focused":
@@ -247,6 +320,17 @@ class MatrixTests(unittest.TestCase):
                         },
                     )
                 elif client == "copilot":
+                    self.assertIn('"name":"skill"', stream)
+                    stream += post_completion(
+                        base_url,
+                        {
+                            "model": SMOKE.MODEL_ID,
+                            "stream": True,
+                            "messages": native_skill_messages(scenario),
+                            "tools": [native_skill_tool()],
+                        },
+                    )
+                    self.assertIn('"name":"task"', stream)
                     stream += post_completion(
                         base_url,
                         {
@@ -298,6 +382,11 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(4, len(observed))
         self.assertTrue(all(report.consumer_clean for report in reports))
         self.assertTrue(all(report.credentials_scrubbed for report in reports))
+        self.assertEqual([2, 1, 4, 4], [report.requests for report in reports])
+        self.assertEqual(
+            [None, None, "review", "design-prototype"],
+            [report.scenario.native_skill_id for report in reports],
+        )
         self.assertEqual(
             {
                 ROOT / "targets/opencode-v1-focused",
@@ -489,107 +578,87 @@ class MatrixTests(unittest.TestCase):
         )
 
     def test_provider_validation_rejects_the_wrong_context_projection(self) -> None:
-        scenario = SMOKE.Scenario("copilot", "focused")
-        state = SMOKE.ProviderState(scenario)
-        state.model_requests.append({})
-        state.completions.append(
-            SMOKE.CompletionRecord(
-                path="/v1/chat/completions",
-                headers={},
-                payload={
-                    "model": SMOKE.MODEL_ID,
-                    "stream": True,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "# Barista ☕\nSelect grillmester:grillmester",
-                        }
-                    ],
-                    "tools": [{"type": "function"}],
-                },
-            )
-        )
-        state.completions.extend(
-            (
-                SMOKE.CompletionRecord(
-                    path="/v1/chat/completions",
-                    headers={},
-                    payload={
-                        "model": SMOKE.MODEL_ID,
-                        "stream": True,
-                        "messages": [
-                            {"role": "user", "content": SMOKE.SUBAGENT_PROMPT}
-                        ],
-                    },
-                ),
-                SMOKE.CompletionRecord(
-                    path="/v1/chat/completions",
-                    headers={},
-                    payload={
-                        "model": SMOKE.MODEL_ID,
-                        "stream": True,
-                        "messages": [
-                            {"role": "tool", "content": "SUBAGENT_LOCAL_ONLY"}
-                        ],
-                    },
-                ),
-            )
+        state = copilot_provider_state("focused")
+        state.completions[0].payload["messages"][0]["content"] = (
+            "# Barista ☕\nSelect grillmester:grillmester"
         )
         with self.assertRaisesRegex(SMOKE.LocalSmokeError, "focused handoff"):
             SMOKE.validate_provider_state(state)
 
     def test_provider_validation_rejects_a_delegated_cloud_model(self) -> None:
-        scenario = SMOKE.Scenario("copilot", "full")
-        state = SMOKE.ProviderState(scenario)
-        state.model_requests.append({})
-        state.completions.extend(
-            (
-                SMOKE.CompletionRecord(
-                    path="/v1/chat/completions",
-                    headers={},
-                    payload={
-                        "model": SMOKE.MODEL_ID,
-                        "stream": True,
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": (
-                                    "# Barista ☕\n"
-                                    "Select grillmester:grillmester for complex work"
-                                ),
-                            }
-                        ],
-                        "tools": [
-                            {"type": "function", "function": {"name": "bash"}}
-                        ],
-                    },
-                ),
-                SMOKE.CompletionRecord(
-                    path="/v1/chat/completions",
-                    headers={},
-                    payload={
-                        "model": "gpt-5.6-sol",
-                        "stream": True,
-                        "messages": [
-                            {"role": "user", "content": SMOKE.SUBAGENT_PROMPT}
-                        ],
-                    },
-                ),
-                SMOKE.CompletionRecord(
-                    path="/v1/chat/completions",
-                    headers={},
-                    payload={
-                        "model": SMOKE.MODEL_ID,
-                        "stream": True,
-                        "messages": [
-                            {"role": "tool", "content": "SUBAGENT_LOCAL_ONLY"}
-                        ],
-                    },
-                ),
-            )
-        )
+        state = copilot_provider_state("full")
+        state.completions[2].payload["model"] = "gpt-5.6-sol"
 
-        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "request 2 escaped"):
+        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "request 3 escaped"):
+            SMOKE.validate_provider_state(state)
+
+    def test_provider_validates_both_native_skill_loads(self) -> None:
+        for context in ("focused", "full"):
+            with self.subTest(context=context):
+                SMOKE.validate_provider_state(copilot_provider_state(context))
+
+    def test_provider_rejects_failed_native_load_despite_matching_context(self) -> None:
+        state = copilot_provider_state("full")
+        state.completions[1].payload["messages"][1]["content"] = "Skill not found"
+
+        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "successful native skill loading"):
+            SMOKE.validate_provider_state(state)
+
+    def test_provider_rejects_wrong_skill_id_and_unrelated_tool_result(self) -> None:
+        for field in ("skill", "tool_call_id"):
+            with self.subTest(field=field):
+                state = copilot_provider_state("focused")
+                messages = state.completions[1].payload["messages"]
+                if field == "skill":
+                    messages[0]["tool_calls"][0]["function"]["arguments"] = json.dumps(
+                        {"skill": "grillmester-review"}
+                    )
+                    expected = "exact short ID"
+                else:
+                    messages[1]["tool_call_id"] = "unrelated_tool_call"
+                    expected = "successful native skill loading"
+                with self.assertRaisesRegex(SMOKE.LocalSmokeError, expected):
+                    SMOKE.validate_provider_state(state)
+
+    def test_provider_rejects_shadowed_or_missing_skill_body(self) -> None:
+        for change in ("source", "body", "role"):
+            with self.subTest(change=change):
+                state = copilot_provider_state("full")
+                context = state.completions[1].payload["messages"][2]
+                if change == "source":
+                    context["content"] = context["content"].replace(
+                        f"Base directory for this skill: {ROOT}",
+                        "Base directory for this skill: /unexpected/source",
+                    )
+                elif change == "body":
+                    context["content"] = context["content"].split("\n\n", 1)[0] + (
+                        "\n\nOnly the skill name, with no loaded instructions.\n</skill-context>"
+                    )
+                else:
+                    context["role"] = "assistant"
+                with self.assertRaisesRegex(SMOKE.LocalSmokeError, "identity, source and content"):
+                    SMOKE.validate_provider_state(state)
+
+    def test_provider_stops_without_guessing_a_missing_native_tool(self) -> None:
+        state = copilot_provider_state("focused")
+        state.completions = state.completions[:1]
+        state.completions[0].payload["tools"] = [
+            {"type": "function", "function": {"name": "task"}}
+        ]
+
+        response = SMOKE._stream_body(state).decode("utf-8")
+
+        self.assertNotIn('"tool_calls"', response)
+        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "native 'skill' tool"):
+            SMOKE.validate_provider_state(state)
+
+    def test_provider_rejects_an_unreviewed_native_skill_parameter(self) -> None:
+        state = copilot_provider_state("focused")
+        schema = state.completions[0].payload["tools"][0]["function"]["parameters"]
+        schema["required"] = ["name"]
+        schema["properties"] = {"name": {"type": "string"}}
+
+        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "required string parameter 'skill'"):
             SMOKE.validate_provider_state(state)
 
     def test_provider_validation_requires_the_bash_tool_result_not_its_arguments(

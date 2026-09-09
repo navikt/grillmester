@@ -40,10 +40,10 @@ fullrepresentasjonene:
 Begge targetene bruker samme reviewede roster:
 
 - agentene `barista` og `grill-inspektor`
-- skillsene `grillmester-diagnosing-bugs`,
-  `grillmester-integration-tests`, `grillmester-issue-management`,
-  `grillmester-pull-request`, `grillmester-review`,
-  `grillmester-security-review` og `grillmester-tdd`
+- skillsene `diagnosing-bugs`,
+  `integration-tests`, `issue-management`,
+  `pull-request`, `review`,
+  `security-review` og `tdd`
 - nøyaktig sju OpenCode-commands, én for hver inkluderte skill
 
 Security review inngår fordi Baristas kanoniske kontrakt krever den når

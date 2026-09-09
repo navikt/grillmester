@@ -158,10 +158,11 @@ ikke-tomme `.github/agents`, `.github/skills`, `.agents/skills` eller
 eller en eksplisitt pilotbranch/fixture uten disse røttene, når et
 nav-pilot-synket repo skal testes med lokal modell.
 
-Grillmester-skills bruker `grillmester-`-prefiks. Det gjør eksakte kollisjoner
-mindre sannsynlige, men semantisk overlapp kan fortsatt finnes. Installer bare
-én Grillmester-plugin, og bruk `/grillmester-doctor` til å synliggjøre overlapp
-før teamet eventuelt rydder i repo-lokale komponenter.
+Grillmester-skills bruker korte, oppgaveorienterte navn. nav-pilot velger pakka,
+men klienten kan fortsatt laste repo- og brukerskills med samme navn. Installer
+én Grillmester-pakke og kontroller faktisk navn, kilde og versjon med `/doctor`.
+Kjør `scripts/audit_consumer_setup.py` før migrering for å finne gamle kopier,
+lokale tilpasninger og foreldede instruksreferanser uten å endre consumeren.
 
 Grillmester publiserer `.nav-pilot/agentpakke.json` som en Tier 2-kontrakt over
 de fire deterministiske payloadene Copilot CLI/OpenCode × full/fokusert.
@@ -199,9 +200,9 @@ Et consumer-repo kan ha:
 Følg [consumer-pilot-runbooken](consumer-pilot-runbook.md). Den binder baseline,
 eksakte kollisjoner, tillatt diff og rollback før migreringen.
 
-## `/grillmester-doctor`: sjekk før du legger til mer kontekst
+## `/doctor`: sjekk før du legger til mer kontekst
 
-Kjør `/grillmester-doctor` når du eksplisitt vil undersøke oppsettet. Skillen er
+Kjør `/doctor` når du eksplisitt vil undersøke oppsettet. Skillen er
 read-only og vurderer:
 
 - om riktig plugin og agent faktisk er aktiv
@@ -210,7 +211,7 @@ read-only og vurderer:
 - om repoet mangler en liten, stående kontrakt
 - om en regel heller bør være CI/ruleset enn prompttekst
 
-`/grillmester-doctor` synker eller oppretter ikke filer. Et forslag blir først en endring i en
+`/doctor` synker eller oppretter ikke filer. Et forslag blir først en endring i en
 separat, godkjent oppgave.
 
 ## Videre

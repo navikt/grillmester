@@ -50,12 +50,12 @@ do not add prompt/content lineage or transfer ownership of those external
 executables. The release bundle includes these files and both focused targets
 as source-SHA-bound inventory.
 
-Agent IDs preserve their reviewed source names. Runtime skill IDs are prefixed
-with `grillmester-` to reduce accidental collisions. A project- or user-level
-component with the same exact ID still wins and can silently shadow the plugin
-payload; qualification is not a bypass. The source names below remain
-unprefixed so the import boundary can be audited directly; the content lock
-records the canonical runtime IDs and their original `sourcePath` values.
+Agent IDs preserve their reviewed source names. Runtime skills use short,
+task-oriented IDs; the content lock records those IDs and the original
+`sourcePath` values so the import boundary remains auditable. Older releases
+used a `grillmester-` prefix. Migrating removes obsolete copies and updates
+callers; it does not add compatibility aliases that would duplicate discovery.
+Repo- and user-level components can still shadow same-named plugin skills.
 
 ## Pilot baseline
 
@@ -125,7 +125,7 @@ Imported skills:
 
 Hovmester's Nav architecture material was itself adopted from
 `navikt/copilot`. Grillmester consolidates its useful, non-duplicative parts
-into the conditional Nav reference under `grillmester-architecture-review`
+into the conditional Nav reference under `architecture-review`
 instead of shipping a second architecture-review skill. The lineage was
 reviewed against `navikt/copilot` at
 `2d0911b353a91ec9091d252b481acb5777de7059`; the source workflow was introduced
@@ -196,7 +196,7 @@ not part of the plugin payload. The issue and PR templates in this source
 repository govern contributions to `navikt/grillmester`; they are not shipped
 to consumers.
 
-`grillmester-doctor` consolidates the reviewed ownership boundary from the
+`doctor` consolidates the reviewed ownership boundary from the
 pinned Budstikka and Hovmester instruction sources into a read-only audit. It
 does not copy their repository facts, create consumer files, or establish a
 continuing synchronization relationship.

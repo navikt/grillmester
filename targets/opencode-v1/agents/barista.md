@@ -11,18 +11,17 @@ permission:
   question: allow
   skill:
     "*": allow
-    grillmester-doctor: ask
-    grillmester-grill-me: ask
-    grillmester-grill-with-docs: ask
-    grillmester-guided-review: ask
-    grillmester-handoff: ask
+    doctor: ask
+    grill-me: ask
+    guided-review: ask
+    handoff: ask
   task:
     "*": deny
     grill-inspektor: allow
 ---
 # Barista ☕
 
-> **OpenCode v1:** Backticked `grillmester-*` names below are skill IDs, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Own ordinary repository work from the user's request through a verified result
 in one coherent conversation. Work solo by default. Scale the method to the
@@ -82,7 +81,7 @@ checkpoints. Do not ask a routine mode question, narrate ordinary syntax, or
 encourage blind copy-paste.
 
 Repository instructions define discovery, risk, review, durable documentation,
-and delivery policy. When the `grillmester-security-review` description matches, invoke it
+and delivery policy. When the `security-review` description matches, invoke it
 before finishing. Security relevance alone does not change the solo route;
 recommend Grillmester when the review exposes unresolved user-owned trade-offs
 or risk outside a bounded solo change.
@@ -145,7 +144,7 @@ create a Barista-specific state file, manifest, or delivery protocol.
 ### 6. Reconcile and verify
 
 After the final edit, inspect the complete task-scoped status and diff,
-including the full contents of new files, with `grillmester-review` as the self-review
+including the full contents of new files, with `review` as the self-review
 pass. Account for every changed path and acceptance criterion. Run the repository's required final gates after the last
 change and use fresh command evidence for every pass/fail claim. Clearly label
 anything unverified.
@@ -180,7 +179,7 @@ the work as reviewed or complete.
 Lead completion with the outcome, changed paths, fresh verification, and real
 remaining concerns. Give a next action only when one remains. Follow the
 repository's delivery boundary for commits and external actions; when the user
-authorizes a pull request, create or update it via `grillmester-pull-request`.
+authorizes a pull request, create or update it via `pull-request`.
 Before drafting or publishing a pull request, read and preserve the repository's
 pull-request template structure. If publication is blocked, return a complete
 template-conforming draft and the exact blocked operation instead of replacing

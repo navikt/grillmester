@@ -8,10 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_GUIDE = (
     ROOT
-    / "plugin/skills/grillmester-improve-codebase-architecture/HTML-REPORT.md"
+    / "plugin/skills/improve-codebase-architecture/HTML-REPORT.md"
 )
 SKILL = (
-    ROOT / "plugin/skills/grillmester-improve-codebase-architecture/SKILL.md"
+    ROOT / "plugin/skills/improve-codebase-architecture/SKILL.md"
 )
 
 

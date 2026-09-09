@@ -143,7 +143,7 @@ def write_stable_rights_fixture(root: Path) -> dict[str, object]:
             "doctor-who": {"source": "hovmester"},
         },
         "skills": {
-            "grillmester-aksel-design": {"source": ["pilot", "hovmester"]},
+            "aksel-design": {"source": ["pilot", "hovmester"]},
         },
     }
     (policy / "content-lock.json").write_text(
@@ -154,7 +154,7 @@ def write_stable_rights_fixture(root: Path) -> dict[str, object]:
     agents.mkdir(parents=True, exist_ok=True)
     (agents / "designer.agent.md").write_text("designer\n")
     (agents / "doctor-who.agent.md").write_text("doctor who\n")
-    skill = root / "plugin/skills/grillmester-aksel-design"
+    skill = root / "plugin/skills/aksel-design"
     skill.mkdir(parents=True, exist_ok=True)
     (skill / "SKILL.md").write_text("aksel\n")
     approval: dict[str, object] = {
@@ -489,7 +489,7 @@ class ReleaseContractTest(unittest.TestCase):
             write_stable_rights_fixture(source)
             content_lock_path = source / CONTRACT.CONTENT_LOCK_PATH
             content_lock = json.loads(content_lock_path.read_text())
-            content_lock["skills"]["grillmester-aksel-design"]["source"] = {
+            content_lock["skills"]["aksel-design"]["source"] = {
                 "hovmester": True
             }
             content_lock_path.write_text(json.dumps(content_lock) + "\n")

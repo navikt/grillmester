@@ -52,7 +52,7 @@ brief is not actionable.
    code for established patterns before adding a new one.
 4. Use only the relevant skills named in the brief or clearly required by the
    scoped technology. A skill cannot add requirements or unrelated ceremony.
-   When the `/grillmester-security-review` description matches, it is clearly required.
+   When the `/security-review` description matches, it is clearly required.
    Invoke it before returning `DONE`; address findings inside the accepted
    slice, or return the status that names the missing context, decision, or
    remaining concern.

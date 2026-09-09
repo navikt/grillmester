@@ -38,9 +38,9 @@
         "bash": {
           "*": "deny",
           "node scripts/server.js --project-dir *": "ask",
-          "node *grillmester-design-prototype/scripts/server.js --project-dir *": "ask",
+          "node *design-prototype/scripts/server.js --project-dir *": "ask",
           "node scripts/server.js * --cleanup-all*": "deny",
-          "node *grillmester-design-prototype/scripts/server.js * --cleanup-all*": "deny"
+          "node *design-prototype/scripts/server.js * --cleanup-all*": "deny"
         },
         "task": "deny"
       }
@@ -159,25 +159,25 @@
     }
   ],
   "pathTextReplacements": {
-    "skills/grillmester-handoff/SKILL.md": [
+    "skills/handoff/SKILL.md": [
       {
-        "from": "fresh GitHub Copilot session",
+        "from": "fresh session",
         "to": "fresh OpenCode session"
       }
     ],
-    "skills/grillmester-design-prototype/references/visual-companion.md": [
+    "skills/design-prototype/references/visual-companion.md": [
       {
         "from": "lokal Copilot CLI/app-kjøring",
         "to": "lokal OpenCode CLI/app-kjøring"
       }
     ],
-    "skills/grillmester-create-a-skill/references/principles.md": [
+    "skills/create-a-skill/references/principles.md": [
       {
         "from": "Use GitHub Copilot's supported invocation fields rather than encoding policy\nin prose.",
         "to": "Keep portable skill metadata in `SKILL.md`, OpenCode slash entry points in\n`commands/`, and model access in ordered `permission.skill` rules rather than\nencoding invocation policy in prose."
       }
     ],
-    "skills/grillmester-create-a-skill/references/glossary.md": [
+    "skills/create-a-skill/references/glossary.md": [
       {
         "from": "Runtime\nbehavior is configured through the target runtime's supported fields, which define\nexactly how model and user reach are configured.",
         "to": "Runtime behavior is split between portable skill metadata, explicit OpenCode\ncommand wrappers, and ordered `permission.skill` rules."
@@ -185,18 +185,18 @@
     ]
   },
   "overlays": {
-    "skills/grillmester-doctor/SKILL.md": "policy/opencode-v1/overlays/skills/grillmester-doctor/SKILL.md",
-    "skills/grillmester-create-a-skill/SKILL.md": "policy/opencode-v1/overlays/skills/grillmester-create-a-skill/SKILL.md",
-    "skills/grillmester-create-a-skill/references/opencode-validation.md": "policy/opencode-v1/overlays/skills/grillmester-create-a-skill/references/opencode-validation.md"
+    "skills/doctor/SKILL.md": "policy/opencode-v1/overlays/skills/doctor/SKILL.md",
+    "skills/create-a-skill/SKILL.md": "policy/opencode-v1/overlays/skills/create-a-skill/SKILL.md",
+    "skills/create-a-skill/references/opencode-validation.md": "policy/opencode-v1/overlays/skills/create-a-skill/references/opencode-validation.md"
   },
   "remove": [
-    "skills/grillmester-create-a-skill/references/copilot-cli-validation.md"
+    "skills/create-a-skill/references/copilot-cli-validation.md"
   ],
   "skillCapabilities": {
     "default": "native",
     "overrides": {
-      "grillmester-create-a-skill": "overlay",
-      "grillmester-doctor": "overlay"
+      "create-a-skill": "overlay",
+      "doctor": "overlay"
     }
   },
   "forbiddenRuntimeTokens": [
@@ -208,15 +208,15 @@
     "built-in search tool"
   ],
   "forbiddenByPrefix": {
-    "skills/grillmester-doctor/": [
+    "skills/doctor/": [
       "Copilot",
       ".github/copilot"
     ],
-    "skills/grillmester-create-a-skill/": [
+    "skills/create-a-skill/": [
       "Copilot",
       "copilot"
     ],
-    "skills/grillmester-handoff/": [
+    "skills/handoff/": [
       "GitHub Copilot"
     ]
   }

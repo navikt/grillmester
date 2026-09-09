@@ -298,7 +298,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
 
     def test_agent_detail_rejects_a_denied_bundled_skill_path(self) -> None:
         config_dir = Path("/tmp/grillmester-opencode-permission-fixture")
-        skill_glob = str(config_dir / "skills/grillmester-doctor/*")
+        skill_glob = str(config_dir / "skills/doctor/*")
         config_agent = {
             "permission": {
                 "*": "deny",
@@ -342,7 +342,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
                 agent_id="kokk",
                 config_agent=config_agent,
                 config_dir=config_dir,
-                skill_ids=frozenset({"grillmester-doctor"}),
+                skill_ids=frozenset({"doctor"}),
             )
 
     def test_agent_detail_requires_environment_examples_to_remain_readable(self) -> None:
