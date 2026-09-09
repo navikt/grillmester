@@ -19,6 +19,7 @@ import ipaddress
 import json
 import os
 import re
+import secrets
 import shlex
 import shutil
 import stat
@@ -3140,7 +3141,9 @@ def build_local_launch(
                     if resolve_credentials and secret is not None
                     else "<redacted>"
                     if secret_configured
-                    else "local"
+                    # The client masks this value in tool output. A common word
+                    # would corrupt paths such as ~/.local when no auth is used.
+                    else "grillmester-no-auth-" + secrets.token_hex(24)
                 ),
                 "COPILOT_PROVIDER_WIRE_API": "completions",
                 "COPILOT_PROVIDER_MODEL_ID": config.model_id,

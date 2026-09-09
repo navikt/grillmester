@@ -1907,11 +1907,18 @@ class LocalModeTests(unittest.TestCase):
         with self.assertRaisesRegex(LOCAL.LocalModeError, "no supported package-token"):
             self._launch(npm_access=True)
 
-    def test_copilot_without_auth_uses_only_redacted_local_placeholder(self) -> None:
+    def test_copilot_without_auth_uses_unique_redacted_placeholder(self) -> None:
         launch = self._launch(self._config(client="copilot"))
-        self.assertEqual("local", launch.environment["COPILOT_PROVIDER_API_KEY"])
+        placeholder = launch.environment["COPILOT_PROVIDER_API_KEY"]
+        self.assertRegex(placeholder, r"^grillmester-no-auth-[0-9a-f]{48}$")
+        another_launch = self._launch(self._config(client="copilot"))
+        self.assertNotEqual(
+            placeholder, another_launch.environment["COPILOT_PROVIDER_API_KEY"]
+        )
         self.assertEqual("<redacted>", launch.redacted_environment["COPILOT_PROVIDER_API_KEY"])
-        self.assertNotIn("'COPILOT_PROVIDER_API_KEY': 'local'", repr(launch))
+        self.assertNotIn(placeholder, repr(launch))
+        skill_path = str(Path.home() / ".local/share/grillmester/skills/review")
+        self.assertEqual(skill_path, skill_path.replace(placeholder, "******"))
 
     def test_project_opencode_config_and_extension_surfaces_fail_closed(self) -> None:
         candidates = (
