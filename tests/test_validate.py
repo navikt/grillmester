@@ -465,7 +465,7 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("cloud activation evidence boundary")
 
-    def test_diagnosing_skill_redacts_shared_and_hitl_evidence(self) -> None:
+    def test_diagnosing_skill_bounds_model_input_and_hitl_evidence(self) -> None:
         skill = (
             self.root / "plugin/skills/diagnosing-bugs/SKILL.md"
         ).read_text(encoding="utf-8")
@@ -474,7 +474,7 @@ class PackageValidationTest(unittest.TestCase):
             / "plugin/skills/diagnosing-bugs/scripts/hitl-loop.template.sh"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("Before showing or saving command output", skill)
+        self.assertIn("before output reaches the model", skill)
         self.assertIn("auth headers, cookies, tokens", skill)
         self.assertIn("`<REDACTED>`", skill)
         self.assertIn("approved\nenvironment variables", skill)

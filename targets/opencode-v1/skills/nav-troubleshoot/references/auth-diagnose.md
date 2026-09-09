@@ -21,9 +21,11 @@ of an HTTP 401 or 403. A blocked network path normally means that no HTTP
 response arrives. Diagnose ingress separately, and do not infer the rejecting
 layer from the status alone.
 
-Do not paste or log a raw token. If claim inspection is necessary, use an
-approved secure method and record only non-sensitive fields needed for the
-diagnosis, such as issuer, audience, expiry and authorized party.
+Keep raw tokens outside model context. If claim inspection is necessary, use
+an approved method that returns only non-sensitive fields needed for diagnosis,
+such as issuer, audience, expiry and authorized party where permitted. Select
+those fields before output reaches the model, following the
+[data-access boundary](../SKILL.md#data-access).
 
 ## 401 tree
 

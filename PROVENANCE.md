@@ -243,6 +243,16 @@ The observability review at `navikt/copilot` revision
 also checks sampling and query coverage before interpreting absent signals.
 It does not import endpoint URLs, query recipes or a mandatory signal count.
 
+Diagnostic data-access guidance was checked on 2026-09-09 against Nav's
+[published guidelines](https://ki-utvikling.nav.no/retningslinjer) and
+[observability workflow](https://ki-utvikling.nav.no/nyheter/agent-based-observability),
+whose sources were reviewed at the same `ce9abd567a89eb72f1b8f95447435fd16fe805d3`
+revision. The local rules distinguish permission to read from permission to
+provide data to the model, and require any filtering before model input. They
+allow approved direct queries, reuse existing scope decisions, and defer to
+current organizational and consumer rules; this is not a blanket log-access ban
+or a claim that every data source has been approved.
+
 The UI prototype guidance was also compared with current `mattpocock/skills` at
 `84fdeffd12f2ee307994d1eb6feb48173b6e0502`. Its relevant
 `skills/engineering/prototype/UI.md` is byte-identical to the reviewed

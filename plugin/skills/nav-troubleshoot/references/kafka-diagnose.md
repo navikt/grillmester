@@ -14,9 +14,11 @@ behavior and metric names from consumer evidence.
 - current partition count and active consumers
 - schema/version evidence and the repository's poison-message contract
 
-Never print message payloads, keys or headers that may contain personal data or
-secrets. Inspect raw records only with explicit approval and a safe,
-data-minimizing method.
+Keep payloads, keys and headers containing personal data or secrets outside
+model context. Raw-record inspection requires explicit authority for the scope
+and the [data-access boundary](../SKILL.md#data-access): use an approved method
+that returns only permitted diagnostic fields, filtering before output reaches
+the model. Task approval alone does not authorize the data.
 
 ## Lag tree
 

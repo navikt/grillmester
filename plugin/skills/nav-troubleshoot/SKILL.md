@@ -10,6 +10,22 @@ code defect to `diagnosing-bugs` for implementation and regression
 testing. Mark `NEEDS_CONTEXT` when the reproduction or expected behavior
 cannot be established from available evidence.
 
+## Data access
+
+Apply [Nav's current guidelines](https://ki-utvikling.nav.no/retningslinjer) and
+applicable team/repository rules to the source, scope, active client/model and
+access channel before collecting operational data. Direct queries are allowed
+when both access and returned data are permitted; read-only access or task
+approval alone does not establish this. Reuse existing decisions within their
+approved scope and query only the needed target, time window and result limit.
+
+Within this skill, keep secrets, tokens, personal data and protected information
+outside model context. Any required filtering or redaction must happen through
+an approved path before tool output reaches the model; never fetch disallowed
+raw data to redact afterward. If this boundary is unresolved, continue with code, synthetic
+tests or a permitted aggregate/prepared excerpt. Mark dependent retrieval
+`NEEDS_CONTEXT` and name the missing data-access decision.
+
 ## Establish runtime identity
 
 Do not assume environment names, namespace, app, cluster, container, repository
@@ -69,7 +85,9 @@ other external mutation:
 
 Treat exec into a production pod, port-forwarding, raw record inspection and
 temporary debug logging as sensitive actions; explain the need and ask first.
-Do not print secret values, tokens, message payloads or personal data.
+Reuse approval for the same concrete action and scope. Such approval cannot
+override the data-access boundary above. Do not print secret values, tokens,
+message payloads or personal data.
 
 ## Related skills
 
@@ -91,8 +109,8 @@ Do not print secret values, tokens, message payloads or personal data.
 
 ### Spør først
 
-- Every external mutation or production-sensitive inspection.
-- Expanding scope to another environment, namespace or service.
+- External mutations or production-sensitive inspections not already authorized.
+- Expanding beyond the approved environment, namespace or service scope.
 
 ### Aldri
 

@@ -34,7 +34,7 @@
     "nav-observability": {
       "repository": "navikt/copilot",
       "revision": "ce9abd567a89eb72f1b8f95447435fd16fe805d3",
-      "note": "Adapted trace representativeness guidance from observability-debugging; endpoint and command recipes are not imported."
+      "note": "Adapted trace representativeness guidance from observability-debugging; endpoint and command recipes are not imported. Local data-access rules were also checked against Nav's published guidelines and observability workflow at this revision."
     }
   },
   "agents": {

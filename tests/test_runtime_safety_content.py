@@ -19,7 +19,7 @@ class RuntimeSafetyContentTests(unittest.TestCase):
         self.assertIn("exact cluster/context, namespace", reference)
         self.assertIn("obtain explicit approval", reference)
         self.assertIn("--since=<verified-window>", reference)
-        self.assertIn("Redact sensitive values", reference)
+        self.assertIn("before the model receives output", reference)
 
     def test_auth_guidance_does_not_assign_http_status_to_network_policy(self) -> None:
         troubleshoot = read(

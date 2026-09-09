@@ -21,12 +21,18 @@ focused command, application boot command and available fixtures. Do not assume
 Gradle, Kotest, Ktor, Node, pytest, containers, Kafka or a database until
 repository evidence establishes them.
 
-Before showing or saving command output, a HAR, log, trace or event, replace
-secrets, auth headers, cookies, tokens and personal or sensitive data with
-`<REDACTED>`; retain only signal lines. Keep required credentials in approved
-environment variables, never in commands, scripts or fixtures. If redacted
-evidence cannot establish the boundary, return `Status: NEEDS_CONTEXT` and name
-the approved evidence or access needed instead of asking for raw data.
+Before reading logs, traces, HARs, events or other operational output, establish
+that the source, scope and content are permitted in the active client and model
+by organizational and repository policy. Reuse existing data-access decisions
+within scope; read access or task approval alone is insufficient. Do not fetch
+disallowed raw data for later redaction: any required filtering or redaction
+must happen through an approved path before output reaches the model.
+Exclude secrets, auth headers, cookies, tokens and personal or sensitive data;
+use `<REDACTED>` placeholders in permitted artifacts. Keep credentials in approved
+environment variables, never in commands, scripts or fixtures. If this boundary
+is unclear, continue with code and synthetic tests and mark dependent runtime
+work `Status: NEEDS_CONTEXT`, naming the missing policy/access decision or
+permitted minimum evidence.
 
 If the symptom is a runtime/platform problem in production, use the platform's
 approved diagnostic tooling to establish the failing boundary, then return here
@@ -36,9 +42,9 @@ for the reproduction and fix discipline. When the app runs on NAIS,
 ## Phase 1 — Build a feedback loop
 
 Build a check that fails on the reported symptom and run it before the fix.
-Read relevant code, logs and configuration to construct that check. When access
-or triggering conditions prevent reproduction, use the bounded investigation
-below and identify the missing runtime proof explicitly.
+Read relevant code, configuration and permitted diagnostic evidence to construct
+that check. When access or triggering conditions prevent reproduction, use the
+bounded investigation below and identify the missing runtime proof explicitly.
 
 ### Ways to construct one — try them roughly in this order
 
@@ -79,15 +85,16 @@ the number of runs and failures; a few passing runs do not prove a flake fixed.
 ### When you genuinely cannot build a loop
 
 State what could not be reproduced and what you tried. Continue bounded code,
-configuration and sanitized log analysis to test specific explanations or
+configuration and permitted log analysis to test specific explanations or
 design targeted instrumentation. Label inference and missing evidence; static
 analysis does not prove a runtime reproduction or a successful runtime fix.
 
-Ask only for evidence or access needed for the next dependent step, such as a
-sanitized trace or an approved environment. Reuse existing authorization for
-local investigation and reversible instrumentation within scope. Production
-changes still require explicit authority. Lack of runtime access does not
-block independent analysis or an evidence-supported local patch.
+Ask only for evidence or access needed for the next dependent step, such as
+a trace prepared within the data boundary above or an approved environment.
+Reuse existing authorization for local investigation and reversible
+instrumentation within scope. Production changes still require explicit
+authority. Lack of runtime access does not block independent analysis or an
+evidence-supported local patch.
 
 ### Evidence for a reproduction claim
 

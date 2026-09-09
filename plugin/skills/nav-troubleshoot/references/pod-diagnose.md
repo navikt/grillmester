@@ -5,14 +5,18 @@ consumer/deployment evidence. Labels and container names vary.
 
 ## Inspection command templates
 
-Substitute only verified values:
-
 Read-only is not a safety classification. Live logs, events and `describe`
 output can contain secrets, personal data and sensitive operational metadata.
-Before collecting any of them, confirm the exact cluster/context, namespace,
-object and container, choose a narrow time window or result limit, show the
-exact command and scope, and obtain explicit approval. Redact sensitive values
-before displaying the output or bringing it into model context.
+Apply the [data-access boundary](../SKILL.md#data-access) before any command.
+Confirm the exact cluster/context, namespace, object and container, and choose
+a narrow time window or result limit. For production-sensitive inspection,
+show the exact command and scope and obtain explicit approval unless already
+granted for that action and scope.
+
+These templates return raw output. Run them directly only when that output is
+permitted in model context. Otherwise, use an approved path that filters or
+redacts before the model receives output; do not fetch disallowed data to
+decide what to redact. Substitute only verified values:
 
 ```bash
 kubectl get pods --namespace <namespace> --selector '<verified-selector>' -o wide
@@ -27,10 +31,9 @@ If context is not already locked to the verified cluster, include the explicit
 context argument supported by the local setup. Do not rely on the current
 kubectl context by accident.
 
-Never request or paste unredacted output. Prefer the smallest approved excerpt
-that preserves the diagnostic signal. Following logs, exec, port-forwarding
-and broad namespace queries require a separate explanation of scope and
-explicit approval.
+Keep only the permitted diagnostic signal. Following logs, exec, port-forwarding
+and broad namespace queries require an explanation of scope and explicit
+approval if not already covered by the authorized action.
 
 ## Diagnostic tree
 
@@ -70,7 +73,8 @@ Kafka pool or readiness path. Discover them.
 
 Restart, delete, scale, rollout, patch, config change or probe/resource change
 requires the exact target, command/diff, expected impact, rollback and explicit
-approval. A restart can erase the best transient evidence, so collect it first.
+approval. A restart can erase transient evidence; preserve the permitted
+diagnostic signal first, within the data-access boundary above.
 
 For database startup failures, continue with
 [database-diagnose.md](./database-diagnose.md). For auth failures, use

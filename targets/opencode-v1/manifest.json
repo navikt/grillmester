@@ -86,31 +86,31 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "c5c0b4eb624cda8b1d732b590ff3ee8701a32a9edff5bc26641a52aa348d59bf",
+      "sha256": "5f066efc2fe6f7994ec6c5c23674f3d24c959d90f995524275765253748f2d24",
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "9b76d7acd2408f5ad4cd3f6dc81104d6c55cdd97446210de5bd9324cb0e2df12",
+      "sha256": "513e4128c0e4dacbe6729f3f40c895aff3e59ce21b2df5b37587c6a69a2127d6",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
-      "sha256": "f43a7cdb492cee8929f0fd7bf6c65290e556c9c04c0aefdaddf090057b3c7191",
+      "sha256": "63f290ab32bddd9ab7553768d97e68b2df35a06edc330ef2fff2528879796588",
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "5bbe61850b8dda2bb1945b8c202767a55a1a08f81563e9812d13711327a4da37",
+      "sha256": "3eb122289fc9a2cbf130efb78ba6d255e95fa5c9e0a81db30cd833d0b90c8a5b",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "fb7122ea40561b4dbd0b4de1b41a23a61b55a62e4375496ba61af9e6a944be77",
+      "sha256": "2c56509ee4dc5e44524bbb9be84a37b4b5ec49ad554ead9a562e99cf3839e0c2",
       "mode": "0644"
     },
     "agents/kokk.md": {
-      "sha256": "d0cb41a116a53571e30dc0fad9c5a080579a36dce9bb0f0695cfff227d3776a6",
+      "sha256": "f75ef0c05a23e93fa340094825b652726ea04095d1cb6ebe514ab25d7e4d46f0",
       "mode": "0644"
     },
     "agents/researcher.md": {
-      "sha256": "82064cda0d13a5b4d360f03809c01a3e9b101b5c711253dd09e2754ff0695d9d",
+      "sha256": "9471d6797ae74ebd3b29e826138c8dccc8114690edaa2c24db309de3e065c1ea",
       "mode": "0644"
     },
     "commands/accessibility-review.md": {
@@ -406,7 +406,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "e96c02d1abd2db0f9d590e3518d2e11e018e67cdfd561e4f649db33cfff123c4",
+      "sha256": "f7a840746df3cf6360b050d4f03ad5c24b307b5ae0122bcad62dc90d231cd992",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
@@ -554,11 +554,11 @@
       "mode": "0644"
     },
     "skills/nav-troubleshoot/SKILL.md": {
-      "sha256": "4360c099c72a098456c8fb7160de0cfc98d7d914f7492c27bd26b6a67b0118d6",
+      "sha256": "783f556f51523ab354452b05fc6a3b8f62d758b7b69222cf3a0b7af8e80fcf51",
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/auth-diagnose.md": {
-      "sha256": "0448d7cc4a13b1f838c832ef0b9eef8c0b9ceeabb8dc0f5bccfb8af51f56c52a",
+      "sha256": "ca8dd5bac730ea38419bb06d1c668d0d96ea8e4295a7cf667a7143e4ceb0befb",
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/database-diagnose.md": {
@@ -566,7 +566,7 @@
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/kafka-diagnose.md": {
-      "sha256": "4fe53f6360e74f1254629edea5e940907724ceb96e234f62887fe7124b67c340",
+      "sha256": "50a5787160136d7c0f5b23525c720291e20797eeb59a686d216489ec6690d63a",
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/observability-diagnose.md": {
@@ -574,7 +574,7 @@
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/pod-diagnose.md": {
-      "sha256": "fc690a31d17fc120eae1492856f429e3ec465a4c594a38a1a8c0e4ecb71215f1",
+      "sha256": "e77c7c1be4ac62a6b0eba714150b8c78533822059e929113221b6eb801d07937",
       "mode": "0644"
     },
     "skills/observability-setup/SKILL.md": {
