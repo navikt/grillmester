@@ -44,6 +44,12 @@ En kort repo-eid `AGENTS.md` kan peke på `.github/copilot-instructions.md` og
 be agenten lese relevante path-instruksjoner etter `applyTo`. Behold domenefakta
 og kommandoer i de eksisterende kildene fremfor å vedlikeholde to kopier.
 
+Slank stående instructions under migreringen. Behold bare korte kommandoer,
+ikke-åpenbare domeneregler og konkrete repo-fallgruver. Fjern generelle
+metodebeskrivelser, filkart, README-kopier og overflødige path-instruksjoner.
+Vanlig dokumentasjon kan fortsatt forklare bakgrunnen. En minimal klientpeker
+skal ikke laste hele dokumentasjonen inn i hver økt.
+
 Et Hovmester-manifest viser eierskap, men beviser ikke at filene er uendret.
 For å sammenligne med kjent kildeproveniens kan lokale source-checkouter
 oppgis eksplisitt:
@@ -91,6 +97,13 @@ Fjern bare den erstattede sync-jobben dersom en workflow også inneholder andre
 jobber. Når ingen Hovmester-sync lenger eier filer, avvikles manifestet som del
 av den samme endringen; ikke slett bevarte instructions eller maler fordi de
 står i manifestet. Ikke kjør historisk sync for å gjennomføre full utfasing.
+
+Avvikle også egne oppsetts- og sync-verifikasjoner; ikke erstatt dem med en ny
+workflow for den avsluttede migreringen. Fjern tilhørende påkrevde statusnavn
+fra branch protection og rulesets innenfor oppdragets fullmakt før PR-en
+merges. Ta vare på innstillingene før endringen og les dem tilbake etterpå:
+bare de avviklede statuskravene skal være fjernet. Ordinære bygge-, test-,
+review- og deploykrav beholdes.
 
 ### Verifiser utfasing og faktisk lasting hver for seg
 
