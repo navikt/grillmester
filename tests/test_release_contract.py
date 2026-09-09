@@ -62,6 +62,7 @@ def write_opencode_distribution_inputs(root: Path, content: str = "reviewed\n") 
         "grillmester_local.py",
         "release_test_baseline.py",
         "release_contract.py",
+        "skill_references.py",
         "smoke_grillmester_tui.py",
         "smoke_grillmester_local.py",
         "smoke_plugin_install.py",
@@ -425,7 +426,7 @@ class ReleaseContractTest(unittest.TestCase):
                     source_sha=sha,
                 )
 
-    def test_source_checkout_requires_the_native_opencode_target(self) -> None:
+    def test_source_checkout_requires_native_targets_and_projection_support(self) -> None:
         release = CONTRACT.Catalog(
             version=CONTRACT.parse_version("1.4.0-rc.2"), source_sha="1" * 40
         )
@@ -457,6 +458,14 @@ class ReleaseContractTest(unittest.TestCase):
             write_opencode_distribution_inputs(source)
             with mock.patch.object(
                 CONTRACT, "git_output", return_value=release.source_sha
+            ):
+                CONTRACT.validate_source_checkout(source, release)
+
+            (source / "scripts/skill_references.py").unlink()
+            with mock.patch.object(
+                CONTRACT, "git_output", return_value=release.source_sha
+            ), self.assertRaisesRegex(
+                CONTRACT.ReleaseContractError, "skill_references.py"
             ):
                 CONTRACT.validate_source_checkout(source, release)
 

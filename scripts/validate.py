@@ -13,10 +13,17 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-try:
-    from skill_references import skill_references
-except ModuleNotFoundError:
-    from scripts.skill_references import skill_references
+# Release checks use -I -S, which excludes the script directory from sys.path.
+# Load only this reviewed sibling without widening Python's import search path.
+_SKILL_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_skill_reference_helpers",
+    Path(__file__).resolve().with_name("skill_references.py"),
+)
+if _SKILL_SPEC is None or _SKILL_SPEC.loader is None:
+    raise RuntimeError("could not load skill reference helpers")
+_SKILL_MODULE = importlib.util.module_from_spec(_SKILL_SPEC)
+_SKILL_SPEC.loader.exec_module(_SKILL_MODULE)
+skill_references = _SKILL_MODULE.skill_references
 
 
 PLUGIN_NAME = "grillmester"

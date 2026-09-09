@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -23,6 +24,31 @@ SPEC.loader.exec_module(GENERATOR)
 
 
 class FocusedContextGenerationTest(unittest.TestCase):
+    def test_isolated_cli_check_loads_its_own_sibling_helper(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            working_directory = Path(temporary)
+            (working_directory / "skill_references.py").write_text(
+                "raise RuntimeError('must not load helper from the working directory')\n",
+                encoding="utf-8",
+            )
+            checked = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    str(ROOT / "scripts/generate_context_projections.py"),
+                    "--check",
+                ],
+                cwd=working_directory,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertIn("Focused opencode target is current:", checked.stdout)
+        self.assertIn("Focused copilotCli target is current:", checked.stdout)
+
     def test_focused_overlay_rejects_unknown_and_excluded_native_skill_calls(self) -> None:
         for skill in ("reveiw", "design-prototype"):
             files = {
