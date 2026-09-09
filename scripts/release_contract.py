@@ -44,6 +44,7 @@ OPENCODE_DISTRIBUTION_FILES = (
     "scripts/grillmester.py",
     "scripts/grillmester_local.py",
     "scripts/release_contract.py",
+    "scripts/skill_references.py",
     "scripts/smoke_grillmester_local.py",
 )
 _BASELINE_SPEC = importlib.util.spec_from_file_location(

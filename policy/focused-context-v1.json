@@ -14,13 +14,13 @@
     "grill-inspektor"
   ],
   "skills": [
-    "grillmester-diagnosing-bugs",
-    "grillmester-integration-tests",
-    "grillmester-issue-management",
-    "grillmester-pull-request",
-    "grillmester-review",
-    "grillmester-security-review",
-    "grillmester-tdd"
+    "diagnosing-bugs",
+    "integration-tests",
+    "issue-management",
+    "pull-request",
+    "review",
+    "security-review",
+    "tdd"
   ],
   "fullContextHandoff": {
     "status": "NEEDS_FULL_CONTEXT",

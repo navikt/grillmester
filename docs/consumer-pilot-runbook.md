@@ -1,13 +1,147 @@
-# Consumer-pilot for Grillmester
+# Consumer-opprydding og pilot for Grillmester
 
-Denne runbooken tar én eksisterende Hovmester-consumer gjennom en kontrollert
-Grillmester-pilot. Den tekniske migreringen skal erstatte bare de eksakte
-repo-lokale komponentene som kolliderer med pluginen. Instructions, øvrige
-agents og skills, PR-maler og issue-maler skal bevares.
+Overgangen til nav-pilot bruker korte skill-ID-er. Oppsettet må derfor rydde
+opp i både gamle Hovmester-kopier, prefiksede Grillmester-kopier og komponenter
+som skygger den valgte pakken. Et felles navn er kollisjonsevidens, ikke bevis
+for at den lokale filen kan slettes.
 
 Alt arbeid skjer i en ren, disponibel Git-worktree og i en egen pilot-PR. Ikke
 bruk en utviklers aktive worktree. En teknisk grønn preflight er heller ikke et
 live produktbevis; identitet, roller og godkjenningsgrenser testes etterpå.
+
+## Full utfasing av gammelt oppsett
+
+Denne flyten erstatter den historiske pilotens begrensede kollisjonsrydding
+ved full overgang til nav-pilot. Den trenger verken Hovmester-manifest eller
+sync-caller. Den oppretter ingen ny synkroniseringsmekanisme.
+
+### Kartlegg før endring
+
+Kjør fra Grillmester-source-checkouten mot én eksplisitt valgt consumer:
+
+```bash
+python3 scripts/audit_consumer_setup.py /tmp/consumer-pilot --json
+```
+
+Ta også med relevante brukerinstallasjoner når de er innenfor oppdraget:
+
+```bash
+python3 scripts/audit_consumer_setup.py /tmp/consumer-pilot \
+  --user-root "$HOME/.copilot" \
+  --user-root "$HOME/.config/opencode" \
+  --json
+```
+
+Verktøyet leser kun lokale filer og skriver rapporten til standard output.
+Brukerområder inkluderes aldri automatisk. Rapporten inneholder eksakte
+komponentstier, komplett filliste med SHA-256, navnekollisjoner, gamle
+prefiks-ID-er, manifestopplysninger, workflowreferanser og linjenummer for
+instruksjonsreferanser. Den gjengir ikke hele instruksjons- eller workflowlinjer.
+
+Kontroller også at hver valgt klient faktisk finner de bevarte instruksjonene.
+OpenCode laster ikke Copilots `.github`-instruksjoner automatisk gjennom Tier 2.
+En kort repo-eid `AGENTS.md` kan peke på `.github/copilot-instructions.md` og
+be agenten lese relevante path-instruksjoner etter `applyTo`. Behold domenefakta
+og kommandoer i de eksisterende kildene fremfor å vedlikeholde to kopier.
+
+Slank stående instructions under migreringen. Behold bare korte kommandoer,
+ikke-åpenbare domeneregler og konkrete repo-fallgruver. Fjern generelle
+metodebeskrivelser, filkart, README-kopier og overflødige path-instruksjoner.
+Vanlig dokumentasjon kan fortsatt forklare bakgrunnen. En minimal klientpeker
+skal ikke laste hele dokumentasjonen inn i hver økt.
+
+Et Hovmester-manifest viser eierskap, men beviser ikke at filene er uendret.
+For å sammenligne med kjent kildeproveniens kan lokale source-checkouter
+oppgis eksplisitt:
+
+```bash
+python3 scripts/audit_consumer_setup.py /tmp/consumer-pilot \
+  --source-root hovmester=/tmp/hovmester-source \
+  --source-root pilot=/tmp/pilot-source \
+  --retired-plugin-ref FULL_COMMIT_SHA_BEFORE_SKILL_RENAME \
+  --json
+```
+
+`--source-root` bruker kildeproveniensen i `policy/content-lock.json`. Når
+consumeren har et gyldig Hovmester-manifest, leses også manifestets eksakte
+`source_sha` og den distribuerte payloaden i `dist/agents` og `dist/skills`.
+Verktøyet bruker ikke arbeidsfilene eller nyeste branch og henter ikke fra
+nettverket. `--retired-plugin-ref` må være en full commit-SHA som allerede
+finnes i Grillmester-source-checkouten. Den gjør samme bytekontroll mot eldre
+prefiksede pluginfiler. Den historiske sync-leseren og den gjenbrukbare
+workflowens defaults og argumentoverføring må ha eksakt reviewede
+Git-blobhasher. Én entydig caller med bokstavelig `team_repo`-input gir grunnlag
+for å sammenligne med den reviewede substitusjonen, eller fjerning av hele
+placeholder-linjer når inputen er tom. Hele komponentens filliste og hasher
+må fortsatt stemme. Ukjent transform, dynamiske inputs eller flere callers
+gir ikke grunnlag for å bekrefte transformert innhold. Lokale ekstra filer
+krever alltid review før hele komponenten kan foreslås fjernet.
+Ingen historisk sync-kode blir kjørt.
+
+### Gjør rapporten til en konkret endringsliste
+
+| Rapportfunn | Neste handling |
+| --- | --- |
+| `OBSOLETE_UNMODIFIED` | Review fjerning av den eksakte kopien etter at erstatningen er bekreftet i valgt pakke. Hele komponentens filliste og hasher må fortsatt stemme. |
+| `OWNED_CUSTOMIZED_OR_TRANSFORMED` | Sammenlign kilde og lokal versjon. Bevar domeneregler og lokale tilpasninger hos riktig consumer-eier før erstattet metode fjernes. |
+| `OWNED_CONTENT_UNVERIFIED` / `LEGACY_ID_CONTENT_UNVERIFIED` | Skaff eksakt kildebevis eller gjør manuelt innholdsreview. Eierskap og prefiks er utilstrekkelig grunnlag for sletting. |
+| `LOCAL_OR_UNKNOWN` / `UNKNOWN_SYMLINK` | Bevar komponenten. Avklar faktisk navnekollisjon og eventuell bevisst lokal overstyring. Ikke følg ukjente symlinks. |
+| Workflow- eller instruksjonsreferanse | Review eksakt fil og linje. Fjern erstattet sync og utdaterte kall; behold lokale fakta, maler og gyldige regler. Historisk dokumentasjon kan fortsatt være relevant. |
+
+Rapportens `plan` foreslår stier og forventede filhasher, men utfører ingen
+endring. Den er heller ikke en godkjenning. Gjør den avklarte migreringen som en
+vanlig reviewbar repo-endring innenfor oppdragets eksisterende fullmakt. Ikke
+slett hele `.github/agents`, `.github/skills` eller brukerens skills-mappe.
+
+Fjern bare den erstattede sync-jobben dersom en workflow også inneholder andre
+jobber. Når ingen Hovmester-sync lenger eier filer, avvikles manifestet som del
+av den samme endringen; ikke slett bevarte instructions eller maler fordi de
+står i manifestet. Ikke kjør historisk sync for å gjennomføre full utfasing.
+
+Avvikle også egne oppsetts- og sync-verifikasjoner; ikke erstatt dem med en ny
+workflow for den avsluttede migreringen. Fjern tilhørende påkrevde statusnavn
+fra branch protection og rulesets innenfor oppdragets fullmakt før PR-en
+merges. Ta vare på innstillingene før endringen og les dem tilbake etterpå:
+bare de avviklede statuskravene skal være fjernet. Ordinære bygge-, test-,
+review- og deploykrav beholdes.
+
+### Verifiser utfasing og faktisk lasting hver for seg
+
+Kjør auditen på nytt etter endringen. Alle gjenværende kollisjoner og gamle
+referanser må være eksplisitt forklart eller rettet. Verifiser også at lokal
+domeneinformasjon, maler og andre bevarte filer har forventet diff. La vanlig
+repo-verifikasjon følge endringen; test ikke migreringen ved å skrive i en
+aktiv consumer-worktree.
+
+Start en ny nav-pilot-sesjon og bruk identitetskjeden i avsnitt 4 nedenfor.
+Registrer den tilbudte skill-ID-en, lastet kilde/sti og pluginrevisjon samt
+full/fokusert projeksjon. Bruk `/doctor` for en read-only rapport. Et grønt
+filsøk beviser ikke at klienten laster riktig komponent, og en tvungen
+skilllasting beviser ikke at agenten velger riktig arbeidsflyt selv.
+
+Kjør særlig disse atferdsscenariene med den valgte pakken:
+
+- Én uklar designbeslutning: Grillmester velger `grill-with-docs` og starter
+  dokumentforankret grilling uten at brukeren må velge skillnavn.
+- Flere uløste beslutninger med avhengigheter på tvers av økter: Grillmester
+  velger `wayfinder` og bruker dokumentert grilling for neste beslutning.
+- En stor, allerede avklart implementering: størrelse alene utløser ikke
+  Wayfinder.
+- Designer: den aktuelle design-skillen lastes med identiteten som faktisk
+  tilbys i sesjonen, uten foreldet prefiks eller «skill not found».
+
+Registrer kildebevis, atferd og resultat separat. Manglende faktisk
+runtimeevidens er `UNVERIFIED`. Rollback er en vanlig revert av den reviewede
+migreringsendringen, med ny identitetskontroll etterpå.
+
+## Historisk pilot: bare eksakte kollisjoner
+
+Avsnittene nedenfor dokumenterer den avgrensede pilotkontrakten fra før full
+utfasing. `preflight_consumer_pilot.py` krever et manifest og én sync-caller og
+bevarer alle ikke-kolliderende komponenter. Dens grønne resultat beviser bare
+denne kontrakten; det beviser ikke at alle gamle Hovmester-skills, prefiksede
+kopier eller instruksjonsreferanser er fjernet. Bruk flyten over ved full
+overgang til nav-pilot.
 
 ## 1. Frys RC og skriv baseline-kontrakten
 
@@ -72,8 +206,10 @@ Baseline-kontrakten (`migrationContract`) er fasiten. Pilotendringen består av:
    med **alle** baseline-transformene og kontraktens utvidede `exclude`.
 4. Commit bare diffen som kontrakten tillater.
 
-Ikke slett hele `.github/agents` eller `.github/skills`. Skillene i Grillmester
-har `grillmester-`-prefiks; en lokal skill fjernes bare ved en eksakt ID-kollisjon.
+Ikke slett hele `.github/agents` eller `.github/skills`. Denne historiske
+kontrakten fjerner en lokal skill bare ved en eksakt ID-kollisjon med den
+valgte releasens roster. Eldre releaser brukte `grillmester-`-prefiks og lot
+derfor mange uprefiksede Hovmester-skills bli igjen.
 
 ### Kjør historisk sync sikkert
 
@@ -159,7 +295,7 @@ hver klient som testes:
    finnes; preflighten kan ikke se user-scope.
 5. Sesjonens klient-header eller agentvelger viser at den kvalifiserte agenten
    faktisk er valgt.
-6. `/grillmester-doctor` kan lastes i samme sesjon. Det beviser at den
+6. `/doctor` kan lastes i samme sesjon. Det beviser at den
    prefiksede pluginskillen er tilgjengelig i sesjonen, men ikke alene at
    installasjonen er global, fersk eller aktiv i en annen klient.
 
@@ -206,7 +342,7 @@ godkjenningsgrensen i en disponibel fixture:
 - godkjenn én liten, ufarlig write og kontroller eksakt diff;
 - avvis én foreslått write og bekreft at ingen fil, Git-ref eller ekstern
   ressurs endres;
-- la `/grillmester-doctor`, Researcher og Grill-inspektor forbli read-only;
+- la `/doctor`, Researcher og Grill-inspektor forbli read-only;
 - la Grill-inspektor bruke `execute` til sideeffektfri inspeksjon av status og
   diff, men ikke til builds, tester, nettverk eller andre muterende kommandoer;
 - bekreft at Doctor Who ikke bruker shell/execute, og at Doctor Who og Designer
@@ -222,7 +358,7 @@ deploy-/mergehandlinger som evidens.
 
 Endre repository activation tilbake til forrige reviewede tag i en vanlig PR.
 Start en ny Copilot-sesjon og gjenta pluginliste, kvalifisert agentvalg og
-`/grillmester-doctor`-kontroll.
+`/doctor`-kontroll.
 
 ### Avbryt consumer-piloten
 

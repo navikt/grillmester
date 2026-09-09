@@ -28,12 +28,12 @@ repository.
   decision. Record a qualifying decision as a sequentially numbered ADR in
   `docs/adr/`; use `CONTEXT.md` for canonical project language rather than
   implementation detail.
-- Preserve the reviewed pilot agent IDs. Canonical runtime skill IDs use the
-  `grillmester-` prefix to reduce accidental collisions. A project- or
-  user-level component with the same exact ID still wins and can silently
-  shadow the plugin component; qualification is not a bypass. Preserve the
-  original source ID in provenance and human-facing headings, and remove
-  references to obsolete Hovmester runtime IDs.
+- Preserve the reviewed pilot agent IDs. Canonical runtime skills use short,
+  task-oriented IDs matching their directories. Resolve calls against the
+  active client's skill catalog; do not invent prefixed aliases. Repo- or
+  user-level components can still shadow a same-named plugin skill, including
+  through nav-pilot. Audit migration ownership before removing old copies.
+  Preserve original source IDs in provenance and remove obsolete runtime calls.
 
 ## Verification
 
@@ -48,9 +48,9 @@ python3 scripts/generate_context_projections.py --check
 python3 scripts/generate_agentpakke_manifest.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
-node --check plugin/skills/grillmester-design-prototype/scripts/server.js
-node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
-node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
+node --check plugin/skills/design-prototype/scripts/server.js
+node --check plugin/skills/design-prototype/scripts/helper.js
+node --test plugin/skills/design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py --require-binary
 python3 scripts/smoke_opencode_runtime.py --require-binary --cplt cplt

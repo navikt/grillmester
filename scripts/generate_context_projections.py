@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -13,6 +14,20 @@ import stat
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+
+
+# Release checks use -I -S, which excludes the script directory from sys.path.
+# Load only this reviewed sibling without widening Python's import search path.
+_SKILL_SPEC = importlib.util.spec_from_file_location(
+    "grillmester_skill_reference_helpers",
+    Path(__file__).resolve().with_name("skill_references.py"),
+)
+if _SKILL_SPEC is None or _SKILL_SPEC.loader is None:
+    raise RuntimeError("could not load skill reference helpers")
+_SKILL_MODULE = importlib.util.module_from_spec(_SKILL_SPEC)
+_SKILL_SPEC.loader.exec_module(_SKILL_MODULE)
+rewrite_skill_references = _SKILL_MODULE.rewrite_skill_references
+skill_references = _SKILL_MODULE.skill_references
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,13 +49,13 @@ POLICY_FIELDS = frozenset(
 )
 EXPECTED_AGENTS = ("barista", "grill-inspektor")
 EXPECTED_SKILLS = (
-    "grillmester-diagnosing-bugs",
-    "grillmester-integration-tests",
-    "grillmester-issue-management",
-    "grillmester-pull-request",
-    "grillmester-review",
-    "grillmester-security-review",
-    "grillmester-tdd",
+    "diagnosing-bugs",
+    "integration-tests",
+    "issue-management",
+    "pull-request",
+    "review",
+    "security-review",
+    "tdd",
 )
 EXPECTED_SOURCES = {
     "plugin": "plugin",
@@ -57,19 +72,26 @@ COPILOT_FULL_GENERATOR = {
     "version": 1,
 }
 EXCLUDED_SKILL_REPLACEMENTS = {
-    "grillmester-e2e-tests": "the repository's full-system test workflow",
+    "e2e-tests": "the repository's full-system test workflow",
+    "nav-troubleshoot": "the repository's platform diagnostic workflow",
+    "to-issues": "the full-context plan decomposition workflow",
+    "triage": "the full-context issue assessment workflow",
+    "guided-review": "the full-context guided human review workflow",
+    "architecture-review": "the full-context architecture assessment workflow",
+    "auth-overview": "the full-context identity implementation workflow",
 }
 OPENCODE_ABSENT_PERMISSION_SKILLS = (
-    "grillmester-doctor",
-    "grillmester-grill-me",
-    "grillmester-grill-with-docs",
-    "grillmester-guided-review",
-    "grillmester-handoff",
+    "doctor",
+    "grill-me",
+    "guided-review",
+    "handoff",
 )
 QUALIFIED_AGENT_REFERENCE = re.compile(
     r"(?<![a-z0-9-])grillmester:([a-z][a-z0-9-]*)"
 )
-SKILL_REFERENCE = re.compile(r"(?<![a-z0-9-])(grillmester-[a-z][a-z0-9-]*)")
+
+def referenced_skills(text: str, skill_ids: set[str]) -> set[str]:
+    return skill_references(text, skill_ids)
 
 
 class ProjectionError(ValueError):
@@ -341,15 +363,8 @@ def strip_opencode_absent_skill_permissions(text: str, *, path: str) -> str:
 
 
 def replace_excluded_skill_references(text: str) -> str:
-    for skill, replacement in EXCLUDED_SKILL_REPLACEMENTS.items():
-        for reference in (
-            f"`/{skill}`",
-            f"/{skill}",
-            f"`{skill}`",
-            skill,
-        ):
-            text = text.replace(reference, replacement)
-    return text
+    return rewrite_skill_references(text, EXCLUDED_SKILL_REPLACEMENTS)
+
 
 
 def replace_section(
@@ -413,7 +428,8 @@ def apply_diagnosing_focused_overlay(text: str, *, path: str) -> str:
             "observability. Use only repository-approved platform tools, keep the pass\n"
             "read-only until the boundary is known, and then return to phases 5–6 here.\n"
             "Always propose the least invasive fix first. Production configuration changes,\n"
-            "workload restarts and managed-resource changes require explicit approval.\n\n"
+            "workload restarts and managed-resource changes require explicit authorization;\n"
+            "reuse it when the user already approved the same concrete action.\n\n"
             "If deeper Nav-specific diagnostic or identity guidance is required but absent\n"
             "from the repository, return `Status: NEEDS_FULL_CONTEXT` as defined in the\n"
             "Full-context boundary section."
@@ -438,10 +454,13 @@ def apply_diagnosing_focused_overlay(text: str, *, path: str) -> str:
 
 
 def apply_focused_text_overlay(
-    files: Mapping[str, GeneratedFile], *, client: str
+    files: Mapping[str, GeneratedFile], *, client: str, source_skills: set[str]
 ) -> dict[str, GeneratedFile]:
     transformed: dict[str, GeneratedFile] = {}
     for relative, (data, mode) in files.items():
+        if not relative.endswith(".md") or relative in {"THIRD_PARTY_NOTICES.md", "LICENSE.md"}:
+            transformed[relative] = (data, mode)
+            continue
         try:
             text = data.decode("utf-8")
         except UnicodeDecodeError:
@@ -449,14 +468,14 @@ def apply_focused_text_overlay(
             continue
         if client == "opencode":
             text = strip_opencode_absent_skill_permissions(text, path=relative)
-        if relative == "skills/grillmester-diagnosing-bugs/SKILL.md":
+        if relative == "skills/diagnosing-bugs/SKILL.md":
             text = apply_diagnosing_focused_overlay(text, path=relative)
         text = replace_excluded_skill_references(text)
-        if relative == "skills/grillmester-issue-management/SKILL.md":
+        if relative == "skills/issue-management/SKILL.md":
             text = replace_once(
                 text,
                 "The caller owns\n"
-                "`grillmester-grilling`, planning, specifications, and ticket "
+                "`grilling`, planning, specifications, and ticket "
                 "decomposition;\n"
                 "this skill owns the resulting tracker mutations.",
                 "The caller owns problem shaping, planning, specifications, and ticket\n"
@@ -519,7 +538,7 @@ def apply_focused_text_overlay(
                 "the implementer's brief",
                 path=relative,
             )
-        if relative == "skills/grillmester-review/SKILL.md":
+        if relative == "skills/review/SKILL.md":
             delegated = (
                 "`kokk`" if client == "opencode" else "`grillmester:kokk`"
             )
@@ -540,22 +559,24 @@ def apply_focused_text_overlay(
                 path=relative,
             )
         transformed[relative] = (text.encode("utf-8"), mode)
-    validate_focused_references(transformed, client=client)
+    validate_focused_references(transformed, client=client, source_skills=source_skills)
     return transformed
 
 
 def validate_focused_references(
-    files: Mapping[str, GeneratedFile], *, client: str
+    files: Mapping[str, GeneratedFile], *, client: str, source_skills: set[str]
 ) -> None:
     allowed_agents = set(EXPECTED_AGENTS)
     allowed_skills = set(EXPECTED_SKILLS)
     for relative, (data, _) in files.items():
+        if not relative.endswith(".md") or relative in {"THIRD_PARTY_NOTICES.md", "LICENSE.md"}:
+            continue
         try:
             text = data.decode("utf-8")
         except UnicodeDecodeError:
             continue
         missing_agents = set(QUALIFIED_AGENT_REFERENCE.findall(text)) - allowed_agents
-        missing_skills = set(SKILL_REFERENCE.findall(text)) - allowed_skills
+        missing_skills = referenced_skills(text, source_skills) - allowed_skills
         if missing_agents:
             raise ProjectionError(
                 f"focused {client} file references absent agents in {relative}: "
@@ -729,7 +750,9 @@ def build_opencode_projection(
     validate_source_files(
         files, source_manifest.get("files"), label="OpenCode"
     )
-    files = apply_focused_text_overlay(files, client="opencode")
+    files = apply_focused_text_overlay(
+        files, client="opencode", source_skills=set(source_manifest["skillCapabilities"])
+    )
     manifest = {
         "schemaVersion": 1,
         "target": "opencode-v1-focused",
@@ -828,7 +851,9 @@ def build_copilot_projection(
             destination=f"skills/{skill}",
             label=f"Copilot skill {skill}",
         )
-    files = apply_focused_text_overlay(files, client="copilotCli")
+    files = apply_focused_text_overlay(
+        files, client="copilotCli", source_skills=set(payload_manifest["skills"])
+    )
     manifest = {
         "schemaVersion": 1,
         "target": "copilot-cli-focused-v1",

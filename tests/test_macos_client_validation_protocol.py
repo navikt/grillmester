@@ -24,7 +24,7 @@ SCENARIOS = {
     "harness-parity",
 }
 PARITY_CHECKS = {
-    "/grillmester-grilling",
+    "/grilling",
     "automatic-skill-routing",
     "wayfinder-delegation",
     "grillmester-kokk-grill-inspektor",
@@ -86,7 +86,7 @@ class MacosClientValidationProtocolTest(unittest.TestCase):
 
     def test_protocol_names_all_parity_checks_and_hard_blockers(self) -> None:
         for check in (
-            "/grillmester-grilling",
+            "/grilling",
             "automatic skill routing",
             "Wayfinder discovery and delegation",
             "Grillmester → Kokk → Grill-inspektør",

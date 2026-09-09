@@ -1169,6 +1169,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 "build_opencode_bundle.py",
                 "generate_copilot_manifest.py",
                 "generate_context_projections.py",
+                "skill_references.py",
                 "grillmester.py",
                 "grillmester_local.py",
                 "release_test_baseline.py",
@@ -1189,6 +1190,20 @@ class PublishWorkflowContractTest(unittest.TestCase):
             ):
                 shutil.copy2(ROOT / "policy" / name, source / "policy" / name)
             shutil.copytree(ROOT / "targets", source / "targets")
+            projection_check = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    str(source / "scripts/generate_context_projections.py"),
+                    "--check",
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            self.assertEqual(projection_check.returncode, 0, projection_check.stderr)
             subprocess.run(["git", "init", "--quiet", str(source)], check=True)
             subprocess.run(["git", "-C", str(source), "add", "--all"], check=True)
             subprocess.run(

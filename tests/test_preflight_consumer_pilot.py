@@ -94,12 +94,12 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
         component(self.plugin / "plugin/agents/barista.agent.md", "coffee-frontmatter")
         component(self.plugin / "plugin/agents/kokk.md", "cook-frontmatter")
         component(
-            self.plugin / "plugin/skills/grillmester-review/SKILL.md",
-            "grillmester-review",
+            self.plugin / "plugin/skills/review/SKILL.md",
+            "review",
         )
         component(
-            self.plugin / "plugin/skills/grillmester-lumi-survey/SKILL.md",
-            "grillmester-lumi-survey",
+            self.plugin / "plugin/skills/lumi-survey/SKILL.md",
+            "lumi-survey",
         )
         json_file(
             self.plugin / "plugin/plugin.json",
@@ -225,6 +225,7 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
     ) -> None:
         (self.consumer / ".github/agents/barista.agent.md").unlink()
         (self.consumer / ".github/agents/kokk.agent.md").unlink()
+        (self.consumer / ".github/skills/review/SKILL.md").unlink()
         if leave_caller:
             self.write_caller()
         else:
@@ -239,6 +240,7 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
             not in {
                 ".github/agents/barista.agent.md",
                 ".github/agents/kokk.agent.md",
+                ".github/skills/review/SKILL.md",
             }
         ]
         json_file(self.consumer / ".github/.hovmester-manifest.json", manifest)
@@ -277,13 +279,13 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
         self.assertEqual("BLOCKED", report["verdict"])
         self.assertTrue(report["baselineWritable"])
         self.assertEqual(
-            ["barista", "kokk", "legacy"],
+            ["barista", "kokk", "legacy", "review"],
             report["migrationContract"]["syncInputs"]["exclude"],
         )
         self.assertEqual(
             {
                 "collections": ["backend"],
-                "exclude": ["barista", "kokk", "legacy"],
+                "exclude": ["barista", "kokk", "legacy", "review"],
                 "githubProject": "navikt/157",
                 "teamRepo": "navikt/team-esyfo",
                 "prAppId": "2906300",
@@ -292,7 +294,9 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
         )
         self.assertEqual(self.baseline_head, report["migrationContract"]["baselineHead"])
         self.assertEqual(2, len(report["collisions"]["agents"]))
-        self.assertEqual([], report["collisions"]["skills"])
+        self.assertEqual(
+            ["review"], [item["id"] for item in report["collisions"]["skills"]]
+        )
         self.assertEqual(2, len(report["preserve"]["instructions"]))
         self.assertEqual(2, len(report["preserve"]["templates"]))
         self.assertEqual(self.catalog_sha, report["release"]["catalogSha"])
@@ -302,7 +306,7 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
         local_nav_skill = ".github/skills/lumi/SKILL.md"
         component(
             self.consumer / local_nav_skill,
-            "grillmester-lumi-survey",
+            "lumi-survey",
         )
         manifest = json.loads(
             (self.consumer / ".github/.hovmester-manifest.json").read_text()
@@ -321,16 +325,16 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
 
         self.assertEqual({"barista", "kokk"}, set(agents))
         self.assertEqual(
-            {"grillmester-review", "grillmester-lumi-survey"}, set(skills)
+            {"review", "lumi-survey"}, set(skills)
         )
         self.assertEqual(["grillmester"], report["plugin"]["packages"])
         self.assertEqual(["grillmester"], report["migrationContract"]["packages"])
         self.assertEqual(
-            ["grillmester-lumi-survey", "grillmester-review"],
+            ["lumi-survey", "review"],
             report["plugin"]["skillIds"],
         )
         self.assertEqual(
-            ["grillmester-lumi-survey"],
+            ["lumi-survey", "review"],
             [item["id"] for item in report["collisions"]["skills"]],
         )
         self.assertTrue(report["baselineWritable"], report["blockers"])
@@ -428,6 +432,7 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
                 ".github/.hovmester-manifest.json": "M",
                 ".github/agents/barista.agent.md": "D",
                 ".github/agents/kokk.agent.md": "D",
+                ".github/skills/review/SKILL.md": "D",
                 ".github/copilot/settings.json": "A",
                 ".github/workflows/hovmester-sync.yml": "D",
             },
@@ -446,6 +451,24 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
         self.assertEqual("BLOCKED", report["verdict"])
         self.assertIn(
             "baseline comparison failed: callerWorkflowsRemoved", report["blockers"]
+        )
+
+    def test_postflight_rejects_a_retained_short_skill_collision(self) -> None:
+        local_review = self.consumer / ".github/skills/review/SKILL.md"
+        original = local_review.read_bytes()
+        self.baseline()
+        self.migrate()
+        local_review.write_bytes(original)
+        commit_all(self.consumer, "retain local review skill")
+
+        report = self.postflight()
+
+        self.assertEqual("BLOCKED", report["verdict"])
+        self.assertEqual(
+            ["review"], [item["id"] for item in report["collisions"]["skills"]]
+        )
+        self.assertIn(
+            "baseline comparison failed: localComponents", report["blockers"]
         )
 
     def test_protected_hash_or_unapproved_diff_blocks_postflight(self) -> None:

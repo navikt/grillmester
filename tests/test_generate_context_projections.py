@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -23,6 +24,81 @@ SPEC.loader.exec_module(GENERATOR)
 
 
 class FocusedContextGenerationTest(unittest.TestCase):
+    def test_isolated_cli_check_loads_its_own_sibling_helper(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            working_directory = Path(temporary)
+            (working_directory / "skill_references.py").write_text(
+                "raise RuntimeError('must not load helper from the working directory')\n",
+                encoding="utf-8",
+            )
+            checked = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    str(ROOT / "scripts/generate_context_projections.py"),
+                    "--check",
+                ],
+                cwd=working_directory,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertIn("Focused opencode target is current:", checked.stdout)
+        self.assertIn("Focused copilotCli target is current:", checked.stdout)
+
+    def test_focused_overlay_rejects_unknown_and_excluded_native_skill_calls(self) -> None:
+        for skill in ("reveiw", "design-prototype"):
+            files = {
+                "skills/tdd/references/probe.md": (
+                    f"Load `{skill}` through the native skill tool.\n".encode(),
+                    0o644,
+                )
+            }
+            for client in ("opencode", "copilotCli"):
+                with self.subTest(skill=skill, client=client):
+                    with self.assertRaisesRegex(GENERATOR.ProjectionError, skill):
+                        GENERATOR.apply_focused_text_overlay(
+                            files,
+                            client=client,
+                            source_skills=set(GENERATOR.EXPECTED_SKILLS) | {"design-prototype"},
+                        )
+
+    def test_excluded_skill_guidance_preserves_words_paths_and_urls(self) -> None:
+        preserved = (
+            "The findings were triaged. Keep docs/triage.md, `docs/triage.md`, "
+            "https://example.test/triage, and [Triage guide](docs/triage.md)."
+        )
+        source = preserved + " Use `triage` and `/to-issues` for the next steps."
+
+        self.assertEqual(
+            preserved
+            + " Use the full-context issue assessment workflow and "
+            "the full-context plan decomposition workflow for the next steps.",
+            GENERATOR.replace_excluded_skill_references(source),
+        )
+
+    def test_focused_overlay_preserves_third_party_attribution(self) -> None:
+        attribution = (
+            b"The `architecture-review` skill is adapted from its upstream source.\n"
+            b"See https://example.test/triage and docs/triage.md.\n"
+        )
+        files = {"THIRD_PARTY_NOTICES.md": (attribution, 0o644)}
+        source_skills = set(GENERATOR.EXPECTED_SKILLS) | {
+            "architecture-review", "triage"
+        }
+
+        for client in ("opencode", "copilotCli"):
+            with self.subTest(client=client):
+                self.assertEqual(
+                    files,
+                    GENERATOR.apply_focused_text_overlay(
+                        files, client=client, source_skills=source_skills
+                    ),
+                )
+
     def copy_repository(self) -> tuple[tempfile.TemporaryDirectory, Path]:
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name) / "grillmester"
@@ -57,13 +133,13 @@ class FocusedContextGenerationTest(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "commands/grillmester-diagnosing-bugs.md",
-                "commands/grillmester-integration-tests.md",
-                "commands/grillmester-issue-management.md",
-                "commands/grillmester-pull-request.md",
-                "commands/grillmester-review.md",
-                "commands/grillmester-security-review.md",
-                "commands/grillmester-tdd.md",
+                "commands/diagnosing-bugs.md",
+                "commands/integration-tests.md",
+                "commands/issue-management.md",
+                "commands/pull-request.md",
+                "commands/review.md",
+                "commands/security-review.md",
+                "commands/tdd.md",
             },
             {path for path in opencode if path.startswith("commands/")},
         )
@@ -75,13 +151,13 @@ class FocusedContextGenerationTest(unittest.TestCase):
             {path for path in copilot if path.startswith("agents/")},
         )
         expected_skills = {
-            "grillmester-diagnosing-bugs",
-            "grillmester-integration-tests",
-            "grillmester-issue-management",
-            "grillmester-pull-request",
-            "grillmester-review",
-            "grillmester-security-review",
-            "grillmester-tdd",
+            "diagnosing-bugs",
+            "integration-tests",
+            "issue-management",
+            "pull-request",
+            "review",
+            "security-review",
+            "tdd",
         }
         for target, files in (("opencode", opencode), ("copilotCli", copilot)):
             with self.subTest(target=target):
@@ -137,10 +213,10 @@ class FocusedContextGenerationTest(unittest.TestCase):
             "sections instead of replacing them with a custom structure."
         )
         for relative in (
-            "plugin/skills/grillmester-pull-request/SKILL.md",
-            "targets/opencode-v1/skills/grillmester-pull-request/SKILL.md",
-            "targets/opencode-v1-focused/skills/grillmester-pull-request/SKILL.md",
-            "targets/copilot-cli-focused-v1/skills/grillmester-pull-request/SKILL.md",
+            "plugin/skills/pull-request/SKILL.md",
+            "targets/opencode-v1/skills/pull-request/SKILL.md",
+            "targets/opencode-v1-focused/skills/pull-request/SKILL.md",
+            "targets/copilot-cli-focused-v1/skills/pull-request/SKILL.md",
         ):
             with self.subTest(path=relative):
                 self.assertIn(
@@ -168,20 +244,28 @@ class FocusedContextGenerationTest(unittest.TestCase):
             {
                 "agents/barista.md",
                 "agents/grill-inspektor.md",
-                "commands/grillmester-integration-tests.md",
-                "commands/grillmester-tdd.md",
-                "skills/grillmester-diagnosing-bugs/SKILL.md",
-                "skills/grillmester-integration-tests/SKILL.md",
-                "skills/grillmester-issue-management/SKILL.md",
-                "skills/grillmester-review/SKILL.md",
-                "skills/grillmester-tdd/SKILL.md",
-                "skills/grillmester-tdd/tests.md",
+                "commands/diagnosing-bugs.md",
+                "commands/integration-tests.md",
+                "commands/issue-management.md",
+                "commands/security-review.md",
+                "commands/tdd.md",
+                "skills/diagnosing-bugs/SKILL.md",
+                "skills/integration-tests/SKILL.md",
+                "skills/issue-management/SKILL.md",
+                "skills/review/SKILL.md",
+                "skills/security-review/SKILL.md",
+                "skills/tdd/SKILL.md",
+                "skills/tdd/tests.md",
             },
             changed_opencode,
         )
 
         self.assertEqual(
             (ROOT / "plugin/plugin.json").read_bytes(), copilot["plugin.json"][0]
+        )
+        self.assertEqual(
+            (ROOT / "plugin/THIRD_PARTY_NOTICES.md").read_bytes(),
+            copilot["THIRD_PARTY_NOTICES.md"][0],
         )
         changed_copilot: set[str] = set()
         for relative, (data, mode) in copilot.items():
@@ -196,12 +280,13 @@ class FocusedContextGenerationTest(unittest.TestCase):
             {
                 "agents/barista.agent.md",
                 "agents/grill-inspektor.agent.md",
-                "skills/grillmester-diagnosing-bugs/SKILL.md",
-                "skills/grillmester-integration-tests/SKILL.md",
-                "skills/grillmester-issue-management/SKILL.md",
-                "skills/grillmester-review/SKILL.md",
-                "skills/grillmester-tdd/SKILL.md",
-                "skills/grillmester-tdd/tests.md",
+                "skills/diagnosing-bugs/SKILL.md",
+                "skills/integration-tests/SKILL.md",
+                "skills/issue-management/SKILL.md",
+                "skills/review/SKILL.md",
+                "skills/security-review/SKILL.md",
+                "skills/tdd/SKILL.md",
+                "skills/tdd/tests.md",
             },
             changed_copilot,
         )
@@ -219,11 +304,10 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "agentEscalation": "full-context-handoff",
                 "excludedSkillReferences": "full-context-guidance",
                 "skillPermissionEntriesRemoved": [
-                    "grillmester-doctor",
-                    "grillmester-grill-me",
-                    "grillmester-grill-with-docs",
-                    "grillmester-guided-review",
-                    "grillmester-handoff",
+                    "doctor",
+                    "grill-me",
+                    "guided-review",
+                    "handoff",
                 ],
             },
             opencode_manifest["transformations"],
@@ -278,15 +362,15 @@ class FocusedContextGenerationTest(unittest.TestCase):
     def test_tampered_or_unmanifested_full_copilot_source_is_rejected(self) -> None:
         temporary, root = self.copy_repository()
         try:
-            source = root / "plugin/skills/grillmester-okr/SKILL.md"
+            source = root / "plugin/skills/okr/SKILL.md"
             source.write_text(source.read_text(encoding="utf-8") + "tampered\n")
             with self.assertRaisesRegex(
                 GENERATOR.ProjectionError,
-                "Copilot full payload source differs from its manifest.*grillmester-okr",
+                "Copilot full payload source differs from its manifest.*okr",
             ):
                 GENERATOR.build_projections(root)
 
-            shutil.copy2(ROOT / "plugin/skills/grillmester-okr/SKILL.md", source)
+            shutil.copy2(ROOT / "plugin/skills/okr/SKILL.md", source)
             (root / "plugin/unmanifested.md").write_text(
                 "unexpected\n", encoding="utf-8"
             )
@@ -321,20 +405,20 @@ class FocusedContextGenerationTest(unittest.TestCase):
         projections, _ = GENERATOR.build_projections(ROOT)
         allowed_agents = {"barista", "grill-inspektor"}
         allowed_skills = {
-            "grillmester-diagnosing-bugs",
-            "grillmester-integration-tests",
-            "grillmester-issue-management",
-            "grillmester-pull-request",
-            "grillmester-review",
-            "grillmester-security-review",
-            "grillmester-tdd",
+            "diagnosing-bugs",
+            "integration-tests",
+            "issue-management",
+            "pull-request",
+            "review",
+            "security-review",
+            "tdd",
         }
         agent_reference = re.compile(r"(?<![a-z0-9-])grillmester:([a-z][a-z0-9-]*)")
-        skill_reference = re.compile(r"(?<![a-z0-9-])(grillmester-[a-z][a-z0-9-]*)")
+        source_skills = set(json.loads((ROOT / "policy/content-lock.json").read_text())["skills"])
 
         for target, files in projections.items():
             for relative, (data, _) in files.items():
-                if relative in {"manifest.json", "plugin.json"}:
+                if not relative.endswith(".md") or relative == "THIRD_PARTY_NOTICES.md":
                     continue
                 try:
                     text = data.decode("utf-8")
@@ -345,7 +429,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
                         set(agent_reference.findall(text)), allowed_agents
                     )
                     self.assertLessEqual(
-                        set(skill_reference.findall(text)), allowed_skills
+                        GENERATOR.referenced_skills(text, source_skills), allowed_skills
                     )
 
         for target, relative in (

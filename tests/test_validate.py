@@ -107,16 +107,16 @@ class PackageValidationTest(unittest.TestCase):
         )
 
     def test_guided_review_is_manual_and_preserves_human_control(self) -> None:
-        path = self.root / "plugin/skills/grillmester-guided-review/SKILL.md"
+        path = self.root / "plugin/skills/guided-review/SKILL.md"
         frontmatter, body = VALIDATE.parse_frontmatter(path)
 
-        self.assertEqual("grillmester-guided-review", frontmatter["name"])
+        self.assertEqual("guided-review", frontmatter["name"])
         self.assertIs(True, frontmatter["disable-model-invocation"])
         self.assertNotIn("user-invocable", frontmatter)
         self.assertIn("Present exactly one reading step", body)
         self.assertIn("Then wait for the human", body)
         self.assertIn("every in-scope changed file", body)
-        self.assertIn("grillmester-security-review", body)
+        self.assertIn("security-review", body)
         self.assertIn("human explicitly approves the exact", body)
         self.assertIn("Ask the human for their merge-readiness decision", body)
 
@@ -164,14 +164,14 @@ class PackageValidationTest(unittest.TestCase):
 
     def test_boolean_skill_description_is_rejected(self) -> None:
         self.replace_frontmatter(
-            "plugin/skills/grillmester-domain-modeling/SKILL.md",
+            "plugin/skills/domain-modeling/SKILL.md",
             "description",
             "true",
         )
         self.assert_error("description must be a non-empty string")
 
     def test_aggregate_discovery_budget_is_enforced_independently(self) -> None:
-        for skill_id in ("grillmester-grill-me", "grillmester-grill-with-docs"):
+        for skill_id in ("grill-me", "grill-with-docs"):
             self.replace_frontmatter(
                 f"plugin/skills/{skill_id}/SKILL.md",
                 "description",
@@ -272,7 +272,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assertIn("current\n   primary documentation", text)
         self.assertIn("never use shell-network commands as a fallback", text)
         self.assertIn(
-            "When the `/grillmester-security-review` description matches",
+            "When the `/security-review` description matches",
             text,
         )
 
@@ -287,7 +287,7 @@ class PackageValidationTest(unittest.TestCase):
             encoding="utf-8"
         )
         skill = (
-            self.root / "plugin/skills/grillmester-design-prototype/SKILL.md"
+            self.root / "plugin/skills/design-prototype/SKILL.md"
         ).read_text(encoding="utf-8")
         self.assertIn("bare når den faktisk finnes", agent)
         self.assertIn("Returner bare URL/Figma-lenke som faktisk finnes", skill)
@@ -406,20 +406,20 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("PUBLIC_AGENTS differs from the reviewed user-invocable roster")
 
     def test_skill_roster_drift_is_rejected(self) -> None:
-        source = self.root / "plugin/skills/grillmester-grilling"
+        source = self.root / "plugin/skills/grilling"
         target = self.root / "plugin/skills/unreviewed"
         shutil.copytree(source, target)
         path = target / "SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
-                "name: grillmester-grilling", "name: unreviewed", 1
+                "name: grilling", "name: unreviewed", 1
             ),
             encoding="utf-8",
         )
         self.assert_error("unexpected skill unreviewed")
 
     def test_manual_skill_invocation_contract_is_enforced(self) -> None:
-        path = self.root / "plugin/skills/grillmester-grill-me/SKILL.md"
+        path = self.root / "plugin/skills/grill-me/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
                 "disable-model-invocation: true\n", ""
@@ -429,7 +429,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("disable-model-invocation must be True")
 
     def test_doctor_read_only_boundary_is_enforced(self) -> None:
-        path = self.root / "plugin/skills/grillmester-doctor/SKILL.md"
+        path = self.root / "plugin/skills/doctor/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
                 "Never create, edit, delete, rename, stage, commit,\n"
@@ -442,7 +442,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("read-only doctor boundary")
 
     def test_doctor_surface_boundary_is_enforced(self) -> None:
-        path = self.root / "plugin/skills/grillmester-doctor/SKILL.md"
+        path = self.root / "plugin/skills/doctor/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
                 "An embedded agent floor is not an always-on repository floor.",
@@ -454,7 +454,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("default-agent and code-review boundary")
 
     def test_doctor_activation_evidence_boundary_is_enforced(self) -> None:
-        path = self.root / "plugin/skills/grillmester-doctor/SKILL.md"
+        path = self.root / "plugin/skills/doctor/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
                 "are configuration evidence only.",
@@ -465,16 +465,16 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("cloud activation evidence boundary")
 
-    def test_diagnosing_skill_redacts_shared_and_hitl_evidence(self) -> None:
+    def test_diagnosing_skill_bounds_model_input_and_hitl_evidence(self) -> None:
         skill = (
-            self.root / "plugin/skills/grillmester-diagnosing-bugs/SKILL.md"
+            self.root / "plugin/skills/diagnosing-bugs/SKILL.md"
         ).read_text(encoding="utf-8")
         hitl = (
             self.root
-            / "plugin/skills/grillmester-diagnosing-bugs/scripts/hitl-loop.template.sh"
+            / "plugin/skills/diagnosing-bugs/scripts/hitl-loop.template.sh"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("Before showing or saving command output", skill)
+        self.assertIn("before output reaches the model", skill)
         self.assertIn("auth headers, cookies, tokens", skill)
         self.assertIn("`<REDACTED>`", skill)
         self.assertIn("approved\nenvironment variables", skill)
@@ -485,11 +485,11 @@ class PackageValidationTest(unittest.TestCase):
 
     def test_skill_authoring_documents_live_authority(self) -> None:
         skill = (
-            self.root / "plugin/skills/grillmester-create-a-skill/SKILL.md"
+            self.root / "plugin/skills/create-a-skill/SKILL.md"
         ).read_text(encoding="utf-8")
         principles = (
             self.root
-            / "plugin/skills/grillmester-create-a-skill/references/principles.md"
+            / "plugin/skills/create-a-skill/references/principles.md"
         ).read_text(encoding="utf-8")
 
         self.assertIn(
@@ -535,7 +535,7 @@ class PackageValidationTest(unittest.TestCase):
     def test_missing_progressive_reference_is_rejected(self) -> None:
         reference = (
             self.root
-            / "plugin/skills/grillmester-security-review/references/nav-security-review.md"
+            / "plugin/skills/security-review/references/nav-security-review.md"
         )
         reference.unlink()
         self.assert_error("linked file does not exist")
@@ -543,7 +543,7 @@ class PackageValidationTest(unittest.TestCase):
     def test_broken_link_in_progressive_reference_is_rejected(self) -> None:
         reference = (
             self.root
-            / "plugin/skills/grillmester-aksel-design/references/components.md"
+            / "plugin/skills/aksel-design/references/components.md"
         )
         reference.write_text(
             reference.read_text(encoding="utf-8")
@@ -553,7 +553,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("linked file does not exist")
 
     def test_legacy_runtime_id_is_rejected(self) -> None:
-        path = self.root / "plugin/skills/grillmester-review/SKILL.md"
+        path = self.root / "plugin/skills/review/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8") + "\nDelegate to Hovmester.\n",
             encoding="utf-8",
@@ -561,7 +561,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("obsolete runtime ID")
 
     def test_removed_konditor_runtime_id_is_rejected(self) -> None:
-        path = self.root / "plugin/skills/grillmester-design-prototype/SKILL.md"
+        path = self.root / "plugin/skills/design-prototype/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8") + "\nDelegate to Konditor.\n",
             encoding="utf-8",
@@ -569,7 +569,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("obsolete runtime ID")
 
     def test_consumer_identity_is_rejected_from_runtime(self) -> None:
-        path = self.root / "plugin/skills/grillmester-review/SKILL.md"
+        path = self.root / "plugin/skills/review/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8")
             + "\nAssume the syfo-budstikka deployment.\n",
@@ -578,7 +578,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("Budstikka identity is not portable plugin content")
 
     def test_consumer_instruction_paths_are_allowed_only_in_doctor(self) -> None:
-        path = self.root / "plugin/skills/grillmester-review/SKILL.md"
+        path = self.root / "plugin/skills/review/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8")
             + "\nInspect `.github/copilot-instructions.md`.\n",
@@ -587,7 +587,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("consumer instruction path is not portable plugin content")
 
     def test_unfinished_skill_scaffold_is_rejected(self) -> None:
-        path = self.root / "plugin/skills/grillmester-review/SKILL.md"
+        path = self.root / "plugin/skills/review/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8") + "\n[TODO: finish this section]\n",
             encoding="utf-8",
@@ -675,7 +675,7 @@ class PackageValidationTest(unittest.TestCase):
 
     def test_copyable_figma_keys_are_not_mistaken_for_national_ids(self) -> None:
         catalog_path = self.root / (
-            "plugin/skills/grillmester-design-prototype/references/"
+            "plugin/skills/design-prototype/references/"
             "aksel-figma-katalog.json"
         )
         raw_catalog = catalog_path.read_text(encoding="utf-8")
@@ -744,20 +744,40 @@ class PackageValidationTest(unittest.TestCase):
         self.assertEqual(locked, installed)
 
     def test_nav_specialist_skill_is_part_of_the_single_plugin(self) -> None:
-        path = self.root / "plugin/skills/grillmester-lumi-survey/SKILL.md"
+        path = self.root / "plugin/skills/lumi-survey/SKILL.md"
         self.assertTrue(path.is_file())
         self.assertFalse(
             any(path.is_file() for path in (self.root / "plugin-nav").rglob("*"))
         )
 
     def test_bare_dangling_component_reference_is_rejected(self) -> None:
-        path = self.root / "plugin/skills/grillmester-review/SKILL.md"
+        path = self.root / "plugin/skills/review/SKILL.md"
         path.write_text(
             path.read_text(encoding="utf-8")
             + "\nContinue with grillmester-nonexistent after review.\n",
             encoding="utf-8",
         )
         self.assert_error("dangling Grillmester prose component reference")
+
+    def test_unknown_short_skill_calls_are_rejected(self) -> None:
+        path = self.root / "plugin/agents/designer.agent.md"
+        original = path.read_text(encoding="utf-8")
+        for instruction in (
+            "Load `desing-prototype` through the native skill tool.",
+            "Use `/desing-prototype` for this task.",
+        ):
+            with self.subTest(instruction=instruction):
+                path.write_text(original + "\n" + instruction + "\n", encoding="utf-8")
+                self.assert_error("dangling skill invocation: desing-prototype")
+
+    def test_retired_prefixed_skill_calls_are_rejected(self) -> None:
+        path = self.root / "plugin/agents/designer.agent.md"
+        path.write_text(
+            path.read_text(encoding="utf-8")
+            + "\nLoad `grillmester-design-prototype` through the native skill tool.\n",
+            encoding="utf-8",
+        )
+        self.assert_error("obsolete prefixed skill reference: grillmester-design-prototype")
 
     def test_package_counts_are_locked(self) -> None:
         manifest = self.load_json("package-manifest.json")
@@ -767,19 +787,19 @@ class PackageValidationTest(unittest.TestCase):
 
     def test_component_source_must_be_declared(self) -> None:
         lock = self.load_json("policy/content-lock.json")
-        lock["skills"]["grillmester-review"]["source"] = "unknown"
+        lock["skills"]["review"]["source"] = "unknown"
         self.write_json("policy/content-lock.json", lock)
         self.assert_error("references unknown source")
 
     def test_source_path_must_not_escape_repository(self) -> None:
         lock = self.load_json("policy/content-lock.json")
-        lock["skills"]["grillmester-review"]["sourcePath"] = "../review"
+        lock["skills"]["review"]["sourcePath"] = "../review"
         self.write_json("policy/content-lock.json", lock)
         self.assert_error("sourcePath must be repository-relative")
 
     def test_component_lineage_must_name_a_reviewed_source(self) -> None:
         lock = self.load_json("policy/content-lock.json")
-        lock["skills"]["grillmester-design-prototype"]["lineage"][0][
+        lock["skills"]["design-prototype"]["lineage"][0][
             "source"
         ] = "unknown"
         self.write_json("policy/content-lock.json", lock)

@@ -349,7 +349,6 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    outputs:
     permissions:
       actions: read # Authenticate and download this run's exact artifact by ID.
       contents: read
@@ -1383,8 +1382,8 @@ jobs:
           git show "${SOURCE_SHA}:plugin/plugin.json" > "${standard_manifest_file}"
           git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/opencode.json"
           git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/agents/grillmester.md"
-          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/skills/grillmester-grilling/SKILL.md"
-          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/commands/grillmester-grilling.md"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/skills/grilling/SKILL.md"
+          git cat-file -e "${SOURCE_SHA}:targets/opencode-v1/commands/grilling.md"
           jq -e '
             .schemaVersion == 1 and
             (keys | sort) == ["marketplace", "packages", "schemaVersion"] and

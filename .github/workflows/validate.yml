@@ -102,9 +102,9 @@ jobs:
 
       - name: Validate Visual Companion scripts
         run: |
-          node --check plugin/skills/grillmester-design-prototype/scripts/server.js
-          node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
-          node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
+          node --check plugin/skills/design-prototype/scripts/server.js
+          node --check plugin/skills/design-prototype/scripts/helper.js
+          node --test plugin/skills/design-prototype/tests/server.test.js
 
       - name: Install exact OpenCode release-test baseline
         shell: bash

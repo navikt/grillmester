@@ -66,20 +66,20 @@ LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10, False)
 PREVIOUS_UNIFIED_PACKAGE = PackageSpec("grillmester", "plugin", 7, 43, False)
 PREVIOUS_PACKAGES = (LEGACY_CORE, LEGACY_ADD_ON)
 LEGACY_ADD_ON_SKILLS = (
-    "grillmester-api-design",
-    "grillmester-auth-overview",
-    "grillmester-kafka-topic",
-    "grillmester-kotlin-ktor",
+    "api-design",
+    "auth-overview",
+    "kafka-topic",
+    "kotlin-ktor",
     "grillmester-kotlin-spring",
-    "grillmester-lumi-survey",
-    "grillmester-nais-manifest",
-    "grillmester-nav-troubleshoot",
-    "grillmester-observability-setup",
-    "grillmester-postgresql-review",
+    "lumi-survey",
+    "nais-manifest",
+    "nav-troubleshoot",
+    "observability-setup",
+    "postgresql-review",
 )
 SAME_PACKAGE_REMOVED_SKILLS = ("grillmester-nav-architecture-review",)
 HISTORICAL_REMOVED_SKILLS = ("grillmester-kotlin-spring",)
-CURRENT_ONLY_SKILLS = ("grillmester-guided-review",)
+CURRENT_ONLY_SKILLS = ("guided-review",)
 REMOVED_SKILLS = SAME_PACKAGE_REMOVED_SKILLS + HISTORICAL_REMOVED_SKILLS
 PACKAGE_BY_NAME = {package.name: package for package in PACKAGES}
 PLUGIN_NAME = PACKAGES[0].name

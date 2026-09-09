@@ -62,6 +62,7 @@ def write_opencode_distribution_inputs(root: Path, content: str = "reviewed\n") 
         "grillmester_local.py",
         "release_test_baseline.py",
         "release_contract.py",
+        "skill_references.py",
         "smoke_grillmester_tui.py",
         "smoke_grillmester_local.py",
         "smoke_plugin_install.py",
@@ -143,7 +144,7 @@ def write_stable_rights_fixture(root: Path) -> dict[str, object]:
             "doctor-who": {"source": "hovmester"},
         },
         "skills": {
-            "grillmester-aksel-design": {"source": ["pilot", "hovmester"]},
+            "aksel-design": {"source": ["pilot", "hovmester"]},
         },
     }
     (policy / "content-lock.json").write_text(
@@ -154,7 +155,7 @@ def write_stable_rights_fixture(root: Path) -> dict[str, object]:
     agents.mkdir(parents=True, exist_ok=True)
     (agents / "designer.agent.md").write_text("designer\n")
     (agents / "doctor-who.agent.md").write_text("doctor who\n")
-    skill = root / "plugin/skills/grillmester-aksel-design"
+    skill = root / "plugin/skills/aksel-design"
     skill.mkdir(parents=True, exist_ok=True)
     (skill / "SKILL.md").write_text("aksel\n")
     approval: dict[str, object] = {
@@ -425,7 +426,7 @@ class ReleaseContractTest(unittest.TestCase):
                     source_sha=sha,
                 )
 
-    def test_source_checkout_requires_the_native_opencode_target(self) -> None:
+    def test_source_checkout_requires_native_targets_and_projection_support(self) -> None:
         release = CONTRACT.Catalog(
             version=CONTRACT.parse_version("1.4.0-rc.2"), source_sha="1" * 40
         )
@@ -460,6 +461,14 @@ class ReleaseContractTest(unittest.TestCase):
             ):
                 CONTRACT.validate_source_checkout(source, release)
 
+            (source / "scripts/skill_references.py").unlink()
+            with mock.patch.object(
+                CONTRACT, "git_output", return_value=release.source_sha
+            ), self.assertRaisesRegex(
+                CONTRACT.ReleaseContractError, "skill_references.py"
+            ):
+                CONTRACT.validate_source_checkout(source, release)
+
     def test_stable_rights_gate_fails_closed_when_record_is_missing(self) -> None:
         with tempfile.TemporaryDirectory() as temp, self.assertRaisesRegex(
             CONTRACT.ReleaseContractError, "stable-rights-approval.json"
@@ -489,7 +498,7 @@ class ReleaseContractTest(unittest.TestCase):
             write_stable_rights_fixture(source)
             content_lock_path = source / CONTRACT.CONTENT_LOCK_PATH
             content_lock = json.loads(content_lock_path.read_text())
-            content_lock["skills"]["grillmester-aksel-design"]["source"] = {
+            content_lock["skills"]["aksel-design"]["source"] = {
                 "hovmester": True
             }
             content_lock_path.write_text(json.dumps(content_lock) + "\n")

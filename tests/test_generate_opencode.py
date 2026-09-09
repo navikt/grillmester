@@ -21,6 +21,15 @@ SPEC.loader.exec_module(GENERATOR)
 
 
 class OpenCodeGenerationTest(unittest.TestCase):
+    def test_short_skill_calls_do_not_rewrite_paths_or_urls(self) -> None:
+        calls = GENERATOR.slash_skill_reference({"review", "design-prototype"})
+        source = "Load `/review` or `/design-prototype`. Keep /review/assets, https://example.test/review, </review>, [Review endpoint](/review) and `GET /review HTTP/1.1`."
+        result = calls.sub(lambda match: f"`{match.group(1)}`", source)
+        self.assertEqual(
+            "Load `review` or `design-prototype`. Keep /review/assets, https://example.test/review, </review>, [Review endpoint](/review) and `GET /review HTTP/1.1`.",
+            result,
+        )
+
     def copy_repository(self) -> tuple[tempfile.TemporaryDirectory, Path]:
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name) / "grillmester"
@@ -122,8 +131,8 @@ class OpenCodeGenerationTest(unittest.TestCase):
             43,
             sum(path.startswith("skills/") and path.endswith("/SKILL.md") for path in files),
         )
-        self.assertIn("skills/grillmester-guided-review/SKILL.md", files)
-        self.assertIn("commands/grillmester-guided-review.md", files)
+        self.assertIn("skills/guided-review/SKILL.md", files)
+        self.assertIn("commands/guided-review.md", files)
         self.assertIn(".gitignore", files)
         self.assertEqual(
             b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n",
@@ -153,7 +162,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
         self.assertIn(
             '  bash:\n    "*": deny\n'
             '    "node scripts/server.js --project-dir *": ask\n'
-            '    "node *grillmester-design-prototype/scripts/server.js --project-dir *": ask',
+            '    "node *design-prototype/scripts/server.js --project-dir *": ask',
             designer,
         )
         self.assertIn(
@@ -306,15 +315,15 @@ class OpenCodeGenerationTest(unittest.TestCase):
             "grillmester:researcher",
         ):
             self.assertNotIn(token, text)
-        self.assertIsNone(GENERATOR.SLASH_SKILL_REFERENCE.search(text))
+        self.assertIsNone(GENERATOR.slash_skill_reference(set(json.loads((ROOT / "policy/content-lock.json").read_text())["skills"])).search(text))
         self.assertIn("`question`", text)
         self.assertIn("`task` tool", text)
         self.assertIn("`webfetch` or `websearch`", text)
         self.assertIn("Load them with the native `skill` tool", text)
 
         grillmester = files["agents/grillmester.md"][0].decode("utf-8")
-        review = files["skills/grillmester-review/SKILL.md"][0].decode("utf-8")
-        self.assertIn("`grillmester-security-review`", grillmester)
+        review = files["skills/review/SKILL.md"][0].decode("utf-8")
+        self.assertIn("`security-review`", grillmester)
         self.assertIn(GENERATOR.TARGET_INVOCATION_NOTE, grillmester)
         self.assertIn(GENERATOR.TARGET_INVOCATION_NOTE, review)
         for path, (data, _) in files.items():
@@ -356,42 +365,42 @@ class OpenCodeGenerationTest(unittest.TestCase):
     def test_copilot_specific_skills_have_explicit_native_overlays(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
         manifest = json.loads(files["manifest.json"][0])
-        doctor = files["skills/grillmester-doctor/SKILL.md"][0].decode("utf-8")
-        creator = files["skills/grillmester-create-a-skill/SKILL.md"][0].decode("utf-8")
+        doctor = files["skills/doctor/SKILL.md"][0].decode("utf-8")
+        creator = files["skills/create-a-skill/SKILL.md"][0].decode("utf-8")
 
-        self.assertEqual("overlay", manifest["skillCapabilities"]["grillmester-doctor"])
+        self.assertEqual("overlay", manifest["skillCapabilities"]["doctor"])
         self.assertEqual(
-            "overlay", manifest["skillCapabilities"]["grillmester-create-a-skill"]
+            "overlay", manifest["skillCapabilities"]["create-a-skill"]
         )
         self.assertIn("Grillmester Doctor for OpenCode v1", doctor)
         self.assertIn("OpenCode-compatible Agent Skill", creator)
         self.assertNotIn("Copilot", doctor)
         self.assertNotIn("Copilot", creator)
         self.assertNotIn(
-            "skills/grillmester-create-a-skill/references/copilot-cli-validation.md",
+            "skills/create-a-skill/references/copilot-cli-validation.md",
             files,
         )
         self.assertIn(
-            "skills/grillmester-create-a-skill/references/opencode-validation.md",
+            "skills/create-a-skill/references/opencode-validation.md",
             files,
         )
 
     def test_skill_tree_resources_are_copied_and_executable_mode_is_preserved(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
-        source = ROOT / "plugin/skills/grillmester-design-prototype/scripts/server.js"
+        source = ROOT / "plugin/skills/design-prototype/scripts/server.js"
         target_data, target_mode = files[
-            "skills/grillmester-design-prototype/scripts/server.js"
+            "skills/design-prototype/scripts/server.js"
         ]
         self.assertEqual(source.read_bytes(), target_data)
         self.assertEqual(0o644, target_mode)
 
         script_data, script_mode = files[
-            "skills/grillmester-diagnosing-bugs/scripts/hitl-loop.template.sh"
+            "skills/diagnosing-bugs/scripts/hitl-loop.template.sh"
         ]
         self.assertEqual(
             (
                 ROOT
-                / "plugin/skills/grillmester-diagnosing-bugs/scripts/hitl-loop.template.sh"
+                / "plugin/skills/diagnosing-bugs/scripts/hitl-loop.template.sh"
             ).read_bytes(),
             script_data,
         )
@@ -512,7 +521,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
         try:
             policy_path = root / "policy/opencode-v1.json"
             policy = json.loads(policy_path.read_text(encoding="utf-8"))
-            policy["skillCapabilities"]["overrides"]["grillmester-doctor"] = "native"
+            policy["skillCapabilities"]["overrides"]["doctor"] = "native"
             policy_path.write_text(json.dumps(policy), encoding="utf-8")
             with self.assertRaisesRegex(
                 GENERATOR.ProjectionError, "classification must exactly match"

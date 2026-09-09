@@ -84,9 +84,9 @@ python3 scripts/generate_context_projections.py --check
 python3 scripts/generate_agentpakke_manifest.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
-node --check plugin/skills/grillmester-design-prototype/scripts/server.js
-node --check plugin/skills/grillmester-design-prototype/scripts/helper.js
-node --test plugin/skills/grillmester-design-prototype/tests/server.test.js
+node --check plugin/skills/design-prototype/scripts/server.js
+node --check plugin/skills/design-prototype/scripts/helper.js
+node --test plugin/skills/design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py
 python3 scripts/smoke_opencode_runtime.py --cplt cplt

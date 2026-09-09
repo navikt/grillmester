@@ -58,6 +58,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             "grillmester_local.py",
             "generate_copilot_manifest.py",
             "generate_context_projections.py",
+            "skill_references.py",
             "release_test_baseline.py",
             "smoke_grillmester_local.py",
         ):
@@ -166,6 +167,24 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         )
         focused_copilot_manifest_path.chmod(0o644)
         return source
+
+    def test_rejects_stale_focused_manual_skill_contract(self) -> None:
+        source = self.make_source()
+        manifest_path = source / "targets/opencode-v1-focused/manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        removed = manifest["transformations"]["skillPermissionEntriesRemoved"]
+        self.assertNotIn("grill-with-docs", removed)
+        removed.append("grill-with-docs")
+        removed.sort()
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError, "opencode-v1-focused transformations are invalid"
+        ):
+            BUILDER.collect_bundle_files(source, SOURCE_SHA)
 
     def test_build_is_byte_reproducible_and_manifested_exactly(self) -> None:
         source = self.make_source()

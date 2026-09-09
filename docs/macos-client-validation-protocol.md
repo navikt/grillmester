@@ -68,7 +68,7 @@ immutable RC; record the resolved catalog and source identity or classify it as
 For each client, run and record one harness-parity scenario that explicitly
 covers all of the following:
 
-1. `/grillmester-grilling`;
+1. `/grilling`;
 2. automatic skill routing;
 3. Wayfinder discovery and delegation;
 4. the handoff `Grillmester → Kokk → Grill-inspektør`;

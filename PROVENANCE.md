@@ -50,12 +50,12 @@ do not add prompt/content lineage or transfer ownership of those external
 executables. The release bundle includes these files and both focused targets
 as source-SHA-bound inventory.
 
-Agent IDs preserve their reviewed source names. Runtime skill IDs are prefixed
-with `grillmester-` to reduce accidental collisions. A project- or user-level
-component with the same exact ID still wins and can silently shadow the plugin
-payload; qualification is not a bypass. The source names below remain
-unprefixed so the import boundary can be audited directly; the content lock
-records the canonical runtime IDs and their original `sourcePath` values.
+Agent IDs preserve their reviewed source names. Runtime skills use short,
+task-oriented IDs; the content lock records those IDs and the original
+`sourcePath` values so the import boundary remains auditable. Older releases
+used a `grillmester-` prefix. Migrating removes obsolete copies and updates
+callers; it does not add compatibility aliases that would duplicate discovery.
+Repo- and user-level components can still shadow same-named plugin skills.
 
 ## Pilot baseline
 
@@ -125,7 +125,7 @@ Imported skills:
 
 Hovmester's Nav architecture material was itself adopted from
 `navikt/copilot`. Grillmester consolidates its useful, non-duplicative parts
-into the conditional Nav reference under `grillmester-architecture-review`
+into the conditional Nav reference under `architecture-review`
 instead of shipping a second architecture-review skill. The lineage was
 reviewed against `navikt/copilot` at
 `2d0911b353a91ec9091d252b481acb5777de7059`; the source workflow was introduced
@@ -196,7 +196,7 @@ not part of the plugin payload. The issue and PR templates in this source
 repository govern contributions to `navikt/grillmester`; they are not shipped
 to consumers.
 
-`grillmester-doctor` consolidates the reviewed ownership boundary from the
+`doctor` consolidates the reviewed ownership boundary from the
 pinned Budstikka and Hovmester instruction sources into a read-only audit. It
 does not copy their repository facts, create consumer files, or establish a
 continuing synchronization relationship.
@@ -224,13 +224,39 @@ Two later, narrowly scoped deltas were reviewed against `mattpocock/skills` at
 `8b78b531ab965735c5dc74f6f7a219e1e37326df`: secret and personal-data
 redaction before sharing diagnostic artifacts from
 `skills/engineering/diagnosing-bugs`, and the environment-as-authority/docs-
-as-cache principle from `skills/productivity/writing-for-agents`. No other
-upstream behavior from that revision is imported by this change.
+as-cache principle from `skills/productivity/writing-for-agents`. That review
+imported only those two deltas.
+
+The method review at `mattpocock/skills` revision
+`3cca18b368ae95cdbdebbff572ccafa662551015` adds TDD guidance to derive expected
+outcomes independently of the implementation, precise interface/seam vocabulary
+from `codebase-design`, and scoped exploration from `improve-codebase-architecture`.
+Grillmester retains its
+red-green-refactor cycle, existing task authorization and repository test seams.
+It does not import upstream's mandatory seam approval or move refactoring to a
+separate review workflow, or require two adapters as proof of every refactoring.
+
+The observability review at `navikt/copilot` revision
+`ce9abd567a89eb72f1b8f95447435fd16fe805d3` adapts the
+`skills/observability-debugging` guidance on trace representativeness into
+`nav-troubleshoot/references/observability-diagnose.md`. The local adaptation
+also checks sampling and query coverage before interpreting absent signals.
+It does not import endpoint URLs, query recipes or a mandatory signal count.
+
+Diagnostic data-access guidance was checked on 2026-09-09 against Nav's
+[published guidelines](https://ki-utvikling.nav.no/retningslinjer) and
+[observability workflow](https://ki-utvikling.nav.no/nyheter/agent-based-observability),
+whose sources were reviewed at the same `ce9abd567a89eb72f1b8f95447435fd16fe805d3`
+revision. The local rules distinguish permission to read from permission to
+provide data to the model, and require any filtering before model input. They
+allow approved direct queries, reuse existing scope decisions, and defer to
+current organizational and consumer rules; this is not a blanket log-access ban
+or a claim that every data source has been approved.
 
 The UI prototype guidance was also compared with current `mattpocock/skills` at
 `84fdeffd12f2ee307994d1eb6feb48173b6e0502`. Its relevant
-`skills/engineering/prototype/UI.md` is byte-identical to the already reviewed
-revision above. Grillmester therefore
+`skills/engineering/prototype/UI.md` is byte-identical to the reviewed
+`8b78b531ab965735c5dc74f6f7a219e1e37326df` revision. Grillmester therefore
 keeps the existing source pin while applying the reviewed principles of one
 named design question, structurally distinct alternatives, comparable synthetic
 data and an explicit record of the winner, rationale and borrowed elements.

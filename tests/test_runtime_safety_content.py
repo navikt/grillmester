@@ -12,20 +12,20 @@ def read(relative_path: str) -> str:
 class RuntimeSafetyContentTests(unittest.TestCase):
     def test_live_pod_evidence_requires_scope_approval_and_redaction(self) -> None:
         reference = read(
-            "plugin/skills/grillmester-nav-troubleshoot/references/pod-diagnose.md"
+            "plugin/skills/nav-troubleshoot/references/pod-diagnose.md"
         )
 
         self.assertIn("Read-only is not a safety classification", reference)
         self.assertIn("exact cluster/context, namespace", reference)
         self.assertIn("obtain explicit approval", reference)
         self.assertIn("--since=<verified-window>", reference)
-        self.assertIn("Redact sensitive values", reference)
+        self.assertIn("before the model receives output", reference)
 
     def test_auth_guidance_does_not_assign_http_status_to_network_policy(self) -> None:
         troubleshoot = read(
-            "plugin/skills/grillmester-nav-troubleshoot/references/auth-diagnose.md"
+            "plugin/skills/nav-troubleshoot/references/auth-diagnose.md"
         )
-        overview = read("plugin/skills/grillmester-auth-overview/SKILL.md")
+        overview = read("plugin/skills/auth-overview/SKILL.md")
 
         self.assertIn("verified producer of the HTTP response", troubleshoot)
         self.assertIn(
@@ -38,7 +38,7 @@ class RuntimeSafetyContentTests(unittest.TestCase):
         self.assertNotIn("whether 401/403 comes from ingress/network policy", troubleshoot)
 
     def test_security_review_traces_sensitive_validation_output(self) -> None:
-        skill = read("plugin/skills/grillmester-security-review/SKILL.md")
+        skill = read("plugin/skills/security-review/SKILL.md")
 
         self.assertIn("Trace values through validation and diagnostic wrappers", skill)
         self.assertIn("`validatedValue`", skill)

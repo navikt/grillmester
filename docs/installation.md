@@ -115,6 +115,31 @@ Pakka dekker begge klientene med hver sin payload:
 Full kontekst er standard. Fokusert kontekst er et eksplisitt valg for lokal
 modell eller andre kontekstbegrensede kjøringer.
 
+### Instructions og korte skillnavn
+
+Nav-pilots Tier 1 kan distribuere `instructions/*.instructions.md` fra en
+deklarert fillayout. Grillmester bruker Tier 2, som starter ferdige klientpakker;
+den gjør ikke instructions til en støttet komponent i Copilot-pluginen.
+Repoets `AGENTS.md`, `copilot-instructions.md` og relevante path-instructions
+forblir repo-eid stående kontekst. Behold konkrete domene-, bygge-, drifts- og
+sikkerhetsregler der, og fjern dupliserte agentroller og foreldede skillkall.
+OpenCode leser ikke `.github/copilot-instructions.md` og Copilots path-instructions
+automatisk. Når samme repo brukes med begge klientene, la en kort repo-eid
+`AGENTS.md` peke på hovedinstruksen og de path-instruksjonene som gjelder filene
+i oppgaven. Behold fakta ett sted; ikke kopier hele instruksjonssettet.
+Ikke legg en Tier 1-layout ved siden av payloadene for å omgå grensen: dagens
+nav-pilot nekter å starte Tier 2-klienten i en slik blandet pakke.
+
+Fra pakkeversjon 0.4.0 har skillene korte navn som `grill-with-docs`, `wayfinder`
+og `design-prototype`. En source-endring publiserer ikke denne versjonen
+automatisk; velg en publisert kandidat eller en eksplisitt source-revisjon
+som inneholder navneendringen.
+Oppdater pakka og last katalogen på nytt i klienten etter navnemigreringen.
+Gamle prefiksnavn distribueres ikke som aliaser. Kontroller faktisk kilde ved
+kollisjon; nav-pilot-valget hindrer ikke at lokale skills med samme navn lastes.
+Se [consumer-migrering](consumer-pilot-runbook.md) for inventar, bevaring av
+lokale tilpasninger og verifikasjon før gamle kopier fjernes.
+
 Agentpakka setter ingen fallbackmodell: `defaultModel` er `inherit`, så
 modellen kommer fra klienten eller ditt eget valg. Modellene som ligger i
 payloadens agent-frontmatter følger med den pinnede revisjonen, så en

@@ -71,33 +71,27 @@ Se GitHubs
 
 ## Consumerens minste nyttige kontrakt
 
-Start tynt. Et repo trenger ikke kopiere Grillmester-manualen. Dokumenter bare
-det en agent ikke kan utlede sikkert fra repoet:
+Behold bare opplysninger som forebygger en konkret feil i dette repoet:
+uvanlige testforutsetninger, viktige domeneregler og ikke-åpenbare grenser for
+data eller arkitektur. Ta med den korte verifikasjonskommandoen når den sparer
+reell leting. Hvert punkt skal kunne begrunnes med repoets egen kilde.
 
-1. eksakte build-, test-, lint- og kjørekommandoer
-2. kanoniske domeneord og språk for varige artefakter, inkludert ADR-er
-3. data-/sikkerhetsklassifisering, auth og lokale trust boundaries
-4. arkitekturgrenser eller invariants som ikke er synlige i koden
-5. regler som bare gjelder bestemte mapper eller filtyper
-6. eier og kilde for volatile team-/plattformregler
-
-Ikke skriv inn versionsnumre, kommandoer eller policies som raskt drifter hvis
-repoet eller en autoritativ kilde allerede kan gi svaret. Lenker er heller ikke
-nok for kritiske regler dersom klienten ikke garantert kan lese målet.
-
-Når lokal kontekst mangler, skal agenten inspisere repoet, spørre eller stoppe
-med et tydelig kontekstbehov — ikke finne på kommandoer eller sikkerhetsregler.
+Start med én kort hovedinstruks og en minimal klientpeker ved behov. En
+oversikt over teknologistakken, filkart, generelle kode- og sikkerhetsråd,
+arbeidsmetode og kopier av README hører ikke til i stående instruksjoner.
+Omfattende forklaringer ligger i vanlig dokumentasjon som leses ved behov.
+Tom eller lett utledbar kontekst skal ikke fylles med standardtekst.
 
 ## Path-scoped instructions er fortsatt nyttige
 
 Plugin-distribusjon og path-scoped instructions løser forskjellige problemer.
 Pluginen er god for versjonert, gjenbrukbar metode på tvers av repoer.
-Path-scoped instructions er bedre når en regel bare er sann i en konkret del av
-ett repo.
+Path-scoped instructions trengs bare når en viktig regel gjelder en bestemt
+del av repoet og blir feil som en generell regel. Ikke behold en fil per
+teknologi eller mappe bare fordi den allerede finnes.
 
 Eksempler:
 
-- bruk Aksel-komponenter i `apps/frontend/**`
 - migreringer i `db/migrations/**` skal være bakoverkompatible
 - generert kode i `clients/generated/**` skal ikke redigeres manuelt
 
@@ -158,10 +152,11 @@ ikke-tomme `.github/agents`, `.github/skills`, `.agents/skills` eller
 eller en eksplisitt pilotbranch/fixture uten disse røttene, når et
 nav-pilot-synket repo skal testes med lokal modell.
 
-Grillmester-skills bruker `grillmester-`-prefiks. Det gjør eksakte kollisjoner
-mindre sannsynlige, men semantisk overlapp kan fortsatt finnes. Installer bare
-én Grillmester-plugin, og bruk `/grillmester-doctor` til å synliggjøre overlapp
-før teamet eventuelt rydder i repo-lokale komponenter.
+Grillmester-skills bruker korte, oppgaveorienterte navn. nav-pilot velger pakka,
+men klienten kan fortsatt laste repo- og brukerskills med samme navn. Installer
+én Grillmester-pakke og kontroller faktisk navn, kilde og versjon med `/doctor`.
+Kjør `scripts/audit_consumer_setup.py` før migrering for å finne gamle kopier,
+lokale tilpasninger og foreldede instruksreferanser uten å endre consumeren.
 
 Grillmester publiserer `.nav-pilot/agentpakke.json` som en Tier 2-kontrakt over
 de fire deterministiske payloadene Copilot CLI/OpenCode × full/fokusert.
@@ -192,16 +187,17 @@ Et consumer-repo kan ha:
 
 - andre agenter eller skills som ikke finnes i Grillmester
 - teamspesifikke collections
-- instructions og templates som skal bevares byte-identisk
+- nødvendige lokale fakta som skal overleve i korte instructions eller vanlig
+  dokumentasjon, og repo-eide templates
 - en workflow som kan legge gamle kollisjoner tilbake ved neste schedule eller
   manuelle dispatch
 
 Følg [consumer-pilot-runbooken](consumer-pilot-runbook.md). Den binder baseline,
 eksakte kollisjoner, tillatt diff og rollback før migreringen.
 
-## `/grillmester-doctor`: sjekk før du legger til mer kontekst
+## `/doctor`: sjekk før du legger til mer kontekst
 
-Kjør `/grillmester-doctor` når du eksplisitt vil undersøke oppsettet. Skillen er
+Kjør `/doctor` når du eksplisitt vil undersøke oppsettet. Skillen er
 read-only og vurderer:
 
 - om riktig plugin og agent faktisk er aktiv
@@ -210,7 +206,7 @@ read-only og vurderer:
 - om repoet mangler en liten, stående kontrakt
 - om en regel heller bør være CI/ruleset enn prompttekst
 
-`/grillmester-doctor` synker eller oppretter ikke filer. Et forslag blir først en endring i en
+`/doctor` synker eller oppretter ikke filer. Et forslag blir først en endring i en
 separat, godkjent oppgave.
 
 ## Videre
