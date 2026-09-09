@@ -97,7 +97,7 @@ Grillmester og trekk inn relevante produkt-/Nav-skills der.
 | --- | --- | --- |
 | **Kokk** 👨‍🍳 | Implementerer én komplett, uavhengig testbar vertical slice fra en tydelig brief. | Utvider ikke scope og finner ikke på manglende beslutninger. |
 | **Grill-inspektør** 🔎 | Leser hele task-diffen, akseptansekriteriene og fersk evidens; kan bruke read-only shellkommandoer som `git diff` for å verifisere. | Endrer ikke implementasjonen og løser ikke produktvalg. |
-| **Researcher** | Besvarer ett avgrenset Wayfinder-spørsmål fra repo og autoritative kilder. | Ingen writes og ingen produkt-/arkitekturbeslutning. |
+| **Researcher** | Besvarer ett avgrenset faktaspørsmål fra repo og autoritative kilder, med valgfri kobling til et Wayfinder-kart. | Ingen writes og ingen produkt-/arkitekturbeslutning. |
 
 I Copilot er de interne rollene `user-invocable: false`. I OpenCode er de
 `mode: subagent` og `hidden: true`. Begge deler hindrer at de presenteres som
@@ -119,7 +119,8 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | Familie | Bruk ved | Representative skills |
 | --- | --- | --- |
 | **Avklaring og beslutninger** | Planen må grilles, domeneord avklares eller en beslutning dokumenteres. | Grilling, Grill with docs, Domain modeling, To spec, Architecture review, Prototype |
-| **Større arbeid** | Oppgaven må brytes ned uten å miste den vertikale verdien. | Wayfinder, To issues, Issue management, Handoff |
+| **Beslutningskart og oppdeling** | Avhengige, uavklarte beslutninger trenger et varig kart, eller avklart arbeid skal deles i selvstendige leveranser. | Wayfinder, To issues, Issue management |
+| **Overlevering** | Brukeren ber om å flytte pågående arbeid til en annen sesjon, klient eller kollega. | Handoff (manuell) |
 | **Implementasjon og kvalitet** | Feilsøking, teststrategi, review eller sikkerhet/personvern. | Diagnosing bugs, TDD, Integration tests, E2E tests, Review, Guided review, Security review |
 | **Kodebase og levering** | Arkitekturforbedring, README, PR eller skillvedlikehold. | Improve codebase architecture, README update, Pull request, Create a skill |
 | **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel design, Accessibility review, Design prototype, Figma workflow |

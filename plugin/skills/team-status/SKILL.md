@@ -95,18 +95,19 @@ Offer a short interview:
 2. Which fields are used for goals, period, priority, and size?
 3. Which exceptions and transition rules exist?
 
-First provide the guide as a draft in the conversation. Then clarify the correct
-consumer-owned target location. Create an issue, file, or PR only after explicit
-approval.
+Use the agreed consumer-owned location when the user has requested a guide.
+Otherwise draft in the conversation and clarify the target and authority before
+creating an issue, file, or PR.
 
 ## External changes
 
-Status work is read-only unless the user requests otherwise. Before changing an
-issue, project value, guide, or report:
-
-1. show the exact repository, project, item, and field or document
-2. show the old and new value or the complete draft
-3. ask for explicit approval
+Status work is read-only unless the user requests otherwise. For a requested
+issue, project value, guide, or report change, verify the target, action and
+scope against the user's existing authorization. Reuse that authorization;
+do not ask again merely because the draft is ready. When a material choice or
+authority is missing, show the exact target and the old/new values or draft,
+then ask only for what is missing. New targets or expanded scope need their own
+authority.
 
 Do not change field definitions or options as a side effect of reporting.
 
@@ -119,7 +120,7 @@ Do not change field definitions or options as a side effect of reporting.
 - Separate source data, interpretation, assumptions, and data gaps.
 - State the timestamp for data that can change.
 
-### Ask first
+### Ask when authority or a material choice is missing
 
 - Create or change issues, project items, field values, guides, or PRs.
 - Extend the analysis to repositories or systems outside the confirmed scope.
@@ -128,5 +129,4 @@ Do not change field definitions or options as a side effect of reporting.
 
 - Guess the project, field semantics, team boundary, or goal period.
 - Present tracker activity as documented user or societal impact.
-- Change external state without showing a draft and receiving explicit
-  approval.
+- Change external state without authority for the target, action and scope.

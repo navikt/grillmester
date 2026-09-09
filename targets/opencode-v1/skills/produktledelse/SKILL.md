@@ -109,9 +109,13 @@ consumer-owned documentation change only after confirming the correct target.
 
 ## Durable changes
 
-Default to drafts in the conversation. Before creating or changing an issue,
-PR, shared plan, insight activity or message, show the target and content and
-ask for explicit approval.
+For exploration, draft in the conversation. For a requested issue, PR, shared
+plan or insight activity, reuse existing authorization for the exact target,
+action and scope. When a material choice or authority is missing, show the
+target and draft, then ask only for what is missing. New targets or expanded
+scope need their own authority. Contacting people, recruiting participants or
+sending messages requires explicit user authorization for that outreach; a
+research or planning request alone does not grant it.
 
 ## Boundaries
 
@@ -121,10 +125,11 @@ ask for explicit approval.
 - Frame opportunities from the user's perspective.
 - Explore alternatives before making a recommendation.
 
-### Ask first
+### Ask when authority or a material choice is missing
 
 - Publish or share discovery material.
-- Recruit or contact users and other stakeholders.
+- Recruit or contact users and other stakeholders; require explicit outreach
+  authorization.
 - Write to the consumer's documentation or tracker.
 
 ### Never

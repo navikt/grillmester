@@ -1,14 +1,19 @@
 ---
 name: review
-description: "Self-review the complete scoped diff for correctness, regressions, requirements and repository rules before delivery. Use after implementation or when asked to inspect changes; use the full-context guided human review workflow for a human walkthrough and `security-review` for security-specific analysis."
+description: "Self-review the complete scoped diff for correctness, regressions, requirements and repository rules before delivery. Use after implementation or when asked to find problems in changes; use `security-review` for security-specific analysis."
 ---
 # Review the complete task diff
 
 > **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
-This is the ordinary self-review pass. Use the full-context guided human review workflow when the human
-asks to walk through the change together; an independent Inspector verdict
-remains a separate review when the calling workflow requires it.
+This is the ordinary self-review pass. An independent Inspector verdict remains
+a separate review when the calling workflow requires it.
+
+If the user requests a walkthrough, start explaining the change at their
+requested pace instead of replacing that request with this self-review pass.
+the full-context guided human review workflow is a manual skill: apply it when the user explicitly invokes it
+through the client's skill entrypoint. Do not automatically load it or require
+another confirmation or a skill command before providing a requested explanation.
 
 ## Establish the boundary
 

@@ -1,7 +1,7 @@
 # GitHub Projects v2 — kapabilitetsstyrt tilgang
 
-Oppskrifter for å lese en eksplisitt bekreftet GitHub Projects v2-tavle og,
-etter særskilt godkjenning, endre en konkret verdi. Felter, opsjoner og ID-er er
+Oppskrifter for å lese en bekreftet GitHub Projects v2-tavle og endre en konkret
+verdi innenfor brukerens mandat for mål, handling og omfang. Felter, opsjoner og ID-er er
 prosjektspesifikke: hent dem ved kjøring. Ikke bruk eksemplene til å oppdage
 eller anta teamets prosjekt.
 
@@ -12,8 +12,8 @@ og godkjent i runtime. Et vanlig MCP-oppsett kan for eksempel tilby:
 
 - `projects_list` — lister prosjekter for en owner
 - `projects_get` — henter ett prosjekt, inkludert felter og items
-- `projects_write` — oppretter/oppdaterer items med feltverdier; bruk bare
-  etter vist diff og eksplisitt godkjenning
+- `projects_write` — oppretter/oppdaterer items med feltverdier; gjenbruk
+  eksisterende mandat. Vis diff og spør bare når mål, omfang eller mandat mangler.
 
 Tilgjengelighet og autorisasjon må verifiseres ved kjøring. To forutsetninger
 som ofte mangler:

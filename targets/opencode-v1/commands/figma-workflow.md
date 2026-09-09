@@ -1,5 +1,5 @@
 ---
-description: "Translate an existing Figma design into Aksel components, tokens and responsive implementation guidance. Use when a Figma link or design-to-code task supplies the design; use `design-prototype` to explore new concepts, and respect a design-only agent by returning a brief."
+description: "Translate a chosen Figma design into Aksel code or an implementation brief with component, token and responsive guidance. Use for design-to-code work; use `design-prototype` for visual exploration or changes to the Figma design itself. Design-only agents return a brief."
 ---
 
 Use the `skill` tool to load `figma-workflow`, then follow that skill for this request.

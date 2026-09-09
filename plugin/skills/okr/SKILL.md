@@ -84,11 +84,11 @@ or that field names can be changed automatically.
 
 ## Durable changes
 
-Before changing a goal document, issue, PR or project metadata:
-
-1. show the exact repository, document or project
-2. show the complete draft and planned field changes
-3. ask for explicit approval
+For a requested goal document, issue, PR or project metadata change, reuse the
+user's existing authorization for the exact target, action and scope. When a
+material choice or authority is missing, show the target, draft and field
+changes, then ask only for what is missing. Do not repeat approval for the same
+requested result. New targets or expanded scope need their own authority.
 
 If the correct target is unknown, ask. Do not create a new goal document by
 default.
@@ -101,7 +101,7 @@ default.
 - Distinguish outcomes, deliverables and routine operations.
 - Mark missing data, baselines and decisions.
 
-### Ask first
+### Ask when authority or a material choice is missing
 
 - Write or publish goals.
 - Create issues or pull requests.

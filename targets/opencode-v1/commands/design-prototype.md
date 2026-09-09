@@ -1,5 +1,5 @@
 ---
-description: "Explore visual concepts and user flows as interactive Aksel browser sketches or Figma-ready designs. Use when layout, hierarchy, interaction or visual alternatives need a concrete preview; use `prototype` for executable behavior or data-model experiments and `figma-workflow` for an existing Figma design."
+description: "Explore or refine visual concepts, user flows and existing Figma designs through Aksel browser sketches or editable Figma components. Use for layout, hierarchy and visual alternatives; use `prototype` for executable behavior and `figma-workflow` to translate a chosen design into code or an implementation brief."
 ---
 
 Use the `skill` tool to load `design-prototype`, then follow that skill for this request.

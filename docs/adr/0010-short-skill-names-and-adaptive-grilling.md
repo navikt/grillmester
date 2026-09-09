@@ -36,6 +36,9 @@ skillnavnene.
   Domeneord og kvalifiserende beslutninger dokumenteres innenfor oppdragets og
   consumer-repoets rammer. Skillvalg gir ikke i seg selv fullmakt til eksterne
   trackerhandlinger.
+- Handoff forblir manuelt aktivert for brukerbestilt overlevering til en annen
+  sesjon, klient eller kollega. Klienten eier vanlig kontekstkomprimering;
+  kontekstpress, lange samtaler og fasebytte utløser ingen automatisk rotasjon.
 - Migrering kartlegger gamle komponenter, kildeeierskap, lokale tilpasninger,
   sync-workflows og instruksreferanser før eksakte endringer utføres. Den
   innfører ingen ny sync-livssyklus og sletter aldri hele skillrøtter.

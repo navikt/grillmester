@@ -15,8 +15,9 @@ consumer-owned improvement.
 This skill is read-only. Never create, edit, delete, rename, stage, commit,
 push, install, enable, disable, or update anything while it is active. Do not
 run a setup command that writes configuration. If the user also asks for a
-fix, finish the audit first and return an exact proposed file set for a separate
-authorized implementation step.
+fix, finish the audit and return the evidence and bounded file set to the
+calling workflow. That workflow can immediately implement within the existing
+authorization; completing this read-only phase does not require fresh approval.
 
 Invoking this skill proves that it is available in the current session. It does
 not prove a global installation, marketplace freshness, cloud-agent activation,
@@ -51,7 +52,7 @@ When the Grillmester source checkout is available, its
 `scripts/audit_consumer_setup.py` provides a read-only filesystem inventory
 without requiring a Hovmester manifest or sync caller. User roots must be
 provided explicitly. Its exact-copy candidates require review of the complete
-file set and current hashes before a separate authorized removal. Preserve
+file set and current hashes before an authorized removal. Preserve
 customized or unknown components and consumer domain rules while reconciling
 their ownership; names and manifest membership alone never justify deletion.
 
@@ -101,7 +102,8 @@ rule must govern the default Copilot agent, Copilot code review, or another AI
 tool, give it one consumer-owned standing owner rather than assuming the custom
 agent prompt applies there.
 
-Treat these concerns as consumer-owned when they matter to the repository:
+These concerns can be consumer-owned when they materially affect the repository;
+they are candidates for essential context, not an instruction-file checklist:
 
 - service purpose, architecture, entry points, supported runtime, and the
   authoritative build, test, lint, and validation commands;
@@ -121,10 +123,18 @@ permissions and deployment invariants, manifests and migrations, or
 user-facing content policy. Their absence is not itself a defect when the rule
 is enforced deterministically or a repository-wide contract is sufficient.
 
-For a cross-tool standing contract, prefer `AGENTS.md`. Use
-`.github/copilot-instructions.md` only for Copilot-specific repository behavior.
-Never propose both with duplicated prose. Keep task procedures in skills, not
-always-on instructions.
+Keep one concise source for the shared standing contract. Both a common
+`.github/copilot-instructions.md` with a tiny `AGENTS.md` pointer and the reverse
+layout are valid when the intended clients demonstrably read the shared
+content. Verify discovery instead of relocating useful instructions to satisfy
+a preferred filename. Add client-specific rules only for an actual difference;
+avoid duplicated prose.
+
+Retain only essential repository facts and constraints that models cannot
+reliably infer from maintained code and tooling. Prefer a pointer to existing
+documentation over copied guidance. Do not recreate setup workflows, sync
+checks, instruction trees or generic task procedures to fill this audit's
+categories. Missing extra files are not missing context.
 
 ## Assess readiness from evidence
 

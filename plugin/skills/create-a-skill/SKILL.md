@@ -1,6 +1,6 @@
 ---
 name: create-a-skill
-description: "Create, improve or diagnose a GitHub Copilot CLI skill and validate its discovery and behavior. Use when authoring skill instructions, correcting triggers or testing skill selection; use `doctor` to inspect installed sources and collisions."
+description: "Create, improve or diagnose a GitHub Copilot CLI skill and validate its discovery and behavior. Use when authoring instructions, correcting triggers or testing skill selection; explicit repository setup audits belong to `doctor`."
 ---
 
 # Create a Skill
@@ -11,15 +11,15 @@ this skill produces.
 
 ## Choose the mode
 
-- **Create or revise** — run the complete workflow and edit the skill, callers,
-  documentation, and provenance that the change actually affects.
+- **Create or revise** — adapt the workflow to the change and edit the skill,
+  callers, documentation, and provenance that the change actually affects.
 - **Diagnose or review** — inspect, design, and validate read-only, then report
   evidence and concrete recommendations. Make no edits unless the user also
   asks for implementation.
 
-When a creation request turns out to be owned by an existing skill or
-reference, stop with a recommendation to extend that owner. Continue into an
-edit only when the user requested implementation.
+When an existing skill or reference already owns the requested job, extend it
+within the user's scope instead of creating a competing owner. Clarify only
+if that would materially change the requested deliverable.
 
 ## 1. Inspect the target
 
@@ -42,15 +42,22 @@ Complete this step when you can state:
 
 ## 2. Design the invocation boundary
 
-Decide whether the skill is manual-only, model-only, or reachable through both
-surfaces before writing the body. For every model-reachable branch, write
-representative positive prompts and nearby prompts that should not select it.
-For every human-reachable branch, define the explicit slash invocation and any
-argument shape.
+Preserve an existing invocation policy unless changing it is part of the task.
+For a new skill, default to normal relevance-based discovery and direct user
+invocation. Choose manual-only when explicit invocation is the intended
+contract, not merely because some operations need authorization. Require that
+authority at the relevant action and reuse it once granted. Hide an internal
+skill from the picker only when direct access would add noise.
+
+For model-reachable behavior, choose representative positive prompts and nearby
+prompts that should not select it. For direct invocation, define the slash
+command and any actual argument shape. Keep names short and task-oriented;
+resolve other skills from the active catalog rather than inventing aliases.
 
 Discover the roots supported by the installed client, then use the one already
-selected by the target repository. If no root exists, verify the current client
-contract and ask the user before introducing one. Do not add a parallel skill
+selected by the target repository. If no root exists, use the supported
+project-local root unless the user specified another scope; clarify only when
+the intended installation scope is unresolved. Do not add a parallel skill
 tree. Place each skill at `<selected-root>/<kebab-case-name>/SKILL.md`, with
 optional `references/`, `scripts/`, and `assets/` directories beside it. Keep
 disclosed references one level below `SKILL.md` and point to each one directly
@@ -97,8 +104,9 @@ file has a pointer whose wording says when to load it.
 ## 4. Implement and reconnect
 
 For create or revise mode, write a concise `SKILL.md` with supported
-frontmatter, ordered steps or co-located reference, and checkable completion
-criteria. Add only the bundled resources justified in the previous step.
+frontmatter, the useful outcome, decision criteria and essential constraints.
+Use ordered steps and strict completion gates only where sequence or risk
+requires them. Add only resources that improve this skill's actual tasks.
 
 Update direct callers, routers, and bundled provenance when the skill's name,
 invocation boundary, or imported material changes. Update consumer-owned
@@ -120,10 +128,11 @@ no-ops, duplication, and stale repository assumptions. In diagnose or review
 mode, run only non-mutating checks and include successes and failures as
 evidence instead of requiring the target to pass.
 
-In create or revise mode, revise against observed behavior. The edit is
-complete when structure and links pass, invocation matches its mode, every
-branch meets its completion criterion, and the final diff contains only
-intentional changes.
+In create or revise mode, revise against observed behavior. Check that the
+skill selects the right task, takes a useful next action and completes the
+requested outcome without unnecessary questions or scope expansion. Structural
+validation or a forced skill load alone does not prove autonomous selection.
+Report behavior not exercised as unverified. Keep the final diff intentional.
 
 In diagnose or review mode, the work is complete when an evidence-based report
 covers the observed invocation behavior, structural or behavioral failures,

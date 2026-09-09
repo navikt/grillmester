@@ -10,9 +10,9 @@ team. Interne navn kan bety ulike ting på tvers av Nav.
 2. Oppgi kilden hvis en definisjon finnes.
 3. Hvis definisjonen mangler eller flere varianter finnes, spør brukeren. Ikke
    velg den mest plausible betydningen.
-4. Hvis definisjonen bør dokumenteres, avklar hvilket consumer-eid repository
-   og dokument som er riktig. Vis utkast og be om godkjenning før du skriver
-   eller oppretter en PR.
+4. Hvis definisjonen skal dokumenteres, bruk avtalt consumer-eid repository og
+   dokument. Gjenbruk mandat for mål, handling og omfang. Når mål eller mandat
+   mangler, vis utkastet og spør bare om det som trengs før skriving eller PR.
 
 ## Eksempler som krever kontekst
 

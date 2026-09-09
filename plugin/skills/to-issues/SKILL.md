@@ -64,7 +64,7 @@ can't stay green alone, keep the sequence but let them share an integration
 branch that all block a final integrate-and-verify issue — green is promised
 only there.
 
-### 4. Quiz the user
+### 4. Resolve material gaps
 
 Present the proposed breakdown as a numbered list. For each issue, show:
 
@@ -73,15 +73,16 @@ Present the proposed breakdown as a numbered list. For each issue, show:
 - **In short**: who or what benefits, what changes, and why it matters
 - **Implementation brief**: the decisive technical context, proof, and scope
 
-Ask the user:
+Use the agreed plan to choose granularity and blocking edges. Ask only when a
+material scope or dependency choice cannot be inferred. A settled breakdown
+does not need another interview.
 
-- Does the granularity feel right? (too coarse / too fine)
-- Are the blocking edges correct — does each issue only depend on issues that genuinely gate it?
-- Should any issues be merged or split further?
-
-Iterate until the user approves the breakdown. Approval of its shape is not
-authorization to mutate the tracker: present the exact issues, metadata, and
-relationships and obtain explicit authorization for those writes.
+Distinguish drafting from publishing. A request to create tickets from the
+agreed plan authorizes those issue writes and their necessary native
+relationships; carry that authorization forward. Approval of a draft alone
+does not authorize publication. If publication was not requested, finish the
+drafts and proposed metadata before asking for that specific action. Ask again
+only for writes outside the existing scope.
 
 ### 5. Publish the issues to GitHub
 

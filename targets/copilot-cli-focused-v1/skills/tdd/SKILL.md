@@ -50,17 +50,14 @@ style, public seam, focused command, broader gate and fixture conventions. Do
 not assume Gradle, Kotest, Ktor, Jest, Vitest, pytest, containers or any other
 stack choice until repository evidence establishes it.
 
-Before you write code:
+Identify the public interface and list the observable behaviors to prove, using
+the existing brief and repository contract. Prioritize critical paths and
+complex logic such as authorization, validation and state transitions. Prefer
+a small interface that can be tested without exposing internal collaborators.
 
-- [ ] Clarify with the user which interface changes are needed (new route, new service function, new contract)
-- [ ] Clarify which behaviors are to be tested, and prioritize
-- [ ] Look for deep modules — small interface, deep implementation — so the service is easy to test from the outside
-- [ ] List the behaviors to be tested (not implementation steps)
-- [ ] Get the user's approval
-
-Ask: "Which public interface should we expose? Which behaviors matter most to test?"
-
-**You cannot test everything.** Clarify exactly which behaviors matter most. Spend testing effort on critical paths and complex logic — authorization, validation rules, state transitions — not every conceivable edge case.
+An agreed brief or a concrete request to add a regression test and fix the bug
+is sufficient to begin. Ask only about material behavior or interface choices
+that remain unresolved; starting a TDD cycle does not require another approval.
 
 ### 2. Tracer bullet
 

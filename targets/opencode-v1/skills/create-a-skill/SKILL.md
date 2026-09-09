@@ -16,8 +16,9 @@ root govern the artifact.
 - **Diagnose or review** — inspect and validate read-only, then report evidence
   and recommendations. Edit only if the user also requested implementation.
 
-Stop and recommend extending an existing owner when the requested behavior is
-already owned by a skill or reference.
+When a skill or reference already owns the requested job, extend it within the
+user's scope instead of creating a competing owner. Adapt the work to the
+change; clarify only when it would materially change the requested deliverable.
 
 ## 1. Inspect the target
 
@@ -35,6 +36,12 @@ agreement. State the skill's one job, its boundary, current callers, and
 whether it needs a separate slash command.
 
 ## 2. Design discovery and invocation
+
+Preserve existing invocation policy unless the task changes it. Default a new
+task skill to relevance-based discovery, with a direct command when useful.
+Reserve deliberate-only access for an explicit entry-point contract, not merely
+because a later operation needs authorization. Reuse authorization already
+granted for that action; a method or phase change does not require another ask.
 
 Use portable skill frontmatter:
 
@@ -64,7 +71,9 @@ needed heading in [the glossary](references/glossary.md).
 
 ## 4. Implement and reconnect
 
-Write the smallest complete skill and only justified bundled resources. Update
+Write the outcome, decision criteria and essential constraints. Use fixed
+sequences or strict gates where order, correctness or safety requires them;
+leave room for judgment elsewhere. Add only useful bundled resources. Update
 direct callers, command wrappers, adapter policy, and provenance affected by a
 name or invocation change. If a repository generates its OpenCode target,
 change the canonical source or target overlay and regenerate; never hand-edit
@@ -83,6 +92,9 @@ the client may create dependency artifacts. Test explicit command invocation,
 positive skill discovery, a close negative prompt, and every distinct branch
 that can be exercised without unauthorized external writes.
 
-In diagnose mode, a failing target is valid evidence. In create/revise mode,
-iterate until structure, discovery, permission behavior, and the final diff
-match the intended contract.
+Check that the skill selects the right task and performs a useful next action
+without unnecessary questions or scope expansion. A listing or forced skill
+load does not prove autonomous selection. Report unexercised behavior as
+unverified. In diagnose mode, a failing target is valid evidence. In
+create/revise mode, iterate against observed behavior and keep the diff within
+the intended contract.

@@ -134,10 +134,6 @@
       "to": "`question`"
     },
     {
-      "from": "ask_user:",
-      "to": "question:"
-    },
-    {
       "from": "`execute`",
       "to": "`bash`"
     },

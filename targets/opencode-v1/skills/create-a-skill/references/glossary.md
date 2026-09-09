@@ -1,8 +1,7 @@
 # Glossary — Building Great Skills
 
-The domain model for what makes a skill great. A skill exists to wrangle
-determinism out of a stochastic system; the root virtue is **Predictability**,
-and every term below is a lever on it.
+Terms for writing useful, discoverable skills. Use them to reason about a
+concrete design problem, not as a required vocabulary or universal process.
 
 The terms are grouped by axis: **Invocation** (how a skill is reached),
 **Information Hierarchy** (how its content is arranged), **Steering** (how the
@@ -14,11 +13,9 @@ Each **failure mode** lives beside the lever that cures it, tagged
 
 ## Predictability
 
-The degree to which a skill makes the agent behave the same *way* on every run
-— the same process, not the same output. A brainstorming skill should
-predictably diverge: its tokens vary, its behavior does not. The root virtue
-every other term serves; cost and maintainability are symptoms of it, not
-rivals.
+The degree to which a skill reliably respects user intent, essential
+constraints and evidence while producing its intended outcome. The appropriate
+process can vary with the task, existing context and available tools.
 
 _Avoid_: consistency, reliability, robustness, output-determinism
 
@@ -92,9 +89,9 @@ _Avoid_: dispatcher, menu, registry, index, router procedure
 
 How finely skills are divided. Finer division spends one of two loads: more
 **Model-Invoked** skills spend **Context Load** and more human-facing skills
-spend **Cognitive Load**. Split by invocation where a distinct **Leading Word**
-should trigger independently. Split by sequence where a step's
-**Post-Completion Steps** need hiding behind a real context boundary.
+spend **Cognitive Load**. Split when a coherent task has its own trigger and
+useful result. Prefer conditional **Reference** over a new skill when only a
+long procedure or example needs separation.
 
 _Avoid_: chunking, modularity
 
@@ -118,9 +115,9 @@ _Avoid_: structure, organization, layout
 
 ### Steps
 
-The ordered actions the agent performs. When a skill has them, they are the
-primary tier of `SKILL.md`. Every step ends on a **Completion Criterion**. Not
-every skill needs steps; a skill can be all steps, all **Reference**, or both.
+Actions whose order matters to the task. Use explicit **Completion Criteria**
+where they prevent a concrete failure. Not every skill needs ordered steps;
+decision criteria, constraints and **Reference** may be sufficient.
 
 _Avoid_: workflow, instructions, choreography
 
@@ -196,19 +193,17 @@ _Avoid_: keyword, term, motif
 
 ### Completion Criterion
 
-The condition that tells the agent a unit of work is done. Its clarity resists
-**Premature Completion**; its demand controls **Legwork**. The strongest
-criteria are both checkable and exhaustive. Clarity needs **Steps** to prevent
-between-step rushing, while demand also binds flat **Reference**.
+The observable condition that establishes the intended outcome. Match its
+detail to the task's risk and failure modes; exhaustive criteria are useful
+only when missing an item would materially affect correctness or safety.
 
 _Avoid_: done condition, exit condition, stopping rule
 
 ### Legwork
 
-The work an agent does inside a step: reading files, exploring code, running
-checks, and digging up facts rather than offloading them to the user. A
-demanding **Completion Criterion** or strong **Leading Word** increases it.
-It can be thin even when no between-step rush occurs.
+The investigation and verification needed to resolve the task: reading files,
+exploring code, running checks and finding facts. Choose it for the uncertainty
+or risk it resolves rather than maximizing the amount of work.
 
 _Avoid_: scope, effort, diligence, coverage
 

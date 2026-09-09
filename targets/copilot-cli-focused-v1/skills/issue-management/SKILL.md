@@ -69,14 +69,17 @@ Before proposing a pickable status, apply the consumer's documented readiness ga
 intake issue may remain in backlog; do not compensate for missing evidence or
 scope by inventing technical detail.
 
-## 4. Confirm and write
+## 4. Confirm scope and write
 
-Present the exact issues and mutations first. Obtain explicit human
-authorization for that bounded set of external writes.
+The user must have authorized the target and bounded set of external writes.
+Reuse authorization already supplied by the request or calling brief; moving
+from a specification or breakdown into tracker mechanics requires no new
+approval. If authority or a material choice is missing, present the exact
+issues, metadata and mutations, then ask only for what remains unresolved.
 
 In `grillmester local run`, the original `local run` prompt may carry that
 human authorization when it names the exact, bounded mutation and repository.
-This means there is no second client tool dialog. It does not authorize
+That mode has no second client tool dialog. Existing authorization does not allow
 unstated writes or resolve an ambiguous repository, account, issue body or
 metadata choice; return `Status: NEEDS_INPUT` when any such choice remains.
 

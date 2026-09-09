@@ -1,19 +1,25 @@
 ---
 name: handoff
-description: "Prepare a compact temporary handoff for a fresh session to resume current work. Use when the user requests a session transfer or context pressure requires one; use a bounded task brief for same-session agent delegation."
+description: "Prepare a portable handoff when the user requests transferring work to another session, client, or colleague. Ordinary context compression and same-session delegation belong to the client."
 disable-model-invocation: true
 ---
 
 # Handoff
 
-Create a handoff only at a real session seam or context-pressure boundary.
-Use a short, bounded task brief for same-flow agent delegation instead.
+Create a handoff only for a user-requested transfer. Let the client manage
+ordinary compaction; a long conversation, high context usage, or phase change
+does not trigger a handoff or require a fresh session. Use the client's native
+delegation with a bounded task brief for work within the same session.
 
 1. Create a private directory under the user's OS temporary directory, for
    example with `mktemp -d` on Unix-like systems. Do not write the handoff to
    the repository or directly to a predictable shared temporary path.
-2. Record the goal, current state, next actions, blockers, and suggested
-   skills. If the user supplied arguments, use them to focus the next session.
+2. Record the goal, current state, decisions and their rationale, remaining
+   actions, blockers, and existing authorization. Focus the brief on the
+   receiving task. If a skill recommendation helps, have the recipient resolve
+   it against its active catalog rather than assume the same installation.
+   Identify the repository by its known project identity or a safe canonical
+   URL as well as the sender's local path; never print credential-bearing remotes.
 3. Reference existing specs, plans, ADRs, context documents, issues, commits,
    diffs, and pull requests by canonical path or URL. Do not duplicate their
    contents; durable team state belongs in those artifacts.
@@ -37,10 +43,13 @@ git -C "$repository_root" rev-parse HEAD
 git -C "$repository_root" status --short --branch --untracked-files=all
 ```
 
-Tell the receiving session to use that repository path, rerun the commands,
-and compare the branch, commit, and status before continuing. Stop and resolve
-the discrepancy with the user when the state has drifted. If no Git worktree
-or `HEAD` exists, record the canonical working directory and relevant artifact
+On the same machine, the recipient can reuse the repository path. Elsewhere,
+locate the corresponding checkout by repository identity; sender-local paths
+are not instructions to create a matching directory. Rerun the commands and
+compare the branch, commit, and status before continuing. Reassess changed
+state before relying on old conclusions; ask the user only when the intended
+workspace or remaining authority cannot be inferred. If no Git worktree or
+`HEAD` exists, record the canonical working directory and relevant artifact
 paths instead.
 
 This preflight verifies repository identity and the shape of the working tree,
@@ -49,6 +58,9 @@ or untracked content and previous test results as unverified after the handoff:
 reread the complete current diff and rerun the relevant checks before relying
 on them.
 
-After writing the document, reopen it from its canonical path and confirm that
-it is readable and non-empty. Then print that absolute path so the user can
-give it to the receiving session.
+After writing the document, reopen it and confirm it is readable and non-empty.
+Return the absolute path for a same-machine transfer. For a colleague or another
+machine, also provide the redacted brief as copyable content and identify any
+referenced files or uncommitted changes that must travel with it. Do not imply
+that private temporary files are remotely accessible or durable. Sending,
+publishing, or starting a new session is outside this skill's task.

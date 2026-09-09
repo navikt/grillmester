@@ -31,10 +31,13 @@ data.
 
 ## Interaction and capability boundary
 
-Resolve material user-owned choices interactively before any local or external
-write. When `ask_user` is unavailable or the run cannot wait for a user reply,
-do not guess, treat silence as approval, or continue with a provisional choice.
-Stop before writes and return a concise packet:
+Resolve material user-owned choices before the work that depends on them.
+Reuse decisions and authorization already given for the current scope; ordinary
+implementation choices follow repository patterns and evidence. Use `ask_user`
+when available, otherwise ask in the conversation. Continue independent,
+authorized work while awaiting a required answer. Never treat silence as
+approval. If the run cannot wait for a reply, stop only the dependent work and
+return a concise packet:
 
 ```text
 Status: NEEDS_INPUT
@@ -48,8 +51,8 @@ Resume with: <the user's required answer>
 Inspect the capabilities actually available in the current runtime. When an
 external fact is required and approved web or MCP retrieval is unavailable,
 never replace it with shell-network commands or memory. Use repository evidence
-only where it is sufficient; otherwise return `NEEDS_INPUT` before writes and
-name the missing source or capability.
+only where it is sufficient; otherwise mark the dependent work `NEEDS_INPUT`
+and name the missing source or capability. Continue independent authorized work.
 
 Use the repository-declared toolchain for verification.
 Never install or invoke a substitute package or tool to bypass unavailable repository verification.

@@ -15,8 +15,9 @@ correct, and recommend the smallest useful improvement.
 Never create, edit, delete, rename, install, authenticate, enable, disable, or
 update anything while this skill is active. Do not print provider credentials,
 tokens, request headers, or complete configuration values that may contain
-secrets. If the user also asks for a fix, complete the audit and propose the
-exact change as a separate authorized step.
+secrets. If the user also asks for a fix, complete the audit and return its
+evidence and bounded file set to the calling workflow. That workflow can then
+implement within the existing authorization without a new approval round.
 
 Invoking this skill proves only that the skill is visible in this session. It
 does not prove that every Grillmester agent or command is discovered, that a
@@ -65,7 +66,7 @@ Hovmester workflows, and instruction references. Mark unobservable source or
 precedence links `UNVERIFIED`. The source checkout's read-only
 `scripts/audit_consumer_setup.py` can inventory these without a legacy manifest
 or caller; user roots must be passed explicitly. Review its exact-copy file
-hashes before any separate authorized removal. Preserve customized or unknown
+hashes before any authorized removal. Preserve customized or unknown
 components and consumer domain rules; names or manifest membership alone are
 not deletion evidence.
 
@@ -100,6 +101,20 @@ Verify these dimensions separately:
 Treat the OpenCode target as generated output. Recommend changing its canonical
 plugin source, adapter policy, or overlay and regenerating it; never recommend
 hand-editing a generated file.
+
+## Keep consumer instructions minimal
+
+Keep one concise source for shared repository facts and constraints. `AGENTS.md`
+may own that content or be a tiny pointer to another consumer-owned instruction
+file, provided the intended clients demonstrably read the shared content.
+Verify effective discovery; do not relocate useful rules merely to prefer a
+filename or duplicate them across clients.
+
+Retain only essential context that models cannot reliably infer from maintained
+code and tooling. Prefer existing documentation pointers over copied guidance.
+Missing extra instruction files are not a defect. Do not recreate setup
+workflows, sync checks, generic task procedures or instruction trees to fill
+this audit's categories.
 
 ## Return one compact report
 

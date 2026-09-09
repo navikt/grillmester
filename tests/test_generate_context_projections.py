@@ -247,7 +247,6 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "commands/diagnosing-bugs.md",
                 "commands/integration-tests.md",
                 "commands/issue-management.md",
-                "commands/review.md",
                 "commands/security-review.md",
                 "commands/tdd.md",
                 "skills/diagnosing-bugs/SKILL.md",

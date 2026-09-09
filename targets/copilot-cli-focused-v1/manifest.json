@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "545e7b6764858f09556304f7ed94b5476329154c9b6a77d88ffef0feab755cd5",
+    "payloadManifestSha256": "692cea1ad5eb34b1062e9bb45b6840dd021bfd536bb87e4377d4bb49fe0b53ce",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
   },
@@ -49,7 +49,7 @@
       "mode": "0644"
     },
     "agents/barista.agent.md": {
-      "sha256": "ad7844491d9c8eac79b15f375a8e77336605a936199d77c1823da143af16c0e2",
+      "sha256": "037a5cba9ab1263c386a7cbad88c3a60435cdc7fffcf1cd66ea4aeb4421f592b",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
@@ -61,7 +61,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "63d804fa354d6ab69ee74755aa946e9d4f3735288fc7c9b42ffbfd407d13cf5f",
+      "sha256": "5112026b0fef1f1d386433880fffb76c585cfb620504b4594d67ad0b32f07f07",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
@@ -73,7 +73,7 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "72508cf3d850a3e77eaa3d433a9dd744bd0bee516443f8a0724214a7df3adcea",
+      "sha256": "b31fe83326d0acde7f5689c7a1ded29cd231b71e7784922795b53cc3b84cfbea",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
@@ -81,7 +81,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "824a616091a9e8c6904f376e1fda7e57f24e9ce277aa8dd48cddd6ce6272c21d",
+      "sha256": "fe74cac3834d3373170ef78bb1c2c35c907ec1a549258edd46d0cdbb51733586",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -97,7 +97,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "522cde73401bbfeb5d3cff789a3b40ee3f4be493144567cd850dbfe36421045c",
+      "sha256": "cb8cf2fe560d59f8bf05a99637a69d3aa02b6694ae7f9e144adb840f1bca9593",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {

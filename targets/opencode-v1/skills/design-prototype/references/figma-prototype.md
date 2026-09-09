@@ -2,9 +2,10 @@
 
 > **Write-gate:** Lesing av Figma-kontekst og eksisterende Code Connect-mapping
 > er tillatt som standard. Oppretting eller redigering av en Figma-fil og andre
-> eksterne writes krever en konkret preview og eksplisitt godkjenning. Denne
-> arbeidsflyten skal aldri opprette, endre eller publisere Code Connect-mapping.
-> Gaten gjelder alle arbeidsflyter og eksempler i denne referansen.
+> eksterne writes krever eksplisitt mandat for mål, handling og omfang. Gjenbruk
+> mandat brukeren allerede har gitt; vis konkret preview og spør bare når noe
+> mangler. Denne arbeidsflyten skal aldri opprette, endre eller publisere Code
+> Connect-mapping. Gaten gjelder alle arbeidsflyter og eksempler i referansen.
 
 Før denne referansen brukes som write-oppskrift, bekreft at runtime tilbyr en
 konkret Figma create/edit-kapabilitet. Read-only Figma MCP er nyttig for
@@ -17,7 +18,8 @@ Issue-utkast; MCP-tilstedeværelse alene er ikke write-evidens.
 whoami → plans[0].key (typisk "organization::810213623608415105" for Nav)
 ```
 
-Hvis flere plans: spør designeren hvilken organisasjon.
+Bruk organisasjonen fra avtalt fil- eller teamkontekst. Hvis flere plans er
+mulige og riktig organisasjon fortsatt er uklar, spør designeren før oppretting.
 
 ## Opprett fil etter eksplisitt godkjenning
 
@@ -25,9 +27,9 @@ Hvis flere plans: spør designeren hvilken organisasjon.
 create_new_file(fileName: "<beskrivende navn>", planKey: "<key>", editorType: "design")
 ```
 
-Spør designeren: "Vil du lagre i Drafts (standard) eller et spesifikt prosjekt?"
-- Drafts: utelat projectId
-- Prosjekt: be om URL eller prosjekt-ID, bruk `projectId`-parameteret
+Følg avtalt plassering. Er plasseringen uavklart og påvirker tilgang eller
+samarbeid, vis alternativene før oppretting: Drafts (uten `projectId`) eller et
+spesifikt prosjekt (med avklart URL/prosjekt-ID i `projectId`).
 
 ## Aksel-biblioteker i Nav-org
 

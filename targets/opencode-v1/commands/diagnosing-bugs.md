@@ -1,5 +1,5 @@
 ---
-description: "Reproduce and diagnose a bug through a minimized symptom, ranked hypotheses and regression evidence. Use for failures, hangs, flakes or performance regressions with an unclear cause; use `nav-troubleshoot` first when the missing evidence is in a deployed Nais environment."
+description: "Diagnose failures, hangs, flakes or performance regressions from reproduction, code and runtime evidence. Use when the cause is unclear; use `tdd` for an established fix and `nav-troubleshoot` when the missing evidence is in a deployed Nais environment."
 ---
 
 Use the `skill` tool to load `diagnosing-bugs`, then follow that skill for this request.

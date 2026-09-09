@@ -1,6 +1,6 @@
 ---
 name: design-prototype
-description: "Explore visual concepts and user flows as interactive Aksel browser sketches or Figma-ready designs. Use when layout, hierarchy, interaction or visual alternatives need a concrete preview; use `prototype` for executable behavior or data-model experiments and `figma-workflow` for an existing Figma design."
+description: "Explore or refine visual concepts, user flows and existing Figma designs through Aksel browser sketches or editable Figma components. Use for layout, hierarchy and visual alternatives; use `prototype` for executable behavior and `figma-workflow` to translate a chosen design into code or an implementation brief."
 ---
 # Prototype — fra konsept til synlig skisse
 
@@ -20,10 +20,12 @@ implementeringsbrief eller kode innenfor den aktive agentens mandat.
 
 Analyse, lesing av eksisterende Figma-kontekst og lokal visualisering er
 read-only for konsumentrepoet. Visual Companion skriver bare til en privat,
-midlertidig sesjonsmappe utenfor repoet. Før skillen oppretter eller endrer en
-Figma-fil, oppretter en Issue eller gjør en annen ekstern write, skal den vise
-en kort preview og få et eksplisitt ja til den avgrensede handlingen.
-Godkjenning av én handling dekker ikke senere writes.
+midlertidig sesjonsmappe utenfor repoet. Figma-, Issue- og andre eksterne writes
+krever eksplisitt mandat for mål, handling og omfang. Brukerens konkrete
+bestilling kan gi mandatet; gjenbruk det for operasjonene som fullfører den
+bestilte endringen. Når mandat eller et vesentlig valg mangler, vis en kort
+preview av mål og endring og spør bare om det som mangler. Nye mål eller utvidet
+omfang trenger eget mandat; et fasebytte krever ingen ny godkjenning.
 
 Ikke opprett branch eller commit, og ikke push, opprett pull request eller
 deploy automatisk.
@@ -42,7 +44,9 @@ deploy automatisk.
 - Designeren allerede vet hva de vil og trenger Figma-komponenter
 - Komponentbygging og produksjonsnære leveranser
 
-Visual Companion er best for **tidlig utforsking** — når retningen er uklar og du vil se 2-3 konsepter raskt. Når retningen er valgt, gå rett til Figma.
+Visual Companion er best for **tidlig utforsking** — når retningen er uklar og du
+vil se noen tydelige konsepter raskt. Gå videre til Figma når det er bestilt;
+nettleserutforsking trenger ingen automatisk Figma-leveranse.
 
 ## Fase 1: Visuell utforsking (Visual Companion)
 
@@ -68,7 +72,7 @@ last den lange referansen i en ren chat- eller Figma-flyt.
    faktiske pakkebehandler. Be brukeren eller en separat autorisert
    utviklerflyt kjøre den etter eksplisitt godkjenning; Designer skal aldri
    installere pakken selv. Fortsett ellers med fallback-stilene.
-2. Etter at designeren har takket ja til nettleservisning, start serveren:
+2. Når designeren har bestilt eller takket ja til nettleservisning, start serveren:
    ```bash
    # Run from this skill's bundled directory:
    node scripts/server.js --project-dir <consumer-repo>
@@ -85,12 +89,17 @@ last den lange referansen i en ren chat- eller Figma-flyt.
 Klassifiser selv. Bruk issue-/oppgavetekst når det finnes; ellers bruk prompt, side-/rutenavn, komponentnavn og appkontekst. Endring/forbedring/ny komponent på kjent side = eksisterende flate. Ved tvil, anta eksisterende flate.
 
 For eksisterende løsning er dette en gate før første visuelle forslag, også ved Figma/chat:
-1. Hent faktisk side med Playwright/lokal app først; alternativt Figma, demo-URL eller manuelt skjermbilde.
-2. Verifiser riktig side og fjern/stubb lokal cookie-, login- og modalstøy før screenshot.
-   Rediger bort navn, fødselsnummer, fritekst og andre personopplysninger. Bruk
+1. Bruk den Figma-skissen designeren har valgt som utgangspunkt; ellers hent
+   faktisk side med Playwright/lokal app først, alternativt en tillatt visuell
+   kilde eller et manuelt skjermbilde. En Figma-import krever eget skrivemandat.
+2. Verifiser riktig side eller Figma-node. Ved lokal app, fjern ufarlig cookie-
+   og modalstøy før screenshot; ikke omgå innlogging. Rediger bort navn,
+   fødselsnummer, fritekst og andre personopplysninger fra delte bilder. Bruk
    aldri ekte data, secrets eller autentiserte produksjonsdata i Visual Companion.
 3. Vis før/etter med samme viewport, data og sidekontekst; forklar hva som er endret og uendret.
-4. Åpne Visual Companion selv før deling og sjekk at skjermbilder laster (`naturalWidth > 0`).
+4. Verifiser i den valgte flaten: ved nettleserskisse, åpne Visual Companion og
+   sjekk at skjermbilder laster (`naturalWidth > 0`); ved direkte Figma-arbeid,
+   inspiser Figma-resultatet. Ikke start en nettleserøkt for en ren Figma-flyt.
 5. Aldri rekonstruer eksisterende side fra kode og presenter den som nåtilstand.
 
 ### Tilby visual companion
@@ -137,8 +146,9 @@ Se `references/visual-companion.md` for alle CSS-klasser og eksempler.
   skriver neste skjerm. Hvis ikke, start en ny økt og del den nye komplette URL-en.
 - Semantiske filnavn: `konsept-a.html`, `layout-v2.html`
 - Aldri gjenbruk filnavn
-- Tre strukturelt forskjellige alternativer er standard; bruk 2–4 når
-  problemrommet tilsier det. Ulik copy eller farge alene er ikke en ny retning.
+- Ved et åpent retningsvalg, lag vanligvis tre strukturelt forskjellige
+  alternativer; bruk antallet oppgaven trenger. Ulik copy eller farge alene er
+  ikke en ny retning. Avtalte detaljjusteringer trenger ingen nye varianter.
 - Bruk samme representative, syntetiske datasett, viewport og omtrent samme
   innholdstetthet i variantene, slik at sammenlikningen blir rettferdig.
 - Forklar spørsmålet på siden: «Hvilken tilnærming passer best?»
@@ -159,12 +169,14 @@ Etter at designeren har sett skjermen:
 
 ### Variant-utforskning
 
-1. Lag 2–3 varianter som valgalternativer på skjermen
+Bruk dette når et retningsvalg står åpent; gjenbruk ellers det avtalte valget.
+
+1. Lag tydelig forskjellige varianter som valgalternativer på skjermen
 2. Spør: «Hvilken variant foretrekker du?» med beskrivende navn
 3. Iterer på valgt variant
 4. Fang valgt variant, hvorfor den vant og eventuelle lånte deler. Behold også
    en observerbar referanse: skjermbilde når mulig, ellers HTML-filnavn,
-   screen-/choice-ID og designerens eksplisitte valg. Gå til Fase 2.
+   screen-/choice-ID og designerens eksplisitte valg. Fortsett til avtalt leveranse.
 
 ### Situasjoner brukeren møter
 
@@ -182,8 +194,8 @@ oppdagelsessnapshot og [tokenreferansen](references/aksel-figma-tokens.md) for
 layouten rundt dem. Det aktive Figma-biblioteket er autoritativt.
 
 1. Finn riktig plan og filkontekst read-only.
-2. Vis leveranse-preview og få eksplisitt godkjenning før filoppretting eller
-   redigering.
+2. Bekreft mandat for mål og endring før filoppretting eller redigering.
+   Gjenbruk eksisterende mandat; vis preview og spør når noe vesentlig mangler.
 3. Søk Aksel først. Bruk en eksisterende komponent når den finnes; bygg custom
    bare når biblioteket faktisk mangler mønsteret.
 4. Preflight komponentnøkkel, varianter og tekst-/fontkrav mot det aktive
@@ -191,13 +203,17 @@ layouten rundt dem. Det aktive Figma-biblioteket er autoritativt.
    målrettet, ikke til å hoppe over den.
 5. Bygg inkrementelt, én seksjon per kall, med eksakte navn fra katalog eller
    preflight.
-6. Sammenlign Figma-screenshot mot valgt Visual Companion-retning. Bevar flyt,
-   hierarki og innhold; la aktivt Aksel-bibliotek styre komponentstruktur,
-   varianter og tokens. Fiks utilsiktede avvik og del oppdatert lenke.
+6. Sammenlign Figma-screenshot mot avtalt resultat: valgt Visual Companion-
+   retning når den finnes, ellers brukerens valgte Figma-kilde og bestilling
+   eller det avtalte konseptet. Bevar ønsket flyt, hierarki og innhold; la aktivt
+   Aksel-bibliotek styre komponentstruktur, varianter og tokens. Fiks utilsiktede
+   avvik og del oppdatert lenke.
 
-Lever redigerbare komponenter og samle tilstander i én variant-komponent. For
-eksisterende flater: bruk ekte skjermbilde som bakgrunn og en redigerbar overlay;
-aldri presenter en håndkodet rekonstruksjon som nåtilstand.
+Lever redigerbare komponenter og samle tilstander i én variant-komponent. Når
+en komponent skal vises i appens eksisterende sidekontekst, bruk ekte skjermbilde
+som bakgrunn og en redigerbar overlay; aldri presenter en håndkodet
+rekonstruksjon som nåtilstand. Direkte Figma-iterasjon bruker den avtalte
+Figma-strukturen og trenger ikke en ny skjermbildebakgrunn.
 
 ## Iterasjon
 
@@ -228,7 +244,7 @@ Vis resultat → designer gir feedback → juster → gjenta til fornøyd.
 - Bruk Aksel-komponenter og -tokens
 - Returner bare URL/Figma-lenke som faktisk finnes
 - Bruk handlingsspråk — aldri verktøynavn
-- Spør designer før større endringer
+- Spør ved uløste designvalg eller endringer utenfor avtalt omfang
 - Del lenker raskt; for eksisterende flater først etter verifisert nåtilstand/før/etter
 
 ### 🚫 Aldri

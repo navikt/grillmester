@@ -104,12 +104,14 @@ participants, risks and constraints.
 
 ## Durable changes
 
-Before creating or changing a meeting invitation, collaboration surface, issue,
-document, message or other external resource:
-
-1. show the target, recipients and access level
-2. show the complete draft or planned structure
-3. ask for explicit approval
+For a requested meeting invitation, collaboration surface, issue, document or
+other resource, reuse existing authorization for the exact target, action,
+scope, recipients and access level. When a material choice or authority is
+missing, show the target and draft or planned structure, then ask only for what
+is missing. New recipients, wider access or expanded scope need their own
+authority. Sending invitations or messages and contacting participants require
+explicit outreach authorization; a facilitation-plan request alone does not
+grant it. The privacy constraints above apply to every authorized artifact.
 
 ## Boundaries
 
@@ -119,10 +121,11 @@ document, message or other external resource:
 - Adapt to the participants, decision format and accessibility needs.
 - Close with an evaluation and concrete next steps.
 
-### Ask first
+### Ask when authority or a material choice is missing
 
 - Create, share or change a meeting, document or collaboration surface.
-- Contact participants or publish results and team-health data.
+- Contact participants or publish results and team-health data; preserve the
+  explicit outreach and privacy boundaries.
 
 ### Never
 

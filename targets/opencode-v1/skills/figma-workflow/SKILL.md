@@ -1,12 +1,15 @@
 ---
 name: figma-workflow
-description: "Translate an existing Figma design into Aksel components, tokens and responsive implementation guidance. Use when a Figma link or design-to-code task supplies the design; use `design-prototype` to explore new concepts, and respect a design-only agent by returning a brief."
+description: "Translate a chosen Figma design into Aksel code or an implementation brief with component, token and responsive guidance. Use for design-to-code work; use `design-prototype` for visual exploration or changes to the Figma design itself. Design-only agents return a brief."
 ---
 # Figma → Aksel-kode
 
 > **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
-Bruk denne skillen når du har en Figma-lenke eller Figma-referanse og skal implementere designet i Nav-frontend med `@navikt/ds-react`.
+Bruk denne skillen når et valgt Figma-design skal oversettes til kode eller en
+implementeringsbrief for Nav-frontend med `@navikt/ds-react`. En Figma-lenke
+alene velger ikke denne flyten. Utforsking, sammenligning eller redigering av
+selve designet hører til `design-prototype`, også når Figma-filen finnes fra før.
 
 Når den valgte agenten har en design-only-grense, som
 `designer`, skal skillen bare hente designkontekst, kontrollere
@@ -17,9 +20,10 @@ Grillmester-flyt for steg 5–6.
 Lesing av Figma-kontekst er standardflyten. Hvis Figma-verktøy ikke er
 tilgjengelig, fall tilbake til brief, skjermbilder og eksisterende kode og merk
 begrensningen. Oppretting, redigering eller publisering i Figma, Code Connect
-eller andre eksterne systemer krever alltid en konkret preview og eksplisitt
-godkjenning. Ikke opprett branch eller commit, og ikke push eller opprett pull
-request automatisk.
+eller andre eksterne systemer krever eksplisitt mandat for mål og handling.
+Gjenbruk mandat brukeren allerede har gitt; vis en konkret preview og spør når
+mandat eller et vesentlig valg mangler. Ikke opprett branch eller commit, og
+ikke push eller opprett pull request automatisk.
 
 ## Aksel-dokumentasjon
 

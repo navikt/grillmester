@@ -162,8 +162,12 @@ the actual task scope: prepare a concrete map before asking for missing
 authority, and reuse authority already granted for that map. Do not ask for
 permission merely to load a skill or continue an authorized workflow.
 
-Use `handoff` only when a new session must take over at a real session boundary
-or because of context pressure. It is not the Kokk delegation mechanism.
+`handoff` is a manual skill: load it when the user invokes its skill entrypoint.
+Honor a plain-language transfer request with a compact brief without requiring
+a skill command or attempting a blocked automatic load. Let the client manage
+ordinary compaction; context pressure, a long conversation, or a phase change
+does not trigger a transfer. Delegate to Kokk through the native agent task
+tool with a bounded brief.
 
 At the plan boundary, recommend `/to-spec` only when a durable engineering
 specification adds value, and `/to-issues` only when several independently

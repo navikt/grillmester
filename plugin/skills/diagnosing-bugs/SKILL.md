@@ -1,11 +1,13 @@
 ---
 name: diagnosing-bugs
-description: "Reproduce and diagnose a bug through a minimized symptom, ranked hypotheses and regression evidence. Use for failures, hangs, flakes or performance regressions with an unclear cause; use `nav-troubleshoot` first when the missing evidence is in a deployed Nais environment."
+description: "Diagnose failures, hangs, flakes or performance regressions from reproduction, code and runtime evidence. Use when the cause is unclear; use `tdd` for an established fix and `nav-troubleshoot` when the missing evidence is in a deployed Nais environment."
 ---
 
 # Diagnosing Bugs
 
-A discipline for hard bugs. Skip phases only when you can explicitly justify it.
+Establish the failing boundary, test the most plausible causes and verify the
+fix. Use the sequence below as a preferred loop, adapting it to the evidence
+and access available. Distinguish observations, hypotheses and unverified work.
 
 Use the active task or calling brief as scope. If the repository advertises
 domain documentation or binding decisions, read only what touches the symptom;
@@ -32,9 +34,9 @@ for the reproduction and fix discipline. When the app runs on NAIS,
 
 ## Phase 1 — Build a feedback loop
 
-**This is the skill itself.** Everything else is mechanics. If you have a **tight** pass/fail signal for the bug — one that goes red on _this_ bug — you will find the cause; bisection, hypothesis testing and instrumentation merely consume the loop. Without it, no amount of code reading will save you.
-
-Spend disproportionate effort here. **Be aggressive. Be creative. Do not give up.**
+A repeatable signal for the exact symptom makes experiments and regression
+tests stronger. Read relevant code, logs and configuration to find that signal;
+prefer a runnable reproduction when it is feasible.
 
 ### Ways to construct one — try them roughly in this order
 
@@ -53,8 +55,6 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Do not give up
 7. **Differential loop.** Run the same input through the old vs. the new version (or two configurations) and diff the output.
 8. **HITL bash script.** Last resort. If a human has to click/act, drive _them_ with `scripts/hitl-loop.template.sh` so the loop stays structured. Only sanitized signal output is fed back to you.
 
-Build the right feedback loop and the bug is 90% fixed.
-
 ### Tighten the loop
 
 Treat the loop as a product. Once you have _a_ loop, **tighten** it:
@@ -65,33 +65,39 @@ Treat the loop as a product. Once you have _a_ loop, **tighten** it:
 - Can I make it more deterministic? (Pin time, seed randomness, isolate mutable
   state, and replace uncontrolled network access at an established seam.)
 
-A 30-second flaky loop is barely better than no loop; a 2-second deterministic one is tight — a debugging superpower.
+Use the fastest reliable loop the repository supports. A slower integration
+test can be the right boundary; speed is an optimization, not an entry gate.
 
 ### Non-deterministic bugs
 
-The goal is not a clean repro, but a **higher reproduction rate**. Loop the trigger 100×, parallelize, add stress, narrow timing windows, inject sleeps. A 50% flaky bug is debuggable; 1% is not — raise the rate until it is.
+Measure the failure rate and seek a controlled trigger using bounded repeated
+runs, concurrency or timing controls in an isolated test environment. Record
+the number of runs and failures; a few passing runs do not prove a flake fixed.
 
 ### When you genuinely cannot build a loop
 
-Stop and say so explicitly. List what you tried. Ask the user for: (a) approved
-access to the environment that reproduces it, (b) a captured artifact such as a
-HAR file, previous-process logs, event payload or trace, or (c) permission for
-temporary instrumentation. Do **not** move on to hypotheses without a loop.
+State what could not be reproduced and what you tried. Continue bounded code,
+configuration and sanitized log analysis to test specific explanations or
+design targeted instrumentation. Label inference and missing evidence; static
+analysis does not prove a runtime reproduction or a successful runtime fix.
 
-### Completion criterion — a tight loop that can go red
+Ask only for evidence or access needed for the next dependent step, such as a
+sanitized trace or an approved environment. Reuse existing authorization for
+local investigation and reversible instrumentation within scope. Production
+changes still require explicit authority. Lack of runtime access does not
+block independent analysis or an evidence-supported local patch.
 
-Phase 1 is done when the loop is **tight** and **red-capable**: you can name **one command** — a script path, a test invocation, a curl — that you have **already run at least once** (paste the sanitized invocation and signal-only output), and that is:
+### Evidence for a reproduction claim
 
-- [ ] **Red-capable** — it drives the actual failing code path and asserts the user's **exact symptom**, so it can go red on this bug and green once fixed. Not "runs without failing" — it must be able to _catch this specific bug_.
-- [ ] **Deterministic** — the same verdict every run (flaky bugs: a pinned, high reproduction rate, per above).
-- [ ] **Fast** — seconds, not minutes.
-- [ ] **Agent-runnable** — you can run it unsupervised; a human in the loop only via `scripts/hitl-loop.template.sh`.
-
-If you catch yourself reading code to build a theory before this command exists, **stop — jumping straight to a hypothesis is exactly the mistake this skill prevents.** No red-capable command, no phase 2.
+Name the command or human-assisted steps actually run and record sanitized
+signal output. The check must exercise the real failing path and detect the
+user's exact symptom. Report determinism or measured failure rate and any
+environment limits. An unrun command is a proposed check, not reproduction
+evidence. `scripts/hitl-loop.template.sh` can structure manual steps when useful.
 
 ## Phase 2 — Reproduce + minimize
 
-Run the loop. Watch it go red — the bug shows up.
+When a runnable loop is available, run it and confirm the observed failure.
 
 Confirm:
 
@@ -105,13 +111,15 @@ Once it is red, shrink the repro to the **smallest scenario that still goes red*
 
 Why bother: a minimal repro shrinks the hypothesis space in phase 3 (fewer moving parts left to suspect) and becomes the clean regression test in phase 5.
 
-Done when **every remaining element is load-bearing** — remove any one of them and the loop goes green.
-
-Do not move on before you have reproduced **and** minimized.
+Minimize enough to separate plausible causes and support a meaningful test.
+Do not delay a decisive experiment solely to obtain the smallest possible
+reproduction. Without a runnable loop, narrow the relevant code and evidence
+instead, preserving uncertainty about the runtime trigger.
 
 ## Phase 3 — Hypothesize
 
-Generate **3–5 ranked hypotheses** before testing any of them. Single-hypothesis generation anchors on the first plausible idea.
+Rank the explanations supported by the evidence. Consider alternatives when
+the cause remains ambiguous; do not invent extra hypotheses to fill a quota.
 
 Each hypothesis must be **falsifiable**: state the prediction it makes.
 
@@ -119,7 +127,8 @@ Each hypothesis must be **falsifiable**: state the prediction it makes.
 
 If you cannot state the prediction, the hypothesis is a gut feeling — discard it or sharpen it.
 
-**Show the ranked list to the user before testing.** They often have domain knowledge that re-ranks it instantly ("we just deployed a change to #3"), or know hypotheses they have already ruled out. Cheap checkpoint, big time saver. Do not block on it — proceed with your own ranking if the user is away.
+Share the leading explanation and next discriminating check when useful.
+Continue authorized experiments; this progress update is not an approval gate.
 
 ## Phase 4 — Instrument
 
@@ -148,7 +157,10 @@ Write the regression test **before the fix** — but only if a **correct seam** 
 
 A correct seam is one where the test hits the **real failure pattern** as it occurs at the call site. If the only available seam is too shallow (a single-caller test when the bug requires several callers, a unit test that cannot replicate the chain that triggered the bug), a regression test there gives false confidence.
 
-**If no correct seam exists, that is itself the finding.** Note it. The architecture prevents the bug from being locked down. Flag it for the next phase.
+If no suitable seam is available, report whether the limitation is architecture,
+fixtures, access or an unknown trigger. Avoid a test that cannot catch the bug.
+An evidence-supported patch can still be prepared with the available checks;
+report the missing regression proof and the next useful verification.
 
 If a correct seam exists:
 
@@ -158,20 +170,21 @@ If a correct seam exists:
 4. Watch it pass.
 5. Run the phase 1 loop against the original (un-minimized) scenario.
 
-Pass/fail is decided with the repository's discovered focused test command and
-proportionate broader gates. No "looks right" claim without fresh evidence —
-command, relevant output and exit code in the same message.
+Use the repository's focused test command and proportionate broader gates.
+Report commands actually run, relevant results and exit codes. Separate passing
+checks from any original runtime scenario that remains unverified.
 
 ## Phase 6 — Cleanup + post-mortem
 
-Required before you declare done:
+Before delivery:
 
-- [ ] The original repro no longer reproduces (rerun the phase 1 loop)
-- [ ] The regression test passes (or the absence of a seam is documented)
-- [ ] All `[DEBUG-...]` instrumentation removed (`rg -n "DEBUG-"` from the repository root)
-- [ ] Throwaway harness deleted (or moved to a clearly marked debug location)
-- [ ] The confirmed root cause is returned in the delivery summary so the next debugger learns
-- [ ] Fresh green evidence for the quality gates is returned to the calling workflow's verify step
+- Rerun the original reproduction and regression test when available; state
+  explicitly which scenarios could not be verified.
+- Remove temporary instrumentation and harnesses introduced by this task,
+  unless the user requested a diagnostic artifact for the next investigation.
+- Report the established cause or leading explanation, the patch if any,
+  checks run and remaining uncertainty. Do not call an unverified runtime
+  outcome fixed or the investigation complete when dependent work remains.
 
 **Then ask: what would have prevented this bug?** If the answer involves an
 architectural change (no good test seam, entangled callers, hidden coupling),
@@ -181,8 +194,8 @@ When the agreed fix changes lasting concepts or qualifying decisions, use
 `/grill-with-docs` and `/domain-modeling` within the authorized task and the
 repository's documentation policy. Do not require the user to select the same
 route again. Keep additional architectural proposals as candidates until the
-user chooses them. Make those recommendations after verifying the fix, when
-the reproduction has established which boundary needs improvement.
+user chooses them. Base those recommendations on the boundary established by
+the investigation, without turning every fix into an architecture exercise.
 
 ## Runtime/platform symptoms
 
@@ -191,7 +204,8 @@ deployment/startup, identity or authorization, messaging, database, or
 observability. Use only repository-approved platform tools, keep the pass
 read-only until the boundary is known, and then return to phases 5–6 here.
 Always propose the least invasive fix first. Production configuration changes,
-workload restarts and managed-resource changes require explicit approval.
+workload restarts and managed-resource changes require explicit authorization;
+reuse it when the user already approved the same concrete action.
 
 `nav-troubleshoot` gives deeper NAIS trees for pod startup, Nav
 identity, Kafka, Cloud SQL and observability. If required live platform evidence

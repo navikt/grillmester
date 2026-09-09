@@ -1,6 +1,6 @@
 ---
 name: guided-review
-description: "Guide a human through a pull request or resolved diff one reading step at a time, then prepare review findings. Use when the user wants to understand and assess the change interactively; use `review` for the normal self-review pass."
+description: "Guide a human through a pull request or resolved diff one reading step at a time, then prepare review findings. Manually invoke this workflow for an interactive assessment; use `review` for the normal self-review pass."
 ---
 # Guided review
 
@@ -8,6 +8,11 @@ description: "Guide a human through a pull request or resolved diff one reading 
 
 Build shared code understanding through an interactive walkthrough, then
 prepare a formal pre-merge review for the human to decide.
+
+This skill is manually activated. Its explicit invocation already requests the
+walkthrough: resolve the boundary and start the first useful reading step
+without asking whether to begin. Ordinary requests to explain a change can be
+answered directly without activating this workflow.
 
 ## 1. Establish the review boundary
 
@@ -99,7 +104,9 @@ explicit decision request are visible together.
 
 A request to review never authorizes a GitHub write, approval, request for
 changes, or merge. Publish only when the human explicitly approves the exact
-selected drafts and the specific comment or review action in that turn.
+selected drafts and the specific comment or review action. Reuse that approval
+while the target, wording and action remain unchanged; a turn boundary alone
+does not expire it.
 
 Immediately before publishing, re-resolve the live repository, pull request,
 head, and diff. Invalidate stale drafts; remap them when the current diff
