@@ -60,8 +60,9 @@ Three workflows have deliberately separate jobs:
   matrix also starts a real installed
   Copilot CLI through the installed launcher and cplt with OpenCode excluded
   from `PATH`, using `--help` without a model call.
-  Only after all of those jobs succeed does the workflow wait at the protected
-  `grillmester-release` environment. The two asset files cross
+  Only after all of those deterministic jobs succeed does the workflow enter
+  the main-restricted `grillmester-release` deployment and secret boundary
+  automatically. The two asset files cross
   that boundary in one immutable
   Actions artifact; only its exact artifact ID, server digest, file digests,
   sizes and names cross as scalar outputs. Its write-capable job contains two
@@ -105,7 +106,7 @@ release is marked mutable upstream, so any later byte replacement fails against
 the committed archive and executable digests. Linux artifacts remain test
 inputs only; they do not create a Linux support claim for the macOS release.
 
-The release-request PR, protected `main`, rulesets, and environment approval
+The release-request PR, protected `main`, rulesets, and environment boundary
 are process and accidental-misdispatch controls. A normal repository
 `GITHUB_TOKEN` is not a cryptographic per-workflow identity: a ruleset bypass
 granted broadly to GitHub Actions cannot prove that only one workflow used it.
@@ -178,15 +179,16 @@ An administrator must maintain and verify these current active controls:
   until an authorized administrator enables it. The workflow never changes the
   setting itself.
 - Create the `grillmester-release` environment, restrict deployments to
-  `main`, require a reviewer other than the request author, enable
-  prevent-self-review, and disable administrator bypass. Store a dedicated
+  `main`, and do not configure required reviewers or enable
+  prevent-self-review. Keep administrator bypass disabled. Store a dedicated
   fine-grained credential named `IMMUTABLE_RELEASES_ADMIN_READ_TOKEN` in that
   environment with Administration **read-only** access to this repository. Do
   not grant it contents write and do not reuse the release publisher token;
   the workflow exposes it only to the read-only immutable-setting preflight.
 
-Merely naming an environment in YAML is not an approval gate: GitHub can create
-an unconfigured environment automatically. Verify the settings in GitHub
+Merely naming an environment in YAML does not establish this deployment and
+secret boundary: GitHub can create an unconfigured environment automatically.
+Verify the deployment branch restriction and environment-only secret in GitHub
 before merging a release request. All three workflows share the
 `publish-grillmester-marketplace` concurrency group so selection and
 publication cannot race the catalog publisher.
@@ -308,7 +310,7 @@ not prevent tag creation or valid branch-history append. There is no dedicated
 GitHub App in scope, so the normal `GITHUB_TOKEN` publisher is not a
 cryptographic per-workflow identity and the rules cannot distinguish it from
 another authorized repository writer. Existing workflow validation, protected
-`main`, and environment review remain defense-in-depth controls, not proof of
+`main`, and the environment boundary remain defense-in-depth controls, not proof of
 strict writer separation.
 
 ## Publish a release
@@ -369,15 +371,12 @@ them, and no release is promoted from another.
    It then stages and verifies those exact catalog bytes and the source-pinned
    Grillmester payload locally, builds the deterministic terminal bundle twice,
    and uploads the bundle and detached checksum as one immutable, digest-bound
-   workflow artifact before seeking environment approval. A raw
+   workflow artifact before the environment-bound write job runs automatically
+   after the deterministic gates. A raw
    catalog SHA is not passed to Copilot as a marketplace ref; the CLI accepts a
    branch or tag there. OpenCode does not install from that catalog path; its
    release asset is bound to the same source SHA by
    `DISTRIBUTION-MANIFEST.json`.
-6. The environment reviewer compares the request, run summary, catalog SHA,
-   source SHA and bundle SHA-256 values, and derived
-   `v<manifest-semver>` tag before approving.
-
 The read-only asset verifier checks the archive's bounded gzip/tar structure,
 canonical manifest, complete inventory, modes, and file bytes against immutable
 Git blobs. The write step then fetches and revalidates the refs again immediately
@@ -403,7 +402,7 @@ source SHA; an ordinary merge to `main` does not deploy it. Keep an isolated
 Copilot home on the previous version, start a new trusted CLI session after
 publication, and verify that it advances without an explicit update command.
 This is post-deployment evidence and is separate from the immutable-tag smoke.
-Use an immutable release tag when rollout must wait for a separate approval.
+Use an immutable release tag for a deliberately staged rollout.
 Record App and VS Code behavior separately; neither may be inferred from the
 CLI result.
 

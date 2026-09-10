@@ -51,8 +51,9 @@ rettighetsjournal, ikke release-seremoni, og skal gjelde hver publisering.
 
 ## Konsekvenser
 
-- Utrulling er dispatch av katalogen, én miljøgodkjenning, og en
-  request-fil-PR. Omtrent 3 000 linjer workflow- og kontraktkode forsvinner.
+- Utrulling er dispatch av katalogen og en request-fil-PR; den miljøbundne
+  skrivende jobben fortsetter automatisk etter grønne porter. Omtrent 3 000
+  linjer workflow- og kontraktkode forsvinner.
 - Tillitsgrensen er uendret: den skrivende jobben kjører fortsatt ingen kode fra
   kildecommiten den publiserer, og assetene krysser miljøgrensen som én
   digest-bundet artifact.
