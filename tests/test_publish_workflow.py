@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/publish-marketplace.yml"
 PROMOTE_WORKFLOW = ROOT / ".github/workflows/promote-release.yml"
 RELEASE_WORKFLOW = ROOT / ".github/workflows/publish-release.yml"
+RELEASE_RUNBOOK = ROOT / "docs/release-runbook.md"
 VALIDATE_WORKFLOW = ROOT / ".github/workflows/validate.yml"
 MACOS_WORKFLOW = ROOT / ".github/workflows/macos-opencode-compatibility.yml"
 BASELINE_SPEC = importlib.util.spec_from_file_location(
@@ -1025,11 +1026,13 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 raw_script = raw_script.split("\n      - name:", maxsplit=1)[0]
                 self.assertLessEqual(len(textwrap.dedent(raw_script)), 21_000)
 
-    def test_release_approval_summary_shows_exact_sealed_values(self) -> None:
+    def test_release_sealed_evidence_shows_exact_sealed_values(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         summary = text.split(
-            "Write protected-environment approval summary", maxsplit=1
+            "Write sealed release evidence", maxsplit=1
         )[1].split("Install exact OpenCode release-test baseline", maxsplit=1)[0]
+        self.assertIn("### Grillmester sealed release evidence", summary)
+        self.assertNotIn("approval", summary.lower())
         for value in (
             "REQUEST_ID",
             "TAG",
@@ -1044,10 +1047,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
             self.assertIn(value, summary)
         self.assertIn('>> "${GITHUB_STEP_SUMMARY}"', summary)
 
-    def test_release_approval_summary_emits_validated_evidence(self) -> None:
+    def test_release_sealed_evidence_emits_validated_evidence(self) -> None:
         workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         raw_step = workflow.split(
-            "      - name: Write protected-environment approval summary\n",
+            "      - name: Write sealed release evidence\n",
             maxsplit=1,
         )[1].split("\n      - name: Install exact OpenCode release-test baseline", maxsplit=1)[0]
         summary_script = textwrap.dedent(
@@ -1102,6 +1105,27 @@ class PublishWorkflowContractTest(unittest.TestCase):
             )
             self.assertNotEqual(invalid.returncode, 0)
             self.assertFalse(Path(invalid_environment["GITHUB_STEP_SUMMARY"]).exists())
+
+    def test_release_runbook_describes_an_automatic_environment_boundary(self) -> None:
+        runbook = RELEASE_RUNBOOK.read_text(encoding="utf-8")
+        normalized_runbook = " ".join(runbook.split())
+        self.assertIn(
+            "deployment and secret boundary automatically",
+            normalized_runbook,
+        )
+        self.assertIn("restrict deployments to\n  `main`", runbook)
+        self.assertIn(
+            "do not configure required reviewers or enable\n  prevent-self-review",
+            runbook,
+        )
+        self.assertIn("IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", runbook)
+        for removed_instruction in (
+            "environment approval",
+            "environment reviewer",
+            "require a reviewer other than the request author",
+        ):
+            with self.subTest(removed_instruction=removed_instruction):
+                self.assertNotIn(removed_instruction, runbook)
 
     def test_release_asset_idempotency_requires_exact_remote_bytes(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")

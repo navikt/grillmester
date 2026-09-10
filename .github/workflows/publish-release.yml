@@ -207,7 +207,7 @@ jobs:
           overwrite: false
           include-hidden-files: false
 
-      - name: Write protected-environment approval summary
+      - name: Write sealed release evidence
         shell: bash
         env:
           ARTIFACT_DIGEST: ${{ steps.bundle-upload.outputs.artifact-digest }}
@@ -231,7 +231,7 @@ jobs:
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
           {
-            echo "### Grillmester release approval"
+            echo "### Grillmester sealed release evidence"
             echo
             echo "| Field | Sealed value |"
             echo "| --- | --- |"
