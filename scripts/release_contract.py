@@ -77,6 +77,10 @@ HOVMESTER_REVISION = "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 APPROVAL_DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+DECISION_REFERENCE = re.compile(
+    r"^underlying decision: (?P<underlying>[^;\n]+); "
+    r"current-content review: (?P<review>[^\n]+)$"
+)
 PLACEHOLDER_APPROVAL_TEXT = re.compile(
     r"(?:unverified|unknown|pending|placeholder|example|todo|tbd|replace[-_ ]?me)",
     re.IGNORECASE,
@@ -511,6 +515,24 @@ def _validate_approval_decision(
             or PLACEHOLDER_APPROVAL_TEXT.search(text)
         ):
             raise ReleaseContractError(f"{label}.{field} is missing or a placeholder")
+    reference_match = DECISION_REFERENCE.fullmatch(decision["decisionReference"])
+    if reference_match is None:
+        raise ReleaseContractError(
+            f"{label}.decisionReference must cite an underlying decision and "
+            "a current-content review"
+        )
+    underlying_reference = reference_match["underlying"].strip()
+    review_reference = reference_match["review"].strip()
+    if not underlying_reference or not review_reference:
+        raise ReleaseContractError(
+            f"{label}.decisionReference must cite an underlying decision and "
+            "a current-content review"
+        )
+    if underlying_reference == review_reference:
+        raise ReleaseContractError(
+            f"{label}.decisionReference must name distinct underlying decision "
+            "and current-content review"
+        )
     date_text = decision["date"]
     if not isinstance(date_text, str) or APPROVAL_DATE.fullmatch(date_text) is None:
         raise ReleaseContractError(f"{label}.date must be an ISO calendar date")

@@ -321,6 +321,14 @@ them, and no release is promoted from another.
 1. Set `plugin/plugin.json.version` to a strict SemVer, for example `0.3.2`, or
    `0.3.2-rc.1` for a prerelease. Build metadata is not accepted, and a version
    must never be reused for different payload bytes.
+   Before merging a release that changes imported content, rebind
+   `policy/stable-rights-approval.json` to the current content lock,
+   provenance, and imported component digests. Each `decisionReference` must
+   retain the applicable underlying rights decision and a distinct
+   current-content review in the form `underlying decision: …; current-content
+   review: …`. The prior decision alone does not approve a changed digest; get
+   a new rights or brand decision when the change is outside its source,
+   component, or naming scope.
 2. Merge that source change normally. From current `main`, explicitly dispatch
    **Publish marketplace catalog** with the exact lowercase 40-character
    `source_sha` to promote. Wait for it to

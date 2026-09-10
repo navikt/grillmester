@@ -176,13 +176,19 @@ def write_stable_rights_fixture(root: Path) -> dict[str, object]:
         "decisions": {
             "organizationalRights": {
                 "status": "approved",
-                "decisionReference": "NAV legal decision NAV-2026-1234",
+                "decisionReference": (
+                    "underlying decision: NAV legal decision NAV-2026-1234; "
+                    "current-content review: review PR-2026-1234"
+                ),
                 "authority": {"role": "rights holder", "team": "NAV legal"},
                 "date": "2026-08-13",
             },
             "doctorWhoBrand": {
                 "status": "approved",
-                "decisionReference": "NAV brand decision NAV-2026-1235",
+                "decisionReference": (
+                    "underlying decision: NAV brand decision NAV-2026-1235; "
+                    "current-content review: review PR-2026-1235"
+                ),
                 "authority": {"role": "brand counsel", "team": "NAV legal"},
                 "date": "2026-08-13",
             },
@@ -483,7 +489,10 @@ class ReleaseContractTest(unittest.TestCase):
 
             approval["decisions"]["organizationalRights"][  # type: ignore[index]
                 "decisionReference"
-            ] = "UNVERIFIED"
+            ] = (
+                "underlying decision: NAV legal decision NAV-2026-1234; "
+                "current-content review: UNVERIFIED"
+            )
             (source / CONTRACT.STABLE_RIGHTS_APPROVAL_PATH).write_text(
                 json.dumps(approval) + "\n"
             )
@@ -491,6 +500,71 @@ class ReleaseContractTest(unittest.TestCase):
                 CONTRACT.ReleaseContractError, "placeholder"
             ):
                 CONTRACT.validate_stable_rights_approval(source)
+
+    def test_stable_rights_decision_reference_requires_distinct_labeled_basis(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp)
+            approval = write_stable_rights_fixture(source)
+            decision = approval["decisions"]["organizationalRights"]  # type: ignore[index]
+            decision["decisionReference"] = "underlying decision: NAV-2026-1234"  # type: ignore[index]
+            (source / CONTRACT.STABLE_RIGHTS_APPROVAL_PATH).write_text(
+                json.dumps(approval) + "\n"
+            )
+
+            with self.assertRaisesRegex(
+                CONTRACT.ReleaseContractError, "underlying decision"
+            ):
+                CONTRACT.validate_stable_rights_approval(source)
+
+            for decision_reference in (
+                "underlying decision:   ; "
+                "current-content review: navikt/grillmester#67",
+                "underlying decision: navikt/grillmester#56; "
+                "current-content review:   ",
+            ):
+                decision["decisionReference"] = decision_reference  # type: ignore[index]
+                (source / CONTRACT.STABLE_RIGHTS_APPROVAL_PATH).write_text(
+                    json.dumps(approval) + "\n"
+                )
+                with self.assertRaisesRegex(
+                    CONTRACT.ReleaseContractError,
+                    "must cite an underlying decision and a current-content review",
+                ):
+                    CONTRACT.validate_stable_rights_approval(source)
+
+            decision["decisionReference"] = (  # type: ignore[index]
+                "underlying decision: NAV-2026-1234; "
+                "current-content review: NAV-2026-1234"
+            )
+            (source / CONTRACT.STABLE_RIGHTS_APPROVAL_PATH).write_text(
+                json.dumps(approval) + "\n"
+            )
+            with self.assertRaisesRegex(
+                CONTRACT.ReleaseContractError, "distinct"
+            ):
+                CONTRACT.validate_stable_rights_approval(source)
+
+    def test_live_stable_rights_journal_preserves_0_4_0_review_basis(self) -> None:
+        CONTRACT.validate_stable_rights_approval(ROOT)
+
+        approval = json.loads(
+            (ROOT / CONTRACT.STABLE_RIGHTS_APPROVAL_PATH).read_text(encoding="utf-8")
+        )
+        expected_reference = (
+            "underlying decision: navikt/grillmester#56; "
+            "current-content review: navikt/grillmester#67"
+        )
+
+        self.assertEqual(
+            expected_reference,
+            approval["decisions"]["organizationalRights"]["decisionReference"],
+        )
+        self.assertEqual(
+            expected_reference,
+            approval["decisions"]["doctorWhoBrand"]["decisionReference"],
+        )
 
     def test_stable_rights_scope_rejects_an_invalid_component_source_shape(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
