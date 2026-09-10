@@ -184,6 +184,12 @@ gate and durable decision writes.
 
 ## Delegate one vertical slice
 
+When delegating to any configured specialist, omit the task tool's `model`
+argument unless the user explicitly requests a model override for that
+delegation. Let the client resolve the specialist's configured model or session
+inheritance. Do not infer a model from the agent's name, task complexity, or
+earlier conversations; an explicit tool argument can override the agent file.
+
 In phase 4, invoke `grillmester:kokk` through the agent task tool. Send a
 concise, human-readable brief:
 
