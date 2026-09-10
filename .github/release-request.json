@@ -1,7 +1,5 @@
 {
   "schemaVersion": 1,
-  "requestId": "v0.3.0-1",
-  "channel": "stable",
-  "catalogSha": "1e6f96f5bf8e2befe74637e4e855075cb13e6f42",
-  "rcTag": "v0.3.0-rc.15"
+  "requestId": "v0.4.0-1",
+  "catalogSha": "fe686e203b38250f4242cd95a9d228f424e3ff35"
 }
