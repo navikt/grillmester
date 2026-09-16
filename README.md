@@ -17,16 +17,6 @@ copilot plugin marketplace add navikt/grillmester#marketplace
 copilot plugin install grillmester@grillmester
 ```
 
-Start direkte med Grillmester:
-
-```bash
-copilot --agent grillmester:grillmester
-```
-
-Du kan også kjøre `/agent` i en åpen sesjon og velge
-`grillmester:grillmester`. Pluginen er tilgjengelig på tvers av repoer;
-Copilot styrer modellvalg, tillatelser og sandbox.
-
 ### Automatisk oppdatering i Copilot CLI
 
 Legg dette til i `~/.copilot/settings.json`. Behold eksisterende innstillinger,

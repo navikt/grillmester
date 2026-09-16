@@ -76,7 +76,6 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             self.text.index("copilot plugin marketplace add navikt/grillmester#marketplace"),
             self.text.index("### Copilot app"),
         )
-        self.assertIn("copilot --agent grillmester:grillmester", plugin)
         self.assertNotIn("nav-pilot install", self.text)
         self.assertNotIn("scripts/grillmester.py", self.text)
         self.assertNotIn("brew install", self.text)
@@ -84,7 +83,6 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertIn("pågående arbeid", self.pilot_guide)
         self.assertIn("nav-pilot install --source navikt/grillmester", self.pilot_guide)
         self.assertIn("copilot plugin install grillmester@grillmester", plugin)
-        self.assertIn("`grillmester:grillmester`", plugin)
         for marker in (
             "brew install navikt/tap/cplt opencode",
             "brew install --cask copilot-cli",
