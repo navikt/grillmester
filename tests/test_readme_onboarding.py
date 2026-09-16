@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 import sys
 import unittest
@@ -13,6 +14,7 @@ INSTALLATION = ROOT / "docs/installation.md"
 BUG_TEMPLATE = ROOT / ".github/ISSUE_TEMPLATE/bug.yml"
 BASELINE_PATH = ROOT / "scripts/release_test_baseline.py"
 OPENCODE_GUIDE = ROOT / "docs/opencode.md"
+PILOT_GUIDE = ROOT / "docs/nav-pilot.md"
 
 
 class ReadmeOnboardingContractTest(unittest.TestCase):
@@ -22,6 +24,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         cls.installation = INSTALLATION.read_text(encoding="utf-8")
         cls.bug_template = BUG_TEMPLATE.read_text(encoding="utf-8")
         cls.opencode_guide = OPENCODE_GUIDE.read_text(encoding="utf-8")
+        cls.pilot_guide = PILOT_GUIDE.read_text(encoding="utf-8")
         spec = importlib.util.spec_from_file_location(
             "grillmester_release_test_baseline_for_readme", BASELINE_PATH
         )
@@ -33,9 +36,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         cls.cplt_release = baseline.CONTRACT["releaseTest"]["cpltRelease"]
 
     def test_readme_is_a_short_four_agent_onboarding(self) -> None:
-        # Budsjettet ble hevet da nav-pilot-agentpakka ble en fjerde
-        # installasjonsvei. Det er fortsatt en grense mot creep, ikke en
-        # invitasjon: utvid det bare for en ny kanal, ikke for mer prosa.
+        # Keep onboarding compact; experimental installation paths live in guides.
         self.assertLessEqual(len(self.text.splitlines()), 125)
         self.assertLessEqual(len(self.text.split()), 605)
         self.assertEqual(
@@ -63,24 +64,25 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertNotIn("Copilot app — to bekreftelser", self.text)
         self.assertNotIn("strukturert designunderlag", self.text)
 
-    def test_native_plugin_precedes_the_checkout_pilot(self) -> None:
+    def test_readme_uses_native_plugin_and_links_to_separate_pilots(self) -> None:
         plugin = self.text.split(
-            "### Copilot CLI — anbefalt nå", 1
+            "### Copilot CLI", 1
         )[1].split("### Copilot app", 1)[0]
-        pilot = self.text.split(
-            "### OpenCode og lokale modeller — pilot fra checkout", 1
-        )[1].split("## Velg agent", 1)[0]
+        pilot = self.pilot_guide.split(
+            "## OpenCode og lokale modeller — pilot fra checkout", 1
+        )[1]
         normalized = " ".join(pilot.split())
         self.assertLess(
             self.text.index("copilot plugin marketplace add navikt/grillmester#marketplace"),
             self.text.index("### Copilot app"),
         )
-        self.assertLess(
-            self.text.index("### Copilot app"),
-            self.text.index("### OpenCode og lokale modeller — pilot fra checkout"),
-        )
+        self.assertNotIn("nav-pilot install", self.text)
+        self.assertNotIn("scripts/grillmester.py", self.text)
+        self.assertNotIn("brew install", self.text)
+        self.assertIn("docs/nav-pilot.md", self.text.splitlines()[-1])
+        self.assertIn("pågående arbeid", self.pilot_guide)
+        self.assertIn("nav-pilot install --source navikt/grillmester", self.pilot_guide)
         self.assertIn("copilot plugin install grillmester@grillmester", plugin)
-        self.assertIn("`grillmester:grillmester`", plugin)
         for marker in (
             "brew install navikt/tap/cplt opencode",
             "brew install --cask copilot-cli",
@@ -102,8 +104,18 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             ),
         )
 
-        self.assertNotIn('"autoUpdate"', self.text)
-        self.assertIn('"autoUpdate"', self.installation)
+        config = json.loads(re.search(r"```json\n(.*?)\n```", self.text, re.S).group(1))
+        installation_config = self.installation.split(
+            "## Valgfritt: automatisk oppdatering i Copilot CLI", 1
+        )[1]
+        documented_config = json.loads(
+            re.search(r"```json\n(.*?)\n```", installation_config, re.S).group(1)
+        )
+        self.assertEqual(config, documented_config)
+        self.assertTrue(config["enabledPlugins"]["grillmester@grillmester"])
+        marketplace = config["extraKnownMarketplaces"]["grillmester"]
+        self.assertTrue(marketplace["autoUpdate"])
+        self.assertEqual(marketplace["source"]["ref"], "marketplace")
         self.assertNotIn("brew install navikt/tap/grillmester", self.text)
         self.assertNotIn("grillmester update", self.text)
 
@@ -159,11 +171,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         normalized = " ".join(self.text.split())
         for marker in (
             "GitHub Copilot CLI er referanseklienten",
-            "OpenCode og lokale modeller er foreløpig en checkout-pilot på macOS",
             "Linux og VS Code er utenfor release-løftet",
-            "Checkout-launcheren støtter OpenCode 1.x fra `1.18.20`",
-            "Copilot CLI 1.x fra `1.0.79`",
-            "cplt fra testbaselinen",
             "Hver modell må kvalitetsvalideres separat",
             "docs/trust-and-client-support.md",
             "docs/repository-context.md#samspill-med-naviktcopilot",

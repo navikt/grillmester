@@ -398,8 +398,8 @@ midlertidig klient-/agentvalg, brukes det bare i utskriften og lagres ikke.
 
 ## Valgfritt: automatisk oppdatering i Copilot CLI
 
-Hvis du ikke vil bruke terminal-launcheren, kan Copilot CLI installere pluginen
-direkte fra en flytende marketplace-kanal og oppdatere ved sesjonsstart. Merge
+Copilot CLI kan installere pluginen direkte fra en flytende marketplace-kanal
+og oppdatere ved sesjonsstart. Merge
 dette i din egen `~/.copilot/settings.json`:
 
 ```json

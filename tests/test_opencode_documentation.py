@@ -16,6 +16,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        cls.pilot_guide = (ROOT / "docs/nav-pilot.md").read_text(encoding="utf-8")
         cls.guide = (ROOT / "docs/opencode.md").read_text(encoding="utf-8")
         cls.installation = (ROOT / "docs/installation.md").read_text(
             encoding="utf-8"
@@ -464,7 +465,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                     self.assertIn(command, value)
 
         for name, document in (
-            ("README", self.readme),
+            ("pilot guide", self.pilot_guide),
             ("installation", self.installation),
         ):
             value = normalized(document)
@@ -475,11 +476,11 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 with self.subTest(document=name, command=command):
                     self.assertIn(command, value)
 
-        readme = normalized(self.readme)
-        self.assertIn(local_commands[0], readme)
-        self.assertIn(local_commands[2], readme)
-        self.assertIn("OpenAI-kompatibel modellserver", readme)
-        for document in (self.readme, self.installation, self.local_models, self.guide):
+        pilot = normalized(self.pilot_guide)
+        self.assertIn(local_commands[0], pilot)
+        self.assertIn(local_commands[2], pilot)
+        self.assertIn("OpenAI-kompatibel modellserver", pilot)
+        for document in (self.pilot_guide, self.installation, self.local_models, self.guide):
             with self.subTest(consumer_repo=document[:40]):
                 self.assertIn("cd /path/to/consumer-repo", document)
 
