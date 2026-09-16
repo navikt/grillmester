@@ -4,11 +4,11 @@
   <img src="docs/assets/grillmester-hero.jpg" alt="En retro robotgrillmester ved en kullgrill i et norsk landskap" width="100%">
 </p>
 
-Grillmester er Navs agentteam for GitHub Copilot og OpenCode: fire agenter, tre interne roller og 43 skills. Tilgang og tillatt bruk styres av Navs gjeldende policy.
+Grillmester er Navs agentteam for GitHub Copilot: fire agenter, tre interne roller og 43 skills, samlet i én plugin. Tilgang og tillatt bruk styres av Navs gjeldende policy.
 
 ## Kom i gang
 
-### Copilot CLI — anbefalt nå
+### Copilot CLI
 
 Installer Grillmester fra Copilot CLI sin pluginmarkedsplass:
 
@@ -17,10 +17,45 @@ copilot plugin marketplace add navikt/grillmester#marketplace
 copilot plugin install grillmester@grillmester
 ```
 
-Start Copilot som vanlig, kjør `/agent`, og velg
-`grillmester:grillmester`. Marketplace-kanalen oppdateres bare til gjennomgått
-plugininnhold. Se [oppdatering,
-pinning og rollback](docs/installation.md#oppdatere-og-rulle-tilbake).
+Start direkte med Grillmester:
+
+```bash
+copilot --agent grillmester:grillmester
+```
+
+Du kan også kjøre `/agent` i en åpen sesjon og velge
+`grillmester:grillmester`. Pluginen er tilgjengelig på tvers av repoer;
+Copilot styrer modellvalg, tillatelser og sandbox.
+
+### Automatisk oppdatering i Copilot CLI
+
+Legg dette til i `~/.copilot/settings.json`. Behold eksisterende innstillinger,
+og slå sammen feltene hvis de allerede finnes:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "grillmester": {
+      "source": {
+        "source": "github",
+        "repo": "navikt/grillmester",
+        "ref": "marketplace"
+      },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "grillmester@grillmester": true
+  }
+}
+```
+
+Copilot sjekker etter pluginoppdateringer ved starten av en ny sesjon i en
+mappe du har gitt tillit. Marketplace-kanalen oppdateres bare til gjennomgått
+plugininnhold. Automatisk oppdatering må være tillatt globalt; CI,
+`--no-auto-update` og `COPILOT_AUTO_UPDATE=false` hindrer oppdateringen.
+Se [oppsett og detaljer](docs/installation.md#valgfritt-automatisk-oppdatering-i-copilot-cli)
+eller [manuell oppdatering, pinning og rollback](docs/installation.md#oppdatere-og-rulle-tilbake).
 
 ### Copilot app
 
@@ -30,57 +65,11 @@ Copilot app bruker sin native pluginflyt:
 2. [Installer Grillmester](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester%2540grillmester)
 
 Lenkene åpner **Settings → Plugins** med ferdig utfylt verdi; ingenting
-installeres før du bekrefter. Appen startes ikke gjennom cplt. Se
+installeres før du bekrefter. Oppdater pluginen med **Update** under
+**Settings → Plugins**; automatisk oppdatering over gjelder CLI. Se
 [appdetaljer](docs/installation.md#copilot-app). App-lenken følger repoets
 default branch; bruk Copilot CLI med en reviewet versjonstagg når pinning er
 påkrevd.
-
-### nav-pilot — agentpakke
-
-Grillmester publiserer en Tier 2-agentpakke for
-[nav-pilot](https://github.com/navikt/copilot), med samme payloads for Copilot
-CLI og OpenCode:
-
-```bash
-nav-pilot install --source navikt/grillmester
-```
-
-Under utrulling; plugininstallasjonen over er fortsatt den anbefalte. Se
-[agentpakke-installasjon](docs/installation.md#agentpakke-for-nav-pilot).
-
-### OpenCode og lokale modeller — pilot fra checkout
-
-OpenCode laster ikke Copilot-plugins. OpenCode og lokale modeller kan
-foreløpig piloteres fra en checkout.
-Videre terminaldistribusjon samordnes med nav-pilot. Installer cplt og ønsket
-klient:
-
-```bash
-brew install navikt/tap/cplt opencode
-# eller for Copilot CLI: brew install --cask copilot-cli
-```
-
-Du trenger en lokal checkout av `navikt/grillmester`. Den er pilotinput, ikke en
-installert eller immutable release. Fra repoet du vil arbeide i:
-
-```bash
-cd /path/to/consumer-repo
-python3 /absolute/path/to/grillmester/scripts/grillmester.py doctor
-python3 /absolute/path/to/grillmester/scripts/grillmester.py --client opencode --agent barista
-```
-
-For en lokal modell starter du først en OpenAI-kompatibel modellserver på
-loopback og kjører:
-
-```bash
-python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup --client opencode
-python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor
-python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
-```
-
-Launcheren lager isolert OpenCode-config og kjører terminalsesjonen gjennom
-cplt. Se [OpenCode-guiden](docs/opencode.md) og [guiden for lokale
-modeller](docs/local-models.md).
 
 ## Velg agent
 
@@ -98,10 +87,8 @@ brukes ved behov. [Se alle agenter og skills](docs/agents-and-skills.md).
 ## Støtte og avgrensninger
 
 GitHub Copilot CLI er referanseklienten; Copilot app har egen plugininstallasjon.
-OpenCode og lokale modeller er foreløpig en checkout-pilot på macOS. Linux og
-VS Code er utenfor release-løftet. Checkout-launcheren støtter OpenCode 1.x fra
-`1.18.20`, Copilot CLI 1.x fra `1.0.79` og cplt fra testbaselinen. Hver modell
-må kvalitetsvalideres separat. Se [klientstatus og
+Linux og VS Code er utenfor release-løftet. Hver modell må kvalitetsvalideres
+separat. Se [klientstatus og
 releasegater](docs/trust-and-client-support.md).
 
 Grillmester kan brukes sammen med `navikt/copilot`. Se hvordan [repo-eid kontekst,
@@ -109,8 +96,7 @@ overlapp og kollisjoner](docs/repository-context.md#samspill-med-naviktcopilot) 
 
 ## Dokumentasjon
 
-- **Installere:** [Copilot og terminalpilot](docs/installation.md) · [OpenCode og providere](docs/opencode.md)
-- **Velge modeller:** [Lokale og cloudbaserte modeller](docs/local-models.md)
+- **Installere:** [Pluginoppsett, oppdatering og pinning](docs/installation.md)
 - **Bruke agentteamet:** [Agenter og skills](docs/agents-and-skills.md) · [valgfritt MCP-oppsett](docs/mcp-setup.md)
 - **Forstå og bidra:** [Repo-kontekst](docs/repository-context.md) · [utvikling](docs/development.md)
 
@@ -118,3 +104,5 @@ Problemer eller forslag? [Opprett et issue](https://github.com/navikt/grillmeste
 
 Grillmester vedlikeholdes av Team eSyfo for Nav og er tilgjengelig under
 [MIT-lisensen](LICENSE). Se [proveniens og tredjepartslisenser](PROVENANCE.md).
+
+Pågående arbeid: [nav-pilot, OpenCode og lokale modeller](docs/nav-pilot.md).
