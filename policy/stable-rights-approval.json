@@ -5,8 +5,8 @@
         "role": "Grillmester repository maintainer",
         "team": "Team eSyfo"
       },
-      "date": "2026-08-26",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#67",
+      "date": "2026-09-22",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#73",
       "status": "approved"
     },
     "organizationalRights": {
@@ -14,8 +14,8 @@
         "role": "Hovmester repository owner",
         "team": "Team eSyfo"
       },
-      "date": "2026-08-26",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#67",
+      "date": "2026-09-22",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#73",
       "status": "approved"
     }
   },
@@ -23,8 +23,8 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "eb8665a410dde067ad3aaaeb4b21393a3b2fb087f5cb0192450d9166a1f2d07c",
-        "doctor-who": "aecd0e60c7ce62c121c79e142ce4b01831a89e036f39a3ce5ddc26aa26c759e4"
+        "designer": "3cf1fc369334f1bbeb980eeb8824622b55773affc7dc6f55eda70a80ef588dda",
+        "doctor-who": "70f249d6c300f54128c55676182115de3ac3c5f6f3aeb1da9774853cdc4c86c4"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
@@ -41,11 +41,11 @@
         "workshop-design": "0418cfc368605512456838621833a375ffda1f0bbdff939491d6c0271ed2af7d"
       }
     },
-    "contentLockSha256": "ca0ec0422b13ddc16ecd7708857cc21a243dbf87f9f99aaa34723f3d8fb343d4",
+    "contentLockSha256": "203bcbea61849e5320444887b5f59e0de1a8a71f0baf72d237c79a5f488311b8",
     "hovmester": {
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "0f470e77d74bbc26f580d360a421fe153cfc51fa9c761bcde79cb2470987950e"
+    "provenanceSha256": "20dde5c9dabf579e9597055e2a1b83de1ec6c446bb4f520ba5f7a9161010ae4a"
   }
 }

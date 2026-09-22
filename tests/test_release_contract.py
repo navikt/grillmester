@@ -546,7 +546,7 @@ class ReleaseContractTest(unittest.TestCase):
             ):
                 CONTRACT.validate_stable_rights_approval(source)
 
-    def test_live_stable_rights_journal_preserves_0_4_0_review_basis(self) -> None:
+    def test_live_stable_rights_journal_preserves_0_4_1_review_basis(self) -> None:
         CONTRACT.validate_stable_rights_approval(ROOT)
 
         approval = json.loads(
@@ -554,7 +554,7 @@ class ReleaseContractTest(unittest.TestCase):
         )
         expected_reference = (
             "underlying decision: navikt/grillmester#56; "
-            "current-content review: navikt/grillmester#67"
+            "current-content review: navikt/grillmester#73"
         )
 
         self.assertEqual(

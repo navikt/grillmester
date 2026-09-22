@@ -116,7 +116,7 @@ prototype phase are intentionally excluded. Grillmester's Designer ends at
 visual exploration, Figma, and an optional development Issue; implementation
 starts only through a separate user-initiated Barista or Grillmester workflow.
 
-### Stable 0.4.0 rights binding
+### Stable rights binding
 
 Issue [#56](https://github.com/navikt/grillmester/issues/56) is the underlying
 rights and Doctor Who naming decision for the exact Grillmester 0.3.0 import
@@ -125,6 +125,13 @@ baseline. It does not approve later component digests. PR
 `db0e1e5b911d57c12d212bb3b256f5df3ff1c159`, is the review basis for the
 current 0.4.0 short skill IDs, adapted content, provenance updates, and release
 boundary.
+
+PR [#73](https://github.com/navikt/grillmester/pull/73) is the review basis
+for the 0.4.1 content. It changes only the `model` frontmatter of the imported
+`designer` and `doctor-who` agents, from `claude-opus-5` to `claude-opus-5.5`,
+and the matching content-lock entries. Their instructions, names, and imported
+skills are unchanged and remain within the source, component, and naming scope
+of #56.
 
 The stable rights journal binds the current content lock, this provenance
 record, and every Hovmester-imported component digest. Its

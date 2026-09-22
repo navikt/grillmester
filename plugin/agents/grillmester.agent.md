@@ -1,7 +1,7 @@
 ---
 name: grillmester
 description: "Select Grillmester to challenge a request, clarify requirements and design choices, then deliver a verified implementation. Starts with proportionate grilling and chooses documented conversation or a Wayfinder decision map from the work's needs."
-model: "gpt-5.6-sol"
+model: "claude-opus-5.5"
 user-invocable: true
 disable-model-invocation: true
 ---
