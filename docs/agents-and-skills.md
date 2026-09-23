@@ -35,6 +35,11 @@ grilling, dokumentert grilling, research eller prototyper inne i hvert
 spørsmål. Størrelsen på den senere implementasjonen er ikke alene grunn til
 å opprette et kart.
 
+Små, avgrensede slices (R0–R2) implementerer Grillmester selv. Slices med høy
+risiko (R3/R4), mange filer eller lang bygg- og testiterasjon delegeres til
+Kokk, slik at koden og den uavhengige reviewen kommer fra ulike forfattere.
+Grillmester sier hvilket valg den tar, og du kan overstyre det.
+
 **Ikke bruk når:** Oppgaven er liten og ferdig spesifisert. Da er Barista
 raskere og enklere.
 
@@ -68,6 +73,10 @@ Visual Companion eller en Figma-leveranse.
 konsept, en Visual Companion eller Figma-klar/Figma-basert leveranse avhengig av
 tilgjengelige verktøy.
 
+Nye eller løst definerte konsepter starter med grilling av mål, målgruppe,
+antakelser og hva utforskingen skal lære, før første skisse. Designer er også
+riktig inngang for utviklere når leveransen er et konsept eller en Figma-skisse.
+
 **Ikke bruk når:** Du vil implementere produktkode. Godkjent design går videre
 til Barista eller Grillmester.
 
@@ -95,7 +104,7 @@ Grillmester og trekk inn relevante produkt-/Nav-skills der.
 
 | Rolle | Oppdrag | Viktig grense |
 | --- | --- | --- |
-| **Kokk** 👨‍🍳 | Implementerer én komplett, uavhengig testbar vertical slice fra en tydelig brief. | Utvider ikke scope og finner ikke på manglende beslutninger. |
+| **Kokk** 👨‍🍳 | Implementerer én komplett, uavhengig testbar vertical slice fra en tydelig brief når Grillmester delegerer. | Utvider ikke scope og finner ikke på manglende beslutninger. |
 | **Grill-inspektør** 🔎 | Leser hele task-diffen, akseptansekriteriene og fersk evidens; kan bruke read-only shellkommandoer som `git diff` for å verifisere. | Endrer ikke implementasjonen og løser ikke produktvalg. |
 | **Researcher** | Besvarer ett avgrenset faktaspørsmål fra repo og autoritative kilder, med valgfri kobling til et Wayfinder-kart. | Ingen writes og ingen produkt-/arkitekturbeslutning. |
 
