@@ -135,9 +135,9 @@ of #56.
 
 PR [#76](https://github.com/navikt/grillmester/pull/76) is the review basis
 for the 0.4.2 content. It adds a grilling-first opening for new or loosely
-defined concepts and a session summary for multi-session exploration to the
-imported `designer` agent, and routes that case to the existing `grilling`
-skill. The agent's design-only boundary, name, and imported skills are
+defined concepts, limited to the existing `grilling` skill, and a session
+summary when exploration continues in a later session to the imported
+`designer` agent. The agent's design-only boundary, name, and imported skills are
 unchanged and remain within the source, component, and naming scope of #56.
 
 The stable rights journal binds the current content lock, this provenance

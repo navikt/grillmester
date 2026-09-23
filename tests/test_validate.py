@@ -359,6 +359,16 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("portable R3/R4 review floor")
 
+    def test_r3_r4_writer_separation_floor_drift_is_rejected(self) -> None:
+        path = self.root / "plugin/agents/grillmester.agent.md"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "R3/R4 slices go to Kokk", "R3/R4 slices may stay inline", 1
+            ),
+            encoding="utf-8",
+        )
+        self.assert_error("R3/R4 writer-separation floor")
+
     def test_researcher_external_capability_fallback_is_enforced(self) -> None:
         path = self.root / "plugin/agents/researcher.agent.md"
         path.write_text(

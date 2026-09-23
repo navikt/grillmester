@@ -101,9 +101,10 @@ complete stable diff before delivery.
 - Maintain resolved domain terms and qualifying decisions as part of authorized
   design work through `domain-modeling` and repository policy. Selecting a
   skill is not a separate approval step and does not expand the task's scope.
-- Before delegation, record `HEAD` and the task-scoped status and diff,
-  including the full contents of untracked files. Every path Kokk may edit must
-  be clean, or its existing edits must be explicitly included in the slice.
+- Before each slice, whoever writes it, record `HEAD` and the task-scoped
+  status and diff, including the full contents of untracked files. Every path
+  the slice may edit must be clean, or its existing edits must be explicitly
+  included in the slice.
 
 ## Phase loop
 
@@ -123,7 +124,8 @@ For R0 or R1 work with locked requirements, no red signal, no new domain term,
 and no ADR-worthy trade-off, keep phase 1 brief: inspect the relevant facts,
 check the requested outcome and the strongest plausible failure case, and
 state why the direction is settled. Do not manufacture questions or repeat
-answered ones. Then use the established design and implement the slice.
+answered ones. Then use the established design and choose who implements the
+slice.
 Every request gets this check; never skip deterministic verification. If a new
 term, durable trade-off, or red signal appears, deepen the affected phase.
 
@@ -183,19 +185,22 @@ gate and durable decision writes.
 
 ## Choose who implements
 
-Implement a slice yourself when it is R0–R2 and you can finish it with a
-handful of edits and one verification run, without filling this conversation
-with large file reads or long build and test output. Delegate it to Kokk when
-it is R3/R4, spans many files, or needs long build and test iteration. R3/R4
-slices go to Kokk so that the code's author and the independent reviewer
-differ. State the choice and its reason in one sentence. Follow the user's
-choice when they redirect it; if they ask you to implement an R3/R4 slice
-yourself, say once that Inspector will then review code written by the same
-model family.
+Implement a slice yourself only when all of these hold: it is R0–R2, it needs
+a handful of edits in a few files, and its verification is short. Otherwise
+delegate it to Kokk. R3/R4 slices go to Kokk so that the code's author and the
+independent reviewer differ. Decide before the first edit and state the choice
+and its reason in one sentence. If your slice outgrows these limits, stop at a
+safe point and return to phase 3 instead of handing Kokk a half-edited slice.
+
+Follow the user's choice when they redirect it. If they ask you to implement an
+R3/R4 slice yourself, say once that this removes the separate implementer, so
+Inspector may then review code written by the same model.
 
 When you implement a slice yourself, keep Kokk's slice discipline: change only
 the agreed scope, preserve unrelated work, add or update focused tests where the
-repository has a test seam, and run the slice's verification.
+repository has a test seam, and run the slice's verification. Before
+verification, compare `HEAD`, status, and diff with the recorded boundary and
+account for every changed path.
 
 One slice means one non-parallel implementation per loop iteration, whether
 you write it or Kokk does. If a delivery needs more than one slice, verify the
@@ -231,8 +236,9 @@ Risk: R0 | R1 | R2 | R3 | R4 — <reason>
 
 If this client cannot resolve the agent task tool or `grillmester:kokk`, you
 may implement an R0–R2 slice yourself. For an R3/R4 slice, do not
-self-implement, switch writers, or claim delivery. Preserve the approved brief
-and return:
+self-implement unless the user chose that after your warning; never switch
+writers mid-slice or claim delivery. Otherwise preserve the approved brief and
+return:
 
 ```text
 Status: NEEDS_CONTEXT
@@ -277,11 +283,9 @@ assemble any subsequent review input from the live worktree.
 
 Run or confirm every required deterministic gate with fresh command, relevant
 output, and exit code. Do not promote a stale or reported-only result to fact.
-When Kokk implemented the slice, run `/review` over the complete task-scoped
-diff before offering Inspector or presenting the work as deliverable; its
-findings are corrections, not a substitute for an independent verdict. A slice
-you implemented yourself needs no separate self-review pass; the deterministic
-gates and any selected Inspector review cover it.
+Before offering Inspector or presenting work as deliverable, run `/review` as
+the self-review pass over the complete task-scoped diff, whoever wrote it; its
+findings are corrections, not a substitute for an independent verdict.
 
 Independent Inspector review is opt-in for R0–R2. A repository may strengthen
 the following portable default. Without a stricter repository rule, R3/R4 may
@@ -296,7 +300,8 @@ When review is selected, invoke `grillmester:grill-inspektor`, one at a time,
 against the current stable diff with:
 
 - task or pull request acceptance criteria;
-- when Kokk implemented the change, its brief and result;
+- when Kokk implemented the change, its brief and result; otherwise the
+  slice's scope and non-goals;
 - the complete task-scoped diff;
 - fresh deterministic gate evidence; and
 - only explicitly relevant decision links.
@@ -318,12 +323,15 @@ gates and review.
 Handle Inspector's verdict:
 
 - `APPROVED`: the reviewed diff may pass the review gate.
-- `CONCERNS`: pause until the named concerns are corrected or explicitly
-  accepted under repository policy.
+- `CONCERNS`: pause until the named material concerns are corrected or
+  explicitly accepted under repository policy.
 - `CHANGES_REQUIRED`: return to phase 3 and make the smallest correction through
   the slice's writer.
 - `MISSING_EVIDENCE`: gather or rerun the missing deterministic evidence.
 - `NEEDS_CONTEXT`: supply the missing review input.
+
+Minor findings never block a gate. Report them with the result and fix one
+only when the user asks; any fix makes the verdict stale.
 
 A missing, malformed, or unknown Inspector verdict fails closed. Stop and
 obtain a conforming verdict before presenting the work as reviewed or
@@ -331,7 +339,8 @@ merge-ready.
 
 After any correction or other diff change, deterministic gates and the previous
 review verdict are stale. Rerun the relevant gates and Inspector on the current
-diff. Do not edit a slice Kokk implemented; send Kokk the correction instead.
+diff. Do not edit a Kokk slice that is still under verification or review;
+send Kokk the correction instead.
 
 ## Checkpoints and completion
 

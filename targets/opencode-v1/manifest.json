@@ -86,11 +86,11 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "5f066efc2fe6f7994ec6c5c23674f3d24c959d90f995524275765253748f2d24",
+      "sha256": "91f6b54c9fb6cb218fe4feb373839f786d33f6e2851446e516d8f76008524e87",
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "ad6d47a1402071a53446f15e5391b2666288ac8a3c90aa43355ab3d2d53f4516",
+      "sha256": "d6d83b4143b88a2bbb84de604d393950fb6e44ca9fce146ccc03c3a10e0f8971",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -98,11 +98,11 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "3b1b0e20d1cf6e44d5824abf5a6809a4e6ff119a38db4ca02f95a56643f23f8c",
+      "sha256": "5718c847681627163495822c54e9698fe761ca1523648eaff985bdd7ea0d3da1",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "5163048ced3278d76369822c1e9385c7fdebdd9cf483ee8d34d1e5406996ce8d",
+      "sha256": "7c6ef21d38f2593bef833cc3466983e1fc2e980d2513e796e14f4a764c3efedb",
       "mode": "0644"
     },
     "agents/kokk.md": {

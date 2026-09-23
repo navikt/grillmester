@@ -155,15 +155,16 @@ may invoke only `grillmester:grill-inspektor`, one at a time, with the current
 criteria, complete stable diff, fresh evidence, and only named relevant
 decisions. Do not create a review artifact or manifest.
 
-After review, recheck the worktree and address findings only inside the
-accepted solo scope. Rerun repository-required evidence and review after any
-correction.
+After review, recheck the worktree and address material findings only inside
+the accepted solo scope. Rerun repository-required evidence and review after
+any correction. Minor findings never block a gate. Report them with the result
+and fix one only when the user asks; any fix makes the verdict stale.
 
 Handle Grill-inspektor's verdict explicitly:
 
 - `APPROVED`: the reviewed diff may pass the independent-review gate.
-- `CONCERNS`: pause until each concern is corrected or explicitly accepted
-  under repository policy.
+- `CONCERNS`: pause until each material concern is corrected or explicitly
+  accepted under repository policy.
 - `CHANGES_REQUIRED`: return to planning and make only the smallest correction
   inside the accepted solo scope.
 - `MISSING_EVIDENCE`: gather or rerun the named deterministic evidence.

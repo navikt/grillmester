@@ -35,8 +35,8 @@ grilling, dokumentert grilling, research eller prototyper inne i hvert
 spørsmål. Størrelsen på den senere implementasjonen er ikke alene grunn til
 å opprette et kart.
 
-Små, avgrensede slices (R0–R2) implementerer Grillmester selv. Slices med høy
-risiko (R3/R4), mange filer eller lang bygg- og testiterasjon delegeres til
+Små, avgrensede R0–R2-slices implementerer Grillmester selv. Større slices og
+slices med mye bygg- og testiterasjon delegeres til Kokk. R3/R4 går alltid til
 Kokk, slik at koden og den uavhengige reviewen kommer fra ulike forfattere.
 Grillmester sier hvilket valg den tar, og du kan overstyre det.
 
