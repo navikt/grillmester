@@ -42,7 +42,7 @@
       "source": "pilot",
       "sourcePath": ".github/agents/barista.agent.md",
       "disposition": "adapted",
-      "model": "gpt-5.6-terra",
+      "model": "gpt-6-sol",
       "user-invocable": true,
       "disable-model-invocation": true,
       "toolPolicy": "runtime-all"
@@ -51,7 +51,7 @@
       "source": "hovmester",
       "sourcePath": ".github/agents/designer.agent.md",
       "disposition": "adapted",
-      "model": "claude-opus-5",
+      "model": "claude-opus-5.5",
       "user-invocable": true,
       "disable-model-invocation": true,
       "toolPolicy": "runtime-all"
@@ -60,7 +60,7 @@
       "source": "hovmester",
       "sourcePath": ".github/agents/doctor-who.agent.md",
       "disposition": "adapted",
-      "model": "claude-opus-5",
+      "model": "claude-opus-5.5",
       "user-invocable": true,
       "disable-model-invocation": true,
       "toolPolicy": "runtime-all"
@@ -69,7 +69,7 @@
       "source": "pilot",
       "sourcePath": ".github/agents/grill-inspektor.agent.md",
       "disposition": "adapted",
-      "model": "claude-opus-5",
+      "model": "claude-opus-5.5",
       "user-invocable": false,
       "disable-model-invocation": false,
       "tools": ["read", "search", "execute", "skill"]
@@ -78,7 +78,7 @@
       "source": "pilot",
       "sourcePath": ".github/agents/grillmester.agent.md",
       "disposition": "adapted",
-      "model": "gpt-5.6-sol",
+      "model": "claude-opus-5.5",
       "user-invocable": true,
       "disable-model-invocation": true,
       "toolPolicy": "runtime-all"
@@ -87,7 +87,7 @@
       "source": "pilot",
       "sourcePath": ".github/agents/kokk.agent.md",
       "disposition": "adapted",
-      "model": "gpt-5.6-terra",
+      "model": "gpt-6-sol",
       "user-invocable": false,
       "disable-model-invocation": false,
       "tools": ["read", "search", "edit", "execute", "skill", "web"]
@@ -96,7 +96,7 @@
       "source": "pilot",
       "sourcePath": ".github/agents/researcher.agent.md",
       "disposition": "adapted",
-      "model": "gpt-5.6-terra",
+      "model": "gpt-6-sol",
       "user-invocable": false,
       "disable-model-invocation": false,
       "tools": ["read", "search", "web"]

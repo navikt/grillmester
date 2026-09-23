@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: "Internal read-only researcher for a bounded factual brief that needs sourced answers from repository material or authoritative external documentation. Wayfinder linkage is optional; the caller owns decisions and tracker changes."
-model: "gpt-5.6-terra"
+model: "gpt-6-sol"
 user-invocable: false
 disable-model-invocation: false
 tools:

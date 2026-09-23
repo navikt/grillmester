@@ -1,7 +1,7 @@
 ---
 name: doctor-who
 description: "Choose Doctor Who as a product partner for team status, prioritisation, goals, discovery, workshops, team health, product practice, and Nav-specific architecture choices."
-model: "claude-opus-5"
+model: "claude-opus-5.5"
 user-invocable: true
 disable-model-invocation: true
 ---
