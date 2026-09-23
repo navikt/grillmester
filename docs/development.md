@@ -172,4 +172,7 @@ Når du endrer agenter, skills eller pakkeinndeling:
 - oppdater [PROVENANCE](../PROVENANCE.md) og tredjepartsmerknader ved
   kilde-/assetendringer
 
-Se [release-runbooken](release-runbook.md) før publisering.
+For å rulle ut kjører du `python3 scripts/bump_version.py patch` i PR-en som
+skal ut, og merger den. `Release`-workflowen publiserer katalogen og den
+immutable releasen automatisk. Se [release-runbooken](release-runbook.md) for
+detaljer og for hva du gjør når et løp stopper.

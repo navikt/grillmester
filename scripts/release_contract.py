@@ -545,6 +545,20 @@ def _validate_approval_decision(
     return status
 
 
+def current_rights_scope(source_repo: Path) -> dict[str, Any]:
+    """Return the content-bound scope the stable rights record must carry."""
+
+    return {
+        "hovmester": {
+            "repository": HOVMESTER_REPOSITORY,
+            "revision": HOVMESTER_REVISION,
+        },
+        "contentLockSha256": distribution_file_digest(source_repo / CONTENT_LOCK_PATH),
+        "provenanceSha256": distribution_file_digest(source_repo / PROVENANCE_PATH),
+        "components": _hovmester_component_digests(source_repo),
+    }
+
+
 def validate_stable_rights_approval(source_repo: Path) -> None:
     """Require a reviewed, content-bound rights record for every release."""
 

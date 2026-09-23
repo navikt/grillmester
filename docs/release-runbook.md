@@ -18,72 +18,79 @@ Never move, replace, delete, or force-update a release tag or replace an
 existing release asset. Each release has exactly two maintained assets: the
 terminal bundle and its detached checksum.
 
-## Workflows and trust boundary
+## Workflow and trust boundary
 
-Three workflows have deliberately separate jobs:
+One workflow, **Release** (`.github/workflows/release.yml`), publishes both the
+floating catalog and the immutable release. It runs when a merge to `main`
+changes the version in `plugin/plugin.json`, and it can be dispatched from
+`main` to resume or retry. Its stages keep the previous trust boundary:
 
-- **Publish marketplace catalog** is an explicit maintainer dispatch from
-  current `main` with an exact source SHA reachable from `origin/main`. A
-  read-only job validates that trusted dispatch context, regenerates and seals
-  the one-package catalog from that exact source before any third-party smoke
-  tooling runs. The selected source commit's own tooling and tests execute only
-  in that read-only validation job. The one-step write job is a fresh runner:
-  it executes no selected-source code, revalidates the sealed bytes, creates a
+- **Plan** is read-only. It requires the run to be current `origin/main` and
+  releases nothing when `v<version>` is already a published release. Any
+  release lookup failure other than 404 fails closed. A missing or draft
+  release is (re)published, so any later run resumes an interrupted version.
+  When the floating `marketplace` tip already carries the current version, the
+  run resumes that catalog's exact source; otherwise it releases current
+  `main`.
+- **Catalog validation** binds the planned source SHA, regenerates and seals the
+  one-package catalog before any selected-source tooling runs, and executes the
+  selected source's own tooling and tests only in that read-only job. Copilot
+  compatibility runs trusted smoke tooling from `main` and installs the sealed
+  catalog and the source payload from a worktree with the supported minimum
+  Copilot CLI 1.0.79, which must advertise the complete local-run flag surface in
+  `--help` without authentication or a model request. The native macOS matrix
+  runs on Apple Silicon and hosted Intel. It verifies the exact OpenCode,
+  Copilot CLI and cplt release-test artifacts before their first execution,
+  runs the native and cplt runtime smokes, and launches all four local-model
+  combinations (OpenCode/Copilot CLI × focused/full) through cplt. Copilot
+  scenarios force normal delegation to Grill-inspektøren and require the exact
+  loopback model in the primary, subagent and return requests. Those exact
+  versions are reproducible release-test input, not local-launcher runtime
+  pins. The same matrix also starts a real installed Copilot CLI through the
+  installed launcher and cplt with OpenCode excluded from `PATH`, using
+  `--help` without a model call. These gates run once per release; the
+  release stage reuses them for the same source SHA.
+- **Catalog publication** is a one-step write job on a fresh runner. It executes
+  no selected-source code, revalidates the sealed bytes, creates a
   catalog-only child of the current `marketplace` tip, and performs a normal
-  fast-forward push. Its following read-only smoke installs from the actual
-  floating `marketplace` ref.
-- **Validate immutable release** is an optional, read-only manual preflight.
-  Dispatch it from `main` with an exact catalog SHA. It cannot create a tag or
-  release. It reruns native macOS client compatibility.
-- **Publish reviewed release request** is the only release publisher. It runs
-  when a reviewed `.github/release-request.json` change lands on `main`,
-  validates the complete chain and stages the exact catalog bytes and
-  source-pinned payload in an isolated local smoke. The read-only validation
-  job also builds the terminal bundle twice, requires byte identity, verifies
-  `DISTRIBUTION-MANIFEST.json`, and seals the exact `tar.gz`, detached checksum
-  and release notes. A separate read-only job retrieves the
-  exact immutable
-  artifact ID and uses fixed workflow-owned code to match every archive file,
-  mode, manifest entry, and canonical archive property to immutable Git blobs
-  at the selected source SHA. Separate Copilot and native macOS
-  compatibility jobs must also pass. The Copilot compatibility job requires
-  the supported minimum Copilot CLI 1.0.79 to advertise the complete local-run
-  flag surface in `--help`, without authentication or a model request. The
-  exact local smoke executes those flags with the release-test client. The
-  native macOS matrix runs on Apple Silicon and hosted Intel. It verifies the exact OpenCode, Copilot CLI
-  and cplt release-test artifacts before their first execution, runs the native and
-  cplt runtime smokes, and launches all four local-model combinations
-  (OpenCode/Copilot CLI × focused/full) through cplt. Copilot scenarios force
-  normal delegation to Grill-inspektøren and require the exact loopback model
-  in the primary, subagent and return requests. Those exact versions are
-  reproducible release-test input, not local-launcher runtime pins. The same
-  matrix also starts a real installed
-  Copilot CLI through the installed launcher and cplt with OpenCode excluded
-  from `PATH`, using `--help` without a model call.
-  Only after all of those deterministic jobs succeed does the workflow enter
-  the main-restricted `grillmester-release` deployment and secret boundary
-  automatically. The two asset files cross
-  that boundary in one immutable
-  Actions artifact; only its exact artifact ID, server digest, file digests,
-  sizes and names cross as scalar outputs. Its write-capable job contains two
-  fixed inline steps with no checkout, action, package install, or repository-
-  script execution. The first uses the environment's Administration:read token
-  only to require that immutable GitHub Releases are enabled. The second alone
-  receives the ordinary contents-write token, fetches only the sealed artifact
-  ID, binds it back to the same workflow run and digest, requires exactly the
-  two expected files, and may therefore only publish the already source-bound
-  sealed bytes without executing selected-source code. It finally requires the
-  published release object to report
-  `immutable: true`. After
-  publication, a read-only job verifies the tag target, installs from the
-  actual remote `v<version>` marketplace ref, downloads both assets,
-  checksum-verifies the bundle, and exercises the terminal bundle's install
-  contract.
+  fast-forward push. An identical tip is an idempotent no-op. A following
+  read-only smoke installs from the actual floating `marketplace` ref. Users on
+  the floating channel receive the version from this point, before the
+  immutable release is sealed.
+- **Release sealing** requires the published catalog commit to bind the planned
+  source, validates the complete chain and stages the exact catalog bytes and
+  source-pinned payload in an isolated local smoke. It builds the terminal
+  bundle twice, requires byte identity, verifies `DISTRIBUTION-MANIFEST.json`,
+  and seals the exact `tar.gz`, detached checksum and release notes. A separate
+  read-only job retrieves the exact immutable artifact ID and uses fixed
+  workflow-owned code to match every archive file, mode, manifest entry, and
+  canonical archive property to immutable Git blobs at the selected source SHA.
+
+Catalog publication enters the main-restricted `grillmester-release`
+deployment and secret boundary automatically once the catalog gates pass.
+Release publication enters it again only after sealing and asset verification
+also succeed, and it re-checks the sealed source and catalog against the plan
+and the published catalog commit, independently of the job that ran
+selected-source code. The two asset files cross that boundary in one immutable Actions
+artifact; only its exact artifact ID, server digest, file digests, sizes and
+names cross as scalar outputs. Its write-capable job contains two fixed inline
+steps with no checkout, action, package install, or repository-script
+execution. The first uses the environment's Administration:read token only to
+require that immutable GitHub Releases are enabled. The second alone receives
+the ordinary contents-write token, fetches only the sealed artifact ID, binds it
+back to the same workflow run and digest, requires exactly the two expected
+files, and may therefore only publish the already source-bound sealed bytes
+without executing selected-source code. It finally requires the published
+release object to report `immutable: true`. After publication, a read-only job
+verifies the tag target, installs from the actual remote `v<version>`
+marketplace ref, downloads both assets, checksum-verifies the bundle, and
+exercises the terminal bundle's install contract.
 
 The source reachability control relies on the current linear/squash `main`
 history. If merge commits are enabled, strengthen it to require first-parent
-membership. If `main` advances during validation or before an idempotent rerun,
-the current-main guard fails closed; dispatch a fresh run from current `main`.
+membership. Every stage requires its run to still be current `origin/main`; if
+`main` advances during a release, the run fails closed before its next write and
+a dispatch from current `main` resumes it.
 
 ### Terminal asset contract
 
@@ -106,8 +113,8 @@ release is marked mutable upstream, so any later byte replacement fails against
 the committed archive and executable digests. Linux artifacts remain test
 inputs only; they do not create a Linux support claim for the macOS release.
 
-The release-request PR, protected `main`, rulesets, and environment boundary
-are process and accidental-misdispatch controls. A normal repository
+Protected `main`, the version-bump trigger, rulesets, and the environment
+boundary are process and accidental-misdispatch controls. A normal repository
 `GITHUB_TOKEN` is not a cryptographic per-workflow identity: a ruleset bypass
 granted broadly to GitHub Actions cannot prove that only one workflow used it.
 If strict separation from every repository writer is required, replace the
@@ -123,9 +130,9 @@ authorized to bypass these protections.
 
 An administrator must maintain and verify these current active controls:
 
-- Protect `main`; require reviewed PRs for workflow, release-contract, and
-  `.github/release-request.json` changes. A release-request PR should change
-  only the request file.
+- Protect `main`. Changes reach it only through pull requests, and merging a
+  pull request that bumps `plugin/plugin.json` is the release decision. An
+  independent Grill-inspektør review is recommended before that merge.
 - Keep the existing active `main` ruleset (ID `20790914`) unchanged, including
   Team `4531825` with `always` bypass. Do not copy, replace, or broaden that
   ruleset as part of marketplace or tag protection.
@@ -189,9 +196,9 @@ An administrator must maintain and verify these current active controls:
 Merely naming an environment in YAML does not establish this deployment and
 secret boundary: GitHub can create an unconfigured environment automatically.
 Verify the deployment branch restriction and environment-only secret in GitHub
-before merging a release request. All three workflows share the
-`publish-grillmester-marketplace` concurrency group so selection and
-publication cannot race the catalog publisher.
+before the first release. The Release workflow holds the
+`publish-grillmester-marketplace` concurrency group so two releases cannot
+race.
 
 ### Read back the live rules
 
@@ -286,12 +293,10 @@ gh api "repos/${repository}/rules/branches/marketplace" --jq '.[] | .type'
 
 Prove the controls only through normal, legitimate publisher operations:
 
-1. During a planned catalog promotion, dispatch **Publish marketplace catalog**
-   from current `main` with a new, valid source SHA and confirm its normal
-   fast-forward push to `marketplace` succeeds.
-2. During a planned reviewed release, let **Publish reviewed release request**
-   create its new `v<version>` tag and confirm its existing remote smoke
-   succeeds.
+1. During a planned release, confirm that **Release** performs its normal
+   fast-forward push to `marketplace`.
+2. In the same run, confirm that it creates the new `v<version>` tag and that
+   its remote smoke succeeds.
 3. Repeat the readback above after each activation or ruleset change. A
    successful publisher run and API readback together prove the allowed paths
    and configured restrictions. The 2026-08-18 readback is configuration
@@ -320,91 +325,65 @@ strict SemVer prerelease suffix marks the GitHub Release as a prerelease, and a
 plain version marks it as the latest stable release. Nothing else distinguishes
 them, and no release is promoted from another.
 
-1. Set `plugin/plugin.json.version` to a strict SemVer, for example `0.3.2`, or
-   `0.3.2-rc.1` for a prerelease. Build metadata is not accepted, and a version
-   must never be reused for different payload bytes.
-   Before merging a release that changes imported content, rebind
-   `policy/stable-rights-approval.json` to the current content lock,
-   provenance, and imported component digests. Each `decisionReference` must
-   retain the applicable underlying rights decision and a distinct
-   current-content review in the form `underlying decision: …; current-content
-   review: …`. The prior decision alone does not approve a changed digest; get
-   a new rights or brand decision when the change is outside its source,
-   component, or naming scope.
-2. Merge that source change normally. From current `main`, explicitly dispatch
-   **Publish marketplace catalog** with the exact lowercase 40-character
-   `source_sha` to promote. Wait for it to
-   complete, then resolve the exact catalog-only commit containing the version:
+Changes can merge to `main` without being released. To roll them out:
+
+1. In the pull request that should release, run:
 
    ```bash
-   git fetch origin main marketplace
-   git log -1 --format=%H origin/marketplace
-   git show MARKETPLACE_SHA:.github/plugin/marketplace.json
+   python3 scripts/bump_version.py patch
    ```
 
-3. Optionally dispatch **Validate immutable release** from the `main` branch
-   with the full `catalog_sha`. A run from
-   another selected ref fails rather than being skipped. This preflight is
-   read-only and is not a publication request.
-4. Open a separate PR that changes only `.github/release-request.json`:
+   Use `minor`, `major`, or an explicit strict SemVer such as `0.5.0-rc.1`
+   instead of `patch` when that fits. Like `semver inc`, a bump of the level a
+   prerelease belongs to finalises it (`0.5.0-rc.1` + `minor` is `0.5.0`). Build metadata is not accepted, and a
+   version must never be reused for different payload bytes. The script
+   updates `plugin/plugin.json` and regenerates every derived target.
+2. When the change touches rights-scoped imported content (Designer, Doctor
+   Who or a Hovmester-imported skill), the script refuses until the stable
+   rights journal is rebound. Rerun it with the pull request that reviews that
+   content:
 
-   ```json
-   {
-     "schemaVersion": 1,
-     "requestId": "v0.3.2-1",
-     "catalogSha": "0123456789abcdef0123456789abcdef01234567"
-   }
+   ```bash
+   python3 scripts/bump_version.py patch --rights-review navikt/grillmester#123
    ```
 
-   Use the real 40-character catalog SHA. `requestId` is a lowercase audit and
-   retry identifier; increment its final component when the exact same release
-   must be requested again. The checked-in request is a historical publication
-   record; do not migrate it or replace its catalog SHA with a placeholder in a
-   source or workflow PR. Replace the complete object with the format above
-   only in this separate request-only PR.
-5. After review, merge the request. **Publish reviewed release request** binds
-   the request to current `origin/main`, checks that the catalog is reachable
-   from `marketplace`, requires the complete merged push range to change only
-   the request file, checks that `source.sha` is reachable from `main`,
-   requires an exact catalog-only tree, and regenerates the one-entry catalog
-   byte-for-byte from the release contract and plugin manifest at that source.
-   It then stages and verifies those exact catalog bytes and the source-pinned
-   Grillmester payload locally, builds the deterministic terminal bundle twice,
-   and uploads the bundle and detached checksum as one immutable, digest-bound
-   workflow artifact before the environment-bound write job runs automatically
-   after the deterministic gates. A raw
-   catalog SHA is not passed to Copilot as a marketplace ref; the CLI accepts a
-   branch or tag there. OpenCode does not install from that catalog path; its
-   release asset is bound to the same source SHA by
-   `DISTRIBUTION-MANIFEST.json`.
+   Each `decisionReference` then retains the underlying rights decision and a
+   distinct current-content review in the form `underlying decision: …;
+   current-content review: …`. The prior decision alone does not approve a
+   changed digest; get a new rights or brand decision when the change is
+   outside its source, component, or naming scope.
+3. Merge the pull request. **Release** starts automatically, publishes the
+   catalog to `marketplace`, and publishes the immutable `v<version>` release
+   with its terminal bundle and checksum.
+
+The floating `marketplace` branch is also the personal CLI auto-update channel.
+It advances when a version bump's catalog gates pass, before the immutable
+release is sealed; an ordinary merge without a version bump does not deploy
+it. Keep an isolated Copilot home on the previous
+version, start a new trusted CLI session after publication, and verify that it
+advances without an explicit update command. This is post-deployment evidence
+and is separate from the immutable-tag smoke. Use an immutable release tag for
+a deliberately staged rollout. Record App and VS Code behavior separately;
+neither may be inferred from the CLI result.
+
 The read-only asset verifier checks the archive's bounded gzip/tar structure,
 canonical manifest, complete inventory, modes, and file bytes against immutable
 Git blobs. The write step then fetches and revalidates the refs again immediately
 before it mutates GitHub. It resolves the same sealed artifact ID through the
 Actions API, requires the expected workflow-run ID and server digest, and checks
-the exact inner bytes and detached checksum again. It creates an annotated tag at the catalog commit,
-then stages a draft GitHub Release with `--verify-tag`. Only an unpublished
-draft may have the two sealed asset names retried with `--clobber`; unexpected
-draft assets fail closed. The step downloads and byte-verifies both staged
-assets before publishing the draft (`prerelease` and
-`latest=false` for a prerelease).
-Published assets are never replaced. The following read-only
-`remote-smoke` job peels the published tag back to the expected catalog commit,
-installs from `navikt/grillmester#v<version>`, byte-verifies the 7-agent/43-skill
-Copilot payload, downloads the exact two-asset roster, verifies the detached
-checksum before safe extraction, and exercises the launcher's install contract. A failed
-post-publication smoke stops promotion and requires a new corrective version;
-tags and assets are never replaced.
-
-The floating `marketplace` branch is also the personal CLI auto-update channel.
-It advances only after a maintainer explicitly promotes an exact validated
-source SHA; an ordinary merge to `main` does not deploy it. Keep an isolated
-Copilot home on the previous version, start a new trusted CLI session after
-publication, and verify that it advances without an explicit update command.
-This is post-deployment evidence and is separate from the immutable-tag smoke.
-Use an immutable release tag for a deliberately staged rollout.
-Record App and VS Code behavior separately; neither may be inferred from the
-CLI result.
+the exact inner bytes and detached checksum again. It creates an annotated tag at
+the catalog commit, then stages a draft GitHub Release with `--verify-tag`. Only
+an unpublished draft may have the two sealed asset names retried with
+`--clobber`; unexpected draft assets fail closed. The step downloads and
+byte-verifies both staged assets before publishing the draft (`prerelease` and
+`latest=false` for a prerelease). Published assets are never replaced. The
+following read-only `release-smoke` job peels the published tag back to the
+expected catalog commit, installs from `navikt/grillmester#v<version>`,
+byte-verifies the 7-agent/43-skill Copilot payload, downloads the exact
+two-asset roster, verifies the detached checksum before safe extraction, and
+exercises the launcher's install contract. A failed post-publication smoke
+stops promotion and requires a new corrective version; tags and assets are
+never replaced.
 
 ### Gate the local-model harness
 
@@ -440,10 +419,14 @@ The publisher never moves an existing tag:
   draft assets, or any missing, extra or different asset on an already
   published release: fail.
 
-Rerun the failed push workflow while its request commit is still current
-`origin/main`. If `main` has moved, open a new request-only PR with the same
-`catalogSha` and a new `requestId`. This preserves a reviewable
-retry without changing or reusing immutable release content.
+Rerun the failed jobs while the run's commit is still current `origin/main`.
+If `main` has moved, the next run resumes the version: a push that changes
+`plugin/plugin.json`, or a dispatch of **Release** from current `main`. When the
+floating `marketplace` tip already carries that version, the run resumes the
+published catalog and its exact source; the catalog step is then a no-op and
+the release step continues from the existing tag or draft. A later version
+bump supersedes an interrupted one; the interrupted version then has a catalog
+commit but no immutable release.
 
 ## Rollback and containment
 
@@ -473,6 +456,6 @@ through the protected automation identity. Re-enable it only after generator,
 validator, remote install smoke, and history/version guards pass.
 
 Record the catalog SHA, source SHA, test artifact SHA-256, tags, consumer refs,
-request ID, and recovery actions in the incident. Repinning or reinstalling
+workflow run ID, and recovery actions in the incident. Repinning or reinstalling
 does not make an already-started agent session forget loaded content; restart
 the affected Copilot or OpenCode session.

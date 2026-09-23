@@ -18,9 +18,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/publish-marketplace.yml"
-PROMOTE_WORKFLOW = ROOT / ".github/workflows/promote-release.yml"
-RELEASE_WORKFLOW = ROOT / ".github/workflows/publish-release.yml"
+RELEASE_WORKFLOW = ROOT / ".github/workflows/release.yml"
 RELEASE_RUNBOOK = ROOT / "docs/release-runbook.md"
 VALIDATE_WORKFLOW = ROOT / ".github/workflows/validate.yml"
 MACOS_WORKFLOW = ROOT / ".github/workflows/macos-opencode-compatibility.yml"
@@ -32,6 +30,14 @@ assert BASELINE_SPEC and BASELINE_SPEC.loader
 BASELINE = importlib.util.module_from_spec(BASELINE_SPEC)
 sys.modules[BASELINE_SPEC.name] = BASELINE
 BASELINE_SPEC.loader.exec_module(BASELINE)
+
+
+def workflow_jobs(workflow: Path) -> dict[str, str]:
+    text = workflow.read_text(encoding="utf-8")
+    parts = re.split(
+        r"(?m)^  ([a-z0-9-]+):\n", text.split("\njobs:\n", maxsplit=1)[1]
+    )
+    return dict(zip(parts[1::2], parts[2::2]))
 
 
 class PublishWorkflowContractTest(unittest.TestCase):
@@ -63,12 +69,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 )
 
     def test_copilot_compatibility_and_opencode_smokes_use_separate_runners(self) -> None:
-        for workflow in (
-            VALIDATE_WORKFLOW,
-            WORKFLOW,
-            PROMOTE_WORKFLOW,
-            RELEASE_WORKFLOW,
-        ):
+        for workflow in (VALIDATE_WORKFLOW, RELEASE_WORKFLOW):
             text = workflow.read_text(encoding="utf-8")
             parts = re.split(r"(?m)^  ([a-z0-9-]+):\n", text.split("jobs:\n", 1)[1])
             jobs = dict(zip(parts[1::2], parts[2::2]))
@@ -78,12 +79,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                     self.assertNotIn("@github/copilot", body, f"{workflow.name}:{name}")
 
     def test_opencode_smokes_recheck_absolute_verified_clients(self) -> None:
-        for workflow in (
-            VALIDATE_WORKFLOW,
-            WORKFLOW,
-            PROMOTE_WORKFLOW,
-            RELEASE_WORKFLOW,
-        ):
+        for workflow in (VALIDATE_WORKFLOW, RELEASE_WORKFLOW):
             text = workflow.read_text(encoding="utf-8")
             self.assertGreaterEqual(text.count('stat -c \'%a:%u\' "${OPENCODE_BIN}"'), 2)
             self.assertGreaterEqual(text.count('stat -c \'%a:%u\' "${CPLT_BIN}"'), 2)
@@ -316,13 +312,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 self.assertNotIn("--profile local-only", text)
 
     def test_all_workflow_checkouts_disable_persisted_credentials(self) -> None:
-        for workflow in (
-            VALIDATE_WORKFLOW,
-            WORKFLOW,
-            PROMOTE_WORKFLOW,
-            RELEASE_WORKFLOW,
-            MACOS_WORKFLOW,
-        ):
+        for workflow in (VALIDATE_WORKFLOW, RELEASE_WORKFLOW, MACOS_WORKFLOW):
             text = workflow.read_text(encoding="utf-8")
             checkout_blocks = text.split("uses: actions/checkout@")[1:]
             self.assertTrue(checkout_blocks, workflow.name)
@@ -331,14 +321,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 self.assertIn("persist-credentials: false", block, workflow.name)
 
     def test_workflow_downloads_ignore_ambient_curl_configuration(self) -> None:
-        # PROMOTE_WORKFLOW er utelatt: den er en ren lesevalidator uten
-        # nedlastinger etter at kanalsplitten forsvant.
-        for workflow in (
-            VALIDATE_WORKFLOW,
-            WORKFLOW,
-            RELEASE_WORKFLOW,
-            MACOS_WORKFLOW,
-        ):
+        for workflow in (VALIDATE_WORKFLOW, RELEASE_WORKFLOW, MACOS_WORKFLOW):
             curl_lines = [
                 line for line in workflow.read_text(encoding="utf-8").splitlines()
                 if "curl " in line
@@ -446,12 +429,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("assert result", step)
 
     def test_every_copilot_install_pins_node_first_in_the_same_job(self) -> None:
-        for workflow in (
-            VALIDATE_WORKFLOW,
-            WORKFLOW,
-            PROMOTE_WORKFLOW,
-            RELEASE_WORKFLOW,
-        ):
+        for workflow in (VALIDATE_WORKFLOW, RELEASE_WORKFLOW):
             text = workflow.read_text(encoding="utf-8")
             parts = re.split(
                 r"(?m)^  ([a-z0-9-]+):\n",
@@ -471,14 +449,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
     def test_every_gate_calls_macos_compatibility_for_the_exact_source(self) -> None:
         expected_sources = {
             VALIDATE_WORKFLOW: "${{ github.sha }}",
-            WORKFLOW: "${{ inputs.source_sha }}",
-            PROMOTE_WORKFLOW: "${{ needs.validate.outputs.source-sha }}",
-            RELEASE_WORKFLOW: "${{ needs.validate.outputs.source-sha }}",
+            RELEASE_WORKFLOW: "${{ needs.plan.outputs.source-sha }}",
         }
         for workflow, source in expected_sources.items():
-            text = workflow.read_text(encoding="utf-8")
-            job = text.split("\n  macos-live-compatibility:\n", maxsplit=1)[1]
-            job = re.split(r"(?m)^  [a-z0-9-]+:\n", job, maxsplit=1)[0]
+            job = workflow_jobs(workflow)["macos-live-compatibility"]
             self.assertIn(
                 "uses: ./.github/workflows/macos-opencode-compatibility.yml",
                 job,
@@ -487,13 +461,15 @@ class PublishWorkflowContractTest(unittest.TestCase):
             self.assertIn(f"source_sha: {source}", job, workflow.name)
             self.assertIn("contents: read", job, workflow.name)
             self.assertNotIn("actions: read", job, workflow.name)
+        release_text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertEqual(
+            1, release_text.count("uses: ./.github/workflows/macos-opencode-compatibility.yml")
+        )
 
     def test_every_release_gate_uses_the_pinned_native_opencode_smoke(self) -> None:
         workflows = {
             "validate": VALIDATE_WORKFLOW.read_text(encoding="utf-8"),
-            "marketplace": WORKFLOW.read_text(encoding="utf-8"),
-            "manual release validation": PROMOTE_WORKFLOW.read_text(encoding="utf-8"),
-            "release publication": RELEASE_WORKFLOW.read_text(encoding="utf-8"),
+            "release": RELEASE_WORKFLOW.read_text(encoding="utf-8"),
         }
         for label, text in workflows.items():
             with self.subTest(workflow=label):
@@ -511,36 +487,32 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 self.assertIn("smoke_opencode_runtime.py", text)
                 self.assertIn("--require-binary", text)
 
-        self.assertIn(
-            'python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py"',
-            workflows["marketplace"],
-        )
-        self.assertIn(
-            'python3 "${SOURCE_ROOT}/scripts/smoke_opencode_runtime.py"',
-            workflows["marketplace"],
-        )
-        for label in ("manual release validation", "release publication"):
-            self.assertIn(
-                'python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py"',
-                workflows[label],
-            )
-            self.assertIn(
-                'python3 "${SOURCE_ROOT}/scripts/smoke_opencode_runtime.py"',
-                workflows[label],
-            )
+        jobs = workflow_jobs(RELEASE_WORKFLOW)
+        for job in ("validate", "seal-release"):
+            with self.subTest(job=job):
+                self.assertIn(
+                    'python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py"', jobs[job]
+                )
+                self.assertIn(
+                    'python3 "${SOURCE_ROOT}/scripts/smoke_opencode_runtime.py"',
+                    jobs[job],
+                )
 
     def test_write_credentials_exist_only_in_final_publish_step(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
+        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        jobs = workflow_jobs(RELEASE_WORKFLOW)
         self.assertIn("persist-credentials: false", text)
-        self.assertEqual(1, text.count("GH_TOKEN: ${{ github.token }}"))
-        self.assertEqual(1, text.count("contents: write"))
+        self.assertEqual(2, text.count("GH_TOKEN: ${{ github.token }}"))
+        self.assertEqual(2, text.count("contents: write"))
+        write_jobs = {
+            name for name, body in jobs.items() if "contents: write" in body
+        }
+        self.assertEqual({"publish-catalog", "release"}, write_jobs)
+        write_job = jobs["publish-catalog"]
         self.assertLess(
-            text.index("Publish catalog-only commit atomically"),
-            text.index("GH_TOKEN: ${{ github.token }}"),
+            write_job.index("Publish catalog-only commit atomically"),
+            write_job.index("GH_TOKEN: ${{ github.token }}"),
         )
-        write_job = text.split("\n  publish:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
         self.assertIn("contents: write", write_job)
         self.assertEqual(1, write_job.count("      - name:"))
         self.assertNotIn("uses:", write_job)
@@ -552,7 +524,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
 
     def test_publisher_rejects_marketplace_version_reuse(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
+        text = workflow_jobs(RELEASE_WORKFLOW)["publish-catalog"]
         self.assertIn("Refusing to reuse marketplace version", text)
         self.assertIn("Refusing to reuse previously published marketplace version", text)
         self.assertIn("git rev-list --skip=1", text)
@@ -560,12 +532,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("git push origin --atomic", text)
 
     def test_marketplace_write_job_is_protected_and_needs_every_gate(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-        write_job = text.split("\n  publish:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
+        write_job = workflow_jobs(RELEASE_WORKFLOW)["publish-catalog"]
         self.assertIn(
             "needs:\n"
+            "      - plan\n"
             "      - validate\n"
             "      - copilot-compatibility\n"
             "      - macos-live-compatibility",
@@ -575,7 +545,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("contents: write", write_job)
 
     def test_marketplace_version_gate_implements_semver_precedence(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
+        text = workflow_jobs(RELEASE_WORKFLOW)["publish-catalog"]
         start = text.index("          compare_numeric_identifier() {")
         end = text.index('          [[ "${SOURCE_SHA}" =~', start)
         functions = textwrap.dedent(text[start:end])
@@ -608,10 +578,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("Refusing marketplace downgrade", text)
 
     def test_idempotent_rerun_requires_tip_bytes_to_match_sealed_catalog(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-        write_job = text.split("\n  publish:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
+        write_job = workflow_jobs(RELEASE_WORKFLOW)["publish-catalog"]
         source_match = '[[ "${SOURCE_SHA}" == "${previous_source_sha}" ]]'
         digest = (
             'previous_catalog_sha256="$(git show "${base_sha}:${catalog}" '
@@ -631,38 +598,79 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertLess(write_job.index(digest), write_job.index(identity_match))
         self.assertLess(write_job.index(identity_match), write_job.index(success))
 
-    def test_marketplace_promotion_is_explicit_and_not_push_triggered(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-        trigger = text.split("\nconcurrency:", maxsplit=1)[0]
-        self.assertIn("workflow_dispatch:", trigger)
-        self.assertIn("source_sha:", trigger)
-        self.assertIn("required: true", trigger)
-        self.assertIn("type: string", trigger)
-        self.assertNotIn("push:", trigger)
-        self.assertNotIn("paths:", trigger)
-
-    def test_promotion_requires_current_main_and_exact_reachable_source_sha(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('SOURCE_SHA: ${{ inputs.source_sha }}', text)
-        self.assertIn('DISPATCH_REF: ${{ github.ref }}', text)
-        self.assertIn('DISPATCH_SHA: ${{ github.sha }}', text)
-        self.assertIn('[[ "${DISPATCH_REF}" == "refs/heads/main" ]]', text)
-        self.assertIn('[[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]', text)
-        self.assertIn('[[ "${DISPATCH_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]]', text)
-        self.assertIn('git cat-file -e "${SOURCE_SHA}^{commit}"', text)
-        self.assertIn('git merge-base --is-ancestor \\\n            "${SOURCE_SHA}" refs/remotes/origin/main', text)
-        self.assertIn('WORKFLOW_SHA: ${{ github.sha }}', text)
-        self.assertNotIn("needs.validate.outputs.source-sha", text)
-        self.assertNotIn("needs.validate.outputs.workflow-sha", text)
-        self.assertNotIn("steps.source.outputs.sha", text)
-        self.assertNotIn("steps.source.outputs.workflow_sha", text)
+        # Both the idempotent and the new-commit path hand the exact catalog
+        # commit to the release stage.
         self.assertIn(
-            'The selected workflow SHA is no longer current origin/main.', text
+            "catalog-sha: ${{ steps.catalog.outputs.catalog_sha }}", write_job
+        )
+        self.assertLess(
+            write_job.index(success),
+            write_job.index('echo "catalog_sha=${base_sha}" >> "${GITHUB_OUTPUT}"'),
+        )
+        self.assertLess(
+            write_job.index("git push origin --atomic"),
+            write_job.index('echo "catalog_sha=${commit_sha}" >> "${GITHUB_OUTPUT}"'),
         )
 
+    def test_release_runs_on_version_bumps_on_main_or_explicit_dispatch(self) -> None:
+        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        trigger = text.split("\nconcurrency:", maxsplit=1)[0]
+        self.assertIn(
+            "  push:\n"
+            "    branches:\n"
+            "      - main\n"
+            "    paths:\n"
+            '      - "plugin/plugin.json"\n'
+            "  workflow_dispatch:\n",
+            trigger,
+        )
+        self.assertNotIn("inputs:", trigger)
+        self.assertNotIn("release-request", text)
+        self.assertNotIn("requestId", text)
+        for retired in (
+            ".github/release-request.json",
+            ".github/workflows/publish-marketplace.yml",
+            ".github/workflows/publish-release.yml",
+            ".github/workflows/promote-release.yml",
+        ):
+            with self.subTest(retired=retired):
+                self.assertFalse((ROOT / retired).exists())
+
+    def test_promotion_requires_current_main_and_exact_reachable_source_sha(self) -> None:
+        jobs = workflow_jobs(RELEASE_WORKFLOW)
+        validate = jobs["validate"]
+        self.assertIn("needs: plan", validate)
+        self.assertIn("if: needs.plan.outputs.release == 'true'", validate)
+        self.assertIn("SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}", validate)
+        self.assertIn('DISPATCH_REF: ${{ github.ref }}', validate)
+        self.assertIn('DISPATCH_SHA: ${{ github.sha }}', validate)
+        self.assertIn('[[ "${DISPATCH_REF}" == "refs/heads/main" ]]', validate)
+        self.assertIn('[[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]', validate)
+        self.assertIn(
+            '[[ "${DISPATCH_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]]',
+            validate,
+        )
+        self.assertIn('git cat-file -e "${SOURCE_SHA}^{commit}"', validate)
+        self.assertIn(
+            'git merge-base --is-ancestor \\\n            "${SOURCE_SHA}" refs/remotes/origin/main',
+            validate,
+        )
+        publish = jobs["publish-catalog"]
+        self.assertIn('WORKFLOW_SHA: ${{ github.sha }}', publish)
+        self.assertIn(
+            'The selected workflow SHA is no longer current origin/main.', publish
+        )
+        for job in ("seal-release", "verify-release-assets", "release"):
+            with self.subTest(job=job):
+                self.assertIn(
+                    '[[ "${WORKFLOW_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]]',
+                    jobs[job],
+                )
+
     def test_catalog_publisher_revalidates_exact_one_plugin_roster(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-        write_job = text.split("\n  publish:\n", maxsplit=1)[1]
+        jobs = workflow_jobs(RELEASE_WORKFLOW)
+        write_job = jobs["publish-catalog"]
+        catalog_stage = jobs["validate"] + write_job
         self.assertIn("(.plugins | length) == 1", write_job)
         self.assertIn(
             '[.plugins[].name] == ["grillmester"]',
@@ -680,22 +688,24 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertEqual(
             2,
-            text.count('entry="$(git ls-tree "${SOURCE_SHA}" -- "${source_file}")"'),
+            catalog_stage.count(
+                'entry="$(git ls-tree "${SOURCE_SHA}" -- "${source_file}")"'
+            ),
         )
         self.assertIn(
             '[[ -f "${source_root}/${source_file}" && ! -L "${source_root}/${source_file}" ]]',
-            text,
+            catalog_stage,
         )
         self.assertEqual(
             2,
-            text.count('.repository == "https://github.com/navikt/grillmester"'),
+            catalog_stage.count('.repository == "https://github.com/navikt/grillmester"'),
         )
-        self.assertEqual(2, text.count('.author == {name: $owner}'))
-        self.assertEqual(2, text.count('.license == "MIT"'))
+        self.assertEqual(2, catalog_stage.count('.author == {name: $owner}'))
+        self.assertEqual(2, catalog_stage.count('.license == "MIT"'))
         self.assertIn('cmp -s "${regenerated_catalog}" "${catalog}"', write_job)
 
     def test_validation_regenerates_and_seals_catalog_from_exact_source_before_write(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
+        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('git worktree add --detach "${source_root}" "${SOURCE_SHA}"', text)
         self.assertIn(
             'python3 "${source_root}/scripts/generate_marketplace.py" \\\n            --mode release --sha "${SOURCE_SHA}"',
@@ -716,44 +726,25 @@ class PublishWorkflowContractTest(unittest.TestCase):
             text.index("Publish catalog-only commit atomically"),
         )
 
-    def test_manual_validator_is_read_only_and_smokes_exact_local_payload(self) -> None:
-        text = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("catalog_sha:", text)
-        self.assertIn("refs/remotes/origin/marketplace", text)
-        self.assertIn("refs/remotes/origin/main", text)
-        self.assertNotIn("--remote-marketplace-ref", text)
-        self.assertIn('--source-root "${GITHUB_WORKSPACE}"', text)
-        self.assertNotIn("--source-plugin", text)
+    def test_release_holds_the_publication_concurrency_lock(self) -> None:
+        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        header = text.split("\njobs:\n", maxsplit=1)[0]
         self.assertIn(
-            '[.plugins[].name] == ["grillmester"]', text
+            "concurrency:\n"
+            "  group: publish-grillmester-marketplace\n"
+            "  cancel-in-progress: false\n",
+            header,
         )
-        self.assertNotIn('path: "plugin-nav"', text)
-        self.assertIn("contents: read", text)
-        self.assertNotIn("contents: write", text)
-        self.assertNotIn("GH_TOKEN", text)
-        self.assertNotIn("release create", text)
-
-    def test_promoter_and_publisher_share_concurrency_lock(self) -> None:
-        publish = WORKFLOW.read_text(encoding="utf-8")
-        promote = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
-        release = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        lock = "group: publish-grillmester-marketplace"
-        self.assertIn(lock, publish)
-        self.assertIn(lock, promote)
-        self.assertIn(lock, release)
 
     def test_floating_marketplace_remote_smoke_is_read_only(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-        publish = text.split("\n  publish:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
-        remote_smoke = text.split("\n  remote-smoke:\n", maxsplit=1)[1]
+        jobs = workflow_jobs(RELEASE_WORKFLOW)
+        publish = jobs["publish-catalog"]
+        remote_smoke = jobs["catalog-smoke"]
         for job in (publish, remote_smoke):
-            self.assertIn('SOURCE_SHA: ${{ inputs.source_sha }}', job)
+            self.assertIn('SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}', job)
             self.assertIn('WORKFLOW_SHA: ${{ github.sha }}', job)
             self.assertNotIn("needs.validate.outputs.source-sha", job)
-            self.assertNotIn("needs.validate.outputs.workflow-sha", job)
-        self.assertIn("- publish", remote_smoke)
+        self.assertIn("- publish-catalog", remote_smoke)
         self.assertIn("contents: read", remote_smoke)
         self.assertNotIn("contents: write", remote_smoke)
         self.assertNotIn("GH_TOKEN", remote_smoke)
@@ -765,36 +756,203 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertIn("--allow-floating-marketplace", remote_smoke)
 
-    def test_promoter_has_a_real_failing_main_guard(self) -> None:
-        text = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('DISPATCH_REF: ${{ github.ref }}', text)
-        self.assertIn('[[ "${DISPATCH_REF}" == "refs/heads/main" ]]', text)
-        self.assertNotIn("if: github.ref == 'refs/heads/main'", text)
-
-    def test_release_requires_reviewed_request_on_main(self) -> None:
-        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('branches:\n      - main', text)
-        self.assertIn('- ".github/release-request.json"', text)
-        self.assertNotIn("workflow_dispatch", text)
+    def test_plan_has_a_real_failing_main_guard(self) -> None:
+        plan = workflow_jobs(RELEASE_WORKFLOW)["plan"]
+        self.assertIn('DISPATCH_REF: ${{ github.ref }}', plan)
+        self.assertIn('[[ "${DISPATCH_REF}" == "refs/heads/main" ]]', plan)
         self.assertIn(
-            '(keys | sort) == ["catalogSha", "requestId", "schemaVersion"]',
-            text,
+            '[[ "${WORKFLOW_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]]',
+            plan,
         )
-        self.assertIn('git show "${MAIN_SHA}:.github/release-request.json"', text)
-        self.assertIn("request_id=${request_id}", text)
-        self.assertIn('BEFORE_SHA: ${{ github.event.before }}', text)
-        self.assertEqual(
-            2,
-            text.count('git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}"'),
+        self.assertNotIn("if: github.ref == 'refs/heads/main'", plan)
+        self.assertIn("contents: read", plan)
+        self.assertNotIn("contents: write", plan)
+        self.assertNotIn("GH_TOKEN: ${{ github.token }}", plan)
+        self.assertIn("READ_TOKEN: ${{ github.token }}", plan)
+
+    def test_plan_releases_version_bumps_and_resumes_published_catalogs(self) -> None:
+        plan = workflow_jobs(RELEASE_WORKFLOW)["plan"]
+        script = textwrap.dedent(
+            plan.split("        run: |\n", maxsplit=1)[1]
         )
-        self.assertEqual(
-            2,
-            text.count('git merge-base --is-ancestor "${BEFORE_SHA}" "${MAIN_SHA}"'),
-        )
+        self.assertIn('"repos/${REPOSITORY}/releases/tags/${tag}"', script)
+        for mutation in ("-X POST", "-X PATCH", "-X PUT", "-X DELETE", "git push"):
+            self.assertNotIn(mutation, script)
+
+        def git(cwd: Path, *args: str) -> str:
+            return subprocess.run(
+                ["git", "-C", str(cwd), *args],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+        def commit_version(work: Path, version: str) -> str:
+            plugin = work / "plugin/plugin.json"
+            plugin.parent.mkdir(parents=True, exist_ok=True)
+            plugin.write_text(json.dumps({"version": version}) + "\n")
+            git(work, "add", "plugin/plugin.json")
+            git(
+                work, "-c", "user.name=release-test",
+                "-c", "user.email=release-test@example.invalid",
+                "commit", "--quiet", "--allow-empty", "-m", version,
+            )
+            return git(work, "rev-parse", "HEAD")
+
+        def publish_catalog(work: Path, version: str, source: str) -> None:
+            git(work, "checkout", "--quiet", "--orphan", "catalog-tmp")
+            git(work, "rm", "-rf", "--quiet", ".")
+            catalog = work / ".github/plugin/marketplace.json"
+            catalog.parent.mkdir(parents=True, exist_ok=True)
+            catalog.write_text(json.dumps({
+                "metadata": {"version": version},
+                "plugins": [{"source": {"sha": source}}],
+            }) + "\n")
+            git(work, "add", ".github/plugin/marketplace.json")
+            git(
+                work, "-c", "user.name=release-test",
+                "-c", "user.email=release-test@example.invalid",
+                "commit", "--quiet", "-m", "catalog",
+            )
+            git(work, "push", "--quiet", "--force", "origin", "HEAD:refs/heads/marketplace")
+            git(work, "checkout", "--quiet", "main")
+            git(work, "branch", "-D", "--quiet", "catalog-tmp")
+
+        def run_plan(
+            root: Path,
+            *,
+            event: str,
+            workflow_sha: str,
+            release: str = "missing",
+        ) -> tuple[subprocess.CompletedProcess[str], dict[str, str]]:
+            checkout = root / f"checkout-{len(list(root.iterdir()))}"
+            subprocess.run(
+                ["git", "clone", "--quiet", str(root / "origin.git"), str(checkout)],
+                check=True,
+            )
+            fake_bin = root / "bin"
+            fake_bin.mkdir(exist_ok=True)
+            gh = fake_bin / "gh"
+            gh.write_text(
+                "#!/bin/sh\n"
+                + {
+                    "published": "echo '{\"draft\": false}'\n",
+                    "missing": "echo 'gh: Not Found (HTTP 404)' >&2\nexit 1\n",
+                    "error": "echo 'gh: Server Error (HTTP 502)' >&2\nexit 1\n",
+                }[release]
+            )
+            gh.chmod(0o755)
+            output = root / "output.txt"
+            summary = root / "summary.md"
+            output.write_text("")
+            environment = {
+                **os.environ,
+                "DISPATCH_REF": "refs/heads/main",
+                "EVENT_NAME": event,
+                "GITHUB_OUTPUT": str(output),
+                "GITHUB_STEP_SUMMARY": str(summary),
+                "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+                "READ_TOKEN": "read-only-test-token",
+                "REPOSITORY": "navikt/grillmester",
+                "WORKFLOW_SHA": workflow_sha,
+            }
+            completed = subprocess.run(
+                ["bash", "-c", script],
+                cwd=checkout,
+                env=environment,
+                capture_output=True,
+                text=True,
+            )
+            values = dict(
+                line.split("=", 1)
+                for line in output.read_text().splitlines()
+                if "=" in line
+            )
+            return completed, values
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            subprocess.run(
+                ["git", "init", "--quiet", "--bare", "--initial-branch=main",
+                 str(root / "origin.git")],
+                check=True,
+            )
+            work = root / "work"
+            subprocess.run(
+                ["git", "init", "--quiet", "--initial-branch=main", str(work)],
+                check=True,
+            )
+            git(work, "remote", "add", "origin", str(root / "origin.git"))
+            first = commit_version(work, "1.0.0")
+            git(work, "push", "--quiet", "origin", "main")
+
+            with self.subTest("the first release works without a marketplace branch"):
+                completed, values = run_plan(
+                    root, event="workflow_dispatch", workflow_sha=first
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual("true", values["release"])
+                self.assertEqual(first, values["source_sha"])
+
+            publish_catalog(work, "1.0.0", first)
+            bumped = commit_version(work, "1.0.1")
+            git(work, "push", "--quiet", "origin", "main")
+
+            with self.subTest("version bump on main releases the pushed commit"):
+                completed, values = run_plan(root, event="push", workflow_sha=bumped)
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual("true", values["release"])
+                self.assertEqual(bumped, values["source_sha"])
+                self.assertEqual("1.0.1", values["version"])
+
+            docs_only = commit_version(work, "1.0.1")
+            git(work, "push", "--quiet", "origin", "main")
+
+            with self.subTest("a later push still releases an unreleased version"):
+                completed, values = run_plan(root, event="push", workflow_sha=docs_only)
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual("true", values["release"])
+                self.assertEqual(docs_only, values["source_sha"])
+
+            with self.subTest("a stale workflow SHA fails closed"):
+                completed, _ = run_plan(root, event="push", workflow_sha=bumped)
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertIn("not current origin/main", completed.stderr)
+
+            with self.subTest("an unknown release state fails closed"):
+                completed, _ = run_plan(
+                    root, event="push", workflow_sha=docs_only, release="error"
+                )
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertIn("Could not determine whether v1.0.1 is published", completed.stderr)
+
+            publish_catalog(work, "1.0.1", bumped)
+
+            with self.subTest("a run resumes the published catalog's source"):
+                for event in ("push", "workflow_dispatch"):
+                    completed, values = run_plan(
+                        root, event=event, workflow_sha=docs_only
+                    )
+                    self.assertEqual(completed.returncode, 0, completed.stderr)
+                    self.assertEqual("true", values["release"])
+                    self.assertEqual(bumped, values["source_sha"])
+
+            with self.subTest("an already published tag releases nothing"):
+                for event in ("push", "workflow_dispatch"):
+                    completed, values = run_plan(
+                        root,
+                        event=event,
+                        workflow_sha=docs_only,
+                        release="published",
+                    )
+                    self.assertEqual(completed.returncode, 0, completed.stderr)
+                    self.assertEqual("false", values["release"])
+                    self.assertNotIn("source_sha", values)
+                    self.assertIn("v1.0.1 is already published", completed.stdout)
 
     def test_release_credentials_are_confined_to_two_protected_steps(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        self.assertEqual(1, text.count("GH_TOKEN: ${{ github.token }}"))
+        jobs = workflow_jobs(RELEASE_WORKFLOW)
         self.assertEqual(
             1,
             text.count(
@@ -802,20 +960,16 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 "${{ secrets.IMMUTABLE_RELEASES_ADMIN_READ_TOKEN }}"
             ),
         )
+        write_job = jobs["release"]
+        self.assertEqual(1, write_job.count("GH_TOKEN: ${{ github.token }}"))
         self.assertLess(
-            text.index("Require immutable GitHub Releases before publication"),
-            text.index("Publish exact reviewed release idempotently"),
+            write_job.index("Require immutable GitHub Releases before publication"),
+            write_job.index("Publish exact sealed release idempotently"),
         )
         self.assertLess(
-            text.index("Publish exact reviewed release idempotently"),
-            text.index("GH_TOKEN: ${{ github.token }}"),
+            write_job.index("Publish exact sealed release idempotently"),
+            write_job.index("GH_TOKEN: ${{ github.token }}"),
         )
-        write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
-        verify_job = text.split("\n  verify-release-assets:\n", maxsplit=1)[1].split(
-            "\n  release:\n", maxsplit=1
-        )[0]
         self.assertIn("environment: grillmester-release", write_job)
         self.assertIn("actions: read", write_job)
         self.assertIn("contents: write", write_job)
@@ -823,7 +977,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("uses:", write_job)
         self.assertNotIn("python3", write_job)
         immutable_step, publish_step = write_job.split(
-            "      - name: Publish exact reviewed release idempotently",
+            "      - name: Publish exact sealed release idempotently",
             maxsplit=1,
         )
         self.assertIn(
@@ -858,32 +1012,57 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("--force-with-lease", write_job)
 
     def test_release_write_waits_for_every_compatibility_and_asset_gate(self) -> None:
-        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
+        jobs = workflow_jobs(RELEASE_WORKFLOW)
         self.assertIn(
             "needs:\n"
+            "      - plan\n"
             "      - validate\n"
             "      - copilot-compatibility\n"
             "      - macos-live-compatibility\n"
+            "      - publish-catalog\n"
+            "      - catalog-smoke\n"
+            "      - seal-release\n"
             "      - verify-release-assets",
-            write_job,
+            jobs["release"],
+        )
+        # The write job anchors the sealed values independently of the job
+        # that ran selected-source code.
+        for anchor in (
+            "PLANNED_SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}",
+            "PUBLISHED_CATALOG_SHA: ${{ needs.publish-catalog.outputs.catalog-sha }}",
+            '[[ "${SOURCE_SHA}" == "${PLANNED_SOURCE_SHA}" ]]',
+            '[[ "${CATALOG_SHA}" == "${PUBLISHED_CATALOG_SHA}" ]]',
+        ):
+            with self.subTest(anchor=anchor):
+                self.assertIn(anchor, jobs["release"])
+        self.assertIn(
+            "needs:\n"
+            "      - plan\n"
+            "      - publish-catalog\n"
+            "      - catalog-smoke\n",
+            jobs["seal-release"],
+        )
+        self.assertIn(
+            "EXPECTED_SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}",
+            jobs["seal-release"],
+        )
+        self.assertIn(
+            '[[ "${source_sha}" == "${EXPECTED_SOURCE_SHA}" ]]', jobs["seal-release"]
         )
 
     def test_candidate_code_runs_without_repository_or_admin_tokens(self) -> None:
-        release = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        release_candidate = release.split("\n  validate:\n", maxsplit=1)[1].split(
-            "\n  copilot-compatibility:\n", maxsplit=1
-        )[0]
-        self.assertNotIn("github.token", release_candidate)
-        self.assertNotIn("IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", release_candidate)
-
-        promote = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
-        self.assertNotIn("github.token", promote, PROMOTE_WORKFLOW.name)
-        self.assertNotIn(
-            "IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", promote, PROMOTE_WORKFLOW.name
-        )
+        jobs = workflow_jobs(RELEASE_WORKFLOW)
+        # Copilot compatibility runs trusted smoke tooling from main against
+        # the candidate payload in a worktree; it never checks out the source.
+        copilot = jobs["copilot-compatibility"]
+        self.assertIn("ref: ${{ github.sha }}", copilot)
+        self.assertNotIn("ref: ${{ needs.plan.outputs.source-sha }}", copilot)
+        self.assertIn('git worktree add --detach "${source_root}" "${SOURCE_SHA}"', copilot)
+        self.assertIn('--source-root "${SOURCE_ROOT}"', copilot)
+        for job in ("validate", "copilot-compatibility", "seal-release"):
+            with self.subTest(job=job):
+                self.assertNotIn("github.token", jobs[job])
+                self.assertNotIn("IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", jobs[job])
 
         macos = MACOS_WORKFLOW.read_text(encoding="utf-8")
         self.assertNotIn("IMMUTABLE_RELEASES_ADMIN_READ_TOKEN", macos)
@@ -891,10 +1070,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("/actions/artifacts/", macos)
 
     def test_published_release_must_read_back_as_immutable(self) -> None:
-        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
+        write_job = workflow_jobs(RELEASE_WORKFLOW)["release"]
         function = write_job.split("          verify_release_metadata() {", maxsplit=1)[1]
         function = function.split("          verify_release_asset_roster()", maxsplit=1)[0]
         self.assertIn('if [[ "${expected_draft}" == "false" ]]', function)
@@ -909,15 +1085,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
         # GitHub rejects workflow files larger than 500 KB.
         self.assertLessEqual(len(text.encode("utf-8")), 500_000)
-        validate_job = text.split("\n  validate:\n", maxsplit=1)[1].split(
-            "\n  verify-release-assets:\n", maxsplit=1
-        )[0]
-        verify_job = text.split("\n  verify-release-assets:\n", maxsplit=1)[1].split(
-            "\n  release:\n", maxsplit=1
-        )[0]
-        write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
+        jobs = workflow_jobs(RELEASE_WORKFLOW)
+        validate_job = jobs["seal-release"]
+        verify_job = jobs["verify-release-assets"]
+        write_job = jobs["release"]
         self.assertIn("Build and seal deterministic terminal release assets", validate_job)
         self.assertIn(
             'python3 "${SOURCE_ROOT}/scripts/build_opencode_bundle.py"',
@@ -967,7 +1138,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("bundle_base64", text)
         self.assertNotIn("BUNDLE_BASE64", text)
 
-        self.assertIn("needs: validate", verify_job)
+        self.assertIn("needs: seal-release", verify_job)
         self.assertIn("actions: read", verify_job)
         self.assertIn("contents: read", verify_job)
         self.assertNotIn("contents: write", verify_job)
@@ -1002,7 +1173,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 boundary,
             )
             self.assertIn('.workflow_run.id == ($run_id | tonumber)', boundary)
-            self.assertIn('.workflow_run.head_sha == $main_sha', boundary)
+            self.assertIn('.workflow_run.head_sha == $workflow_sha', boundary)
             self.assertIn('.digest == $digest', boundary)
             self.assertIn('unzip -Z1 "${artifact_zip}"', boundary)
             self.assertIn(
@@ -1034,7 +1205,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("### Grillmester sealed release evidence", summary)
         self.assertNotIn("approval", summary.lower())
         for value in (
-            "REQUEST_ID",
+            "EVENT_NAME",
             "TAG",
             "CATALOG_SHA",
             "SOURCE_SHA",
@@ -1068,7 +1239,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                     "BUNDLE_SHA256": "b" * 64,
                     "BUNDLE_SIZE": "4567",
                     "CATALOG_SHA": "c" * 40,
-                    "REQUEST_ID": "release-9.8.7",
+                    "EVENT_NAME": "push",
                     "SOURCE_SHA": "a" * 40,
                     "TAG": "v9.8.7",
                     "GITHUB_STEP_SUMMARY": str(summary_path),
@@ -1084,6 +1255,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             rendered = summary_path.read_text(encoding="utf-8")
             for evidence in (
+                "| Trigger | `push` |",
                 "| Tag | `v9.8.7` |",
                 f"| Catalog SHA | `{'c' * 40}` |",
                 f"| Source SHA | `{'a' * 40}` |",
@@ -1128,10 +1300,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                 self.assertNotIn(removed_instruction, runbook)
 
     def test_release_asset_idempotency_requires_exact_remote_bytes(self) -> None:
-        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        write_job = text.split("\n  release:\n", maxsplit=1)[1].split(
-            "\n  remote-smoke:\n", maxsplit=1
-        )[0]
+        write_job = workflow_jobs(RELEASE_WORKFLOW)["release"]
         self.assertIn("(.assets | length) == 2", write_job)
         self.assertIn(
             '([.assets[].name] | sort) == ([$bundle, $checksum] | sort)',
@@ -1338,8 +1507,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
                     self.assertIn("special", rejected.stderr.lower())
 
     def test_remote_smoke_verifies_and_safely_inspects_release_asset(self) -> None:
-        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        remote = text.split("\n  remote-smoke:\n", maxsplit=1)[1]
+        remote = workflow_jobs(RELEASE_WORKFLOW)["release-smoke"]
         self.assertIn(
             "Download, verify, and safely inspect terminal bundle", remote
         )
@@ -1363,10 +1531,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertNotIn("state.json", remote)
 
     def test_stable_rights_gate_is_independent_and_recomputes_immutable_scope(self) -> None:
-        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-        verify_job = text.split("\n  verify-release-assets:\n", maxsplit=1)[1].split(
-            "\n  release:\n", maxsplit=1
-        )[0]
+        verify_job = workflow_jobs(RELEASE_WORKFLOW)["verify-release-assets"]
         self.assertIn("Independently enforce stable rights approval", verify_job)
         self.assertIn('blob("policy/stable-rights-approval.json")', verify_job)
         self.assertIn('git("ls-tree", "-rz", source_sha, "--", prefix)', verify_job)

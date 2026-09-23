@@ -1,11 +1,12 @@
-name: Publish reviewed release request
+name: Release
 
 on:
   push:
     branches:
       - main
     paths:
-      - ".github/release-request.json"
+      - "plugin/plugin.json"
+  workflow_dispatch:
 
 concurrency:
   group: publish-grillmester-marketplace
@@ -15,11 +16,797 @@ permissions:
   contents: read
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+      source-sha: ${{ steps.plan.outputs.source_sha }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - name: Check out trusted release tooling
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide whether and what to release
+        id: plan
+        shell: bash
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          READ_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          [[ "${DISPATCH_REF}" == "refs/heads/main" ]] || {
+            echo "Release must run from main." >&2
+            exit 1
+          }
+          [[ "${EVENT_NAME}" == "push" || "${EVENT_NAME}" == "workflow_dispatch" ]] || {
+            echo "Unsupported release trigger: ${EVENT_NAME}" >&2
+            exit 1
+          }
+          [[ "${WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          [[ "${WORKFLOW_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
+            echo "The selected workflow SHA is not current origin/main; run Release again from main." >&2
+            exit 1
+          }
+          marketplace_ref=""
+          if [[ -n "$(git ls-remote --heads origin refs/heads/marketplace)" ]]; then
+            git fetch --no-tags origin \
+              "refs/heads/marketplace:refs/remotes/origin/marketplace"
+            marketplace_ref="refs/remotes/origin/marketplace"
+          fi
+
+          plugin_version() {
+            git show "$1:plugin/plugin.json" | jq -er '.version'
+          }
+          version="$(plugin_version "${WORKFLOW_SHA}")"
+          [[ "${version}" =~ ^[0-9A-Za-z.-]+$ ]]
+          tag="v${version}"
+
+          # Only a published release ends the work for a version. A missing
+          # or draft release is (re)published, so an interrupted release
+          # resumes on the next run instead of being dropped.
+          lookup_error="$(mktemp)"
+          if release_json="$(GH_TOKEN="${READ_TOKEN}" gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/${REPOSITORY}/releases/tags/${tag}" 2>"${lookup_error}")"; then
+            if [[ "$(jq -r '.draft' <<<"${release_json}")" == "false" ]]; then
+              echo "Nothing to release: ${tag} is already published."
+              echo "Nothing to release: ${tag} is already published." >> "${GITHUB_STEP_SUMMARY}"
+              {
+                echo "release=false"
+                echo "version=${version}"
+              } >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          elif ! grep -q "HTTP 404" "${lookup_error}"; then
+            cat "${lookup_error}" >&2
+            echo "Could not determine whether ${tag} is published." >&2
+            exit 1
+          fi
+
+          # Resume a version whose catalog is already on the marketplace
+          # from that catalog's source; otherwise release current main.
+          source_sha="${WORKFLOW_SHA}"
+          if [[ -n "${marketplace_ref}" ]]; then
+            tip_catalog="$(git show "${marketplace_ref}:.github/plugin/marketplace.json")"
+            if [[ "$(jq -er '.metadata.version' <<<"${tip_catalog}")" == "${version}" ]]; then
+              source_sha="$(jq -er \
+                '[.plugins[].source.sha] | unique | if length == 1 then .[0] else error("catalog source SHAs differ") end' \
+                <<<"${tip_catalog}")"
+              echo "Resuming ${tag} from its published catalog source ${source_sha}."
+            fi
+          fi
+          [[ "${source_sha}" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "${source_sha}^{commit}"
+          git merge-base --is-ancestor "${source_sha}" refs/remotes/origin/main || {
+            echo "Release source is not reachable from origin/main." >&2
+            exit 1
+          }
+          [[ "$(plugin_version "${source_sha}")" == "${version}" ]]
+
+          {
+            echo "release=true"
+            echo "source_sha=${source_sha}"
+            echo "version=${version}"
+          } >> "${GITHUB_OUTPUT}"
+          echo "Releasing ${tag} from source ${source_sha}." >> "${GITHUB_STEP_SUMMARY}"
+
   validate:
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
-      before-sha: ${{ steps.contract.outputs.before_sha }}
+      catalog-base64: ${{ steps.publication.outputs.catalog_base64 }}
+      catalog-sha256: ${{ steps.publication.outputs.catalog_sha256 }}
+      catalog-version: ${{ steps.publication.outputs.catalog_version }}
+    steps:
+      - name: Check out trusted promotion tooling
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Bind trusted promotion source and generate catalog without source execution
+        id: source
+        shell: bash
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+          DISPATCH_SHA: ${{ github.sha }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+        run: |
+          set -euo pipefail
+
+          [[ "${DISPATCH_REF}" == "refs/heads/main" ]] || {
+            echo "Marketplace promotion must be dispatched from main." >&2
+            exit 1
+          }
+          [[ "${DISPATCH_SHA}" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "The selected workflow SHA must be a lowercase 40-character SHA." >&2
+            exit 1
+          }
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "source_sha must be a lowercase 40-character SHA." >&2
+            exit 1
+          }
+          git fetch --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main"
+          [[ "${DISPATCH_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
+            echo "The selected workflow SHA is not current origin/main." >&2
+            exit 1
+          }
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git merge-base --is-ancestor \
+            "${SOURCE_SHA}" refs/remotes/origin/main || {
+            echo "source_sha is not reachable from origin/main." >&2
+            exit 1
+          }
+
+          source_root="${RUNNER_TEMP}/source"
+          git worktree add --detach "${source_root}" "${SOURCE_SHA}"
+          package_manifest="${source_root}/package-manifest.json"
+          plugin_manifest="${source_root}/plugin/plugin.json"
+          for source_file in \
+            package-manifest.json plugin/plugin.json .github/plugin/marketplace.json; do
+            entry="$(git ls-tree "${SOURCE_SHA}" -- "${source_file}")"
+            read -r object_mode object_type object_id object_path <<<"${entry}"
+            [[ "${object_mode}" == "100644" && "${object_type}" == "blob" ]]
+            [[ "${object_id}" =~ ^[0-9a-f]{40}$ && "${object_path}" == "${source_file}" ]]
+            [[ -f "${source_root}/${source_file}" && ! -L "${source_root}/${source_file}" ]]
+          done
+          jq -e '
+            .schemaVersion == 1 and
+            (keys | sort) == ["marketplace", "packages", "schemaVersion"] and
+            (.marketplace | type) == "object" and
+            (.marketplace | keys | sort) == ["description", "name", "owner"] and
+            (.marketplace.name | type == "string" and length > 0) and
+            (.marketplace.description | type == "string" and length > 0) and
+            (.marketplace.owner | type == "string" and length > 0) and
+            .packages == [{name: "grillmester", path: "plugin", agents: 7, skills: 43}]
+          ' "${package_manifest}" >/dev/null
+          owner="$(jq -er '.marketplace.owner' "${package_manifest}")"
+          jq -e --arg owner "${owner}" '
+            type == "object" and
+            (keys | sort) == [
+              "agents", "author", "description", "license", "name",
+              "repository", "skills", "version"
+            ] and
+            .name == "grillmester" and
+            (.version | type == "string") and
+            (.description | type == "string" and length > 0) and
+            .author == {name: $owner} and
+            .repository == "https://github.com/navikt/grillmester" and
+            .license == "MIT" and
+            .agents == "agents/" and
+            .skills == "skills/"
+          ' "${plugin_manifest}" >/dev/null
+          version="$(jq -er '.version' "${plugin_manifest}")"
+          version_pattern='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+          (( ${#version} <= 64 ))
+          [[ "${version}" =~ ${version_pattern} ]]
+          if [[ "${version}" == *-* ]]; then
+            prerelease="${version#*-}"
+            IFS='.' read -r -a prerelease_ids <<<"${prerelease}"
+            for identifier in "${prerelease_ids[@]}"; do
+              if [[ "${identifier}" =~ ^[0-9]+$ && \
+                    ${#identifier} -gt 1 && "${identifier}" == 0* ]]; then
+                echo "Plugin version has a zero-prefixed numeric prerelease identifier." >&2
+                exit 1
+              fi
+            done
+          fi
+          catalog="${source_root}/.github/plugin/marketplace.json"
+          mkdir -p "$(dirname "${catalog}")"
+          jq -n \
+            --arg marketplace_name "$(jq -er '.marketplace.name' "${package_manifest}")" \
+            --arg owner "${owner}" \
+            --arg marketplace_description "$(jq -er '.marketplace.description' "${package_manifest}")" \
+            --arg standard_name "$(jq -er '.name' "${plugin_manifest}")" \
+            --arg standard_description "$(jq -er '.description' "${plugin_manifest}")" \
+            --arg version "${version}" \
+            --arg source_sha "${SOURCE_SHA}" \
+            '{
+              name: $marketplace_name,
+              owner: {name: $owner},
+              metadata: {description: $marketplace_description, version: $version},
+              plugins: [{
+                name: $standard_name,
+                description: $standard_description,
+                version: $version,
+                source: {
+                  source: "github", repo: "navikt/grillmester",
+                  path: "plugin", sha: $source_sha
+                }
+              }]
+            }' > "${catalog}"
+          {
+            echo "source_root=${source_root}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Seal catalog before executing source tooling
+        id: publication
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+        run: |
+          set -euo pipefail
+          catalog="${SOURCE_ROOT}/.github/plugin/marketplace.json"
+          {
+            echo "catalog_base64=$(base64 -w0 "${catalog}")"
+            echo "catalog_sha256=$(sha256sum "${catalog}" | cut -d' ' -f1)"
+            echo "catalog_version=$(jq -er '.metadata.version' "${catalog}")"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Validate the prospective catalog and source before publication
+        shell: bash
+        env:
+          CATALOG_SHA256: ${{ steps.publication.outputs.catalog_sha256 }}
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+        run: |
+          set -euo pipefail
+          catalog="${SOURCE_ROOT}/.github/plugin/marketplace.json"
+          [[ "$(sha256sum "${catalog}" | cut -d' ' -f1)" == "${CATALOG_SHA256}" ]]
+          python3 scripts/release_contract.py validate-source-promotion \
+            --catalog "${catalog}" \
+            --source-repo "${SOURCE_ROOT}"
+
+      - name: Validate exact source against sealed catalog
+        shell: bash
+        env:
+          CATALOG_SHA256: ${{ steps.publication.outputs.catalog_sha256 }}
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+        run: |
+          set -euo pipefail
+          source_root="${SOURCE_ROOT}"
+          python3 "${source_root}/scripts/generate_marketplace.py" \
+            --mode release --sha "${SOURCE_SHA}" --check
+          python3 "${source_root}/scripts/validate.py"
+          catalog="${source_root}/.github/plugin/marketplace.json"
+          [[ "$(sha256sum "${catalog}" | cut -d' ' -f1)" == \
+             "${CATALOG_SHA256}" ]]
+
+      - name: Run Python tests from exact source
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+        run: python3 -m unittest discover -s "${SOURCE_ROOT}/tests" -v
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Validate Visual Companion scripts from exact source
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+        run: |
+          source_root="${SOURCE_ROOT}"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/server.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/helper.js"
+          node --test "${source_root}/plugin/skills/design-prototype/tests/server.test.js"
+
+      - name: Install exact OpenCode release-test baseline
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+        run: |
+          set -euo pipefail
+          binary_dir="${RUNNER_TEMP}/opencode-bin"
+          python3 -I -S "${SOURCE_ROOT}/scripts/release_test_baseline.py" install \
+            --client opencode --platform linux --architecture x86_64 \
+            --output "${binary_dir}/opencode"
+          echo "OPENCODE_BIN=${binary_dir}/opencode" >> "${GITHUB_ENV}"
+
+      - name: Install exact cplt release-test baseline
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+        run: |
+          set -euo pipefail
+          binary_dir="${RUNNER_TEMP}/cplt-bin"
+          python3 -I -S "${SOURCE_ROOT}/scripts/release_test_baseline.py" install \
+            --client cplt --platform linux --architecture x86_64 \
+            --output "${binary_dir}/cplt"
+          echo "CPLT_BIN=${binary_dir}/cplt" >> "${GITHUB_ENV}"
+
+      - name: Smoke-test immutable OpenCode target
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+        run: |
+          set -euo pipefail
+          [[ "${OPENCODE_BIN}" == "${RUNNER_TEMP}/opencode-bin/opencode" ]]
+          [[ "${CPLT_BIN}" == "${RUNNER_TEMP}/cplt-bin/cplt" ]]
+          [[ -f "${OPENCODE_BIN}" && -x "${OPENCODE_BIN}" && ! -L "${OPENCODE_BIN}" ]]
+          [[ -f "${CPLT_BIN}" && -x "${CPLT_BIN}" && ! -L "${CPLT_BIN}" ]]
+          [[ "$(stat -c '%a:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
+          [[ "$(stat -c '%a:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
+          python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py" \
+            --require-binary --opencode "${OPENCODE_BIN}"
+
+      - name: Smoke-test immutable OpenCode runtime contracts
+        shell: bash
+        env:
+          PATH: ${{ runner.temp }}/opencode-bin:${{ runner.temp }}/cplt-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+        run: |
+          set -euo pipefail
+          [[ "${OPENCODE_BIN}" == "${RUNNER_TEMP}/opencode-bin/opencode" ]]
+          [[ "${CPLT_BIN}" == "${RUNNER_TEMP}/cplt-bin/cplt" ]]
+          [[ -f "${OPENCODE_BIN}" && -x "${OPENCODE_BIN}" && ! -L "${OPENCODE_BIN}" ]]
+          [[ -f "${CPLT_BIN}" && -x "${CPLT_BIN}" && ! -L "${CPLT_BIN}" ]]
+          [[ "$(stat -c '%a:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
+          [[ "$(stat -c '%a:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
+          python3 "${SOURCE_ROOT}/scripts/smoke_opencode_runtime.py" \
+            --require-binary --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"
+
+  copilot-compatibility:
+    needs:
+      - plan
+      - validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check out trusted smoke tooling
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Bind exact immutable source payload
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git merge-base --is-ancestor "${SOURCE_SHA}" refs/remotes/origin/main
+          source_root="${RUNNER_TEMP}/source"
+          git worktree add --detach "${source_root}" "${SOURCE_SHA}"
+          echo "SOURCE_ROOT=${source_root}" >> "${GITHUB_ENV}"
+
+      - name: Restore sealed catalog bytes
+        shell: bash
+        env:
+          CATALOG_BASE64: ${{ needs.validate.outputs.catalog-base64 }}
+          CATALOG_SHA256: ${{ needs.validate.outputs.catalog-sha256 }}
+        run: |
+          set -euo pipefail
+          catalog="${RUNNER_TEMP}/marketplace.json"
+          printf '%s' "${CATALOG_BASE64}" | base64 --decode > "${catalog}"
+          [[ "$(sha256sum "${catalog}" | cut -d' ' -f1)" == "${CATALOG_SHA256}" ]]
+          echo "CATALOG_PATH=${catalog}" >> "${GITHUB_ENV}"
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install pinned GitHub Copilot CLI
+        run: npm install --global @github/copilot@1.0.79
+
+      - name: Smoke-test immutable marketplace installation
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+        run: >-
+          python3 scripts/smoke_plugin_install.py
+          --catalog "${CATALOG_PATH}"
+          --source-root "${SOURCE_ROOT}"
+          --source-sha "${SOURCE_SHA}"
+          --expect-release-sha "${SOURCE_SHA}"
+
+  macos-live-compatibility:
+    needs:
+      - plan
+      - validate
+    uses: ./.github/workflows/macos-opencode-compatibility.yml
+    with:
+      source_sha: ${{ needs.plan.outputs.source-sha }}
+    permissions:
+      contents: read
+
+  publish-catalog:
+    needs:
+      - plan
+      - validate
+      - copilot-compatibility
+      - macos-live-compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: grillmester-release
+    permissions:
+      contents: write # Create and atomically update the catalog branch.
+    outputs:
+      catalog-sha: ${{ steps.catalog.outputs.catalog_sha }}
+    env:
+      CATALOG_BASE64: ${{ needs.validate.outputs.catalog-base64 }}
+      CATALOG_SHA256: ${{ needs.validate.outputs.catalog-sha256 }}
+      CATALOG_VERSION: ${{ needs.validate.outputs.catalog-version }}
+      MARKETPLACE_BRANCH: marketplace
+      SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+      WORKFLOW_SHA: ${{ github.sha }}
+    steps:
+      - name: Publish catalog-only commit atomically
+        id: catalog
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+
+          compare_numeric_identifier() {
+            local left="$1"
+            local right="$2"
+            if (( ${#left} < ${#right} )); then
+              NUMERIC_COMPARE=-1
+            elif (( ${#left} > ${#right} )); then
+              NUMERIC_COMPARE=1
+            elif [[ "${left}" == "${right}" ]]; then
+              NUMERIC_COMPARE=0
+            elif [[ "${left}" < "${right}" ]]; then
+              NUMERIC_COMPARE=-1
+            else
+              NUMERIC_COMPARE=1
+            fi
+          }
+
+          semver_compare() {
+            local left="$1"
+            local right="$2"
+            local pattern='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+            (( ${#left} <= 64 && ${#right} <= 64 )) || return 2
+            [[ "${left}" =~ ${pattern} ]] || return 2
+            local left_major="${BASH_REMATCH[1]}"
+            local left_minor="${BASH_REMATCH[2]}"
+            local left_patch="${BASH_REMATCH[3]}"
+            local left_pre="${BASH_REMATCH[5]-}"
+            [[ "${right}" =~ ${pattern} ]] || return 2
+            local right_major="${BASH_REMATCH[1]}"
+            local right_minor="${BASH_REMATCH[2]}"
+            local right_patch="${BASH_REMATCH[3]}"
+            local right_pre="${BASH_REMATCH[5]-}"
+            local left_core=("${left_major}" "${left_minor}" "${left_patch}")
+            local right_core=("${right_major}" "${right_minor}" "${right_patch}")
+            local index
+            for index in 0 1 2; do
+              compare_numeric_identifier "${left_core[index]}" "${right_core[index]}"
+              if [[ "${NUMERIC_COMPARE}" != "0" ]]; then
+                SEMVER_COMPARE="${NUMERIC_COMPARE}"
+                return 0
+              fi
+            done
+            if [[ -z "${left_pre}" && -z "${right_pre}" ]]; then
+              SEMVER_COMPARE=0
+              return 0
+            elif [[ -z "${left_pre}" ]]; then
+              SEMVER_COMPARE=1
+              return 0
+            elif [[ -z "${right_pre}" ]]; then
+              SEMVER_COMPARE=-1
+              return 0
+            fi
+            local left_ids=()
+            local right_ids=()
+            IFS='.' read -r -a left_ids <<<"${left_pre}"
+            IFS='.' read -r -a right_ids <<<"${right_pre}"
+            local identifier
+            for identifier in "${left_ids[@]}" "${right_ids[@]}"; do
+              if [[ "${identifier}" =~ ^[0-9]+$ && \
+                    ${#identifier} -gt 1 && "${identifier}" == 0* ]]; then
+                return 2
+              fi
+            done
+            local common_count="${#left_ids[@]}"
+            (( ${#right_ids[@]} < common_count )) && common_count="${#right_ids[@]}"
+            for ((index = 0; index < common_count; index++)); do
+              local left_id="${left_ids[index]}"
+              local right_id="${right_ids[index]}"
+              [[ "${left_id}" == "${right_id}" ]] && continue
+              if [[ "${left_id}" =~ ^[0-9]+$ && "${right_id}" =~ ^[0-9]+$ ]]; then
+                compare_numeric_identifier "${left_id}" "${right_id}"
+                SEMVER_COMPARE="${NUMERIC_COMPARE}"
+              elif [[ "${left_id}" =~ ^[0-9]+$ ]]; then
+                SEMVER_COMPARE=-1
+              elif [[ "${right_id}" =~ ^[0-9]+$ ]]; then
+                SEMVER_COMPARE=1
+              elif [[ "${left_id}" < "${right_id}" ]]; then
+                SEMVER_COMPARE=-1
+              else
+                SEMVER_COMPARE=1
+              fi
+              return 0
+            done
+            if (( ${#left_ids[@]} < ${#right_ids[@]} )); then
+              SEMVER_COMPARE=-1
+            elif (( ${#left_ids[@]} > ${#right_ids[@]} )); then
+              SEMVER_COMPARE=1
+            else
+              SEMVER_COMPARE=0
+            fi
+          }
+
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${CATALOG_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${CATALOG_VERSION}" =~ ^[0-9A-Za-z.-]+$ ]]
+          semver_compare "${CATALOG_VERSION}" "${CATALOG_VERSION}" || {
+            echo "Marketplace version must be strict SemVer without build metadata." >&2
+            exit 1
+          }
+          [[ "${SEMVER_COMPARE}" == "0" ]]
+          catalog=".github/plugin/marketplace.json"
+          mkdir -p "$(dirname "${catalog}")"
+          printf '%s' "${CATALOG_BASE64}" | base64 --decode > "${catalog}"
+          [[ "$(sha256sum "${catalog}" | cut -d' ' -f1)" == "${CATALOG_SHA256}" ]]
+          jq -e \
+            --arg version "${CATALOG_VERSION}" \
+            --arg source_sha "${SOURCE_SHA}" \
+            '
+              .name == "grillmester" and
+              .metadata.version == $version and
+              (.plugins | length) == 1 and
+              [.plugins[].name] == ["grillmester"] and
+              [.plugins[].version] == [$version] and
+              .plugins[0].source == {
+                source: "github",
+                repo: "navikt/grillmester",
+                path: "plugin",
+                sha: $source_sha
+              }
+            ' "${catalog}" >/dev/null
+
+          git init --quiet
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
+
+          remote_tip="$(git ls-remote --heads origin "refs/heads/${MARKETPLACE_BRANCH}")"
+          git fetch --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main"
+          [[ "${WORKFLOW_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
+            echo "The selected workflow SHA is no longer current origin/main." >&2
+            exit 1
+          }
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git merge-base --is-ancestor \
+            "${SOURCE_SHA}" refs/remotes/origin/main || {
+            echo "source_sha is no longer reachable from origin/main." >&2
+            exit 1
+          }
+
+          source_package_manifest="${RUNNER_TEMP}/source-package-manifest.json"
+          source_plugin_manifest="${RUNNER_TEMP}/source-plugin-manifest.json"
+          for source_file in package-manifest.json plugin/plugin.json; do
+            entry="$(git ls-tree "${SOURCE_SHA}" -- "${source_file}")"
+            read -r object_mode object_type object_id object_path <<<"${entry}"
+            [[ "${object_mode}" == "100644" && "${object_type}" == "blob" ]]
+            [[ "${object_id}" =~ ^[0-9a-f]{40}$ && "${object_path}" == "${source_file}" ]]
+          done
+          git show "${SOURCE_SHA}:package-manifest.json" > "${source_package_manifest}"
+          git show "${SOURCE_SHA}:plugin/plugin.json" > "${source_plugin_manifest}"
+          jq -e '
+            .schemaVersion == 1 and
+            (keys | sort) == ["marketplace", "packages", "schemaVersion"] and
+            (.marketplace | type) == "object" and
+            (.marketplace | keys | sort) == ["description", "name", "owner"] and
+            (.marketplace.name | type == "string" and length > 0) and
+            (.marketplace.description | type == "string" and length > 0) and
+            (.marketplace.owner | type == "string" and length > 0) and
+            .packages == [{name: "grillmester", path: "plugin", agents: 7, skills: 43}]
+          ' "${source_package_manifest}" >/dev/null
+          source_owner="$(jq -er '.marketplace.owner' "${source_package_manifest}")"
+          jq -e --arg owner "${source_owner}" '
+            type == "object" and
+            (keys | sort) == [
+              "agents", "author", "description", "license", "name",
+              "repository", "skills", "version"
+            ] and
+            .name == "grillmester" and
+            (.version | type == "string") and
+            (.description | type == "string" and length > 0) and
+            .author == {name: $owner} and
+            .repository == "https://github.com/navikt/grillmester" and
+            .license == "MIT" and
+            .agents == "agents/" and
+            .skills == "skills/"
+          ' "${source_plugin_manifest}" >/dev/null
+          [[ "$(jq -er '.version' "${source_plugin_manifest}")" == "${CATALOG_VERSION}" ]]
+          regenerated_catalog="${RUNNER_TEMP}/regenerated-marketplace.json"
+          jq -n \
+            --arg marketplace_name "$(jq -er '.marketplace.name' "${source_package_manifest}")" \
+            --arg owner "${source_owner}" \
+            --arg marketplace_description "$(jq -er '.marketplace.description' "${source_package_manifest}")" \
+            --arg standard_name "$(jq -er '.name' "${source_plugin_manifest}")" \
+            --arg standard_description "$(jq -er '.description' "${source_plugin_manifest}")" \
+            --arg version "${CATALOG_VERSION}" \
+            --arg source_sha "${SOURCE_SHA}" \
+            '{
+              name: $marketplace_name,
+              owner: {name: $owner},
+              metadata: {description: $marketplace_description, version: $version},
+              plugins: [{
+                name: $standard_name,
+                description: $standard_description,
+                version: $version,
+                source: {
+                  source: "github", repo: "navikt/grillmester",
+                  path: "plugin", sha: $source_sha
+                }
+              }]
+            }' > "${regenerated_catalog}"
+          cmp -s "${regenerated_catalog}" "${catalog}"
+
+          base_sha=""
+          parent_args=()
+          if [[ -n "${remote_tip}" ]]; then
+            git fetch --no-tags origin \
+              "refs/heads/${MARKETPLACE_BRANCH}:refs/remotes/origin/${MARKETPLACE_BRANCH}"
+            base_sha="$(git rev-parse "refs/remotes/origin/${MARKETPLACE_BRANCH}")"
+            parent_args=(-p "${base_sha}")
+
+            previous_catalog="$(git show "${base_sha}:.github/plugin/marketplace.json")"
+            previous_version="$(jq -er '.metadata.version' <<<"${previous_catalog}")"
+            previous_source_sha="$(jq -er \
+              '[.plugins[].source.sha] | unique | if length == 1 then .[0] else error("catalog source SHAs differ") end' \
+              <<<"${previous_catalog}")"
+            current_version="${CATALOG_VERSION}"
+
+            if [[ "${current_version}" == "${previous_version}" ]]; then
+              if [[ "${SOURCE_SHA}" == "${previous_source_sha}" ]]; then
+                previous_catalog_sha256="$(git show "${base_sha}:${catalog}" | sha256sum | cut -d' ' -f1)"
+                if [[ "${CATALOG_SHA256}" == "${previous_catalog_sha256}" ]]; then
+                  echo "Marketplace already publishes ${current_version} at ${SOURCE_SHA}."
+                  echo "catalog_sha=${base_sha}" >> "${GITHUB_OUTPUT}"
+                  exit 0
+                fi
+                echo "Refusing idempotent marketplace rerun: existing catalog bytes do not match the sealed catalog." >&2
+                exit 1
+              fi
+              echo "Refusing to reuse marketplace version ${current_version} for ${SOURCE_SHA}; previous source is ${previous_source_sha}." >&2
+              exit 1
+            fi
+
+            semver_compare "${current_version}" "${previous_version}" || {
+              echo "Marketplace versions must be strict SemVer without build metadata." >&2
+              exit 1
+            }
+            [[ "${SEMVER_COMPARE}" == "1" ]] || {
+              echo "Refusing marketplace downgrade from ${previous_version} to ${current_version}." >&2
+              exit 1
+            }
+
+            while read -r catalog_commit; do
+              [[ -z "${catalog_commit}" ]] && continue
+              published_version="$(git show "${catalog_commit}:.github/plugin/marketplace.json" | jq -er '.metadata.version')"
+              if [[ "${published_version}" == "${current_version}" ]]; then
+                echo "Refusing to reuse previously published marketplace version ${current_version}." >&2
+                exit 1
+              fi
+            done < <(git rev-list --skip=1 "${base_sha}")
+          fi
+
+          index_file="$(mktemp)"
+          rm -f "${index_file}"
+          trap 'rm -f "${index_file}"' EXIT
+
+          GIT_INDEX_FILE="${index_file}" git read-tree --empty
+          GIT_INDEX_FILE="${index_file}" git add -- .github/plugin/marketplace.json
+          tree_sha="$(GIT_INDEX_FILE="${index_file}" git write-tree)"
+          commit_sha="$(git commit-tree "${tree_sha}" "${parent_args[@]}" \
+            -m "chore: publish marketplace for ${SOURCE_SHA}")"
+
+          # The new commit has the fetched tip as its parent. A concurrent
+          # update therefore fails as non-fast-forward without any force mode.
+          git push origin --atomic \
+            "${commit_sha}:refs/heads/${MARKETPLACE_BRANCH}"
+          echo "catalog_sha=${commit_sha}" >> "${GITHUB_OUTPUT}"
+
+  catalog-smoke:
+    needs:
+      - plan
+      - publish-catalog
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+      WORKFLOW_SHA: ${{ github.sha }}
+    steps:
+      - name: Check out trusted smoke tooling
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Bind floating marketplace to published source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main" \
+            "refs/heads/marketplace:refs/remotes/origin/marketplace"
+          git merge-base --is-ancestor "${SOURCE_SHA}" refs/remotes/origin/main
+          marketplace_root="${RUNNER_TEMP}/marketplace"
+          source_root="${RUNNER_TEMP}/source"
+          git worktree add --detach \
+            "${marketplace_root}" refs/remotes/origin/marketplace
+          git worktree add --detach "${source_root}" "${SOURCE_SHA}"
+          {
+            echo "CATALOG_PATH=${marketplace_root}/.github/plugin/marketplace.json"
+            echo "SOURCE_ROOT=${source_root}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install pinned GitHub Copilot CLI
+        run: npm install --global @github/copilot@1.0.79
+
+      - name: Smoke-test published floating marketplace
+        run: >-
+          python3 scripts/smoke_plugin_install.py
+          --catalog "${CATALOG_PATH}"
+          --source-root "${SOURCE_ROOT}"
+          --source-sha "${SOURCE_SHA}"
+          --expect-release-sha "${SOURCE_SHA}"
+          --remote-marketplace-ref "navikt/grillmester#marketplace"
+          --allow-floating-marketplace
+  seal-release:
+    needs:
+      - plan
+      - publish-catalog
+      - catalog-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
       bundle-artifact-digest: ${{ steps.bundle-upload.outputs.artifact-digest }}
       bundle-artifact-id: ${{ steps.bundle-upload.outputs.artifact-id }}
       bundle-artifact-name: ${{ steps.bundle.outputs.bundle_artifact_name }}
@@ -28,64 +815,41 @@ jobs:
       bundle-sha256: ${{ steps.bundle.outputs.bundle_sha256 }}
       bundle-size: ${{ steps.bundle.outputs.bundle_size }}
       catalog-sha: ${{ steps.contract.outputs.catalog_sha }}
-      main-sha: ${{ steps.contract.outputs.main_sha }}
       notes-base64: ${{ steps.contract.outputs.notes_base64 }}
       notes-sha256: ${{ steps.contract.outputs.notes_sha256 }}
-      request-id: ${{ steps.contract.outputs.request_id }}
       source-sha: ${{ steps.contract.outputs.source_sha }}
       tag: ${{ steps.contract.outputs.tag }}
     steps:
-      - name: Check out reviewed request and trusted tooling
+      - name: Check out trusted release tooling
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Validate request and immutable chain
+      - name: Validate immutable chain
         id: contract
         shell: bash
         env:
-          BEFORE_SHA: ${{ github.event.before }}
-          MAIN_SHA: ${{ github.sha }}
+          CATALOG_SHA: ${{ needs.publish-catalog.outputs.catalog-sha }}
+          EXPECTED_SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
-          request=".github/release-request.json"
-          [[ "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ && \
-             "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]] || {
-            echo "The release request needs a nonzero push before SHA." >&2
-            exit 1
-          }
-          jq -e '
-            type == "object" and
-            (keys | sort) == ["catalogSha", "requestId", "schemaVersion"] and
-            .schemaVersion == 1 and
-            (.requestId | type == "string" and test("^[a-z0-9][a-z0-9._-]{0,63}$")) and
-            (.catalogSha | type == "string" and test("^[0-9a-f]{40}$"))
-          ' "${request}" >/dev/null
-          catalog_sha="$(jq -er '.catalogSha' "${request}")"
-          request_id="$(jq -er '.requestId' "${request}")"
-
+          catalog_sha="${CATALOG_SHA}"
+          [[ "${catalog_sha}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${EXPECTED_SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main" \
             "refs/heads/marketplace:refs/remotes/origin/marketplace"
-          [[ "${MAIN_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
-            echo "Release request is not current origin/main." >&2
-            exit 1
-          }
-          git cat-file -e "${BEFORE_SHA}^{commit}"
-          git merge-base --is-ancestor "${BEFORE_SHA}" "${MAIN_SHA}" || {
-            echo "The push before SHA must be an ancestor of current main." >&2
-            exit 1
-          }
-          [[ "$(git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}")" == ".github/release-request.json" ]] || {
-            echo "The complete push must change only .github/release-request.json." >&2
+          [[ "${WORKFLOW_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
+            echo "The selected workflow SHA is not current origin/main; run Release again from main." >&2
             exit 1
           }
           git cat-file -e "${catalog_sha}^{commit}"
           git merge-base --is-ancestor \
             "${catalog_sha}" refs/remotes/origin/marketplace || {
-            echo "Requested catalog is not reachable from origin/marketplace." >&2
+            echo "Published catalog is not reachable from origin/marketplace." >&2
             exit 1
           }
 
@@ -112,7 +876,11 @@ jobs:
           git cat-file -e "${source_sha}^{commit}"
           git merge-base --is-ancestor \
             "${source_sha}" refs/remotes/origin/main || {
-            echo "Requested source is not reachable from origin/main." >&2
+            echo "Catalog source is not reachable from origin/main." >&2
+            exit 1
+          }
+          [[ "${source_sha}" == "${EXPECTED_SOURCE_SHA}" ]] || {
+            echo "Published catalog does not bind the planned release source." >&2
             exit 1
           }
           git worktree add --detach "${source_repo}" "${source_sha}"
@@ -139,12 +907,9 @@ jobs:
             --output "${notes}"
 
           {
-            echo "before_sha=${BEFORE_SHA}"
             echo "catalog_sha=${catalog_sha}"
-            echo "main_sha=${MAIN_SHA}"
             echo "notes_base64=$(base64 -w0 "${notes}")"
             echo "notes_sha256=$(sha256sum "${notes}" | cut -d' ' -f1)"
-            echo "request_id=${request_id}"
             echo "source_sha=${source_sha}"
             echo "tag=${tag}"
           } >> "${GITHUB_OUTPUT}"
@@ -216,7 +981,7 @@ jobs:
           BUNDLE_SHA256: ${{ steps.bundle.outputs.bundle_sha256 }}
           BUNDLE_SIZE: ${{ steps.bundle.outputs.bundle_size }}
           CATALOG_SHA: ${{ steps.contract.outputs.catalog_sha }}
-          REQUEST_ID: ${{ steps.contract.outputs.request_id }}
+          EVENT_NAME: ${{ github.event_name }}
           SOURCE_SHA: ${{ steps.contract.outputs.source_sha }}
           TAG: ${{ steps.contract.outputs.tag }}
         run: |
@@ -227,7 +992,7 @@ jobs:
           [[ "${BUNDLE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
           [[ "${CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "${REQUEST_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]]
+          [[ "${EVENT_NAME}" == "push" || "${EVENT_NAME}" == "workflow_dispatch" ]]
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
           {
@@ -235,7 +1000,7 @@ jobs:
             echo
             echo "| Field | Sealed value |"
             echo "| --- | --- |"
-            echo "| Request | \`${REQUEST_ID}\` |"
+            echo "| Trigger | \`${EVENT_NAME}\` |"
             echo "| Tag | \`${TAG}\` |"
             echo "| Catalog SHA | \`${CATALOG_SHA}\` |"
             echo "| Source SHA | \`${SOURCE_SHA}\` |"
@@ -292,79 +1057,25 @@ jobs:
           python3 "${SOURCE_ROOT}/scripts/smoke_opencode_runtime.py" \
             --require-binary --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"
 
-  copilot-compatibility:
-    needs: validate
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    env:
-      CATALOG_SHA: ${{ needs.validate.outputs.catalog-sha }}
-      SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
-    steps:
-      - name: Check out exact immutable source
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ needs.validate.outputs.source-sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Restore exact catalog commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ "${CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          git fetch --no-tags origin "refs/heads/marketplace:refs/remotes/origin/marketplace"
-          git merge-base --is-ancestor "${CATALOG_SHA}" refs/remotes/origin/marketplace
-          catalog="${RUNNER_TEMP}/marketplace.json"
-          git show "${CATALOG_SHA}:.github/plugin/marketplace.json" > "${catalog}"
-          echo "CATALOG_PATH=${catalog}" >> "${GITHUB_ENV}"
-
-      - name: Set up pinned Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22
-
-      - name: Install pinned GitHub Copilot CLI
-        run: npm install --global @github/copilot@1.0.79
-
-      - name: Smoke-test exact immutable catalog locally
-        run: >-
-          python3 scripts/smoke_plugin_install.py
-          --catalog "${CATALOG_PATH}"
-          --source-root "${GITHUB_WORKSPACE}"
-          --source-sha "${SOURCE_SHA}"
-          --expect-release-sha "${SOURCE_SHA}"
-
-  macos-live-compatibility:
-    needs: validate
-    uses: ./.github/workflows/macos-opencode-compatibility.yml
-    with:
-      source_sha: ${{ needs.validate.outputs.source-sha }}
-    permissions:
-      contents: read
-
   verify-release-assets:
-    needs: validate
+    needs: seal-release
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       actions: read # Authenticate and download this run's exact artifact by ID.
       contents: read
     env:
-      BEFORE_SHA: ${{ needs.validate.outputs.before-sha }}
-      BUNDLE_ARTIFACT_DIGEST: ${{ needs.validate.outputs.bundle-artifact-digest }}
-      BUNDLE_ARTIFACT_ID: ${{ needs.validate.outputs.bundle-artifact-id }}
-      BUNDLE_ARTIFACT_NAME: ${{ needs.validate.outputs.bundle-artifact-name }}
-      BUNDLE_CHECKSUM_NAME: ${{ needs.validate.outputs.bundle-checksum-name }}
-      BUNDLE_NAME: ${{ needs.validate.outputs.bundle-name }}
-      BUNDLE_SHA256: ${{ needs.validate.outputs.bundle-sha256 }}
-      BUNDLE_SIZE: ${{ needs.validate.outputs.bundle-size }}
-      MAIN_SHA: ${{ needs.validate.outputs.main-sha }}
+      BUNDLE_ARTIFACT_DIGEST: ${{ needs.seal-release.outputs.bundle-artifact-digest }}
+      BUNDLE_ARTIFACT_ID: ${{ needs.seal-release.outputs.bundle-artifact-id }}
+      BUNDLE_ARTIFACT_NAME: ${{ needs.seal-release.outputs.bundle-artifact-name }}
+      BUNDLE_CHECKSUM_NAME: ${{ needs.seal-release.outputs.bundle-checksum-name }}
+      BUNDLE_NAME: ${{ needs.seal-release.outputs.bundle-name }}
+      BUNDLE_SHA256: ${{ needs.seal-release.outputs.bundle-sha256 }}
+      BUNDLE_SIZE: ${{ needs.seal-release.outputs.bundle-size }}
       RUN_ID: ${{ github.run_id }}
-      SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
-      TAG: ${{ needs.validate.outputs.tag }}
+      SOURCE_SHA: ${{ needs.seal-release.outputs.source-sha }}
+      TAG: ${{ needs.seal-release.outputs.tag }}
+      WORKFLOW_SHA: ${{ github.sha }}
     steps:
       - name: Independently bind sealed assets to immutable source
         shell: bash
@@ -373,7 +1084,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          [[ "${MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${BUNDLE_ARTIFACT_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]
@@ -399,13 +1110,13 @@ jobs:
           jq -e \
             --arg digest "sha256:${BUNDLE_ARTIFACT_DIGEST}" \
             --arg id "${BUNDLE_ARTIFACT_ID}" \
-            --arg main_sha "${MAIN_SHA}" \
+            --arg workflow_sha "${WORKFLOW_SHA}" \
             --arg name "${BUNDLE_ARTIFACT_NAME}" \
             --arg run_id "${RUN_ID}" \
             '.id == ($id | tonumber) and .name == $name and
              .expired == false and .digest == $digest and
              .workflow_run.id == ($run_id | tonumber) and
-             .workflow_run.head_sha == $main_sha' \
+             .workflow_run.head_sha == $workflow_sha' \
             <<<"${artifact}" >/dev/null
           GH_TOKEN="${READ_TOKEN}" gh api \
             -H 'Accept: application/vnd.github+json' \
@@ -432,7 +1143,7 @@ jobs:
           git init --quiet
           git remote add origin "https://github.com/${REPOSITORY}.git"
           git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
-          [[ "${MAIN_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]]
+          [[ "${WORKFLOW_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]]
           git cat-file -e "${SOURCE_SHA}^{commit}"
           git merge-base --is-ancestor "${SOURCE_SHA}" refs/remotes/origin/main
           # Git-bound archive verifier.
@@ -1198,9 +1909,13 @@ jobs:
 
   release:
     needs:
+      - plan
       - validate
       - copilot-compatibility
       - macos-live-compatibility
+      - publish-catalog
+      - catalog-smoke
+      - seal-release
       - verify-release-assets
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1209,22 +1924,22 @@ jobs:
       actions: read # Re-authenticate this run's exact staged artifact by ID.
       contents: write # Create the GitHub release and upload its assets.
     env:
-      BEFORE_SHA: ${{ needs.validate.outputs.before-sha }}
-      BUNDLE_ARTIFACT_DIGEST: ${{ needs.validate.outputs.bundle-artifact-digest }}
-      BUNDLE_ARTIFACT_ID: ${{ needs.validate.outputs.bundle-artifact-id }}
-      BUNDLE_ARTIFACT_NAME: ${{ needs.validate.outputs.bundle-artifact-name }}
-      BUNDLE_CHECKSUM_NAME: ${{ needs.validate.outputs.bundle-checksum-name }}
-      BUNDLE_NAME: ${{ needs.validate.outputs.bundle-name }}
-      BUNDLE_SHA256: ${{ needs.validate.outputs.bundle-sha256 }}
-      BUNDLE_SIZE: ${{ needs.validate.outputs.bundle-size }}
-      CATALOG_SHA: ${{ needs.validate.outputs.catalog-sha }}
-      MAIN_SHA: ${{ needs.validate.outputs.main-sha }}
-      NOTES_BASE64: ${{ needs.validate.outputs.notes-base64 }}
-      NOTES_SHA256: ${{ needs.validate.outputs.notes-sha256 }}
-      REQUEST_ID: ${{ needs.validate.outputs.request-id }}
+      BUNDLE_ARTIFACT_DIGEST: ${{ needs.seal-release.outputs.bundle-artifact-digest }}
+      BUNDLE_ARTIFACT_ID: ${{ needs.seal-release.outputs.bundle-artifact-id }}
+      BUNDLE_ARTIFACT_NAME: ${{ needs.seal-release.outputs.bundle-artifact-name }}
+      BUNDLE_CHECKSUM_NAME: ${{ needs.seal-release.outputs.bundle-checksum-name }}
+      BUNDLE_NAME: ${{ needs.seal-release.outputs.bundle-name }}
+      BUNDLE_SHA256: ${{ needs.seal-release.outputs.bundle-sha256 }}
+      BUNDLE_SIZE: ${{ needs.seal-release.outputs.bundle-size }}
+      CATALOG_SHA: ${{ needs.seal-release.outputs.catalog-sha }}
+      NOTES_BASE64: ${{ needs.seal-release.outputs.notes-base64 }}
+      NOTES_SHA256: ${{ needs.seal-release.outputs.notes-sha256 }}
+      PLANNED_SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+      PUBLISHED_CATALOG_SHA: ${{ needs.publish-catalog.outputs.catalog-sha }}
       RUN_ID: ${{ github.run_id }}
-      SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
-      TAG: ${{ needs.validate.outputs.tag }}
+      SOURCE_SHA: ${{ needs.seal-release.outputs.source-sha }}
+      TAG: ${{ needs.seal-release.outputs.tag }}
+      WORKFLOW_SHA: ${{ github.sha }}
     steps:
       - name: Require immutable GitHub Releases before publication
         shell: bash
@@ -1250,18 +1965,24 @@ jobs:
             (.enforced_by_owner | type) == "boolean"
           ' <<<"${immutable_policy}" >/dev/null
 
-      - name: Publish exact reviewed release idempotently
+      - name: Publish exact sealed release idempotently
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          [[ "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ && \
-             "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]
-          [[ "${MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${SOURCE_SHA}" == "${PLANNED_SOURCE_SHA}" ]] || {
+            echo "Sealed source does not match the planned release source." >&2
+            exit 1
+          }
+          [[ "${CATALOG_SHA}" == "${PUBLISHED_CATALOG_SHA}" ]] || {
+            echo "Sealed catalog does not match the published catalog commit." >&2
+            exit 1
+          }
           [[ "${NOTES_SHA256}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_ARTIFACT_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]
@@ -1269,7 +1990,6 @@ jobs:
              "${BUNDLE_SIZE}" =~ ^[1-9][0-9]*$ ]]
           (( BUNDLE_SIZE <= 61000000 ))
           [[ "${RUN_ID}" =~ ^[1-9][0-9]*$ ]]
-          [[ "${REQUEST_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]]
           [[ "${TAG}" =~ ^v[0-9A-Za-z.-]+$ ]]
           [[ "${BUNDLE_NAME}" == "grillmester-terminal-${TAG}.tar.gz" ]]
           [[ "${BUNDLE_ARTIFACT_NAME}" == "sealed-${BUNDLE_NAME}-${SOURCE_SHA}" ]]
@@ -1290,7 +2010,7 @@ jobs:
           jq -e \
             --arg digest "sha256:${BUNDLE_ARTIFACT_DIGEST}" \
             --arg id "${BUNDLE_ARTIFACT_ID}" \
-            --arg main_sha "${MAIN_SHA}" \
+            --arg workflow_sha "${WORKFLOW_SHA}" \
             --arg name "${BUNDLE_ARTIFACT_NAME}" \
             --arg run_id "${RUN_ID}" \
             '.id == ($id | tonumber) and
@@ -1298,7 +2018,7 @@ jobs:
              .expired == false and
              .digest == $digest and
              .workflow_run.id == ($run_id | tonumber) and
-             .workflow_run.head_sha == $main_sha' \
+             .workflow_run.head_sha == $workflow_sha' \
             <<<"${artifact}" >/dev/null
           gh api \
             -H 'Accept: application/vnd.github+json' \
@@ -1327,18 +2047,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
           git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main" "refs/heads/marketplace:refs/remotes/origin/marketplace"
-          [[ "${MAIN_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
-            echo "origin/main moved; a new request is required." >&2
+          [[ "${WORKFLOW_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
+            echo "origin/main moved; run Release again from main." >&2
             exit 1
           }
-          git cat-file -e "${BEFORE_SHA}^{commit}"
-          git merge-base --is-ancestor "${BEFORE_SHA}" "${MAIN_SHA}"
-          [[ "$(git diff --name-only "${BEFORE_SHA}" "${MAIN_SHA}")" == \
-             ".github/release-request.json" ]]
-          request="$(git show "${MAIN_SHA}:.github/release-request.json")"
-          [[ "$(jq -r '.schemaVersion' <<<"${request}")" == "1" ]]
-          [[ "$(jq -r '.catalogSha' <<<"${request}")" == "${CATALOG_SHA}" ]]
-          [[ "$(jq -r '.requestId' <<<"${request}")" == "${REQUEST_ID}" ]]
           validate_catalog() {
             jq -e --arg v "$2" --arg s "$3" \
               '.name == "grillmester" and .metadata.version == $v and
@@ -1583,26 +2295,26 @@ jobs:
             echo "Published ${TAG} with sealed terminal bundle ${BUNDLE_NAME}."
           fi
 
-  remote-smoke:
+  release-smoke:
     needs:
-      - validate
+      - seal-release
       - release
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
     env:
-      BUNDLE_CHECKSUM_NAME: ${{ needs.validate.outputs.bundle-checksum-name }}
-      BUNDLE_NAME: ${{ needs.validate.outputs.bundle-name }}
-      BUNDLE_SHA256: ${{ needs.validate.outputs.bundle-sha256 }}
-      CATALOG_SHA: ${{ needs.validate.outputs.catalog-sha }}
-      SOURCE_SHA: ${{ needs.validate.outputs.source-sha }}
-      TAG: ${{ needs.validate.outputs.tag }}
+      BUNDLE_CHECKSUM_NAME: ${{ needs.seal-release.outputs.bundle-checksum-name }}
+      BUNDLE_NAME: ${{ needs.seal-release.outputs.bundle-name }}
+      BUNDLE_SHA256: ${{ needs.seal-release.outputs.bundle-sha256 }}
+      CATALOG_SHA: ${{ needs.seal-release.outputs.catalog-sha }}
+      SOURCE_SHA: ${{ needs.seal-release.outputs.source-sha }}
+      TAG: ${{ needs.seal-release.outputs.tag }}
     steps:
       - name: Check out trusted smoke tooling
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ needs.validate.outputs.main-sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
 

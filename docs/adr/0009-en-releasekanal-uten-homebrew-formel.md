@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; utrullingsflyten er erstattet av ADR-0012
 date: 2026-09-04
 ---
 
