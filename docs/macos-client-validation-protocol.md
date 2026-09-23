@@ -71,8 +71,8 @@ covers all of the following:
 1. `/grilling`;
 2. automatic skill routing;
 3. Wayfinder discovery and delegation;
-4. the handoff `Grillmester → Kokk → Grill-inspektør`, triggered by an R3/R4 slice
-   or an explicit request for Kokk;
+4. the handoff `Grillmester → Kokk → Grill-inspektør`, triggered by an R3/R4 slice,
+   or by an explicit request for Kokk and Inspector review;
 5. Visual Companion;
 6. one approved, harmless write in the disposable fixture; and
 7. one rejected write with no file, Git ref, or external-resource side effect.

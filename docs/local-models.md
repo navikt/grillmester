@@ -742,9 +742,9 @@ serveren, contextprofilen og harnesset sammen i et disponibelt repo:
    ingen fil- eller Git-sideeffekt.
 4. **Skill:** én Grillmester-skill lastes progressivt og følger en relativ
    reference eller et bundled script korrekt.
-5. **Delegering:** gi Grillmester en R3/R4-slice, eller be eksplisitt om Kokk,
-   slik at den gir én avgrenset brief til Kokk og får en uavhengig
-   Grill-inspektør-vurdering. En liten R0–R2-slice implementerer Grillmester
+5. **Delegering:** gi Grillmester en R3/R4-slice, eller be eksplisitt om Kokk
+   og inspektørreview, slik at den gir én avgrenset brief til Kokk og får en
+   uavhengig Grill-inspektør-vurdering. En liten R0–R2-slice implementerer Grillmester
    selv.
 6. **Lang oppgave:** kjør en representativ vertical slice med tester og mål
    tool-call-feil, context/compaction, hastighet og memory pressure.
