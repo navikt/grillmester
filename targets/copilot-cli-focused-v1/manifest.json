@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "566c9ea67905fe8ef5070c8919b9e71582d1fad945e502f9d60e216579deb2d9",
+    "payloadManifestSha256": "1a692320df866acaf726f80a99791fa5e76a5ca8c908a42186b21ea69d97fba1",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
   },
@@ -49,15 +49,15 @@
       "mode": "0644"
     },
     "agents/barista.agent.md": {
-      "sha256": "b866eed26902b8bfdca05e80240b80797f2efba61e861f2a0b02120b5294c8c7",
+      "sha256": "4ac0ee253e272d7d65d467c68fddbf9eb9c06027ca7714295c2858be30ca329b",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "4d1178cf738e0afbd8e58f4ed38b949c131687ad4dfbea2afcc9795f917c5a77",
+      "sha256": "9ae0eac49139f7199c2ab66789caad1605661a783a259b5107e87ed11d5e7167",
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "d528c215a1084433230c5fabba75e327feceb23aecdc124423a921dd106af1af",
+      "sha256": "160dc623a25b99bb30cad1694a9321b85966ebc7e5b15f3251bd95c41b8c10ab",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {

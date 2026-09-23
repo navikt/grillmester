@@ -149,6 +149,10 @@ GRILLMESTER_RISK_REVIEW_FLOOR = (
     "returns `CONCERNS` and a human accepts every named concern; or a human "
     "explicitly waives Inspector for the current scope."
 )
+GRILLMESTER_WRITER_SEPARATION_FLOOR = (
+    "R3/R4 slices go to Kokk so that the code's author and the independent "
+    "reviewer differ."
+)
 RESEARCHER_EXTERNAL_FALLBACK = (
     "Before external research, inspect the tools actually available in this "
     "runtime. If no approved external retrieval tool is available, do not use shell "
@@ -575,6 +579,13 @@ def validate_agents(
         ):
             errors.append(
                 f"{path}: portable R3/R4 review floor is missing or has drifted"
+            )
+        if (
+            agent_id == "grillmester"
+            and GRILLMESTER_WRITER_SEPARATION_FLOOR not in normalized_body
+        ):
+            errors.append(
+                f"{path}: R3/R4 writer-separation floor is missing or has drifted"
             )
         if (
             agent_id == "researcher"

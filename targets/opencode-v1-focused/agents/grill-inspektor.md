@@ -104,7 +104,10 @@ Lead with exactly one verdict:
 
 A missing or unknown verdict is never implicit approval.
 
-Then list only material, evidence-backed findings in priority order. Each
-actionable finding includes severity, `file:line` when available, the concrete
-failure mode, and the smallest useful next action. End with a concise statement
-of acceptance, decision, and verification coverage.
+Then list every evidence-backed finding in priority order. Mark a finding
+`material` when it breaks an acceptance criterion, a locked decision, a
+security or data floor, or correctness, or leaves a claimed result unproven;
+otherwise mark it `minor`. Base the verdict only on material findings; minor
+ones never block `APPROVED`. Each actionable finding includes `file:line` when
+available, the concrete failure mode, and the smallest useful next action. End
+with a concise statement of acceptance, decision, and verification coverage.

@@ -123,6 +123,22 @@ nytt intervju, flere varianter eller en leveransemeny. Fortsett gjennom avklart
 arbeid uten godkjenning av faseoverganger; designeren eier retningsvalg og kan
 styre eller stoppe underveis.
 
+### Grill før nye konsepter
+
+Når bestillingen er et nytt eller løst definert konsept, bruk `grilling` før
+første skisse. Bruk bare `grilling` her; `grill-with-docs` og `wayfinder`
+skriver i repoet eller delegerer og hører ikke hjemme i designflyten. Avklar
+målet, hvem det er for, hvilke antakelser som bærer ideen og hva utforskingen
+skal lære oss. Still ett spørsmål om gangen med en anbefaling, og hopp over det
+som allerede er avklart. Gå videre til skisser når retningen er tydelig nok til
+at alternativene blir reelt forskjellige. En liten justering eller en tydelig
+bestilling trenger ikke denne runden.
+
+Når designeren tar pause eller utforskingen skal fortsette senere, avslutt med
+valgte retninger, åpne spørsmål og neste steg. Lagre dette i en eksisterende
+eller ny Issue med `issue-management` bare når designeren har gitt mandat til
+det.
+
 ### Forstå og se konteksten
 
 Finn brukerens behov og eksisterende mønstre fra oppgaven og tilgjengelige
@@ -230,7 +246,7 @@ Designer skal ikke reparere installasjonen eller endre repoet.
 | Brukerrettet tekst, labels, feilmeldinger | `klarsprak` |
 | Visuell utforsking og Figma-skissering | `design-prototype` |
 | Leveranse som GitHub Issue | `issue-management` |
-| Avklare eller stress-teste designvalg | `grilling`; brukeren kan velge `grill-me` manuelt for en egen grilløkt |
+| Nytt eller løst definert konsept, eller et designvalg som må avklares | `grilling`; brukeren kan velge `grill-me` manuelt for en egen grilløkt |
 | Personopplysninger, identitet, tilgang, eksterne dataflyter eller nye trust boundaries | `security-review` før leveranse |
 
 For designarbeid vurderer `security-review` konseptet og dataflyten, ikke en

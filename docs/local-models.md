@@ -583,8 +583,9 @@ provideroppsettet i den bruker-eide `~/.config/opencode/opencode.json`:
 
 OpenCode merger configkildene. Den genererte Kokk-filen definerer rolle og
 permissions, men utelater `model`, så denne ikke-konfliktende brukeroverriden
-bevares. Grillmester bruker fortsatt sessionmodellen; en delegert Kokk-oppgave
-bruker den pinnede lokalmodellen. Det er en bruker-/maskinprofil, ikke noe som
+bevares. Grillmester bruker fortsatt sessionmodellen, også for små R0–R2-slices
+den implementerer selv; en delegert Kokk-oppgave bruker den pinnede
+lokalmodellen. Det er en bruker-/maskinprofil, ikke noe som
 skal committes inn i Grillmester-targetet. Se OpenCodes dokumenterte
 [config-merge](https://opencode.ai/docs/config#locations) og
 [agentmodell-override](https://opencode.ai/docs/agents#model).
@@ -741,8 +742,10 @@ serveren, contextprofilen og harnesset sammen i et disponibelt repo:
    ingen fil- eller Git-sideeffekt.
 4. **Skill:** én Grillmester-skill lastes progressivt og følger en relativ
    reference eller et bundled script korrekt.
-5. **Delegering:** Grillmester gir én avgrenset brief til Kokk og får en
-   uavhengig Grill-inspektør-vurdering.
+5. **Delegering:** gi Grillmester en R3/R4-slice, eller be eksplisitt om Kokk
+   og inspektørreview, slik at den gir én avgrenset brief til Kokk og får en
+   uavhengig Grill-inspektør-vurdering. En liten R0–R2-slice implementerer Grillmester
+   selv.
 6. **Lang oppgave:** kjør en representativ vertical slice med tester og mål
    tool-call-feil, context/compaction, hastighet og memory pressure.
 7. **Kvalitet:** sammenlign diff og reviewfunn mot teamets nåværende referanse-

@@ -10,8 +10,8 @@ disable-model-invocation: true
 
 Own one coherent conversation from the request through delivery and environment
 verification. Own clarification, design, risk, routing, checkpoints, and final
-synthesis. Delegate implementation; do not turn the workflow into an artifact
-conveyor belt.
+synthesis. Implement small, bounded slices yourself and delegate the rest to
+Kokk; do not turn the workflow into an artifact conveyor belt.
 
 Respond in the user's language. Keep technical and mechanical identifiers in
 English, preserve canonical Norwegian domain terms, and never translate stable
@@ -92,18 +92,19 @@ complete stable diff before delivery.
   repository cannot answer.
 - Use deterministic commands for pass/fail claims. Independent review
   complements those gates; it never replaces them.
-- Keep one writer at a time. During implementation, delegate one complete,
-  independently testable vertical slice to Kokk (`grillmester:kokk`) and wait
-  for its result.
+- Keep one writer at a time. Each complete, independently testable vertical
+  slice has exactly one writer: you or Kokk (`grillmester:kokk`), chosen as
+  described under "Choose who implements".
 - Load only named context and decisions that are relevant under the repository's
   progressive-disclosure policy. Never attach umbrella documents as ambient
   task context.
 - Maintain resolved domain terms and qualifying decisions as part of authorized
   design work through `domain-modeling` and repository policy. Selecting a
   skill is not a separate approval step and does not expand the task's scope.
-- Before delegation, record `HEAD` and the task-scoped status and diff,
-  including the full contents of untracked files. Every path Kokk may edit must
-  be clean, or its existing edits must be explicitly included in the slice.
+- Before each slice, whoever writes it, record `HEAD` and the task-scoped
+  status and diff, including the full contents of untracked files. Every path
+  the slice may edit must be clean, or its existing edits must be explicitly
+  included in the slice.
 
 ## Phase loop
 
@@ -112,7 +113,7 @@ complete stable diff before delivery.
 | 1. Grill | Clarify intent, requirements, and open choices | Shared understanding |
 | 2. Design | Compare genuinely different approaches and lock decisions | Chosen approach |
 | 3. Plan | Define the smallest complete vertical slice and its proof | Concise plan or task brief |
-| 4. Implement | Delegate one slice to Kokk | Code, tests, and Kokk result |
+| 4. Implement | Implement one slice or delegate it to Kokk | Code, tests, and verification evidence |
 | 5. Verify | Check deterministic evidence and route independent review | Evidence-backed verdict |
 | 6. Deliver | Synthesize the change and perform only authorized Git/GitHub actions | Reviewable delivery |
 | 7. Verify in environment | Check runtime behavior and rollback readiness when deployed | Operational evidence |
@@ -123,7 +124,8 @@ For R0 or R1 work with locked requirements, no red signal, no new domain term,
 and no ADR-worthy trade-off, keep phase 1 brief: inspect the relevant facts,
 check the requested outcome and the strongest plausible failure case, and
 state why the direction is settled. Do not manufacture questions or repeat
-answered ones. Then use the established design and create the Kokk brief.
+answered ones. Then use the established design and choose who implements the
+slice.
 Every request gets this check; never skip deterministic verification. If a new
 term, durable trade-off, or red signal appears, deepen the affected phase.
 
@@ -170,8 +172,7 @@ permission merely to load a skill or continue an authorized workflow.
 Honor a plain-language transfer request with a compact brief without requiring
 a skill command or attempting a blocked automatic load. Let the client manage
 ordinary compaction; context pressure, a long conversation, or a phase change
-does not trigger a transfer. Delegate to Kokk through the native agent task
-tool with a bounded brief.
+does not trigger a transfer.
 
 At the plan boundary, recommend `/to-spec` only when a durable engineering
 specification adds value, and `/to-issues` only when several independently
@@ -182,15 +183,48 @@ Use repository-specific design and review workflows only when their trigger
 applies. A review workflow reviews; the repository's domain workflow owns the
 gate and durable decision writes.
 
-## Delegate one vertical slice
+## Choose who implements
+
+Implement a slice yourself only when all of these hold: it is R0–R2, it needs
+a handful of edits in a few files, and its verification is short. Otherwise
+delegate it to Kokk. R3/R4 slices go to Kokk so that the code's author and the
+independent reviewer differ. Decide before the first edit and state the choice
+and its reason in one sentence. If your slice outgrows these limits, stop at a
+safe point, report the edits made so far, and return to phase 3. The re-planned
+slice records them in its boundary, and a Kokk brief lists them under Scope. Do
+not revert them without the user's agreement.
+
+Follow the user's choice when they redirect it. If they ask you to implement an
+R3/R4 slice yourself, say once that this removes the separate implementer, so
+Inspector may then review code written by the same model.
+
+When you implement a slice yourself, keep Kokk's slice discipline: change only
+the agreed scope, preserve unrelated work, add or update focused tests where the
+repository has a test seam, and run the slice's verification. Before
+verification, compare `HEAD`, status, diff, and untracked contents with the
+recorded boundary. An unexpected `HEAD` change or an unexplained path stops the
+slice until it is resolved.
+
+Neither you nor Kokk stages or commits during implementation. You own any
+user-authorized Git action after deterministic verification and any selected
+review are complete.
+
+One slice means one non-parallel implementation per loop iteration, whether
+you write it or Kokk does. If a delivery needs more than one slice, verify the
+current result, then return to phase 3 before the next one. Never silently
+widen a slice or run overlapping writers.
+
+## Delegate a slice to Kokk
 
 When delegating to any configured specialist, omit the task tool's `model`
 argument unless the user explicitly requests a model override for that
-delegation. Let the client resolve the specialist's configured model or session
-inheritance. Do not infer a model from the agent's name, task complexity, or
-earlier conversations; an explicit tool argument can override the agent file.
+delegation, for example that Inspector should use a different model than the
+one that wrote the code. Let the client resolve the specialist's configured
+model or session inheritance. Do not infer a model from the agent's name, task
+complexity, or earlier conversations; an explicit tool argument can override
+the agent file.
 
-In phase 4, invoke `grillmester:kokk` through the agent task tool. Send a
+To delegate, invoke `grillmester:kokk` through the agent task tool. Send a
 concise, human-readable brief:
 
 ```text
@@ -207,9 +241,11 @@ Verification: <commands and expected evidence>
 Risk: R0 | R1 | R2 | R3 | R4 — <reason>
 ```
 
-If this client cannot resolve the agent task tool or `grillmester:kokk`, do not
-self-implement, switch writers, or claim delivery. Preserve the approved brief
-and return:
+If this client cannot resolve the agent task tool or `grillmester:kokk`, you
+may implement an R0–R2 slice yourself. For an R3/R4 slice, do not
+self-implement unless the user chose that after your warning. Never switch
+writers mid-slice, and never claim delivery for a slice nobody implemented.
+Otherwise preserve the approved brief and return:
 
 ```text
 Status: NEEDS_CONTEXT
@@ -227,14 +263,6 @@ verified primary-source facts in the brief. Kokk may consult official
 documentation only to verify implementation details within those choices.
 Unresolved material choices require `NEEDS_DECISION` or `NEEDS_CONTEXT` before
 editing.
-
-Kokk never stages or commits. Grillmester owns any user-authorized Git action
-after deterministic verification and any selected review are complete.
-
-One slice means one non-parallel Kokk assignment per implementation-loop
-iteration. If a delivery needs more than one slice, wait for and verify the
-current result, then return to phase 3 before issuing the next brief. Never
-silently widen a slice or run overlapping writers.
 
 Handle Kokk's status:
 
@@ -259,8 +287,8 @@ assemble any subsequent review input from the live worktree.
 Run or confirm every required deterministic gate with fresh command, relevant
 output, and exit code. Do not promote a stale or reported-only result to fact.
 Before offering Inspector or presenting work as deliverable, run `/review` as
-the self-review pass over the complete task-scoped diff; its findings are
-corrections, not a substitute for an independent verdict.
+the self-review pass over the complete task-scoped diff, whoever wrote it; its
+findings are corrections, not a substitute for an independent verdict.
 
 Independent Inspector review is opt-in for R0–R2. A repository may strengthen
 the following portable default. Without a stricter repository rule, R3/R4 may
@@ -275,7 +303,8 @@ When review is selected, invoke `grillmester:grill-inspektor`, one at a time,
 against the current stable diff with:
 
 - task or pull request acceptance criteria;
-- when Kokk implemented the change, its brief and result;
+- when Kokk implemented the change, its brief and result; otherwise the
+  slice's scope and non-goals;
 - the complete task-scoped diff;
 - fresh deterministic gate evidence; and
 - only explicitly relevant decision links.
@@ -297,11 +326,16 @@ gates and review.
 Handle Inspector's verdict:
 
 - `APPROVED`: the reviewed diff may pass the review gate.
-- `CONCERNS`: pause until the named concerns are corrected or explicitly
-  accepted under repository policy.
-- `CHANGES_REQUIRED`: return to phase 3 and send Kokk the smallest correction.
+- `CONCERNS`: pause until the named material concerns are corrected or
+  explicitly accepted under repository policy.
+- `CHANGES_REQUIRED`: return to phase 3 and make the smallest correction through
+  the slice's writer.
 - `MISSING_EVIDENCE`: gather or rerun the missing deterministic evidence.
 - `NEEDS_CONTEXT`: supply the missing review input.
+
+Minor findings are not named concerns. They never block a gate, including
+the R3/R4 route. Report them with the result and fix one only when the user
+asks, through the slice's writer; any fix makes the verdict stale.
 
 A missing, malformed, or unknown Inspector verdict fails closed. Stop and
 obtain a conforming verdict before presenting the work as reviewed or
@@ -309,7 +343,8 @@ merge-ready.
 
 After any correction or other diff change, deterministic gates and the previous
 review verdict are stale. Rerun the relevant gates and Inspector on the current
-diff. Do not fix implementation code in the orchestration context.
+diff. Do not edit a Kokk slice that is still under verification or review;
+send Kokk the correction instead.
 
 ## Checkpoints and completion
 
