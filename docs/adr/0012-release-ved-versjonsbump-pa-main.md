@@ -29,11 +29,19 @@ uten seremonien.
 
 En lesende plan-jobb avgjør hva som releases:
 
-- ved push bare når versjonen faktisk er endret;
-- ingenting når `v<versjon>` allerede er en publisert release;
+- ingenting når `v<versjon>` allerede er en publisert release; en annen feil
+  enn 404 fra oppslaget stopper løpet;
 - katalogens eksakte kilde når `marketplace`-tippen allerede har versjonen,
   slik at et avbrutt løp gjenopptas;
 - ellers nyeste `main`.
+
+Plan-jobben ser bare på om versjonen er publisert, ikke på om push-en endret
+versjonen. Dermed gjenopptar enhver senere kjøring en versjon som ble avbrutt,
+også når en ny push eller en kansellert kjøring i køen kom imellom.
+
+Den skrivende releasejobben sjekker den forseglede kilden og katalogen mot
+plan-jobben og katalogpubliseringen, uavhengig av jobben som kjørte kode fra
+kilden. Den erstatter bindingen til request-filen som forsvinner.
 
 `.github/release-request.json` og request-PR-en fjernes. Beslutningen om å
 rulle ut er merge av PR-en som bumper versjonen. Uavhengig
@@ -60,8 +68,12 @@ Dette beholdes uendret:
 
 ## Konsekvenser
 
-- Utrulling er én merge. Et avbrutt løp gjenopptas med en ny kjøring av
-  `Release` fra `main`.
+- Utrulling er én merge. Et avbrutt løp gjenopptas av neste kjøring av
+  `Release`, enten en push som endrer `plugin/plugin.json` eller en manuell
+  kjøring fra `main`.
+- Katalogen går ut til den flytende kanalen før den uforanderlige releasen er
+  forseglet. Feiler releasesteget, har brukerne på kanalen allerede versjonen,
+  og neste kjøring fullfører releasen.
 - Det finnes ikke lenger et eget reviewet request-punkt. Den som merger en
   versjonsbump, publiserer til den flytende kanalen og lager en uforanderlig
   release. Det er samme tillitsnivå som gjaldt i praksis, der maintaineren

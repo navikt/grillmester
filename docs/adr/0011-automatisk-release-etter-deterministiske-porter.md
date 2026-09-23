@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; request-PR-en er fjernet av ADR-0012
 date: 2026-09-10
 ---
 

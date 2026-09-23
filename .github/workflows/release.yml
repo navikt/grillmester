@@ -37,7 +37,6 @@ jobs:
         id: plan
         shell: bash
         env:
-          BEFORE_SHA: ${{ github.event.before }}
           DISPATCH_REF: ${{ github.ref }}
           EVENT_NAME: ${{ github.event_name }}
           READ_TOKEN: ${{ github.token }}
@@ -50,14 +49,22 @@ jobs:
             echo "Release must run from main." >&2
             exit 1
           }
+          [[ "${EVENT_NAME}" == "push" || "${EVENT_NAME}" == "workflow_dispatch" ]] || {
+            echo "Unsupported release trigger: ${EVENT_NAME}" >&2
+            exit 1
+          }
           [[ "${WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          git fetch --no-tags origin \
-            "refs/heads/main:refs/remotes/origin/main" \
-            "refs/heads/marketplace:refs/remotes/origin/marketplace"
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
           [[ "${WORKFLOW_SHA}" == "$(git rev-parse refs/remotes/origin/main)" ]] || {
             echo "The selected workflow SHA is not current origin/main; run Release again from main." >&2
             exit 1
           }
+          marketplace_ref=""
+          if [[ -n "$(git ls-remote --heads origin refs/heads/marketplace)" ]]; then
+            git fetch --no-tags origin \
+              "refs/heads/marketplace:refs/remotes/origin/marketplace"
+            marketplace_ref="refs/remotes/origin/marketplace"
+          fi
 
           plugin_version() {
             git show "$1:plugin/plugin.json" | jq -er '.version'
@@ -66,48 +73,40 @@ jobs:
           [[ "${version}" =~ ^[0-9A-Za-z.-]+$ ]]
           tag="v${version}"
 
-          nothing_to_release() {
-            echo "Nothing to release: $1"
-            echo "Nothing to release: $1" >> "${GITHUB_STEP_SUMMARY}"
-            {
-              echo "release=false"
-              echo "version=${version}"
-            } >> "${GITHUB_OUTPUT}"
-            exit 0
-          }
-
-          if [[ "${EVENT_NAME}" == "push" ]]; then
-            if [[ "${BEFORE_SHA}" =~ ^[0-9a-f]{40}$ && \
-                  "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]] && \
-               git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
-              if [[ "$(plugin_version "${BEFORE_SHA}")" == "${version}" ]]; then
-                nothing_to_release "plugin.json changed without a version bump (${version})."
-              fi
+          # Only a published release ends the work for a version. A missing
+          # or draft release is (re)published, so an interrupted release
+          # resumes on the next run instead of being dropped.
+          lookup_error="$(mktemp)"
+          if release_json="$(GH_TOKEN="${READ_TOKEN}" gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/${REPOSITORY}/releases/tags/${tag}" 2>"${lookup_error}")"; then
+            if [[ "$(jq -r '.draft' <<<"${release_json}")" == "false" ]]; then
+              echo "Nothing to release: ${tag} is already published."
+              echo "Nothing to release: ${tag} is already published." >> "${GITHUB_STEP_SUMMARY}"
+              {
+                echo "release=false"
+                echo "version=${version}"
+              } >> "${GITHUB_OUTPUT}"
+              exit 0
             fi
-          elif [[ "${EVENT_NAME}" != "workflow_dispatch" ]]; then
-            echo "Unsupported release trigger: ${EVENT_NAME}" >&2
+          elif ! grep -q "HTTP 404" "${lookup_error}"; then
+            cat "${lookup_error}" >&2
+            echo "Could not determine whether ${tag} is published." >&2
             exit 1
-          fi
-
-          # Drafts are not returned by tag; the release job resumes them.
-          published="$(GH_TOKEN="${READ_TOKEN}" gh api \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "repos/${REPOSITORY}/releases/tags/${tag}" \
-            --jq '.draft == false' 2>/dev/null || true)"
-          if [[ "${published}" == "true" ]]; then
-            nothing_to_release "${tag} is already published."
           fi
 
           # Resume a version whose catalog is already on the marketplace
           # from that catalog's source; otherwise release current main.
           source_sha="${WORKFLOW_SHA}"
-          tip_catalog="$(git show refs/remotes/origin/marketplace:.github/plugin/marketplace.json)"
-          if [[ "$(jq -er '.metadata.version' <<<"${tip_catalog}")" == "${version}" ]]; then
-            source_sha="$(jq -er \
-              '[.plugins[].source.sha] | unique | if length == 1 then .[0] else error("catalog source SHAs differ") end' \
-              <<<"${tip_catalog}")"
-            echo "Resuming ${tag} from its published catalog source ${source_sha}."
+          if [[ -n "${marketplace_ref}" ]]; then
+            tip_catalog="$(git show "${marketplace_ref}:.github/plugin/marketplace.json")"
+            if [[ "$(jq -er '.metadata.version' <<<"${tip_catalog}")" == "${version}" ]]; then
+              source_sha="$(jq -er \
+                '[.plugins[].source.sha] | unique | if length == 1 then .[0] else error("catalog source SHAs differ") end' \
+                <<<"${tip_catalog}")"
+              echo "Resuming ${tag} from its published catalog source ${source_sha}."
+            fi
           fi
           [[ "${source_sha}" =~ ^[0-9a-f]{40}$ ]]
           git cat-file -e "${source_sha}^{commit}"
@@ -384,11 +383,26 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Check out exact immutable source
+      - name: Check out trusted smoke tooling
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ needs.plan.outputs.source-sha }}
+          ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Bind exact immutable source payload
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git merge-base --is-ancestor "${SOURCE_SHA}" refs/remotes/origin/main
+          source_root="${RUNNER_TEMP}/source"
+          git worktree add --detach "${source_root}" "${SOURCE_SHA}"
+          echo "SOURCE_ROOT=${source_root}" >> "${GITHUB_ENV}"
 
       - name: Restore sealed catalog bytes
         shell: bash
@@ -416,7 +430,7 @@ jobs:
         run: >-
           python3 scripts/smoke_plugin_install.py
           --catalog "${CATALOG_PATH}"
-          --source-root "${GITHUB_WORKSPACE}"
+          --source-root "${SOURCE_ROOT}"
           --source-sha "${SOURCE_SHA}"
           --expect-release-sha "${SOURCE_SHA}"
 
@@ -1895,9 +1909,11 @@ jobs:
 
   release:
     needs:
+      - plan
       - validate
       - copilot-compatibility
       - macos-live-compatibility
+      - publish-catalog
       - catalog-smoke
       - seal-release
       - verify-release-assets
@@ -1918,6 +1934,8 @@ jobs:
       CATALOG_SHA: ${{ needs.seal-release.outputs.catalog-sha }}
       NOTES_BASE64: ${{ needs.seal-release.outputs.notes-base64 }}
       NOTES_SHA256: ${{ needs.seal-release.outputs.notes-sha256 }}
+      PLANNED_SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}
+      PUBLISHED_CATALOG_SHA: ${{ needs.publish-catalog.outputs.catalog-sha }}
       RUN_ID: ${{ github.run_id }}
       SOURCE_SHA: ${{ needs.seal-release.outputs.source-sha }}
       TAG: ${{ needs.seal-release.outputs.tag }}
@@ -1957,6 +1975,14 @@ jobs:
           [[ "${WORKFLOW_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${CATALOG_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${SOURCE_SHA}" == "${PLANNED_SOURCE_SHA}" ]] || {
+            echo "Sealed source does not match the planned release source." >&2
+            exit 1
+          }
+          [[ "${CATALOG_SHA}" == "${PUBLISHED_CATALOG_SHA}" ]] || {
+            echo "Sealed catalog does not match the published catalog commit." >&2
+            exit 1
+          }
           [[ "${NOTES_SHA256}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_ARTIFACT_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
           [[ "${BUNDLE_ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]

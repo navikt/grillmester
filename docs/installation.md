@@ -49,10 +49,11 @@ Start Copilot slik du vanligvis gjør i Nav, åpne `/agent`, og velg
 tilgjengelig i alle repoer på maskinen. Den skriver ikke agent- eller
 skillfiler inn i repoene.
 
-`marketplace` er en flytende oppdateringskanal. Den avanserer bare når en
-merge til `main` bumper pakkeversjonen og releasen passerer alle porter; en
-vanlig merge uten versjonsbump endrer ikke kanalen. Bruk en `v<versjon>`-tagg i
-stedet når installasjonen skal være reproduserbar.
+`marketplace` er en flytende oppdateringskanal. Den avanserer når en merge til
+`main` bumper pakkeversjonen og katalogportene i releasen passerer; den
+uforanderlige `v<versjon>`-taggen publiseres rett etter. En vanlig merge uten
+versjonsbump endrer ikke kanalen. Bruk en `v<versjon>`-tagg i stedet når
+installasjonen skal være reproduserbar.
 
 Denne imperative flyten slår ikke på automatisk oppdatering. Se den valgfrie
 auto-update-flyten lenger ned, eller oppdater manuelt med:

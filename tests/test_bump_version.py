@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.util
+import io
 import json
+import subprocess
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,6 +30,10 @@ class BumpVersionTest(unittest.TestCase):
             ("0.4.1", "minor", "0.5.0"),
             ("0.4.1", "major", "1.0.0"),
             ("0.5.0-rc.1", "patch", "0.5.0"),
+            ("0.5.0-rc.1", "minor", "0.5.0"),
+            ("0.5.1-rc.1", "minor", "0.6.0"),
+            ("1.0.0-rc.1", "major", "1.0.0"),
+            ("1.1.0-rc.1", "major", "2.0.0"),
             ("0.4.1", "0.5.0-rc.1", "0.5.0-rc.1"),
             ("0.5.0-rc.2", "0.5.0-rc.10", "0.5.0-rc.10"),
         ):
@@ -74,6 +83,63 @@ class BumpVersionTest(unittest.TestCase):
             with self.subTest(review=invalid):
                 with self.assertRaises(BUMP.BumpError):
                     BUMP.rebind_rights(approval, scope, invalid, dt.date(2026, 9, 23))
+
+    def _fixture(self, root: Path) -> Path:
+        manifest = root / "plugin/plugin.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text('{\n  "name": "grillmester",\n  "version": "0.4.1"\n}\n')
+        return manifest
+
+    def test_refuses_before_writing_when_rights_scope_changed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = self._fixture(root)
+            before = manifest.read_text()
+            stderr = io.StringIO()
+            with mock.patch.object(BUMP, "_rights_are_current", return_value=False), \
+                    mock.patch.object(BUMP.subprocess, "run") as run, \
+                    redirect_stderr(stderr):
+                status = BUMP.main(["patch", "--root", str(root)])
+            self.assertEqual(2, status)
+            self.assertIn("--rights-review", stderr.getvalue())
+            self.assertEqual(before, manifest.read_text())
+            run.assert_not_called()
+
+    def test_bumps_then_regenerates_in_contract_order(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = self._fixture(root)
+            with mock.patch.object(BUMP, "_rights_are_current", return_value=True), \
+                    mock.patch.object(BUMP.subprocess, "run") as run, \
+                    redirect_stdout(io.StringIO()):
+                status = BUMP.main(["minor", "--root", str(root)])
+            self.assertEqual(0, status)
+            self.assertIn('"version": "0.5.0"', manifest.read_text())
+            self.assertEqual(
+                [call.args[0][1] for call in run.call_args_list],
+                [
+                    "scripts/generate_copilot_manifest.py",
+                    "scripts/generate_opencode.py",
+                    "scripts/generate_context_projections.py",
+                    "scripts/generate_agentpakke_manifest.py",
+                    "scripts/generate_marketplace.py",
+                ],
+            )
+            for call in run.call_args_list:
+                self.assertEqual(root, call.kwargs["cwd"])
+
+    def test_reports_a_failed_generator_without_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._fixture(root)
+            stderr = io.StringIO()
+            failure = subprocess.CalledProcessError(1, ["generate"])
+            with mock.patch.object(BUMP, "_rights_are_current", return_value=True), \
+                    mock.patch.object(BUMP.subprocess, "run", side_effect=failure), \
+                    redirect_stderr(stderr):
+                status = BUMP.main(["patch", "--root", str(root)])
+            self.assertEqual(1, status)
+            self.assertIn("revert the partial bump", stderr.getvalue())
 
     def test_live_rights_scope_matches_the_committed_journal(self) -> None:
         approval = json.loads(

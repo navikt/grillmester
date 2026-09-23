@@ -823,8 +823,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             *,
             event: str,
             workflow_sha: str,
-            before: str = "",
-            published: bool = False,
+            release: str = "missing",
         ) -> tuple[subprocess.CompletedProcess[str], dict[str, str]]:
             checkout = root / f"checkout-{len(list(root.iterdir()))}"
             subprocess.run(
@@ -836,7 +835,11 @@ class PublishWorkflowContractTest(unittest.TestCase):
             gh = fake_bin / "gh"
             gh.write_text(
                 "#!/bin/sh\n"
-                + ("echo true\n" if published else "echo 'HTTP 404' >&2\nexit 1\n")
+                + {
+                    "published": "echo '{\"draft\": false}'\n",
+                    "missing": "echo 'gh: Not Found (HTTP 404)' >&2\nexit 1\n",
+                    "error": "echo 'gh: Server Error (HTTP 502)' >&2\nexit 1\n",
+                }[release]
             )
             gh.chmod(0o755)
             output = root / "output.txt"
@@ -844,7 +847,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
             output.write_text("")
             environment = {
                 **os.environ,
-                "BEFORE_SHA": before,
                 "DISPATCH_REF": "refs/heads/main",
                 "EVENT_NAME": event,
                 "GITHUB_OUTPUT": str(output),
@@ -883,14 +885,21 @@ class PublishWorkflowContractTest(unittest.TestCase):
             git(work, "remote", "add", "origin", str(root / "origin.git"))
             first = commit_version(work, "1.0.0")
             git(work, "push", "--quiet", "origin", "main")
+
+            with self.subTest("the first release works without a marketplace branch"):
+                completed, values = run_plan(
+                    root, event="workflow_dispatch", workflow_sha=first
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual("true", values["release"])
+                self.assertEqual(first, values["source_sha"])
+
             publish_catalog(work, "1.0.0", first)
             bumped = commit_version(work, "1.0.1")
             git(work, "push", "--quiet", "origin", "main")
 
             with self.subTest("version bump on main releases the pushed commit"):
-                completed, values = run_plan(
-                    root, event="push", workflow_sha=bumped, before=first
-                )
+                completed, values = run_plan(root, event="push", workflow_sha=bumped)
                 self.assertEqual(completed.returncode, 0, completed.stderr)
                 self.assertEqual("true", values["release"])
                 self.assertEqual(bumped, values["source_sha"])
@@ -899,41 +908,47 @@ class PublishWorkflowContractTest(unittest.TestCase):
             docs_only = commit_version(work, "1.0.1")
             git(work, "push", "--quiet", "origin", "main")
 
-            with self.subTest("plugin.json change without a bump releases nothing"):
-                completed, values = run_plan(
-                    root, event="push", workflow_sha=docs_only, before=bumped
-                )
+            with self.subTest("a later push still releases an unreleased version"):
+                completed, values = run_plan(root, event="push", workflow_sha=docs_only)
                 self.assertEqual(completed.returncode, 0, completed.stderr)
-                self.assertEqual("false", values["release"])
-                self.assertIn("without a version bump", completed.stdout)
+                self.assertEqual("true", values["release"])
+                self.assertEqual(docs_only, values["source_sha"])
 
             with self.subTest("a stale workflow SHA fails closed"):
-                completed, _ = run_plan(
-                    root, event="push", workflow_sha=bumped, before=first
-                )
+                completed, _ = run_plan(root, event="push", workflow_sha=bumped)
                 self.assertNotEqual(completed.returncode, 0)
                 self.assertIn("not current origin/main", completed.stderr)
 
+            with self.subTest("an unknown release state fails closed"):
+                completed, _ = run_plan(
+                    root, event="push", workflow_sha=docs_only, release="error"
+                )
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertIn("Could not determine whether v1.0.1 is published", completed.stderr)
+
             publish_catalog(work, "1.0.1", bumped)
 
-            with self.subTest("dispatch resumes the published catalog's source"):
-                completed, values = run_plan(
-                    root, event="workflow_dispatch", workflow_sha=docs_only
-                )
-                self.assertEqual(completed.returncode, 0, completed.stderr)
-                self.assertEqual("true", values["release"])
-                self.assertEqual(bumped, values["source_sha"])
+            with self.subTest("a run resumes the published catalog's source"):
+                for event in ("push", "workflow_dispatch"):
+                    completed, values = run_plan(
+                        root, event=event, workflow_sha=docs_only
+                    )
+                    self.assertEqual(completed.returncode, 0, completed.stderr)
+                    self.assertEqual("true", values["release"])
+                    self.assertEqual(bumped, values["source_sha"])
 
             with self.subTest("an already published tag releases nothing"):
-                completed, values = run_plan(
-                    root,
-                    event="workflow_dispatch",
-                    workflow_sha=docs_only,
-                    published=True,
-                )
-                self.assertEqual(completed.returncode, 0, completed.stderr)
-                self.assertEqual("false", values["release"])
-                self.assertIn("v1.0.1 is already published", completed.stdout)
+                for event in ("push", "workflow_dispatch"):
+                    completed, values = run_plan(
+                        root,
+                        event=event,
+                        workflow_sha=docs_only,
+                        release="published",
+                    )
+                    self.assertEqual(completed.returncode, 0, completed.stderr)
+                    self.assertEqual("false", values["release"])
+                    self.assertNotIn("source_sha", values)
+                    self.assertIn("v1.0.1 is already published", completed.stdout)
 
     def test_release_credentials_are_confined_to_two_protected_steps(self) -> None:
         text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
@@ -1000,14 +1015,26 @@ class PublishWorkflowContractTest(unittest.TestCase):
         jobs = workflow_jobs(RELEASE_WORKFLOW)
         self.assertIn(
             "needs:\n"
+            "      - plan\n"
             "      - validate\n"
             "      - copilot-compatibility\n"
             "      - macos-live-compatibility\n"
+            "      - publish-catalog\n"
             "      - catalog-smoke\n"
             "      - seal-release\n"
             "      - verify-release-assets",
             jobs["release"],
         )
+        # The write job anchors the sealed values independently of the job
+        # that ran selected-source code.
+        for anchor in (
+            "PLANNED_SOURCE_SHA: ${{ needs.plan.outputs.source-sha }}",
+            "PUBLISHED_CATALOG_SHA: ${{ needs.publish-catalog.outputs.catalog-sha }}",
+            '[[ "${SOURCE_SHA}" == "${PLANNED_SOURCE_SHA}" ]]',
+            '[[ "${CATALOG_SHA}" == "${PUBLISHED_CATALOG_SHA}" ]]',
+        ):
+            with self.subTest(anchor=anchor):
+                self.assertIn(anchor, jobs["release"])
         self.assertIn(
             "needs:\n"
             "      - plan\n"
@@ -1025,6 +1052,13 @@ class PublishWorkflowContractTest(unittest.TestCase):
 
     def test_candidate_code_runs_without_repository_or_admin_tokens(self) -> None:
         jobs = workflow_jobs(RELEASE_WORKFLOW)
+        # Copilot compatibility runs trusted smoke tooling from main against
+        # the candidate payload in a worktree; it never checks out the source.
+        copilot = jobs["copilot-compatibility"]
+        self.assertIn("ref: ${{ github.sha }}", copilot)
+        self.assertNotIn("ref: ${{ needs.plan.outputs.source-sha }}", copilot)
+        self.assertIn('git worktree add --detach "${source_root}" "${SOURCE_SHA}"', copilot)
+        self.assertIn('--source-root "${SOURCE_ROOT}"', copilot)
         for job in ("validate", "copilot-compatibility", "seal-release"):
             with self.subTest(job=job):
                 self.assertNotIn("github.token", jobs[job])

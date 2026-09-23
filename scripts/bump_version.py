@@ -51,16 +51,26 @@ def next_version(current: str, bump: str) -> str:
 
     version = CONTRACT.parse_version(current)
     if bump in ("patch", "minor", "major"):
+        # Like `semver inc`: a prerelease of exactly the requested level is
+        # finalised instead of skipping past it.
         major, minor, patch = version.core
+        prerelease = version.prerelease is not None
         if bump == "major":
-            candidate = f"{major + 1}.0.0"
+            candidate = (
+                f"{major}.0.0"
+                if prerelease and minor == 0 and patch == 0
+                else f"{major + 1}.0.0"
+            )
         elif bump == "minor":
-            candidate = f"{major}.{minor + 1}.0"
-        elif version.prerelease is not None:
-            # A prerelease precedes its own core version.
-            candidate = f"{major}.{minor}.{patch}"
+            candidate = (
+                f"{major}.{minor}.0"
+                if prerelease and patch == 0
+                else f"{major}.{minor + 1}.0"
+            )
         else:
-            candidate = f"{major}.{minor}.{patch + 1}"
+            candidate = (
+                f"{major}.{minor}.{patch}" if prerelease else f"{major}.{minor}.{patch + 1}"
+            )
     else:
         candidate = bump
     target = CONTRACT.parse_version(candidate)
@@ -127,12 +137,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         metavar="OWNER/REPO#PR",
         help="pull request that reviews changed rights-scoped imported content",
     )
+    parser.add_argument("--root", type=Path, default=ROOT, help=argparse.SUPPRESS)
     return parser.parse_args(argv)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    root = ROOT
+    root = args.root
     manifest_path = root / PLUGIN_MANIFEST
     try:
         manifest_text = manifest_path.read_text(encoding="utf-8")
@@ -146,7 +157,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 approval,
                 CONTRACT.current_rights_scope(root),
                 args.rights_review,
-                dt.date.today(),
+                # The release validator rejects future dates in UTC.
+                dt.datetime.now(dt.timezone.utc).date(),
             )
             rights_path.write_text(
                 json.dumps(rebound, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
@@ -168,7 +180,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     for generator in GENERATORS:
-        subprocess.run([sys.executable, *generator], cwd=root, check=True)
+        try:
+            subprocess.run([sys.executable, *generator], cwd=root, check=True)
+        except subprocess.CalledProcessError:
+            print(
+                f"bump_version: {generator[0]} failed after {PLUGIN_MANIFEST} was set to "
+                f"{target}. Fix the error and rerun the generators, or revert the "
+                "partial bump with git.",
+                file=sys.stderr,
+            )
+            return 1
     print(f"Bumped Grillmester {current} -> {target}. Merging to main releases v{target}.")
     return 0
 

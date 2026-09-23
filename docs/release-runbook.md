@@ -25,16 +25,19 @@ floating catalog and the immutable release. It runs when a merge to `main`
 changes the version in `plugin/plugin.json`, and it can be dispatched from
 `main` to resume or retry. Its stages keep the previous trust boundary:
 
-- **Plan** is read-only. It requires the run to be current `origin/main`. A push
-  that changes `plugin/plugin.json` without a new version releases nothing. It
-  also releases nothing when `v<version>` is already a published release. When
-  the floating `marketplace` tip already carries the current version, the run
-  resumes that catalog's exact source; otherwise it releases current `main`.
+- **Plan** is read-only. It requires the run to be current `origin/main` and
+  releases nothing when `v<version>` is already a published release. Any
+  release lookup failure other than 404 fails closed. A missing or draft
+  release is (re)published, so any later run resumes an interrupted version.
+  When the floating `marketplace` tip already carries the current version, the
+  run resumes that catalog's exact source; otherwise it releases current
+  `main`.
 - **Catalog validation** binds the planned source SHA, regenerates and seals the
   one-package catalog before any selected-source tooling runs, and executes the
   selected source's own tooling and tests only in that read-only job. Copilot
-  compatibility installs the sealed catalog with the supported minimum Copilot
-  CLI 1.0.79, which must advertise the complete local-run flag surface in
+  compatibility runs trusted smoke tooling from `main` and installs the sealed
+  catalog and the source payload from a worktree with the supported minimum
+  Copilot CLI 1.0.79, which must advertise the complete local-run flag surface in
   `--help` without authentication or a model request. The native macOS matrix
   runs on Apple Silicon and hosted Intel. It verifies the exact OpenCode,
   Copilot CLI and cplt release-test artifacts before their first execution,
@@ -51,7 +54,9 @@ changes the version in `plugin/plugin.json`, and it can be dispatched from
   no selected-source code, revalidates the sealed bytes, creates a
   catalog-only child of the current `marketplace` tip, and performs a normal
   fast-forward push. An identical tip is an idempotent no-op. A following
-  read-only smoke installs from the actual floating `marketplace` ref.
+  read-only smoke installs from the actual floating `marketplace` ref. Users on
+  the floating channel receive the version from this point, before the
+  immutable release is sealed.
 - **Release sealing** requires the published catalog commit to bind the planned
   source, validates the complete chain and stages the exact catalog bytes and
   source-pinned payload in an isolated local smoke. It builds the terminal
@@ -61,9 +66,12 @@ changes the version in `plugin/plugin.json`, and it can be dispatched from
   workflow-owned code to match every archive file, mode, manifest entry, and
   canonical archive property to immutable Git blobs at the selected source SHA.
 
-Only after all of those deterministic jobs succeed does the workflow enter the
-main-restricted `grillmester-release` deployment and secret boundary
-automatically. The two asset files cross that boundary in one immutable Actions
+Catalog publication enters the main-restricted `grillmester-release`
+deployment and secret boundary automatically once the catalog gates pass.
+Release publication enters it again only after sealing and asset verification
+also succeed, and it re-checks the sealed source and catalog against the plan
+and the published catalog commit, independently of the job that ran
+selected-source code. The two asset files cross that boundary in one immutable Actions
 artifact; only its exact artifact ID, server digest, file digests, sizes and
 names cross as scalar outputs. Its write-capable job contains two fixed inline
 steps with no checkout, action, package install, or repository-script
@@ -326,7 +334,8 @@ Changes can merge to `main` without being released. To roll them out:
    ```
 
    Use `minor`, `major`, or an explicit strict SemVer such as `0.5.0-rc.1`
-   instead of `patch` when that fits. Build metadata is not accepted, and a
+   instead of `patch` when that fits. Like `semver inc`, a bump of the level a
+   prerelease belongs to finalises it (`0.5.0-rc.1` + `minor` is `0.5.0`). Build metadata is not accepted, and a
    version must never be reused for different payload bytes. The script
    updates `plugin/plugin.json` and regenerates every derived target.
 2. When the change touches rights-scoped imported content (Designer, Doctor
@@ -348,8 +357,9 @@ Changes can merge to `main` without being released. To roll them out:
    with its terminal bundle and checksum.
 
 The floating `marketplace` branch is also the personal CLI auto-update channel.
-It advances only when a release passes its gates; an ordinary merge without a
-version bump does not deploy it. Keep an isolated Copilot home on the previous
+It advances when a version bump's catalog gates pass, before the immutable
+release is sealed; an ordinary merge without a version bump does not deploy
+it. Keep an isolated Copilot home on the previous
 version, start a new trusted CLI session after publication, and verify that it
 advances without an explicit update command. This is post-deployment evidence
 and is separate from the immutable-tag smoke. Use an immutable release tag for
@@ -410,10 +420,11 @@ The publisher never moves an existing tag:
   published release: fail.
 
 Rerun the failed jobs while the run's commit is still current `origin/main`.
-If `main` has moved, dispatch **Release** from current `main`. When the
-floating `marketplace` tip already carries that version, the new run resumes
-the published catalog and its exact source; the catalog step is then a no-op
-and the release step continues from the existing tag or draft. A later version
+If `main` has moved, the next run resumes the version: a push that changes
+`plugin/plugin.json`, or a dispatch of **Release** from current `main`. When the
+floating `marketplace` tip already carries that version, the run resumes the
+published catalog and its exact source; the catalog step is then a no-op and
+the release step continues from the existing tag or draft. A later version
 bump supersedes an interrupted one; the interrupted version then has a catalog
 commit but no immutable release.
 
@@ -445,6 +456,6 @@ through the protected automation identity. Re-enable it only after generator,
 validator, remote install smoke, and history/version guards pass.
 
 Record the catalog SHA, source SHA, test artifact SHA-256, tags, consumer refs,
-request ID, and recovery actions in the incident. Repinning or reinstalling
+workflow run ID, and recovery actions in the incident. Repinning or reinstalling
 does not make an already-started agent session forget loaded content; restart
 the affected Copilot or OpenCode session.
