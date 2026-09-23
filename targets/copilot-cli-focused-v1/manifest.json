@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "566c9ea67905fe8ef5070c8919b9e71582d1fad945e502f9d60e216579deb2d9",
+    "payloadManifestSha256": "875a280afafdc2aba8b2b7ef3149889935f5fbeb60688df5305a7b70f1bc148a",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
   },
@@ -53,11 +53,11 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "4d1178cf738e0afbd8e58f4ed38b949c131687ad4dfbea2afcc9795f917c5a77",
+      "sha256": "cf766fcf404abcaf908e75f8d59ae5f7bc06b0c687226bd12731a9b441451653",
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "d528c215a1084433230c5fabba75e327feceb23aecdc124423a921dd106af1af",
+      "sha256": "160dc623a25b99bb30cad1694a9321b85966ebc7e5b15f3251bd95c41b8c10ab",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {

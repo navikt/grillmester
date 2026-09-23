@@ -77,7 +77,7 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "3cf1fc369334f1bbeb980eeb8824622b55773affc7dc6f55eda70a80ef588dda",
+      "sha256": "073753fd6bcfd736e55b3ad7a592ab4d53a2009fc25308b2d3d1c7031c408599",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -85,11 +85,11 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "15b0e95845242edcb6e65832fd5f70f49c092a4e77d86d0c186781f53c6819aa",
+      "sha256": "a45f440dc145c8f65724b84f3780f0b628ccb555784faa07942472cb81a6616b",
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "24bbed2bfb9bf23f33a287b4142c0297e1d4e12662b144628b76be92d9218cb1",
+      "sha256": "be766d22accef1f9f0a7fbe84514a1da748853f0b50510c0506ebadbdba33a39",
       "mode": "0644"
     },
     "agents/kokk.agent.md": {
@@ -101,7 +101,7 @@
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "d528c215a1084433230c5fabba75e327feceb23aecdc124423a921dd106af1af",
+      "sha256": "160dc623a25b99bb30cad1694a9321b85966ebc7e5b15f3251bd95c41b8c10ab",
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
