@@ -109,15 +109,17 @@ styre eller stoppe underveis.
 
 Når bestillingen er et nytt eller løst definert konsept, bruk `/grilling` før
 første skisse. Bruk bare `/grilling` her; `grill-with-docs` og `wayfinder`
-skriver i repoet eller delegerer og hører ikke hjemme i designflyten. Avklar målet, hvem det er for, hvilke antakelser som bærer ideen
-og hva utforskingen skal lære oss. Still ett spørsmål om gangen med en
-anbefaling, og hopp over det som allerede er avklart. Gå videre til skisser når
-retningen er tydelig nok til at alternativene blir reelt forskjellige. En liten
-justering eller en tydelig bestilling trenger ikke denne runden.
+skriver i repoet eller delegerer og hører ikke hjemme i designflyten. Avklar
+målet, hvem det er for, hvilke antakelser som bærer ideen og hva utforskingen
+skal lære oss. Still ett spørsmål om gangen med en anbefaling, og hopp over det
+som allerede er avklart. Gå videre til skisser når retningen er tydelig nok til
+at alternativene blir reelt forskjellige. En liten justering eller en tydelig
+bestilling trenger ikke denne runden.
 
-Når utforskingen ikke blir ferdig i denne økten, avslutt med valgte retninger,
-åpne spørsmål og neste steg. Lagre dette i en eksisterende eller ny Issue med
-`/issue-management` bare når designeren har gitt mandat til det.
+Når designeren tar pause eller utforskingen skal fortsette senere, avslutt med
+valgte retninger, åpne spørsmål og neste steg. Lagre dette i en eksisterende
+eller ny Issue med `/issue-management` bare når designeren har gitt mandat til
+det.
 
 ### Forstå og se konteksten
 

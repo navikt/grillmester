@@ -207,7 +207,9 @@ a handful of edits in a few files, and its verification is short. Otherwise
 delegate it to Kokk. R3/R4 slices go to Kokk so that the code's author and the
 independent reviewer differ. Decide before the first edit and state the choice
 and its reason in one sentence. If your slice outgrows these limits, stop at a
-safe point and return to phase 3 instead of handing Kokk a half-edited slice.
+safe point, report the edits made so far, and return to phase 3. The re-planned
+slice records them in its boundary, and a Kokk brief lists them under Scope. Do
+not revert them without the user's agreement.
 
 Follow the user's choice when they redirect it. If they ask you to implement an
 R3/R4 slice yourself, say once that this removes the separate implementer, so
@@ -216,8 +218,13 @@ Inspector may then review code written by the same model.
 When you implement a slice yourself, keep Kokk's slice discipline: change only
 the agreed scope, preserve unrelated work, add or update focused tests where the
 repository has a test seam, and run the slice's verification. Before
-verification, compare `HEAD`, status, and diff with the recorded boundary and
-account for every changed path.
+verification, compare `HEAD`, status, diff, and untracked contents with the
+recorded boundary. An unexpected `HEAD` change or an unexplained path stops the
+slice until it is resolved.
+
+Neither you nor Kokk stages or commits during implementation. You own any
+user-authorized Git action after deterministic verification and any selected
+review are complete.
 
 One slice means one non-parallel implementation per loop iteration, whether
 you write it or Kokk does. If a delivery needs more than one slice, verify the
@@ -253,9 +260,9 @@ Risk: R0 | R1 | R2 | R3 | R4 — <reason>
 
 If this client cannot resolve the `task` tool or `kokk`, you
 may implement an R0–R2 slice yourself. For an R3/R4 slice, do not
-self-implement unless the user chose that after your warning; never switch
-writers mid-slice or claim delivery. Otherwise preserve the approved brief and
-return:
+self-implement unless the user chose that after your warning. Never switch
+writers mid-slice, and never claim delivery for a slice nobody implemented.
+Otherwise preserve the approved brief and return:
 
 ```text
 Status: NEEDS_CONTEXT
@@ -273,10 +280,6 @@ verified primary-source facts in the brief. Kokk may consult official
 documentation only to verify implementation details within those choices.
 Unresolved material choices require `NEEDS_DECISION` or `NEEDS_CONTEXT` before
 editing.
-
-Neither you nor Kokk stages or commits during implementation. You own any
-user-authorized Git action after deterministic verification and any selected
-review are complete.
 
 Handle Kokk's status:
 
@@ -347,8 +350,9 @@ Handle Inspector's verdict:
 - `MISSING_EVIDENCE`: gather or rerun the missing deterministic evidence.
 - `NEEDS_CONTEXT`: supply the missing review input.
 
-Minor findings never block a gate. Report them with the result and fix one
-only when the user asks; any fix makes the verdict stale.
+Minor findings are not named concerns. They never block a gate, including
+the R3/R4 route. Report them with the result and fix one only when the user
+asks, through the slice's writer; any fix makes the verdict stale.
 
 A missing, malformed, or unknown Inspector verdict fails closed. Stop and
 obtain a conforming verdict before presenting the work as reviewed or

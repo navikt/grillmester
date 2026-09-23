@@ -36,9 +36,10 @@ spørsmål. Størrelsen på den senere implementasjonen er ikke alene grunn til
 å opprette et kart.
 
 Små, avgrensede R0–R2-slices implementerer Grillmester selv. Større slices og
-slices med mye bygg- og testiterasjon delegeres til Kokk. R3/R4 går alltid til
-Kokk, slik at koden og den uavhengige reviewen kommer fra ulike forfattere.
-Grillmester sier hvilket valg den tar, og du kan overstyre det.
+slices med mye bygg- og testiterasjon delegeres til Kokk. R3/R4 går til Kokk,
+slik at koden og den uavhengige reviewen kommer fra ulike forfattere.
+Grillmester sier hvilket valg den tar, og du kan overstyre valget; for R3/R4 får
+du først en advarsel.
 
 **Ikke bruk når:** Oppgaven er liten og ferdig spesifisert. Da er Barista
 raskere og enklere.

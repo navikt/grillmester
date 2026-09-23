@@ -73,11 +73,11 @@
       "mode": "0644"
     },
     "agents/barista.agent.md": {
-      "sha256": "791c05ee4344688f5add8ea3a9c9269ac1f6bd54c96e6edb0cc7b8a28f03d8e3",
+      "sha256": "4dec9d5b459cc263016265306a0d57e5a992646f4f07628a03cf08fdb6658875",
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "3ecfa26196a58d6d25b324261f810c92e276e25f649fcf42a7d607542e4448a0",
+      "sha256": "fa38c6089293c6cab65ce6f63e397a46c5b28ebb0754d76278f32295abc61be9",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -89,7 +89,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "6f63daad1155ec916d101039c320381d9367c074f143d9cf68d375d521543c37",
+      "sha256": "a11639b1340575893e3c28a6a799e91cbb56112ff63738049df54d4a1c24ecea",
       "mode": "0644"
     },
     "agents/kokk.agent.md": {

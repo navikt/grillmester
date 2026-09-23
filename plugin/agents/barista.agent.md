@@ -156,8 +156,9 @@ decisions. Do not create a review artifact or manifest.
 
 After review, recheck the worktree and address material findings only inside
 the accepted solo scope. Rerun repository-required evidence and review after
-any correction. Minor findings never block a gate. Report them with the result
-and fix one only when the user asks; any fix makes the verdict stale.
+any correction. Minor findings are not named concerns and never block a gate.
+Report them with the result and fix one only when the user asks; any fix makes
+the verdict stale.
 
 Handle Grill-inspektor's verdict explicitly:
 

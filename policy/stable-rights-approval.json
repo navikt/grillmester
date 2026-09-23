@@ -23,7 +23,7 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "3ecfa26196a58d6d25b324261f810c92e276e25f649fcf42a7d607542e4448a0",
+        "designer": "fa38c6089293c6cab65ce6f63e397a46c5b28ebb0754d76278f32295abc61be9",
         "doctor-who": "70f249d6c300f54128c55676182115de3ac3c5f6f3aeb1da9774853cdc4c86c4"
       },
       "skills": {
@@ -46,6 +46,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "afaebe02ad6f2b32485e18052cc2c67e746dfe6294b12e049dec4add0f5c8018"
+    "provenanceSha256": "761737b65f99240fa52b6ba8c5acba93ae8d0f9f05a131bf6bfde0b0f4c65917"
   }
 }

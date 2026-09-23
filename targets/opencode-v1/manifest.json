@@ -86,11 +86,11 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "91f6b54c9fb6cb218fe4feb373839f786d33f6e2851446e516d8f76008524e87",
+      "sha256": "b2957653699b5cad40a2b8f3ddec67e07938f06d16a9a38a8015d0074e2a4cc9",
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "d6d83b4143b88a2bbb84de604d393950fb6e44ca9fce146ccc03c3a10e0f8971",
+      "sha256": "b87e8d72bb0a3abd8a0915f519262236561f81e2724eccab83fc0295b8ccaa1e",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -102,7 +102,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "7c6ef21d38f2593bef833cc3466983e1fc2e980d2513e796e14f4a764c3efedb",
+      "sha256": "3a39456e1088b701f8ae6d914f9b23ffa8b7e91268bdca6417f332bf2be92270",
       "mode": "0644"
     },
     "agents/kokk.md": {

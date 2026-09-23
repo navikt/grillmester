@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "ebbf4d8d446915827b04fa964f220609f633bb737d21cadd3c2630685481dbd9",
+    "targetManifestSha256": "7ed4cde00e519eda89f106f1226694ef2b06c1c5e7d3d74acff2d7589b3a3dff",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
   },
@@ -47,7 +47,7 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "694e98aa2da843c4a9938788065ba3c3cdc683cdac2bc66ce23cce4defa6f4df",
+      "sha256": "68863f410fa8fcef5cc57519aa462d1b7f34b8d28703db211a8a964cfcbc5e68",
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
