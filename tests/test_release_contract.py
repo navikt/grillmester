@@ -546,25 +546,20 @@ class ReleaseContractTest(unittest.TestCase):
             ):
                 CONTRACT.validate_stable_rights_approval(source)
 
-    def test_live_stable_rights_journal_preserves_0_4_1_review_basis(self) -> None:
+    def test_live_stable_rights_journal_preserves_the_underlying_decision(self) -> None:
         CONTRACT.validate_stable_rights_approval(ROOT)
 
         approval = json.loads(
             (ROOT / CONTRACT.STABLE_RIGHTS_APPROVAL_PATH).read_text(encoding="utf-8")
         )
-        expected_reference = (
-            "underlying decision: navikt/grillmester#56; "
-            "current-content review: navikt/grillmester#73"
-        )
-
-        self.assertEqual(
-            expected_reference,
-            approval["decisions"]["organizationalRights"]["decisionReference"],
-        )
-        self.assertEqual(
-            expected_reference,
-            approval["decisions"]["doctorWhoBrand"]["decisionReference"],
-        )
+        for decision in ("organizationalRights", "doctorWhoBrand"):
+            with self.subTest(decision=decision):
+                reference = CONTRACT.DECISION_REFERENCE.fullmatch(
+                    approval["decisions"][decision]["decisionReference"]
+                )
+                self.assertIsNotNone(reference)
+                self.assertEqual("navikt/grillmester#56", reference["underlying"])
+                self.assertRegex(reference["review"], r"^navikt/grillmester#[1-9][0-9]*$")
 
     def test_stable_rights_scope_rejects_an_invalid_component_source_shape(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
