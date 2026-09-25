@@ -145,6 +145,16 @@ the existing `grilling` skill, and a session summary when exploration will
 continue later. The agent's design-only boundary, name, and imported skills are
 unchanged and remain within the source, component, and naming scope of #56.
 
+PR [#77](https://github.com/navikt/grillmester/pull/77) is the review basis
+for the 0.5.0 content. It replaces the imported `designer` agent's design-only
+boundary: Designer may now help with user-requested tool and machine setup,
+implement inline when the user asks, and delegate only to the internal
+`perspektiv` and `researcher` roles. The imported `design-prototype` and
+`figma-workflow` skills drop their design-only return rules accordingly. The
+agent keeps its name, source lineage, and imported skill set, so the change
+remains within the source, component, and naming scope of #56. The new
+`perspektiv` agent is Grillmester-authored and outside that rights scope.
+
 The stable rights journal binds the current content lock, this provenance
 record, and every Hovmester-imported component digest. Its
 `decisionReference` preserves both records as `underlying decision: …;

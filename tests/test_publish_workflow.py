@@ -1555,6 +1555,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             '{name: "grillmester", path: "plugin", agents: 8, skills: 43}',
             text,
         )
+        self.assertNotRegex(text, r"agents: (?!8\b)\d+, skills: 43")
         self.assertIn(
             '(keys | sort) == ["marketplace", "packages", "schemaVersion"]',
             text,

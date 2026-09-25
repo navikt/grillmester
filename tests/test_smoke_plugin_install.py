@@ -20,6 +20,20 @@ SPEC.loader.exec_module(SMOKE)
 
 
 class PluginLifecycleSmokeTest(unittest.TestCase):
+    def test_expected_inventory_matches_the_plugin_source(self) -> None:
+        package = SMOKE.PACKAGES[0]
+        self.assertEqual(
+            len(list((ROOT / "plugin" / "agents").glob("*.agent.md"))),
+            package.agents,
+        )
+        self.assertEqual(
+            len([p for p in (ROOT / "plugin" / "skills").iterdir() if p.is_dir()]),
+            package.skills,
+        )
+        # Upgrade fixtures are copied from the current source and keep its agents.
+        self.assertEqual(package.agents, SMOKE.PREVIOUS_UNIFIED_PACKAGE.agents)
+        self.assertEqual(package.agents, SMOKE.LEGACY_CORE.agents)
+
     def test_local_help_requires_the_complete_minimum_copilot_flag_roster(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

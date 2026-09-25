@@ -124,8 +124,8 @@ styre eller stoppe underveis.
 
 Når bestillingen er et nytt eller løst definert konsept, bruk `/grilling` før
 første skisse. Bruk bare `/grilling` her; `grill-with-docs` og `wayfinder`
-skriver varige domenedokumenter og beslutningskart i repoet og hører ikke hjemme
-i designflyten. Avklar
+skriver varige domenedokumenter og beslutningskart i repoet eller
+issue-trackeren og hører ikke hjemme i designflyten. Avklar
 målet, hvem det er for, hvilke antakelser som bærer ideen og hva utforskingen
 skal lære oss. Still ett spørsmål om gangen med en anbefaling, og hopp over det
 som allerede er avklart. Gå videre til skisser når retningen er tydelig nok til

@@ -59,11 +59,11 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 7, 43, True),
+    PackageSpec("grillmester", "plugin", 8, 43, True),
 )
-LEGACY_CORE = PackageSpec("grillmester", "plugin", 7, 34, False)
+LEGACY_CORE = PackageSpec("grillmester", "plugin", 8, 34, False)
 LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10, False)
-PREVIOUS_UNIFIED_PACKAGE = PackageSpec("grillmester", "plugin", 7, 43, False)
+PREVIOUS_UNIFIED_PACKAGE = PackageSpec("grillmester", "plugin", 8, 43, False)
 PREVIOUS_PACKAGES = (LEGACY_CORE, LEGACY_ADD_ON)
 LEGACY_ADD_ON_SKILLS = (
     "api-design",
