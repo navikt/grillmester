@@ -269,11 +269,11 @@ def _distribution_support_files(source_root: Path) -> list[BundleFile]:
         or content_lock["schemaVersion"] != 1
         or not isinstance(content_lock.get("sources"), dict)
         or not isinstance(content_lock.get("agents"), dict)
-        or len(content_lock["agents"]) != 7
+        or len(content_lock["agents"]) != 8
         or not isinstance(content_lock.get("skills"), dict)
         or len(content_lock["skills"]) != 43
     ):
-        raise BundleBuildError("content lock must be the complete 7-agent/43-skill BOM")
+        raise BundleBuildError("content lock must be the complete 8-agent/43-skill BOM")
 
     result = [BundleFile(CONTENT_LOCK_PATH, content_lock_content, 0o644)]
     for source_path, distribution_path, label in (
@@ -472,14 +472,14 @@ def _target_files(
             "OpenCode target command roster differs from policy/content-lock.json"
         )
     expected_counts = {
-        "agents": 7,
+        "agents": 8,
         "primaryAgents": 4,
-        "subagents": 3,
+        "subagents": 4,
         "skills": 43,
         "commands": 43,
     }
     if manifest.get("counts") != expected_counts:
-        raise BundleBuildError("OpenCode target manifest has the wrong 7/43/43 counts")
+        raise BundleBuildError("OpenCode target manifest has the wrong 8/43/43 counts")
     capabilities = manifest.get("skillCapabilities")
     expected_capabilities = {
         skill_id: (

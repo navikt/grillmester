@@ -33,7 +33,7 @@ EXPECTED_OPENCODE_VERSION = _BASELINE_MODULE.CONTRACT["releaseTest"][
     "opencodeVersion"
 ]
 PRIMARY_AGENTS = frozenset({"grillmester", "barista", "designer", "doctor-who"})
-SUBAGENTS = frozenset({"kokk", "grill-inspektor", "researcher"})
+SUBAGENTS = frozenset({"kokk", "grill-inspektor", "researcher", "perspektiv"})
 EXPECTED_AGENTS = PRIMARY_AGENTS | SUBAGENTS
 EXPECTED_SKILLS = 43
 EXPECTED_COMMANDS = 43

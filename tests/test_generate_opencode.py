@@ -120,12 +120,12 @@ class OpenCodeGenerationTest(unittest.TestCase):
             },
             json.loads(files["opencode.json"][0]),
         )
-        self.assertEqual(7, manifest["counts"]["agents"])
+        self.assertEqual(8, manifest["counts"]["agents"])
         self.assertEqual(4, manifest["counts"]["primaryAgents"])
-        self.assertEqual(3, manifest["counts"]["subagents"])
+        self.assertEqual(4, manifest["counts"]["subagents"])
         self.assertEqual(43, manifest["counts"]["skills"])
         self.assertEqual(43, manifest["counts"]["commands"])
-        self.assertEqual(7, sum(path.startswith("agents/") for path in files))
+        self.assertEqual(8, sum(path.startswith("agents/") for path in files))
         self.assertEqual(43, sum(path.startswith("commands/") for path in files))
         self.assertEqual(
             43,
@@ -159,26 +159,21 @@ class OpenCodeGenerationTest(unittest.TestCase):
         self.assertIn("    researcher: allow", grillmester)
 
         designer = self.expected("agents/designer.md")
+        perspektiv = self.expected("agents/perspektiv.md")
         self.assertIn(
-            '  bash:\n    "*": deny\n'
-            '    "node scripts/server.js --project-dir *": ask\n'
-            '    "node *design-prototype/scripts/server.js --project-dir *": ask',
+            '  bash:\n    "*": ask\n'
+            '    "node scripts/server.js * --cleanup-all*": deny\n'
+            '    "node *design-prototype/scripts/server.js * --cleanup-all*": deny',
             designer,
         )
-        self.assertIn(
-            '    "node scripts/server.js * --cleanup-all*": deny', designer
-        )
         self.assertNotIn("  bash: allow", designer)
-        bash_policy = designer.split("  bash:\n", 1)[1].split("  skill:\n", 1)[0]
-        self.assertLess(
-            bash_policy.index('    "*": deny'),
-            bash_policy.index('    "node scripts/server.js --project-dir *": ask'),
-        )
-        self.assertLess(
-            bash_policy.index('    "node scripts/server.js --project-dir *": ask'),
-            bash_policy.index('    "node scripts/server.js * --cleanup-all*": deny'),
-        )
-        self.assertNotIn("kill *", bash_policy)
+        self.assertIn("    perspektiv: allow", designer)
+        self.assertIn("    researcher: allow", designer)
+        self.assertNotIn("    kokk: allow", designer)
+        self.assertIn("mode: subagent\nhidden: true", perspektiv)
+        self.assertNotRegex(perspektiv.split("---", 2)[1], r"(?m)^model:")
+        self.assertIn("  edit: deny", perspektiv)
+        self.assertIn("  bash: deny", perspektiv)
 
     def test_agents_leave_runtime_read_and_external_guards_unshadowed(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
@@ -190,6 +185,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
             "grill-inspektor",
             "grillmester",
             "kokk",
+            "perspektiv",
             "researcher",
         ):
             with self.subTest(agent=agent_id):
@@ -313,6 +309,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
             "`agent` tool",
             "grillmester:kokk",
             "grillmester:researcher",
+            "grillmester:perspektiv",
         ):
             self.assertNotIn(token, text)
         self.assertIsNone(GENERATOR.slash_skill_reference(set(json.loads((ROOT / "policy/content-lock.json").read_text())["skills"])).search(text))

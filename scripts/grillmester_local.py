@@ -213,6 +213,7 @@ COPILOT_INHERIT_AGENTS = (
     "grillmester:kokk",
     "grillmester:grill-inspektor",
     "grillmester:researcher",
+    "grillmester:perspektiv",
 )
 COPILOT_DISABLED_BUILTIN_SKILLS = (
     "customize-cloud-agent",
@@ -3545,7 +3546,7 @@ def _parser() -> argparse.ArgumentParser:
         action="store_const",
         const="full",
         dest="context",
-        help="save full 7-agent/43-skill context",
+        help="save full 8-agent/43-skill context",
     )
     setup.add_argument(
         "--provider-id",

@@ -1,6 +1,6 @@
 ---
 name: figma-workflow
-description: "Translate a chosen Figma design into Aksel code or an implementation brief with component, token and responsive guidance. Use for design-to-code work; use `design-prototype` for visual exploration or changes to the Figma design itself. Design-only agents return a brief."
+description: "Translate a chosen Figma design into Aksel code or an implementation brief with component, token and responsive guidance. Use for design-to-code work; use `design-prototype` for visual exploration or changes to the Figma design itself. Return a brief when the user asks for one instead of code."
 ---
 # Figma → Aksel-kode
 
@@ -11,11 +11,10 @@ implementeringsbrief for Nav-frontend med `@navikt/ds-react`. En Figma-lenke
 alene velger ikke denne flyten. Utforsking, sammenligning eller redigering av
 selve designet hører til `design-prototype`, også når Figma-filen finnes fra før.
 
-Når den valgte agenten har en design-only-grense, som
-`designer`, skal skillen bare hente designkontekst, kontrollere
-Aksel-mappingen og levere en konkret implementeringsbrief. Ikke skriv eller
-endre produktkode i den sesjonen. Brukeren må starte en separat Barista- eller
-Grillmester-flyt for steg 5–6.
+Når brukeren bare ber om en brief, skal skillen bare hente designkontekst,
+kontrollere Aksel-mappingen og levere en konkret implementeringsbrief. Ikke
+skriv eller endre produktkode for den forespørselen. Hvis brukeren senere ber
+om implementering, kan den aktive agenten gjennomføre steg 5–6 i samme sesjon.
 
 Lesing av Figma-kontekst er standardflyten. Hvis Figma-verktøy ikke er
 tilgjengelig, fall tilbake til brief, skjermbilder og eksisterende kode og merk
@@ -57,9 +56,9 @@ Oversett Figma-strukturen til Aksel-komponenter og tokens (se mapping-tabellene 
 
 Bygg med Aksel-primitives. Aldri generisk HTML for elementer Aksel dekker.
 
-Dette steget krever en engineering-agent med implementasjonsmandat. I en
-design-only-sesjon leveres i stedet filscope, komponentmapping,
-akseptansekriterier og visuell verifikasjonsplan som handoff.
+Dette steget krever at brukeren har bedt om implementering. Ellers leveres
+filscope, komponentmapping, akseptansekriterier og visuell verifikasjonsplan
+som brief.
 
 ### 6. Visuell verifisering
 

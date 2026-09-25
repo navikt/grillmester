@@ -20,6 +20,20 @@ SPEC.loader.exec_module(SMOKE)
 
 
 class PluginLifecycleSmokeTest(unittest.TestCase):
+    def test_expected_inventory_matches_the_plugin_source(self) -> None:
+        package = SMOKE.PACKAGES[0]
+        self.assertEqual(
+            len(list((ROOT / "plugin" / "agents").glob("*.agent.md"))),
+            package.agents,
+        )
+        self.assertEqual(
+            len([p for p in (ROOT / "plugin" / "skills").iterdir() if p.is_dir()]),
+            package.skills,
+        )
+        # Upgrade fixtures are copied from the current source and keep its agents.
+        self.assertEqual(package.agents, SMOKE.PREVIOUS_UNIFIED_PACKAGE.agents)
+        self.assertEqual(package.agents, SMOKE.LEGACY_CORE.agents)
+
     def test_local_help_requires_the_complete_minimum_copilot_flag_roster(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -451,7 +465,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
         ) as run, mock.patch.object(
             SMOKE,
             "verify_installed_package",
-            return_value=(7, 43),
+            return_value=(8, 43),
         ) as verify, mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled") as uninstalled:
@@ -465,7 +479,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 source_root=Path("/tmp/source"),
             )
 
-        self.assertEqual((7, 43), result)
+        self.assertEqual((8, 43), result)
         self.assertEqual(
             [
                 "copilot",
@@ -509,7 +523,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             "run",
             side_effect=["", "", "grillmester@grillmester", ""],
         ), mock.patch.object(
-            SMOKE, "verify_installed_package", return_value=(7, 43)
+            SMOKE, "verify_installed_package", return_value=(8, 43)
         ), mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled"):
@@ -524,7 +538,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 allow_floating_marketplace=True,
             )
 
-        self.assertEqual((7, 43), result)
+        self.assertEqual((8, 43), result)
 
     def test_remote_install_rejects_floating_marketplace_without_explicit_opt_in(
         self,

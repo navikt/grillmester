@@ -381,17 +381,44 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("external-research capability fallback")
 
-    def test_designer_implementation_boundary_is_enforced(self) -> None:
+    def test_designer_inline_implementation_boundary_is_enforced(self) -> None:
         path = self.root / "plugin/agents/designer.agent.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
-                "Skriv kode eller delegere kodeimplementering",
-                "Skriv kode eller deleger kodeimplementering ved behov",
+                "Deleger aldri kodeimplementering til en annen agent;",
+                "Deleger kodeimplementering til Kokk ved behov;",
                 1,
             ),
             encoding="utf-8",
         )
-        self.assert_error("design-only implementation boundary")
+        self.assert_error("inline-implementation boundary")
+
+    def test_perspektiv_synthetic_persona_boundary_is_enforced(self) -> None:
+        path = self.root / "plugin/agents/perspektiv.agent.md"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "Synthetic personas are hypotheses, not user research.",
+                "Synthetic personas represent real users.",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        self.assert_error("synthetic-persona boundary")
+
+    def test_perspektiv_is_a_hidden_read_only_subagent(self) -> None:
+        lock = self.load_json("policy/content-lock.json")["agents"]["perspektiv"]
+        self.assertIs(False, lock["user-invocable"])
+        self.assertIs(False, lock["disable-model-invocation"])
+        self.assertEqual(["read", "search", "skill", "web"], lock["tools"])
+        opencode = self.load_json("policy/opencode-v1.json")["agents"]
+        self.assertEqual("subagent", opencode["perspektiv"]["mode"])
+        self.assertIs(True, opencode["perspektiv"]["hidden"])
+        for permission in ("edit", "bash", "task"):
+            self.assertEqual("deny", opencode["perspektiv"]["permission"][permission])
+        self.assertEqual(
+            {"*": "deny", "perspektiv": "allow", "researcher": "allow"},
+            opencode["designer"]["permission"]["task"],
+        )
 
     def test_agent_roster_drift_is_rejected(self) -> None:
         source = self.root / "plugin/agents/researcher.agent.md"

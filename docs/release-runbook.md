@@ -379,7 +379,7 @@ byte-verifies both staged assets before publishing the draft (`prerelease` and
 `latest=false` for a prerelease). Published assets are never replaced. The
 following read-only `release-smoke` job peels the published tag back to the
 expected catalog commit, installs from `navikt/grillmester#v<version>`,
-byte-verifies the 7-agent/43-skill Copilot payload, downloads the exact
+byte-verifies the 8-agent/43-skill Copilot payload, downloads the exact
 two-asset roster, verifies the detached checksum before safe extraction, and
 exercises the launcher's install contract. A failed post-publication smoke
 stops promotion and requires a new corrective version; tags and assets are

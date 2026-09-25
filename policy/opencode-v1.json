@@ -31,18 +31,20 @@
       "skillAccess": "allow-with-manual-ask",
       "permission": {
         "edit": "ask",
+        "bash": {
+          "*": "ask",
+          "node scripts/server.js * --cleanup-all*": "deny",
+          "node *design-prototype/scripts/server.js * --cleanup-all*": "deny"
+        },
         "webfetch": "ask",
         "websearch": "ask",
         "todowrite": "ask",
         "question": "allow",
-        "bash": {
+        "task": {
           "*": "deny",
-          "node scripts/server.js --project-dir *": "ask",
-          "node *design-prototype/scripts/server.js --project-dir *": "ask",
-          "node scripts/server.js * --cleanup-all*": "deny",
-          "node *design-prototype/scripts/server.js * --cleanup-all*": "deny"
-        },
-        "task": "deny"
+          "perspektiv": "allow",
+          "researcher": "allow"
+        }
       }
     },
     "doctor-who": {
@@ -102,6 +104,19 @@
         "todowrite": "deny",
         "edit": "ask",
         "bash": "ask",
+        "question": "deny",
+        "task": "deny"
+      }
+    },
+    "perspektiv": {
+      "mode": "subagent",
+      "hidden": true,
+      "skillAccess": "allow-with-manual-ask",
+      "permission": {
+        "doom_loop": "deny",
+        "todowrite": "deny",
+        "edit": "deny",
+        "bash": "deny",
         "question": "deny",
         "task": "deny"
       }

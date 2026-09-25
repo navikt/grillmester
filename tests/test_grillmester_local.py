@@ -1430,6 +1430,7 @@ class LocalModeTests(unittest.TestCase):
             set(LOCAL.COPILOT_INHERIT_AGENTS),
             set(settings["subagents"]["agents"]),
         )
+        self.assertIn("grillmester:perspektiv", LOCAL.COPILOT_INHERIT_AGENTS)
         self.assertTrue(
             all(
                 item == {"model": "inherit"}

@@ -6,7 +6,7 @@
     "version": 1
   },
   "counts": {
-    "agents": 7,
+    "agents": 8,
     "skills": 43
   },
   "agents": [
@@ -16,6 +16,7 @@
     "grill-inspektor",
     "grillmester",
     "kokk",
+    "perspektiv",
     "researcher"
   ],
   "skills": [
@@ -77,7 +78,7 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "fa38c6089293c6cab65ce6f63e397a46c5b28ebb0754d76278f32295abc61be9",
+      "sha256": "cab29c451db0acd505eedf4739e9a75efeae0f77f3f368229bcbc79cd341a408",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -96,12 +97,16 @@
       "sha256": "1f60bc98170bd05fc07925d992e7b70b00d53a76b7c9f14868d532b2c078e10d",
       "mode": "0644"
     },
+    "agents/perspektiv.agent.md": {
+      "sha256": "21a72e9f79cbe19991d852ef541d688d7bf11c481a26bdf22df5c4468c1a3f3e",
+      "mode": "0644"
+    },
     "agents/researcher.agent.md": {
       "sha256": "2b22cf798636ccdf143cae0e0b61276c65b0b84713505b2d8c3b19339170ba96",
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "160dc623a25b99bb30cad1694a9321b85966ebc7e5b15f3251bd95c41b8c10ab",
+      "sha256": "71cee8aeb50e1df3c2fb87bccf3a453b9616bd745d54737dd8718a113e23c8c1",
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
@@ -177,7 +182,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "61f1eb8477809b5d20aa0fee956903de66a9922f9b6d8f59e5c968458dc138b0",
+      "sha256": "ff2497de7f22110c964a6f8d07c099d6116e8ffa31d29babc389d2d89de38a51",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -261,7 +266,7 @@
       "mode": "0644"
     },
     "skills/figma-workflow/SKILL.md": {
-      "sha256": "4deab7f95ab5debedfc9520593735a68d17e63d57f26c813cd42534da58c7d30",
+      "sha256": "76f40a02cc35923fd5fb2cdf6ba6dcbabbf83c21d44a1489b4d9d8b1a02de1dc",
       "mode": "0644"
     },
     "skills/grill-me/SKILL.md": {

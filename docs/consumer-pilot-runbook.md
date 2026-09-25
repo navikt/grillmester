@@ -165,7 +165,7 @@ python3 scripts/preflight_consumer_pilot.py /tmp/consumer-pilot \
   --json
 ```
 
-Preflighten auditerer den komplette pluginen med 7 agenter og 43 skills.
+Preflighten auditerer den komplette pluginen med 8 agenter og 43 skills.
 Releasebinding, kollisjonssøk og tillatte fjerninger bruker alltid samme
 roster.
 
@@ -313,7 +313,7 @@ Alle writes skjer i pilotbranchen eller en disponibel fixture.
 | **Grillmester** | En viktig eller uklar endring som trenger spec, domenemodellering eller ADR. Be først om beslutningsgrunnlag uten implementering. | Skiller fakta, antakelser og beslutninger; avklarer reelle valg; venter på godkjenning; sier hvem som implementerer og hvorfor, og delegerer en R3/R4-slice, eller en slice der du eksplisitt ber om Kokk og inspektørreview, til Kokk med komplett brief og uavhengig review. | Implementerer før retningen er godkjent, hopper over repository instructions eller presenterer review uten fersk evidens. |
 | **Barista** | En liten, ferdigspesifisert endring med klare akseptansekriterier. | Jobber solo-first, bruker eksisterende repo-kommandoer og leverer en liten verifisert diff uten tung orkestrering. | Starter Grillmester-flyt eller spesialister uten behov, finner på kommandoer eller utvider scope. |
 | **Doctor Who** | Et produktspørsmål om mål, prioritering, discovery eller neste eksperiment basert på vedlikeholdte repo-/GitHub-kilder. | Utforsker alternativer og anbefaler neste steg; preview før ekstern write; bruker ikke shell/execute og delegerer ikke. | Forsøker kodeimplementering, shell/execute, delegering eller ekstern write uten eksplisitt godkjenning. |
-| **Designer** | En designoppgave i et representativt frontend-repo: Aksel/Figma, flyt eller Visual Companion. | Leverer designarbeid, beskriver fallback når Figma-verktøy mangler og implementerer ikke produktkode. | Brukes som implementeringsagent, endrer produktkode, delegerer eller hevder at en Figma-write skjedde uten verktøyevidens. |
+| **Designer** | En designoppgave i et representativt frontend-repo: Aksel/Figma, flyt eller Visual Companion. | Leverer designarbeid, beskriver fallback når Figma-verktøy mangler og implementerer bare når brukeren ber om det. | Endrer produktkode uten bestilling, delegerer implementering, presenterer personas som brukerinnsikt eller hevder at en Figma-write skjedde uten verktøyevidens. |
 
 Backend-consumeren er ikke et godt Designer-bevis. Kjør Designer-scenariet i
 en frontend-consumer eller disponibel designfixture med samme RC. Copilot App
@@ -342,12 +342,13 @@ godkjenningsgrensen i en disponibel fixture:
 - godkjenn én liten, ufarlig write og kontroller eksakt diff;
 - avvis én foreslått write og bekreft at ingen fil, Git-ref eller ekstern
   ressurs endres;
-- la `/doctor`, Researcher og Grill-inspektor forbli read-only;
+- la `/doctor`, Researcher, Perspektiv og Grill-inspektor forbli read-only;
 - la Grill-inspektor bruke `execute` til sideeffektfri inspeksjon av status og
   diff, men ikke til builds, tester, nettverk eller andre muterende kommandoer;
-- bekreft at Doctor Who ikke bruker shell/execute, og at Doctor Who og Designer
-  ikke delegerer eller implementerer produktkode, selv om de arver en bred
-  runtimeflate.
+- bekreft at Doctor Who ikke bruker shell/execute og ikke delegerer eller
+  implementerer produktkode, selv om den arver en bred runtimeflate;
+- bekreft at Designer bare delegerer til Perspektiv og Researcher, aldri
+  delegerer kodeimplementering, og bare implementerer når brukeren ber om det.
 
 Ingen test skal bruke produksjonsdata, secrets, personopplysninger eller
 deploy-/mergehandlinger som evidens.

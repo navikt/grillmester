@@ -9,7 +9,7 @@
     "plugin": "grillmester",
     "pluginManifest": "plugin/plugin.json",
     "policy": "policy/opencode-v1.json",
-    "policySha256": "e239cc65769ed8e3a74f86e65812c0edf9c031992d0686fc760ff4891f8b8039"
+    "policySha256": "f10034a4eb2d355cbfe4b0690273460e6f63d5c5ecb4e952c4e4f485461abc1b"
   },
   "modelSelection": "inherit-provider-or-session",
   "skillInvocation": {
@@ -17,9 +17,9 @@
     "user": "commands/<skill-id>.md"
   },
   "counts": {
-    "agents": 7,
+    "agents": 8,
     "primaryAgents": 4,
-    "subagents": 3,
+    "subagents": 4,
     "skills": 43,
     "commands": 43
   },
@@ -90,7 +90,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "b87e8d72bb0a3abd8a0915f519262236561f81e2724eccab83fc0295b8ccaa1e",
+      "sha256": "ed3a3a1a16adad3c0308f6b36922110b5722d7eaa402bf481f527a4ac69c4c97",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -107,6 +107,10 @@
     },
     "agents/kokk.md": {
       "sha256": "f75ef0c05a23e93fa340094825b652726ea04095d1cb6ebe514ab25d7e4d46f0",
+      "mode": "0644"
+    },
+    "agents/perspektiv.md": {
+      "sha256": "4ba2481aa73bd1ddb375e66a609ef8120d449f22b93f249b523c14fb04a14b18",
       "mode": "0644"
     },
     "agents/researcher.md": {
@@ -162,7 +166,7 @@
       "mode": "0644"
     },
     "commands/figma-workflow.md": {
-      "sha256": "c95b6f31f78d2464300db0943ccd2c127ea92de84ce4ce7eeda24b91d178e45a",
+      "sha256": "3bd4addf7608848347bdb61fa1c0b711dc18f36ece4d740d0014c15f33f82d82",
       "mode": "0644"
     },
     "commands/grill-me.md": {
@@ -362,7 +366,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "9f07bf7a17503326fe51e6ea9b982d67e405a7dd2d3b9666f0094614e00e22ab",
+      "sha256": "5a2833ef0696336cba5901d5176a8da04ba4b9f1e67434c2897c815490dc4a72",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -446,7 +450,7 @@
       "mode": "0644"
     },
     "skills/figma-workflow/SKILL.md": {
-      "sha256": "e767411ddc65d981835eb24c870ca862ae079fdadd2660e4ca7f51e8c41a2374",
+      "sha256": "8395121f2a05cd58c33a6711a42fc2562b88d88576346cb5eb3052fe914bb6d2",
       "mode": "0644"
     },
     "skills/grill-me/SKILL.md": {

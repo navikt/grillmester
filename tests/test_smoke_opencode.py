@@ -428,7 +428,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
 
         self.assertEqual(SMOKE.EXPECTED_OPENCODE_VERSION, report.version)
         self.assertEqual(4, report.primary_agents)
-        self.assertEqual(3, report.subagents)
+        self.assertEqual(4, report.subagents)
         self.assertEqual(43, report.skills)
         self.assertEqual(43, report.commands)
 
