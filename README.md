@@ -4,7 +4,7 @@
   <img src="docs/assets/grillmester-hero.jpg" alt="En retro robotgrillmester ved en kullgrill i et norsk landskap" width="100%">
 </p>
 
-Grillmester er Navs agentteam for GitHub Copilot: fire agenter, tre interne roller og 43 skills, samlet i én plugin. Tilgang og tillatt bruk styres av Navs gjeldende policy.
+Grillmester er Navs agentteam for GitHub Copilot: fire agenter, fire interne roller og 43 skills, samlet i én plugin. Tilgang og tillatt bruk styres av Navs gjeldende policy.
 
 ## Kom i gang
 
@@ -67,11 +67,11 @@ påkrevd.
 | --- | --- |
 | **Grillmester** 🔥 | Oppgaven er uklar, viktig eller tverrgående. Grillmester avklarer valg og risiko før en avgrenset løsning implementeres og vurderes. |
 | **Barista** ☕ | Målet er tydelig og oppgaven kan løses som vanlig repoarbeid. Barista forstår, implementerer og verifiserer i en lett flyt. |
-| **Designer** 🎨 | Du vil utforske brukerflyt, konsepter, Aksel, Visual Companion eller Figma. Designer lager en designleveranse, men implementerer ikke produktkode. |
+| **Designer** 🎨 | Du vil utforske brukerflyt, konsepter, Aksel, Visual Companion eller Figma. Designer lager en designleveranse, kan hente inn parallelle spesialistperspektiver og kan implementere når du ber om det. |
 | **Doctor Who** 🕰️ | Du trenger støtte til discovery, mål, prioritering, workshops, teamhelse, produktfag eller Nav-arkitektur. |
 
 Beskriv ønsket resultat, kontekst og avgrensninger. Agenten laster normalt
-riktige skills selv. Kokk, Grill-inspektør og Researcher er interne roller som
+riktige skills selv. Kokk, Grill-inspektør, Researcher og Perspektiv er interne roller som
 brukes ved behov. [Se alle agenter og skills](docs/agents-and-skills.md).
 
 ## Støtte og avgrensninger

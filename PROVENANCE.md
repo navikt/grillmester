@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: seven agents and 43 skills. The sources below record attribution
+`plugin/`: eight agents and 43 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -112,9 +112,14 @@ Imported agents:
 - `designer`, `doctor-who`
 
 Hovmester's internal `konditor` agent and Designer's delegated source-code
-prototype phase are intentionally excluded. Grillmester's Designer ends at
-visual exploration, Figma, and an optional development Issue; implementation
-starts only through a separate user-initiated Barista or Grillmester workflow.
+prototype phase are intentionally excluded. Grillmester's Designer implements
+inline only when the user asks and never delegates implementation to another
+agent.
+
+`perspektiv` is a Grillmester-authored internal role. Its read-only,
+bounded-brief contract is adapted from the pilot `researcher` agent; its
+specialist-perspective and synthetic-persona rules are original to
+Grillmester.
 
 ### Stable rights binding
 
@@ -179,10 +184,12 @@ delivery side effects require an explicit
 preview and approval. All four public roles intentionally inherit the
 runtime's broad tool surface, matching the piloted Hovmester/Budstikka model
 and avoiding a drifting matrix of client-specific aliases. Their behavioral
-contracts remain narrower: neither Designer nor Doctor Who delegates; Doctor
-Who does not use shell commands, and Designer's edit/execute use is limited to the
-bundled Visual Companion server and the exact private `screen_dir` path returned
-by its active startup JSON. Technical containment and approval remain client-
+contracts remain narrower: Doctor Who neither delegates nor uses shell
+commands. Designer delegates only to Perspektiv and Researcher and never
+delegates code implementation; it uses edit/execute for design work, approved
+tool setup, and implementation the user asks for, and writes Visual Companion
+HTML only to the exact private `screen_dir` path returned by its active startup
+JSON. Technical containment and approval remain client-
 and enterprise-owned.
 
 ### Visual Companion lineage

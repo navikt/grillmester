@@ -237,10 +237,10 @@ def load_distribution(root: Path | None = None) -> Distribution:
     if target_manifest.get("target") != "opencode-v1":
         raise LauncherError("OpenCode target manifest does not name opencode-v1")
     counts = target_manifest.get("counts")
-    if not isinstance(counts, dict) or counts.get("agents") != 7 or counts.get(
+    if not isinstance(counts, dict) or counts.get("agents") != 8 or counts.get(
         "skills"
     ) != 43:
-        raise LauncherError("OpenCode target manifest does not contain 7 agents and 43 skills")
+        raise LauncherError("OpenCode target manifest does not contain 8 agents and 43 skills")
     focused_contracts = (
         (
             focused_opencode / "manifest.json",

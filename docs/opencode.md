@@ -215,8 +215,8 @@ etter flere kjøringer.
 
 ## Agenter, commands og forwarding
 
-OpenCode-targetet har syv native agenter. De fire offentlige velges direkte;
-Kokk, Grill-inspektør og Researcher brukes gjennom delegering. Skills lastes
+OpenCode-targetet har åtte native agenter. De fire offentlige velges direkte;
+Kokk, Grill-inspektør, Researcher og Perspektiv brukes gjennom delegering. Skills lastes
 progressivt med OpenCodes native `skill`-tool, og de 43 commands speiler
 skillinngangene.
 

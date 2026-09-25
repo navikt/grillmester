@@ -116,9 +116,9 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             "schemaVersion": 1,
             "target": "opencode-v1",
             "counts": {
-                "agents": 7,
+                "agents": 8,
                 "primaryAgents": 4,
-                "subagents": 3,
+                "subagents": 4,
                 "skills": 43,
                 "commands": 43,
             },
@@ -806,7 +806,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         content_lock = json.loads(content_lock_path.read_text(encoding="utf-8"))
         content_lock["agents"].pop(next(iter(content_lock["agents"])))
         content_lock_path.write_text(json.dumps(content_lock), encoding="utf-8")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "complete 7-agent/43-skill"):
+        with self.assertRaisesRegex(BUILDER.BundleBuildError, "complete 8-agent/43-skill"):
             BUILDER.build_bundle(
                 incomplete_bom,
                 SOURCE_SHA,

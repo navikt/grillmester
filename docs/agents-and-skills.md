@@ -1,6 +1,6 @@
 # Agenter og skills
 
-Grillmester kombinerer fire brukerinnganger med tre interne roller. Du velger
+Grillmester kombinerer fire brukerinnganger med fire interne roller. Du velger
 inngangen; agentteamet bruker interne roller og relevante skills etter behov.
 
 ## Offentlige agenter
@@ -78,8 +78,13 @@ Nye eller løst definerte konsepter starter med grilling av mål, målgruppe,
 antakelser og hva utforskingen skal lære, før første skisse. Designer er også
 riktig inngang for utviklere når leveransen er et konsept eller en Figma-skisse.
 
-**Ikke bruk når:** Du vil implementere produktkode. Godkjent design går videre
-til Barista eller Grillmester.
+Designer kan sette sammen et panel av spesialistperspektiver, som UX-ekspert,
+innholdsdesigner, UU-ekspert eller syntetiske personas, og syntetisere dem.
+Personas er hypoteser, ikke brukerinnsikt. Designer kan også hjelpe med oppsett
+av verktøy og implementere et valgt design når du ber om det.
+
+**Ikke bruk når:** Oppgaven er ren kode uten designspørsmål. Da passer Barista
+eller Grillmester bedre.
 
 Designer fungerer best med Aksel MCP og Figma MCP. Ved arbeid mot en kjørende
 app anbefales også Playwright MCP. Se [MCP-oppsett](mcp-setup.md).
@@ -108,6 +113,7 @@ Grillmester og trekk inn relevante produkt-/Nav-skills der.
 | **Kokk** 👨‍🍳 | Implementerer én komplett, uavhengig testbar vertical slice fra en tydelig brief når Grillmester delegerer. | Utvider ikke scope og finner ikke på manglende beslutninger. |
 | **Grill-inspektør** 🔎 | Leser hele task-diffen, akseptansekriteriene og fersk evidens; kan bruke read-only shellkommandoer som `git diff` for å verifisere. | Endrer ikke implementasjonen og løser ikke produktvalg. |
 | **Researcher** | Besvarer ett avgrenset faktaspørsmål fra repo og autoritative kilder, med valgfri kobling til et Wayfinder-kart. | Ingen writes og ingen produkt-/arkitekturbeslutning. |
+| **Perspektiv** 🔭 | Tar ett fagperspektiv eller én syntetisk persona som Designer gir i briefen, og vurderer design, flyt eller tekst fra det ståstedet. Designer kan kjøre flere parallelt. | Ingen writes og ingen designbeslutning; personas presenteres aldri som brukerinnsikt. |
 
 I Copilot er de interne rollene `user-invocable: false`. I OpenCode er de
 `mode: subagent` og `hidden: true`. Begge deler hindrer at de presenteres som

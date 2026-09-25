@@ -56,7 +56,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             with self.subTest(agent=agent):
                 self.assertIn(f"| **{agent}**", self.text)
         self.assertIn(
-            "Kokk, Grill-inspektør og Researcher er interne roller",
+            "Kokk, Grill-inspektør, Researcher og Perspektiv er interne roller",
             " ".join(self.text.split()),
         )
 

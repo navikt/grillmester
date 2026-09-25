@@ -161,8 +161,13 @@ RESEARCHER_EXTERNAL_FALLBACK = (
     "capability, recommending rerouting to Copilot CLI/app or a repository-approved "
     "MCP when the question depends on external facts."
 )
-DESIGNER_NO_IMPLEMENTATION_FLOOR = (
-    "Skriv kode eller delegere kodeimplementering"
+DESIGNER_INLINE_IMPLEMENTATION_FLOOR = (
+    "Deleger aldri kodeimplementering til en annen agent; Designer "
+    "implementerer selv når brukeren ber om det."
+)
+PERSPEKTIV_PERSONA_FLOOR = (
+    "Synthetic personas are hypotheses, not user research. Never build a persona "
+    "from, or repeat, a real person's personal data."
 )
 DOCTOR_READ_ONLY_FLOOR = (
     "This skill is read-only. Never create, edit, delete, rename, stage, commit, "
@@ -420,7 +425,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
         errors.append("package-manifest.json must contain exactly one package")
         return None
     expected_definitions = [
-        {"name": "grillmester", "path": "plugin", "agents": 7, "skills": 43},
+        {"name": "grillmester", "path": "plugin", "agents": 8, "skills": 43},
     ]
     if package_definitions != expected_definitions:
         errors.append("package-manifest.json package roster or counts have drifted")
@@ -596,10 +601,17 @@ def validate_agents(
             )
         if (
             agent_id == "designer"
-            and DESIGNER_NO_IMPLEMENTATION_FLOOR not in normalized_body
+            and DESIGNER_INLINE_IMPLEMENTATION_FLOOR not in normalized_body
         ):
             errors.append(
-                f"{path}: design-only implementation boundary is missing or has drifted"
+                f"{path}: inline-implementation boundary is missing or has drifted"
+            )
+        if (
+            agent_id == "perspektiv"
+            and PERSPEKTIV_PERSONA_FLOOR not in normalized_body
+        ):
+            errors.append(
+                f"{path}: synthetic-persona boundary is missing or has drifted"
             )
 
         unknown_keys = set(frontmatter) - AGENT_FRONTMATTER_KEYS
@@ -1036,8 +1048,8 @@ def validate_package_rosters(
     skill_ids: set[str],
     errors: list[str],
 ) -> None:
-    if len(agent_ids) != 7:
-        errors.append(f"plugin must contain 7 agents, found {len(agent_ids)}")
+    if len(agent_ids) != 8:
+        errors.append(f"plugin must contain 8 agents, found {len(agent_ids)}")
     if len(skill_ids) != 43:
         errors.append(f"plugin must contain 43 skills, found {len(skill_ids)}")
 

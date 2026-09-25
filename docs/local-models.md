@@ -144,7 +144,7 @@ server i local-flyten. Dette feiler lukket i `setup`; bruk Copilot CLI når
 lokalserveren krever autentisering.
 
 Hver launch bruker focused Barista med sju utviklingsskills. Bytt klient eller
-be om full 7-agent/43-skill-kontekst for én sesjon uten å endre defaulten:
+be om full 8-agent/43-skill-kontekst for én sesjon uten å endre defaulten:
 
 ```bash
 grillmester local --client copilot
@@ -684,7 +684,8 @@ fallback. Merge derfor en eksplisitt, bruker-eid override i
       "grillmester:doctor-who": { "model": "inherit" },
       "grillmester:kokk": { "model": "inherit" },
       "grillmester:grill-inspektor": { "model": "inherit" },
-      "grillmester:researcher": { "model": "inherit" }
+      "grillmester:researcher": { "model": "inherit" },
+      "grillmester:perspektiv": { "model": "inherit" }
     }
   }
 }
