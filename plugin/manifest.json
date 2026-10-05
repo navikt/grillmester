@@ -74,7 +74,7 @@
       "mode": "0644"
     },
     "agents/barista.agent.md": {
-      "sha256": "4dec9d5b459cc263016265306a0d57e5a992646f4f07628a03cf08fdb6658875",
+      "sha256": "aacba09843c6dfc6a8aeab01d26547d20505b2ccca05e42dd70aeac456a3a4ee",
       "mode": "0644"
     },
     "agents/designer.agent.md": {
@@ -86,7 +86,7 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "379969185b1bc1ee608139b2fdc0198a5dfe040d10f9cd74df4bd0c6894fb819",
+      "sha256": "c23b843bca3ed409cdf637dd647354ea7d6292f3b00b631272d9858ab42fb9c4",
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
@@ -94,7 +94,7 @@
       "mode": "0644"
     },
     "agents/kokk.agent.md": {
-      "sha256": "1f60bc98170bd05fc07925d992e7b70b00d53a76b7c9f14868d532b2c078e10d",
+      "sha256": "f5395462091d689b125a135b2a06dde948a58561d8a2c1f44de907790eb79172",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
@@ -102,11 +102,11 @@
       "mode": "0644"
     },
     "agents/researcher.agent.md": {
-      "sha256": "2b22cf798636ccdf143cae0e0b61276c65b0b84713505b2d8c3b19339170ba96",
+      "sha256": "c403817a4c8815ec5ec12edb0e651c37ad39cb75d3dd448aa5938ef249f6920f",
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "71cee8aeb50e1df3c2fb87bccf3a453b9616bd745d54737dd8718a113e23c8c1",
+      "sha256": "35aefcbc4fbdd9a6a40e17525eb3065ae5f1b1431cc06ef265cfc7ff2d97d23a",
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
