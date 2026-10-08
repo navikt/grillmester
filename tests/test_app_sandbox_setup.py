@@ -109,6 +109,12 @@ class AppSandboxSetupTest(unittest.TestCase):
         # Importing must not leave __pycache__ in the manifested plugin tree.
         with mock.patch.object(sys, "dont_write_bytecode", True):
             spec.loader.exec_module(self.app)
+        self.production_rw_paths = self.app.RW_PATHS
+        # Linux temp homes are below /tmp; exclude absolute tmp grants so fixture
+        # HOME is not writable based on host TMPDIR. Grant-specific tests restore them.
+        self.app.RW_PATHS = tuple(
+            path for path in self.app.RW_PATHS if path not in ("/tmp", "/private/tmp")
+        )
         # macOS TMPDIR lives below /private/var, unlike real developer homes.
         # Keep temporary fixtures there while retaining all other system guards.
         if hasattr(self.app, "SYSTEM_AREAS"):
@@ -1573,7 +1579,8 @@ class AppSandboxSetupTest(unittest.TestCase):
                 return True
             return original_exists(path)
 
-        with mock.patch.object(Path, "exists", fixture_exists):
+        with mock.patch.object(self.app, "RW_PATHS", self.production_rw_paths), \
+                mock.patch.object(Path, "exists", fixture_exists):
             code, output = self.run_cli("apply", "--confirm", self.digest())
             self.assertEqual(0, code, output)
             policy = self.policies()[0]
@@ -1732,7 +1739,8 @@ class AppSandboxSetupTest(unittest.TestCase):
             )):
                 connection.execute("INSERT INTO projects(id, name, main_repo_path) VALUES (?, ?, ?)",
                                    (str(index), "fixture", path))
-        code, output = self.run_cli("apply", "--confirm", self.digest())
+        with mock.patch.object(self.app, "RW_PATHS", self.production_rw_paths):
+            code, output = self.run_cli("apply", "--confirm", self.digest())
         self.assertEqual(0, code, output)
         for policy in self.policies():
             # Fixed tool exceptions /tmp and /private/tmp are intentionally allowed.
