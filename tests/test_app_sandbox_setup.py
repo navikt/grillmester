@@ -167,7 +167,230 @@ class AppSandboxSetupTest(unittest.TestCase):
                 ("p1", json.dumps(policy)),
             )
 
+    def test_file_type_denies_require_an_existing_file(self) -> None:
+        paths = (".netrc", ".copilot/settings.json", ".copilot/config.json")
+        for state in ("missing", "file"):
+            with self.subTest(state=state):
+                if state == "file":
+                    for relative in paths:
+                        (self.home / relative).touch()
+                code, output = self.run_cli("plan", "--json")
+                self.assertEqual(0, code, output)
+                denied = json.loads(output)["projects"][0]["diff"]["deniedPaths"]["added"]
+                for relative in paths:
+                    self.assertEqual(state == "file", str(self.home / relative) in denied)
+                self.assertIn(str(self.db), denied)
+                self.assertIn(str(self.db.parent / "app-sandbox-setup-backups"), denied)
+
+    def test_directory_denies_depend_on_type_and_writable_parent(self) -> None:
+        for state in ("missing", "writable-parent", "empty", "nonempty"):
+            with self.subTest(state=state):
+                if state == "writable-parent":
+                    (self.home / ".config").mkdir()
+                elif state == "empty":
+                    (self.home / ".aws").mkdir()
+                    (self.home / ".config/op").mkdir()
+                    (self.home / ".azure").touch()
+                elif state == "nonempty":
+                    (self.home / ".aws/keep").touch()
+                code, output = self.run_cli("plan", "--json")
+                self.assertEqual(0, code, output)
+                denied = json.loads(output)["projects"][0]["diff"]["deniedPaths"]["added"]
+                self.assertEqual(state != "missing", str(self.home / ".config/op") in denied)
+                self.assertEqual(state == "nonempty", str(self.home / ".aws") in denied)
+                self.assertNotIn(str(self.home / ".azure"), denied)
+                self.assertNotIn(str(self.home / ".copilot/mcp-oauth-config"), denied)
+
+    def test_rerun_retires_sidecar_and_nonqualifying_denies_only(self) -> None:
+        removed = [str(self.home / relative) for relative in (
+            ".copilot/data.db-wal", ".copilot/data.db-shm", ".netrc", ".azure",
+        )]
+        # An equivalent but non-exact user entry is not ours to retire.
+        kept = [str(self.home / "user-denied"), str(self.home / ".AZURE")]
+        self.set_policy({"deniedPaths": removed + kept})
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertEqual(removed, plan["projects"][0]["diff"]["deniedPaths"]["removed"])
+        for path in removed:
+            self.assertTrue(any(self.app.display(path) in warning and "removed" in warning
+                                for warning in plan["warnings"]))
+        reason = "~/.copilot is not readable in the sandbox; a deny placeholder could break the app's SQLite WAL"
+        self.assertEqual(2, sum(reason in warning for warning in plan["warnings"]))
+        code, output = self.run_cli("apply", "--confirm", plan["digest"])
+        self.assertEqual(0, code, output)
+        for path in kept:
+            self.assertIn(path, self.policies()[0]["deniedPaths"])
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertIn("no changes", output)
+        self.assertNotIn("removed retired", output)
+
+    def test_plan_digest_binds_placeholder_repairs_and_apply_removes_them(self) -> None:
+        (self.home / ".config").mkdir()
+        (self.home / ".config/op").mkdir()
+        (self.home / "user-empty").mkdir()
+        before_digest = self.digest()
+        paths = [self.home / relative for relative in (
+            ".netrc", ".aws", ".copilot/settings.json", ".copilot/config.json",
+            ".copilot/mcp-oauth-config",
+        )]
+        for path in paths:
+            path.mkdir()
+        before = set(self.home.rglob("*")), self.db.read_bytes()
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertEqual(before, (set(self.home.rglob("*")), self.db.read_bytes()))
+        self.assertNotEqual(before_digest, plan["digest"])
+        self.assertTrue(plan["changed"])
+        self.assertEqual(set(map(str, paths)), {entry["path"] for entry in plan["placeholder_removals"]})
+        for path in paths:
+            self.assertTrue(any("will remove empty placeholder directory" in warning
+                                and self.app.display(str(path)) in warning for warning in plan["warnings"]))
+            self.assertNotIn(str(path), plan["projects"][0]["diff"]["deniedPaths"]["added"])
+        code, output = self.run_cli("apply", "--confirm", before_digest)
+        self.assertEqual(4, code, output)
+        self.assertTrue(all(path.is_dir() for path in paths))
+        code, output = self.run_cli("apply", "--confirm", plan["digest"])
+        self.assertEqual(0, code, output)
+        self.assertTrue(all(not path.exists() for path in paths))
+        self.assertTrue((self.home / ".config/op").is_dir())
+        self.assertTrue((self.home / "user-empty").is_dir())
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertIn("no changes", output)
+        backup = next((self.db.parent / "app-sandbox-setup-backups").iterdir())
+        code, output = self.run_cli("rollback", "--from", str(backup))
+        self.assertEqual(0, code, output)
+        digest = re.search(r"Plan digest: ([0-9a-f]{64})", output).group(1)
+        code, output = self.run_cli("rollback", "--from", str(backup), "--confirm", digest)
+        self.assertEqual(0, code, output)
+        self.assertTrue(all(not path.exists() for path in paths))
+
+    def test_placeholder_cleanup_preserves_nonempty_directories_symlinks_and_backups(self) -> None:
+        nonempty = self.home / ".netrc"
+        nonempty.mkdir()
+        (nonempty / "keep").touch()
+        target = self.root / "empty-target"
+        target.mkdir()
+        symlink = self.home / ".aws"
+        symlink.symlink_to(target, target_is_directory=True)
+        backup_dir = self.db.parent / "app-sandbox-setup-backups"
+        backup_dir.mkdir()
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertEqual([], plan["placeholder_removals"])
+        denied = plan["projects"][0]["diff"]["deniedPaths"]["added"]
+        self.assertNotIn(str(nonempty), denied)
+        self.assertIn(str(symlink), denied)
+        self.assertIn(str(backup_dir), denied)
+        code, output = self.run_cli("apply", "--confirm", plan["digest"])
+        self.assertEqual(0, code, output)
+        self.assertTrue((nonempty / "keep").is_file())
+        self.assertTrue(symlink.is_symlink())
+        self.assertTrue(target.is_dir())
+        self.assertTrue(backup_dir.is_dir())
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertIn("no changes", output)
+
+    def test_cleanup_only_plan_and_rmdir_failure_leave_committed_policy_intact(self) -> None:
+        code, output = self.run_cli("apply", "--confirm", self.digest())
+        self.assertEqual(0, code, output)
+        path = self.home / ".netrc"
+        path.mkdir()
+        before = self.db.read_bytes(), self.db.stat().st_mtime_ns
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertTrue(plan["changed"])
+        self.assertFalse(any(project["changed"] for project in plan["projects"]))
+        with mock.patch.object(self.app.os, "rmdir", side_effect=OSError("fixture-private-value")):
+            code, output = self.run_cli("apply", "--confirm", plan["digest"], "--json")
+        self.assertEqual(0, code, output)
+        self.assertTrue(any("could not remove empty placeholder directory" in warning
+                            for warning in json.loads(output)["warnings"]))
+        self.assertIn("could not remove empty placeholder directory", output)
+        self.assertNotIn("fixture-private-value", output)
+        self.assertNotIn("no changes", output)
+        self.assertTrue(path.is_dir())
+        code, output = self.run_cli("apply", "--confirm", self.digest())
+        self.assertEqual(0, code, output)
+        self.assertFalse(path.exists())
+        self.assertEqual(before, (self.db.read_bytes(), self.db.stat().st_mtime_ns))
+        self.assertEqual(1, len(list((self.db.parent / "app-sandbox-setup-backups").iterdir())))
+
+    def test_placeholder_rechecked_after_commit_and_failed_writes_never_remove_it(self) -> None:
+        path = self.home / ".netrc"
+        path.mkdir()
+        digest = self.digest()
+        with mock.patch.object(self.app, "backup_db", side_effect=OSError("fixture")):
+            code, output = self.run_cli("apply", "--confirm", digest)
+        self.assertEqual(1, code, output)
+        self.assertTrue(path.is_dir())
+        original_write = self.app.write_changes
+        target = self.root / "empty-target"
+        target.mkdir()
+        for state in ("nonempty", "symlink"):
+            with self.subTest(state=state):
+                def mutate_after_commit(*args):
+                    result = original_write(*args)
+                    # A separate reader proves the commit happened before cleanup.
+                    self.assertNotIn(str(path), self.policies()[0]["deniedPaths"])
+                    if state == "nonempty":
+                        (path / "keep").touch()
+                    else:
+                        path.rmdir()
+                        path.symlink_to(target, target_is_directory=True)
+                    return result
+
+                with mock.patch.object(self.app, "write_changes", side_effect=mutate_after_commit):
+                    code, output = self.run_cli("apply", "--confirm", self.digest())
+                self.assertEqual(0, code, output)
+                self.assertIn("could not remove empty placeholder directory", output)
+                if state == "nonempty":
+                    self.assertTrue((path / "keep").is_file())
+                    (path / "keep").unlink()
+                else:
+                    self.assertTrue(path.is_symlink())
+                    self.assertTrue(target.is_dir())
+
+    def test_placeholder_cleanup_refuses_parent_replaced_by_symlink_after_commit(self) -> None:
+        placeholder = self.db.parent / "settings.json"
+        placeholder.mkdir()
+        target = self.root / "foreign-copilot"
+        target.mkdir()
+        (target / "settings.json").mkdir()
+        moved = self.root / "original-copilot"
+        original_write = self.app.write_changes
+
+        def replace_parent_after_commit(*args):
+            result = original_write(*args)
+            self.db.parent.rename(moved)
+            self.db.parent.symlink_to(target, target_is_directory=True)
+            return result
+
+        with mock.patch.object(self.app, "write_changes", side_effect=replace_parent_after_commit):
+            code, output = self.run_cli("apply", "--confirm", self.digest())
+        self.assertEqual(0, code, output)
+        self.assertIn("could not remove empty placeholder directory", output)
+        self.assertTrue((target / "settings.json").is_dir())
+        self.assertTrue((moved / "settings.json").is_dir())
+        self.assertTrue(self.db.parent.is_symlink())
+
     def test_merge_keeps_user_policy_but_denies_sensitive_paths(self) -> None:
+        for relative in self.app.DENIED_PATHS:
+            path = self.home / relative
+            if relative == self.app.BACKUP_DIRECTORY or path.exists():
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if relative in self.app.FILE_DENIED_PATHS:
+                path.touch()
+            else:
+                path.mkdir()
+                (path / "keep").touch()
         denied = str(self.home / ".ssh")
         self.set_policy({
             "readwritePaths": ["/custom/rw", "/custom/rw", denied],
@@ -187,7 +410,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual({"keep": "unchanged"}, policy["custom"])
         for relative in (
             ".ssh", ".aws", ".gnupg", ".kube", ".config/gcloud", "Library/Keychains",
-            ".netrc", ".copilot/data.db", ".copilot/data.db-wal", ".copilot/data.db-shm",
+            ".netrc", ".copilot/data.db",
             ".copilot/app-sandbox-setup-backups", ".copilot/settings.json",
             ".copilot/config.json", ".copilot/mcp-oauth-config",
         ):
@@ -648,10 +871,11 @@ class AppSandboxSetupTest(unittest.TestCase):
         tool_lines = [line for line in output.splitlines()
                       if "Tools not installed (grants skipped; rerun after installing):" in line]
         hardening_lines = [line for line in output.splitlines()
-                           if "Hardening (always applied, also for paths that do not exist yet):" in line]
+                           if "Hardening (missing paths listed as readonly;" in line]
         self.assertEqual(1, len(tool_lines), output)
         self.assertEqual(1, len(hardening_lines), output)
         missing, hardening = tool_lines[0], hardening_lines[0]
+        self.assertIn("the app cannot block their creation, so readonly applies only once the path exists", hardening)
         self.assertIn('"~/.gradle"', missing)
         self.assertIn('"~/Library/pnpm"', missing)
         self.assertIn('"~/.sdkman"', missing)
@@ -703,7 +927,8 @@ class AppSandboxSetupTest(unittest.TestCase):
         warnings = json.loads(output)["warnings"]
         hardening = [warning for warning in warnings if warning.startswith("Hardening (")]
         self.assertEqual(
-            ["Hardening (always applied, also for paths that do not exist yet): "], hardening,
+            ["Hardening (missing paths listed as readonly; the app cannot block their creation, "
+             "so readonly applies only once the path exists): "], hardening,
         )
 
     def test_rerun_adds_missing_hardening_to_legacy_policy_and_is_idempotent(self) -> None:
@@ -938,6 +1163,8 @@ class AppSandboxSetupTest(unittest.TestCase):
 
     def test_guide_includes_machine_paths_and_handles_unavailable_db(self) -> None:
         (self.home / ".gradle").mkdir()
+        (self.home / ".ssh").mkdir()
+        (self.home / ".ssh/keep").touch()
         before = self.db.read_bytes()
         code, output = self.run_cli("guide")
         self.assertEqual(0, code, output)
@@ -1009,6 +1236,8 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual([], list(target.iterdir()))
 
     def test_write_failure_rolls_back_the_entire_transaction(self) -> None:
+        placeholder = self.home / ".netrc"
+        placeholder.mkdir()
         digest = self.digest()
         before = self.db.read_bytes()
         original_open = self.app.open_db
@@ -1035,6 +1264,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertNotIn("private-fixture-error", output)
         self.assertEqual(before, self.db.read_bytes())
         self.assertEqual([], self.policies())
+        self.assertTrue(placeholder.is_dir())
         self.assertEqual(0, len(list((self.db.parent / "app-sandbox-setup-backups").iterdir())))
 
     def test_extra_required_policy_column_is_rejected_before_backup(self) -> None:
@@ -1090,8 +1320,9 @@ class AppSandboxSetupTest(unittest.TestCase):
         for path in (hosts, docker):
             self.assertIn(str(path), policy["readonlyPaths"])
             self.assertNotIn(str(path), policy["deniedPaths"])
-        for relative in (".config/github-copilot", ".config/configstore", ".config/op", ".azure"):
+        for relative in (".config/github-copilot", ".config/configstore", ".config/op"):
             self.assertIn(str(self.home / relative), policy["deniedPaths"])
+        self.assertNotIn(str(self.home / ".azure"), policy["deniedPaths"])
         self.assertIn("inline token", output)
         self.assertIn("inline auth", output)
         self.assertNotIn("fixture-private-value", output)
@@ -1139,6 +1370,36 @@ class AppSandboxSetupTest(unittest.TestCase):
                              connection.execute("SELECT id, sandbox_enabled, name FROM projects ORDER BY id").fetchall())
             self.assertEqual([("new", '{"custom":true}')], connection.execute(
                 "SELECT * FROM project_sandbox_policies ORDER BY project_id").fetchall())
+
+    def test_rollback_preview_omits_unchanged_projects_and_counts_them(self) -> None:
+        with sqlite3.connect(str(self.db)) as connection:
+            connection.execute(
+                "INSERT INTO projects(id, name, main_repo_path) VALUES ('p2', 'unchanged', '/Volumes/fixture/repo')"
+            )
+        code, output = self.run_cli("apply", "--confirm", self.digest())
+        self.assertEqual(0, code, output)
+        backup = self.root / "rollback.db"
+        with sqlite3.connect(str(self.db)) as source, sqlite3.connect(str(backup)) as target:
+            source.backup(target)
+        with sqlite3.connect(str(self.db)) as connection:
+            connection.execute("UPDATE projects SET sandbox_enabled = 0 WHERE id = 'p1'")
+        code, output = self.run_cli("rollback", "--from", str(backup))
+        self.assertEqual(0, code, output)
+        self.assertIn('Project: "example"', output)
+        self.assertNotIn('Project: "unchanged"', output)
+        self.assertIn("Unchanged projects: 1", output)
+        code, output = self.run_cli("rollback", "--from", str(backup), "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertEqual(["example"], [project["name"] for project in plan["projects"]])
+        self.assertEqual(1, plan["unchanged_projects"])
+        code, output = self.run_cli("rollback", "--from", str(backup), "--confirm", plan["digest"])
+        self.assertEqual(0, code, output)
+        code, output = self.run_cli("rollback", "--from", str(backup))
+        self.assertEqual(0, code, output)
+        self.assertNotIn("Project:", output)
+        self.assertIn("Unchanged projects: 2", output)
+        self.assertIn("no changes", output)
 
     def test_verify_behavioral_gate_and_presence_only_environment_reporting(self) -> None:
         probes = {"HOME write": "denied", "DB open": "denied", "loopback": "OK",

@@ -37,16 +37,16 @@ Kodetilgang deles mellom prosjektene: parent til hvert prosjekts repo og
 parent.parent til worktree-stier. Symlinker løses først; aldri gi tilgang til
 selve `$HOME`, dets forfedre eller systemområder. Utrygge røtter faller tilbake
 til den konkrete prosjekt-/worktree-mappen hvis den er trygg. Eksisterende
-policy merges, ikke overskrives; sensitive stier nektes alltid. Utrygge
-foreldre som Downloads, Documents og Library brukes ikke som koderøtter.
+policy merges, ikke overskrives; sensitive stier nektes etter reglene nedenfor.
+Utrygge foreldre som Downloads, Documents og Library brukes ikke som koderøtter.
 Brukerens deniedPaths filtrerer tillegg; ugyldige stier fjernes og brede
 eksisterende grants varsles. En korrupt policy hoppes over uten å blokkere
 andre prosjekter. JDK-/verktøyoppsett oppdages uten krav om mise.
 
 Readonly hardening av app-eide cacher, git-/shell-/tool-konfigurasjon og
 Gradle init-filer stenger de verste «plant nå, kjør usandboxet senere»-rutene.
-Hardening-stier listes alltid, også når de ikke finnes ennå, slik at sandboxet
-kode ikke kan opprette dem (for eksempel Gradle init-script); verktøygrants
+Hardening-stier listes alltid, også når de ikke finnes ennå, men readonly
+gjelder først når stien finnes; verktøygrants
 hoppes over når stiene mangler.
 Smalere readonly vinner over bredere readwrite. Tool-installasjoner forblir
 skrivbare. `~/.copilot/session-state` gis **ikke lenger** readwrite; rerun
@@ -55,6 +55,23 @@ Rerun er idempotent og nødvendig etter nye prosjekter, verktøy og appoppdateri
 som lager nye versjonsnavngitte cachemapper.
 
 ## Konsekvenser
+
+Live-tester 2026-10-08 viser at manglende readonly-stier kan opprettes med
+touch, mkdir, symlink, hardlink og rename; readonly håndheves først når stien
+finnes i senere kommandoer. Manglende deny-stier håndheves ved at appen lager
+tomme placeholder-mapper som blir liggende, også ved filstier; dette kan
+ødelegge blant annet netrc/Copilot-konfig og gi GPG-permisjonsvarsler.
+`$HOME` er ikke skrivbar, og `~/.copilot` er verken lesbar eller skrivbar
+utenom appens egne grants til øktfiler, logger, agenter, extensions,
+installed-plugins og marketplace-cache. Beslutning B er å beholde manglende
+hardening-stier som readonly uten forhåndsoppretting; opprettelse er akseptert
+restrisiko ved siden av git hooks i kode, skrivbare tool-installasjoner og
+Docker-socketen. Deny følger forventet type og behovet for å blokkere
+opprettelse under skrivbare foreldre; tomme placeholdere ved filstier og
+direkte under HOME/`~/.copilot` fjernes etter bekreftet plan med `rmdir`
+etter policy-commit. Backup-mappen er alltid nektet og unntatt fra fjerning.
+`data.db-wal` og `data.db-shm` nektes ikke lenger fordi `~/.copilot` allerede
+er ulesbar i sandboxen og deny-placeholdere kan ødelegge appens SQLite WAL.
 
 Backuper ligger i en nektet mappe med 0700/0600-rettigheter. Planen skriver
 ikke policyer; lesekommandoer bruker mode=rw med query_only for lukkede WAL-DB-er.

@@ -45,18 +45,30 @@ HARDENING_READONLY = (
 )
 DOCKER_PATHS = (".docker", ".rd", ".colima", ".orbstack", ".lima", ".testcontainers.properties")
 APP_CACHE_WRITABLE: set[str] = set()
-RETIRED_GRANTS = {"readwritePaths": {
-    ".copilot/session-state": "the app grants its own session files",
-    "Library/Application Support/Google/Chrome for Testing":
-        "Chromium needs denied macOS IPC; no path grant helps",
-}}
+RETIRED_GRANTS = {
+    "readwritePaths": {
+        ".copilot/session-state": "the app grants its own session files",
+        "Library/Application Support/Google/Chrome for Testing":
+            "Chromium needs denied macOS IPC; no path grant helps",
+    },
+    "deniedPaths": {
+        ".copilot/data.db-wal":
+            "~/.copilot is not readable in the sandbox; a deny placeholder could break the app's SQLite WAL",
+        ".copilot/data.db-shm":
+            "~/.copilot is not readable in the sandbox; a deny placeholder could break the app's SQLite WAL",
+    },
+}
 DENIED_PATHS = (
     ".ssh", ".aws", ".gnupg", ".kube", ".config/gcloud", "Library/Keychains",
-    ".netrc", ".copilot/data.db", ".copilot/data.db-wal", ".copilot/data.db-shm",
+    ".netrc", ".copilot/data.db",
     ".copilot/app-sandbox-setup-backups", ".copilot/settings.json",
     ".copilot/config.json", ".copilot/mcp-oauth-config",
     ".config/github-copilot", ".config/configstore", ".config/op", ".azure",
 )
+FILE_DENIED_PATHS = frozenset((
+    ".netrc", ".copilot/data.db", ".copilot/settings.json", ".copilot/config.json",
+))
+BACKUP_DIRECTORY = ".copilot/app-sandbox-setup-backups"
 PATH_FIELDS = ("readwritePaths", "readonlyPaths", "deniedPaths")
 BOOL_FIELDS = ("allowOutbound", "allowLocalNetwork", "allowGitCredentials", "allowGhCredentials")
 CREDENTIAL_WARNING = (
@@ -273,6 +285,42 @@ def under(path: Path, parent: Path) -> bool:
     return any(same_path(part, parent) for part in (path, *path.parents))
 
 
+def empty_directory(path: Path) -> bool:
+    try:
+        return not path.is_symlink() and path.is_dir() and next(path.iterdir(), None) is None
+    except OSError:
+        return False
+
+
+def parent_writable(path: Path, readwrite: Sequence[str]) -> bool:
+    return any(under(path.parent, Path(grant)) for grant in readwrite)
+
+
+def placeholder_directory(home: Path, relative: str, readwrite: Sequence[str]) -> bool:
+    path = home / relative
+    if relative == BACKUP_DIRECTORY or path.parent.is_symlink() or parent_writable(path, readwrite):
+        return False
+    return (relative in FILE_DENIED_PATHS or same_path(path.parent, home)
+            or same_path(path.parent, home / ".copilot")) and empty_directory(path)
+
+
+def required_denies(home: Path, readwrite: Sequence[str]) -> list[str]:
+    denied = []
+    for relative in DENIED_PATHS:
+        path = home / relative
+        if relative == BACKUP_DIRECTORY:
+            # Apply creates backups before policy commit; an empty placeholder here is harmless.
+            denied.append(str(path))
+        elif relative in FILE_DENIED_PATHS:
+            if path.is_file():
+                denied.append(str(path))
+        elif path.is_dir() and not placeholder_directory(home, relative, readwrite):
+            denied.append(str(path))
+        elif not path.exists() and not path.is_symlink() and parent_writable(path, readwrite):
+            denied.append(str(path))
+    return denied
+
+
 def safe_code_root(path: Path, home: Path, parent: bool = False) -> bool:
     if under(home, path):
         return False
@@ -482,9 +530,7 @@ def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
                 grants[field].append(path)
             else:
                 missing.append(display(home_relative(Path(path), home)))
-    # Missing hardening paths sit under writable parents: list them to block creation.
-    # App enforcement for not-yet-existing readonly paths awaits live verification;
-    # a deny fallback for Gradle init paths may follow.
+    # Missing hardening paths stay readonly without pre-creation: creation is a residual risk.
     missing_hardening = []
     for relative in HARDENING_READONLY:
         path = home / relative
@@ -498,9 +544,10 @@ def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
                                     and path not in grants["readwritePaths"]]
     if missing:
         warnings.append("Tools not installed (grants skipped; rerun after installing): " + ", ".join(missing))
-    warnings.append("Hardening (always applied, also for paths that do not exist yet): "
+    warnings.append("Hardening (missing paths listed as readonly; the app cannot block their creation, "
+                    "so readonly applies only once the path exists): "
                     + ", ".join(missing_hardening))
-    grants["deniedPaths"] = [str(home / relative) for relative in DENIED_PATHS]
+    grants["deniedPaths"] = required_denies(home, grants["readwritePaths"])
     grants["readonlyPaths"] += [str(path) for path in hardened_cache_paths(home)]
     # Narrower rw under broader ro has not yet been verified live.
     grants["readwritePaths"] += [str(child) for child in sorted((home / "Library/Caches/copilot").glob("*"))
@@ -542,6 +589,16 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
     grants = profile_paths(home, mask, warnings, no_docker, docker)
     grants["readonlyPaths"] += git_discovery(home, warnings, projects)
     roots = code_roots(connection, home, warnings)
+    readwrite = roots + grants["readwritePaths"]
+    grants["deniedPaths"] = required_denies(home, readwrite)
+    placeholder_removals = [
+        {"path": str(home / relative),
+         "reason": "the app created a directory for a deny path; its parent is not writable "
+                   "in the sandbox, so deny is unnecessary and the directory can break tools"}
+        for relative in DENIED_PATHS if placeholder_directory(home, relative, readwrite)
+    ]
+    for entry in placeholder_removals:
+        warnings.append(f'will remove empty placeholder directory: {display(entry["path"])}; {entry["reason"]}.')
     owned_paths = {path for paths in grants.values() for path in paths} | set(roots)
     owned_paths.update(str(home / path) for path in RW_PATHS + RO_PATHS if Path(path).is_absolute())
     denied = grants["deniedPaths"]
@@ -572,11 +629,20 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
                     warnings.append(f'{display(row["name"])}: broad existing {field} grant: {display(path)} (retained).')
                 clean.append(path)
             after[field] = clean
-        user_denied = after["deniedPaths"]
+        retired_denies = {str(home / path): reason
+                          for path, reason in RETIRED_GRANTS.get("deniedPaths", {}).items()}
+        retired_denies.update({
+            str(home / path): "path no longer qualifies for deny: expected type absent or empty "
+                             "placeholder outside writable parents; no app-created directory needed"
+            for path in DENIED_PATHS if str(home / path) not in denied
+        })
+        user_denied = [path for path in after["deniedPaths"] if path not in retired_denies]
         for field in PATH_FIELDS:
             existing = list(dict.fromkeys(after.get(field, [])))
             retired = {str(home / path): reason
                        for path, reason in RETIRED_GRANTS.get(field, {}).items()}
+            if field == "deniedPaths":
+                retired.update(retired_denies)
             if no_docker and field == "readwritePaths":
                 retired.update({path: "--no-docker removes this exact grant" for path in docker})
             for path in existing:
@@ -627,15 +693,19 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
         {"id": project["id"], "before": project["before"], "after": project["after"]}
         for project in changes
     ]
-    digest_input = {"changes": full_change_set, "skipped": skipped} if skipped else full_change_set
+    digest_input = {"changes": full_change_set, "skipped": skipped,
+                    "placeholder_removals": placeholder_removals}
     digest = hashlib.sha256(canonical(digest_input).encode()).hexdigest()
-    return {"projects": changes, "skipped": skipped, "digest": digest, "warnings": list(dict.fromkeys(warnings))}
+    return {"projects": changes, "skipped": skipped, "digest": digest,
+            "placeholder_removals": placeholder_removals, "warnings": list(dict.fromkeys(warnings))}
 
 
 def public_plan(plan: dict[str, Any]) -> dict[str, Any]:
     projects = []
     for project in plan["projects"]:
         before, after = project["before"], project["after"]
+        if plan.get("operation") == "rollback" and before == after:
+            continue
         diff = {}
         if before["sandbox_enabled"] != after["sandbox_enabled"]:
             diff["sandbox_enabled"] = {"before": before["sandbox_enabled"], "after": after["sandbox_enabled"]}
@@ -650,10 +720,14 @@ def public_plan(plan: dict[str, Any]) -> dict[str, Any]:
             if old != new:
                 diff[field] = {"before": old, "after": new}
         projects.append({"name": project["name"], "diff": diff, "changed": before != after})
-    return {
+    result = {
         "projects": projects, "digest": plan["digest"], "warnings": plan["warnings"],
-        "changed": bool(changed_projects(plan)),
+        "placeholder_removals": plan.get("placeholder_removals", []),
+        "changed": bool(changed_projects(plan) or plan.get("placeholder_removals")),
     }
+    if plan.get("operation") == "rollback":
+        result["unchanged_projects"] = len(plan["projects"]) - len(projects)
+    return result
 
 
 def print_plan(plan: dict[str, Any], json_mode: bool = False, summary: Optional[str] = None) -> None:
@@ -663,7 +737,8 @@ def print_plan(plan: dict[str, Any], json_mode: bool = False, summary: Optional[
             result["summary"] = summary
         print(display(result))
         return
-    for project in plan["projects"]:
+    projects = changed_projects(plan) if plan.get("operation") == "rollback" else plan["projects"]
+    for project in projects:
         print(f'Project: {display(project["name"])}')
         before, after = project["before"], project["after"]
         if before["sandbox_enabled"] != after["sandbox_enabled"]:
@@ -684,9 +759,11 @@ def print_plan(plan: dict[str, Any], json_mode: bool = False, summary: Optional[
                 print(f"  {field}: {json.dumps(old)} -> {json.dumps(new)}")
         if before["policy"] != after["policy"] or before.get("policy_json") != after.get("policy_json"):
             print("  policy row changed (unknown fields are not displayed).")
+    if plan.get("operation") == "rollback":
+        print(f'Unchanged projects: {len(plan["projects"]) - len(projects)}')
     for warning in plan["warnings"]:
         print("Warning: " + warning)
-    if not changed_projects(plan):
+    if not changed_projects(plan) and not plan.get("placeholder_removals"):
         print("no changes")
     if summary is not None:
         print(summary)
@@ -695,6 +772,34 @@ def print_plan(plan: dict[str, Any], json_mode: bool = False, summary: Optional[
 
 def changed_projects(plan: dict[str, Any]) -> list[dict[str, Any]]:
     return [project for project in plan["projects"] if project["before"] != project["after"]]
+
+
+def remove_placeholders(plan: dict[str, Any], home: Path) -> None:
+    for entry in plan.get("placeholder_removals", []):
+        path = Path(entry["path"])
+        home_fd = parent_fd = child_fd = None
+        try:
+            # Anchor removal to HOME and refuse symlinked parents or final directories.
+            flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            home_fd = os.open(str(home), flags)
+            parent_fd = os.open(str(path.parent.relative_to(home)), flags, dir_fd=home_fd)
+            child_fd = os.open(path.name, flags, dir_fd=parent_fd)
+            if os.listdir(child_fd):
+                raise OSError("directory is no longer empty")
+            opened = os.fstat(child_fd)
+            current = os.stat(path.name, dir_fd=parent_fd, follow_symlinks=False)
+            if (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino):
+                raise OSError("directory changed")
+            # rmdir itself atomically refuses non-empty directories and symlinks.
+            os.rmdir(path.name, dir_fd=parent_fd)
+        except (OSError, ValueError, NotImplementedError):
+            plan["warnings"].append("policy update succeeded but could not remove empty placeholder directory: "
+                                    + display(home_relative(path, home))
+                                    + "; left untouched, inspect a fresh plan.")
+        finally:
+            for descriptor in (child_fd, parent_fd, home_fd):
+                if descriptor is not None:
+                    os.close(descriptor)
 
 
 def backup_db(db: Path, home: Path) -> Path:
@@ -819,7 +924,8 @@ def rollback_plan(connection: sqlite3.Connection, snapshot: dict[str, Any]) -> d
                                              for project in changes], "skipped": skipped,
     }).encode()).hexdigest()
     warnings.append("Rollback restores only shared projects' sandbox settings, never the whole DB. A fresh backup makes rollback reversible.")
-    return {"projects": changes, "skipped": skipped, "warnings": warnings, "digest": digest}
+    return {"operation": "rollback", "projects": changes, "skipped": skipped,
+            "warnings": warnings, "digest": digest}
 
 
 def probe_result(action: Any) -> str:
@@ -1020,6 +1126,10 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
                 print("Digest mismatch; rerun plan and confirm the new digest.")
                 return 4
             summary = write_changes(connection, plan, db, home)
+            if args.command == "apply":
+                # Cleanup-only plans also need a successful transaction before removing anything.
+                connection.commit()
+                remove_placeholders(plan, home)
         print_plan(plan, args.json, summary)
     finally:
         connection.close()

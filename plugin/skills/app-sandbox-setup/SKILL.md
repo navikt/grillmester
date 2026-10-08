@@ -41,7 +41,9 @@ discovery is skipped when those tools are absent.
    confirmation. Apply validates the schema and fresh digest under
    `BEGIN IMMEDIATE`, merges policies, enables sandbox for all valid projects
    and takes a protected SQLite backup before writing. Failed writes roll
-   back and delete the fresh backup.
+   back and delete the fresh backup. After commit, apply removes only the
+   plan's still-empty, non-symlink placeholder directories with `rmdir`;
+   failures warn without undoing the policy.
    - Exit 1: usage/setup problem, or no projects (add one in the app first).
    - Exit 2: DB missing/denied/unreadable; follow the specific diagnostic.
    - Exit 3: schema mismatch; show `python3 <script> guide` with the same
@@ -82,9 +84,20 @@ discovery is skipped when those tools are absent.
   Docker/Testcontainers will not work; unrelated broader user grants remain.
 - Readonly hardening covers app-owned cache directories, git/shell/tool
   configuration and Gradle init files. Narrower readonly/deny wins over a
-  broader rw grant. Tool installs remain writable so agents can install
-  tools; code and those installs can still persist changes that execute
-  outside the sandbox later. These are guardrails, **not containment**.
+  broader rw grant **once the path exists**. Missing hardening paths remain
+  listed as readonly without pre-creation, but the app cannot block their
+  creation. This is accepted residual risk alongside git hooks in writable
+  code, writable tool installs and the Docker socket. Code and tool installs
+  can persist changes that execute outside the sandbox later.
+  These are guardrails, **not containment**.
+- Deny paths are listed only with their expected existing type, or for
+  missing directories under writable folders: the app creates empty
+  placeholder directories for missing deny paths. Plan lists empty
+  placeholders at file paths (e.g. `~/.netrc`) and directly under HOME or
+  `~/.copilot` for removal; placeholders under writable parents stay denied.
+  The backup directory is always denied and never removed. `data.db-wal`
+  and `data.db-shm` are no longer denied: `~/.copilot` is already unreadable,
+  and deny placeholders could break the app's SQLite WAL.
 - A sandboxed Gradle client can reuse an **unsandboxed daemon** started by
   IntelliJ/a terminal, running the build outside the sandbox. Successful
   builds alone do not prove sandbox enforcement.
@@ -106,9 +119,7 @@ discovery is skipped when those tools are absent.
   sandbox; stop background servers in the same call or by port.
 
 Tool discovery supports different JDK/tool installations without requiring
-mise. Hardening paths are always listed, including those that do not exist yet,
-so sandboxed code cannot create them (for example Gradle init scripts); missing
-tool grants are skipped. Missing code paths are skipped except
+mise. Missing tool grants are skipped. Missing code paths are skipped except
 under `/Volumes` (possibly unmounted). New projects start with sandbox off.
 Rerun after adding projects, installing tools **and app updates**, which create
 new version-named cache directories. Reruns are idempotent and remove the old
@@ -129,6 +140,8 @@ new version-named cache directories. Reruns are idempotent and remove the old
   the same command with `--confirm <digest>` (request Run once if denied).
   It restores only sandbox_enabled and differing policy rows for projects
   present in both DBs, leaving other projects and app state untouched.
+  Preview omits unchanged projects and counts them; rollback never recreates
+  removed placeholder directories.
   A fresh backup makes rollback itself reversible; never replace data.db.
   Successful apply/rollback keeps the newest **10** matching backups in
   `~/.copilot/app-sandbox-setup-backups` with 0700/0600 permissions.
