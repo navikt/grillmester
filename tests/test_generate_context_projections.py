@@ -304,6 +304,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "agentEscalation": "full-context-handoff",
                 "excludedSkillReferences": "full-context-guidance",
                 "skillPermissionEntriesRemoved": [
+                    "app-sandbox-setup",
                     "doctor",
                     "grill-me",
                     "guided-review",

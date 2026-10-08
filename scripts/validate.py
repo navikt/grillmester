@@ -265,10 +265,15 @@ def load_content_lock(
             if not isinstance(contract, dict):
                 errors.append(f"content lock {kind} {component_id} must be an object")
                 continue
-            if contract.get("disposition") not in {"ported", "adapted", "consolidated"}:
+            if contract.get("disposition") not in {"ported", "adapted", "consolidated", "original"}:
                 errors.append(
                     f"content lock {kind} {component_id} needs a reviewed disposition"
                 )
+            if contract.get("disposition") == "original" and (
+                contract.get("source") != "grillmester"
+                or sources.get("grillmester", {}).get("repository") != "navikt/grillmester"
+            ):
+                errors.append(f"original {kind} {component_id} must be Grillmester-authored")
             if not contract.get("source"):
                 errors.append(f"content lock {kind} {component_id} needs a source")
             else:
@@ -425,7 +430,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
         errors.append("package-manifest.json must contain exactly one package")
         return None
     expected_definitions = [
-        {"name": "grillmester", "path": "plugin", "agents": 8, "skills": 43},
+        {"name": "grillmester", "path": "plugin", "agents": 8, "skills": 44},
     ]
     if package_definitions != expected_definitions:
         errors.append("package-manifest.json package roster or counts have drifted")
@@ -941,7 +946,7 @@ def validate_content(
                     f"{path}: obsolete prefixed skill reference: {legacy_skill_id}"
                 )
         for skill_id in skill_references(text, skill_ids):
-            if skill_id in skill_ids or skill_id in {"agent", "skills", "model", "help"}:
+            if skill_id in skill_ids or skill_id in {"agent", "skills", "model", "help", "restart-session"}:
                 continue
             if skill_id == "health" and relative_path.startswith("skills/design-prototype/"):
                 continue  # Visual Companion's HTTP health endpoint.
@@ -1050,8 +1055,8 @@ def validate_package_rosters(
 ) -> None:
     if len(agent_ids) != 8:
         errors.append(f"plugin must contain 8 agents, found {len(agent_ids)}")
-    if len(skill_ids) != 43:
-        errors.append(f"plugin must contain 43 skills, found {len(skill_ids)}")
+    if len(skill_ids) != 44:
+        errors.append(f"plugin must contain 44 skills, found {len(skill_ids)}")
 
 
 def validate_assets(root: Path, errors: list[str]) -> None:

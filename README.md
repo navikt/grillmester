@@ -4,7 +4,7 @@
   <img src="docs/assets/grillmester-hero.jpg" alt="En retro robotgrillmester ved en kullgrill i et norsk landskap" width="100%">
 </p>
 
-Grillmester er Navs agentteam for GitHub Copilot: fire agenter, fire interne roller og 43 skills, samlet i én plugin. Tilgang og tillatt bruk styres av Navs gjeldende policy.
+Grillmester er Navs agentteam for GitHub Copilot: fire agenter, fire interne roller og 44 skills, samlet i én plugin. Tilgang og tillatt bruk styres av Navs gjeldende policy.
 
 ## Kom i gang
 
@@ -60,6 +60,8 @@ installeres før du bekrefter. Oppdater pluginen med **Update** under
 [appdetaljer](docs/installation.md#copilot-app). App-lenken følger repoets
 default branch; bruk Copilot CLI med en reviewet versjonstagg når pinning er
 påkrevd.
+
+Bruk `/app-sandbox-setup` for manuelt sandbox-oppsett i Copilot app på macOS med plan, bekreftelse, verify og rollback.
 
 ## Velg agent
 

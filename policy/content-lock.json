@@ -1,6 +1,11 @@
 {
   "schemaVersion": 1,
   "sources": {
+    "grillmester": {
+      "repository": "navikt/grillmester",
+      "revision": "39ae6cfb671f505fd200037711af897471b1da8c",
+      "note": "Repository baseline for original Grillmester content authored after this revision; not an upstream import."
+    },
     "pilot": {
       "repository": "navikt/syfo-budstikka",
       "revision": "1fd62c10dc9608a0f34b600a5cec19648167a15d",
@@ -115,6 +120,7 @@
     "accessibility-review": {"source": "hovmester", "sourcePath": ".github/skills/accessibility-review", "disposition": "adapted"},
     "aksel-design": {"source": "hovmester", "sourcePath": ".github/skills/aksel-design", "disposition": "adapted"},
     "api-design": {"source": "pilot", "sourcePath": ".github/skills/api-design", "disposition": "adapted"},
+    "app-sandbox-setup": {"source": "grillmester", "sourcePath": "plugin/skills/app-sandbox-setup", "disposition": "original", "disable-model-invocation": true},
     "architecture-review": {
       "source": "pilot",
       "sourcePath": ".github/skills/architecture-review",
