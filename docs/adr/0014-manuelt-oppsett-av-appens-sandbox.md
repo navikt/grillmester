@@ -43,5 +43,15 @@ Sandbox er guardrails, ikke containment. Skrivetilgang til kode, `~/.config`,
 `~/.nvm`, `~/.local/share`, `~/.bun` og lignende lar sandboxet kode plante
 git hooks, git/gh-konfig, shell-sourced scripts eller toolchain-binærer som
 senere kjører usandboxet. Masking fjerner ikke denne restrisikoen.
+
+Readwrite på `~/.docker` og `~/.rd` trengs for Testcontainers, men
+socket-tilgangen kan ut fra hvordan Docker/Rancher Desktop fungerer (ikke
+verifisert her) brukes til å bind-mounte host-stier via delt `$HOME`, omgå
+deny-listen og kjøre kode utenfor sandboxen. Docker-tilgang vurderes derfor
+som nær usandboxet host-tilgang. Readwrite på `~/.copilot/session-state` er
+et testet krav og lar sandboxede prosesser lese og endre andre økters tilstand,
+inkludert effektive policyfiler under `<sid>/policies/`. Om appen stoler på
+disse filene for senere håndheving, er uavklart.
+
 Løsningen avhenger også av et udokumentert app-DB-skjema som kan endres ved
 oppgradering; skjemasjekk og klikkguide er fallback, ikke en stabil app-API.

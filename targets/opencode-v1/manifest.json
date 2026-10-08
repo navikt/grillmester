@@ -332,7 +332,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
-      "sha256": "6379899fefc505808387f287ff32c2c87b2398ea33ac69152873b20530815c80",
+      "sha256": "b21fc70b6066c081c2dbee79dceb1eab3e46e8381b05424de0e8b337ab578054",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox_setup.py": {

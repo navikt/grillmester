@@ -46,6 +46,7 @@ tools. Reruns are idempotent. `--home PATH` and `--db PATH` support isolated
 fixtures; defaults use the current user's home, never a fixed checkout root.
 The sandbox is guardrails, not containment: writable code/config/tool
 directories can hold changes that later execute outside the sandbox.
+Docker socket access can bypass the deny list.
 
 Tip: repository-level instructions, not this plugin, can tell agents to use
 `mise exec -- ./gradlew` when there is no system JDK.
