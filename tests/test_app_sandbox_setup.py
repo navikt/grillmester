@@ -263,7 +263,7 @@ class AppSandboxSetupTest(unittest.TestCase):
                 for command in ("plan", "apply"):
                     code, output = self.run_cli(command, *(("--confirm", self.digest()) if command == "apply" else ()))
                     self.assertEqual(0, code, output)
-                    self.assertIn("example: corrupt policy skipped", output)
+                    self.assertIn('"example": corrupt policy skipped', output)
                     self.assertEqual(before, self.db.read_bytes())
         with sqlite3.connect(str(self.db)) as connection:
             connection.execute("UPDATE project_sandbox_policies SET policy_json = ?", ("{private invalid",))
@@ -507,6 +507,105 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertTrue(policy["allowGhCredentials"])
         self.assertTrue(policy["allowLocalNetwork"])
         self.assertIn("loopback deny", output)
+        self.assertNotIn("When credential masking is OFF", output)
+
+    def test_credential_warning_tracks_all_resulting_project_policies(self) -> None:
+        self.set_policy({"allowGitCredentials": True, "allowGhCredentials": True})
+        with sqlite3.connect(str(self.db)) as connection:
+            connection.execute(
+                "INSERT INTO projects(id, name, main_repo_path) VALUES (?, ?, ?)",
+                ("p2", "second", "/Volumes/offline/repository"),
+            )
+            connection.execute("INSERT INTO project_sandbox_policies VALUES (?, ?)",
+                               ("p2", '{"allowGitCredentials":true,"allowGhCredentials":true}'))
+        for flag in ((), ("--mask-credentials",)):
+            code, output = self.run_cli("plan", *flag)
+            self.assertEqual(0, code, output)
+            self.assertNotIn("When credential masking is OFF", output)
+            self.assertIn("Credential masking covers only app-injected", output)
+        for field in ("allowGitCredentials", "allowGhCredentials"):
+            with self.subTest(field=field):
+                with sqlite3.connect(str(self.db)) as connection:
+                    connection.execute(
+                        "UPDATE project_sandbox_policies SET policy_json = ? WHERE project_id = 'p2'",
+                        (json.dumps({"allowGitCredentials": True, "allowGhCredentials": True, field: False}),),
+                    )
+                code, output = self.run_cli("plan")
+                self.assertEqual(0, code, output)
+                self.assertIn("When credential masking is OFF", output)
+        code, output = self.run_cli("plan", "--no-mask-credentials")
+        self.assertEqual(0, code, output)
+        self.assertIn("When credential masking is OFF", output)
+
+    def test_chrome_for_testing_is_writable_only_when_present(self) -> None:
+        chrome = self.home / "Library/Application Support/Google/Chrome for Testing"
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        self.assertNotIn(str(chrome), json.loads(output)["projects"][0]["diff"]["readwritePaths"]["added"])
+        chrome.mkdir(parents=True)
+        code, output = self.run_cli("apply", "--confirm", self.digest())
+        self.assertEqual(0, code, output)
+        self.assertIn(str(chrome), self.policies()[0]["readwritePaths"])
+        self.assertEqual(set(), self.app.APP_CACHE_WRITABLE)
+
+    def test_jdk_info_uses_direct_filesystem_homes_without_subprocess(self) -> None:
+        root = self.home / "Library/Java/JavaVirtualMachines"
+        for name in ("jdk-17", "jdk-25", "jdk-21", "nested/jdk-99"):
+            (root / name / "Contents/Home").mkdir(parents=True)
+        (root / "not-a-jdk").mkdir()
+        (root / "file").touch()
+        original_glob = Path.glob
+
+        def fixture_glob(path, pattern):
+            if str(path) == "/Library/Java/JavaVirtualMachines":
+                return iter(())
+            return original_glob(path, pattern)
+
+        with mock.patch.object(Path, "glob", fixture_glob), \
+                mock.patch.object(self.app, "git_discovery", return_value=[]), \
+                mock.patch.object(self.app.subprocess, "run", side_effect=AssertionError("No subprocess for JDK discovery")):
+            code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        info = [line for line in output.splitlines() if "JDK info:" in line]
+        self.assertEqual(1, len(info), output)
+        for name in ("jdk-25", "jdk-21", "jdk-17"):
+            self.assertIn(f'"~/Library/Java/JavaVirtualMachines/{name}/Contents/Home"', info[0])
+        self.assertLess(info[0].index("jdk-25"), info[0].index("jdk-21"))
+        self.assertLess(info[0].index("jdk-21"), info[0].index("jdk-17"))
+        for omitted in ("jdk-99", "not-a-jdk", str(self.home)):
+            self.assertNotIn(omitted, info[0])
+        for hint in ("Spotlight", "export JAVA_HOME=", "version manager", "mise, sdkman, asdf, jenv"):
+            self.assertIn(hint, info[0])
+
+    def test_system_jdk_info_and_no_jdk_case_are_filesystem_only(self) -> None:
+        system_home = Path("/Library/Java/JavaVirtualMachines/jdk-25/Contents/Home")
+        warnings = []
+        with mock.patch.object(Path, "glob", return_value=iter(())), \
+                mock.patch.object(self.app.subprocess, "run", side_effect=AssertionError("No subprocess")):
+            self.app.jdk_warning(self.home, warnings)
+        self.assertEqual([], warnings)
+
+        def fixture_glob(path, pattern):
+            self.assertEqual("*/Contents/Home", pattern)
+            return iter([system_home]) if str(path) == "/Library/Java/JavaVirtualMachines" else iter(())
+
+        with mock.patch.object(Path, "glob", fixture_glob), \
+                mock.patch.object(Path, "is_dir", return_value=True), \
+                mock.patch.object(self.app.subprocess, "run", side_effect=AssertionError("No subprocess")):
+            self.app.jdk_warning(self.home, warnings)
+        self.assertEqual(1, len(warnings))
+        self.assertIn(self.app.display(str(system_home)), warnings[0])
+
+    def test_missing_tool_warning_is_home_relative_and_escaped(self) -> None:
+        with mock.patch.object(self.app, "RW_PATHS", self.app.RW_PATHS + ("missing\n\x1b\x85tool",)):
+            code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        missing = next(line for line in output.splitlines() if "Tool paths skipped" in line)
+        self.assertIn('"~/.gradle"', missing)
+        self.assertIn('"~/Library/pnpm"', missing)
+        self.assertIn(r'"~/missing\n\u001b\u0085tool"', missing)
+        self.assertNotIn(str(self.home), missing)
+        self.assertFalse(self.app.has_control(missing))
 
     def test_hardening_retires_old_session_grant_and_discovers_app_caches(self) -> None:
         relatives = (
@@ -636,7 +735,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertNotIn(str(self.home / "code"), policy["readwritePaths"])
         self.assertTrue(policy["allowGitCredentials"])
         self.assertFalse(policy["allowGhCredentials"])
-        self.assertIn("example: removed invalid", output)
+        self.assertIn('"example": removed invalid', output)
         self.assertIn("broad existing", output)
         self.assertIn("overrides existing false", output)
         for flag, expected in (("--no-mask-credentials", False), ("--mask-credentials", True)):
@@ -792,7 +891,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         for name in ("included", "conditional", "excludes", "template", "hooks"):
             self.assertIn(str(config_dir / name), readonly)
         self.assertIn("commit.gpgsign", output)
-        self.assertIn("example: SSH remote", output)
+        self.assertIn('"example": SSH remote', output)
         self.assertNotIn("git@fixture.invalid", output)
         self.assertNotIn("fixture-private-value", output)
 
@@ -981,6 +1080,97 @@ class AppSandboxSetupTest(unittest.TestCase):
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
         self.assertNotIn("broad existing", output)
+
+    def test_own_grants_are_not_reported_as_broad_on_idempotent_rerun(self) -> None:
+        original_exists = Path.exists
+
+        def fixture_exists(path):
+            if str(path) in ("/tmp", "/private/tmp", "/Library/Java/JavaVirtualMachines"):
+                return True
+            return original_exists(path)
+
+        with mock.patch.object(Path, "exists", fixture_exists):
+            code, output = self.run_cli("apply", "--confirm", self.digest())
+            self.assertEqual(0, code, output)
+            policy = self.policies()[0]
+            for path in ("/tmp", "/private/tmp"):
+                self.assertIn(path, policy["readwritePaths"])
+            self.assertIn("/Library/Java/JavaVirtualMachines", policy["readonlyPaths"])
+            code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertNotIn("broad existing", output)
+        self.assertIn("no changes", output)
+
+    def test_owned_grant_exemption_does_not_cover_broader_user_paths(self) -> None:
+        self.set_policy({"readwritePaths": ["/Library", "/Library/Java"]})
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        for path in ("/Library", "/Library/Java"):
+            self.assertIn(f'broad existing readwritePaths grant: "{path}" (retained)', output)
+
+    def test_all_project_warning_branches_escape_control_characters(self) -> None:
+        name = "fixture\n\r\t\x1b\x7f\x85name"
+        with sqlite3.connect(str(self.db)) as connection:
+            connection.execute("UPDATE projects SET name = ?", (name,))
+        (self.home / ".config/git").mkdir(parents=True)
+        self.set_policy({
+            "readwritePaths": ["relative", "/Library", str(self.home / ".copilot/session-state"),
+                               str(self.home / ".config/git")],
+            "deniedPaths": [str(self.home / "code")],
+            "allowOutbound": False, "allowLocalNetwork": False,
+            "allowGitCredentials": False, "allowGhCredentials": False,
+        })
+        code, output = self.run_cli("plan", "--mask-credentials")
+        self.assertEqual(0, code, output)
+        warnings = [line for line in output.splitlines() if line.startswith("Warning: " + self.app.display(name))]
+        for branch in ("removed invalid", "broad existing", "removed retired",
+                       "equal to denied/readonly", "addition skipped",
+                       "allowOutbound=true", "allowLocalNetwork=true", "credential value overridden"):
+            self.assertTrue(any(branch in line for line in warnings), (branch, output))
+        self.assertNotIn(name, output)
+        self.assertFalse(any(self.app.has_control(line) for line in output.splitlines()))
+        self.set_policy([])
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertIn(self.app.display(name) + ": corrupt policy skipped", output)
+        self.assertNotIn("When credential masking is OFF", output)
+        with self.app.open_db(self.db) as connection:
+            plan = self.app.rollback_plan(connection, {
+                "p1": {"sandbox_enabled": 0, "policy_json": None},
+            })
+            missing_plan = self.app.rollback_plan(connection, {})
+        self.assertIn(self.app.display(name) + ": corrupt current/backup policy skipped.", plan["warnings"])
+        self.assertIn(self.app.display(name) + ": missing from backup; left untouched.", missing_plan["warnings"])
+
+    def test_ssh_remote_detection_handles_scp_like_users_without_printing_urls(self) -> None:
+        name = "fixture\n\x1b\x85name"
+        project = {"name": name, "main_repo_path": str(self.home / "code/repository")}
+        for remote, expected in (
+            ("user@fixture.invalid:team/repo", True),
+            ("git@fixture.invalid:team/repo", True),
+            ("ssh://user@fixture.invalid/team/repo", True),
+            ("https://user@fixture.invalid/team/repo", False),
+        ):
+            with self.subTest(remote=remote):
+                warnings = []
+                results = [
+                    subprocess.CompletedProcess([], 0, stdout=""),
+                    subprocess.CompletedProcess([], 0, stdout="remote.origin.url " + remote + "\n"),
+                ]
+                with mock.patch.object(self.app.shutil, "which", return_value="/fixture/bin/git"), \
+                        mock.patch.object(self.app.subprocess, "run", side_effect=results):
+                    self.app.git_discovery(self.home, warnings, [project])
+                self.assertEqual(expected, any("SSH remote blocked" in line for line in warnings))
+                if expected:
+                    self.assertIn(self.app.display(name) + ": SSH remote blocked", warnings[0])
+                self.assertFalse(any(remote in line or self.app.has_control(line) for line in warnings))
+        warnings = []
+        with mock.patch.object(self.app.shutil, "which", return_value="/fixture/bin/git"), \
+                mock.patch.object(self.app.subprocess, "run", side_effect=[
+                    subprocess.CompletedProcess([], 0, stdout=""), OSError("fixture"),
+                ]):
+            self.app.git_discovery(self.home, warnings, [project])
+        self.assertEqual([self.app.display(name) + ": SSH remote discovery unavailable."], warnings)
 
     def test_invalid_code_path_is_skipped_before_git_discovery(self) -> None:
         with sqlite3.connect(str(self.db)) as connection:

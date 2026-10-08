@@ -86,6 +86,32 @@ socket-tilgangen kan brukes til å mounte `$HOME`, lese `.ssh`, skrive
 LaunchAgents og omgå deny-listen. Docker er derfor nær usandboxet host-tilgang;
 `--no-docker` utelater Docker-grants og fjerner våre eksakte eksisterende
 rw-grants som opt-out. Da virker ikke Docker/Testcontainers i sandboxen.
+Opt-out utelater også readonly-tilleggene `.docker/cli-plugins` og
+`.docker/config.json`, som ligger under Docker-grants. Eksisterende readonly-
+og bredere brukergrants fjernes ikke.
+
+Live-tester viser at `/usr/bin/java` og `/usr/libexec/java_home` ikke finner
+JDK-er i sandboxen: Spotlight-oppslag er utilgjengelig der. JDK-mappene er
+lesbare; sett `JAVA_HOME` eller bruk en valgfri version manager (mise, sdkman,
+asdf, jenv osv.). Planen lister direkte installerte JDK-er under
+`~/Library/Java/JavaVirtualMachines` og `/Library/Java/JavaVirtualMachines`
+uten subprocess, med HOME-relative stier og nyeste etter mappenavn først.
+
+Appen beskytter `~/Library/pnpm` (`PNPM_HOME`) selv om policyen gir readwrite.
+Globale pnpm-installasjoner og lenker feiler i sandboxen; prosjektinstallasjoner
+virker. Granten beholdes.
+
+Playwright/Chromium i sandboxen er en kjent begrensning. Chrome for Testing
+fikk nektet tilgang til Crashpad-mappen; headless shell krasjet uten en konkret
+rettighetsfeil. Vi gir readwrite til
+`~/Library/Application Support/Google/Chrome for Testing` bare når mappen finnes.
+Dette er et avgrenset forsøk som venter på live-verifisering, ikke en bekreftet
+løsning. Browseren kan fortsatt feile; kjør da browser-tester/Playwright MCP
+utenfor sandboxen etter én godkjenning av «Run outside the sandbox → Run once».
+App-cachene forblir readonly; `APP_CACHE_WRITABLE` er tomt.
+
+Prosesser fra tidligere shell-kall kan ikke inspiseres eller signaliseres
+i sandboxen; stopp bakgrunnsservere i samme kall eller via port.
 
 Bevisst blokkert: nais/kubectl/gcloud, inkludert nav-troubleshoot sine
 kubectl-steg; SSH-remotes og commit-signering (`.ssh`/`.gnupg` nektes);

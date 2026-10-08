@@ -77,8 +77,9 @@ discovery is skipped when those tools are absent.
   Gradle daemon, Testcontainers, dev servers and Playwright.
 - Docker socket access is **effectively unsandboxed host access**: a process
   can mount HOME, read `.ssh` or write LaunchAgents despite the deny list.
-  `--no-docker` removes our exact Docker rw grants; Docker/Testcontainers will
-  not work in the sandbox. It does not remove unrelated broader user grants.
+  `--no-docker` omits Docker grants, including readonly `.docker/cli-plugins`
+  and `.docker/config.json`, and removes our exact existing Docker rw grants.
+  Docker/Testcontainers will not work; unrelated broader user grants remain.
 - Readonly hardening covers app-owned cache directories, git/shell/tool
   configuration and Gradle init files. Narrower readonly/deny wins over a
   broader rw grant. Tool installs remain writable so agents can install
@@ -93,6 +94,17 @@ discovery is skipped when those tools are absent.
   `gh auth status` may exit 1 because keychain access is blocked; this is
   cosmetic when GH_TOKEN works. GitHub MCP, gh and HTTPS git use the app's
   credential flow, not a blanket grant to credential stores.
+- Inside the sandbox, `/usr/bin/java` / `java_home` cannot discover JDKs
+  (Spotlight lookup unavailable). JDK directories are readable: set
+  `JAVA_HOME` or use any version manager (mise, sdkman, asdf, jenv, etc.).
+- The app protects `~/Library/pnpm` (`PNPM_HOME`) despite its rw grant:
+  global pnpm installs/links fail in the sandbox; project installs work.
+- Playwright/Chromium is a known sandbox limitation pending live verification
+  of the new rw grant for `~/Library/Application Support/Google/Chrome for Testing`
+  (only when present). It may still fail; then run browser tests/Playwright MCP
+  outside the sandbox after approving **Run outside the sandbox → Run once**.
+- Processes from earlier shell calls cannot be inspected or signalled in the
+  sandbox; stop background servers in the same call or by port.
 
 Tool discovery supports different JDK/tool installations without requiring
 mise. Missing tool paths are omitted; missing code paths are skipped except

@@ -27,6 +27,7 @@ RW_PATHS = (
     "Library/Caches", "Library/pnpm", ".bun", ".nvm", ".rd", ".docker",
     "/tmp", "/private/tmp",
     "Library/Application Support/kotlin", ".konan", ".testcontainers.properties",
+    "Library/Application Support/Google/Chrome for Testing",
     ".colima", ".orbstack", ".lima", "go", ".cargo", ".yarn",
 )
 RO_PATHS = (
@@ -104,7 +105,15 @@ def canonical(value: Any) -> str:
 
 
 def display(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False)
+    text = json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False)
+    return re.sub(r"[\x7f-\x9f]", lambda match: f"\\u{ord(match[0]):04x}", text)
+
+
+def home_relative(path: Path, home: Path) -> str:
+    try:
+        return "~/" + str(path.relative_to(home))
+    except ValueError:
+        return str(path)
 
 
 def open_db(path: Path, writable: bool = False) -> sqlite3.Connection:
@@ -311,7 +320,7 @@ def code_roots(connection: sqlite3.Connection, home: Path, warnings: list[str]) 
             warnings.append("Code path under ~/.copilot skipped; never a code root.")
             continue
         if not specific.exists() and not under(specific, Path("/Volumes")):
-            warnings.append(f"Code path missing; skipped: {json.dumps(str(specific), ensure_ascii=False)}")
+            warnings.append(f"Code path missing; skipped: {display(str(specific))}")
             continue
         candidate = specific.parent.parent if worktree else specific.parent
         if not safe_code_root(candidate, home, parent=True):
@@ -411,19 +420,36 @@ def git_discovery(home: Path, warnings: list[str], projects: Sequence[Any] = ())
                 [git, "-C", str(repo), "config", "--get-regexp", r"^remote\..*\.url$"],
                 env=env, capture_output=True, text=True, timeout=3,
             )
-            if remotes.returncode == 0 and any(re.match(r"(git@[^:]+:|ssh://)", line.partition(" ")[2])
+            if remotes.returncode == 0 and any(re.match(r"(?:[^\s/@]+@[^\s/:]+:|ssh://)", line.partition(" ")[2])
                                               for line in remotes.stdout.splitlines()):
-                warnings.append(f'{project["name"]}: SSH remote blocked (~/.ssh denied); use HTTPS or run outside the sandbox.')
+                warnings.append(f'{display(project["name"])}: SSH remote blocked (~/.ssh denied); use HTTPS or run outside the sandbox.')
         except (OSError, subprocess.SubprocessError):
-            warnings.append(f'{project["name"]}: SSH remote discovery unavailable.')
+            warnings.append(f'{display(project["name"])}: SSH remote discovery unavailable.')
     return list(dict.fromkeys(str(path.resolve()) for path in paths if path.exists() and not has_control(str(path))))
+
+
+def jdk_warning(home: Path, warnings: list[str]) -> None:
+    homes = sorted(
+        (path for root in ("Library/Java/JavaVirtualMachines", "/Library/Java/JavaVirtualMachines")
+         for path in (home / root).glob("*/Contents/Home") if path.is_dir()),
+        key=lambda path: (path.parent.parent.name, str(path)), reverse=True,
+    )
+    if homes:
+        warnings.append(
+            "JDK info: " + ", ".join(display(home_relative(path, home)) for path in homes)
+            + ". In the sandbox, /usr/bin/java and java_home cannot discover JDKs "
+            "(Spotlight lookup unavailable). JDK directories are readable: set JAVA_HOME "
+            "or use any version manager (mise, sdkman, asdf, jenv, etc.). "
+            "Choose the first listed home (newest by directory name order), "
+            "e.g. export JAVA_HOME=…/Contents/Home."
+        )
 
 
 def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
                   no_docker: bool = False, docker_paths: Optional[list[str]] = None) -> dict[str, list[str]]:
     warnings.append(MASKING_SCOPE_WARNING)
     credential_file_warnings(home, warnings)
-    warnings.extend([] if mask else [CREDENTIAL_WARNING])
+    jdk_warning(home, warnings)
     if mask:
         warnings.append("Credential masking is ON: its proxy forces loopback deny even with allowLocalNetwork=true.")
     for sibling in sorted((home / ".copilot").glob("data.db.*")):
@@ -449,7 +475,7 @@ def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
             if Path(path).exists():
                 grants[field].append(path)
             else:
-                missing.append(path)
+                missing.append(display(home_relative(Path(path), home)))
     if not no_docker:
         grants["readwritePaths"] += [path for path in docker if Path(path).exists()
                                     and path not in grants["readwritePaths"]]
@@ -497,6 +523,8 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
     grants = profile_paths(home, mask, warnings, no_docker, docker)
     grants["readonlyPaths"] += git_discovery(home, warnings, projects)
     roots = code_roots(connection, home, warnings)
+    owned_paths = {path for paths in grants.values() for path in paths} | set(roots)
+    owned_paths.update(str(home / path) for path in RW_PATHS + RO_PATHS if Path(path).is_absolute())
     denied = grants["deniedPaths"]
     changes = []
     skipped = []
@@ -508,21 +536,21 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
             before = read_policy(policy["policy_json"]) if policy else None
         except SetupError:
             skipped.append(row["id"])
-            warnings.append(f'{row["name"]}: corrupt policy skipped; repair this project manually with guide.')
+            warnings.append(f'{display(row["name"])}: corrupt policy skipped; repair this project manually with guide.')
             continue
         after = dict(before or {})
         for field in PATH_FIELDS:
             clean = []
             for path in after.get(field, []):
                 if has_control(path) or not Path(path).is_absolute():
-                    warnings.append(f'{row["name"]}: removed invalid {field} entry (relative path or control characters).')
+                    warnings.append(f'{display(row["name"])}: removed invalid {field} entry (relative path or control characters).')
                     continue
-                if field != "deniedPaths" and (
+                if field != "deniedPaths" and path not in owned_paths and (
                     under(home, Path(path)) or same_path(Path(path), Path("/Users"))
                     or same_path(Path(path), home / ".copilot")
                     or any(under(Path(path), Path(area)) for area in SYSTEM_AREAS)
                 ):
-                    warnings.append(f'{row["name"]}: broad existing {field} grant: {json.dumps(path, ensure_ascii=False)} (retained).')
+                    warnings.append(f'{display(row["name"])}: broad existing {field} grant: {display(path)} (retained).')
                 clean.append(path)
             after[field] = clean
         user_denied = after["deniedPaths"]
@@ -535,13 +563,13 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
                 if path in retired:
                     note = ("the app grants its own session files" if path == str(home / ".copilot/session-state")
                             else "--no-docker removes this exact grant")
-                    warnings.append(f'{row["name"]}: removed retired {field} grant: {display(path)}; {note}.')
+                    warnings.append(f'{display(row["name"])}: removed retired {field} grant: {display(path)}; {note}.')
             existing = [path for path in existing if path not in retired]
             if field != "deniedPaths":
                 blocked = denied + (grants["readonlyPaths"] if field == "readwritePaths" else [])
                 for path in existing:
                     if any(same_path(Path(path), Path(block)) for block in blocked):
-                        warnings.append(f'{row["name"]}: removed {field} entry equal to denied/readonly path: {display(path)}')
+                        warnings.append(f'{display(row["name"])}: removed {field} entry equal to denied/readonly path: {display(path)}')
                 existing = [path for path in existing
                             if not any(same_path(Path(path), Path(block)) for block in blocked)]
             additions = denied if field == "deniedPaths" else grants[field]
@@ -551,7 +579,7 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
                 filtered = []
                 for path in additions:
                     if any(under(Path(path), Path(block)) for block in user_denied + denied):
-                        warnings.append(f'{row["name"]}: addition skipped under existing/required denied path: {json.dumps(path, ensure_ascii=False)}')
+                        warnings.append(f'{display(row["name"])}: addition skipped under existing/required denied path: {display(path)}')
                     elif field == "readwritePaths" and any(same_path(Path(path), Path(ro)) for ro in grants["readonlyPaths"]):
                         continue
                     else:
@@ -560,12 +588,12 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
             after[field] = list(dict.fromkeys(existing + additions))
         for field in ("allowOutbound", "allowLocalNetwork"):
             if after.get(field) is False:
-                warnings.append(f'{row["name"]}: {field}=true overrides existing false.')
+                warnings.append(f'{display(row["name"])}: {field}=true overrides existing false.')
             after[field] = True
         for field in ("allowGitCredentials", "allowGhCredentials"):
             if mask is not None:
                 if field in after and after[field] != mask:
-                    warnings.append(f'{row["name"]}: {field} credential value overridden by flag.')
+                    warnings.append(f'{display(row["name"])}: {field} credential value overridden by flag.')
                 after[field] = mask
             else:
                 after.setdefault(field, False)
@@ -574,6 +602,9 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
             "before": {"sandbox_enabled": row["sandbox_enabled"], "policy": before},
             "after": {"sandbox_enabled": 1, "policy": after},
         })
+    if any(not project["after"]["policy"][field] for project in changes
+           for field in ("allowGitCredentials", "allowGhCredentials")):
+        warnings.append(CREDENTIAL_WARNING)
     full_change_set = [
         {"id": project["id"], "before": project["before"], "after": project["after"]}
         for project in changes
@@ -750,7 +781,7 @@ def rollback_plan(connection: sqlite3.Connection, snapshot: dict[str, Any]) -> d
     for row in projects:
         if row["id"] not in snapshot:
             skipped.append(row["id"])
-            warnings.append(f'{row["name"]}: missing from backup; left untouched.')
+            warnings.append(f'{display(row["name"])}: missing from backup; left untouched.')
             continue
         target = snapshot[row["id"]]
         states = []
@@ -762,7 +793,7 @@ def rollback_plan(connection: sqlite3.Connection, snapshot: dict[str, Any]) -> d
                                "policy_json": raw})
         except SetupError:
             skipped.append(row["id"])
-            warnings.append(f'{row["name"]}: corrupt current/backup policy skipped.')
+            warnings.append(f'{display(row["name"])}: corrupt current/backup policy skipped.')
             continue
         changes.append({"id": row["id"], "name": row["name"], "before": states[0], "after": states[1]})
     digest = hashlib.sha256(canonical({
