@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sqlite3
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -97,7 +98,9 @@ class AppSandboxSetupTest(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("app_sandbox_setup", SCRIPT)
         assert spec and spec.loader
         self.app = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(self.app)
+        # Importing must not leave __pycache__ in the manifested plugin tree.
+        with mock.patch.object(sys, "dont_write_bytecode", True):
+            spec.loader.exec_module(self.app)
         # macOS TMPDIR lives below /private/var, unlike real developer homes.
         # Keep temporary fixtures there while retaining all other system guards.
         if hasattr(self.app, "SYSTEM_AREAS"):
