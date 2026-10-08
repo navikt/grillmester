@@ -10,6 +10,7 @@ permission:
   question: deny
   skill:
     "*": allow
+    app-sandbox-setup: ask
     doctor: ask
     grill-me: ask
     guided-review: ask

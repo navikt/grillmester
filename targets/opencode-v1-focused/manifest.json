@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "5b4893c7c5ce6de305953689cc759c862f4120ea923b2e010686dbe12fe5c897",
+    "targetManifestSha256": "c700067da6238f17b3af51ee71308ad217b8cf1b65829eb0e11246e510b05d80",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
   },
@@ -17,6 +17,7 @@
     "agentEscalation": "full-context-handoff",
     "excludedSkillReferences": "full-context-guidance",
     "skillPermissionEntriesRemoved": [
+      "app-sandbox-setup",
       "doctor",
       "grill-me",
       "guided-review",

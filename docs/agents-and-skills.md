@@ -150,13 +150,13 @@ ikke gjette detaljer fra minnet.
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 43 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 44 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-De 43 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
+De 44 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
 `design-prototype` og `review`. Nav-pilot eier valg og distribusjon av
 agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som
@@ -194,6 +194,7 @@ Disse grensene gjør overlappende metoder enklere å velge:
 
 | Behov | Metode | Avgrensning |
 | --- | --- | --- |
+| Sette opp lokal sandbox i GitHub Copilot desktop på macOS | `/app-sandbox-setup` | Kun manuelt i fullprofilen; plan og eksplisitt bekreftelse før DB-write, eller klikkguide. Varsler om credentials og loopback. |
 | Avklare ett spørsmål mot dokumenterte begreper og beslutninger | `grill-with-docs` | Dokumenterer bare avklarte begreper og kvalifiserende beslutninger. |
 | Holde flere avhengige, uløste beslutninger navigerbare over flere økter | `wayfinder` | Bruker grilling og andre metoder per spørsmål; kartet avsluttes når veien er klar. |
 | Finne hvorfor eksisterende moduler er vanskelige å endre eller teste | `improve-codebase-architecture` | Finner refaktoreringsmuligheter; `architecture-review` vurderer et konkret forslag. |

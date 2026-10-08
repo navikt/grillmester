@@ -123,12 +123,12 @@ class OpenCodeGenerationTest(unittest.TestCase):
         self.assertEqual(8, manifest["counts"]["agents"])
         self.assertEqual(4, manifest["counts"]["primaryAgents"])
         self.assertEqual(4, manifest["counts"]["subagents"])
-        self.assertEqual(43, manifest["counts"]["skills"])
-        self.assertEqual(43, manifest["counts"]["commands"])
+        self.assertEqual(44, manifest["counts"]["skills"])
+        self.assertEqual(44, manifest["counts"]["commands"])
         self.assertEqual(8, sum(path.startswith("agents/") for path in files))
-        self.assertEqual(43, sum(path.startswith("commands/") for path in files))
+        self.assertEqual(44, sum(path.startswith("commands/") for path in files))
         self.assertEqual(
-            43,
+            44,
             sum(path.startswith("skills/") and path.endswith("/SKILL.md") for path in files),
         )
         self.assertIn("skills/guided-review/SKILL.md", files)

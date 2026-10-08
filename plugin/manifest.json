@@ -7,7 +7,7 @@
   },
   "counts": {
     "agents": 8,
-    "skills": 43
+    "skills": 44
   },
   "agents": [
     "barista",
@@ -23,6 +23,7 @@
     "accessibility-review",
     "aksel-design",
     "api-design",
+    "app-sandbox-setup",
     "architecture-review",
     "auth-overview",
     "create-a-skill",
@@ -139,6 +140,14 @@
     },
     "skills/api-design/SKILL.md": {
       "sha256": "532ef9d1f4728f464c65127f832c1f4515de771686e4fb7c4630c2b5a9c884df",
+      "mode": "0644"
+    },
+    "skills/app-sandbox-setup/SKILL.md": {
+      "sha256": "3e1f9cb2898504c60c09d5bd639bf89edf5272111343060f91528da66b45fc80",
+      "mode": "0644"
+    },
+    "skills/app-sandbox-setup/scripts/app_sandbox_setup.py": {
+      "sha256": "67f6fd01ab2c90c53ef7289f37b1f7a0cc240b82b3df8e242447be7976f7bf41",
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {

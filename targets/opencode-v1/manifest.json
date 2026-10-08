@@ -20,13 +20,14 @@
     "agents": 8,
     "primaryAgents": 4,
     "subagents": 4,
-    "skills": 43,
-    "commands": 43
+    "skills": 44,
+    "commands": 44
   },
   "skillCapabilities": {
     "accessibility-review": "native",
     "aksel-design": "native",
     "api-design": "native",
+    "app-sandbox-setup": "native",
     "architecture-review": "native",
     "auth-overview": "native",
     "create-a-skill": "overlay",
@@ -74,6 +75,7 @@
     "lastMatchWins": true,
     "explicitCommandWrapper": true,
     "skills": [
+      "app-sandbox-setup",
       "doctor",
       "grill-me",
       "guided-review",
@@ -86,31 +88,31 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "b2957653699b5cad40a2b8f3ddec67e07938f06d16a9a38a8015d0074e2a4cc9",
+      "sha256": "9f76f9bb9bc087aa1ece869b9e4397a3ae3162993a1f3092ce15763a04765b02",
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "ed3a3a1a16adad3c0308f6b36922110b5722d7eaa402bf481f527a4ac69c4c97",
+      "sha256": "507e1de7c277b8aab3d19c6ac83a0b3e86abc563179bb24bb3c3c720cfe6068e",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
-      "sha256": "63f290ab32bddd9ab7553768d97e68b2df35a06edc330ef2fff2528879796588",
+      "sha256": "0e124aeee52c46a3567303646e4645c1084b10aa2011f2ccf2341c2674c4fd17",
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "5718c847681627163495822c54e9698fe761ca1523648eaff985bdd7ea0d3da1",
+      "sha256": "5848f6ee9b2e4d5bd3f754b4cd96db4ad11fcd648e67e0974b1829691f8b07b8",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "3a39456e1088b701f8ae6d914f9b23ffa8b7e91268bdca6417f332bf2be92270",
+      "sha256": "7831e317cae0d9d3f2e47bc1bb9102b189084866bb8669d6fe33bd08f551681f",
       "mode": "0644"
     },
     "agents/kokk.md": {
-      "sha256": "f75ef0c05a23e93fa340094825b652726ea04095d1cb6ebe514ab25d7e4d46f0",
+      "sha256": "a13ed7a0dd34c8bdccf3d7587504bfc9a73d9c4c8c0fe7c877238888b8cfff0a",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
-      "sha256": "4ba2481aa73bd1ddb375e66a609ef8120d449f22b93f249b523c14fb04a14b18",
+      "sha256": "305b2cb0515eea11dd404b181e23a990f4dac4b70bc95903326c5b93ebfdb7c2",
       "mode": "0644"
     },
     "agents/researcher.md": {
@@ -127,6 +129,10 @@
     },
     "commands/api-design.md": {
       "sha256": "95ac5a823e0c5a3e6f1b3080376720c7d88c2786beafe000dbe59258652f6c6b",
+      "mode": "0644"
+    },
+    "commands/app-sandbox-setup.md": {
+      "sha256": "1fc550fdb924a01661cad8621bdc809ea610509a0021d939e4797e4ac50f2496",
       "mode": "0644"
     },
     "commands/architecture-review.md": {
@@ -323,6 +329,14 @@
     },
     "skills/api-design/SKILL.md": {
       "sha256": "90c07fe5d99e88545bb4fc43f224a8ab0aa8326d65d1198a3a48fe31b2cce046",
+      "mode": "0644"
+    },
+    "skills/app-sandbox-setup/SKILL.md": {
+      "sha256": "6379899fefc505808387f287ff32c2c87b2398ea33ac69152873b20530815c80",
+      "mode": "0644"
+    },
+    "skills/app-sandbox-setup/scripts/app_sandbox_setup.py": {
+      "sha256": "67f6fd01ab2c90c53ef7289f37b1f7a0cc240b82b3df8e242447be7976f7bf41",
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {

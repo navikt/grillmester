@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: eight agents and 43 skills. The sources below record attribution
+`plugin/`: eight agents and 44 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -26,6 +26,15 @@ evidence that Grillmester owns or privately stages those executables.
 
 The `grillmester-terminal-*` release asset is the shared terminal bundle for
 both OpenCode and Copilot CLI payloads, not a client distribution.
+
+## Original Grillmester content
+
+`app-sandbox-setup` and its bundled Python script are original content authored
+in `navikt/grillmester`, starting from repository baseline
+`39ae6cfb671f505fd200037711af897471b1da8c`; that revision identifies the
+baseline, not an imported copy of the new skill. The script implements the
+desktop app setup decision in ADR 0014 without copying the machine-bound
+prototype. It has no third-party payload or Hovmester lineage.
 
 ## Derived terminal artifacts
 
