@@ -61,6 +61,8 @@ installeres før du bekrefter. Oppdater pluginen med **Update** under
 default branch; bruk Copilot CLI med en reviewet versjonstagg når pinning er
 påkrevd.
 
+Bruk `/app-sandbox-setup` for manuelt sandbox-oppsett i Copilot app på macOS med plan, bekreftelse, verify og rollback.
+
 ## Velg agent
 
 | Agent | Bruk når |

@@ -332,11 +332,11 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
-      "sha256": "b21fc70b6066c081c2dbee79dceb1eab3e46e8381b05424de0e8b337ab578054",
+      "sha256": "7e63a3798001557541eed0846692c0027ae5740386bd6aedc4b35d9bab9cf6c5",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox_setup.py": {
-      "sha256": "67f6fd01ab2c90c53ef7289f37b1f7a0cc240b82b3df8e242447be7976f7bf41",
+      "sha256": "17b42f7cd9e1b4a9c86e3d054d128e014f942b5894c5d6eda67c4fce477a99f2",
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {

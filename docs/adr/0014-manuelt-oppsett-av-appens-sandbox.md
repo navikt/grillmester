@@ -8,8 +8,8 @@ date: 2026-10-08
 ## Kontekst
 
 GitHub Copilot desktop på macOS lagrer sandbox-innstillinger i
-`~/.copilot/data.db`, ikke i `settings.json`. Det finnes ingen sandbox-konfig
-per repo. Gradle daemon, Testcontainers og andre lokale tjenester trenger
+`~/.copilot/data.db`, ikke i `settings.json`: én policy per prosjekt, men ingen
+repo-eid konfigurasjonsfil. Gradle daemon, Testcontainers og lokale tjenester trenger
 loopback, men appens credential proxy tvinger loopback deny når
 credential masking er på, selv med `allowLocalNetwork=true`.
 
@@ -17,41 +17,81 @@ credential masking er på, selv med `allowLocalNetwork=true`.
 
 `app-sandbox-setup` er en manual-only skill med et medfølgende Python-script:
 oppdag stier → vis plan/diff → få eksplisitt bekreftelse → skriv etter
-digest- og skjemasjekk, med SQLite-backup. Scriptet kjøres med sandbox av eller
-i vanlig terminal. Ved skjemamismatch brukes en konkret klikkguide.
+digest- og skjemasjekk, med SQLite-backup. Kjør plan først; ved nektet tilgang
+ber skillen om «Run outside the sandbox? → Run once» for den ene kommandoen,
+og igjen for apply etter bekreftelse. `/sandbox off` eller vanlig terminal er
+alternativer. Ved skjemamismatch brukes en konkret klikkguide.
 
-Credential masking er av som standard for alle prosjekter for å få loopback
-til å fungere. Vi aksepterer at ekte GH_TOKEN og git credentials da er synlige
+Nye policyer har credential masking av for å få loopback til å fungere.
+Rerun bevarer eksisterende credential-valg; `--mask-credentials` og
+`--no-mask-credentials` setter begge eksplisitt. Vi aksepterer at ekte
+GH_TOKEN og git credentials med masking av er synlige
 for sandboxede prosesser, og kan eksfiltreres av byggscript eller avhengigheter
 med tillatt outbound. `--mask-credentials` velger masking på med den nevnte
-loopback-konsekvensen.
+loopback-konsekvensen. Masking dekker bare credentials appen injiserer,
+ikke filer på disk som `.npmrc`, `gradle.properties` eller `hosts.yml`.
+Gh- og Docker-konfig med inline credentials beholdes lesbare, men readonly
+og med innholdsfrie varsler.
 
 Kodetilgang deles mellom prosjektene: parent til hvert prosjekts repo og
 parent.parent til worktree-stier. Symlinker løses først; aldri gi tilgang til
 selve `$HOME`, dets forfedre eller systemområder. Utrygge røtter faller tilbake
 til den konkrete prosjekt-/worktree-mappen hvis den er trygg. Eksisterende
-policy merges, ikke overskrives; sensitive stier nektes alltid. Rerun er
-idempotent og nødvendig etter nye prosjekter eller verktøy.
+policy merges, ikke overskrives; sensitive stier nektes alltid. Utrygge
+foreldre som Downloads, Documents og Library brukes ikke som koderøtter.
+Brukerens deniedPaths filtrerer tillegg; ugyldige stier fjernes og brede
+eksisterende grants varsles. En korrupt policy hoppes over uten å blokkere
+andre prosjekter. JDK-/verktøyoppsett oppdages uten krav om mise.
+
+Readonly hardening av app-eide cacher, git-/shell-/tool-konfigurasjon og
+Gradle init-filer stenger de verste «plant nå, kjør usandboxet senere»-rutene.
+Smalere readonly vinner over bredere readwrite. Tool-installasjoner forblir
+skrivbare. `~/.copilot/session-state` gis **ikke lenger** readwrite; rerun
+fjerner den gamle granten, og appen gir nødvendig tilgang til egen økt.
+Rerun er idempotent og nødvendig etter nye prosjekter, verktøy og appoppdateringer
+som lager nye versjonsnavngitte cachemapper.
 
 ## Konsekvenser
 
 Backuper ligger i en nektet mappe med 0700/0600-rettigheter. Planen skriver
-ikke; apply bekrefter hele endringssettet i en transaksjon. Endringer gjelder
-nye økter eller etter `/restart-session`, ikke den fortsatt usandboxede økten.
+ikke policyer; lesekommandoer bruker mode=rw med query_only for lukkede WAL-DB-er.
+Apply bekrefter endringssettet i en transaksjon. Mislykkede writes rulles
+tilbake og den ferske backupen slettes. De nyeste 10 egne backupene beholdes.
+`rollback --from` viser diff/digest og gjenoppretter bare sandbox-felt og
+policyrader for felles prosjekter etter bekreftelse, med ny backup først.
+Hele DB-filen erstattes aldri.
+
+Endringer gjelder nye økter eller etter `/restart-session`. `/sandbox off`
+og `/sandbox on` virker umiddelbart i gjeldende økt; valget består også etter
+restart og overstyrer prosjektets standard. Etter off trengs on + restart,
+eller ny økt. `verify` i en ny sandboxet økt er avsluttende port:
+adferdsprober, ingen lesing av DB-innhold eller session-state-policyfiler.
+Enterprise managed settings kan gi avvik.
 
 Sandbox er guardrails, ikke containment. Skrivetilgang til kode, `~/.config`,
 `~/.nvm`, `~/.local/share`, `~/.bun` og lignende lar sandboxet kode plante
-git hooks, git/gh-konfig, shell-sourced scripts eller toolchain-binærer som
-senere kjører usandboxet. Masking fjerner ikke denne restrisikoen.
+git hooks, shell-sourced scripts eller toolchain-binærer som senere kjører
+usandboxet. Readonly hardening reduserer dette, men skrivbare tool-installasjoner
+og kode beholder restrisikoen; masking fjerner den ikke. En sandboxet Gradle-klient
+kan dessuten gjenbruke en usandboxet daemon startet fra IntelliJ/terminal,
+slik at selve bygget kjører utenfor sandboxen.
+
+Sandboxet kode kan fortsatt forhåndsopprette nye versjonsnavngitte app-cachemapper
+direkte under `~/Library/Caches`, for eksempel `copilot-desktop-gh-<ny versjon>`,
+fordi mappen forblir skrivbar for tool-cacher. Rerun etter appoppdateringer
+herder bare mapper som allerede finnes.
 
 Readwrite på `~/.docker` og `~/.rd` trengs for Testcontainers, men
-socket-tilgangen kan ut fra hvordan Docker/Rancher Desktop fungerer (ikke
-verifisert her) brukes til å bind-mounte host-stier via delt `$HOME`, omgå
-deny-listen og kjøre kode utenfor sandboxen. Docker-tilgang vurderes derfor
-som nær usandboxet host-tilgang. Readwrite på `~/.copilot/session-state` er
-et testet krav og lar sandboxede prosesser lese og endre andre økters tilstand,
-inkludert effektive policyfiler under `<sid>/policies/`. Om appen stoler på
-disse filene for senere håndheving, er uavklart.
+socket-tilgangen kan brukes til å mounte `$HOME`, lese `.ssh`, skrive
+LaunchAgents og omgå deny-listen. Docker er derfor nær usandboxet host-tilgang;
+`--no-docker` utelater Docker-grants og fjerner våre eksakte eksisterende
+rw-grants som opt-out. Da virker ikke Docker/Testcontainers i sandboxen.
+
+Bevisst blokkert: nais/kubectl/gcloud, inkludert nav-troubleshoot sine
+kubectl-steg; SSH-remotes og commit-signering (`.ssh`/`.gnupg` nektes);
+private `docker pull` via osxkeychain (pull utenfor sandboxen).
+`gh auth status` med exit 1 er kosmetisk når GH_TOKEN virker. Stock python3
+kan utløse dialog for Xcode Command Line Tools.
 
 Løsningen avhenger også av et udokumentert app-DB-skjema som kan endres ved
 oppgradering; skjemasjekk og klikkguide er fallback, ikke en stabil app-API.

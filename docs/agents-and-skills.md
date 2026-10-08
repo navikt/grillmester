@@ -194,7 +194,7 @@ Disse grensene gjør overlappende metoder enklere å velge:
 
 | Behov | Metode | Avgrensning |
 | --- | --- | --- |
-| Sette opp lokal sandbox i GitHub Copilot desktop på macOS | `/app-sandbox-setup` | Kun manuelt i fullprofilen; plan og eksplisitt bekreftelse før DB-write, eller klikkguide. Varsler om credentials og loopback. |
+| Sette opp lokal sandbox i GitHub Copilot desktop på macOS | `/app-sandbox-setup` | Kun manuelt i fullprofilen; plan først, eksplisitt bekreftelse før DB-write og verify i ny sandboxet økt. Klikkguide og bekreftet rollback; varsler om credentials, loopback og Docker. |
 | Avklare ett spørsmål mot dokumenterte begreper og beslutninger | `grill-with-docs` | Dokumenterer bare avklarte begreper og kvalifiserende beslutninger. |
 | Holde flere avhengige, uløste beslutninger navigerbare over flere økter | `wayfinder` | Bruker grilling og andre metoder per spørsmål; kartet avsluttes når veien er klar. |
 | Finne hvorfor eksisterende moduler er vanskelige å endre eller teste | `improve-codebase-architecture` | Finner refaktoreringsmuligheter; `architecture-review` vurderer et konkret forslag. |
