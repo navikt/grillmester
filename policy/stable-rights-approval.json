@@ -5,8 +5,8 @@
         "role": "Grillmester repository maintainer",
         "team": "Team eSyfo"
       },
-      "date": "2026-09-30",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#78",
+      "date": "2026-10-08",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#79",
       "status": "approved"
     },
     "organizationalRights": {
@@ -14,8 +14,8 @@
         "role": "Hovmester repository owner",
         "team": "Team eSyfo"
       },
-      "date": "2026-09-30",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#78",
+      "date": "2026-10-08",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#79",
       "status": "approved"
     }
   },
@@ -41,11 +41,11 @@
         "workshop-design": "0418cfc368605512456838621833a375ffda1f0bbdff939491d6c0271ed2af7d"
       }
     },
-    "contentLockSha256": "263d36279a6e8973c7a0ae5340897bcb6f0a48c694dc7a353fbaf1976c61f8cf",
+    "contentLockSha256": "72486cd3f9006fecd4df28438fb36d146cab067cdea23fc25aff65ddaab6e9b6",
     "hovmester": {
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "dbef65e426d105e2af6d6bfdc88e0d39bf9f12fa31e3896cbed270a4d80666f0"
+    "provenanceSha256": "8f01262c7dc8d1946c4695a7b4c82cd2a1e938896212acb84ff76a2da7e05ccd"
   }
 }
