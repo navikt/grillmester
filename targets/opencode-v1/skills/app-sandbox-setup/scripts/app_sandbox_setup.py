@@ -27,7 +27,6 @@ RW_PATHS = (
     "Library/Caches", "Library/pnpm", ".bun", ".nvm", ".rd", ".docker",
     "/tmp", "/private/tmp",
     "Library/Application Support/kotlin", ".konan", ".testcontainers.properties",
-    "Library/Application Support/Google/Chrome for Testing",
     ".colima", ".orbstack", ".lima", "go", ".cargo", ".yarn",
 )
 RO_PATHS = (
@@ -43,7 +42,11 @@ RO_PATHS = (
 )
 DOCKER_PATHS = (".docker", ".rd", ".colima", ".orbstack", ".lima", ".testcontainers.properties")
 APP_CACHE_WRITABLE: set[str] = set()
-RETIRED_GRANTS = {"readwritePaths": (".copilot/session-state",)}
+RETIRED_GRANTS = {"readwritePaths": {
+    ".copilot/session-state": "the app grants its own session files",
+    "Library/Application Support/Google/Chrome for Testing":
+        "Chromium needs denied macOS IPC; no path grant helps",
+}}
 DENIED_PATHS = (
     ".ssh", ".aws", ".gnupg", ".kube", ".config/gcloud", "Library/Keychains",
     ".netrc", ".copilot/data.db", ".copilot/data.db-wal", ".copilot/data.db-shm",
@@ -556,14 +559,13 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
         user_denied = after["deniedPaths"]
         for field in PATH_FIELDS:
             existing = list(dict.fromkeys(after.get(field, [])))
-            retired = [str(home / path) for path in RETIRED_GRANTS.get(field, ())]
+            retired = {str(home / path): reason
+                       for path, reason in RETIRED_GRANTS.get(field, {}).items()}
             if no_docker and field == "readwritePaths":
-                retired += docker
+                retired.update({path: "--no-docker removes this exact grant" for path in docker})
             for path in existing:
                 if path in retired:
-                    note = ("the app grants its own session files" if path == str(home / ".copilot/session-state")
-                            else "--no-docker removes this exact grant")
-                    warnings.append(f'{display(row["name"])}: removed retired {field} grant: {display(path)}; {note}.')
+                    warnings.append(f'{display(row["name"])}: removed retired {field} grant: {display(path)}; {retired[path]}.')
             existing = [path for path in existing if path not in retired]
             if field != "deniedPaths":
                 blocked = denied + (grants["readonlyPaths"] if field == "readwritePaths" else [])
@@ -955,7 +957,9 @@ def print_guide(db: Path, home: Path, mask: Optional[bool], no_docker: bool = Fa
             value = policy.get(field, mask)
             print(f"{label}: {'preserve existing (new policies OFF)' if value is None else 'ON' if value else 'OFF'} (credential masking)")
     print("Add your code folders; never grant HOME itself or system areas.")
-    print("Remove the retired ~/.copilot/session-state rw grant and rw entries exactly equal to readonly/denied paths; a narrower readonly/deny wins.")
+    print("Remove the retired rw grants: "
+          + ", ".join(display("~/" + path) for path in RETIRED_GRANTS["readwritePaths"])
+          + "; also remove rw entries exactly equal to readonly/denied paths; a narrower readonly/deny wins.")
     for warning in dict.fromkeys(warnings):
         print("Warning: " + warning)
     print("Policy changes apply to NEW sessions or after /restart-session. /sandbox off persists for this session even after restart: use /sandbox on + /restart-session, or a new session. Enterprise managed settings may override.")

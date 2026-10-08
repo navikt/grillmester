@@ -99,10 +99,9 @@ discovery is skipped when those tools are absent.
   `JAVA_HOME` or use any version manager (mise, sdkman, asdf, jenv, etc.).
 - The app protects `~/Library/pnpm` (`PNPM_HOME`) despite its rw grant:
   global pnpm installs/links fail in the sandbox; project installs work.
-- Playwright/Chromium is a known sandbox limitation pending live verification
-  of the new rw grant for `~/Library/Application Support/Google/Chrome for Testing`
-  (only when present). It may still fail; then run browser tests/Playwright MCP
-  outside the sandbox after approving **Run outside the sandbox → Run once**.
+- Playwright/Chromium cannot run inside the app sandbox: it denies required macOS IPC (Mach bootstrap/crashpad handshake
+  and sandbox extensions); no path grant helps. Run browser tests/Playwright MCP outside the sandbox:
+  approve **Run outside the sandbox → Run once** for that command, or use a session with `/sandbox off`.
 - Processes from earlier shell calls cannot be inspected or signalled in the
   sandbox; stop background servers in the same call or by port.
 

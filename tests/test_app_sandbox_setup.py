@@ -537,7 +537,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual(0, code, output)
         self.assertIn("When credential masking is OFF", output)
 
-    def test_chrome_for_testing_is_writable_only_when_present(self) -> None:
+    def test_chrome_for_testing_is_not_granted_even_when_present(self) -> None:
         chrome = self.home / "Library/Application Support/Google/Chrome for Testing"
         code, output = self.run_cli("plan", "--json")
         self.assertEqual(0, code, output)
@@ -545,8 +545,50 @@ class AppSandboxSetupTest(unittest.TestCase):
         chrome.mkdir(parents=True)
         code, output = self.run_cli("apply", "--confirm", self.digest())
         self.assertEqual(0, code, output)
-        self.assertIn(str(chrome), self.policies()[0]["readwritePaths"])
+        for field in ("readwritePaths", "readonlyPaths"):
+            self.assertNotIn(str(chrome), self.policies()[0][field])
         self.assertEqual(set(), self.app.APP_CACHE_WRITABLE)
+
+    def test_rerun_retires_chrome_for_testing_grant_and_is_idempotent(self) -> None:
+        chrome = self.home / "Library/Application Support/Google/Chrome for Testing"
+        self.set_policy({
+            "readwritePaths": ["/custom/rw"],
+            "readonlyPaths": ["/custom/ro"],
+            "allowGitCredentials": True,
+            "allowGhCredentials": False,
+            "custom": {"keep": "unchanged"},
+        })
+        code, output = self.run_cli("apply", "--confirm", self.digest())
+        self.assertEqual(0, code, output)
+        expected = self.policies()[0]
+        for present in (False, True):
+            with self.subTest(present=present):
+                if present:
+                    chrome.mkdir(parents=True)
+                old_policy = {**expected, "readwritePaths": [
+                    *expected["readwritePaths"], str(chrome), str(chrome),
+                ]}
+                self.set_policy(old_policy)
+                before = self.db.read_bytes(), self.db.stat().st_mtime_ns
+                code, output = self.run_cli("plan")
+                self.assertEqual(0, code, output)
+                self.assertEqual(before, (self.db.read_bytes(), self.db.stat().st_mtime_ns))
+                warning = next(line for line in output.splitlines()
+                               if "removed retired readwritePaths grant" in line)
+                self.assertIn(self.app.display(str(chrome)), warning)
+                self.assertIn("macOS IPC", warning)
+                self.assertNotIn("session files", warning)
+                self.assertNotIn("--no-docker", warning)
+                self.assertIn(f'- readwritePaths: {self.app.display(str(chrome))}', output)
+                digest = re.search(r"Plan digest: ([0-9a-f]{64})", output).group(1)
+                code, output = self.run_cli("apply", "--confirm", digest)
+                self.assertEqual(0, code, output)
+                self.assertIn("removed retired readwritePaths grant", output)
+                self.assertEqual(expected, self.policies()[0])
+                code, output = self.run_cli("plan")
+                self.assertEqual(0, code, output)
+                self.assertIn("no changes", output)
+                self.assertNotIn("removed retired", output)
 
     def test_jdk_info_uses_direct_filesystem_homes_without_subprocess(self) -> None:
         root = self.home / "Library/Java/JavaVirtualMachines"

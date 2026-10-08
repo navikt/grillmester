@@ -101,13 +101,12 @@ Appen beskytter `~/Library/pnpm` (`PNPM_HOME`) selv om policyen gir readwrite.
 Globale pnpm-installasjoner og lenker feiler i sandboxen; prosjektinstallasjoner
 virker. Granten beholdes.
 
-Playwright/Chromium i sandboxen er en kjent begrensning. Chrome for Testing
-fikk nektet tilgang til Crashpad-mappen; headless shell krasjet uten en konkret
-rettighetsfeil. Vi gir readwrite til
-`~/Library/Application Support/Google/Chrome for Testing` bare når mappen finnes.
-Dette er et avgrenset forsøk som venter på live-verifisering, ikke en bekreftet
-løsning. Browseren kan fortsatt feile; kjør da browser-tester/Playwright MCP
-utenfor sandboxen etter én godkjenning av «Run outside the sandbox → Run once».
+Live-retest bekrefter at Playwright/Chromium ikke kan kjøre i appens sandbox:
+sandboxen nekter nødvendig macOS IPC (Mach bootstrap/crashpad handshake og
+sandbox extensions). Ingen path-grant hjelper; rerun fjerner den tidligere
+readwrite-granten til `~/Library/Application Support/Google/Chrome for Testing`.
+Kjør browser-tester og Playwright MCP utenfor sandboxen: godkjenn
+«Run outside the sandbox → Run once» for kommandoen, eller bruk en økt med `/sandbox off`.
 App-cachene forblir readonly; `APP_CACHE_WRITABLE` er tomt.
 
 Prosesser fra tidligere shell-kall kan ikke inspiseres eller signaliseres
