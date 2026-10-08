@@ -106,7 +106,9 @@ discovery is skipped when those tools are absent.
   sandbox; stop background servers in the same call or by port.
 
 Tool discovery supports different JDK/tool installations without requiring
-mise. Missing tool paths are omitted; missing code paths are skipped except
+mise. Hardening paths are always listed, including those that do not exist yet,
+so sandboxed code cannot create them (for example Gradle init scripts); missing
+tool grants are skipped. Missing code paths are skipped except
 under `/Volumes` (possibly unmounted). New projects start with sandbox off.
 Rerun after adding projects, installing tools **and app updates**, which create
 new version-named cache directories. Reruns are idempotent and remove the old

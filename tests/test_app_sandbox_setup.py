@@ -197,7 +197,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertIn("removed", output)
         self.assertIn(str(self.home / ".gradle"), policy["readwritePaths"])
         self.assertNotIn(str(self.home / ".m2"), policy["readwritePaths"])
-        self.assertIn("skipped (missing; rerun after installing)", output)
+        self.assertIn("Tools not installed (grants skipped; rerun after installing)", output)
         self.assertTrue(policy["allowOutbound"])
         self.assertTrue(policy["allowLocalNetwork"])
         self.assertFalse(policy["allowGitCredentials"])
@@ -638,16 +638,155 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual(1, len(warnings))
         self.assertIn(self.app.display(str(system_home)), warnings[0])
 
-    def test_missing_tool_warning_is_home_relative_and_escaped(self) -> None:
-        with mock.patch.object(self.app, "RW_PATHS", self.app.RW_PATHS + ("missing\n\x1b\x85tool",)):
+    def test_missing_path_warnings_separate_tools_and_hardening_and_escape_paths(self) -> None:
+        (self.home / ".config/git").mkdir(parents=True)
+        with mock.patch.object(self.app, "RW_PATHS", self.app.RW_PATHS + ("missing\n\x1b\x85tool",)), \
+                mock.patch.object(self.app, "HARDENING_READONLY",
+                                  self.app.HARDENING_READONLY + ("missing\n\x1b\x85hardening",)):
             code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
-        missing = next(line for line in output.splitlines() if "Tool paths skipped" in line)
+        tool_lines = [line for line in output.splitlines()
+                      if "Tools not installed (grants skipped; rerun after installing):" in line]
+        hardening_lines = [line for line in output.splitlines()
+                           if "Hardening (always applied, also for paths that do not exist yet):" in line]
+        self.assertEqual(1, len(tool_lines), output)
+        self.assertEqual(1, len(hardening_lines), output)
+        missing, hardening = tool_lines[0], hardening_lines[0]
         self.assertIn('"~/.gradle"', missing)
         self.assertIn('"~/Library/pnpm"', missing)
+        self.assertIn('"~/.sdkman"', missing)
         self.assertIn(r'"~/missing\n\u001b\u0085tool"', missing)
-        self.assertNotIn(str(self.home), missing)
-        self.assertFalse(self.app.has_control(missing))
+        for relative in self.app.HARDENING_READONLY:
+            displayed = self.app.display("~/" + relative)
+            self.assertNotIn(displayed, missing)
+            if relative == ".config/git":
+                self.assertNotIn(displayed, hardening)
+            else:
+                self.assertIn(displayed, hardening)
+        self.assertIn(r'"~/missing\n\u001b\u0085hardening"', hardening)
+        for tool in ('"~/.gradle"', '"~/Library/pnpm"', '"~/.sdkman"',
+                     r'"~/missing\n\u001b\u0085tool"'):
+            self.assertNotIn(tool, hardening)
+        for line in (missing, hardening):
+            self.assertNotIn(str(self.home), line)
+            self.assertFalse(self.app.has_control(line))
+        self.assertNotIn("Tool paths skipped", output)
+
+    def test_missing_hardening_paths_are_readonly_but_missing_tool_grants_are_skipped(self) -> None:
+        hardening = (
+            ".config/git", ".config/fish", ".config/mise", ".config/direnv",
+            ".config/gh/config.yml", ".gradle/init.d", ".gradle/init.gradle",
+            ".gradle/init.gradle.kts", ".gradle/gradle.properties",
+            ".docker/cli-plugins", ".docker/config.json", "Library/Caches/copilot",
+        )
+        for relative in (".gradle", ".config", ".docker", "Library/Caches"):
+            (self.home / relative).mkdir(parents=True)
+        for relative in hardening + (".sdkman",):
+            self.assertFalse((self.home / relative).exists())
+        before = set(self.home.rglob("*"))
+        digest = self.digest()
+        self.assertEqual(before, set(self.home.rglob("*")))
+        code, output = self.run_cli("apply", "--confirm", digest)
+        self.assertEqual(0, code, output)
+        policy = self.policies()[0]
+        for relative in hardening:
+            with self.subTest(relative=relative):
+                self.assertIn(str(self.home / relative), policy["readonlyPaths"])
+                self.assertFalse((self.home / relative).exists())
+        self.assertNotIn(str(self.home / ".sdkman"), policy["readonlyPaths"])
+
+    def test_hardening_warning_is_always_shown_even_when_all_paths_exist(self) -> None:
+        for relative in self.app.HARDENING_READONLY:
+            (self.home / relative).mkdir(parents=True)
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        warnings = json.loads(output)["warnings"]
+        hardening = [warning for warning in warnings if warning.startswith("Hardening (")]
+        self.assertEqual(
+            ["Hardening (always applied, also for paths that do not exist yet): "], hardening,
+        )
+
+    def test_rerun_adds_missing_hardening_to_legacy_policy_and_is_idempotent(self) -> None:
+        for relative in (".gradle", ".config", ".docker", "Library/Caches", ".sdkman"):
+            (self.home / relative).mkdir(parents=True)
+        required = [str(self.home / relative) for relative in self.app.HARDENING_READONLY]
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        diff = json.loads(output)["projects"][0]["diff"]
+        legacy = {field: diff[field]["added"] for field in self.app.PATH_FIELDS}
+        # f4a01c2 omitted all of these missing hardening paths; keep its other grants.
+        legacy["readonlyPaths"] = [path for path in legacy["readonlyPaths"] if path not in required]
+        legacy.update(allowOutbound=True, allowLocalNetwork=True,
+                      allowGitCredentials=True, allowGhCredentials=False,
+                      custom={"keep": "unchanged"})
+        self.set_policy(legacy)
+        with sqlite3.connect(str(self.db)) as connection:
+            connection.execute("UPDATE projects SET sandbox_enabled = 1")
+        before = self.db.read_bytes(), self.db.stat().st_mtime_ns
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        self.assertEqual(before, (self.db.read_bytes(), self.db.stat().st_mtime_ns))
+        plan = json.loads(output)
+        diff = plan["projects"][0]["diff"]
+        self.assertEqual(
+            {field: {"added": required if field == "readonlyPaths" else [], "removed": []}
+             for field in self.app.PATH_FIELDS},
+            diff,
+        )
+        code, output = self.run_cli("apply", "--confirm", plan["digest"])
+        self.assertEqual(0, code, output)
+        expected = {**legacy, "readonlyPaths": legacy["readonlyPaths"] + required}
+        self.assertEqual(expected, self.policies()[0])
+        before = self.db.read_bytes(), self.db.stat().st_mtime_ns
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertIn("no changes", output)
+        self.assertEqual(before, (self.db.read_bytes(), self.db.stat().st_mtime_ns))
+        code, output = self.run_cli("apply", "--confirm", self.digest())
+        self.assertEqual(0, code, output)
+        self.assertEqual(expected, self.policies()[0])
+        self.assertEqual(before, (self.db.read_bytes(), self.db.stat().st_mtime_ns))
+
+    def test_missing_hardening_removes_equal_existing_rw_grants_with_warning(self) -> None:
+        paths = [str(self.home / relative) for relative in self.app.HARDENING_READONLY]
+        self.set_policy({"readwritePaths": paths + ["/custom/rw"]})
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertEqual(paths, plan["projects"][0]["diff"]["readwritePaths"]["removed"])
+        warnings = [warning for warning in plan["warnings"]
+                    if "removed readwritePaths entry equal to denied/readonly path" in warning]
+        self.assertEqual(len(paths), len(warnings))
+        for path, warning in zip(paths, warnings):
+            self.assertIn(self.app.display(path), warning)
+        code, output = self.run_cli("apply", "--confirm", plan["digest"])
+        self.assertEqual(0, code, output)
+        policy = self.policies()[0]
+        self.assertIn("/custom/rw", policy["readwritePaths"])
+        for path in paths:
+            self.assertNotIn(path, policy["readwritePaths"])
+            self.assertIn(path, policy["readonlyPaths"])
+
+    def test_no_docker_omits_hardening_paths_and_missing_hardening_warning_members(self) -> None:
+        code, output = self.run_cli("plan", "--no-docker", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        hardening = next(warning for warning in plan["warnings"] if warning.startswith("Hardening ("))
+        tools = next(warning for warning in plan["warnings"] if warning.startswith("Tools not installed"))
+        for relative in self.app.HARDENING_READONLY:
+            path = str(self.home / relative)
+            displayed = self.app.display("~/" + relative)
+            if relative.startswith(".docker/"):
+                self.assertNotIn(path, plan["projects"][0]["diff"]["readonlyPaths"]["added"])
+                self.assertNotIn(displayed, hardening)
+            else:
+                self.assertIn(path, plan["projects"][0]["diff"]["readonlyPaths"]["added"])
+                self.assertIn(displayed, hardening)
+            self.assertNotIn(displayed, tools)
+        code, output = self.run_cli("apply", "--no-docker", "--confirm", plan["digest"])
+        self.assertEqual(0, code, output)
+        self.assertFalse(any(path.startswith(str(self.home / ".docker") + "/")
+                             for path in self.policies()[0]["readonlyPaths"]))
 
     def test_hardening_retires_old_session_grant_and_discovers_app_caches(self) -> None:
         relatives = (
@@ -685,7 +824,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual(0, code, output)
         self.assertIn("no changes", output)
 
-    def test_copilot_cache_root_requires_directory_and_is_readonly_probe_target(self) -> None:
+    def test_copilot_cache_root_is_always_readonly_but_probe_requires_directory(self) -> None:
         copilot = self.home / "Library/Caches/copilot"
         copilot.parent.mkdir(parents=True)
         for state in ("missing", "file", "directory"):
@@ -698,7 +837,8 @@ class AppSandboxSetupTest(unittest.TestCase):
                 code, output = self.run_cli("plan", "--json")
                 self.assertEqual(0, code, output)
                 added = json.loads(output)["projects"][0]["diff"]["readonlyPaths"]["added"]
-                self.assertEqual(state == "directory", str(copilot) in added)
+                self.assertIn(str(copilot), added)
+                self.assertEqual(state == "directory", copilot in self.app.hardened_cache_paths(self.home))
         code, repeated = self.run_cli("plan", "--json")
         self.assertEqual(0, code, repeated)
         self.assertEqual(output, repeated)

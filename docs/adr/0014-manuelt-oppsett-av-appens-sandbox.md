@@ -45,6 +45,9 @@ andre prosjekter. JDK-/verktøyoppsett oppdages uten krav om mise.
 
 Readonly hardening av app-eide cacher, git-/shell-/tool-konfigurasjon og
 Gradle init-filer stenger de verste «plant nå, kjør usandboxet senere»-rutene.
+Hardening-stier listes alltid, også når de ikke finnes ennå, slik at sandboxet
+kode ikke kan opprette dem (for eksempel Gradle init-script); verktøygrants
+hoppes over når stiene mangler.
 Smalere readonly vinner over bredere readwrite. Tool-installasjoner forblir
 skrivbare. `~/.copilot/session-state` gis **ikke lenger** readwrite; rerun
 fjerner den gamle granten, og appen gir nødvendig tilgang til egen økt.

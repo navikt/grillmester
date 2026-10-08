@@ -32,13 +32,16 @@ RW_PATHS = (
 RO_PATHS = (
     ".copilot/installed-plugins", ".copilot/agents", ".copilot/extensions",
     ".copilot/marketplace-cache", ".agents", ".claude/skills", ".gitconfig",
-    ".config/git", ".config/fish", ".config/mise", ".config/gh/config.yml",
-    ".gradle/init.d", ".gradle/init.gradle", ".gradle/init.gradle.kts",
-    ".gradle/gradle.properties", ".docker/cli-plugins",
     "Library/Java/JavaVirtualMachines", "/Library/Java/JavaVirtualMachines",
     ".sdkman", ".asdf", ".jenv", ".volta", ".pyenv", ".rustup", ".local/bin",
     "Library/Application Support/fnm", ".npmrc", ".yarnrc.yml",
-    ".config/gh/hosts.yml", ".docker/config.json",
+    ".config/gh/hosts.yml",
+)
+HARDENING_READONLY = (
+    ".config/git", ".config/fish", ".config/mise", ".config/direnv",
+    ".config/gh/config.yml", ".gradle/init.d", ".gradle/init.gradle",
+    ".gradle/init.gradle.kts", ".gradle/gradle.properties",
+    ".docker/cli-plugins", ".docker/config.json", "Library/Caches/copilot",
 )
 DOCKER_PATHS = (".docker", ".rd", ".colima", ".orbstack", ".lima", ".testcontainers.properties")
 APP_CACHE_WRITABLE: set[str] = set()
@@ -479,11 +482,24 @@ def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
                 grants[field].append(path)
             else:
                 missing.append(display(home_relative(Path(path), home)))
+    # Missing hardening paths sit under writable parents: list them to block creation.
+    # App enforcement for not-yet-existing readonly paths awaits live verification;
+    # a deny fallback for Gradle init paths may follow.
+    missing_hardening = []
+    for relative in HARDENING_READONLY:
+        path = home / relative
+        if no_docker and any(under(path, Path(parent)) for parent in docker):
+            continue
+        grants["readonlyPaths"].append(str(path))
+        if not path.exists():
+            missing_hardening.append(display(home_relative(path, home)))
     if not no_docker:
         grants["readwritePaths"] += [path for path in docker if Path(path).exists()
                                     and path not in grants["readwritePaths"]]
     if missing:
-        warnings.append("Tool paths skipped (missing; rerun after installing): " + ", ".join(missing))
+        warnings.append("Tools not installed (grants skipped; rerun after installing): " + ", ".join(missing))
+    warnings.append("Hardening (always applied, also for paths that do not exist yet): "
+                    + ", ".join(missing_hardening))
     grants["deniedPaths"] = [str(home / relative) for relative in DENIED_PATHS]
     grants["readonlyPaths"] += [str(path) for path in hardened_cache_paths(home)]
     # Narrower rw under broader ro has not yet been verified live.
@@ -883,6 +899,7 @@ def behavioral_probes(home: Path, db: Path) -> dict[str, str]:
     cache = next((path for path in (home / ".gradle", home / ".m2", home / "Library/Caches", Path("/tmp"))
                   if path.is_dir()), None)
     hardened = next((path for path in [home / ".config/git", *hardened_cache_paths(home),
+                                       *(home / relative for relative in HARDENING_READONLY),
                                        *(home / relative for relative in RO_PATHS)]
                      if under(path, home) and path.is_dir()), None)
     return {
