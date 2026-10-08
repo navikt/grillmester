@@ -602,6 +602,19 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
     owned_paths = {path for paths in grants.values() for path in paths} | set(roots)
     owned_paths.update(str(home / path) for path in RW_PATHS + RO_PATHS if Path(path).is_absolute())
     denied = grants["deniedPaths"]
+    missing_denies = [
+        display(home_relative(home / path, home))
+        for path in DENIED_PATHS if str(home / path) not in denied
+    ]
+    if missing_denies:
+        warnings.append(
+            "Missing/non-qualifying secret paths (deny entries skipped or removed): "
+            + ", ".join(missing_denies)
+            + ". The sandbox cannot read $HOME by default; these paths are only readable "
+            "if you added a broader grant. Rerun after first creating or logging in to "
+            "these credential paths (including MCP OAuth at ~/.copilot/mcp-oauth-config) "
+            "so denies are added as defense in depth."
+        )
     changes = []
     skipped = []
     for row in projects:

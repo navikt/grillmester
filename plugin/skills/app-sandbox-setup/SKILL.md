@@ -98,6 +98,8 @@ discovery is skipped when those tools are absent.
   The backup directory is always denied and never removed. `data.db-wal`
   and `data.db-shm` are no longer denied: `~/.copilot` is already unreadable,
   and deny placeholders could break the app's SQLite WAL.
+  Policies are merged: user entries kept, except entries identical to our deny
+  paths that no longer qualify.
 - A sandboxed Gradle client can reuse an **unsandboxed daemon** started by
   IntelliJ/a terminal, running the build outside the sandbox. Successful
   builds alone do not prove sandbox enforcement.
@@ -122,7 +124,10 @@ Tool discovery supports different JDK/tool installations without requiring
 mise. Missing tool grants are skipped. Missing code paths are skipped except
 under `/Volumes` (possibly unmounted). New projects start with sandbox off.
 Rerun after adding projects, installing tools **and app updates**, which create
-new version-named cache directories. Reruns are idempotent and remove the old
+new version-named cache directories, and after first creating or logging in to
+credential folders such as ~/.aws, ~/.ssh, ~/.gnupg, ~/.kube, ~/.azure, ~/.netrc
+or MCP OAuth; until then they are not denied, but they are only readable if you
+added a broader grant. Reruns are idempotent and remove the old
 `~/.copilot/session-state` rw grant; the app supplies its own session access.
 `--home PATH` and `--db PATH` support isolated fixtures.
 

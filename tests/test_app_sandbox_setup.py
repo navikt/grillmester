@@ -226,6 +226,47 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertIn("no changes", output)
         self.assertNotIn("removed retired", output)
 
+    def test_missing_secret_paths_have_one_home_relative_explanation(self) -> None:
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        explanations = [
+            warning for warning in plan["warnings"]
+            if warning.startswith("Missing/non-qualifying secret paths")
+        ]
+        self.assertEqual(1, len(explanations))
+        explanation = explanations[0]
+        for relative in (".aws", ".ssh", ".gnupg", ".kube", ".azure", ".netrc",
+                         ".copilot/mcp-oauth-config"):
+            self.assertIn(self.app.display("~/" + relative), explanation)
+        self.assertNotIn(str(self.home), explanation)
+        self.assertNotIn(self.app.display("~/.copilot/data.db"), explanation)
+        self.assertNotIn(self.app.display("~/.copilot/app-sandbox-setup-backups"), explanation)
+        for text in ("cannot read $HOME by default", "only readable if you added a broader grant",
+                     "Rerun after first creating or logging in", "MCP OAuth", "defense in depth"):
+            self.assertIn(text, explanation)
+        self.assertEqual(1, output.count("cannot read $HOME by default"))
+
+    def test_missing_secret_path_explanation_is_once_per_plan_with_multiple_projects(self) -> None:
+        with sqlite3.connect(str(self.db)) as connection:
+            connection.executemany(
+                "INSERT INTO projects(id, name, main_repo_path) VALUES (?, ?, ?)",
+                [(f"p{index}", f"example-{index}", str(self.home / f"code/repository-{index}"))
+                 for index in (2, 3)],
+            )
+            connection.executemany(
+                "INSERT INTO project_sandbox_policies VALUES (?, ?)",
+                [(f"p{index}", json.dumps({"deniedPaths": [str(self.home / ".aws")]}))
+                 for index in (1, 2, 3)],
+            )
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertEqual(3, output.count("Project:"))
+        self.assertEqual(1, output.count("Missing/non-qualifying secret paths"))
+        self.assertEqual(1, output.count("cannot read $HOME by default"))
+        self.assertEqual(1, output.count("defense in depth"))
+        self.assertEqual(3, output.count("removed retired deniedPaths grant"))
+
     def test_plan_digest_binds_placeholder_repairs_and_apply_removes_them(self) -> None:
         (self.home / ".config").mkdir()
         (self.home / ".config/op").mkdir()

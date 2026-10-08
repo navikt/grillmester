@@ -46,8 +46,7 @@ andre prosjekter. JDK-/verktøyoppsett oppdages uten krav om mise.
 Readonly hardening av app-eide cacher, git-/shell-/tool-konfigurasjon og
 Gradle init-filer stenger de verste «plant nå, kjør usandboxet senere»-rutene.
 Hardening-stier listes alltid, også når de ikke finnes ennå, men readonly
-gjelder først når stien finnes; verktøygrants
-hoppes over når stiene mangler.
+gjelder først når stien finnes; verktøygrants hoppes over når stiene mangler.
 Smalere readonly vinner over bredere readwrite. Tool-installasjoner forblir
 skrivbare. `~/.copilot/session-state` gis **ikke lenger** readwrite; rerun
 fjerner den gamle granten, og appen gir nødvendig tilgang til egen økt.
@@ -61,7 +60,8 @@ touch, mkdir, symlink, hardlink og rename; readonly håndheves først når stien
 finnes i senere kommandoer. Manglende deny-stier håndheves ved at appen lager
 tomme placeholder-mapper som blir liggende, også ved filstier; dette kan
 ødelegge blant annet netrc/Copilot-konfig og gi GPG-permisjonsvarsler.
-`$HOME` er ikke skrivbar, og `~/.copilot` er verken lesbar eller skrivbar
+Sandboxen har som standard ikke lesetilgang til `$HOME`, som heller ikke er
+skrivbar, og `~/.copilot` er verken lesbar eller skrivbar
 utenom appens egne grants til øktfiler, logger, agenter, extensions,
 installed-plugins og marketplace-cache. Beslutning B er å beholde manglende
 hardening-stier som readonly uten forhåndsoppretting; opprettelse er akseptert
@@ -72,6 +72,13 @@ direkte under HOME/`~/.copilot` fjernes etter bekreftet plan med `rmdir`
 etter policy-commit. Backup-mappen er alltid nektet og unntatt fra fjerning.
 `data.db-wal` og `data.db-shm` nektes ikke lenger fordi `~/.copilot` allerede
 er ulesbar i sandboxen og deny-placeholdere kan ødelegge appens SQLite WAL.
+
+Kjør skillen på nytt etter første opprettelse eller innlogging i credential-stier
+som `~/.aws`, `~/.ssh`, `~/.gnupg`, `~/.kube`, `~/.azure`, `~/.netrc` eller
+MCP OAuth (`~/.copilot/mcp-oauth-config`), slik at deny legges til som et ekstra
+sikkerhetslag. Frem til da nektes ikke disse stiene, men de er bare lesbare hvis
+brukeren har lagt til en bredere grant. Brukeroppføringer beholdes, bortsett fra
+oppføringer som er identiske med våre deny-stier og ikke lenger kvalifiserer.
 
 Backuper ligger i en nektet mappe med 0700/0600-rettigheter. Planen skriver
 ikke policyer; lesekommandoer bruker mode=rw med query_only for lukkede WAL-DB-er.
