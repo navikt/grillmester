@@ -72,13 +72,17 @@ def session_path(home, env=None, runner=None):
     return None, warning
 
 
+def mise_data_dir(home, env=None):
+    env = os.environ if env is None else env
+    return Path(env.get("MISE_DATA_DIR") or (
+        str(Path(env["XDG_DATA_HOME"]) / "mise") if env.get("XDG_DATA_HOME")
+        else str(home / ".local/share/mise")))
+
+
 def jdks(home, env=None):
     env = os.environ if env is None else env
-    mise = env.get("MISE_DATA_DIR") or (
-        str(Path(env["XDG_DATA_HOME"]) / "mise") if env.get("XDG_DATA_HOME")
-        else str(home / ".local/share/mise"))
     candidates = []
-    for root, pattern in ((Path(mise) / "installs/java", "*"),
+    for root, pattern in ((mise_data_dir(home, env) / "installs/java", "*"),
                           (home / "Library/Java/JavaVirtualMachines", "*/Contents/Home"),
                           (SYSTEM_JDK_ROOT, "*/Contents/Home"),
                           (Path(env.get("ASDF_DATA_DIR") or str(home / ".asdf")) / "installs/java", "*"),
@@ -105,7 +109,11 @@ def validated_jdk(candidate):
                           re.MULTILINE)
         version = toolchain.major(match[1]) if match else ""
         if version and (candidate / "bin/java").is_file() and os.access(str(candidate / "bin/java"), os.X_OK):
-            return {"home": str(candidate), "major": version}
+            numeric = re.search(r"(?:^|[-@])v?(\d+(?:[._+]\d+)*)", match[1].strip())
+            parts = re.findall(r"\d+", numeric[1]) if numeric else [version]
+            if len(parts) > 1 and parts[0] == "1":
+                parts = parts[1:]
+            return {"home": str(candidate), "major": version, "version": ".".join(parts)}
     except (OSError, UnicodeError, RuntimeError):
         pass
     return None

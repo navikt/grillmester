@@ -58,11 +58,24 @@ Appen må avsluttes og startes helt på nytt; `/restart-session` er ikke nok.
 
 `gradle-toolchains plan|apply|remove` har separat bekreftelse. Reparasjon krever
 en Gradle toolchain-pin og en validert JDK med riktig major som ikke allerede
-oppdages. Primærkildene fra Gradle 9.8.0, kontrollert 2026-10-09, viser
-asdf- og SDKMAN!-suppliers, men ingen mise-supplier. macOS-supplieren bruker
-`java_home -V`, som ikke fungerer i sandboxen; også standard macOS-JDK-er
-trenger dermed eksplisitte stier her. Matching `JAVA_HOME` eller JDK i
-asdf/SDKMAN!-katalogen trenger ingen reparasjon. Vi merger bare nødvendige
+oppdages. Vi bruker samme per-project beslutning som instructions:
+`mise exec` starter prosjektets pinnede Java, mens `JAVA_HOME=<home>` starter
+den validerte JDK-en. Når ønsket toolchain-major matcher denne JVM-en,
+trengs ingen reparasjon: `CurrentInstallationSupplier` oppdager JVM-en som
+kjører Gradle, og `EnvironmentVariableJavaHomeInstallationSupplier` håndterer
+`JAVA_HOME`. Uten en Java-beslutning er manglende oppdagelse ikke bevist;
+vi foreslår da ingen automatisk reparasjon.
+
+Bare forskjellige majorer kan gi en reparasjonskandidat, eksempelvis mise
+Java 25 med `jvmToolchain(21)`. En validert JDK med ønsket major må finnes
+utenfor asdf/SDKMAN! og ikke allerede være konfigurert. Vi prioriterer mise
+installs, deretter brukerens Library og systemets Library, med høyeste
+versjon innen samme major i hver katalog. Plan forklarer resultatet per prosjekt.
+Primærkildene fra Gradle 9.8.0, kontrollert 2026-10-09, viser ingen
+mise-supplier, og macOS-supplieren bruker sandbox-utilgjengelig `java_home -V`.
+Disse katalogfaktaene alene beviser likevel ikke behov for reparasjon.
+JDK-er som allerede oppdages via asdf/SDKMAN!, trenger ingen reparasjon.
+Vi merger bare nødvendige
 JDK-hjem i `org.gradle.java.installations.paths`, bevarer øvrige linjer og
 kommentarer, og merker stiene vi selv la til for selektiv fjerning.
 Dette gir ikke Gradle-wrapperen en Java å starte med; instructions gjør det.

@@ -13,8 +13,136 @@ class GradleTest(unittest.TestCase):
     run_cli = profile_fixtures.ProfileTest.run_cli
     jdk = profile_fixtures.ProfileTest.jdk
 
+    def test_mise_launcher_matching_toolchain_needs_no_repair(self):
+        repo = self.home / "code/repository"
+        (repo / ".mise.toml").write_text('[tools]\njava = "25"\n')
+        (repo / "build.gradle.kts").write_text("jvmToolchain(25)")
+        self.jdk("25", ".local/share/mise/installs/java/25")
+        code, output = self.run_cli("gradle-toolchains", "plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertFalse(plan["repair_needed"])
+        self.assertFalse(plan["changed"])
+        self.assertEqual([], plan["added"])
+        self.assertFalse((self.home / ".gradle").exists())
+        code, output = self.run_cli("gradle-toolchains", "plan")
+        self.assertEqual(0, code, output)
+        self.assertIn("example", output)
+        self.assertIn("launching JVM", output)
+        self.assertIn("no repair needed", output)
+
+    def test_java_home_launcher_matching_toolchain_needs_no_repair(self):
+        repo = self.home / "code/repository"
+        (repo / ".java-version").write_text("25")
+        (repo / "build.gradle.kts").write_text("jvmToolchain(25)")
+        self.jdk("25", "Library/Java/JavaVirtualMachines/25/Contents/Home")
+        code, output = self.run_cli("gradle-toolchains", "plan", "--json", managers={})
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertFalse(plan["repair_needed"])
+        self.assertFalse(plan["changed"])
+        self.assertIn("JAVA_HOME", plan["projects"][0]["reason"])
+        self.assertIn("launching JVM", plan["projects"][0]["reason"])
+        self.assertFalse((self.home / ".gradle").exists())
+
+    def test_without_a_java_instruction_decision_discovery_missing_is_not_proven(self):
+        repo = self.home / "code/repository"
+        (repo / ".java-version").write_text("25")
+        (repo / "build.gradle.kts").write_text("jvmToolchain(21)")
+        self.jdk("21", ".local/share/mise/installs/java/21")
+        code, output = self.run_cli("gradle-toolchains", "plan", "--json", managers={})
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertFalse(plan["repair_needed"])
+        self.assertFalse(plan["changed"])
+        self.assertIn("no per-project Java instruction decision", plan["projects"][0]["reason"])
+        code, output = self.run_cli("gradle-toolchains", "apply",
+                                    "--confirm", plan["digest"], managers={})
+        self.assertEqual(0, code, output)
+        self.assertFalse((self.home / ".gradle").exists())
+        self.assertFalse((self.home / ".copilot/app-sandbox-setup-backups").exists())
+
+    def test_mise_launcher_differing_from_toolchain_repairs_requested_major(self):
+        repo = self.home / "code/repository"
+        (repo / ".mise.toml").write_text('[tools]\njava = "25"\n')
+        (repo / "build.gradle.kts").write_text("jvmToolchain(21)")
+        self.jdk("25", ".local/share/mise/installs/java/25")
+        requested = self.jdk("21", ".local/share/mise/installs/java/21")
+        code, output = self.run_cli("gradle-toolchains", "plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertEqual([str(requested)], plan["added"])
+        project = plan["projects"][0]
+        self.assertEqual("25", project["launching_major"])
+        self.assertEqual("21", project["requested_major"])
+        self.assertTrue(project["repair_needed"])
+        self.assertIn("differs", project["reason"])
+        # Ambient JAVA_HOME is not the command-local environment of mise exec.
+        code, output = self.run_cli("gradle-toolchains", "plan", "--json",
+                                    environment={"JAVA_HOME": str(requested)})
+        self.assertEqual(0, code, output)
+        self.assertEqual([str(requested)], json.loads(output)["added"])
+        (repo / ".mise.toml").write_text('[tools]\njava = "17"\n')
+        code, output = self.run_cli("gradle-toolchains", "apply", "--confirm", plan["digest"])
+        self.assertEqual(4, code, output)
+        self.assertFalse((self.home / ".gradle").exists())
+
+    def test_requested_jdk_selection_prefers_roots_then_numeric_version(self):
+        from app_sandbox import toolchain_discovery
+        repo = self.home / "code/repository"
+        (repo / ".mise.toml").write_text('[tools]\njava = "25"\n')
+        (repo / "build.gradle.kts").write_text("jvmToolchain(21)")
+        self.jdk("25", ".local/share/mise/installs/java/25")
+        older = self.jdk("21", ".local/share/mise/installs/java/temurin-21.0.9")
+        newer = self.jdk("21", ".local/share/mise/installs/java/temurin-21.0.10")
+        user = self.jdk("21", "Library/Java/JavaVirtualMachines/21/Contents/Home")
+        system = toolchain_discovery.SYSTEM_JDK_ROOT / "21/Contents/Home"
+        (system / "bin").mkdir(parents=True)
+        (system / "bin/java").touch()
+        (system / "bin/java").chmod(0o700)
+        for path, version in ((older, "21.0.9+99"), (newer, "21.0.10+7"),
+                              (user, "21.0.99+100"), (system, "21.0.999+100")):
+            (path / "release").write_text('JAVA_VERSION="' + version + '"\n')
+        for expected, remove in ((newer, (newer, older)), (user, (user,)), (system, ())):
+            code, output = self.run_cli("gradle-toolchains", "plan", "--json")
+            self.assertEqual(0, code, output)
+            plan = json.loads(output)
+            self.assertEqual([str(expected)], plan["added"])
+            code, output = self.run_cli("gradle-toolchains", "plan", "--json")
+            self.assertEqual(0, code, output)
+            self.assertEqual(plan["digest"], json.loads(output)["digest"])
+            if expected == newer:
+                (newer / "release").write_text('JAVA_VERSION="21.0.10+8"\n')
+                code, output = self.run_cli("gradle-toolchains", "apply", "--confirm", plan["digest"])
+                self.assertEqual(4, code, output)
+                self.assertFalse((self.home / ".gradle").exists())
+            for path in remove:
+                (path / "release").unlink()
+
+    def test_existing_matching_paths_prevent_unnecessary_repair_even_with_a_preferred_jdk(self):
+        repo = self.home / "code/repository"
+        (repo / ".mise.toml").write_text('[tools]\njava = "25"\n')
+        (repo / "build.gradle.kts").write_text("jvmToolchain(21)")
+        existing = self.jdk("21", "Library/Java/JavaVirtualMachines/21/Contents/Home")
+        self.jdk("21", ".local/share/mise/installs/java/21")
+        properties = self.home / ".gradle/gradle.properties"
+        properties.parent.mkdir()
+        original = "# keep\norg.gradle.java.installations.paths=" + str(existing) + "\n"
+        properties.write_text(original)
+        code, output = self.run_cli("gradle-toolchains", "plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertFalse(plan["changed"])
+        self.assertFalse(plan["repair_needed"])
+        self.assertIn("already configured", plan["projects"][0]["reason"])
+        code, output = self.run_cli("gradle-toolchains", "apply", "--confirm", plan["digest"])
+        self.assertEqual(0, code, output)
+        self.assertEqual(original, properties.read_text())
+        self.assertFalse((self.home / ".copilot/app-sandbox-setup-backups").exists())
+
     def test_configured_mise_root_and_sdkman_symlink_are_discovered(self):
         repo = self.home / "code/repository"
+        (repo / ".mise.toml").write_text('[tools]\njava = "21"\n')
         (repo / "build.gradle.kts").write_text("jvmToolchain(25)")
         path = self.jdk("25", "configured-mise/installs/java/25")
         env = {"MISE_DATA_DIR": str(self.home / "configured-mise")}
@@ -30,6 +158,7 @@ class GradleTest(unittest.TestCase):
 
     def test_repair_only_with_gradle_pin_and_matching_non_detected_jdk(self):
         repo = self.home / "code/repository"
+        (repo / ".mise.toml").write_text('[tools]\njava = "21"\n')
         for relative, expected in ((".sdkman/candidates/java/25", False),
                                    (".asdf/installs/java/25", False),
                                    ("Library/Java/JavaVirtualMachines/25/Contents/Home", True),
@@ -59,11 +188,13 @@ class GradleTest(unittest.TestCase):
         self.assertEqual(0, code, output)
         self.assertIn("no repair needed", output)
         (repo / "build.gradle.kts").write_text("jvmToolchain(25)")
+        (repo / ".mise.toml").unlink()
         code, output = self.run_cli("gradle-toolchains", "plan", environment={"JAVA_HOME": str(path)})
         self.assertEqual(0, code, output)
         self.assertIn("no repair needed", output)
 
     def test_existing_paths_are_not_owned_and_concurrent_edits_invalidate_digest(self):
+        (self.home / "code/repository/.mise.toml").write_text('[tools]\njava = "21"\n')
         path = self.jdk("25", ".local/share/mise/installs/java/25")
         (self.home / "code/repository/build.gradle").write_text("jvmToolchain(25)")
         file = self.home / ".gradle/gradle.properties"
@@ -117,6 +248,7 @@ class GradleTest(unittest.TestCase):
         self.assertEqual("fixture untouched", target.read_text())
 
     def test_mise_jdk_needs_repair_merges_and_removes_only_ours(self):
+        (self.home / "code/repository/.mise.toml").write_text('[tools]\njava = "21"\n')
         jdk = self.jdk("25", ".local/share/mise/installs/java/25")
         (self.home / "code/repository/build.gradle.kts").write_text("jvmToolchain(25)")
         properties = self.home / ".gradle/gradle.properties"

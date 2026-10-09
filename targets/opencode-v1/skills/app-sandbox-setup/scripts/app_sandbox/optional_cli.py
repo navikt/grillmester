@@ -182,6 +182,9 @@ def run(argv):
             for key in ("added", "removed"):
                 for item in public.get(key, []):
                     print(key + ": " + display(item))
+            for project in public.get("projects", []):
+                print("Project: " + display(project["name"]))
+                print("  " + project["reason"])
             if args.group == "gradle-toolchains" and not public["repair_needed"] and args.action != "remove":
                 print("no repair needed")
             for warning in public["warnings"]:

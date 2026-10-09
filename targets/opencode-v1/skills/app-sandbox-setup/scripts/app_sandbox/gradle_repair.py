@@ -6,12 +6,13 @@ import os
 import re
 from pathlib import Path
 
-from . import profile_store, store, toolchain_discovery
+from . import profile_store, store, toolchain, toolchain_discovery
 from .paths import SetupError, canonical, has_control
 
 KEY = "org.gradle.java.installations.paths"
 MARKER = "# app-sandbox-setup:gradle-toolchains "
 NOTE = "This does NOT give the wrapper a java to start with. Per-project instructions handle that."
+PATHS_PROPERTY = re.compile(r"^([ \t]*" + re.escape(KEY) + r"[ \t]*(?:[=:][ \t]*|[ \t]+))(.*?)(\r?\n)?$")
 
 
 def auto_detected(path, home, env):
@@ -25,20 +26,73 @@ def auto_detected(path, home, env):
         child.resolve() == candidate for child in root.glob("*")) for root in roots)
 
 
-def needed(connection, home, env):
+def preferred_jdk(matches, home, env):
+    roots = ((toolchain_discovery.mise_data_dir(home, env) / "installs/java", "*"),
+             (home / "Library/Java/JavaVirtualMachines", "*/Contents/Home"),
+             (toolchain_discovery.SYSTEM_JDK_ROOT, "*/Contents/Home"))
+    # Include canonical identities of aliases without relying on glob order.
+    locations = [{str(path.resolve()) for path in root.glob(pattern)} for root, pattern in roots]
+
+    def priority(jdk):
+        candidate = Path(jdk["home"])
+        return next((index for index, (root, _) in enumerate(roots)
+                     if root.resolve() in candidate.parents or str(candidate) in locations[index]), len(roots))
+
+    preferred = min(priority(jdk) for jdk in matches)
+    candidates = [jdk for jdk in matches if priority(jdk) == preferred]
+    return max(candidates, key=lambda jdk: (
+        tuple(int(part) for part in jdk.get("version", jdk["major"]).split(".")), jdk["home"]))
+
+
+def project_decision(observation, home, env, configured=()):
+    """Reuse the instructions decision; never infer the launcher from locations."""
+    pin = observation.get("gradle_pin")
+    decision = next((item for item in toolchain.decide(observation) if item["tool"] == "java"
+                     and item["command"]), None)
+    launching = decision["pin"]["major"] if decision else None
+    requested = pin["major"] if pin else None
+    result = {"pin": pin, "decision": decision, "requested_major": requested,
+              "launching_major": launching, "launcher": decision["command"] if decision else None,
+              "jdk": None, "repair_needed": False}
+    if not pin:
+        reason = "No Gradle toolchain pin; no repair needed."
+    elif not decision:
+        reason = "Discovery missing is not proven: no per-project Java instruction decision; no repair needed."
+    elif requested == launching:
+        reason = (f'Requested Java {requested} matches the {decision["command"]} launching JVM; '
+                  "Gradle auto-detects its current installation/JAVA_HOME; no repair needed.")
+    else:
+        matches = [jdk for jdk in observation["jdks"] if jdk["major"] == requested]
+        # Command-local JAVA_HOME/mise replaces ambient launcher assumptions.
+        runtime_env = {**env, "JAVA_HOME": decision.get("home") or ""}
+        prefix = f"Requested Java {requested} differs from the launching JVM Java {launching}; "
+        if not matches:
+            reason = prefix + "no validated matching JDK; install outside the sandbox, no automatic repair."
+        elif any(jdk["home"] in configured for jdk in matches):
+            reason = prefix + "a validated matching JDK is already configured in installations.paths; no repair needed."
+        elif any(auto_detected(jdk["home"], home, runtime_env) for jdk in matches):
+            reason = prefix + "a matching JDK is auto-detected via asdf/SDKMAN!; no repair needed."
+        else:
+            selected = preferred_jdk(matches, home, env)
+            result.update(jdk=selected["home"], selected_jdk=selected, repair_needed=True)
+            reason = prefix + "the validated matching JDK is outside auto-detected locations; repair needed."
+    result["reason"] = reason
+    return result
+
+
+def needed(connection, home, env, configured=()):
     paths, evidence = [], []
     for row in store.project_rows(connection):
         raw = row["main_repo_path"]
         if not isinstance(raw, str) or not Path(raw).is_absolute() or has_control(raw):
-            continue
-        observation = toolchain_discovery.observe(Path(raw), home, capture_session=False)
-        pin = observation.get("gradle_pin")
-        matches = [jdk for jdk in observation["jdks"] if pin and jdk["major"] == pin["major"]]
-        detected = any(auto_detected(jdk["home"], home, env) for jdk in matches)
-        chosen = matches[0]["home"] if matches and not detected else None
-        evidence.append({"id": row["id"], "pin": pin, "jdk": chosen, "detected": detected})
-        if chosen:
-            paths.append(chosen)
+            result = {"repair_needed": False, "jdk": None,
+                      "reason": "Project path unavailable; discovery missing is not proven, no repair needed."}
+        else:
+            observation = toolchain_discovery.observe(Path(raw), home, capture_session=False)
+            result = project_decision(observation, home, env, configured)
+        evidence.append({"id": row["id"], "name": row["name"], **result})
+        if result["jdk"]:
+            paths.append(result["jdk"])
     return list(dict.fromkeys(paths)), evidence
 
 
@@ -57,13 +111,26 @@ def escape(value):
     return "".join("\\" + char if char in "\\ :=#!" else char for char in value)
 
 
+def configured_paths(text):
+    # Reuse all existing duplicate/continuation/marker checks before discovery.
+    merge(text, [], False)
+    paths = []
+    for line in text.splitlines(keepends=True):
+        match = PATHS_PROPERTY.fullmatch(line)
+        if match:
+            for token in match[2].split(","):
+                value = unescape(token.strip())
+                if Path(value).is_absolute() and not has_control(value):
+                    paths.append(str(Path(value).resolve()))
+    return paths
+
+
 def merge(text, paths, remove=False):
     lines = text.splitlines(keepends=True)
     properties, markers = [], []
     continued = False
-    pattern = re.compile(r"^([ \t]*" + re.escape(KEY) + r"[ \t]*(?:[=:][ \t]*|[ \t]+))(.*?)(\r?\n)?$")
     for index, line in enumerate(lines):
-        match = pattern.fullmatch(line)
+        match = PATHS_PROPERTY.fullmatch(line)
         marker = line.lstrip().startswith("# app-sandbox-setup:gradle-toolchains")
         if continued and (match or marker):
             raise SetupError(1, "Managed Gradle line is inside a continued property; use manual instructions.")
@@ -124,11 +191,15 @@ def merge(text, paths, remove=False):
 def plan(args, home, connection):
     path = home / ".gradle/gradle.properties"
     state = profile_store.snapshot(path)
-    paths, evidence = needed(connection, home, os.environ) if args.action != "remove" else ([], [])
+    paths, evidence = (needed(connection, home, os.environ, configured_paths(state["text"]))
+                       if args.action != "remove" else ([], []))
     text, added, removed = merge(state["text"], paths, args.action == "remove")
     public = {"operation": "gradle-toolchains " + ("remove" if args.action == "remove" else "apply"),
               "target": str(path), "added": added, "removed": removed, "warnings": [NOTE],
               "changed": text != state["text"], "repair_needed": bool(paths)}
+    public["projects"] = [{key: value for key, value in item.items()
+                           if key not in ("id", "pin", "decision", "selected_jdk")}
+                          for item in evidence]
     public["digest"] = hashlib.sha256(canonical({
         "public": public, "file": profile_store.fingerprint(state), "evidence": evidence,
     }).encode()).hexdigest()

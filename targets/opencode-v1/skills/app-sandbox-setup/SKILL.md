@@ -147,11 +147,18 @@ plan/apply in the same shell/toolchain environment to drop its conditional rule.
 
 Use `gradle-toolchains plan`, then separately confirm
 `gradle-toolchains apply --confirm <digest>` when a Gradle toolchain pin has
-a validated matching JDK that Gradle cannot discover in the sandbox. Gradle's
-asdf/SDKMAN! locations and an existing matching `JAVA_HOME` need no repair.
-mise installs do: Gradle has no mise supplier. macOS standard JDK locations
-also need explicit paths because sandboxed `java_home` cannot discover them.
-This follows the reviewed Gradle 9.8.0 suppliers, not a claim of mise support.
+a validated matching JDK that Gradle cannot discover in the sandbox. Reuse the
+per-project instructions decision: `mise exec` launches the project's pinned
+Java; a command-local `JAVA_HOME` launches that validated JDK. If its major
+matches the requested toolchain, Gradle detects the launching JVM and needs
+**no repair**, including mise installs. Without a Java instruction decision,
+missing discovery is not proven, so no automatic repair is offered.
+Only differing majors can need a path: the requested JDK must exist outside
+asdf/SDKMAN! and not already be configured. Prefer mise installs, then user
+Library, then system Library, with the highest version in that major within
+each root. Plan explains each project's result. Gradle 9.8.0 has no mise
+supplier, and sandboxed macOS `java_home` cannot discover standard locations;
+those location facts alone do **not** prove a repair is needed.
 The command merges JDK **homes**, not parent installation directories, into
 `~/.gradle/gradle.properties`, preserves other properties/comments, and tracks
 only paths it adds. It backs up and writes atomically; `gradle-toolchains remove`
