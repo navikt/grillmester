@@ -74,6 +74,33 @@ END;
 """
 
 
+class ModuleLayout:
+    """Route legacy test calls and patches to the owning implementation module.
+
+    This adapter is fixture plumbing only, not a production compatibility API.
+    Assertions and patch lifetimes remain identical to the monolithic tests.
+    """
+
+    def __init__(self):
+        from app_sandbox import cli, discovery, paths, probes, rules, store
+
+        object.__setattr__(self, "owners", {
+            name: module for module in (paths, store, probes, discovery, rules, cli)
+            for name in vars(module) if not name.startswith("_")
+        })
+        # Orchestration's imported modules must not shadow legacy helper names.
+        self.owners["main"] = cli
+
+    def __getattr__(self, name):
+        return getattr(self.owners[name], name)
+
+    def __setattr__(self, name, value):
+        setattr(self.owners[name], name, value)
+
+    def __delattr__(self, name):
+        delattr(self.owners[name], name)
+
+
 class AppSandboxSetupTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -109,7 +136,11 @@ class AppSandboxSetupTest(unittest.TestCase):
         # Importing must not leave __pycache__ in the manifested plugin tree.
         with mock.patch.object(sys, "dont_write_bytecode", True):
             spec.loader.exec_module(self.app)
+            self.app = ModuleLayout()
         self.production_rw_paths = self.app.RW_PATHS
+        saved_rw, saved_system = self.app.RW_PATHS, self.app.SYSTEM_AREAS
+        self.addCleanup(setattr, self.app, "RW_PATHS", saved_rw)
+        self.addCleanup(setattr, self.app, "SYSTEM_AREAS", saved_system)
         # Linux temp homes are below /tmp; exclude absolute tmp grants so fixture
         # HOME is not writable based on host TMPDIR. Grant-specific tests restore them.
         self.app.RW_PATHS = tuple(
