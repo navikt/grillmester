@@ -27,6 +27,8 @@ class PathFact:
 class Options:
     mask: Optional[bool] = None
     no_docker: bool = False
+    no_instructions: bool = False
+    move_backups: bool = False
 
 
 @dataclass(frozen=True)
@@ -43,6 +45,8 @@ class Facts:
     backup_warnings: Sequence[str] = ()
     git_warnings: Sequence[str] = ()
     root_warnings: Sequence[str] = ()
+    toolchains: dict[str, Any] = field(default_factory=dict)
+    backup_moves: Sequence[dict[str, Any]] = ()
 
     def path(self, path: Path) -> PathFact:
         return self.paths.get(str(path), PathFact(str(path).casefold()))

@@ -34,6 +34,8 @@ discovery is skipped when those tools are absent.
    grants and remove exact matching existing rw grants. Recompute plan after
    changing options. Corrupt policies are skipped individually; report them,
    never call a partial update complete.
+   Plan displays only changed projects and counts unchanged projects. Apply
+   reports a summary instead of repeating the diff.
 3. Obtain explicit confirmation **in the conversation** for the displayed
    plan, credential and Docker choices. Run
    `python3 <script> apply --confirm <digest>` with the same options.
@@ -59,17 +61,58 @@ discovery is skipped when those tools are absent.
    precedence over the project default. If the user used `/sandbox off`, they
    need `/sandbox on` **plus** `/restart-session`, or a new session.
 5. **Closing gate, in a NEW sandboxed session:** run
-   `python3 <script> verify`, or `verify --mask-credentials` for masking ON.
+   `python3 <script> verify` directly **from the project directory**, or
+   `verify --mask-credentials` for masking ON.
+   After apply, offer to create that session if the client supports it and
+   have it run the script and report back. Put the actual Python command in
+   its kickoff prompt: a slash command there is plain text, not an invocation.
    Select the actual credential expectation; mixed project toggles may
    require checking both controls. Do not run verify outside the sandbox.
    Verify checks HOME/DB denials, loopback, cache writes and readonly
    hardening using temporary files cleaned up afterwards; it opens the DB
    without reading any content, and never reads session-state policy files.
-   Proxy/GH_TOKEN reporting is yes/no only. Exit 0 means all probes match;
-   exit 7 means mismatch (including unavailable probes). If HOME write
+   Proxy/GH_TOKEN reporting is yes/no only. Exit 0 means all behavioral probes
+   match and all gating project probes are `ok`; exit 7 means mismatch
+   (including unavailable gating probes). If HOME write
    succeeds, this session is not sandboxed: use a new session or `/sandbox on`.
    Explain that enterprise managed settings can cause differences. Do not
    declare verified setup until this gate matches.
+
+## Toolchain guidance and backup moves
+
+The app captures the login shell environment at session startup. A Java pin
+alone does not activate mise; the macOS `/usr/bin/java` stub cannot discover a
+JDK inside the sandbox. Plan reads pins and validates installed JDKs without
+executing tools. It manages a marked English block in **per-project**
+`projects.instructions`, preserving all text outside its markers. Never touch
+global `settings.instructions`. Malformed/duplicate markers skip the project.
+The block recommends `mise exec -- …` or a matching command-local `JAVA_HOME`;
+it steers agents, but **does not enforce the right version in every command**.
+Existing node/pnpm on the captured session PATH are left alone; failed shell
+discovery means unknown, no guidance. Install missing tools outside the sandbox.
+
+`--no-instructions` leaves instructions untouched (including rollback).
+When `.github/github-app.yml` has top-level `instructions`, DB instructions
+are left untouched: precedence is unverified. Plan reports the trusted-config
+state and prints a block to add to that file manually; it never edits the file.
+`--move-backups` includes loose DB-copy moves in the confirmed digest, then
+moves them after commit into the denied 0700 backup directory. It refuses
+symlinks/non-regular files and existing destinations, suffixes name collisions,
+and never deletes those copies. Move failures warn without undoing the DB commit.
+
+Project verify probes report expected/actual versions and `ok`, `environment`
+(missing tool, Java stub, wrong version or timeout), `seatbelt` (EPERM),
+or `not-installed` (mise/missing JDK). Results show `gate` or `info`; managed
+Java and Gradle commands gate when recommended, as do managed node/pnpm for
+mise decisions, while their bare probes are informational.
+Bare `java` failing is expected when the block instructs `mise exec`/`JAVA_HOME`.
+Without a managed command, bare probes still gate, and a missing JDK gates as
+`not-installed`; informational results never affect the exit code.
+Probes disable mise auto-install and Gradle JDK auto-download.
+“Permission could not be granted automatically” is the app's own **path
+approval**, not the sandbox; the script cannot observe it.
+The #83 tightenings (~/.config allowlist, strict code roots and credential
+scanning) are deferred, not part of this change.
 
 ## Choices and limits to explain before confirmation
 
@@ -112,8 +155,8 @@ discovery is skipped when those tools are absent.
   cosmetic when GH_TOKEN works. GitHub MCP, gh and HTTPS git use the app's
   credential flow, not a blanket grant to credential stores.
 - Inside the sandbox, `/usr/bin/java` / `java_home` cannot discover JDKs
-  (Spotlight lookup unavailable). JDK directories are readable: set
-  `JAVA_HOME` or use any version manager (mise, sdkman, asdf, jenv, etc.).
+  (Spotlight lookup unavailable). Use the project's managed command guidance;
+  do not change shell profiles or install tools inside the sandbox.
 - The app protects `~/Library/pnpm` (`PNPM_HOME`) despite its rw grant:
   global pnpm installs/links fail in the sandbox; project installs work.
 - Playwright/Chromium cannot run inside the app sandbox: it denies required macOS IPC (Mach bootstrap/crashpad handshake
@@ -145,7 +188,7 @@ added a broader grant. Reruns are idempotent and remove the old
 - Roll back: `python3 <script> rollback --from <backup>` previews the
   current→backup diff and digest. Get conversational confirmation, then run
   the same command with `--confirm <digest>` (request Run once if denied).
-  It restores only sandbox_enabled and differing policy rows for projects
+  It restores sandbox_enabled, differing policy rows and project instructions for projects
   present in both DBs, leaving other projects and app state untouched.
   Preview omits unchanged projects and counts them; rollback never recreates
   removed placeholder directories.

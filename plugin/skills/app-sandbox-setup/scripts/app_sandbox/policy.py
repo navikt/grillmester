@@ -10,6 +10,7 @@ from typing import Any
 from .facts import Facts, Options
 from .paths import SetupError, canonical, display, has_control, home_relative, schema_error
 from .rules import BOOL_FIELDS, CREDENTIAL_WARNING, MASKING_SCOPE_WARNING, PATH_FIELDS
+from . import instructions, toolchain
 
 
 def read_policy(raw: str) -> dict[str, Any]:
@@ -213,6 +214,31 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
             warnings.append(f'{display(row["name"])}: corrupt policy skipped; repair this project manually with guide.')
             continue
         after = dict(before or {})
+        old_text = row.get("instructions", "")
+        new_text = old_text
+        decisions = []
+        manual_block = ""
+        if not options.no_instructions:
+            observation = facts.toolchains.get(row["id"], {})
+            warnings.extend(f'{display(row["name"])}: {warning}' for warning in observation.get("warnings", []))
+            decisions = toolchain.decide(observation)
+            warnings.extend(f'{display(row["name"])}: {item["warning"]}'
+                            for item in decisions if item["warning"])
+            try:
+                # Validate markers even when repo config prevents a DB edit.
+                instructions.bounds(old_text)
+                if observation.get("repo_instructions"):
+                    manual_block = instructions.block(decisions)
+                    warnings.append(f'{display(row["name"])}: .github/github-app.yml instructions may overlay '
+                                    'DB instructions (precedence unverified); DB instructions left untouched. '
+                                    f'trusted config: {"yes" if row.get("trusted_config") else "no"}. '
+                                    'Add the displayed block to that file manually.')
+                else:
+                    new_text = instructions.merge(old_text, instructions.block(decisions))
+            except ValueError:
+                skipped.append(row["id"])
+                warnings.append(f'{display(row["name"])}: malformed toolchain markers; project skipped.')
+                continue
         clean_paths(rules, facts, row, after, owned_paths, warnings)
         merge_paths(rules, facts, options, row, after, grants, warnings)
         merge_booleans(row, after, options, warnings)
@@ -220,22 +246,29 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
             "id": row["id"], "name": row["name"],
             "before": {"sandbox_enabled": row["sandbox_enabled"], "policy": before},
             "after": {"sandbox_enabled": 1, "policy": after},
+            "toolchain": decisions,
+            "manual_instructions": manual_block,
         })
+        if not options.no_instructions:
+            changes[-1]["before"]["instructions"] = old_text
+            changes[-1]["after"]["instructions"] = new_text
     if any(not project["after"]["policy"][field] for project in changes
            for field in ("allowGitCredentials", "allowGhCredentials")):
         warnings.append(CREDENTIAL_WARNING)
     full_change_set = [
-        {"id": project["id"], "before": project["before"], "after": project["after"]}
+        {key: project[key] for key in ("id", "before", "after", "toolchain", "manual_instructions")}
         for project in changes
     ]
     digest_input = {"changes": full_change_set, "skipped": skipped,
-                    "placeholder_removals": placeholder_removals}
+                    "placeholder_removals": placeholder_removals, "backup_moves": list(facts.backup_moves)}
     digest = hashlib.sha256(canonical(digest_input).encode()).hexdigest()
     return {"projects": changes, "skipped": skipped, "digest": digest,
-            "placeholder_removals": placeholder_removals, "warnings": list(dict.fromkeys(warnings))}
+            "placeholder_removals": placeholder_removals, "warnings": list(dict.fromkeys(warnings)),
+            "backup_moves": list(facts.backup_moves)}
 
 
-def rollback_plan(projects: list[dict[str, Any]], snapshot: dict[str, Any]) -> dict[str, Any]:
+def rollback_plan(projects: list[dict[str, Any]], snapshot: dict[str, Any],
+                  no_instructions: bool = False) -> dict[str, Any]:
     changes, warnings, skipped = [], [], []
     if not projects:
         raise SetupError(1, "No projects: add a project in the app first.")
@@ -252,6 +285,8 @@ def rollback_plan(projects: list[dict[str, Any]], snapshot: dict[str, Any]) -> d
                 states.append({"sandbox_enabled": state["sandbox_enabled"],
                                "policy": read_policy(raw) if raw is not None else None,
                                "policy_json": raw})
+                if not no_instructions:
+                    states[-1]["instructions"] = state.get("instructions", "")
         except SetupError:
             skipped.append(row["id"])
             warnings.append(f'{display(row["name"])}: corrupt current/backup policy skipped.')
@@ -261,6 +296,6 @@ def rollback_plan(projects: list[dict[str, Any]], snapshot: dict[str, Any]) -> d
         "operation": "rollback", "projects": [{key: value for key, value in project.items() if key != "name"}
                                              for project in changes], "skipped": skipped,
     }).encode()).hexdigest()
-    warnings.append("Rollback restores only shared projects' sandbox settings, never the whole DB. A fresh backup makes rollback reversible.")
+    warnings.append("Rollback restores only shared projects' sandbox settings and project instructions unless opted out, never the whole DB. A fresh backup makes rollback reversible.")
     return {"operation": "rollback", "projects": changes, "skipped": skipped,
             "warnings": warnings, "digest": digest}

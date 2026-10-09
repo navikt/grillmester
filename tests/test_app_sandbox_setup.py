@@ -120,6 +120,7 @@ class AppSandboxSetupTest(unittest.TestCase):
             connection.executescript("""
                 CREATE TABLE projects (
                     id TEXT PRIMARY KEY, name TEXT, main_repo_path TEXT UNIQUE,
+                    instructions TEXT NOT NULL DEFAULT '',
                     sandbox_enabled INTEGER NOT NULL DEFAULT 0);
                 CREATE TABLE project_sandbox_policies (
                     project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
@@ -138,6 +139,15 @@ class AppSandboxSetupTest(unittest.TestCase):
             spec.loader.exec_module(self.app)
             self.app = ModuleLayout()
         self.production_rw_paths = self.app.RW_PATHS
+        # Never start a real login shell, even if a fixture gains frontend pins.
+        from app_sandbox import toolchain_discovery
+        self._session_path = toolchain_discovery.session_path
+        shell = mock.patch.object(toolchain_discovery, "session_path", return_value=("", None))
+        shell.start()
+        self.addCleanup(shell.stop)
+        system_jdks = mock.patch.object(toolchain_discovery, "SYSTEM_JDK_ROOT", self.root / "system-jdks")
+        system_jdks.start()
+        self.addCleanup(system_jdks.stop)
         saved_rw, saved_system = self.app.RW_PATHS, self.app.SYSTEM_AREAS
         self.addCleanup(setattr, self.app, "RW_PATHS", saved_rw)
         self.addCleanup(setattr, self.app, "SYSTEM_AREAS", saved_system)
@@ -1480,7 +1490,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual(0, code, output)
         self.assertIn('Project: "example"', output)
         self.assertNotIn('Project: "unchanged"', output)
-        self.assertIn("Unchanged projects: 1", output)
+        self.assertIn("1 projects unchanged", output)
         code, output = self.run_cli("rollback", "--from", str(backup), "--json")
         self.assertEqual(0, code, output)
         plan = json.loads(output)
@@ -1491,7 +1501,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         code, output = self.run_cli("rollback", "--from", str(backup))
         self.assertEqual(0, code, output)
         self.assertNotIn("Project:", output)
-        self.assertIn("Unchanged projects: 2", output)
+        self.assertIn("2 projects unchanged", output)
         self.assertIn("no changes", output)
 
     def test_verify_behavioral_gate_and_presence_only_environment_reporting(self) -> None:
@@ -1834,7 +1844,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         before = self.db.read_bytes(), self.db.stat().st_mtime_ns
         code, output = self.run_cli("apply", "--confirm", self.digest())
         self.assertEqual(0, code, output)
-        self.assertIn("no changes", output)
+        self.assertIn("Updated 0 projects. Backup: none.", output)
         self.assertEqual(before, (self.db.read_bytes(), self.db.stat().st_mtime_ns))
         self.assertEqual(files, list(backups.iterdir()))
 
