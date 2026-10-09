@@ -90,8 +90,7 @@ class ToolchainTest(unittest.TestCase):
             (jdk / "bin/java").write_text("not executable code")
             (jdk / "bin/java").chmod(0o700)
             (jdk / "release").write_text('JAVA_VERSION="' + version + '.0.2"\n')
-        with mock.patch.object(toolchain_discovery, "managers", return_value={}), \
-                mock.patch.object(toolchain_discovery, "session_path", side_effect=AssertionError("no shell for java")):
+        with mock.patch.object(toolchain_discovery, "managers", return_value={}):
             code, output = self.run_cli("plan", "--json")
         self.assertEqual(0, code, output)
         plan = json.loads(output)
@@ -147,7 +146,8 @@ class ToolchainTest(unittest.TestCase):
             for path, warning, expected in ((str(bin_dir), None, False), ("", None, True),
                                              (None, "Session PATH discovery failed; node/pnpm unknown, no guidance.", False)):
                 with self.subTest(path=path), \
-                        mock.patch.object(toolchain_discovery, "session_path", return_value=(path, warning)):
+                        mock.patch.object(toolchain_discovery, "session_environment", return_value=(
+                            {"PATH": path, "ZDOTDIR": ""} if path is not None else None, warning)):
                     code, output = self.run_cli("plan", "--json")
                     self.assertEqual(0, code, output)
                     diff = json.loads(output)["projects"][0]["diff"]
@@ -170,7 +170,7 @@ class ToolchainTest(unittest.TestCase):
             self.assertEqual(instructions.BEGIN, db.execute("SELECT instructions FROM projects").fetchone()[0])
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
-        self.assertIn("malformed toolchain markers; project skipped", output)
+        self.assertIn("malformed toolchain markers; instructions left untouched", output)
 
     def test_rollback_restores_instructions_and_digest_binds_concurrent_edits(self):
         from app_sandbox import toolchain_discovery
@@ -320,9 +320,12 @@ class ToolchainTest(unittest.TestCase):
     def test_session_path_uses_only_injected_environment_and_suppresses_failed_output(self):
         from app_sandbox import toolchain_discovery
         import subprocess
-        env = {"HOME": "/not-used", "USER": "fixture", "SHELL": "/fixture/shell",
+        env = {"HOME": "/not-used", "USER": "fixture", "SHELL": "/fixture/zsh",
                "LANG": "C", "TOKEN": "fixture-private-value", "PATH": "/not-inherited"}
-        for result in (subprocess.CompletedProcess([], 0, "/fixture/bin", ""),
+        values = {key: "" for key in ("PATH", "JAVA_HOME", "MISE_DATA_DIR", "XDG_DATA_HOME",
+                                      "ASDF_DATA_DIR", "SDKMAN_CANDIDATES_DIR", "ZDOTDIR")}
+        values["PATH"] = "/fixture/bin"
+        for result in (subprocess.CompletedProcess([], 0, "/fixture/bin\0\0" + json.dumps(values), ""),
                        subprocess.CompletedProcess([], 1, "fixture-private-value", ""),
                        subprocess.TimeoutExpired("fixture-private-value", 10)):
             runner = mock.Mock(side_effect=result if isinstance(result, Exception) else None,
@@ -330,11 +333,12 @@ class ToolchainTest(unittest.TestCase):
             # Call the actual function beneath setUp's protective shell stub.
             path, warning = self._session_path(self.home, env, runner)
             call = runner.call_args
-            self.assertEqual(["/fixture/shell", "-l", "-i", "-c", 'printf %s "$PATH"'], call.args[0])
+            self.assertEqual(["/fixture/zsh", "-l", "-i", "-c"], call.args[0][:4])
+            self.assertIn('printf \'%s\\0%s\\0\' "$PATH" "${ZDOTDIR:-}"', call.args[0][4])
             self.assertEqual(10, call.kwargs["timeout"])
             self.assertEqual(subprocess.DEVNULL, call.kwargs["stdin"])
             self.assertEqual(str(self.home), call.kwargs["cwd"])
-            self.assertEqual({"HOME": str(self.home), "USER": "fixture", "SHELL": "/fixture/shell",
+            self.assertEqual({"HOME": str(self.home), "USER": "fixture", "SHELL": "/fixture/zsh",
                               "TERM": "dumb", "LANG": "C"}, call.kwargs["env"])
             self.assertEqual(isinstance(result, subprocess.CompletedProcess) and result.returncode == 0,
                              path is not None)

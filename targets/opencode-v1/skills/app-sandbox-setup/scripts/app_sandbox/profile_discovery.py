@@ -28,11 +28,8 @@ def mise_paths(home, env=None):
     return shims, list(dict.fromkeys(readonly)), binary
 
 
-def observe(home, shell=None, env=None):
-    env = os.environ if env is None else env
-    kind, path = profile.target(home, shell or env.get("SHELL", ""), env,
-                                lambda p: p.exists() or p.is_symlink())
-    state = profile_store.snapshot(path) if path else {"exists": False, "mode": 0o600, "text": ""}
+def read_profile(home, path):
+    state = profile_store.snapshot(path)
     try:
         current = profile.config(state["text"])
         if current:
@@ -42,17 +39,37 @@ def observe(home, shell=None, env=None):
             current = {**current, "readonly": list(dict.fromkeys(readonly))}
     except ValueError:
         raise SetupError(1, "Malformed/unrecognized profile markers; refused for this file.") from None
+    return state, current
+
+
+def observe(home, shell=None, env=None):
+    env = os.environ if env is None else env
+    kind, path = profile.target(home, shell or env.get("SHELL", ""), env,
+                                lambda p: p.exists() or p.is_symlink())
+    state, current = (read_profile(home, path) if path else
+                      ({"exists": False, "mode": 0o600, "text": ""}, None))
     return kind, path, state, current
 
 
-def readonly_facts(home, warnings=None):
+def readonly_facts(home, warnings=None, env=None):
+    env = os.environ if env is None else env
+    readonly = []
+    unknown = False
     try:
-        _, _, _, current = observe(home)
-        _, candidates, _ = mise_paths(home)
+        _, candidates, _ = mise_paths(home, env)
+        for path in profile.candidates(home, env):
+            try:
+                _, current = read_profile(home, path)
+                if current:
+                    readonly.extend(current["readonly"])
+            except (SetupError, OSError, ValueError, RuntimeError):
+                unknown = True
     except (SetupError, OSError, ValueError, RuntimeError):
+        candidates, unknown = [], True
+    if unknown:
         if warnings is not None:
             warnings.append("Profile opt-in state unavailable; existing readonly hardening retained. "
                             "Use the separate profile plan to inspect; no profile writes in default setup.")
         # Unknown is not inactive: never retire hardening on an unreadable file.
-        return [], []
-    return (current["readonly"] if current else []), candidates
+        candidates = []
+    return list(dict.fromkeys(readonly)), candidates

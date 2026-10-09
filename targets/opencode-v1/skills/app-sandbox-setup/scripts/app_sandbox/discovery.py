@@ -300,7 +300,13 @@ def gather(home: Path, projects: Sequence[dict[str, Any]], code_paths: Sequence[
     git_paths = [] if profile_only else git_discovery(home, git_warnings, projects)
     warnings = list(root_warnings)
     roots = [] if profile_only else code_roots(code_paths, home, warnings)
-    profile_readonly, profile_candidates = profile_discovery.readonly_facts(home, profile_warnings)
+    session = toolchain_discovery.session_environment(home) if not profile_only else (None, None)
+    session_env = {**os.environ, **(session[0] or {})}
+    profile_readonly, profile_candidates = profile_discovery.readonly_facts(home, profile_warnings, session_env)
+    if session[1]:
+        profile_warnings.append(session[1])
+        # Unknown shell state cannot justify retiring existing shim hardening.
+        profile_candidates = []
     paths = capture_paths(home, docker + hardened + writable + git_paths + roots
                           + profile_readonly + profile_candidates, existing,
                           docker, no_docker)
@@ -309,7 +315,7 @@ def gather(home: Path, projects: Sequence[dict[str, Any]], code_paths: Sequence[
         for project in projects:
             raw = project["main_repo_path"]
             if isinstance(raw, str) and Path(raw).is_absolute() and not has_control(raw):
-                toolchains[project["id"]] = toolchain_discovery.observe(Path(raw), home)
+                toolchains[project["id"]] = toolchain_discovery.observe(Path(raw), home, session=session)
     return Facts(str(home), projects, paths, docker, roots, git_paths, hardened, writable,
                  profile_warnings, backup_messages, git_warnings, warnings, toolchains, moves,
                  profile_readonly, profile_candidates)

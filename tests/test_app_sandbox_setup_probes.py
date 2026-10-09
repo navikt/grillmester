@@ -157,6 +157,8 @@ class ProjectProbesTest(unittest.TestCase):
             self.assertEqual(str(repo), call.kwargs["cwd"])
             self.assertEqual("false", call.kwargs["env"]["MISE_EXEC_AUTO_INSTALL"])
             self.assertEqual("0", call.kwargs["env"]["COREPACK_ENABLE_DOWNLOAD_PROMPT"])
+            self.assertEqual("0", call.kwargs["env"]["COREPACK_ENABLE_NETWORK"])
+            self.assertEqual("false", call.kwargs["env"]["npm_config_manage_package_manager_versions"])
             self.assertEqual("fixture-private-value", call.kwargs["env"]["GRADLE_OPTS"])
 
     def test_verify_frontend_categories_timeouts_and_no_output_or_environment_values(self):

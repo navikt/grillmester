@@ -116,6 +116,7 @@ class AppSandboxSetupTest(unittest.TestCase):
             "SHELL": "/fixture/no-shell", "ZDOTDIR": "", "JAVA_HOME": "",
             "MISE_DATA_DIR": "", "XDG_DATA_HOME": "", "ASDF_DATA_DIR": "",
             "SDKMAN_CANDIDATES_DIR": "",
+            "GRADLE_USER_HOME": "",
         })
         environment.start()
         self.addCleanup(environment.stop)
@@ -148,6 +149,12 @@ class AppSandboxSetupTest(unittest.TestCase):
         shell = mock.patch.object(toolchain_discovery, "session_path", return_value=("", None))
         shell.start()
         self.addCleanup(shell.stop)
+        self._session_environment = toolchain_discovery.session_environment
+        session = mock.patch.object(toolchain_discovery, "session_environment", return_value=(
+            {"PATH": "", "JAVA_HOME": "", "ZDOTDIR": "", "MISE_DATA_DIR": "",
+             "XDG_DATA_HOME": "", "ASDF_DATA_DIR": "", "SDKMAN_CANDIDATES_DIR": ""}, None))
+        session.start()
+        self.addCleanup(session.stop)
         system_jdks = mock.patch.object(toolchain_discovery, "SYSTEM_JDK_ROOT", self.root / "system-jdks")
         system_jdks.start()
         self.addCleanup(system_jdks.stop)

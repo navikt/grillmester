@@ -25,14 +25,13 @@ def execute(name, command, env, repo, pin, timeout, runner):
 
 def run(repo, home, runner=None):
     runner = subprocess.run if runner is None else runner
-    if not (repo / "gradlew").is_file() and not (repo / "package.json").is_file():
-        return []
     observation = toolchain_discovery.observe(repo, home, capture_session=False)
     pins = observation["pins"]
     decisions = {decision["tool"]: decision for decision in toolchain.decide(observation)}
-    env = dict(os.environ, MISE_EXEC_AUTO_INSTALL="false", COREPACK_ENABLE_DOWNLOAD_PROMPT="0")
+    env = dict(os.environ, MISE_EXEC_AUTO_INSTALL="false", COREPACK_ENABLE_DOWNLOAD_PROMPT="0",
+               COREPACK_ENABLE_NETWORK="0", npm_config_manage_package_manager_versions="false")
     results = []
-    if (repo / "gradlew").is_file():
+    if observation["gradlew"]:
         pin = pins.get("java", {})
         java = decisions.get("java")
         bare = execute("java", ["java", "-version"], env, repo, pin, 20, runner)
@@ -55,14 +54,19 @@ def run(repo, home, runner=None):
         results.append(execute("gradlew", prefix + ["./gradlew", "--version",
                                "-Dorg.gradle.java.installations.auto-download=false"],
                                corrected_env, repo, pin, 120, runner))
-    if (repo / "package.json").is_file():
+    if observation["package_json"] or observation["node_required"] or observation["pnpm_required"]:
         for tool in ("node", "pnpm"):
+            required = observation[tool + "_required"]
+            if tool == "pnpm" and not required:
+                continue
             pin = pins.get(tool, {})
             decision = decisions.get(tool)
             bare = execute(tool, [tool, "-v"], env, repo, pin, 20, runner)
             managed = decision is not None and decision["command"] == "mise"
             if managed:
                 bare.update(gate=False, info=f"bare {tool}; agents use mise exec -- {tool}")
+            elif not required:
+                bare.update(gate=False, info="node has no version pin or engines.node requirement")
             results.append(bare)
             if managed:
                 result = execute(tool, ["mise", "exec", "--", tool, "-v"], env, repo, pin, 20, runner)

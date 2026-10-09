@@ -6,7 +6,7 @@ import os
 import shutil
 from pathlib import Path
 
-from . import discovery, gradle_repair, policy, profile, profile_discovery, profile_store, rules, store, toolchain_discovery
+from . import gradle_repair, policy, profile, profile_discovery, profile_store, rules, store, toolchain_discovery
 from .facts import Facts
 from .paths import SetupError, canonical, display
 
@@ -44,13 +44,7 @@ def java_choice(choice, home, connection):
 def policy_plan(connection, home, readonly):
     rows = store.project_rows(connection)
     existing = store.policy_rows(connection, rows)
-    candidates = {Path(p) for p in readonly}
-    for raw in existing.values():
-        before = policy.read_policy(raw) if raw is not None else {}
-        candidates.update(Path(p) for p in before.get("readwritePaths", []))
-    candidates.update(parent for path in tuple(candidates) for parent in path.parents)
-    facts = Facts(str(home), paths={str(p): discovery.path_fact(p) for p in candidates},
-                  profile_readonly=tuple(readonly))
+    facts = Facts(str(home), profile_readonly=tuple(readonly))
     readonly = policy.profile_opt_in_paths(rules.snapshot(), facts)
     # Only the opt-in policy hardening; do not absorb the default setup plan.
     changes = []
@@ -59,30 +53,30 @@ def policy_plan(connection, home, readonly):
         before = policy.read_policy(raw) if raw is not None else None
         after = dict(before or {})
         after["readonlyPaths"] = list(dict.fromkeys(after.get("readonlyPaths", []) + list(readonly)))
-        after["readwritePaths"] = [p for p in after.get("readwritePaths", [])
-                                   if not any(facts.same(Path(p), Path(ro)) for ro in readonly)]
         changes.append({"id": row["id"], "name": row["name"],
                         "before": {"sandbox_enabled": row["sandbox_enabled"], "policy": before},
-                        "after": {"sandbox_enabled": 1, "policy": after}})
+                        "after": {"sandbox_enabled": row["sandbox_enabled"], "policy": after}})
     if not rows and readonly:
         raise SetupError(1, "No projects: add a project before activating the profile.")
     return {"projects": changes, "warnings": [], "digest": "", "skipped": []}
 
 
 def profile_plan(args, home, connection):
-    kind, path, state, old = profile_discovery.observe(home, args.shell)
+    env = dict(os.environ)
+    if args.shell:
+        env["SHELL"] = args.shell
+    session = None
+    if Path(env.get("SHELL", "")).name in ("zsh", "bash", "fish"):
+        session, warning = toolchain_discovery.session_environment(home, env)
+        if session is None:
+            raise SetupError(1, warning)
+    kind, path, state, old = profile_discovery.observe(home, args.shell, {**env, **(session or {})})
     warnings = []
     selected = sorted(set(args.tool or ("java", "node", "pnpm")))
     new = old
     if args.action == "remove":
         new = None
     elif path:
-        env = dict(os.environ)
-        if args.shell:
-            env["SHELL"] = args.shell
-        session, warning = toolchain_discovery.session_environment(home, env)
-        if session is None:
-            raise SetupError(1, warning)
         java_home = java_choice(args.java_home, home, connection) if args.java_home else None
         resolved = {tool: shutil.which(tool, path=session["PATH"]) for tool in selected}
         failing = [tool for tool in selected if (

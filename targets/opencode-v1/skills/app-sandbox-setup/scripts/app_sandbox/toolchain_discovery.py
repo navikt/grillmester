@@ -9,38 +9,49 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import toolchain
+from . import repo_files, toolchain
 from .paths import has_control
 
 
 SYSTEM_JDK_ROOT = Path("/Library/Java/JavaVirtualMachines")
 
 
-def session_environment(home, env=None, runner=None):
+def _capture_session(home, env=None, runner=None):
     """Capture only allowed toolchain fields, never return arbitrary shell output."""
     env = os.environ if env is None else env
     runner = subprocess.run if runner is None else runner
     shell = env.get("SHELL", "")
-    warning = "Session environment discovery failed; no profile activation."
+    warning = "Session environment discovery failed; node/pnpm unknown, no guidance; no profile activation."
     if Path(shell).name not in ("zsh", "bash", "fish") or not Path(shell).is_absolute() or has_control(shell):
         return None, warning
     keys = ("PATH", "JAVA_HOME", "MISE_DATA_DIR", "XDG_DATA_HOME",
-            "ASDF_DATA_DIR", "SDKMAN_CANDIDATES_DIR")
+            "ASDF_DATA_DIR", "SDKMAN_CANDIDATES_DIR", "ZDOTDIR")
     code = "import os,json; print(json.dumps({k:os.environ.get(k,'') for k in " + repr(keys) + "}))"
     clean = {key: env[key] for key in ("USER", "SHELL", "LANG", "ZDOTDIR", *keys[1:]) if env.get(key)}
     clean.update(HOME=str(home), TERM="dumb")
+    dot = '"$ZDOTDIR"' if Path(shell).name == "fish" else '"${ZDOTDIR:-}"'
+    command = 'printf \'%s\\0%s\\0\' "$PATH" ' + dot + "; " + shlex.quote(sys.executable) + " -c " + shlex.quote(code)
     try:
-        result = runner([shell, "-l", "-i", "-c", shlex.quote(sys.executable) + " -c " + shlex.quote(code)],
+        result = runner([shell, "-l", "-i", "-c", command],
                         stdin=subprocess.DEVNULL, cwd=str(home), env=clean,
                         capture_output=True, text=True, timeout=10)
-        if result.returncode == 0:
-            value = json.loads(result.stdout)
+        if result.returncode == 0 and len(result.stdout) <= 64 * 1024:
+            path, zdotdir, encoded = result.stdout.split("\0", 2)
+            value = json.loads(encoded)
+            if isinstance(value, dict) and set(value) == set(keys):
+                value.update(PATH=path, ZDOTDIR=zdotdir)
+                if has_control(zdotdir):
+                    return None, "Invalid ZDOTDIR from login shell; profile write refused."
             if (isinstance(value, dict) and set(value) == set(keys)
                     and all(isinstance(item, str) and not has_control(item) for item in value.values())):
                 return value, None
     except (OSError, subprocess.SubprocessError, ValueError, RecursionError):
         pass
     return None, warning
+
+
+def session_environment(home, env=None, runner=None):
+    return _capture_session(home, env, runner)
 
 
 def managers(home, env=None):
@@ -53,23 +64,9 @@ def managers(home, env=None):
 
 
 def session_path(home, env=None, runner=None):
-    env = os.environ if env is None else env
-    runner = subprocess.run if runner is None else runner
-    shell = env.get("SHELL")
+    value, _ = _capture_session(home, env, runner)
     warning = "Session PATH discovery failed; node/pnpm unknown, no guidance."
-    if not shell or not Path(shell).is_absolute() or has_control(shell):
-        return None, warning
-    clean = {key: env[key] for key in ("USER", "SHELL", "LANG") if key in env}
-    clean.update(HOME=str(home), TERM="dumb")
-    try:
-        result = runner([shell, "-l", "-i", "-c", 'printf %s "$PATH"'],
-                        stdin=subprocess.DEVNULL, cwd=str(home), env=clean,
-                        capture_output=True, text=True, timeout=10)
-        if result.returncode == 0 and not has_control(result.stdout):
-            return result.stdout, None
-    except (OSError, subprocess.SubprocessError):
-        pass
-    return None, warning
+    return (value["PATH"], None) if value is not None else (None, warning)
 
 
 def mise_data_dir(home, env=None):
@@ -119,33 +116,50 @@ def validated_jdk(candidate):
     return None
 
 
-def observe(repo, home, capture_session=True):
+def observe(repo, home, capture_session=True, session=None):
     files = {}
     warnings = []
     for name in (".mise.toml", "mise.toml", ".tool-versions", ".java-version", ".sdkmanrc",
                  ".nvmrc", ".node-version", "package.json", "build.gradle", "build.gradle.kts",
                  "settings.gradle", "settings.gradle.kts"):
         try:
-            files[name] = (repo / name).read_text(encoding="utf-8")
-        except FileNotFoundError:
-            pass
-        except (OSError, UnicodeError):
-            warnings.append("Toolchain file unavailable: " + name + "; contents are never printed.")
+            text = repo_files.read(repo, name)
+            if text is not None:
+                files[name] = text
+        except repo_files.Unavailable:
+            warnings.append("Toolchain file unavailable/non-regular/over 64 KiB: " + name + "; contents are never printed.")
     pins = toolchain.detect(files)
+    package = {}
+    try:
+        parsed = json.loads(files.get("package.json", "{}"))
+        if isinstance(parsed, dict):
+            package = parsed
+    except (ValueError, RecursionError):
+        pass
+    engines = package.get("engines", {})
+    node_required = ("node" in pins or repo_files.regular(repo, ".nvmrc") or repo_files.regular(repo, ".node-version")
+                     or isinstance(engines, dict) and isinstance(engines.get("node"), str)
+                     and bool(engines["node"].strip()))
+    manager = package.get("packageManager")
+    pnpm_required = ("pnpm" in pins or isinstance(manager, str) and manager.startswith("pnpm@")
+                     or repo_files.regular(repo, "pnpm-lock.yaml"))
     gradle_pin = toolchain.detect({name: text for name, text in files.items()
                                   if name.endswith((".gradle", ".gradle.kts"))}).get("java")
     overlay = False
     try:
-        text = (repo / ".github/github-app.yml").read_text(encoding="utf-8")
-        overlay = bool(re.search(r"""^(?:instructions|"instructions"|'instructions')\s*:""", text, re.MULTILINE))
-    except FileNotFoundError:
-        pass
-    except (OSError, UnicodeError):
+        text = repo_files.read(repo, ".github/github-app.yml")
+        overlay = bool(text and re.search(r"""^(?:instructions|"instructions"|'instructions')\s*:""", text, re.MULTILINE))
+    except repo_files.Unavailable:
         overlay = True
         warnings.append("Repo config unavailable; DB instructions left untouched.")
-    path, warning = ((session_path(home) if any(tool in pins for tool in ("node", "pnpm")) else (None, None))
-                     if capture_session else (os.environ.get("PATH", ""), None))
-    return {"pins": pins, "gradle_pin": gradle_pin, "gradlew": (repo / "gradlew").is_file(),
+    if capture_session:
+        captured, warning = session if session is not None else session_environment(home)
+        path = captured.get("PATH") if captured is not None else None
+    else:
+        path, warning = os.environ.get("PATH", ""), None
+    return {"pins": pins, "gradle_pin": gradle_pin, "gradlew": repo_files.regular(repo, "gradlew"),
+            "package_json": "package.json" in files, "node_required": node_required,
+            "pnpm_required": pnpm_required,
             "managers": managers(home), "jdks": jdks(home),
             "session_path": path, "session_warning": warning, "warnings": warnings,
             "repo_instructions": overlay,

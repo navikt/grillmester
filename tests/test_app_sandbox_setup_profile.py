@@ -76,7 +76,7 @@ class ProfileTest(unittest.TestCase):
         self.assertTrue(all(str(self.home / ".local/share/mise/shims") in p["readonlyPaths"]
                             for p in self.policies()))
         with sqlite3.connect(str(self.db)) as db:
-            self.assertEqual(1, db.execute("SELECT sandbox_enabled FROM projects").fetchone()[0])
+            self.assertEqual(0, db.execute("SELECT sandbox_enabled FROM projects").fetchone()[0])
         self.assertEqual(0o640, path.stat().st_mode & 0o777)
         backup = next((self.home / ".copilot/app-sandbox-setup-backups").glob(".zprofile.*"))
         self.assertEqual("# user\n", backup.read_text())
@@ -337,11 +337,12 @@ class ProfileTest(unittest.TestCase):
                "JAVA_HOME": str(self.home / "jdk"), "MISE_DATA_DIR": str(self.home / "mise-data"),
                "TOKEN": "private fixture value"}
         keys = ("PATH", "JAVA_HOME", "MISE_DATA_DIR", "XDG_DATA_HOME",
-                "ASDF_DATA_DIR", "SDKMAN_CANDIDATES_DIR")
+                "ASDF_DATA_DIR", "SDKMAN_CANDIDATES_DIR", "ZDOTDIR")
         response = {key: env.get(key, "") for key in keys}
         response["PATH"] = str(self.session_bin)
-        runner = mock.Mock(return_value=subprocess.CompletedProcess([], 0, json.dumps(response), ""))
-        result, warning = toolchain_discovery.session_environment(self.home, env, runner)
+        encoded = response["PATH"] + "\0" + response["ZDOTDIR"] + "\0" + json.dumps(response)
+        runner = mock.Mock(return_value=subprocess.CompletedProcess([], 0, encoded, ""))
+        result, warning = self._session_environment(self.home, env, runner)
         self.assertEqual(response, result)
         self.assertIsNone(warning)
         call = runner.call_args
@@ -357,7 +358,7 @@ class ProfileTest(unittest.TestCase):
                         subprocess.TimeoutExpired("private fixture value", 10)):
             runner = mock.Mock(side_effect=failure if isinstance(failure, Exception) else None,
                                return_value=failure)
-            result, warning = toolchain_discovery.session_environment(self.home, env, runner)
+            result, warning = self._session_environment(self.home, env, runner)
             self.assertIsNone(result)
             self.assertNotIn("private fixture value", warning)
 

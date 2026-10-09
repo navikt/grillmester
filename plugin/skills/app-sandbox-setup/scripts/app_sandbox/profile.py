@@ -4,7 +4,7 @@ import json
 import shlex
 from pathlib import Path
 
-from .paths import has_control
+from .paths import SetupError, has_control
 
 BEGIN = "# >>> app-sandbox-setup:toolchain v1 >>>"
 END = "# <<< app-sandbox-setup:toolchain v1 <<<"
@@ -21,7 +21,9 @@ def target(home, shell, env, exists):
     kind = Path(shell).name
     if kind == "zsh":
         directory = env.get("ZDOTDIR") or str(home)
-        return kind, Path(safe_path(directory)) / ".zprofile"
+        if not Path(directory).is_absolute() or has_control(directory) or ".." in Path(directory).parts:
+            raise SetupError(1, "Invalid ZDOTDIR: use an absolute directory without controls or parent traversal; profile write refused.")
+        return kind, Path(directory) / ".zprofile"
     if kind == "bash":
         for name in (".bash_profile", ".bash_login", ".profile"):
             if exists(home / name):
@@ -30,6 +32,14 @@ def target(home, shell, env, exists):
     if kind == "fish":
         return kind, home / ".config/fish/conf.d/app-sandbox-setup.fish"
     return kind, None
+
+
+def candidates(home, env):
+    """All supported login files, regardless of the currently selected shell."""
+    _, zsh = target(home, "zsh", env, lambda p: False)
+    return list(dict.fromkeys([zsh, home / ".zprofile",
+                              *(home / name for name in (".bash_profile", ".bash_login", ".profile")),
+                              home / ".config/fish/conf.d/app-sandbox-setup.fish"]))
 
 
 def bounds(text):

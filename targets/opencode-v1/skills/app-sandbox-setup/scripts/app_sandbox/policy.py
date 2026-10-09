@@ -253,9 +253,8 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
                 else:
                     new_text = instructions.merge(old_text, instructions.block(decisions))
             except ValueError:
-                skipped.append(row["id"])
-                warnings.append(f'{display(row["name"])}: malformed toolchain markers; project skipped.')
-                continue
+                warnings.append(f'{display(row["name"])}: malformed toolchain markers; '
+                                'instructions left untouched, sandbox policy still planned.')
         clean_paths(rules, facts, row, after, owned_paths, warnings)
         merge_paths(rules, facts, options, row, after, grants, warnings)
         merge_booleans(row, after, options, warnings)
@@ -302,17 +301,25 @@ def rollback_plan(projects: list[dict[str, Any]], snapshot: dict[str, Any],
                 states.append({"sandbox_enabled": state["sandbox_enabled"],
                                "policy": read_policy(raw) if raw is not None else None,
                                "policy_json": raw})
-                if not no_instructions:
-                    states[-1]["instructions"] = state.get("instructions", "")
         except SetupError:
             skipped.append(row["id"])
             warnings.append(f'{display(row["name"])}: corrupt current/backup policy skipped.')
             continue
+        if not no_instructions:
+            current = row.get("instructions", "")
+            try:
+                restored = instructions.merge(current, instructions.managed(target.get("instructions", "")))
+            except ValueError:
+                skipped.append(row["id"])
+                warnings.append(f'{display(row["name"])}: malformed current/backup toolchain markers; rollback project skipped.')
+                continue
+            states[0]["instructions"] = current
+            states[1]["instructions"] = restored
         changes.append({"id": row["id"], "name": row["name"], "before": states[0], "after": states[1]})
     digest = hashlib.sha256(canonical({
         "operation": "rollback", "projects": [{key: value for key, value in project.items() if key != "name"}
                                              for project in changes], "skipped": skipped,
     }).encode()).hexdigest()
-    warnings.append("Rollback restores only shared projects' sandbox settings and project instructions unless opted out, never the whole DB. A fresh backup makes rollback reversible.")
+    warnings.append("Rollback restores shared projects' sandbox settings and only our managed instructions block unless opted out; current user text is preserved, never the whole DB. A fresh backup makes rollback reversible.")
     return {"operation": "rollback", "projects": changes, "skipped": skipped,
             "warnings": warnings, "digest": digest}

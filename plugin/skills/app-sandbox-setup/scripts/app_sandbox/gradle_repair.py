@@ -12,7 +12,8 @@ from .paths import SetupError, canonical, has_control
 KEY = "org.gradle.java.installations.paths"
 MARKER = "# app-sandbox-setup:gradle-toolchains "
 NOTE = "This does NOT give the wrapper a java to start with. Per-project instructions handle that."
-PATHS_PROPERTY = re.compile(r"^([ \t]*" + re.escape(KEY) + r"[ \t]*(?:[=:][ \t]*|[ \t]+))(.*?)(\r?\n)?$")
+PATHS_PROPERTY = re.compile(r"^([ \t]*" + re.escape(KEY)
+                            + r"(?=[ \t=:]|\r?$)[ \t]*(?:[=:][ \t]*|[ \t]+)?)(.*?)(\r?\n)?$")
 
 
 def auto_detected(path, home, env):
@@ -146,12 +147,20 @@ def merge(text, paths, remove=False):
     if len(properties) > 1 or len(markers) > 1:
         raise SetupError(1, "Duplicate Gradle paths/managed markers; refused for this file.")
     tracked = []
+    created_key = False
     if markers:
         try:
             line = lines[markers[0]].rstrip("\r\n")
             if not line.startswith(MARKER):
                 raise ValueError()
-            tracked = json.loads(line[len(MARKER):])
+            metadata = json.loads(line[len(MARKER):])
+            if isinstance(metadata, dict):
+                if set(metadata) != {"paths", "created_key"} or type(metadata["created_key"]) is not bool:
+                    raise ValueError()
+                tracked, created_key = metadata["paths"], metadata["created_key"]
+            else:
+                # Legacy markers cannot establish ownership of the key itself.
+                tracked = metadata
             if not isinstance(tracked, list) or any(not isinstance(p, str) for p in tracked):
                 raise ValueError()
             for path in tracked:
@@ -172,24 +181,35 @@ def merge(text, paths, remove=False):
     else:
         tokens += [escape(path) for path in added]
         tracked = list(dict.fromkeys(tracked + added))
-    if properties and (added or removed):
+        created_key = created_key or not properties
+    drop_key = remove and created_key and not any(token.strip() for token in tokens)
+    if properties and (added or removed or drop_key):
         index, match = properties[0]
-        lines[index] = match[1] + ",".join(tokens) + (match[3] or "")
+        prefix = match[1]
+        if prefix.strip() == KEY and not prefix.endswith((" ", "\t")):
+            prefix += "="
+        lines[index] = ("" if drop_key
+                        else prefix + ",".join(tokens) + (match[3] or ""))
     elif added:
         if lines and not lines[-1].endswith("\n"):
             lines[-1] += "\n"
         lines.append(KEY + "=" + ",".join(tokens) + "\n")
     if markers:
-        lines[markers[0]] = MARKER + json.dumps(tracked, separators=(",", ":")) + "\n" if tracked else ""
+        lines[markers[0]] = (MARKER + json.dumps({"paths": tracked, "created_key": created_key},
+                                              separators=(",", ":")) + "\n" if tracked else "")
     elif tracked:
         if lines and not lines[-1].endswith("\n"):
             lines[-1] += "\n"
-        lines.append(MARKER + json.dumps(tracked, separators=(",", ":")) + "\n")
+        lines.append(MARKER + json.dumps({"paths": tracked, "created_key": created_key},
+                                        separators=(",", ":")) + "\n")
     return "".join(lines), added, removed
 
 
 def plan(args, home, connection):
-    path = home / ".gradle/gradle.properties"
+    directory = os.environ.get("GRADLE_USER_HOME") or str(home / ".gradle")
+    if not Path(directory).is_absolute() or has_control(directory) or ".." in Path(directory).parts:
+        raise SetupError(1, "Invalid GRADLE_USER_HOME: use an absolute directory without controls or parent traversal.")
+    path = Path(directory) / "gradle.properties"
     state = profile_store.snapshot(path)
     paths, evidence = (needed(connection, home, os.environ, configured_paths(state["text"]))
                        if args.action != "remove" else ([], []))

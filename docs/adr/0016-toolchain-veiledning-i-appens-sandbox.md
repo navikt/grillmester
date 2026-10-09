@@ -16,13 +16,24 @@ En vellykket Java-probe utenfor sandboxen er derfor ikke tilstrekkelig bevis.
 Plan/apply håndterer en kort per-project blokk i `projects.instructions`.
 Pins og validerte JDK-hjem oppdages uten å kjøre Java. Blokken gir én
 toolchain-beslutning per verktøy; fungerende node/pnpm på øktens PATH beholdes.
+Plan kjører ett login-shell (`zsh`/`bash`/`fish`) med strippet miljø og
+10 sekunders timeout for å lære øktens PATH og faktisk `ZDOTDIR`, også når
+`.zshenv` setter variabelen uten å eksportere den. Resultatet caches bare
+innen denne planen og deles av alle prosjekter og profile-oppdagelsen.
+Ukjent shell eller feil gir ukjent PATH, ingen frontend-veiledning.
+Relative/ugyldige `ZDOTDIR`-verdier avviser profile-skriving med en klar melding.
+Repo-filer leses bare som vanlige, ikke-symlinkede filer, maksimalt 64 KiB;
+FIFO-er og symlinkede foreldrekataloger avvises.
 `<!-- app-sandbox-setup:toolchain:begin v1 -->` og
 `<!-- app-sandbox-setup:toolchain:end -->` avgrenser vår tekst. Bare denne
 blokken og separatoren ved append/fjerning endres; brukertext utenfor bevares.
-Ufullstendige eller dupliserte markører betyr at prosjektet hoppes over.
+Ufullstendige eller dupliserte markører lar bare instructions stå urørt;
+sandbox-policyen planlegges fortsatt.
 Diff og digest binder endringen; apply skriver i samme transaksjon som
-policyen, med backup. Rollback gjenoppretter instructions sammen med
-sandbox-feltene. `--no-instructions` velger dette bort.
+policyen, med backup. Rollback merger bare backupens administrerte blokk inn i
+nåværende instructions, sammen med sandbox-feltene. Brukerendringer etter apply
+bevares. Ugyldige nåværende/backup-markører hopper over dette rollback-prosjektet
+med advarsel. `--no-instructions` velger instructions-endringen bort.
 
 Top-level `instructions` i `.github/github-app.yml` kan overstyre DB-feltet;
 presedens er ikke verifisert. Vi skriver derfor ikke DB-blokken der, men viser
@@ -48,8 +59,13 @@ modus. Fjerning krever egen preview og bekreftelse og fjerner bare vår blokk.
 
 Før aktivering committes readonly for login-filen, shims og mise-binærens katalog under
 HOME i alle prosjektpolicyer via eksisterende transaksjons-/backupflyt.
+Profile apply legger bare til/beholder readonly; `sandbox_enabled` og øvrige
+policyfelt endres ikke.
 Én digest binder DB- og filendringen. Oppdagelsesfaktumet «profile opt-in active»
-holder den betingede regelen aktiv ved vanlig plan/apply. Etter fjerning kan
+holder den betingede regelen aktiv ved vanlig plan/apply. Vi sjekker alle
+kandidater: `ZDOTDIR/.zprofile`, `~/.zprofile`, alle bash-profiler og fish-filen,
+ikke bare dagens `$SHELL`. Ukjent filtilstand pensjonerer ikke eksisterende
+readonly. Etter fjerning av alle aktive blokker kan
 samme shell-/toolchain-miljø brukes til å droppe regelen ved neste plan/apply.
 Smalt readonly vinner over bredere rw `~/.local/share` (verifisert live).
 Installasjoner og `mise reshim` må derfor kjøres utenfor sandboxen.
@@ -77,7 +93,11 @@ Disse katalogfaktaene alene beviser likevel ikke behov for reparasjon.
 JDK-er som allerede oppdages via asdf/SDKMAN!, trenger ingen reparasjon.
 Vi merger bare nødvendige
 JDK-hjem i `org.gradle.java.installations.paths`, bevarer øvrige linjer og
-kommentarer, og merker stiene vi selv la til for selektiv fjerning.
+kommentarer, og merker stiene vi selv la til for selektiv fjerning. Vi bruker
+`GRADLE_USER_HOME` når den er satt, ellers `~/.gradle`. Markøren registrerer også
+om vi opprettet nøkkelen: remove fjerner en tom nøkkellinje bare i dette tilfellet.
+En bruker-eid tom eller bar nøkkel beholdes, og eldre markører gir ikke
+eierskap til selve nøkkelen.
 Dette gir ikke Gradle-wrapperen en Java å starte med; instructions gjør det.
 Gradle-prosjekter uten Java-pin får én advarsel, ikke et automatisk Java-valg.
 
@@ -93,9 +113,20 @@ beviser ikke appens faktiske oppstartsmiljø eller sandbox-håndheving.
 Bekreftede backup-flyttinger skjer etter DB-commit og sletter ikke kopiene;
 en flyttefeil varsles uten å rulle tilbake policyen.
 
+Node er gate bare ved node-pin, `.nvmrc`/`.node-version` eller `engines.node`;
+ellers er proben informativ. pnpm prøves bare ved pnpm-pin, pnpm packageManager
+eller `pnpm-lock.yaml`. Probene deaktiverer mise-installasjon, Corepack-nettverk/
+download-prompt, pnpm-versjonshåndtering og Gradle JDK auto-download.
+`verify` kjører `./gradlew --version`; wrapper-distribusjonen kan likevel lastes
+ned dersom den ikke finnes lokalt. Verify starter ikke et login-shell.
+
 **Rest-risiko:** mise `installs/` forblir skrivbar. En sandboxet prosess kan
 derfor fortsatt endre en JDK-binær som senere kjøres utenfor sandboxen.
 Risikoen er uendret fra før; denne PR-en dokumenterer den, og readonly shims
 løser ikke dette. Fixture-tester beviser filhåndtering, digest og commit-rekkefølge,
 ikke appens faktiske oppstartsmiljø, Gradle-suppliers i alle versjoner eller
 sandbox-håndheving på macOS.
+
+En agent-skrivbar repo-`.mise.toml` kan dessuten påvirke hvilke verktøy som
+kjøres utenfor sandboxen når shims ligger på PATH. Mise har egne trust-prompts,
+men denne beskyttelsen og den faktiske oppførselen er **ikke verifisert** her.
