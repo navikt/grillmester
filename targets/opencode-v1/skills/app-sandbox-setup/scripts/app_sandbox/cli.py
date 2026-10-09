@@ -5,10 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
-from . import backups, discovery, instructions, policy, probes, rules, store
+from . import backups, discovery, instructions, optional_cli, policy, probes, rules, store
 from .facts import Options
 from .paths import SetupError, changed_projects, display
 
@@ -212,6 +213,9 @@ def print_guide(db: Path, home: Path, mask: Optional[bool], no_docker: bool = Fa
 
 
 def run(argv: Optional[Sequence[str]] = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in ("profile", "gradle-toolchains"):
+        return optional_cli.run(argv)
     parser = UsageParser(description=__doc__)
     parser.add_argument("command", choices=["plan", "apply", "guide", "rollback", "verify"])
     parser.add_argument("--confirm")

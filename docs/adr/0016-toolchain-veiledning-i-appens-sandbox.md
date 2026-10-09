@@ -7,7 +7,7 @@ date: 2026-10-09
 
 ## Kontekst
 
-Appen fanger shell-miljøet ved øktstart. En Java-pin aktiverer ikke mise av seg
+Appen fanger shell-miljøet ved appstart. En Java-pin aktiverer ikke mise av seg
 selv, og macOS-stubben `/usr/bin/java` finner ikke JDK via Spotlight i sandboxen.
 En vellykket Java-probe utenfor sandboxen er derfor ikke tilstrekkelig bevis.
 
@@ -29,8 +29,46 @@ presedens er ikke verifisert. Vi skriver derfor ikke DB-blokken der, men viser
 trust-status og en blokk brukeren kan legge inn manuelt. Global
 `settings.instructions` og repo-konfigurasjonen endres aldri.
 
-Slice 2 legger til en opt-in shell-profile-blokk og en målrettet reparasjon av
-Gradle toolchain-stier; detaljene fylles inn av slice 2. Innstrammingene i #83
+Shell-profile-blokken er opt-in med separat `profile plan` og
+`profile apply --confirm DIGEST`, aldri en del av vanlig plan/apply. Beslutningen
+tas per verktøy: Java-stubben med tom `JAVA_HOME` trenger hjelp, mens node/pnpm
+som allerede finnes på øktens PATH beholdes. zsh leser `.zprofile` før `.zshrc`,
+slik at nvm fortsatt kan legge sin node først senere. Vi respekterer `ZDOTDIR`,
+bruker bashs første eksisterende login-profil eller en fish `conf.d`-fil, og
+skriver aldri `~/.zshenv`. Ukjente shell får bare veiledning.
+
+Blokken mellom `# >>> app-sandbox-setup:toolchain v1 >>>` og
+`# <<< app-sandbox-setup:toolchain v1 <<<` legger til mise shims med en statisk
+PATH-guard, uten aktiveringshook ved hvert prompt. Uten mise kreves eksplisitt
+`--java-home PATH` eller `auto`. JDK valideres ved oppsett, og eksisterende
+`JAVA_HOME` overskrives aldri. Ulike prosjektmajorer avviser `auto`; per-project
+instructions håndterer forskjellen. Vi bevarer tekst utenfor markørene, avviser
+symlinker og feil markører, tar 0600-backup og erstatter filen atomisk med samme
+modus. Fjerning krever egen preview og bekreftelse og fjerner bare vår blokk.
+
+Før aktivering committes readonly for login-filen, shims og mise-binærens katalog under
+HOME i alle prosjektpolicyer via eksisterende transaksjons-/backupflyt.
+Én digest binder DB- og filendringen. Oppdagelsesfaktumet «profile opt-in active»
+holder den betingede regelen aktiv ved vanlig plan/apply. Etter fjerning kan
+samme shell-/toolchain-miljø brukes til å droppe regelen ved neste plan/apply.
+Smalt readonly vinner over bredere rw `~/.local/share` (verifisert live).
+Installasjoner og `mise reshim` må derfor kjøres utenfor sandboxen.
+Filfeil etter DB-commit rapporteres eksplisitt; readonly forblir committet.
+Appen må avsluttes og startes helt på nytt; `/restart-session` er ikke nok.
+
+`gradle-toolchains plan|apply|remove` har separat bekreftelse. Reparasjon krever
+en Gradle toolchain-pin og en validert JDK med riktig major som ikke allerede
+oppdages. Primærkildene fra Gradle 9.8.0, kontrollert 2026-10-09, viser
+asdf- og SDKMAN!-suppliers, men ingen mise-supplier. macOS-supplieren bruker
+`java_home -V`, som ikke fungerer i sandboxen; også standard macOS-JDK-er
+trenger dermed eksplisitte stier her. Matching `JAVA_HOME` eller JDK i
+asdf/SDKMAN!-katalogen trenger ingen reparasjon. Vi merger bare nødvendige
+JDK-hjem i `org.gradle.java.installations.paths`, bevarer øvrige linjer og
+kommentarer, og merker stiene vi selv la til for selektiv fjerning.
+Dette gir ikke Gradle-wrapperen en Java å starte med; instructions gjør det.
+Gradle-prosjekter uten Java-pin får én advarsel, ikke et automatisk Java-valg.
+
+Innstrammingene i #83
 (~/.config allowlist, strict code roots og credential scanning) er utsatt.
 
 ## Konsekvenser
@@ -41,3 +79,10 @@ miljøfeil, seatbelt-feil og manglende installasjon. Vellykkede fixture-tester
 beviser ikke appens faktiske oppstartsmiljø eller sandbox-håndheving.
 Bekreftede backup-flyttinger skjer etter DB-commit og sletter ikke kopiene;
 en flyttefeil varsles uten å rulle tilbake policyen.
+
+**Rest-risiko:** mise `installs/` forblir skrivbar. En sandboxet prosess kan
+derfor fortsatt endre en JDK-binær som senere kjøres utenfor sandboxen.
+Risikoen er uendret fra før; denne PR-en dokumenterer den, og readonly shims
+løser ikke dette. Fixture-tester beviser filhåndtering, digest og commit-rekkefølge,
+ikke appens faktiske oppstartsmiljø, Gradle-suppliers i alle versjoner eller
+sandbox-håndheving på macOS.

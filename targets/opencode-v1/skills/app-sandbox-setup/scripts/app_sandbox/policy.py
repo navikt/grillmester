@@ -36,6 +36,11 @@ def read_policy(raw: str) -> dict[str, Any]:
         raise schema_error() from None
 
 
+def profile_opt_in_paths(rules: dict[str, Any], facts: Facts) -> list[str]:
+    """The same conditional rule applies to observed and pending activation."""
+    return list(facts.profile_readonly) if rules.get("PROFILE_OPT_IN") else []
+
+
 def profile_paths(rules: dict[str, Any], facts: Facts, options: Options,
                   warnings: list[str]) -> dict[str, list[str]]:
     home = Path(facts.home)
@@ -81,6 +86,7 @@ def profile_paths(rules: dict[str, Any], facts: Facts, options: Options,
                     + ", ".join(missing_hardening))
     grants["deniedPaths"] = facts.required_denies(rules, grants["readwritePaths"])
     grants["readonlyPaths"] += list(facts.hardened_caches)
+    grants["readonlyPaths"] += profile_opt_in_paths(rules, facts)
     grants["readwritePaths"] += list(facts.writable_caches)
     warnings.append("After an app update, rerun this skill: new version-named app cache directories need readonly hardening.")
     return grants
@@ -123,6 +129,9 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
                    for path, reason in rules["RETIRED_GRANTS"].get(field, {}).items()}
         if field == "deniedPaths":
             retired.update(retired_denies)
+        if field == "readonlyPaths" and rules.get("PROFILE_OPT_IN"):
+            retired.update({path: "profile opt-in inactive" for path in facts.profile_candidates
+                            if path not in facts.profile_readonly})
         if options.no_docker and field == "readwritePaths":
             retired.update({path: "--no-docker removes this exact grant" for path in facts.docker})
         for path in existing:
@@ -220,8 +229,16 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
         manual_block = ""
         if not options.no_instructions:
             observation = facts.toolchains.get(row["id"], {})
+            unpinned_gradle = observation.get("gradlew") and "java" not in observation.get("pins", {})
+            if unpinned_gradle:
+                example = max((jdk["major"] for jdk in observation.get("jdks", [])),
+                              key=int, default="<major>")
+                warnings.append(
+                    f'{display(row["name"])[1:-1]}: Gradle project without a Java version pin; '
+                    'the sandbox has no default java. Add a pin in the repository '
+                    f'(e.g. `java = "{example}"` in .mise.toml, or jvmToolchain({example})).')
             warnings.extend(f'{display(row["name"])}: {warning}' for warning in observation.get("warnings", []))
-            decisions = toolchain.decide(observation)
+            decisions = [] if unpinned_gradle else toolchain.decide(observation)
             warnings.extend(f'{display(row["name"])}: {item["warning"]}'
                             for item in decisions if item["warning"])
             try:

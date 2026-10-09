@@ -113,6 +113,9 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.db.parent.mkdir()
         environment = mock.patch.dict(os.environ, {
             "HOME": str(self.home), "DOCKER_HOST": "unix://" + str(self.home / ".fixture-docker/docker.sock"),
+            "SHELL": "/fixture/no-shell", "ZDOTDIR": "", "JAVA_HOME": "",
+            "MISE_DATA_DIR": "", "XDG_DATA_HOME": "", "ASDF_DATA_DIR": "",
+            "SDKMAN_CANDIDATES_DIR": "",
         })
         environment.start()
         self.addCleanup(environment.stop)

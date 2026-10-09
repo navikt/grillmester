@@ -14,6 +14,29 @@ class ToolchainTest(unittest.TestCase):
     digest = fixtures.AppSandboxSetupTest.digest
     policies = fixtures.AppSandboxSetupTest.policies
 
+    def test_gradle_without_java_pin_warns_once_without_default_or_instructions(self):
+        repo = self.home / "code/repository"
+        (repo / "gradlew").touch()
+        (repo / ".mise.toml").write_text('[tools]\nnode = "24"\n')
+        for major in ("21", "25"):
+            path = self.home / ".sdkman/candidates/java" / major
+            (path / "bin").mkdir(parents=True)
+            (path / "bin/java").touch()
+            (path / "bin/java").chmod(0o700)
+            (path / "release").write_text('JAVA_VERSION="' + major + '"')
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        warnings = [w for w in json.loads(output)["warnings"] if "Gradle project without a Java version pin" in w]
+        self.assertEqual(1, len(warnings))
+        self.assertIn('java = "25"', warnings[0])
+        self.assertIn("jvmToolchain(25)", warnings[0])
+        self.assertEqual([], json.loads(output)["projects"][0]["toolchain"])
+        self.assertNotIn("instructions", json.loads(output)["projects"][0]["diff"])
+        (repo / ".java-version").write_text("21")
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        self.assertNotIn("Gradle project without", output)
+
     def test_mise_java_pin_writes_only_a_managed_block_and_is_idempotent(self):
         from app_sandbox import toolchain_discovery
         repo = self.home / "code/repository"

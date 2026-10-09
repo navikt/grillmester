@@ -80,7 +80,7 @@ discovery is skipped when those tools are absent.
 
 ## Toolchain guidance and backup moves
 
-The app captures the login shell environment at session startup. A Java pin
+The app captures the login shell environment at app startup. A Java pin
 alone does not activate mise; the macOS `/usr/bin/java` stub cannot discover a
 JDK inside the sandbox. Plan reads pins and validates installed JDKs without
 executing tools. It manages a marked English block in **per-project**
@@ -113,6 +113,55 @@ Probes disable mise auto-install and Gradle JDK auto-download.
 approval**, not the sandbox; the script cannot observe it.
 The #83 tightenings (~/.config allowlist, strict code roots and credential
 scanning) are deferred, not part of this change.
+
+## Optional: shell profile
+
+For bare commands, separately review `python3 <script> profile plan` and confirm
+`profile apply --confirm <digest>` with the same options. This is **never**
+part of default plan/apply. `--tool java`, `--tool node` and `--tool pnpm` limit
+selection: only failing tools are added; working nvm node/pnpm are not moved.
+The marked block uses static, guarded mise shims, not prompt hooks. Without
+mise, Java requires explicit `--java-home <absolute JDK home>` or
+`--java-home auto`; auto needs compatible project pins and a validated JDK.
+It never overwrites an existing `JAVA_HOME` or chooses a generic default Java.
+
+Uses `$SHELL` (`--shell` overrides it), zsh's `$ZDOTDIR/.zprofile` or
+`~/.zprofile`, bash's first existing `.bash_profile`/`.bash_login`/`.profile`
+(creates `.bash_profile` if none), or fish's
+`~/.config/fish/conf.d/app-sandbox-setup.fish`. Never writes `.zshenv`.
+Other shells get instructions only. Malformed markers and symlinks are refused;
+existing files get protected backups and atomic, mode-preserving updates.
+One digest binds policy and profile changes: **first commit readonly shims,
+the login file and the mise binary directory under HOME in every project's
+sandbox policy, then
+write the profile**. A file failure leaves the DB hardening committed; inspect
+the reported partial result and a fresh plan. Install tools and run
+`mise reshim` **outside the sandbox**. `profile remove` previews removal;
+`profile remove --confirm <digest>` removes only our block. Rerun normal
+plan/apply in the same shell/toolchain environment to drop its conditional rule.
+
+**Quit and restart the GitHub Copilot app completely (not just
+`/restart-session`): the app captures the shell environment at startup.**
+
+## Optional: Gradle toolchain paths
+
+Use `gradle-toolchains plan`, then separately confirm
+`gradle-toolchains apply --confirm <digest>` when a Gradle toolchain pin has
+a validated matching JDK that Gradle cannot discover in the sandbox. Gradle's
+asdf/SDKMAN! locations and an existing matching `JAVA_HOME` need no repair.
+mise installs do: Gradle has no mise supplier. macOS standard JDK locations
+also need explicit paths because sandboxed `java_home` cannot discover them.
+This follows the reviewed Gradle 9.8.0 suppliers, not a claim of mise support.
+The command merges JDK **homes**, not parent installation directories, into
+`~/.gradle/gradle.properties`, preserves other properties/comments, and tracks
+only paths it adds. It backs up and writes atomically; `gradle-toolchains remove`
+previews and `remove --confirm <digest>` removes only tracked paths.
+**This does NOT give the wrapper a java to start with**; per-project instructions
+handle that. A Gradle project without a Java pin gets a warning, never an
+automatic `JAVA_HOME` or instructions block.
+
+When checking frontend dev servers, note that `next dev` rewrites `AGENTS.md`
+on start (Next.js agent rules); revert that incidental change after the check.
 
 ## Choices and limits to explain before confirmation
 

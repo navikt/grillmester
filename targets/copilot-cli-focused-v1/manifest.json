@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "29e5c62a79681c4c8a5e6187851297577d4794072e40053a3c74f7400387aca0",
+    "payloadManifestSha256": "973f049935e12eec8da9dcca433230480b988a064ed2d200279776ec363a9b48",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
   },
