@@ -31,6 +31,8 @@ class Rule:
 
 
 RULES = (
+    Rule("<profile-readonly>", "ro", "dir", "profile_opt_in", "hardening",
+         "protect shim persistence before shell activation"),
     Rule(".gradle", "rw", "any", "when_exists", "tool", "build cache"),
     Rule(".m2", "rw", "any", "when_exists", "tool", "build cache"),
     Rule(".npm", "rw", "any", "when_exists", "tool", "package cache"),
@@ -164,4 +166,5 @@ def snapshot() -> dict[str, Any]:
         "FILE_DENIED_PATHS": FILE_DENIED_PATHS, "BACKUP_DIRECTORY": BACKUP_DIRECTORY,
         "RETIRED_GRANTS": {field: dict(paths) for field, paths in RETIRED_GRANTS.items()},
         "SYSTEM_AREAS": SYSTEM_AREAS,
+        "PROFILE_OPT_IN": any(rule.condition == "profile_opt_in" for rule in RULES),
     }

@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
-from . import rules
+from . import backups, rules, toolchain_discovery, profile_discovery
 from .facts import Facts, PathFact
 from .paths import SetupError, display, has_control, home_relative, safe_code_root, same_path, under
 from .policy import read_policy
@@ -206,16 +206,7 @@ def hardened_cache_paths(home: Path) -> list[Path]:
 
 
 def backup_warnings(home: Path) -> list[str]:
-    warnings = []
-    for sibling in sorted((home / ".copilot").glob("data.db*")):
-        name = sibling.name
-        if name == "data.db" or not sibling.is_file() or name.endswith(rules.APP_OWNED_DB_SUFFIXES):
-            continue
-        warnings.append(
-            f"Backup copy {display(str(sibling))} is not covered by the deny list; "
-            "suggest moving it (do not delete it) into ~/.copilot/app-sandbox-setup-backups, which is denied."
-        )
-    return warnings
+    return backups.observe(home)[0]
 
 
 def path_fact(path: Path) -> PathFact:
@@ -295,12 +286,13 @@ def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any
 
 def gather(home: Path, projects: Sequence[dict[str, Any]], code_paths: Sequence[tuple[Any, bool]],
            existing: dict[str, Any], root_warnings: Sequence[str] = (),
-           profile_only: bool = False, no_docker: bool = False) -> Facts:
+           profile_only: bool = False, no_docker: bool = False,
+           no_instructions: bool = False, move_backups: bool = False) -> Facts:
     docker = docker_grants(home)
     profile_warnings: list[str] = []
     credential_file_warnings(home, profile_warnings)
     jdk_warning(home, profile_warnings)
-    backups = backup_warnings(home)
+    backup_messages, moves = backups.observe(home, move_backups)
     hardened = [str(path) for path in hardened_cache_paths(home)]
     writable = [str(child) for child in sorted((home / "Library/Caches/copilot").glob("*"))
                 if child.is_dir() and child.name in rules.APP_CACHE_WRITABLE]
@@ -308,7 +300,22 @@ def gather(home: Path, projects: Sequence[dict[str, Any]], code_paths: Sequence[
     git_paths = [] if profile_only else git_discovery(home, git_warnings, projects)
     warnings = list(root_warnings)
     roots = [] if profile_only else code_roots(code_paths, home, warnings)
-    paths = capture_paths(home, docker + hardened + writable + git_paths + roots, existing,
+    session = toolchain_discovery.session_environment(home) if not profile_only else (None, None)
+    session_env = {**os.environ, **(session[0] or {})}
+    profile_readonly, profile_candidates = profile_discovery.readonly_facts(home, profile_warnings, session_env)
+    if session[1]:
+        profile_warnings.append(session[1])
+        # Unknown shell state cannot justify retiring existing shim hardening.
+        profile_candidates = []
+    paths = capture_paths(home, docker + hardened + writable + git_paths + roots
+                          + profile_readonly + profile_candidates, existing,
                           docker, no_docker)
+    toolchains = {}
+    if not profile_only and not no_instructions:
+        for project in projects:
+            raw = project["main_repo_path"]
+            if isinstance(raw, str) and Path(raw).is_absolute() and not has_control(raw):
+                toolchains[project["id"]] = toolchain_discovery.observe(Path(raw), home, session=session)
     return Facts(str(home), projects, paths, docker, roots, git_paths, hardened, writable,
-                 profile_warnings, backups, git_warnings, warnings)
+                 profile_warnings, backup_messages, git_warnings, warnings, toolchains, moves,
+                 profile_readonly, profile_candidates)

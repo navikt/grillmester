@@ -74,7 +74,8 @@ def db_error(error: Exception) -> SetupError:
 
 def validate_schema(connection: sqlite3.Connection) -> None:
     required = {
-        "projects": {"id": "TEXT", "name": "TEXT", "main_repo_path": "TEXT", "sandbox_enabled": "INTEGER"},
+        "projects": {"id": "TEXT", "name": "TEXT", "main_repo_path": "TEXT",
+                     "sandbox_enabled": "INTEGER", "instructions": "TEXT"},
         "project_sandbox_policies": {"project_id": "TEXT", "policy_json": "TEXT"},
         "worktrees": {"id": "TEXT", "project_id": "TEXT", "path": "TEXT", "branch": "TEXT"},
     }
@@ -99,6 +100,8 @@ def validate_schema(connection: sqlite3.Connection) -> None:
         if table == "projects":
             flag = found["sandbox_enabled"]
             if flag["notnull"] != 1 or str(flag["dflt_value"]).strip("() ") != "0":
+                raise schema_error()
+            if found["instructions"]["notnull"] != 1:
                 raise schema_error()
         if table == "project_sandbox_policies" and found["policy_json"]["notnull"] != 1:
             raise schema_error()
@@ -135,17 +138,21 @@ def validate_schema(connection: sqlite3.Connection) -> None:
         if columns is not None and event != "UPDATE":
             raise schema_error()
         if trigger["tbl_name"] == "projects" and event == "UPDATE":
-            # Only sandbox_enabled is written; unrelated UPDATE OF triggers cannot fire.
+            # Only these project columns are written; unrelated UPDATE OF cannot fire.
             if columns is None or any(
-                sql_identifier_name(column) == "sandbox_enabled"
+                sql_identifier_name(column) in ("sandbox_enabled", "instructions")
                 for column in re.findall(SQL_IDENTIFIER, columns, re.IGNORECASE | re.ASCII)
             ):
                 raise schema_error()
 
 
 def project_rows(connection: sqlite3.Connection) -> list[dict[str, Any]]:
+    has_trust = any(row["name"] == "trusted_config_sha256"
+                    for row in connection.execute("PRAGMA table_info(projects)"))
+    trust = "trusted_config_sha256 IS NOT NULL" if has_trust else "0"
     return [dict(row) for row in connection.execute(
-        "SELECT id, name, main_repo_path, sandbox_enabled FROM projects ORDER BY id"
+        "SELECT id, name, main_repo_path, sandbox_enabled, instructions, "
+        + trust + " AS trusted_config FROM projects ORDER BY id"
     )]
 
 
@@ -170,7 +177,8 @@ def code_path_rows(connection: sqlite3.Connection, warnings: list[str]) -> list[
     return paths
 
 
-def remove_placeholders(plan: dict[str, Any], home: Path) -> None:
+def remove_placeholders(plan: dict[str, Any], home: Path) -> int:
+    removed = 0
     for entry in plan.get("placeholder_removals", []):
         path = Path(entry["path"])
         home_fd = parent_fd = child_fd = None
@@ -187,6 +195,7 @@ def remove_placeholders(plan: dict[str, Any], home: Path) -> None:
             if (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino):
                 raise OSError("directory changed")
             os.rmdir(path.name, dir_fd=parent_fd)
+            removed += 1
         except (OSError, ValueError, NotImplementedError):
             plan["warnings"].append("policy update succeeded but could not remove empty placeholder directory: "
                                     + display(home_relative(path, home))
@@ -195,6 +204,7 @@ def remove_placeholders(plan: dict[str, Any], home: Path) -> None:
             for descriptor in (child_fd, parent_fd, home_fd):
                 if descriptor is not None:
                     os.close(descriptor)
+    return removed
 
 
 def backup_db(db: Path, home: Path) -> Path:
@@ -243,6 +253,9 @@ def write_changes(connection: sqlite3.Connection, plan: dict[str, Any], db: Path
     backup = backup_db(db, home)
     try:
         for project in changes:
+            if project["before"].get("instructions") != project["after"].get("instructions"):
+                connection.execute("UPDATE projects SET instructions = ? WHERE id = ?",
+                                   (project["after"]["instructions"], project["id"]))
             if project["before"]["sandbox_enabled"] != project["after"]["sandbox_enabled"]:
                 connection.execute(
                     "UPDATE projects SET sandbox_enabled = ? WHERE id = ?",
@@ -271,6 +284,7 @@ def write_changes(connection: sqlite3.Connection, plan: dict[str, Any], db: Path
         prune_backups(home)
     except OSError:
         print("Warning: update succeeded but backup retention failed; remove only old app-sandbox-setup backups manually.")
+    plan["backup_path"] = str(backup)
     return f"Updated {len(changes)} projects. Backup: {json.dumps(str(backup), ensure_ascii=False)}"
 
 
@@ -280,7 +294,7 @@ def rollback_snapshot(path: Path) -> dict[str, Any]:
         connection.execute("BEGIN")
         validate_schema(connection)
         return {row["id"]: dict(row) for row in connection.execute(
-            "SELECT p.id, p.sandbox_enabled, s.policy_json FROM projects p "
+            "SELECT p.id, p.sandbox_enabled, p.instructions, s.policy_json FROM projects p "
             "LEFT JOIN project_sandbox_policies s ON s.project_id = p.id ORDER BY p.id"
         )}
     finally:
@@ -289,6 +303,6 @@ def rollback_snapshot(path: Path) -> dict[str, Any]:
 
 def rollback_rows(connection: sqlite3.Connection) -> list[dict[str, Any]]:
     return [dict(row) for row in connection.execute(
-        "SELECT p.id, p.name, p.sandbox_enabled, s.policy_json FROM projects p "
+        "SELECT p.id, p.name, p.sandbox_enabled, p.instructions, s.policy_json FROM projects p "
         "LEFT JOIN project_sandbox_policies s ON s.project_id = p.id ORDER BY p.id"
     )]

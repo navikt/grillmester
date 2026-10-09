@@ -228,7 +228,12 @@ class DiscoveryFactsTest(unittest.TestCase):
             })}
             with mock.patch.dict(os.environ, {
                 "HOME": str(home), "DOCKER_HOST": "unix://" + str(home / ".fixture-docker/socket"),
-            }), mock.patch.object(rules, "APP_CACHE_WRITABLE", {"writable"}):
+                "ZDOTDIR": "", "MISE_DATA_DIR": "", "XDG_DATA_HOME": "", "JAVA_HOME": "",
+                "ASDF_DATA_DIR": "", "SDKMAN_CANDIDATES_DIR": "", "GRADLE_USER_HOME": "",
+            }), mock.patch.object(rules, "APP_CACHE_WRITABLE", {"writable"}), \
+                    mock.patch.object(discovery.toolchain_discovery, "session_environment",
+                                      return_value=({"PATH": "", "ZDOTDIR": ""}, None)), \
+                    mock.patch.object(discovery.toolchain_discovery, "SYSTEM_JDK_ROOT", home / "system-jdks"):
                 facts = discovery.gather(
                     home, projects, [(projects[0]["main_repo_path"], False)], existing,
                 )

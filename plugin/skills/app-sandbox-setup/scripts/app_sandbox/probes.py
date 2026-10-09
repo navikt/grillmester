@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from . import discovery, rules
+from . import discovery, project_probes, rules
 from .paths import under
 
 
@@ -107,7 +107,13 @@ def verify(home: Path, db: Path, mask: bool) -> int:
             pass
     print("proxy env points to 127.0.0.1: " + ("yes" if loopback_proxy else "no"))
     print("GH_TOKEN set: " + ("yes" if os.environ.get("GH_TOKEN") else "no"))
+    project_results = project_probes.run(Path.cwd(), home)
+    for result in project_results:
+        role = "gate" if result["gate"] else f'info ({result["info"]})'
+        print(f'{result["name"]} | {role} | ok (version {result["expected"]}) | '
+              f'{result["category"]} (version {result["actual"]})')
     if actual["HOME write"] == "OK":
         print("this session is not sandboxed: start a new session or use /sandbox on.")
     print("Differences can be caused by enterprise managed settings. Verify in a NEW sandboxed session; unavailable/error probes do not prove protection.")
-    return 0 if actual == expected else 7
+    gating_ok = all(result["category"] == "ok" for result in project_results if result["gate"])
+    return 0 if actual == expected and gating_ok else 7

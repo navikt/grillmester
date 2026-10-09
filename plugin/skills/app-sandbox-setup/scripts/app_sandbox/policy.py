@@ -10,6 +10,7 @@ from typing import Any
 from .facts import Facts, Options
 from .paths import SetupError, canonical, display, has_control, home_relative, schema_error
 from .rules import BOOL_FIELDS, CREDENTIAL_WARNING, MASKING_SCOPE_WARNING, PATH_FIELDS
+from . import instructions, toolchain
 
 
 def read_policy(raw: str) -> dict[str, Any]:
@@ -33,6 +34,11 @@ def read_policy(raw: str) -> dict[str, Any]:
         return policy
     except (ValueError, TypeError, RecursionError):
         raise schema_error() from None
+
+
+def profile_opt_in_paths(rules: dict[str, Any], facts: Facts) -> list[str]:
+    """The same conditional rule applies to observed and pending activation."""
+    return list(facts.profile_readonly) if rules.get("PROFILE_OPT_IN") else []
 
 
 def profile_paths(rules: dict[str, Any], facts: Facts, options: Options,
@@ -80,6 +86,7 @@ def profile_paths(rules: dict[str, Any], facts: Facts, options: Options,
                     + ", ".join(missing_hardening))
     grants["deniedPaths"] = facts.required_denies(rules, grants["readwritePaths"])
     grants["readonlyPaths"] += list(facts.hardened_caches)
+    grants["readonlyPaths"] += profile_opt_in_paths(rules, facts)
     grants["readwritePaths"] += list(facts.writable_caches)
     warnings.append("After an app update, rerun this skill: new version-named app cache directories need readonly hardening.")
     return grants
@@ -122,6 +129,9 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
                    for path, reason in rules["RETIRED_GRANTS"].get(field, {}).items()}
         if field == "deniedPaths":
             retired.update(retired_denies)
+        if field == "readonlyPaths" and rules.get("PROFILE_OPT_IN"):
+            retired.update({path: "profile opt-in inactive" for path in facts.profile_candidates
+                            if path not in facts.profile_readonly})
         if options.no_docker and field == "readwritePaths":
             retired.update({path: "--no-docker removes this exact grant" for path in facts.docker})
         for path in existing:
@@ -213,6 +223,38 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
             warnings.append(f'{display(row["name"])}: corrupt policy skipped; repair this project manually with guide.')
             continue
         after = dict(before or {})
+        old_text = row.get("instructions", "")
+        new_text = old_text
+        decisions = []
+        manual_block = ""
+        if not options.no_instructions:
+            observation = facts.toolchains.get(row["id"], {})
+            unpinned_gradle = observation.get("gradlew") and "java" not in observation.get("pins", {})
+            if unpinned_gradle:
+                example = max((jdk["major"] for jdk in observation.get("jdks", [])),
+                              key=int, default="<major>")
+                warnings.append(
+                    f'{display(row["name"])[1:-1]}: Gradle project without a Java version pin; '
+                    'the sandbox has no default java. Add a pin in the repository '
+                    f'(e.g. `java = "{example}"` in .mise.toml, or jvmToolchain({example})).')
+            warnings.extend(f'{display(row["name"])}: {warning}' for warning in observation.get("warnings", []))
+            decisions = [] if unpinned_gradle else toolchain.decide(observation)
+            warnings.extend(f'{display(row["name"])}: {item["warning"]}'
+                            for item in decisions if item["warning"])
+            try:
+                # Validate markers even when repo config prevents a DB edit.
+                instructions.bounds(old_text)
+                if observation.get("repo_instructions"):
+                    manual_block = instructions.block(decisions)
+                    warnings.append(f'{display(row["name"])}: .github/github-app.yml instructions may overlay '
+                                    'DB instructions (precedence unverified); DB instructions left untouched. '
+                                    f'trusted config: {"yes" if row.get("trusted_config") else "no"}. '
+                                    'Add the displayed block to that file manually.')
+                else:
+                    new_text = instructions.merge(old_text, instructions.block(decisions))
+            except ValueError:
+                warnings.append(f'{display(row["name"])}: malformed toolchain markers; '
+                                'instructions left untouched, sandbox policy still planned.')
         clean_paths(rules, facts, row, after, owned_paths, warnings)
         merge_paths(rules, facts, options, row, after, grants, warnings)
         merge_booleans(row, after, options, warnings)
@@ -220,22 +262,29 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
             "id": row["id"], "name": row["name"],
             "before": {"sandbox_enabled": row["sandbox_enabled"], "policy": before},
             "after": {"sandbox_enabled": 1, "policy": after},
+            "toolchain": decisions,
+            "manual_instructions": manual_block,
         })
+        if not options.no_instructions:
+            changes[-1]["before"]["instructions"] = old_text
+            changes[-1]["after"]["instructions"] = new_text
     if any(not project["after"]["policy"][field] for project in changes
            for field in ("allowGitCredentials", "allowGhCredentials")):
         warnings.append(CREDENTIAL_WARNING)
     full_change_set = [
-        {"id": project["id"], "before": project["before"], "after": project["after"]}
+        {key: project[key] for key in ("id", "before", "after", "toolchain", "manual_instructions")}
         for project in changes
     ]
     digest_input = {"changes": full_change_set, "skipped": skipped,
-                    "placeholder_removals": placeholder_removals}
+                    "placeholder_removals": placeholder_removals, "backup_moves": list(facts.backup_moves)}
     digest = hashlib.sha256(canonical(digest_input).encode()).hexdigest()
     return {"projects": changes, "skipped": skipped, "digest": digest,
-            "placeholder_removals": placeholder_removals, "warnings": list(dict.fromkeys(warnings))}
+            "placeholder_removals": placeholder_removals, "warnings": list(dict.fromkeys(warnings)),
+            "backup_moves": list(facts.backup_moves)}
 
 
-def rollback_plan(projects: list[dict[str, Any]], snapshot: dict[str, Any]) -> dict[str, Any]:
+def rollback_plan(projects: list[dict[str, Any]], snapshot: dict[str, Any],
+                  no_instructions: bool = False) -> dict[str, Any]:
     changes, warnings, skipped = [], [], []
     if not projects:
         raise SetupError(1, "No projects: add a project in the app first.")
@@ -256,11 +305,21 @@ def rollback_plan(projects: list[dict[str, Any]], snapshot: dict[str, Any]) -> d
             skipped.append(row["id"])
             warnings.append(f'{display(row["name"])}: corrupt current/backup policy skipped.')
             continue
+        if not no_instructions:
+            current = row.get("instructions", "")
+            try:
+                restored = instructions.merge(current, instructions.managed(target.get("instructions", "")))
+            except ValueError:
+                skipped.append(row["id"])
+                warnings.append(f'{display(row["name"])}: malformed current/backup toolchain markers; rollback project skipped.')
+                continue
+            states[0]["instructions"] = current
+            states[1]["instructions"] = restored
         changes.append({"id": row["id"], "name": row["name"], "before": states[0], "after": states[1]})
     digest = hashlib.sha256(canonical({
         "operation": "rollback", "projects": [{key: value for key, value in project.items() if key != "name"}
                                              for project in changes], "skipped": skipped,
     }).encode()).hexdigest()
-    warnings.append("Rollback restores only shared projects' sandbox settings, never the whole DB. A fresh backup makes rollback reversible.")
+    warnings.append("Rollback restores shared projects' sandbox settings and only our managed instructions block unless opted out; current user text is preserved, never the whole DB. A fresh backup makes rollback reversible.")
     return {"operation": "rollback", "projects": changes, "skipped": skipped,
             "warnings": warnings, "digest": digest}
