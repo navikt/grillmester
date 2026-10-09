@@ -52,6 +52,8 @@ discovery is skipped when those tools are absent.
    - Exit 5: DB busy/locked after up to 30 seconds; retry after the competing
      operation ends, never delete WAL/SHM files.
 4. Policy changes apply to **NEW sessions or after `/restart-session`**.
+   Restart or close sessions that were already open: they keep the old policy
+   and can recreate empty placeholder directories that apply just removed.
    `/sandbox off` and `/sandbox on` toggle the **current session immediately**;
    the choice persists for that session **including after restart**, taking
    precedence over the project default. If the user used `/sandbox off`, they
