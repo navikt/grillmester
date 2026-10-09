@@ -507,10 +507,14 @@ def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
     if mask:
         warnings.append("Credential masking is ON: its proxy forces loopback deny even with allowLocalNetwork=true.")
     for sibling in sorted((home / ".copilot").glob("data.db.*")):
+        if (sibling.name.endswith(("-wal", "-shm", "-journal", ".open-lock"))
+                or sibling.name.startswith("data.db.pre-update-backup-")):
+            continue
         if sibling.is_file():
             warnings.append(
-                f"Legacy sibling file {display(str(sibling))}: recommend deleting backup files "
-                "because they are not covered by the deny list (never delete live WAL/SHM files)."
+                f"Legacy sibling file {display(str(sibling))}: not readable from the sandbox "
+                "by default (~/.copilot is not granted); optionally move it into "
+                "~/.copilot/app-sandbox-setup-backups."
             )
     grants = {}
     missing = []

@@ -1205,8 +1205,18 @@ class AppSandboxSetupTest(unittest.TestCase):
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
         self.assertIn(str(old), output)
-        self.assertIn("not covered by the deny list", output)
-        self.assertIn("deleting", output)
+        self.assertIn("not readable from the sandbox by default", output)
+        self.assertIn("optionally move it into ~/.copilot/app-sandbox-setup-backups", output)
+        self.assertNotIn("deleting", output)
+
+    def test_app_owned_siblings_do_not_produce_legacy_warnings(self) -> None:
+        for name in ("data.db.open-lock", "data.db-wal", "data.db-shm",
+                     "data.db-journal", "data.db.fixture-wal", "data.db.fixture-shm",
+                     "data.db.fixture-journal", "data.db.pre-update-backup-1.2.3-456"):
+            (self.db.parent / name).touch()
+        warnings = []
+        self.app.profile_paths(self.home, None, warnings, docker_paths=[])
+        self.assertFalse(any("Legacy sibling" in warning for warning in warnings))
 
     def test_guide_includes_machine_paths_and_handles_unavailable_db(self) -> None:
         (self.home / ".gradle").mkdir()

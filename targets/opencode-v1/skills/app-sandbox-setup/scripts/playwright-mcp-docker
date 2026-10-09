@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  echo "playwright-mcp-docker: $1" >&2
+  exit 1
+}
+
+PW_VERSION="${PW_VERSION:-1.63.0}"
+MCP_VERSION="${MCP_VERSION:-0.0.80}"
+IMAGE="${PW_IMAGE:-mcr.microsoft.com/playwright:v${PW_VERSION}-noble}"
+CONFIG="${PW_MCP_CONFIG:-$HOME/.config/playwright-mcp/docker.json}"
+NAME="copilot-playwright-${PW_VERSION}"
+TIMEOUT="${PW_READY_TIMEOUT:-60}"
+[[ "$PW_VERSION" =~ ^[0-9A-Za-z._-]+$ ]] || fail "Invalid PW_VERSION."
+[[ "$MCP_VERSION" =~ ^[0-9A-Za-z._-]+$ ]] || fail "Invalid MCP_VERSION."
+[[ "$IMAGE" =~ ^[a-z0-9][a-z0-9./:@_-]+$ ]] || fail "Invalid PW_IMAGE (expected an image reference, optionally digest-pinned)."
+[[ "$TIMEOUT" =~ ^[1-9][0-9]*$ ]] || fail "PW_READY_TIMEOUT must be a positive number of seconds."
+
+command -v python3 >/dev/null 2>&1 || fail "python3 is required to read docker.json safely."
+parameters="$(python3 -c '
+import json, os, re, sys
+from urllib.parse import urlsplit
+try:
+    with open(sys.argv[1]) as stream:
+        remote = json.load(stream)["browser"]["remoteEndpoint"]
+    endpoint = remote["endpoint"]
+    url = urlsplit(endpoint)
+    port = os.environ.get("PW_DOCKER_PORT") or str(url.port)
+    path = os.environ.get("PW_SERVER_PATH") or url.path
+    if not path.startswith("/"):
+        path = "/" + path
+    valid = (url.scheme == "ws" and url.hostname == "127.0.0.1"
+             and url.username is None and url.password is None and not url.query and not url.fragment
+             and re.fullmatch(r"[0-9]{1,5}", port) and 1 <= int(port) <= 65535
+             and re.fullmatch(r"/[A-Za-z0-9_-]{32,}", path)
+             and int(port) == url.port and path == url.path)
+    if not valid:
+        raise ValueError("Invalid endpoint.")
+    print(port)
+    print(path)
+except (OSError, ValueError, KeyError, TypeError, AttributeError):
+    sys.exit(1)
+' "$CONFIG" 2>/dev/null)" || fail "Invalid docker.json endpoint or conflicting port/path override; rerun the setup helper."
+PORT="${parameters%%$'\n'*}"
+SERVER_PATH="${parameters#*$'\n'}"
+
+DOCKER="$(command -v docker || true)"
+if [ -z "$DOCKER" ]; then
+  for directory in "$HOME/.rd/bin" "$HOME/.orbstack/bin" /opt/homebrew/bin /usr/local/bin /Applications/Docker.app/Contents/Resources/bin; do
+    if [ -x "$directory/docker" ]; then
+      DOCKER="$directory/docker"
+      break
+    fi
+  done
+fi
+[ -n "$DOCKER" ] || fail "Docker unavailable; install/start it outside the sandbox."
+if ! "$DOCKER" image inspect "$IMAGE" >/dev/null 2>&1; then
+  # Never pull automatically: credential helpers cannot run in the app sandbox.
+  fail "Image missing or Docker inaccessible. Run outside the sandbox: docker pull $IMAGE"
+fi
+
+container="$("$DOCKER" inspect "$NAME" 2>/dev/null || true)"
+matches="$(printf '%s' "$container" | python3 -c '
+import json, sys
+try:
+    container = json.load(sys.stdin)[0]
+    config = container["Config"]
+    cmd = config["Cmd"]
+    bindings = container["HostConfig"]["PortBindings"]["3333/tcp"]
+    matches = (container["State"]["Running"]
+               and cmd[cmd.index("--path") + 1] == sys.argv[1]
+               and bindings == [{"HostIp": "127.0.0.1", "HostPort": sys.argv[2]}]
+               and config["User"] == "pwuser" and config["WorkingDir"] == "/home/pwuser"
+               and config["Image"] == sys.argv[3] and "--unsafe" not in cmd)
+    print("yes" if matches else "no")
+except (ValueError, KeyError, IndexError, TypeError):
+    print("no")
+' "$SERVER_PATH" "$PORT" "$IMAGE" 2>/dev/null)" || fail "Could not validate the existing container."
+if [ "$matches" != yes ]; then
+  "$DOCKER" rm -f "$NAME" >/dev/null 2>&1 || true
+  "$DOCKER" run -d --rm --init --name "$NAME" \
+    --user pwuser --workdir /home/pwuser -p "127.0.0.1:${PORT}:3333" \
+    "$IMAGE" npx -y "playwright@${PW_VERSION}" run-server \
+    --port 3333 --host 0.0.0.0 --path "$SERVER_PATH" >/dev/null 2>&1 \
+    || fail "Container startup failed; check Docker outside the sandbox."
+fi
+
+command -v curl >/dev/null 2>&1 || fail "curl is required for the readiness check."
+deadline=$((SECONDS + TIMEOUT))
+while ! curl --silent --output /dev/null --max-time 1 "http://127.0.0.1:${PORT}/" 2>/dev/null; do
+  [ "$SECONDS" -lt "$deadline" ] || fail "Readiness timed out; check Docker and the loopback/masking policy."
+  sleep 1
+done
+
+for runner in pnpm npx; do
+  executable="$(command -v "$runner" || true)"
+  if [ -z "$executable" ] && [ -x "$HOME/.local/share/mise/shims/$runner" ]; then
+    executable="$HOME/.local/share/mise/shims/$runner"
+  fi
+  if [ -n "$executable" ]; then
+    if [ "$runner" = pnpm ]; then
+      exec "$executable" dlx "@playwright/mcp@${MCP_VERSION}" --config "$CONFIG" "$@"
+    else
+      exec "$executable" -y "@playwright/mcp@${MCP_VERSION}" --config "$CONFIG" "$@"
+    fi
+  fi
+done
+fail "Install pnpm or npx (also checked mise shims)."

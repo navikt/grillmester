@@ -107,7 +107,7 @@
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "be631ba1140009076e27596a26f174bb950a5fa983310b2e3df854763d9a9e91",
+      "sha256": "740edd8305f91d3f186d0c5583cf3b817ec0a00b6231aacdd65216a4122ca5e3",
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
@@ -143,11 +143,23 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
-      "sha256": "f1659a4ca160252f61c2846784f08a5ab20cd429827f615ee9e61b1c7832d776",
+      "sha256": "13902d2c1b86090c95cc0248d88ace87baaa91b62a8799379022d50faf6eb904",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox_setup.py": {
-      "sha256": "fb6ffda8a950dab95198137b8f124e9f1291b81442683fd6cfc59571fcb6789c",
+      "sha256": "d00a5f563d14c8b9c6d3b6b03744c467b1f4b0c5f3ae061dcb982893b20512ee",
+      "mode": "0644"
+    },
+    "skills/app-sandbox-setup/scripts/playwright-mcp-docker": {
+      "sha256": "007d7cce856a11049e54a96804b96154c94ea917270823cc4df525613662d9cf",
+      "mode": "0755"
+    },
+    "skills/app-sandbox-setup/scripts/playwright-mcp-headed": {
+      "sha256": "b8171b8e43ca6fd6678fff7e5b0675fbf0567564fc2e5f8491643981cec0e056",
+      "mode": "0755"
+    },
+    "skills/app-sandbox-setup/scripts/playwright_mcp_setup.py": {
+      "sha256": "4e81fd8f0f8be6a4fb7e5822330ee7ecb2e3695d9fa4d6f02a4a7438baaa155d",
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {

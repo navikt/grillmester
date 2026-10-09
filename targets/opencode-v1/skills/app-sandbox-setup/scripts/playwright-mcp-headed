@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+probe="$(mktemp "$HOME/.playwright-mcp-sandbox-probe.XXXXXX" 2>/dev/null)" || {
+  echo "playwright-mcp-headed: running inside the Copilot sandbox; use the playwright-sandbox MCP server instead." >&2
+  exit 1
+}
+rm -f "$probe"
+
+for runner in pnpm npx; do
+  executable="$(command -v "$runner" || true)"
+  if [ -z "$executable" ] && [ -x "$HOME/.local/share/mise/shims/$runner" ]; then
+    executable="$HOME/.local/share/mise/shims/$runner"
+  fi
+  if [ -n "$executable" ]; then
+    if [ "$runner" = pnpm ]; then
+      exec "$executable" dlx "@playwright/mcp@${MCP_VERSION:-0.0.80}" "$@"
+    else
+      exec "$executable" -y "@playwright/mcp@${MCP_VERSION:-0.0.80}" "$@"
+    fi
+  fi
+done
+echo "playwright-mcp-headed: install pnpm or npx (also checked mise shims)." >&2
+exit 1

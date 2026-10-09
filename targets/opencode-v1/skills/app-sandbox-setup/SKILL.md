@@ -52,6 +52,8 @@ discovery is skipped when those tools are absent.
    - Exit 5: DB busy/locked after up to 30 seconds; retry after the competing
      operation ends, never delete WAL/SHM files.
 4. Policy changes apply to **NEW sessions or after `/restart-session`**.
+   Restart or close already-open sessions after apply: they keep the old policy
+   and may recreate the empty placeholder directories.
    `/sandbox off` and `/sandbox on` toggle the **current session immediately**;
    the choice persists for that session **including after restart**, taking
    precedence over the project default. If the user used `/sandbox off`, they
@@ -114,9 +116,10 @@ discovery is skipped when those tools are absent.
   `JAVA_HOME` or use any version manager (mise, sdkman, asdf, jenv, etc.).
 - The app protects `~/Library/pnpm` (`PNPM_HOME`) despite its rw grant:
   global pnpm installs/links fail in the sandbox; project installs work.
-- Playwright/Chromium cannot run inside the app sandbox: it denies required macOS IPC (Mach bootstrap/crashpad handshake
-  and sandbox extensions); no path grant helps. Run browser tests/Playwright MCP outside the sandbox:
-  approve **Run outside the sandbox → Run once** for that command, or use a session with `/sandbox off`.
+- Local Chromium cannot run inside the app sandbox: required macOS IPC is
+  denied; no path grant helps. For MCP, use the Docker variant below. Test
+  suites launching local browsers (e.g. `pnpm playwright test`) still need
+  **Run outside the sandbox → Run once**, or a session with `/sandbox off`.
 - Processes from earlier shell calls cannot be inspected or signalled in the
   sandbox; stop background servers in the same call or by port.
 
@@ -130,6 +133,46 @@ or MCP OAuth; until then they are not denied, but they are only readable if you
 added a broader grant. Reruns are idempotent and remove the old
 `~/.copilot/session-state` rw grant; the app supplies its own session access.
 `--home PATH` and `--db PATH` support isolated fixtures.
+
+## Playwright in the sandbox
+
+Use the separate [Playwright helper](scripts/playwright_mcp_setup.py), which
+does not read `data.db`. It bundles [Docker](scripts/playwright-mcp-docker)
+and [headed](scripts/playwright-mcp-headed) wrappers; the plugin itself ships
+no MCP server or hook.
+
+1. Run `python3 <scripts>/playwright_mcp_setup.py plan`. Present all changes,
+   warnings and the digest; get explicit conversational confirmation, then run
+   `python3 <scripts>/playwright_mcp_setup.py apply --confirm <digest>` with
+   the same options. Request **Run once** if denied, never silently bypass.
+   Existing MCP args, env and unrelated entries are preserved; config is
+   backed up in the denied `~/.copilot/app-sandbox-setup-backups` directory
+   before atomic replacement. Reruns are idempotent. Exit 3 means invalid JSON
+   or object structure (nothing written); exit 4 needs a fresh plan/confirmation.
+2. If the image is missing, ask the user to run
+   `docker pull mcr.microsoft.com/playwright:v1.63.0-noble` **outside the
+   sandbox** in a normal terminal, or approve **Run outside the sandbox →
+   Run once**. The helper/wrapper never pulls automatically.
+3. Wrappers default to `~/.local/bin`. If this directory was new, rerun
+   `app-sandbox-setup` plan/apply so it is granted readonly, then restart
+   sessions. In a **new sandboxed session**, verify both installed wrappers
+   with `test -r <wrapper> && test -x <wrapper>` and the generated
+   `~/.config/playwright-mcp/docker.json` with `test -r <config>` (do not print
+   its endpoint). Use `--home`, `--mcp-config`, `--bin-dir` for alternate paths;
+   a custom bin-dir needs a reviewed readonly grant too.
+4. Use `playwright-sandbox` for headless browsing with no login state.
+   Use `com.microsoft/playwright-mcp` (headed) **only with sandbox OFF** for
+   logged-in flows; it refuses when HOME is not writable.
+
+Before confirmation, explain: Docker socket access is near-unsandboxed host
+access; the non-root browser port is published only on loopback, with an
+unguessable path stored in a 0600 config, not strong authentication. Local
+processes that can read this config can drive the browser. `exposeNetwork:
+"<loopback>"` exposes host loopback services; masking ON also breaks this
+variant. Container startup fetches pinned `playwright@1.63.0` via npx
+(supply-chain risk); `PW_IMAGE` permits digest pinning. MCP defaults to
+`@playwright/mcp@0.0.80`; changing versions requires matching Playwright/image
+versions. Never add `--no-sandbox` by default.
 
 ## Change later
 
