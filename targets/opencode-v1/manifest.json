@@ -344,7 +344,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/discovery.py": {
-      "sha256": "3d96d98b89c0ae19ff9952eb9950b43784d508a9cea2e516b867cb0918071c03",
+      "sha256": "fabcc0602b541c6e13ab1caad2b44d9d2ec619aefe7cd9deeb63aa84c1e0507b",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/facts.py": {

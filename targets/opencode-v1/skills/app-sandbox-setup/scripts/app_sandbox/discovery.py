@@ -223,15 +223,28 @@ def path_fact(path: Path) -> PathFact:
     inode = None
     try:
         exists = path.exists()
-        if exists:
-            info = path.stat()
-            inode = (info.st_dev, info.st_ino)
-        file, directory, symlink = path.is_file(), path.is_dir(), path.is_symlink()
     except OSError:
-        # Existing policy paths are only compared by the oracle's same_path:
-        # failed stat calls must not prevent its resolved/casefold fallback.
-        exists = file = directory = symlink = False
-        inode = None
+        pass
+    else:
+        if exists:
+            try:
+                info = path.stat()
+                inode = (info.st_dev, info.st_ino)
+            except OSError:
+                # Preserve existence and allow resolved/casefold comparison.
+                pass
+        try:
+            file = path.is_file()
+        except OSError:
+            pass
+        try:
+            directory = path.is_dir()
+        except OSError:
+            pass
+        try:
+            symlink = path.is_symlink()
+        except OSError:
+            pass
     failed = False
     try:
         resolved = str(path.resolve()).casefold()

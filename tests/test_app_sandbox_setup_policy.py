@@ -118,23 +118,64 @@ class RulesTest(unittest.TestCase):
 class DiscoveryFactsTest(unittest.TestCase):
     def test_stat_errors_fall_back_to_resolved_identity(self):
         path = Path("/synthetic/Policy-Path")
-        for method in ("exists", "stat", "is_file", "is_dir", "is_symlink"):
+        for code in (errno.EACCES, errno.EPERM, errno.ENAMETOOLONG):
+            with self.subTest(code=code), \
+                    mock.patch.object(Path, "exists", return_value=True), \
+                    mock.patch.object(Path, "resolve", return_value=path), \
+                    mock.patch.object(Path, "stat", side_effect=OSError(code, "synthetic")):
+                state = discovery.path_fact(path)
+                self.assertEqual(str(path).casefold(), state.resolved)
+                self.assertIsNone(state.inode)
+                self.assertTrue(state.exists)
+                self.assertFalse(state.file)
+                self.assertFalse(state.directory)
+                self.assertFalse(state.symlink)
+                facts = Facts("/synthetic", paths={str(path): state})
+                self.assertTrue(facts.same(path, Path(str(path).lower())))
+                self.assertTrue(facts.under(path / "child", Path(str(path).lower())))
+                self.assertTrue(facts.under(path, Path("/synthetic")))
+
+    def test_exists_errors_leave_observations_false(self):
+        path = Path("/synthetic/Policy-Path")
+        for code in (errno.EACCES, errno.EPERM, errno.ENAMETOOLONG):
+            with self.subTest(code=code), \
+                    mock.patch.object(Path, "exists", side_effect=OSError(code, "synthetic")), \
+                    mock.patch.object(Path, "stat", return_value=mock.Mock(st_dev=1, st_ino=2)), \
+                    mock.patch.object(Path, "is_file", return_value=True), \
+                    mock.patch.object(Path, "is_dir", return_value=True), \
+                    mock.patch.object(Path, "is_symlink", return_value=True), \
+                    mock.patch.object(Path, "resolve", return_value=path):
+                state = discovery.path_fact(path)
+                self.assertEqual(str(path).casefold(), state.resolved)
+                self.assertIsNone(state.inode)
+                self.assertFalse(state.exists)
+                self.assertFalse(state.file)
+                self.assertFalse(state.directory)
+                self.assertFalse(state.symlink)
+                self.assertFalse(state.empty)
+                self.assertFalse(state.resolution_failed)
+
+    def test_metadata_errors_preserve_other_observations(self):
+        path = Path("/synthetic/Policy-Path")
+        for method, field in (
+            ("stat", "inode"), ("is_file", "file"),
+            ("is_dir", "directory"), ("is_symlink", "symlink"),
+        ):
             for code in (errno.EACCES, errno.EPERM, errno.ENAMETOOLONG):
                 with self.subTest(method=method, code=code), \
                         mock.patch.object(Path, "exists", return_value=True), \
-                        mock.patch.object(Path, "stat", return_value=mock.Mock(st_dev=1, st_ino=2, st_mode=0)), \
+                        mock.patch.object(Path, "stat", return_value=mock.Mock(st_dev=1, st_ino=2)), \
+                        mock.patch.object(Path, "is_file", return_value=True), \
+                        mock.patch.object(Path, "is_dir", return_value=True), \
+                        mock.patch.object(Path, "is_symlink", return_value=True), \
                         mock.patch.object(Path, "resolve", return_value=path), \
                         mock.patch.object(Path, method, side_effect=OSError(code, "synthetic")):
                     state = discovery.path_fact(path)
-                    self.assertEqual(str(path).casefold(), state.resolved)
-                    self.assertIsNone(state.inode)
-                    self.assertFalse(state.exists)
-                    self.assertFalse(state.file)
-                    self.assertFalse(state.directory)
-                    self.assertFalse(state.symlink)
-                    facts = Facts("/synthetic", paths={str(path): state})
-                    self.assertTrue(facts.same(path, Path(str(path).lower())))
-                    self.assertTrue(facts.under(path, Path("/synthetic")))
+                    self.assertTrue(state.exists)
+                    self.assertEqual(None if field == "inode" else (1, 2), state.inode)
+                    self.assertEqual(field != "file", state.file)
+                    self.assertEqual(field != "directory", state.directory)
+                    self.assertEqual(field != "symlink", state.symlink)
 
     def test_capture_preserves_only_oracle_unguarded_checks(self):
         home = Path("/synthetic-home")
