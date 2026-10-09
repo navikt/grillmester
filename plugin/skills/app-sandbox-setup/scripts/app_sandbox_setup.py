@@ -69,6 +69,7 @@ FILE_DENIED_PATHS = frozenset((
     ".netrc", ".copilot/data.db", ".copilot/settings.json", ".copilot/config.json",
 ))
 BACKUP_DIRECTORY = ".copilot/app-sandbox-setup-backups"
+APP_OWNED_DB_SUFFIXES = (".open-lock", "-wal", "-shm", "-journal")
 PATH_FIELDS = ("readwritePaths", "readonlyPaths", "deniedPaths")
 BOOL_FIELDS = ("allowOutbound", "allowLocalNetwork", "allowGitCredentials", "allowGhCredentials")
 CREDENTIAL_WARNING = (
@@ -506,12 +507,15 @@ def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
     jdk_warning(home, warnings)
     if mask:
         warnings.append("Credential masking is ON: its proxy forces loopback deny even with allowLocalNetwork=true.")
-    for sibling in sorted((home / ".copilot").glob("data.db.*")):
-        if sibling.is_file():
-            warnings.append(
-                f"Legacy sibling file {display(str(sibling))}: recommend deleting backup files "
-                "because they are not covered by the deny list (never delete live WAL/SHM files)."
-            )
+    for sibling in sorted((home / ".copilot").glob("data.db*")):
+        name = sibling.name
+        # The app owns its lock and SQLite sidecars; never suggest touching them.
+        if name == "data.db" or not sibling.is_file() or name.endswith(APP_OWNED_DB_SUFFIXES):
+            continue
+        warnings.append(
+            f"Backup copy {display(str(sibling))} is not covered by the deny list; "
+            "suggest moving it (do not delete it) into ~/.copilot/app-sandbox-setup-backups, which is denied."
+        )
     grants = {}
     missing = []
     docker = docker_grants(home) if docker_paths is None else docker_paths

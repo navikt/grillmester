@@ -1199,14 +1199,29 @@ class AppSandboxSetupTest(unittest.TestCase):
             self.assertEqual(expected, self.policies()[0]["allowGhCredentials"])
             self.assertIn("credential value overridden", output)
 
-    def test_old_sibling_backups_are_warned_about(self) -> None:
+    def test_sibling_backups_are_suggested_moved_not_deleted(self) -> None:
         old = self.db.parent / "data.db.before-sandbox-setup-fixture"
-        old.touch()
+        update = self.db.parent / "data.db.pre-update-backup-1.1.28-1791516699937"
+        for path in (old, update):
+            path.touch()
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
-        self.assertIn(str(old), output)
+        for path in (old, update):
+            self.assertIn(str(path), output)
         self.assertIn("not covered by the deny list", output)
-        self.assertIn("deleting", output)
+        self.assertIn("app-sandbox-setup-backups", output)
+        self.assertNotIn("deleting", output)
+
+    def test_app_owned_db_files_are_never_flagged(self) -> None:
+        owned = [self.db.parent / f"data.db{suffix}"
+                 for suffix in (".open-lock", "-wal", "-shm", "-journal")]
+        for path in owned:
+            path.touch()
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        for path in owned:
+            self.assertNotIn(str(path), output)
+        self.assertNotIn("Backup copy", output)
 
     def test_guide_includes_machine_paths_and_handles_unavailable_db(self) -> None:
         (self.home / ".gradle").mkdir()

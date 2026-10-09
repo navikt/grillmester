@@ -107,7 +107,7 @@
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "be631ba1140009076e27596a26f174bb950a5fa983310b2e3df854763d9a9e91",
+      "sha256": "97547889a07d9184e8027f97e3948bc9e59ce7ccc9611a002102de4880428e42",
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
@@ -143,11 +143,11 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
-      "sha256": "f1659a4ca160252f61c2846784f08a5ab20cd429827f615ee9e61b1c7832d776",
+      "sha256": "0baed7e0dbd542c6b9288ae863926fca86cdf3a67332272481c7fbf493dd752a",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox_setup.py": {
-      "sha256": "fb6ffda8a950dab95198137b8f124e9f1291b81442683fd6cfc59571fcb6789c",
+      "sha256": "ddc6f7ec692ed0f3f7778c63283c48e8e812a78e609a9a4f79c9eda993336b11",
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {
