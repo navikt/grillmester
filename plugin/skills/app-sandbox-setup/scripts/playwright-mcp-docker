@@ -18,6 +18,7 @@ TIMEOUT="${PW_READY_TIMEOUT:-60}"
 [[ "$TIMEOUT" =~ ^[1-9][0-9]*$ ]] || fail "PW_READY_TIMEOUT must be a positive number of seconds."
 
 command -v python3 >/dev/null 2>&1 || fail "python3 is required to read docker.json safely."
+python3 -c pass >/dev/null 2>&1 || fail "python3 could not run; the macOS Command Line Tools stub may need installation. Use an installed Python 3.9+."
 parameters="$(python3 -c '
 import json, os, re, sys
 from urllib.parse import urlsplit
@@ -60,35 +61,68 @@ if ! "$DOCKER" image inspect "$IMAGE" >/dev/null 2>&1; then
   fail "Image missing or Docker inaccessible. Run outside the sandbox: docker pull $IMAGE"
 fi
 
-container="$("$DOCKER" inspect "$NAME" 2>/dev/null || true)"
-matches="$(printf '%s' "$container" | python3 -c '
-import json, sys
+inspect_container() {
+  local container inspection
+  container="$("$DOCKER" inspect --type container "$NAME" 2>/dev/null || true)"
+  inspection="$(printf '%s' "$container" | python3 -c '
+import json, re, sys
+raw = sys.stdin.read()
 try:
-    container = json.load(sys.stdin)[0]
+    containers = json.loads(raw) if raw.strip() else []
+    if containers == []:
+        print("no\n-")
+        sys.exit(0)
+    container = containers[0]
+    identifier = container["Id"]
+    if not isinstance(identifier, str) or not re.fullmatch(r"[a-f0-9]{64}", identifier):
+        sys.exit(1)
+except (ValueError, KeyError, IndexError, TypeError):
+    sys.exit(1)
+try:
     config = container["Config"]
     cmd = config["Cmd"]
-    bindings = container["HostConfig"]["PortBindings"]["3333/tcp"]
+    host = container["HostConfig"]
+    bindings = host["PortBindings"]["3333/tcp"]
     matches = (container["State"]["Running"]
                and cmd[cmd.index("--path") + 1] == sys.argv[1]
                and bindings == [{"HostIp": "127.0.0.1", "HostPort": sys.argv[2]}]
                and config["User"] == "pwuser" and config["WorkingDir"] == "/home/pwuser"
-               and config["Image"] == sys.argv[3] and "--unsafe" not in cmd)
-    print("yes" if matches else "no")
+               and config["Image"] == sys.argv[3] and "--unsafe" not in cmd
+               and host["CapDrop"] == ["ALL"] and not host.get("CapAdd")
+               and host["Privileged"] is False
+               and any(option in ("no-new-privileges", "no-new-privileges=true")
+                       for option in host["SecurityOpt"])
+               and host["ShmSize"] == 1073741824 and host["IpcMode"] == "private"
+               and host["Init"] is True and host["AutoRemove"] is True)
 except (ValueError, KeyError, IndexError, TypeError):
-    print("no")
+    matches = False
+print("yes" if matches else "no")
+print(identifier)
 ' "$SERVER_PATH" "$PORT" "$IMAGE" 2>/dev/null)" || fail "Could not validate the existing container."
+  matches="${inspection%%$'\n'*}"
+  CONTAINER_ID="${inspection#*$'\n'}"
+}
+
+inspect_container
 if [ "$matches" != yes ]; then
-  "$DOCKER" rm -f "$NAME" >/dev/null 2>&1 || true
-  "$DOCKER" run -d --rm --init --name "$NAME" \
+  # Use the inspected immutable ID, never the name a concurrent starter may claim.
+  if [ "$CONTAINER_ID" != "-" ]; then
+    "$DOCKER" rm -f "$CONTAINER_ID" >/dev/null 2>&1 || true
+  fi
+  if ! "$DOCKER" run -d --pull=never --rm --init --name "$NAME" \
+    --cap-drop=ALL --security-opt no-new-privileges --shm-size=1g \
     --user pwuser --workdir /home/pwuser -p "127.0.0.1:${PORT}:3333" \
     "$IMAGE" npx -y "playwright@${PW_VERSION}" run-server \
-    --port 3333 --host 0.0.0.0 --path "$SERVER_PATH" >/dev/null 2>&1 \
-    || fail "Container startup failed; check Docker outside the sandbox."
+    --port 3333 --host 0.0.0.0 --path "$SERVER_PATH" >/dev/null 2>&1; then
+    # A concurrent wrapper may have won the name. Reuse it only after full validation.
+    inspect_container
+    [ "$matches" = yes ] || fail "Container startup failed; check Docker outside the sandbox."
+  fi
 fi
 
 command -v curl >/dev/null 2>&1 || fail "curl is required for the readiness check."
 deadline=$((SECONDS + TIMEOUT))
-while ! curl --silent --output /dev/null --max-time 1 "http://127.0.0.1:${PORT}/" 2>/dev/null; do
+while ! curl --noproxy '*' --silent --output /dev/null --max-time 1 "http://127.0.0.1:${PORT}/" 2>/dev/null; do
   [ "$SECONDS" -lt "$deadline" ] || fail "Readiness timed out; check Docker and the loopback/masking policy."
   sleep 1
 done

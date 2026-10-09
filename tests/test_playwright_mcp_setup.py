@@ -70,6 +70,28 @@ class PlaywrightSetupTest(unittest.TestCase):
                          servers["com.microsoft/playwright-mcp"]["args"])
         self.assertFalse((self.home / ".copilot/app-sandbox-setup-backups").exists())
 
+    def test_new_copilot_directory_is_private_and_existing_mode_is_preserved(self):
+        previous = os.umask(0o022)
+        try:
+            self.apply()
+        finally:
+            os.umask(previous)
+        self.assertEqual(0o700, self.config.parent.stat().st_mode & 0o777)
+        self.config.parent.chmod(0o750)
+        self.apply()
+        self.assertEqual(0o750, self.config.parent.stat().st_mode & 0o777)
+
+    def test_custom_mcp_config_backup_also_creates_private_copilot_directory(self):
+        self.config = self.home / "custom-mcp.json"
+        self.config.write_text('{"mcpServers": {}}')
+        previous = os.umask(0o022)
+        try:
+            self.apply()
+        finally:
+            os.umask(previous)
+        self.assertEqual(0o700, (self.home / ".copilot").stat().st_mode & 0o777)
+        self.assertEqual(1, len(list((self.home / ".copilot/app-sandbox-setup-backups").iterdir())))
+
     def test_preservation_backup_and_idempotency(self):
         entry = {"command": "old", "type": "stdio", "tools": ["browser"],
                  "args": ["--blocked-origins", "https://example.invalid", "--auth", "fixture-secret"],
@@ -115,6 +137,61 @@ class PlaywrightSetupTest(unittest.TestCase):
         self.apply()
         self.assertEqual(docker, json.loads(self.docker_config.read_text()))
         self.assertEqual(backups, list(directory.iterdir()))
+
+    def test_preserved_args_and_env_are_never_printed(self):
+        entry = {"command": "old", "args": [
+            "--pass", "hunter2", "--proxy-server", "http://u:p@h:1"],
+            "env": {"KEEP": "fixture-private-env"}}
+        self.config.parent.mkdir()
+        self.config.write_text(json.dumps({"mcpServers": {"playwright-sandbox": entry}}))
+        for args in (("plan",), ("plan", "--json"),
+                     ("apply", "--confirm", self.plan()["digest"])):
+            with self.subTest(command=args[0]):
+                code, output = self.cli(*args)
+                self.assertEqual(0, code)
+                for value in entry["args"] + list(entry["env"].values()):
+                    self.assertNotIn(value, output)
+                if args[0] == "plan":
+                    self.assertIn("<4 args preserved>", output)
+
+    def test_existing_bare_entries_change_only_command_and_keep_key_order(self):
+        entry = {"extra": True, "command": "old", "args": []}
+        original = {"keep": 1, "mcpServers": {
+            "playwright-sandbox": entry, "com.microsoft/playwright-mcp": entry}, "last": 2}
+        self.config.parent.mkdir()
+        self.config.write_text(json.dumps(original))
+        self.apply()
+        updated = json.loads(self.config.read_text())
+        self.assertEqual(list(original), list(updated))
+        self.assertEqual(list(original["mcpServers"]), list(updated["mcpServers"]))
+        for key, name in (("playwright-sandbox", "docker"), ("com.microsoft/playwright-mcp", "headed")):
+            actual = updated["mcpServers"][key]
+            self.assertEqual(dict(entry, command=str(self.home / ".local/bin" / ("playwright-mcp-" + name))),
+                             actual)
+            self.assertEqual(list(entry), list(actual))
+        self.assertEqual([], self.plan()["changes"])
+
+    def test_launcher_style_args_warn_once_per_existing_entry_without_echoing_args(self):
+        self.config.parent.mkdir()
+        for args, expected in ((["fixture-launcher", "-y", "@playwright/mcp@0.0.80"], True),
+                               (["--isolated", "dlx"], True),
+                               (["--isolated", "-y"], True),
+                               (["--isolated", "fixture-@playwright/mcp-suffix"], True),
+                               (["--isolated", "--browser", "chromium"], False), ([], False)):
+            with self.subTest(args=args):
+                self.config.write_text(json.dumps({"mcpServers": {
+                    key: {"command": "old", "args": args} for key in
+                    ("playwright-sandbox", "com.microsoft/playwright-mcp")}}))
+                plan = self.plan()
+                notices = [warning for warning in plan["warnings"] if "MCP server" in warning]
+                self.assertEqual(2 if expected else 0, len(notices))
+                for warning in notices:
+                    self.assertIn("removing", warning)
+                    for arg in args:
+                        self.assertNotIn(arg, warning)
+                self.apply()
+                self.assertEqual(2 if expected else 0, len([
+                    warning for warning in self.plan()["warnings"] if "MCP server" in warning]))
 
     def test_symlinks_nonregular_files_and_outside_bin_are_refused_without_writes(self):
         external = self.home.parent / "outside"
@@ -205,6 +282,34 @@ class PlaywrightSetupTest(unittest.TestCase):
         self.assertEqual(0o600, self.docker_config.stat().st_mode & 0o777)
         self.assertTrue(endpoint == json.loads(self.docker_config.read_text())["browser"]["remoteEndpoint"]["endpoint"])
 
+    def test_docker_option_overrides_and_string_remote_replacement_are_explicit(self):
+        self.docker_config.parent.mkdir(parents=True)
+        self.docker_config.write_text(json.dumps({"browser": {
+            "isolated": False, "browserName": "firefox", "remoteEndpoint": {
+                "exposeNetwork": "*", "browserName": "webkit"}}}))
+        plan = self.plan()
+        options = {change["option"]: change for change in plan["changes"] if "option" in change}
+        for name, old, new in (("browser.isolated", False, True),
+                               ("browser.browserName", "firefox", "chromium"),
+                               ("remoteEndpoint.exposeNetwork", "*", "<loopback>"),
+                               ("remoteEndpoint.browserName", "webkit", "chromium")):
+            self.assertEqual(old, options[name]["before"])
+            self.assertEqual(new, options[name]["after"])
+        self.apply()
+        browser = json.loads(self.docker_config.read_text())["browser"]
+        self.assertEqual("chromium", browser["browserName"])
+        self.assertEqual("chromium", browser["remoteEndpoint"]["browserName"])
+        self.assertEqual([], self.plan()["changes"])
+        self.docker_config.write_text(json.dumps({"browser": {
+            "remoteEndpoint": "ws://fixture-sensitive-endpoint"}}))
+        for args in (("plan",), ("plan", "--json")):
+            code, output = self.cli(*args)
+            self.assertEqual(0, code)
+            self.assertIn("replace string-valued remoteEndpoint with an object (endpoint redacted)", output)
+            self.assertNotIn("ws://fixture-sensitive-endpoint", output)
+        self.apply()
+        self.assertIsInstance(json.loads(self.docker_config.read_text())["browser"]["remoteEndpoint"], dict)
+
     def test_usage_error_does_not_echo_unknown_secret_arguments(self):
         code, output = self.cli("plan", "--unknown-secret", "fixture-private-value")
         self.assertEqual(1, code)
@@ -282,9 +387,13 @@ class PlaywrightWrapperTest(unittest.TestCase):
 if args[:2] == ['image', 'inspect']:
     sys.exit(int(os.environ.get('IMAGE_MISSING', '0')))
 if args[0] == 'inspect':
-    print(os.environ.get('CONTAINER_JSON', '[]'))
+    calls = [json.loads(line) for line in open(os.environ['FIXTURE_LOG'])]
+    after_run = any(name == 'docker' and argv[0] == 'run' for name, argv in calls)
+    key = 'CONCURRENT_CONTAINER_JSON' if after_run and 'CONCURRENT_CONTAINER_JSON' in os.environ else 'CONTAINER_JSON'
+    print(os.environ.get(key, '[]'))
 if args[0] == 'run':
     print('fixture-container')
+    sys.exit(int(os.environ.get('RUN_FAIL', '0')))
 """)
         self.fake("curl", "sys.exit(int(os.environ.get('NOT_READY', '0')))")
         self.fake("pnpm", "")
@@ -307,19 +416,35 @@ if args[0] == 'run':
         return [args for name, args in (json.loads(line) for line in self.log.read_text().splitlines())
                 if name == executable]
 
+    def matching_container(self):
+        return {"Id": "a" * 64, "State": {"Running": True}, "Config": {
+            "Cmd": ["npx", "-y", "playwright@1.63.0", "run-server", "--path", "/" + self.token],
+            "Image": "mcr.microsoft.com/playwright:v1.63.0-noble",
+            "User": "pwuser", "WorkingDir": "/home/pwuser"},
+            "HostConfig": {"PortBindings": {"3333/tcp": [{"HostIp": "127.0.0.1", "HostPort": "54444"}]},
+                           "CapDrop": ["ALL"], "CapAdd": None, "Privileged": False,
+                           "SecurityOpt": ["no-new-privileges"], "ShmSize": 1073741824,
+                           "IpcMode": "private", "Init": True, "AutoRemove": True}}
+
     def test_container_start_and_mcp_passthrough_use_pinned_safe_defaults(self):
         result = self.run_wrapper("docker", "--block-service-workers")
         self.assertEqual(0, result.returncode, result.stderr)
         run = next(args for args in self.calls("docker") if args[0] == "run")
-        for flag in ("--rm", "--init"):
+        for flag in ("--rm", "--init", "--pull=never", "--cap-drop=ALL", "--shm-size=1g"):
             self.assertIn(flag, run)
         for flag, value in (("-p", "127.0.0.1:54444:3333"), ("--user", "pwuser"),
-                            ("--workdir", "/home/pwuser"), ("--path", "/" + self.token)):
+                            ("--workdir", "/home/pwuser"), ("--path", "/" + self.token),
+                            ("--security-opt", "no-new-privileges")):
             self.assertTrue(run[run.index(flag) + 1] == value)
         self.assertIn("mcr.microsoft.com/playwright:v1.63.0-noble", run)
         self.assertIn("playwright@1.63.0", run)
         self.assertNotIn("--unsafe", run)
         self.assertNotIn("--no-sandbox", run)
+        self.assertFalse(any(arg.startswith("--ipc") for arg in run))
+        self.assertIn(["inspect", "--type", "container", "copilot-playwright-1.63.0"], self.calls("docker"))
+        self.assertFalse(any(args[0] == "rm" for args in self.calls("docker")))
+        self.assertEqual([["--noproxy", "*", "--silent", "--output", "/dev/null",
+                           "--max-time", "1", "http://127.0.0.1:54444/"]], self.calls("curl"))
         self.assertEqual([["dlx", "@playwright/mcp@0.0.80", "--config", str(self.config),
                            "--block-service-workers"]], self.calls("pnpm"))
         self.assertNotIn(self.token, result.stdout + result.stderr)
@@ -331,6 +456,21 @@ if args[0] == 'run':
         self.assertIn("outside the sandbox: docker pull mcr.microsoft.com/playwright:v1.63.0-noble", result.stderr)
         self.assertFalse(any(args[0] == "run" for args in self.calls("docker")))
         self.assertFalse(self.calls("pnpm"))
+
+    def test_missing_or_clt_stub_python_has_distinct_diagnostics(self):
+        (self.bin / "python3").unlink()
+        result = self.run_wrapper()
+        self.assertEqual(1, result.returncode)
+        self.assertIn("python3 is required", result.stderr)
+        self.assertNotIn("Invalid docker.json", result.stderr)
+        self.fake("python3", "print('fixture-python-private-error', file=sys.stderr)\nsys.exit(1)")
+        result = self.run_wrapper()
+        self.assertEqual(1, result.returncode)
+        self.assertIn("python3 could not run", result.stderr)
+        self.assertIn("Command Line Tools", result.stderr)
+        self.assertNotIn("Invalid docker.json", result.stderr)
+        self.assertNotIn("fixture-python-private-error", result.stderr)
+        self.assertFalse(self.calls("docker"))
 
     def test_npx_and_mise_fallbacks_and_explicit_missing_runner_error(self):
         (self.bin / "pnpm").unlink()
@@ -359,30 +499,80 @@ if args[0] == 'run':
         self.assertFalse(self.calls("pnpm"))
 
     def test_existing_container_is_reused_only_with_matching_path_port_and_hardening(self):
-        container = {"State": {"Running": True}, "Config": {
-            "Cmd": ["npx", "-y", "playwright@1.63.0", "run-server", "--path", "/" + self.token],
-            "Image": "mcr.microsoft.com/playwright:v1.63.0-noble",
-            "User": "pwuser", "WorkingDir": "/home/pwuser"},
-            "HostConfig": {"PortBindings": {"3333/tcp": [{"HostIp": "127.0.0.1", "HostPort": "54444"}]}}}
+        container = self.matching_container()
         self.env["CONTAINER_JSON"] = json.dumps([container])
         result = self.run_wrapper()
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertFalse(any(args[0] == "run" for args in self.calls("docker")))
-        for change in ("path", "port", "unsafe"):
+        self.assertFalse(any(args[0] == "rm" for args in self.calls("docker")))
+        for change in ("path", "port", "unsafe", "CapDrop", "SecurityOpt", "ShmSize",
+                       "IpcMode", "Init", "AutoRemove", "Privileged", "CapAdd"):
             with self.subTest(change=change):
                 altered = json.loads(json.dumps(container))
                 if change == "path":
                     altered["Config"]["Cmd"][-1] = "/old-fixture-path"
                 elif change == "port":
                     altered["HostConfig"]["PortBindings"]["3333/tcp"][0]["HostPort"] = "54445"
-                else:
+                elif change == "unsafe":
                     altered["Config"]["Cmd"].append("--unsafe")
+                else:
+                    altered["HostConfig"][change] = {
+                        "CapDrop": [], "SecurityOpt": [], "ShmSize": 67108864,
+                        "IpcMode": "host", "Init": False, "AutoRemove": False,
+                        "Privileged": True, "CapAdd": ["SYS_ADMIN"]}[change]
                 self.env["CONTAINER_JSON"] = json.dumps([altered])
                 self.log.unlink()
                 result = self.run_wrapper()
                 self.assertEqual(0, result.returncode, result.stderr)
                 self.assertTrue(any(args[0] == "rm" for args in self.calls("docker")))
                 self.assertTrue(any(args[0] == "run" for args in self.calls("docker")))
+
+    def test_concurrent_start_reinspects_without_removing_the_matching_winner(self):
+        winner = self.matching_container()
+        winner["Id"] = "b" * 64
+        self.env["RUN_FAIL"] = "1"
+        self.env["CONCURRENT_CONTAINER_JSON"] = json.dumps([winner])
+        for initial in ([], [dict(self.matching_container(), State={"Running": False})]):
+            with self.subTest(existing=bool(initial)):
+                if self.log.exists():
+                    self.log.unlink()
+                self.env["CONTAINER_JSON"] = json.dumps(initial)
+                result = self.run_wrapper()
+                self.assertEqual(0, result.returncode, result.stderr)
+                calls = self.calls("docker")
+                self.assertEqual(2, sum(args[0] == "inspect" for args in calls))
+                removals = [args for args in calls if args[0] == "rm"]
+                self.assertEqual([["rm", "-f", "a" * 64]] if initial else [], removals)
+                self.assertTrue(self.calls("pnpm"))
+                self.assertNotIn(self.token, result.stdout + result.stderr)
+
+    def test_failed_start_does_not_remove_an_unmatched_concurrent_container(self):
+        self.env["RUN_FAIL"] = "1"
+        for concurrent in ([], [dict(self.matching_container(), State={"Running": False})],
+                           [dict(self.matching_container(), Config={"User": "root"})]):
+            with self.subTest(concurrent=bool(concurrent)):
+                if self.log.exists():
+                    self.log.unlink()
+                self.env["CONCURRENT_CONTAINER_JSON"] = json.dumps(concurrent)
+                result = self.run_wrapper()
+                self.assertEqual(1, result.returncode)
+                self.assertIn("Container startup failed", result.stderr)
+                self.assertEqual(2, sum(args[0] == "inspect" for args in self.calls("docker")))
+                self.assertFalse(any(args[0] == "rm" for args in self.calls("docker")))
+                self.assertFalse(self.calls("pnpm"))
+                self.assertNotIn(self.token, result.stdout + result.stderr)
+
+    def test_malformed_inspection_fails_closed_without_removing_by_name(self):
+        for value in ("fixture-invalid-json", json.dumps([{"Id": "--fixture-option"}])):
+            with self.subTest(value=value):
+                if self.log.exists():
+                    self.log.unlink()
+                self.env["CONTAINER_JSON"] = value
+                result = self.run_wrapper()
+                self.assertEqual(1, result.returncode)
+                self.assertIn("Could not validate the existing container", result.stderr)
+                self.assertFalse(any(args[0] in ("run", "rm") for args in self.calls("docker")))
+                self.assertNotIn(value, result.stdout + result.stderr)
 
     def test_bash_syntax_and_headed_sandbox_refusal(self):
         for name in ("docker", "headed"):

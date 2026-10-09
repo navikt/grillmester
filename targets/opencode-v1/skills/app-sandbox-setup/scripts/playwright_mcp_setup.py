@@ -22,7 +22,6 @@ MCP_VERSION = "0.0.80"
 IMAGE = "mcr.microsoft.com/playwright:v" + PW_VERSION + "-noble"
 SCRIPTS = Path(__file__).resolve().parent
 NEW_ENDPOINT = "ws://127.0.0.1:53333/<generated-token>"
-SECRET_ARG = re.compile(r"token|secret|key|password|auth", re.I)
 
 
 class UsageError(Exception):
@@ -49,8 +48,8 @@ def check_path(path, directory=False):
         raise OSError("Unsafe target.")
 
 
-def encoded(value):
-    return (json.dumps(value, sort_keys=True, indent=2, ensure_ascii=False) + "\n").encode()
+def encoded(value, canonical=False):
+    return (json.dumps(value, sort_keys=canonical, indent=2, ensure_ascii=False) + "\n").encode()
 
 
 def read_regular(path):
@@ -147,15 +146,31 @@ def build_plan(home, mcp_config, bin_dir):
     browser = docker.setdefault("browser", {})
     if not isinstance(browser, dict):
         raise ValueError("browser must be an object.")
+    changes = []
+
+    def show_override(source, key, desired, label):
+        if key in source and source[key] != desired:
+            changes.append({"file": str(docker_path), "action": "change browser option",
+                            "option": label, "before": source[key], "after": desired})
+
+    show_override(browser, "isolated", True, "browser.isolated")
+    show_override(browser, "browserName", "chromium", "browser.browserName")
     remote = browser.get("remoteEndpoint", {})
+    if isinstance(remote, dict):
+        show_override(remote, "exposeNetwork", "<loopback>", "remoteEndpoint.exposeNetwork")
+        show_override(remote, "browserName", "chromium", "remoteEndpoint.browserName")
+    elif isinstance(remote, str):
+        changes.append({"file": str(docker_path),
+                        "action": "replace string-valued remoteEndpoint with an object (endpoint redacted)"})
     endpoint = remote.get("endpoint") if isinstance(remote, dict) else None
     if not valid_endpoint(endpoint):
         endpoint = NEW_ENDPOINT
     browser["isolated"] = True
+    browser["browserName"] = "chromium"
     merged_remote = copy.deepcopy(remote) if isinstance(remote, dict) else {}
     merged_remote.update(endpoint=endpoint, browserName="chromium", exposeNetwork="<loopback>")
     browser["remoteEndpoint"] = merged_remote
-    changes = []
+    argument_warnings = []
     writes = []
     states = []
 
@@ -176,17 +191,23 @@ def build_plan(home, mcp_config, bin_dir):
         existing = servers.get(server_id)
         if server_id in servers and not isinstance(existing, dict):
             raise ValueError("Target MCP entry must be an object.")
-        entry = copy.deepcopy(existing) if existing is not None else {"args": args}
+        preserved = existing.get("args", []) if existing is not None else []
+        if isinstance(preserved, list) and preserved and (
+                (isinstance(preserved[0], str) and not preserved[0].startswith("--"))
+                or any(isinstance(arg, str) and (arg in ("-y", "dlx") or "@playwright/mcp" in arg)
+                       for arg in preserved)):
+            argument_warnings.append(
+                server_id + ": preserved args look launcher-style; they would be passed to the "
+                "MCP server, not its launcher. Consider removing them before using the wrapper.")
+        entry = (copy.deepcopy(existing) if existing is not None
+                 else {"args": args, "type": "stdio", "tools": ["*"]})
         entry["command"] = str(wrapper)
-        entry.setdefault("type", "stdio")
-        entry.setdefault("tools", ["*"])
         if existing != entry:
             preserved = entry.get("args", [])
-            safe = (isinstance(preserved, list) and all(isinstance(arg, str) for arg in preserved)
-                    and not any(SECRET_ARG.search(arg) for arg in preserved))
             changes.append({"server": server_id, "action": "add/update command",
-                            "args": preserved if safe else "<%d args preserved>" % (
-                                len(preserved) if isinstance(preserved, list) else 0)})
+                            "args": ("<%d args preserved>" % (
+                                len(preserved) if isinstance(preserved, list) else 0)
+                                if existing is not None else args)})
         servers[server_id] = entry
     install(docker_path, encoded(docker), 0o600, {"file": str(docker_path), "action": "configure browser (endpoint redacted)"})
     mcp_mode = stat.S_IMODE(mcp_config.stat().st_mode) if mcp_config.exists() else 0o600
@@ -196,8 +217,8 @@ def build_plan(home, mcp_config, bin_dir):
     if len(changes) > before and any("server" in change for change in changes[:before]):
         changes.pop()
     canonical = [[str(path), hashlib.sha256(data).hexdigest(), mode] for path, data, mode in writes]
-    digest = hashlib.sha256(encoded([canonical, states, bin_dir.exists()])).hexdigest()
-    warnings = [
+    digest = hashlib.sha256(encoded([canonical, states, bin_dir.exists()], canonical=True)).hexdigest()
+    warnings = argument_warnings + [
         image_warning(home),
         "Docker browser is headless with no login state; use the headed server with sandbox OFF for logged-in flows.",
         "Docker socket gives near-unsandboxed host access.",
@@ -254,7 +275,12 @@ def main(argv=None):
             if args.confirm != plan["digest"]:
                 print("Digest mismatch; run plan again and reconfirm.")
                 return 4
-            if mcp_config.exists() and any(path == mcp_config for path, _, _ in writes):
+            copilot = home / ".copilot"
+            needs_backup = mcp_config.exists() and any(path == mcp_config for path, _, _ in writes)
+            if needs_backup or any(path == copilot or copilot in path.parents for path, _, _ in writes):
+                check_path(copilot, directory=True)
+                copilot.mkdir(mode=0o700, exist_ok=True)
+            if needs_backup:
                 directory = home / ".copilot/app-sandbox-setup-backups"
                 directory.mkdir(parents=True, exist_ok=True, mode=0o700)
                 directory.chmod(0o700)

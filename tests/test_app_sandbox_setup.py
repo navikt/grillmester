@@ -1218,6 +1218,30 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.app.profile_paths(self.home, None, warnings, docker_paths=[])
         self.assertFalse(any("Legacy sibling" in warning for warning in warnings))
 
+    def test_app_update_backups_get_one_counted_notice_per_plan_and_are_kept(self) -> None:
+        names = ("data.db.pre-update-backup-1.2.3-456", "data.db.pre-update-backup-1.2.4-789")
+        for name in names + ("data.db.open-lock", "data.db.fixture-wal",
+                             "data.db.fixture-shm", "data.db.fixture-journal"):
+            (self.db.parent / name).touch()
+        with sqlite3.connect(str(self.db)) as connection:
+            connection.execute("INSERT INTO projects VALUES (?, ?, ?, ?)",
+                               ("p2", "other", str(self.home / "code/other"), 0))
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        message = ("app update backups are not readable from the sandbox (~/.copilot is not granted); "
+                   "keep them for app rollback, or move older ones into ~/.copilot/app-sandbox-setup-backups")
+        self.assertEqual(1, output.count(message))
+        notice = next(line for line in output.splitlines() if message in line)
+        self.assertIn("info (2)", notice)
+        for name in names:
+            self.assertTrue((self.db.parent / name).exists())
+            self.assertNotIn(name, output)
+        for suffix in (".open-lock", ".fixture-wal", ".fixture-shm", ".fixture-journal"):
+            self.assertNotIn(suffix, output)
+        for name in names:
+            (self.db.parent / name).unlink()
+        self.assertNotIn(message, self.run_cli("plan")[1])
+
     def test_guide_includes_machine_paths_and_handles_unavailable_db(self) -> None:
         (self.home / ".gradle").mkdir()
         (self.home / ".ssh").mkdir()

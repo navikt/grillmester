@@ -145,7 +145,12 @@ no MCP server or hook.
    warnings and the digest; get explicit conversational confirmation, then run
    `python3 <scripts>/playwright_mcp_setup.py apply --confirm <digest>` with
    the same options. Request **Run once** if denied, never silently bypass.
-   Existing MCP args, env and unrelated entries are preserved; config is
+   Existing MCP entries change **only `command`**: args, env, type, tools and
+   extra fields are preserved, including absent fields. Only new entries get
+   `type: "stdio"` and `tools: ["*"]`. Plan displays existing args only as
+   `<N args preserved>` and never prints their contents or env. Launcher-style
+   args trigger one warning per entry: they would be passed to the MCP server,
+   so suggest removing them without printing them. Config is
    backed up in the denied `~/.copilot/app-sandbox-setup-backups` directory
    before atomic replacement. Reruns are idempotent. Exit 3 means invalid JSON
    or object structure (nothing written); exit 4 needs a fresh plan/confirmation.
@@ -155,7 +160,9 @@ no MCP server or hook.
    Run once**. The helper/wrapper never pulls automatically.
 3. Wrappers default to `~/.local/bin`. If this directory was new, rerun
    `/app-sandbox-setup` plan/apply so it is granted readonly, then restart
-   sessions. In a **new sandboxed session**, verify both installed wrappers
+   sessions. **After every apply, restart or close already-open sessions for
+   the MCP-config change too**, even when the bin-dir was already granted.
+   In a **new sandboxed session**, verify both installed wrappers
    with `test -r <wrapper> && test -x <wrapper>` and the generated
    `~/.config/playwright-mcp/docker.json` with `test -r <config>` (do not print
    its endpoint). Use `--home`, `--mcp-config`, `--bin-dir` for alternate paths;
@@ -165,14 +172,29 @@ no MCP server or hook.
    logged-in flows; it refuses when HOME is not writable.
 
 Before confirmation, explain: Docker socket access is near-unsandboxed host
-access; the non-root browser port is published only on loopback, with an
-unguessable path stored in a 0600 config, not strong authentication. Local
-processes that can read this config can drive the browser. `exposeNetwork:
+access; the non-root browser port is published only on loopback. Its unguessable
+path token, stored in a 0600 config, protects against drive-by WebSocket
+connections to the loopback port (for example from web pages). It is visible
+to local processes via `ps`, `docker inspect` and `docker ps --no-trunc` (the
+sandbox has the Docker socket), and possibly in Playwright connect error
+messages. Do not print those outputs or the endpoint. **It is not an
+authentication boundary against local code**, which can drive the browser.
+Chromium's own sandbox is off inside Playwright containers by default, so
+the **container is the boundary**. The wrapper uses `--cap-drop=ALL`,
+`--security-opt no-new-privileges` and `--shm-size=1g`, not `--ipc=host`.
+`exposeNetwork:
 "<loopback>"` exposes host loopback services; masking ON also breaks this
 variant. Container startup fetches pinned `playwright@1.63.0` via npx
 (supply-chain risk); `PW_IMAGE` permits digest pinning. MCP defaults to
 `@playwright/mcp@0.0.80`; changing versions requires matching Playwright/image
 versions. Never add `--no-sandbox` by default.
+
+The Docker config sets `browser.isolated: true`, `browser.browserName:
+"chromium"` and `remoteEndpoint.browserName: "chromium"` (both browserName
+locations are retained to match the live-verified configuration), with
+`remoteEndpoint.exposeNetwork: "<loopback>"`. Plan shows existing values that
+would be overridden for these options and explicitly lists replacement of a
+string-valued remoteEndpoint, without printing its endpoint.
 
 ## Change later
 

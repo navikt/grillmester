@@ -506,9 +506,13 @@ def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
     jdk_warning(home, warnings)
     if mask:
         warnings.append("Credential masking is ON: its proxy forces loopback deny even with allowLocalNetwork=true.")
+    update_backups = 0
     for sibling in sorted((home / ".copilot").glob("data.db.*")):
-        if (sibling.name.endswith(("-wal", "-shm", "-journal", ".open-lock"))
-                or sibling.name.startswith("data.db.pre-update-backup-")):
+        if sibling.name.endswith(("-wal", "-shm", "-journal", ".open-lock")):
+            continue
+        if sibling.name.startswith("data.db.pre-update-backup-"):
+            if sibling.is_file():
+                update_backups += 1
             continue
         if sibling.is_file():
             warnings.append(
@@ -516,6 +520,12 @@ def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
                 "by default (~/.copilot is not granted); optionally move it into "
                 "~/.copilot/app-sandbox-setup-backups."
             )
+    if update_backups:
+        warnings.append(
+            f"App update backup info ({update_backups}): "
+            "app update backups are not readable from the sandbox (~/.copilot is not granted); "
+            "keep them for app rollback, or move older ones into ~/.copilot/app-sandbox-setup-backups"
+        )
     grants = {}
     missing = []
     docker = docker_grants(home) if docker_paths is None else docker_paths
