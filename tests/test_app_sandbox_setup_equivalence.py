@@ -354,6 +354,56 @@ class AppSandboxSetupEquivalenceTest(unittest.TestCase):
         self.apply_then_plan(fixture, "--mask-credentials", json_mode=True)
         self.apply_then_plan(fixture, "--no-mask-credentials", json_mode=True)
 
+    def test_unstatable_existing_paths_and_non_system_code_roots(self) -> None:
+        for case in ("long-component", "long-path", "permission-denied"):
+            with self.subTest(case=case):
+                fixture = self.fixture()
+                blocked = fixture.directory("blocked")
+                mode = stat.S_IMODE(blocked.stat().st_mode)
+                if case == "long-component":
+                    path = fixture.home / ("x" * 300)
+                elif case == "long-path":
+                    # Valid individual components, but beyond the host's PATH_MAX.
+                    limit = os.pathconf(str(fixture.home), "PC_PATH_MAX")
+                    path = fixture.home / "/".join(["x" * 100] * (limit // 100 + 2))
+                else:
+                    if os.geteuid() == 0:
+                        self.skipTest("mode-000 EACCES requires an unprivileged test process")
+                    path = fixture.file("blocked/child", "synthetic")
+                    original_run = fixture.run
+
+                    def restricted_run(script, args):
+                        blocked.chmod(0)
+                        try:
+                            with self.assertRaises(PermissionError):
+                                path.stat()
+                            return original_run(script, args)
+                        finally:
+                            # The harness must be able to snapshot/compare the tree.
+                            blocked.chmod(mode)
+
+                    fixture.run = restricted_run
+                try:
+                    fixture.policy({"readwritePaths": [str(path)]})
+                    self.equivalent(fixture, "plan")
+                    self.equivalent(fixture, "plan", "--json")
+                finally:
+                    blocked.chmod(mode)
+
+        with self.subTest(case="non-system-code-roots"):
+            if any(self.container == area or area in self.container.parents
+                   for area in (Path("/private"), Path("/var"), Path("/tmp"))):
+                self.skipTest(
+                    "resolved temp root is under /private, /var or /tmp; "
+                    "non-system code-root scenario needs an external TMPDIR"
+                )
+            fixture = self.fixture(worktrees=True)
+            result = self.equivalent(fixture, "plan", "--json")
+            added = json.loads(result["stdout"])["projects"][0]["diff"]["readwritePaths"]["added"]
+            self.assertIn(str(fixture.home / "code"), added)
+            self.assertIn(str(fixture.root / "copilot-worktrees"), added)
+            self.apply_then_plan(fixture, json_mode=True)
+
     def test_old_applied_policy_retirement(self) -> None:
         fixture = self.fixture()
         old_rw = (".copilot/session-state", "Library/Application Support/Google/Chrome for Testing")

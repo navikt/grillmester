@@ -219,25 +219,51 @@ def backup_warnings(home: Path) -> list[str]:
 
 
 def path_fact(path: Path) -> PathFact:
-    exists = path.exists()
+    exists = file = directory = symlink = False
     inode = None
     try:
+        exists = path.exists()
         if exists:
             info = path.stat()
             inode = (info.st_dev, info.st_ino)
+        file, directory, symlink = path.is_file(), path.is_dir(), path.is_symlink()
     except OSError:
-        pass
+        # Existing policy paths are only compared by the oracle's same_path:
+        # failed stat calls must not prevent its resolved/casefold fallback.
+        exists = file = directory = symlink = False
+        inode = None
     failed = False
     try:
         resolved = str(path.resolve()).casefold()
     except (OSError, RuntimeError):
         resolved = str(path).casefold()
         failed = True
-    return PathFact(resolved, inode, exists, path.is_file(), path.is_dir(),
-                    path.is_symlink(), empty_directory(path), failed)
+    return PathFact(resolved, inode, exists, file, directory,
+                    symlink, empty_directory(path), failed)
 
 
-def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any]) -> dict[str, PathFact]:
+def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any],
+                  docker: Sequence[str] = (), no_docker: bool = False) -> dict[str, PathFact]:
+    # Preserve the oracle's unguarded profile/deny checks, but not for arbitrary
+    # policy entries or their ancestors. The backup rule is unconditional, and
+    # --no-docker skips profile checks beneath Docker grants.
+    for relative in rules.RW_PATHS + rules.RO_PATHS + rules.HARDENING_READONLY:
+        path = home / relative
+        if no_docker and any(under(path, Path(parent)) for parent in docker):
+            continue
+        path.exists()
+    if not no_docker:
+        for raw in docker:
+            Path(raw).exists()
+    for relative in rules.DENIED_PATHS:
+        path = home / relative
+        if relative == rules.BACKUP_DIRECTORY:
+            continue
+        if relative in rules.FILE_DENIED_PATHS:
+            path.is_file()
+        else:
+            path.is_dir()
+
     paths = {home, home / ".copilot", Path("/Users")}
     paths.update(Path(area) for area in rules.SYSTEM_AREAS)
     paths.update(home / relative for relative in
@@ -256,7 +282,7 @@ def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any
 
 def gather(home: Path, projects: Sequence[dict[str, Any]], code_paths: Sequence[tuple[Any, bool]],
            existing: dict[str, Any], root_warnings: Sequence[str] = (),
-           profile_only: bool = False) -> Facts:
+           profile_only: bool = False, no_docker: bool = False) -> Facts:
     docker = docker_grants(home)
     profile_warnings: list[str] = []
     credential_file_warnings(home, profile_warnings)
@@ -269,6 +295,7 @@ def gather(home: Path, projects: Sequence[dict[str, Any]], code_paths: Sequence[
     git_paths = [] if profile_only else git_discovery(home, git_warnings, projects)
     warnings = list(root_warnings)
     roots = [] if profile_only else code_roots(code_paths, home, warnings)
-    paths = capture_paths(home, docker + hardened + writable + git_paths + roots, existing)
+    paths = capture_paths(home, docker + hardened + writable + git_paths + roots, existing,
+                          docker, no_docker)
     return Facts(str(home), projects, paths, docker, roots, git_paths, hardened, writable,
                  profile_warnings, backups, git_warnings, warnings)

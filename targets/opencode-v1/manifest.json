@@ -340,11 +340,11 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/cli.py": {
-      "sha256": "a53d3b6eb8cac309f90fcf63b3eea5dea9c61189b8542ec24d92a58f675001bc",
+      "sha256": "ff275494bb9097661d3c2af261a714bf1bf9d39007d1ecf4c0b71456feb63cae",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/discovery.py": {
-      "sha256": "9a8cf4f5d7306f7db5a532f6759ea1f10ae4ab0fdd6202d1c30b50df4ba505e0",
+      "sha256": "3d96d98b89c0ae19ff9952eb9950b43784d508a9cea2e516b867cb0918071c03",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/facts.py": {
@@ -364,7 +364,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/rules.py": {
-      "sha256": "ed9769cc866209ad1d327e6dee270f0673d7326ef0d2a3552cd9ed54ac0d52fb",
+      "sha256": "3fcdcfe38f1a0ca5e346e8292c2dee2275ebf43d1aa5c2f0f2b9e0e09ad6f217",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/store.py": {

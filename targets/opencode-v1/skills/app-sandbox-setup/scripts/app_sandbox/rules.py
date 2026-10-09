@@ -2,6 +2,14 @@
 
 Add a new path rule as one row in RULES here. Derived views preserve the legacy
 order: changing that order changes diagnostics and confirmation digests.
+
+Behavioural values: condition="when_exists" selects rw/ro discovery paths;
+condition="always" selects readonly hardening paths. Deny conditions
+"when_file"/"qualified_dir" describe qualification, which uses kind="file"
+and the backup exception; kind="any"/"dir" are otherwise descriptive.
+group="docker" selects Docker discovery order, and group="backup" identifies
+the unconditional backup deny. Other groups ("tool", "app", "secret",
+"hardening") are descriptive, not control flow.
 """
 
 from __future__ import annotations
@@ -87,7 +95,7 @@ RULES = (
     Rule("Library/Keychains", "deny", "dir", "qualified_dir", "secret", "keychain"),
     Rule(".netrc", "deny", "file", "when_file", "secret", "network credentials"),
     Rule(".copilot/data.db", "deny", "file", "when_file", "app", "app database"),
-    Rule(".copilot/app-sandbox-setup-backups", "deny", "dir", "always", "app", "sandbox backups"),
+    Rule(".copilot/app-sandbox-setup-backups", "deny", "dir", "always", "backup", "sandbox backups"),
     Rule(".copilot/settings.json", "deny", "file", "when_file", "app", "app settings"),
     Rule(".copilot/config.json", "deny", "file", "when_file", "app", "app configuration"),
     Rule(".copilot/mcp-oauth-config", "deny", "dir", "qualified_dir", "secret", "MCP OAuth credentials"),
@@ -128,7 +136,7 @@ RETIRED_GRANTS = {
     for field in ("readwritePaths", "deniedPaths")
 }
 APP_CACHE_WRITABLE: set[str] = set()
-BACKUP_DIRECTORY = next(rule.path for rule in RULES if rule.reason == "sandbox backups")
+BACKUP_DIRECTORY = next(rule.path for rule in RULES if rule.group == "backup")
 APP_OWNED_DB_SUFFIXES = (".open-lock", "-wal", "-shm", "-journal")
 PATH_FIELDS = ("readwritePaths", "readonlyPaths", "deniedPaths")
 BOOL_FIELDS = ("allowOutbound", "allowLocalNetwork", "allowGitCredentials", "allowGhCredentials")

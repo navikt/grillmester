@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import copy
+import errno
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -17,7 +20,7 @@ with mock.patch.object(sys, "dont_write_bytecode", True):
     spec = importlib.util.spec_from_file_location("app_sandbox_setup_policy_entry", SCRIPT)
     assert spec and spec.loader
     spec.loader.exec_module(importlib.util.module_from_spec(spec))
-    from app_sandbox import policy, rules
+    from app_sandbox import discovery, policy, rules
     from app_sandbox.facts import Facts, Options, PathFact
 
 
@@ -90,6 +93,11 @@ SYSTEM_AREAS = (
 
 
 class RulesTest(unittest.TestCase):
+    def test_docker_order_is_unique(self):
+        orders = [row.docker_order for row in rules.RULES
+                  if row.status == "active" and row.group == "docker"]
+        self.assertEqual(len(orders), len(set(orders)))
+
     def test_derived_views_equal_legacy_constants_in_order(self):
         for name in (
             "RW_PATHS", "RO_PATHS", "HARDENING_READONLY", "DOCKER_PATHS",
@@ -105,6 +113,97 @@ class RulesTest(unittest.TestCase):
                         self.assertEqual(list(RETIRED_GRANTS[field].items()),
                                          list(rules.RETIRED_GRANTS[field].items()))
         self.assertEqual(len(rules.RULES), len({row.path for row in rules.RULES}))
+
+
+class DiscoveryFactsTest(unittest.TestCase):
+    def test_stat_errors_fall_back_to_resolved_identity(self):
+        path = Path("/synthetic/Policy-Path")
+        for method in ("exists", "stat", "is_file", "is_dir", "is_symlink"):
+            for code in (errno.EACCES, errno.EPERM, errno.ENAMETOOLONG):
+                with self.subTest(method=method, code=code), \
+                        mock.patch.object(Path, "exists", return_value=True), \
+                        mock.patch.object(Path, "stat", return_value=mock.Mock(st_dev=1, st_ino=2, st_mode=0)), \
+                        mock.patch.object(Path, "resolve", return_value=path), \
+                        mock.patch.object(Path, method, side_effect=OSError(code, "synthetic")):
+                    state = discovery.path_fact(path)
+                    self.assertEqual(str(path).casefold(), state.resolved)
+                    self.assertIsNone(state.inode)
+                    self.assertFalse(state.exists)
+                    self.assertFalse(state.file)
+                    self.assertFalse(state.directory)
+                    self.assertFalse(state.symlink)
+                    facts = Facts("/synthetic", paths={str(path): state})
+                    self.assertTrue(facts.same(path, Path(str(path).lower())))
+                    self.assertTrue(facts.under(path, Path("/synthetic")))
+
+    def test_capture_preserves_only_oracle_unguarded_checks(self):
+        home = Path("/synthetic-home")
+        for relative, method in (
+            (".gradle", "exists"), (".config/git", "exists"),
+            (".netrc", "is_file"), (".aws", "is_dir"),
+            (".docker", "exists"),
+            (".copilot/app-sandbox-setup-backups", "is_dir"),
+        ):
+            for no_docker in (False, True):
+                with self.subTest(relative=relative, no_docker=no_docker):
+                    original = getattr(Path, method)
+
+                    def denied(path):
+                        if path == home / relative:
+                            raise PermissionError(errno.EACCES, "synthetic")
+                        return original(path)
+
+                    with mock.patch.object(Path, method, denied):
+                        if (relative == ".copilot/app-sandbox-setup-backups"
+                                or relative == ".docker" and no_docker):
+                            discovery.capture_paths(home, (), {}, (str(home / ".docker"),), no_docker)
+                        else:
+                            with self.assertRaises(PermissionError):
+                                discovery.capture_paths(home, (), {}, (str(home / ".docker"),), no_docker)
+
+    def test_rich_discovery_captures_every_engine_query(self):
+        with tempfile.TemporaryDirectory(prefix="app-sandbox-policy-") as temporary:
+            home = Path(temporary).resolve() / "home"
+            for relative in (
+                "code/repository", ".copilot", ".config/git", ".gradle",
+                ".docker", ".fixture-docker", ".aws", ".ssh",
+                "Library/Caches/copilot/writable", "Library/Caches/copilot/readonly",
+                "Library/Caches/copilot-desktop-fixture", "user-denied",
+            ):
+                (home / relative).mkdir(parents=True, exist_ok=True)
+            (home / ".ssh/marker").write_text("synthetic", encoding="utf-8")
+            (home / ".netrc").write_text("synthetic", encoding="utf-8")
+            (home / ".gitconfig").write_text(
+                "[include]\n  path = included-git-config\n", encoding="utf-8",
+            )
+            (home / "included-git-config").write_text("[core]\n  autocrlf = false\n", encoding="utf-8")
+            (home / "alias").symlink_to(home / ".config/git", target_is_directory=True)
+            projects = [{"id": "p1", "name": "fixture", "main_repo_path": str(home / "code/repository"),
+                         "sandbox_enabled": 0}]
+            existing = {"p1": json.dumps({
+                "readwritePaths": [str(home / "alias"), str(home / "user-missing/child")],
+                "readonlyPaths": [str(home / "user-readonly")],
+                "deniedPaths": [str(home / "user-denied")],
+            })}
+            with mock.patch.dict(os.environ, {
+                "HOME": str(home), "DOCKER_HOST": "unix://" + str(home / ".fixture-docker/socket"),
+            }), mock.patch.object(rules, "APP_CACHE_WRITABLE", {"writable"}):
+                facts = discovery.gather(
+                    home, projects, [(projects[0]["main_repo_path"], False)], existing,
+                )
+            original_path = Facts.path
+            queries = set()
+
+            def captured_path(snapshot, path):
+                self.assertIn(str(path), snapshot.paths, "engine queried an uncaptured path")
+                queries.add(str(path))
+                return original_path(snapshot, path)
+
+            with mock.patch.object(Facts, "path", captured_path):
+                for no_docker in (False, True):
+                    policy.compute_plan(rules.snapshot(), facts, existing, Options(no_docker=no_docker))
+            self.assertIn(str(home / "alias"), queries)
+            self.assertIn(str(home / "user-missing/child"), queries)
 
 
 class PurePolicyTest(unittest.TestCase):

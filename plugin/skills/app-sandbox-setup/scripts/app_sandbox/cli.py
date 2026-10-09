@@ -26,13 +26,13 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
     existing = store.policy_rows(connection, projects)
     warnings: list[str] = []
     paths = store.code_path_rows(connection, warnings)
-    facts = discovery.gather(home, projects, paths, existing, warnings)
+    facts = discovery.gather(home, projects, paths, existing, warnings, no_docker=no_docker)
     return policy.compute_plan(rules.snapshot(), facts, existing, Options(mask, no_docker))
 
 
 def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
                   no_docker: bool = False) -> dict[str, list[str]]:
-    facts = discovery.gather(home, (), (), {}, profile_only=True)
+    facts = discovery.gather(home, (), (), {}, profile_only=True, no_docker=no_docker)
     return policy.profile_paths(rules.snapshot(), facts, Options(mask, no_docker), warnings)
 
 
