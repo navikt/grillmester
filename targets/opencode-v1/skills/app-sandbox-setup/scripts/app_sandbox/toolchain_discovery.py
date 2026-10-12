@@ -119,6 +119,7 @@ def validated_jdk(candidate):
 def observe(repo, home, capture_session=True, session=None):
     files = {}
     warnings = []
+    unreadable = []
     for name in (".mise.toml", "mise.toml", ".tool-versions", ".java-version", ".sdkmanrc",
                  ".nvmrc", ".node-version", "package.json", "build.gradle", "build.gradle.kts",
                  "settings.gradle", "settings.gradle.kts"):
@@ -127,7 +128,9 @@ def observe(repo, home, capture_session=True, session=None):
             if text is not None:
                 files[name] = text
         except repo_files.Unavailable:
-            warnings.append("Toolchain file unavailable/non-regular/over 64 KiB: " + name + "; contents are never printed.")
+            unreadable.append(name)
+            warnings.append("Toolchain file unavailable/non-regular/over 64 KiB: " + name
+                            + "; version pins in it are not detected, contents are never printed.")
     pins = toolchain.detect(files)
     package = {}
     try:
@@ -162,6 +165,7 @@ def observe(repo, home, capture_session=True, session=None):
             "pnpm_required": pnpm_required,
             "managers": managers(home), "jdks": jdks(home),
             "session_path": path, "session_warning": warning, "warnings": warnings,
+            "unreadable": unreadable,
             "repo_instructions": overlay,
             "resolved": {tool: shutil.which(tool, path=path) if path is not None else None
                          for tool in ("node", "pnpm")}}

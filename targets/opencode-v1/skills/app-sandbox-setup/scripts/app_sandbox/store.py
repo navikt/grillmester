@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from .paths import SetupError, canonical, changed_projects, display, home_relative, schema_error
+from .paths import Info, SetupError, canonical, changed_projects, display, home_relative, schema_error
 
 
 SQL_IDENTIFIER = r"""(?:"(?:[^"]|"")*"|`(?:[^`]|``)*`|\[[^\]]*\]|'(?:[^']|'')*'|[a-z_][a-z0-9_$]*)"""
@@ -173,7 +173,7 @@ def code_path_rows(connection: sqlite3.Connection, warnings: list[str]) -> list[
     try:
         paths += [(row[0], True) for row in connection.execute("SELECT path FROM worktrees ORDER BY id")]
     except sqlite3.Error:
-        warnings.append("Worktree paths unavailable; add your code folders manually where needed.")
+        warnings.append(Info("Worktree paths unavailable; add your code folders manually where needed."))
     return paths
 
 

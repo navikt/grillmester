@@ -288,8 +288,8 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual(0, code, output)
         plan = json.loads(output)
         explanations = [
-            warning for warning in plan["warnings"]
-            if warning.startswith("Missing/non-qualifying secret paths")
+            note for note in plan["info"]
+            if note.startswith("Missing/non-qualifying secret paths")
         ]
         self.assertEqual(1, len(explanations))
         explanation = explanations[0]
@@ -303,6 +303,183 @@ class AppSandboxSetupTest(unittest.TestCase):
                      "Rerun after first creating or logging in", "MCP OAuth", "defense in depth"):
             self.assertIn(text, explanation)
         self.assertEqual(1, output.count("cannot read $HOME by default"))
+
+    def test_decisions_are_warnings_and_background_is_info(self) -> None:
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        for prefix in ("Docker socket", "When credential masking is OFF"):
+            self.assertTrue(any(warning.startswith(prefix) for warning in plan["warnings"]), prefix)
+            self.assertFalse(any(note.startswith(prefix) for note in plan["info"]), prefix)
+        for prefix in ("Credential masking covers only", "Writable tool installs", "Tools not installed",
+                       "Hardening (", "After an app update", "Missing/non-qualifying secret paths"):
+            self.assertTrue(any(note.startswith(prefix) for note in plan["info"]), prefix)
+            self.assertFalse(any(warning.startswith(prefix) for warning in plan["warnings"]), prefix)
+        # Choosing masking makes its limits a warning, not background.
+        code, output = self.run_cli("plan", "--mask-credentials", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertTrue(any(warning.startswith("Credential masking covers only") for warning in plan["warnings"]))
+        self.assertFalse(any(note.startswith("Credential masking covers only") for note in plan["info"]))
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        lines = output.splitlines()
+        last_warning = max(index for index, line in enumerate(lines) if line.startswith("Warning: "))
+        first_info = min(index for index, line in enumerate(lines) if line.startswith("Info: "))
+        self.assertLess(last_warning, first_info)
+        self.assertIn("Info: Hardening (", output)
+
+    def test_any_warning_occurrence_outranks_info(self) -> None:
+        from app_sandbox.paths import Info, merge_notices, split_notices
+        warnings, info = split_notices([Info("same"), "same", Info("note"), Info("note"), "alert"])
+        self.assertEqual(["same", "alert"], warnings)
+        self.assertEqual(["note"], info)
+        self.assertTrue(all(type(message) is str for message in warnings + info))
+        # Pre-deduplication must keep the escalation too.
+        merged = merge_notices([Info("same"), Info("note"), "same"])
+        self.assertEqual(["same", "note"], merged)
+        self.assertNotIsInstance(merged[0], Info)
+        self.assertIsInstance(merged[1], Info)
+
+    def test_unreadable_toolchain_file_warns_instead_of_missing_pin(self) -> None:
+        repo = self.home / "code/repository"
+        (repo / "gradlew").touch()
+        outside = self.root / "outside.gradle.kts"
+        outside.write_text("kotlin { jvmToolchain(21) }\n", encoding="utf-8")
+        (repo / "build.gradle.kts").symlink_to(outside)
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        self.assertTrue(any("Toolchain file unavailable" in warning and "build.gradle.kts" in warning
+                            for warning in plan["warnings"]), plan["warnings"])
+        self.assertFalse(any("Gradle project without a Java version pin" in message
+                             for message in plan["warnings"] + plan["info"]))
+
+    def test_unreadable_toolchain_file_keeps_existing_instructions(self) -> None:
+        from app_sandbox import instructions
+        repo = self.home / "code/repository"
+        (repo / "gradlew").touch()
+        (repo / "build.gradle.kts").write_text("kotlin { jvmToolchain(21) }\n", encoding="utf-8")
+        block = instructions.block([{"tool": "java", "command": "JAVA_HOME", "home": "/fixture/jdk-21",
+                                     "pin": {"major": "21", "source": "build.gradle.kts"}}])
+        text = "user text\n\n" + block
+        with sqlite3.connect(str(self.db)) as db:
+            db.execute("UPDATE projects SET instructions = ?", (text,))
+        outside = self.root / "outside.mise.toml"
+        outside.write_text('[tools]\njava = "25"\n', encoding="utf-8")
+        (repo / ".mise.toml").symlink_to(outside)
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        plan = json.loads(output)
+        diff = plan["projects"][0]["diff"]
+        self.assertNotIn("instructions", diff)
+        self.assertIn("sandbox_enabled", diff)
+        self.assertEqual([], plan["instructions_changes"])
+        self.assertTrue(any("instructions left untouched" in warning for warning in plan["warnings"]))
+        code, output = self.run_cli("apply", "--confirm", plan["digest"])
+        self.assertEqual(0, code, output)
+        with sqlite3.connect(str(self.db)) as db:
+            self.assertEqual(text, db.execute("SELECT instructions FROM projects").fetchone()[0])
+
+    def test_only_unreadable_java_sources_hide_the_missing_pin_warning(self) -> None:
+        repo = self.home / "code/repository"
+        (repo / "gradlew").touch()
+        outside = self.root / "outside.nvmrc"
+        outside.write_text("24\n", encoding="utf-8")
+        (repo / ".nvmrc").symlink_to(outside)
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        warnings = json.loads(output)["warnings"]
+        self.assertTrue(any("Gradle project without a Java version pin" in warning for warning in warnings))
+        self.assertTrue(any("Toolchain file unavailable" in warning and ".nvmrc" in warning
+                            for warning in warnings))
+
+    def test_plan_reports_masking_after_apply_for_verify(self) -> None:
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertIn("Credential masking after apply: OFF for all projects (1)", output)
+        code, output = self.run_cli("plan", "--mask-credentials")
+        self.assertEqual(0, code, output)
+        self.assertIn("Credential masking after apply: ON for all projects (1)", output)
+        with sqlite3.connect(str(self.db)) as connection:
+            connection.execute("INSERT INTO projects(id, name, main_repo_path) VALUES (?, ?, ?)",
+                               ("p2", "masked", str(self.home / "code/other")))
+            connection.execute("INSERT INTO project_sandbox_policies VALUES (?, ?)",
+                               ("p2", json.dumps({"allowGitCredentials": True, "allowGhCredentials": True})))
+        (self.home / "code/other").mkdir()
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertIn('Credential masking after apply: ON: "masked"; OFF: "example"', output)
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        self.assertEqual({"on": ["masked"], "off": ["example"], "mixed": []},
+                         json.loads(output)["masking_after"])
+        code, output = self.run_cli("apply", "--confirm", self.digest())
+        self.assertEqual(0, code, output)
+        self.assertIn('Credential masking after apply: ON: "masked"; OFF: "example"', output)
+        with sqlite3.connect(str(self.db)) as connection:
+            connection.execute("INSERT INTO projects(id, name, main_repo_path) VALUES (?, ?, ?)",
+                               ("p3", "half", str(self.home / "code/half")))
+            connection.execute("INSERT INTO project_sandbox_policies VALUES (?, ?)",
+                               ("p3", json.dumps({"allowGitCredentials": True, "allowGhCredentials": False})))
+        (self.home / "code/half").mkdir()
+        code, output = self.run_cli("plan", "--json")
+        self.assertEqual(0, code, output)
+        self.assertEqual({"on": ["masked"], "off": ["example"], "mixed": ["half"]},
+                         json.loads(output)["masking_after"])
+        code, output = self.run_cli("plan")
+        self.assertEqual(0, code, output)
+        self.assertIn('mixed: "half"', output)
+
+    def test_verify_classifies_token_shape_and_hints_masking_without_values(self) -> None:
+        from app_sandbox import probes as probe_module, project_probes
+        probes = {"HOME write": "denied", "DB open": "denied", "loopback": "OK",
+                  "cache write": "OK", "readonly write": "denied"}
+        real_shape = "ghp_" + "A1" * 18
+        with mock.patch.object(probe_module, "behavioral_probes", return_value=probes), \
+                mock.patch.object(project_probes, "run", side_effect=AssertionError("toolchain skipped")), \
+                mock.patch.dict(os.environ, {"GH_TOKEN": real_shape, "HTTPS_PROXY": "", "HTTP_PROXY": "",
+                                             "ALL_PROXY": "", "https_proxy": "", "http_proxy": "",
+                                             "all_proxy": ""}):
+            code, output = self.run_cli("verify", "--no-toolchain")
+            self.assertEqual(0, code, output)
+            self.assertIn("GH_TOKEN format: GitHub token shape", output)
+            self.assertIn("sandboxed processes can likely read a real token", output)
+            self.assertIn("Toolchain probes skipped (--no-toolchain).", output)
+            self.assertNotIn(real_shape, output)
+            self.assertNotIn("A1A1", output)
+            probes["loopback"] = "denied"
+            with mock.patch.dict(os.environ, {"GH_TOKEN": "placeholder-value",
+                                              "HTTPS_PROXY": "http://localhost:4321"}):
+                code, output = self.run_cli("verify", "--no-toolchain")
+            self.assertEqual(7, code, output)
+            self.assertIn("GH_TOKEN format: other (placeholder?)", output)
+            self.assertIn("rerun verify with --mask-credentials", output)
+            self.assertNotIn("placeholder-value", output)
+            with mock.patch.dict(os.environ, {"GH_TOKEN": "", "HTTPS_PROXY": "http://127.0.0.1:4321"}):
+                code, output = self.run_cli("verify", "--no-toolchain", "--mask-credentials")
+            self.assertEqual(0, code, output)
+            self.assertIn("GH_TOKEN format: absent", output)
+            self.assertNotIn("rerun verify with --mask-credentials", output)
+            self.assertNotIn("masking is likely OFF", output)
+            probes["loopback"] = "OK"
+            with mock.patch.dict(os.environ, {"GH_TOKEN": real_shape, "HTTPS_PROXY": "http://[::1]:4321"}):
+                code, output = self.run_cli("verify", "--no-toolchain", "--mask-credentials")
+            self.assertEqual(7, code, output)
+            self.assertIn("proxy env points to loopback: yes", output)
+            self.assertIn("masking is likely OFF", output)
+            self.assertNotIn("can likely read a real token", output)
+            # An unsandboxed session explains itself; masking hints would contradict it.
+            probes["HOME write"] = "OK"
+            with mock.patch.dict(os.environ, {"GH_TOKEN": real_shape, "HTTPS_PROXY": ""}):
+                code, output = self.run_cli("verify", "--no-toolchain", "--mask-credentials")
+            self.assertEqual(7, code, output)
+            self.assertIn("this session is not sandboxed", output)
+            for hint in ("masking is likely", "can likely read a real token"):
+                self.assertNotIn(hint, output)
+        code, output = self.run_cli("plan", "--no-toolchain")
+        self.assertEqual(1, code, output)
+        self.assertIn("--no-toolchain applies only to verify", output)
 
     def test_missing_secret_path_explanation_is_once_per_plan_with_multiple_projects(self) -> None:
         with sqlite3.connect(str(self.db)) as connection:
@@ -931,14 +1108,18 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual(0, code, output)
         info = [line for line in output.splitlines() if "JDK info:" in line]
         self.assertEqual(1, len(info), output)
+        self.assertTrue(info[0].startswith("Info: JDK info:"), info[0])
         for name in ("jdk-25", "jdk-21", "jdk-17"):
             self.assertIn(f'"~/Library/Java/JavaVirtualMachines/{name}/Contents/Home"', info[0])
         self.assertLess(info[0].index("jdk-25"), info[0].index("jdk-21"))
         self.assertLess(info[0].index("jdk-21"), info[0].index("jdk-17"))
         for omitted in ("jdk-99", "not-a-jdk", str(self.home)):
             self.assertNotIn(omitted, info[0])
-        for hint in ("Spotlight", "export JAVA_HOME=", "version manager", "mise, sdkman, asdf, jenv"):
+        for hint in ("Spotlight", "Java pin", "not the newest one"):
             self.assertIn(hint, info[0])
+        # Advising the newest JDK contradicted per-project pins.
+        for stale in ("newest by directory name", "Choose the first listed home", "export JAVA_HOME="):
+            self.assertNotIn(stale, info[0])
 
     def test_system_jdk_info_and_no_jdk_case_are_filesystem_only(self) -> None:
         system_home = Path("/Library/Java/JavaVirtualMachines/jdk-25/Contents/Home")
@@ -1022,8 +1203,8 @@ class AppSandboxSetupTest(unittest.TestCase):
             (self.home / relative).mkdir(parents=True)
         code, output = self.run_cli("plan", "--json")
         self.assertEqual(0, code, output)
-        warnings = json.loads(output)["warnings"]
-        hardening = [warning for warning in warnings if warning.startswith("Hardening (")]
+        info = json.loads(output)["info"]
+        hardening = [note for note in info if note.startswith("Hardening (")]
         self.assertEqual(
             ["Hardening (missing paths listed as readonly; the app cannot block their creation, "
              "so readonly applies only once the path exists): "], hardening,
@@ -1094,8 +1275,8 @@ class AppSandboxSetupTest(unittest.TestCase):
         code, output = self.run_cli("plan", "--no-docker", "--json")
         self.assertEqual(0, code, output)
         plan = json.loads(output)
-        hardening = next(warning for warning in plan["warnings"] if warning.startswith("Hardening ("))
-        tools = next(warning for warning in plan["warnings"] if warning.startswith("Tools not installed"))
+        hardening = next(note for note in plan["info"] if note.startswith("Hardening ("))
+        tools = next(note for note in plan["info"] if note.startswith("Tools not installed"))
         for relative in self.app.HARDENING_READONLY:
             path = str(self.home / relative)
             displayed = self.app.display("~/" + relative)
@@ -1515,9 +1696,11 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertIn("no changes", output)
 
     def test_verify_behavioral_gate_and_presence_only_environment_reporting(self) -> None:
+        from app_sandbox import probes as probe_module
         probes = {"HOME write": "denied", "DB open": "denied", "loopback": "OK",
                   "cache write": "OK", "readonly write": "denied"}
-        with mock.patch.object(self.app, "behavioral_probes", return_value=probes, create=True), \
+        # Patch the owning module: create=True through the adapter deletes the real function on exit.
+        with mock.patch.object(probe_module, "behavioral_probes", return_value=probes), \
                 mock.patch.object(self.app, "open_db", side_effect=AssertionError("verify must not access store")), \
                 mock.patch.dict(os.environ, {"GH_TOKEN": "fixture-private-value",
                                              "HTTPS_PROXY": "http://fixture-private-value@127.0.0.1:4321"}):
@@ -1526,7 +1709,7 @@ class AppSandboxSetupTest(unittest.TestCase):
             self.assertIn("expected", output)
             self.assertIn("actual", output)
             self.assertIn("GH_TOKEN set: yes", output)
-            self.assertIn("proxy env points to 127.0.0.1: yes", output)
+            self.assertIn("proxy env points to loopback: yes", output)
             self.assertNotIn("fixture-private-value", output)
             probes["loopback"] = "denied"
             code, output = self.run_cli("verify", "--mask-credentials")

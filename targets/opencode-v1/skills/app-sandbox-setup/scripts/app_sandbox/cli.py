@@ -11,7 +11,7 @@ from typing import Any, Optional, Sequence
 
 from . import backups, discovery, instructions, optional_cli, policy, probes, rules, store
 from .facts import Options
-from .paths import SetupError, changed_projects, display
+from .paths import SetupError, changed_projects, display, split_notices
 
 
 class UsageParser(argparse.ArgumentParser):
@@ -70,13 +70,16 @@ def public_plan(plan: dict[str, Any]) -> dict[str, Any]:
                          "toolchain": project.get("toolchain", [])})
         projects[-1]["manual_instructions"] = project.get("manual_instructions", "")
         projects[-1]["policy_json_rewritten"] = rewritten_keys(before, after)
+    warnings, info = split_notices(plan["warnings"])
     result = {
-        "projects": projects, "digest": plan["digest"], "warnings": plan["warnings"],
+        "projects": projects, "digest": plan["digest"], "warnings": warnings, "info": info,
         "placeholder_removals": plan.get("placeholder_removals", []),
         "backup_moves": plan.get("backup_moves", []),
         "changed": bool(changed_projects(plan) or plan.get("placeholder_removals") or plan.get("backup_moves")),
     }
     result["unchanged_projects"] = len(plan["projects"]) - len(projects)
+    if plan.get("operation") != "rollback":
+        result["masking_after"] = {state.lower(): names for state, names in masking_after(plan).items()}
     result["toolchain_decisions"] = [{"name": project["name"], "decisions": project.get("toolchain", [])}
                                     for project in changed_projects(plan)]
     result["instructions_changes"] = [project["name"] for project in changed_projects(plan)
@@ -84,6 +87,27 @@ def public_plan(plan: dict[str, Any]) -> dict[str, Any]:
     result["manual_instructions"] = [{"name": project["name"], "block": project["manual_instructions"]}
                                      for project in plan["projects"] if project.get("manual_instructions")]
     return result
+
+
+def masking_after(plan: dict[str, Any]) -> dict[str, list[str]]:
+    """Group planned projects by credential masking after apply, for verify's flag."""
+    groups: dict[str, list[str]] = {"ON": [], "OFF": [], "mixed": []}
+    for project in plan["projects"]:
+        policy_data = project["after"].get("policy") or {}
+        values = {policy_data.get("allowGitCredentials"), policy_data.get("allowGhCredentials")}
+        groups["ON" if values == {True} else "OFF" if values == {False} else "mixed"].append(project["name"])
+    return groups
+
+
+def masking_line(plan: dict[str, Any]) -> Optional[str]:
+    present = {state: names for state, names in masking_after(plan).items() if names}
+    if not present:
+        return None
+    if len(present) == 1:
+        state, names = next(iter(present.items()))
+        return f"Credential masking after apply: {state} for all projects ({len(names)})"
+    return "Credential masking after apply: " + "; ".join(
+        f"{state}: " + ", ".join(display(name) for name in names) for state, names in present.items())
 
 
 def instructions_diff(before: str, after: str) -> dict[str, str]:
@@ -144,6 +168,9 @@ def print_plan(plan: dict[str, Any], json_mode: bool = False, summary: Optional[
                 for line in instructions_diff(before["instructions"], after["instructions"])[key].splitlines():
                     print(f"  {prefix} instructions: {line}")
     print(f'{len(plan["projects"]) - len(projects)} projects unchanged')
+    masking = masking_line(plan) if plan.get("operation") != "rollback" else None
+    if masking:
+        print(masking)
     if summary is None:
         for entry in plan.get("backup_moves", []):
             print(f'  move backup: {display(entry["source"])} -> {display(entry["destination"])}')
@@ -151,13 +178,21 @@ def print_plan(plan: dict[str, Any], json_mode: bool = False, summary: Optional[
             if project.get("manual_instructions"):
                 print(f'Manual block for .github/github-app.yml ({display(project["name"])}):')
                 print(project["manual_instructions"])
-    for warning in plan["warnings"]:
-        print("Warning: " + warning)
+    print_notices(plan["warnings"])
     if not changed_projects(plan) and not plan.get("placeholder_removals") and not plan.get("backup_moves"):
         print("no changes")
     if summary is not None:
         print(summary)
     print(f'Plan digest: {plan["digest"]}')
+
+
+def print_notices(messages: Sequence[str]) -> None:
+    """Warnings need a decision or action; Info lines are background."""
+    warnings, info = split_notices(messages)
+    for warning in warnings:
+        print("Warning: " + warning)
+    for note in info:
+        print("Info: " + note)
 
 
 def print_guide(db: Path, home: Path, mask: Optional[bool], no_docker: bool = False) -> int:
@@ -206,8 +241,7 @@ def print_guide(db: Path, home: Path, mask: Optional[bool], no_docker: bool = Fa
     print("Remove the retired rw grants: "
           + ", ".join(display("~/" + path) for path in rules.RETIRED_GRANTS["readwritePaths"])
           + "; also remove rw entries exactly equal to readonly/denied paths; a narrower readonly/deny wins.")
-    for warning in dict.fromkeys(warnings):
-        print("Warning: " + warning)
+    print_notices(warnings)
     print("Policy changes apply to NEW sessions or after /restart-session. /sandbox off persists for this session even after restart: use /sandbox on + /restart-session, or a new session. Enterprise managed settings may override.")
     return status
 
@@ -227,6 +261,7 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--no-docker", action="store_true")
     parser.add_argument("--no-instructions", action="store_true")
     parser.add_argument("--move-backups", action="store_true")
+    parser.add_argument("--no-toolchain", action="store_true")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--from", dest="backup", type=Path)
     args = parser.parse_args(argv)
@@ -234,10 +269,13 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
         parser.error("apply requires --confirm DIGEST")
     if args.command == "rollback" and args.backup is None:
         parser.error("rollback requires --from")
+    if args.no_toolchain and args.command != "verify":
+        # Easy to confuse with --no-instructions; never accept it silently.
+        raise SetupError(1, "Usage error: --no-toolchain applies only to verify.")
     home = (args.home if args.home is not None else Path.home()).resolve()
     db = args.db if args.db is not None else home / ".copilot/data.db"
     if args.command == "verify":
-        return probes.verify(home, db, bool(args.mask_credentials))
+        return probes.verify(home, db, bool(args.mask_credentials), not args.no_toolchain)
     if args.command == "guide":
         return print_guide(db, home, args.mask_credentials, args.no_docker)
     snapshot = store.rollback_snapshot(args.backup) if args.command == "rollback" else None

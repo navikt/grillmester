@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from . import profile, profile_store, toolchain_discovery
-from .paths import SetupError
+from .paths import Info, SetupError
 
 
 def mise_paths(home, env=None):
@@ -68,8 +68,8 @@ def readonly_facts(home, warnings=None, env=None):
         candidates, unknown = [], True
     if unknown:
         if warnings is not None:
-            warnings.append("Profile opt-in state unavailable; existing readonly hardening retained. "
-                            "Use the separate profile plan to inspect; no profile writes in default setup.")
+            warnings.append(Info("Profile opt-in state unavailable; existing readonly hardening retained. "
+                                 "Use the separate profile plan to inspect; no profile writes in default setup."))
         # Unknown is not inactive: never retire hardening on an unreadable file.
         candidates = []
     return list(dict.fromkeys(readonly)), candidates

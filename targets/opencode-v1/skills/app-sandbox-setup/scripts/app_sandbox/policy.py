@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .facts import Facts, Options
-from .paths import SetupError, canonical, display, has_control, home_relative, schema_error
+from .paths import Info, SetupError, canonical, display, has_control, home_relative, merge_notices, schema_error
 from .rules import BOOL_FIELDS, CREDENTIAL_WARNING, MASKING_SCOPE_WARNING, PATH_FIELDS
 from . import instructions, toolchain
 
@@ -44,7 +44,8 @@ def profile_opt_in_paths(rules: dict[str, Any], facts: Facts) -> list[str]:
 def profile_paths(rules: dict[str, Any], facts: Facts, options: Options,
                   warnings: list[str]) -> dict[str, list[str]]:
     home = Path(facts.home)
-    warnings.append(MASKING_SCOPE_WARNING)
+    # Choosing masking needs its limits stated; otherwise the scope is background.
+    warnings.append(MASKING_SCOPE_WARNING if options.mask else Info(MASKING_SCOPE_WARNING))
     warnings.extend(facts.profile_warnings)
     # Discovery separates the backup diagnostics so masking retains its position.
     if options.mask:
@@ -57,7 +58,7 @@ def profile_paths(rules: dict[str, Any], facts: Facts, options: Options,
         warnings.append("--no-docker removes exact Docker rw grants; Testcontainers/docker will not work in the sandbox.")
     else:
         warnings.append("Docker socket = effectively unsandboxed host access: it can mount HOME, read ~/.ssh and write LaunchAgents. Use --no-docker to omit Docker grants.")
-    warnings.append("Writable tool installs can persist changes that later execute outside the sandbox; they remain writable so agents can install tools.")
+    warnings.append(Info("Writable tool installs can persist changes that later execute outside the sandbox; they remain writable so agents can install tools."))
     for field, relatives in (("readwritePaths", rules["RW_PATHS"]), ("readonlyPaths", rules["RO_PATHS"])):
         grants[field] = []
         for relative in relatives:
@@ -80,15 +81,15 @@ def profile_paths(rules: dict[str, Any], facts: Facts, options: Options,
         grants["readwritePaths"] += [path for path in docker if facts.path(Path(path)).exists
                                     and path not in grants["readwritePaths"]]
     if missing:
-        warnings.append("Tools not installed (grants skipped; rerun after installing): " + ", ".join(missing))
-    warnings.append("Hardening (missing paths listed as readonly; the app cannot block their creation, "
-                    "so readonly applies only once the path exists): "
-                    + ", ".join(missing_hardening))
+        warnings.append(Info("Tools not installed (grants skipped; rerun after installing): " + ", ".join(missing)))
+    warnings.append(Info("Hardening (missing paths listed as readonly; the app cannot block their creation, "
+                         "so readonly applies only once the path exists): "
+                         + ", ".join(missing_hardening)))
     grants["deniedPaths"] = facts.required_denies(rules, grants["readwritePaths"])
     grants["readonlyPaths"] += list(facts.hardened_caches)
     grants["readonlyPaths"] += profile_opt_in_paths(rules, facts)
     grants["readwritePaths"] += list(facts.writable_caches)
-    warnings.append("After an app update, rerun this skill: new version-named app cache directories need readonly hardening.")
+    warnings.append(Info("After an app update, rerun this skill: new version-named app cache directories need readonly hardening."))
     return grants
 
 
@@ -204,14 +205,14 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
         for path in rules["DENIED_PATHS"] if str(home / path) not in denied
     ]
     if missing_denies:
-        warnings.append(
+        warnings.append(Info(
             "Missing/non-qualifying secret paths (deny entries skipped or removed): "
             + ", ".join(missing_denies)
             + ". The sandbox cannot read $HOME by default; these paths are only readable "
             "if you added a broader grant. Rerun after first creating or logging in to "
             "these credential paths (including MCP OAuth at ~/.copilot/mcp-oauth-config) "
             "so denies are added as defense in depth."
-        )
+        ))
     changes = []
     skipped = []
     for row in facts.projects:
@@ -229,8 +230,10 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
         manual_block = ""
         if not options.no_instructions:
             observation = facts.toolchains.get(row["id"], {})
+            unreadable = observation.get("unreadable", [])
             unpinned_gradle = observation.get("gradlew") and "java" not in observation.get("pins", {})
-            if unpinned_gradle:
+            # An unreadable Java source hides its pin; its own warning names the cause.
+            if unpinned_gradle and not any(name in toolchain.JAVA_PIN_FILES for name in unreadable):
                 example = max((jdk["major"] for jdk in observation.get("jdks", [])),
                               key=int, default="<major>")
                 warnings.append(
@@ -238,13 +241,18 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
                     'the sandbox has no default java. Add a pin in the repository '
                     f'(e.g. `java = "{example}"` in .mise.toml, or jvmToolchain({example})).')
             warnings.extend(f'{display(row["name"])}: {warning}' for warning in observation.get("warnings", []))
-            decisions = [] if unpinned_gradle else toolchain.decide(observation)
+            # Never decide on partial pins: an unreadable file may hold the real one.
+            decisions = [] if unpinned_gradle or unreadable else toolchain.decide(observation)
             warnings.extend(f'{display(row["name"])}: {item["warning"]}'
                             for item in decisions if item["warning"])
             try:
                 # Validate markers even when repo config prevents a DB edit.
                 instructions.bounds(old_text)
-                if observation.get("repo_instructions"):
+                if unreadable:
+                    # Unknown pins must neither rewrite nor remove an earlier block.
+                    warnings.append(f'{display(row["name"])}: toolchain file unreadable; '
+                                    'instructions left untouched, sandbox policy still planned.')
+                elif observation.get("repo_instructions"):
                     manual_block = instructions.block(decisions)
                     warnings.append(f'{display(row["name"])}: .github/github-app.yml instructions may overlay '
                                     'DB instructions (precedence unverified); DB instructions left untouched. '
@@ -279,7 +287,7 @@ def compute_plan(rules: dict[str, Any], facts: Facts, existing: dict[str, Any],
                     "placeholder_removals": placeholder_removals, "backup_moves": list(facts.backup_moves)}
     digest = hashlib.sha256(canonical(digest_input).encode()).hexdigest()
     return {"projects": changes, "skipped": skipped, "digest": digest,
-            "placeholder_removals": placeholder_removals, "warnings": list(dict.fromkeys(warnings)),
+            "placeholder_removals": placeholder_removals, "warnings": merge_notices(warnings),
             "backup_moves": list(facts.backup_moves)}
 
 
