@@ -13,7 +13,7 @@ from typing import Any, Optional, Sequence
 
 from . import backups, rules, toolchain_discovery, profile_discovery
 from .facts import Facts, PathFact
-from .paths import SetupError, display, has_control, home_relative, safe_code_root, same_path, under
+from .paths import Info, SetupError, display, has_control, home_relative, safe_code_root, same_path, under
 from .policy import read_policy
 
 
@@ -28,34 +28,34 @@ def code_roots(paths: Sequence[tuple[Any, bool]], home: Path, warnings: list[str
     roots = []
     for raw, worktree in paths:
         if not isinstance(raw, str) or has_control(raw):
-            warnings.append("Code path skipped: invalid string or control characters.")
+            warnings.append(Info("Code path skipped: invalid string or control characters."))
             continue
         if not Path(raw).is_absolute():
-            warnings.append("Code path skipped: non-absolute path.")
+            warnings.append(Info("Code path skipped: non-absolute path."))
             continue
         try:
             if under(Path(raw), home / ".copilot"):
-                warnings.append("Code path under ~/.copilot skipped; never a code root.")
+                warnings.append(Info("Code path under ~/.copilot skipped; never a code root."))
                 continue
             specific = Path(raw).resolve()
         except (OSError, RuntimeError):
-            warnings.append("Code path skipped: cannot resolve symlinks.")
+            warnings.append(Info("Code path skipped: cannot resolve symlinks."))
             continue
         if has_control(str(specific)):
-            warnings.append("Resolved code path skipped: control characters.")
+            warnings.append(Info("Resolved code path skipped: control characters."))
             continue
         if under(specific, home / ".copilot"):
-            warnings.append("Code path under ~/.copilot skipped; never a code root.")
+            warnings.append(Info("Code path under ~/.copilot skipped; never a code root."))
             continue
         if not specific.exists() and not under(specific, Path("/Volumes")):
-            warnings.append(f"Code path missing; skipped: {display(str(specific))}")
+            warnings.append(Info(f"Code path missing; skipped: {display(str(specific))}"))
             continue
         candidate = specific.parent.parent if worktree else specific.parent
         if not safe_code_root(candidate, home, parent=True):
-            warnings.append(f"unsafe code root {display(str(candidate))}; trying specific path.")
+            warnings.append(Info(f"unsafe code root {display(str(candidate))}; trying specific path."))
             candidate = specific
         if not safe_code_root(candidate, home):
-            warnings.append(f"unsafe specific code path {display(str(candidate))}; skipped.")
+            warnings.append(Info(f"unsafe specific code path {display(str(candidate))}; skipped."))
             continue
         roots.append(str(candidate))
     return list(dict.fromkeys(roots))
@@ -94,21 +94,21 @@ def git_environment(home: Path) -> dict[str, str]:
 def git_discovery(home: Path, warnings: list[str], projects: Sequence[Any] = ()) -> list[str]:
     git = shutil.which("git")
     if not git:
-        warnings.append("Git discovery skipped: git is unavailable.")
+        warnings.append(Info("Git discovery skipped: git is unavailable."))
         return []
     env = git_environment(home)
     try:
         if sys.platform == "darwin" and str(Path(git).resolve()) == "/usr/bin/git":
             result = subprocess.run(["/usr/bin/xcode-select", "-p"], env=env, capture_output=True, timeout=3)
             if result.returncode:
-                warnings.append("Git discovery skipped: stock /usr/bin/git needs Xcode Command Line Tools and could open an install dialog.")
+                warnings.append(Info("Git discovery skipped: stock /usr/bin/git needs Xcode Command Line Tools and could open an install dialog."))
                 return []
         result = subprocess.run(
             [git, "config", "--global", "--list", "--show-origin", "--includes", "--null"],
             env=env, cwd=str(home), capture_output=True, text=True, timeout=3,
         )
     except (OSError, subprocess.SubprocessError):
-        warnings.append("Git discovery unavailable; add global config paths manually.")
+        warnings.append(Info("Git discovery unavailable; add global config paths manually."))
         return []
     paths = []
     if result.returncode == 0:
@@ -136,7 +136,7 @@ def git_discovery(home: Path, warnings: list[str], projects: Sequence[Any] = ())
                         path = (file.parent if include else home) / path
                     paths.append(path)
     elif (home / ".gitconfig").exists():
-        warnings.append("Git global discovery failed; config contents are never printed.")
+        warnings.append(Info("Git global discovery failed; config contents are never printed."))
     for project in projects:
         if not isinstance(project["main_repo_path"], str):
             continue
@@ -152,7 +152,7 @@ def git_discovery(home: Path, warnings: list[str], projects: Sequence[Any] = ())
                                               for line in remotes.stdout.splitlines()):
                 warnings.append(f'{display(project["name"])}: SSH remote blocked (~/.ssh denied); use HTTPS or run outside the sandbox.')
         except (OSError, subprocess.SubprocessError):
-            warnings.append(f'{display(project["name"])}: SSH remote discovery unavailable.')
+            warnings.append(Info(f'{display(project["name"])}: SSH remote discovery unavailable.'))
     return list(dict.fromkeys(str(path.resolve()) for path in paths if path.exists() and not has_control(str(path))))
 
 
@@ -163,14 +163,14 @@ def jdk_warning(home: Path, warnings: list[str]) -> None:
         key=lambda path: (path.parent.parent.name, str(path)), reverse=True,
     )
     if homes:
-        warnings.append(
+        # Never advise the newest JDK: projects pin their own majors.
+        warnings.append(Info(
             "JDK info: " + ", ".join(display(home_relative(path, home)) for path in homes)
             + ". In the sandbox, /usr/bin/java and java_home cannot discover JDKs "
-            "(Spotlight lookup unavailable). JDK directories are readable: set JAVA_HOME "
-            "or use any version manager (mise, sdkman, asdf, jenv, etc.). "
-            "Choose the first listed home (newest by directory name order), "
-            "e.g. export JAVA_HOME=…/Contents/Home."
-        )
+            "(Spotlight lookup unavailable). JDK directories are readable: use the JDK "
+            "matching each project's Java pin, not the newest one, and pin Java in "
+            "Gradle projects without a pin."
+        ))
 
 
 def credential_file_warnings(home: Path, warnings: list[str]) -> None:

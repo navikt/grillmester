@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import os
+import re
 import socket
 import tempfile
 import threading
@@ -91,7 +92,17 @@ def behavioral_probes(home: Path, db: Path) -> dict[str, str]:
     }
 
 
-def verify(home: Path, db: Path, mask: bool) -> int:
+def token_format(value: str) -> str:
+    """Classify GH_TOKEN by shape only; never return any part of the value."""
+    if not value:
+        return "absent"
+    if re.fullmatch(r"gh[opusr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{50,}", value):
+        # A placeholder could share this shape; callers must not treat it as proof.
+        return "GitHub token shape"
+    return "other (placeholder?)"
+
+
+def verify(home: Path, db: Path, mask: bool, toolchain: bool = True) -> int:
     expected = {"HOME write": "denied", "DB open": "denied",
                 "loopback": "denied" if mask else "OK", "cache write": "OK", "readonly write": "denied"}
     actual = behavioral_probes(home, db)
@@ -102,12 +113,28 @@ def verify(home: Path, db: Path, mask: bool) -> int:
     loopback_proxy = False
     for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
         try:
-            loopback_proxy |= urlsplit(os.environ.get(key, "")).hostname == "127.0.0.1"
+            loopback_proxy |= urlsplit(os.environ.get(key, "")).hostname in ("127.0.0.1", "localhost", "::1")
         except ValueError:
             pass
-    print("proxy env points to 127.0.0.1: " + ("yes" if loopback_proxy else "no"))
-    print("GH_TOKEN set: " + ("yes" if os.environ.get("GH_TOKEN") else "no"))
-    project_results = project_probes.run(Path.cwd(), home)
+    print("proxy env points to loopback: " + ("yes" if loopback_proxy else "no"))
+    token = token_format(os.environ.get("GH_TOKEN", ""))
+    print("GH_TOKEN set: " + ("no" if token == "absent" else "yes"))
+    print("GH_TOKEN format: " + token)
+    # Heuristics from live observation, not documented app behavior. Unsandboxed
+    # sessions always have loopback and no proxy, so hints would contradict that line.
+    sandboxed = actual["HOME write"] != "OK"
+    if sandboxed and token == "GitHub token shape" and not loopback_proxy:
+        print("GH_TOKEN has a GitHub token shape and no loopback proxy is set: "
+              "sandboxed processes can likely read a real token.")
+    if sandboxed and not mask and loopback_proxy and actual["loopback"] == "denied":
+        print("Loopback is denied behind a loopback proxy: masking is likely ON. "
+              "If so, rerun verify with --mask-credentials.")
+    if sandboxed and mask and actual["loopback"] == "OK":
+        print("Loopback works although --mask-credentials was given: masking is likely OFF "
+              "for this project. Compare with the plan's masking line; if OFF, rerun verify without the flag.")
+    project_results = project_probes.run(Path.cwd(), home) if toolchain else []
+    if not toolchain:
+        print("Toolchain probes skipped (--no-toolchain).")
     for result in project_results:
         role = "gate" if result["gate"] else f'info ({result["info"]})'
         print(f'{result["name"]} | {role} | ok (version {result["expected"]}) | '

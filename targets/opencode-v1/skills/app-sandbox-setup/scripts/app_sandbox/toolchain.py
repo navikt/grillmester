@@ -5,6 +5,10 @@ import re
 import shlex
 from typing import Any
 
+# Files that can carry a Java pin; detect() reads these for java.
+JAVA_PIN_FILES = (".mise.toml", "mise.toml", ".tool-versions", ".java-version", ".sdkmanrc",
+                  "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts")
+
 
 def major(version: str) -> str:
     match = re.match(r"(?:[A-Za-z]+[-@])?v?(\d+)(?:\.(\d+))?", version.strip())

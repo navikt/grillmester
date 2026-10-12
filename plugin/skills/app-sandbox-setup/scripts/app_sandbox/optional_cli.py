@@ -121,7 +121,7 @@ def profile_plan(args, home, connection):
 
 
 def run(argv):
-    from .cli import UsageParser
+    from .cli import UsageParser, print_notices
     parser = UsageParser(description=__doc__)
     parser.add_argument("group", choices=("profile", "gradle-toolchains"))
     parser.add_argument("action", choices=("plan", "apply", "remove"))
@@ -181,8 +181,7 @@ def run(argv):
                 print("  " + project["reason"])
             if args.group == "gradle-toolchains" and not public["repair_needed"] and args.action != "remove":
                 print("no repair needed")
-            for warning in public["warnings"]:
-                print("Warning: " + warning)
+            print_notices(public["warnings"])
             if not public["changed"]:
                 print("no changes")
             if writing:

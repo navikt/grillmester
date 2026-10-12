@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from . import rules
 
@@ -14,6 +14,28 @@ class SetupError(Exception):
     def __init__(self, code: int, message: str):
         super().__init__(message)
         self.code = code
+
+
+class Info(str):
+    """Background diagnostic that needs no decision; printed after warnings.
+
+    Formatting an Info into a new string yields a plain warning, so a lost
+    marker makes a message more visible, never less. Wrap derived text again.
+    """
+
+
+def merge_notices(messages: Iterable[str]) -> list[str]:
+    """Deduplicate in first-seen order; a text is Info only when every occurrence is."""
+    info: dict[str, bool] = {}
+    for message in messages:
+        info[message] = info.get(message, True) and isinstance(message, Info)
+    return [Info(message) if background else str(message) for message, background in info.items()]
+
+
+def split_notices(messages: Iterable[str]) -> tuple[list[str], list[str]]:
+    merged = merge_notices(messages)
+    return ([str(message) for message in merged if not isinstance(message, Info)],
+            [str(message) for message in merged if isinstance(message, Info)])
 
 
 def schema_error() -> SetupError:

@@ -350,6 +350,13 @@ class PurePolicyTest(unittest.TestCase):
                 plan = self.plan(self.facts(paths=states), {"readwritePaths": ["/alias"]})
                 self.assertNotIn("/alias", plan["projects"][0]["after"]["policy"]["readwritePaths"])
 
+    def test_engine_deduplication_lets_a_warning_outrank_info(self):
+        from app_sandbox.paths import Info
+        plan = self.plan(self.facts(profile_warnings=(Info("shared cause"),), root_warnings=("shared cause",)))
+        shared = [warning for warning in plan["warnings"] if warning == "shared cause"]
+        self.assertEqual(1, len(shared))
+        self.assertNotIsInstance(shared[0], Info)
+
     def test_corrupt_project_skipped_and_digest_excludes_names_and_warnings(self):
         facts = self.facts()
         first = self.plan(facts)
