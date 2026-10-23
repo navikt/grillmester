@@ -94,7 +94,7 @@ function run(args) {
   await ui.getByLabel('Hva vil du endre?').fill('Vis hvorfor denne oppgaven er prioritert. Behold fristen synlig.');
   await page.route('**/comments?*',async route=>route.request().method()==='POST'?route.fulfill({status:503,contentType:'application/json',body:'{"error":"Unavailable"}'}):route.continue());
   await ui.getByRole('button',{name:'Lagre innspill',exact:true}).click();
-  await ui.getByText('Kunne ikke lagre innspillet. Behold utkastet og prøv igjen.',{exact:true}).waitFor();
+  await ui.getByText('Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen.',{exact:true}).waitFor();
   assert.equal(await ui.getByLabel('Hva vil du endre?').inputValue(),'Vis hvorfor denne oppgaven er prioritert. Behold fristen synlig.');
   assert(await ui.getByLabel('Hva vil du endre?').isEnabled());
   await page.unroute('**/comments?*');

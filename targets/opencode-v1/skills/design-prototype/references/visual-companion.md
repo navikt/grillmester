@@ -215,6 +215,10 @@ har bedt om det, og forklar at frigivelsen må med i neste **Send innspill** fø
 mottakeren ser den som innsendt.
 
 `resolve` og `reopen` oppdaterer status og svar uten å lage en ny innsending.
+Punkt-, område- og tekstinnspill kan også ha `context`: deklarert variant,
+del og innstillingsverdier da innspillet ble skrevet. Bruk dette sammen med
+skjermversjonen for å finne riktig situasjon, for eksempel en bekreftelse eller
+feiltilstand. Det er ikke innholdet i skjemaet eller en utført brukerhandling.
 Designerens **Åpne igjen** i nettleseren gjør innspillet usendt og klart til en
 ny runde; først **Send innspill** gjør det tilgjengelig for neste `wait`.
 Innsending fra nettleseren kontrollerer revisjonen av den viste listen. Hvis
@@ -260,6 +264,7 @@ gå over; da aktiveres lagring igjen når både skisse og innspillskø svarer.
 bare eksplisitt skrevne kommentarer, eventuelle nye tekstforslag, svar, status,
 skjermversjon og strukturell forankring (taggsti, rolle, ramme og viewport), samt
 deklarerte variant-/delnøkler, innstillingsvalg og beholdte beslutninger.
+Kommentarer i en justerbar del beholder også delens deklarerte tilstand.
 Ingen automatisk kopiering av synlig tekst, feltverdier, DOM-ID-er eller
 klassenavn. Bruk fortsatt bare syntetisk innhold, også i fritekst.
 
@@ -273,6 +278,12 @@ lagring må vises som feil; ikke fortell designeren at innspillet er lagret.
 Hver kommentar, erstatningstekst og svar kan bruke høyst 2000 UTF-8-byte.
 Økten har plass til 200 kommentarer, 200 beslutninger og 100 skjermversjoner, med maksimalt
 2 MiB lagret tilbakemeldingsdata og 16 KiB per skriveforespørsel.
+Nettleseren bruker en tilfeldig operasjonsnøkkel ved lagring. En uendret kladd
+kan prøves igjen etter tapt kvittering uten å lage et ekstra innspill. Endret
+tekst eller nye valg er en ny operasjon; et tidligere lagret innspill slettes
+ikke automatisk. Serveren husker opptil 2048 vellykkede operasjoner i denne
+prosessen og avviser nye når grensen nås. Dette gir ikke gjenoppretting etter
+serverstopp eller varig lagring.
 
 ## Justerbare skisser
 
@@ -333,6 +344,50 @@ kontroll har `id`, `label`, `type`, `initial` og `options`. `select` er en
 valgliste, `range` bruker diskrete trinn fra alternativlisten, og `toggle`
 krever akkurat to alternativer. Ingen vilkårlig CSS, selektorer eller skript
 sendes fra kontrollene. En del med tom `controls` kan fortsatt beholdes.
+
+### Klikkbare skissetilstander
+
+En vanlig knapp kan velge en allerede deklarert innstilling i sin nærmeste
+`data-vc-key`-del. Bruk dette til å prøve neste/forrige steg, tomtilstand,
+feil, bekreftelse og angre. Eksemplet forutsetter at delens kontroll `stage`
+har alternativet `review`:
+
+```html
+<section data-vc-key="appointment">
+  <!-- Verifisert Aksel-knapp; legg attributtene på det faktiske button-elementet. -->
+  <button type="button" data-vc-control="stage" data-vc-value="review"
+          data-variant="primary" class="aksel-button aksel-button--medium">
+    <span class="aksel-label">Se gjennom valget</span>
+  </button>
+</section>
+```
+
+CSS kan vise riktig innhold ut fra `data-vc-setting-stage`. Alle situasjonene
+må finnes i skissen; handlingen kjører ikke eget JavaScript, leser ikke
+feltverdier og utfører ingen validering, bestilling eller innsending. Merk
+simulerte resultater tydelig, og bruk `prototype` når faktisk oppførsel er
+designspørsmålet. Knappen virker bare i **Utforsk** med justeringspanelet
+lukket og uten et påbegynt kommentarutkast eller tekstforhåndsvisning.
+I **Kommenter** kommenterer man knappen. Ugyldige mål og valg aktiveres ikke.
+En lokal lenke som `href="#ticket-price"` kan rulle til og fokusere et
+entydig, synlig element i skissen, for eksempel fra Aksel ErrorSummary.
+Bruk en ID som starter med en bokstav og deretter bare bokstaver, tall,
+understrek, bindestrek, punktum eller kolon, maksimalt 128 tegn. Lenken
+endrer ikke URL eller historikk. Eksterne lenker og navigasjon er fortsatt
+blokkert, og DOM-ID-en følger ikke innspillet.
+
+Knappen og justeringspanelet endrer samme lokale verdi. Valget blir først et
+innspill gjennom **Legg til innspill** eller **Behold dette**, deretter
+**Send innspill**. En kommentar til en justerbar del tar med delens deklarerte
+tilstand som kontekst, selv om man senere går tilbake til et annet steg.
+**Vis situasjon** viser disse verdiene igjen på samme skjermversjon, bevarer
+merknader og andre deler, og endrer bare den lokale visningen. Ved neste
+skjermversjon brukes konteksten som dokumentasjon; gammel HTML gjenopprettes
+ikke. Legg tilstandene for én sammenhengende flyt i samme deklarerte del,
+siden konteksten gjelder nærmeste del, ikke hele siden.
+Når et parkert kommentarutkast gjenåpnes, kommer også utkastets situasjon
+tilbake. Bytte til en annen kommentars situasjon avslutter en aktiv lokal
+tekstforhåndsvisning før riktig innhold vises.
 
 ### Sammenligne og kombinere
 

@@ -154,12 +154,14 @@
   let lastBusy = null;
   let requestCounter = 0;
   let submitting = false;
+  let submissionRetry = {};
   let sentCount = 0;
   let layoutPending = false;
   let connectionLost = false;
   let addedTabStops = [];
   let originalTouchAction = document.documentElement.style.touchAction;
   const requests = new Map();
+  const commentRetries = new Map();
   const safeRoles = new Set(["button", "link", "textbox", "heading", "img", "navigation", "main", "region", "group", "list", "listitem", "checkbox", "radio", "combobox", "tab", "tabpanel", "table", "row", "cell", "alert", "status", "presentation", "none"]);
 
   function announce(text) { el(".sr").textContent = text; }
@@ -211,18 +213,27 @@
     refresh.title = value ? "Fullfør utkast, send innspill og avslutt forhåndsvisningen først" : "Åpne den nye versjonen";
     scheduleLayout();
   }
-  function request(action, payload) {
+  function request(action, payload, retry = {}) {
     if (connectionLost && action !== "comments-list") return Promise.reject(new Error("Økten er frakoblet. Kopier utkastet før du starter en ny økt."));
+    let mutationId;
+    if (action !== "comments-list") {
+      const intent = JSON.stringify([action, payload]);
+      if (retry.intent !== intent) {
+        retry.intent = intent;
+        retry.mutationId = Array.from(crypto.getRandomValues(new Uint8Array(16)), (value) => value.toString(16).padStart(2, "0")).join("");
+      }
+      mutationId = retry.mutationId;
+    }
     const requestId = ++requestCounter;
     return new Promise((resolve, reject) => {
       const timer = window.setTimeout(() => {
         requests.delete(requestId);
         updateBusy();
-        reject(new Error("Kunne ikke lagre. Kontroller at forhåndsvisningen fortsatt er åpen, og prøv igjen."));
+        reject(new Error("Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen."));
       }, 12000);
       requests.set(requestId, { resolve, reject, timer });
       updateBusy();
-      post({ action, requestId, payload });
+      post({ action, requestId, payload, ...(mutationId ? { mutationId } : {}) });
     });
   }
   function errorAt(selector, message) {
@@ -315,6 +326,24 @@
     }
     restoreFocus(target);
   }
+  function followLocalFragment(link) {
+    if (mode !== "browse" || draft || preview || saving() || link.localName !== "a" || link.hasAttribute("disabled") || link.closest('[inert],[aria-disabled="true"],[aria-hidden="true"]')) return false;
+    const fragment = link.getAttribute("href") || "";
+    if (!/^#[A-Za-z][A-Za-z0-9_.:-]{0,127}$/.test(fragment)) return false;
+    const id = fragment.slice(1);
+    const target = document.getElementById(id);
+    const content = document.body.querySelector(":scope > .vc-content");
+    // Treat the fragment as an exact ID, never as a selector or a URL.
+    // Duplicate IDs are ambiguous even if the first match is in the sketch.
+    if (!target || !content?.contains(target)
+      || Array.from(document.querySelectorAll("[id]")).filter((element) => element.getAttribute("id") === id).length !== 1
+      || target.closest('[inert],[aria-disabled="true"],[aria-hidden="true"]')
+      || target.matches(":disabled") || !target.getClientRects().length
+      || getComputedStyle(target).visibility !== "visible") return false;
+    target.scrollIntoView({ block: "center", behavior: "auto" });
+    focusPrototype(target);
+    return true;
+  }
   function beginDraft(target, kind, rect, position) {
     if (saving()) return;
     if (!usableTarget(target)) return;
@@ -323,7 +352,7 @@
     const anchor = anchorFor(target, rect);
     if (!anchor.path) { announce("Dette elementet kan ikke markeres. Velg et mindre detaljert område."); return; }
     resetPreview();
-    draft = { target, kind, anchor, proposal: false, focus: root.activeElement || document.activeElement, position: position || { x: Math.max(12, target.getBoundingClientRect().left), y: Math.max(12, target.getBoundingClientRect().bottom) } };
+    draft = { target, kind, anchor, context: workshop?.contextFor(target), retry: {}, proposal: false, focus: root.activeElement || document.activeElement, position: position || { x: Math.max(12, target.getBoundingClientRect().left), y: Math.max(12, target.getBoundingClientRect().bottom) } };
     note.value = "";
     proposalInput.value = "";
     errorAt(".compose-error", "");
@@ -338,6 +367,7 @@
     if (!draft || saving()) return;
     if (draft.kind === "area") workshop?.endComparison();
     setPanel(false);
+    if (composer.hidden && draft.context) workshop?.restoreContext(draft.context);
     composer.hidden = false;
     el('[data-action="resume"]').hidden = true;
     showDraftOutline();
@@ -388,6 +418,7 @@
     if (draft.proposal && new TextEncoder().encode(proposalInput.value.trim()).length > 2000) { errorAt(".compose-error", "Tekstforslaget er for langt. Kort det ned før du lagrer."); proposalInput.focus(); return; }
     if (draft.proposal && !proposalInput.value.trim()) { errorAt(".compose-error", "Skriv inn teksten du foreslår."); proposalInput.focus(); return; }
     const payload = { screen, kind: draft.proposal ? "edit" : draft.kind, anchor: draft.anchor, text };
+    if (draft.context) payload.context = draft.context;
     if (draft.proposal) payload.proposal = { property: "text", value: proposalInput.value.trim() };
     const submittedDraft = draft;
     savingDraft = submittedDraft;
@@ -396,7 +427,7 @@
     el(".save").textContent = "Lagrer …";
     errorAt(".compose-error", "");
     try {
-      await request("comment-create", payload);
+      await request("comment-create", payload, submittedDraft.retry);
       if (draft !== submittedDraft) return;
       savingDraft = null;
       discardDraft();
@@ -507,6 +538,12 @@
         details.appendChild(document.createTextNode(workshop?.describeComment(item) || item.variant || ""));
         card.appendChild(details);
       }
+      if (item.context) {
+        const context = document.createElement("p");
+        context.className = "proposal";
+        context.append(span("Situasjon", "proposal-label"), document.createTextNode(workshop?.describeContext(item) || ""));
+        card.appendChild(context);
+      }
       if (item.reply) {
         const reply = document.createElement("p");
         reply.className = "reply";
@@ -519,7 +556,8 @@
       else if (!previous && item.kind === "area" && workshop?.isComparing()) card.appendChild(span("Områdemarkering skjult under sammenligning", "muted"));
       const actions = document.createElement("div");
       actions.className = "comment-actions";
-      if (!previous && commentRect(item)) actions.appendChild(button("Vis sted", "locate", item.id));
+      if (!previous && item.context && workshop?.canRestoreContext(item.context)) actions.appendChild(button("Vis situasjon", "locate", item.id));
+      else if (!previous && commentRect(item)) actions.appendChild(button("Vis sted", "locate", item.id));
       if (!previous && item.proposal && eligibleText(resolveTarget(item.anchor))) actions.appendChild(button("Forhåndsvis tekst", "preview-saved", item.id));
       actions.append(button(item.status === "fixed" ? "Åpne igjen" : "Marker ordnet", "status", item.id), button("Slett", "delete", item.id, "danger"));
       card.appendChild(actions);
@@ -569,17 +607,22 @@
   }
   async function mutateComment(action, item) {
     errorAt(".panel-error", "");
+    const retryKey = `${action}/${item.id}`;
+    if (!commentRetries.has(retryKey)) commentRetries.set(retryKey, {});
+    const retry = commentRetries.get(retryKey);
     try {
-      if (action === "delete") await request("comment-delete", { id: item.id });
+      if (action === "delete") await request("comment-delete", { id: item.id }, retry);
       else {
         const reopening = item.status === "fixed";
-        await request("comment-update", { id: item.id, status: reopening ? "open" : "fixed", ...(reopening ? { resubmit: true } : {}) });
+        await request("comment-update", { id: item.id, status: reopening ? "open" : "fixed", ...(reopening ? { resubmit: true } : {}) }, retry);
         if (reopening) announce("Innspillet er åpnet igjen. Send innspill for å ta det opp i neste runde.");
       }
+      commentRetries.delete(retryKey);
     } catch (error) { errorAt(".panel-error", error.message); }
   }
   function locate(item, focus = false) {
     if (!item || item.screen !== screen) return;
+    if (item.context) { resetPreview(); workshop?.restoreContext(item.context); }
     const target = resolveTarget(item.anchor);
     if (item.kind === "area") window.scrollTo({ top: Math.max(0, item.anchor.rect.y - innerHeight / 3), behavior: "auto" });
     else target?.scrollIntoView({ block: "center", behavior: "auto" });
@@ -626,6 +669,7 @@
       if (preview) resetPreview();
       else if (!showPreview(draft.target, proposalInput.value)) { errorAt(".compose-error", "Skriv inn teksten du vil forhåndsvise."); proposalInput.focus(); }
     } else if (action === "preview-saved" && item) {
+      if (item.context) { resetPreview(); workshop?.restoreContext(item.context); }
       showPreview(resolveTarget(item.anchor), item.proposal.value);
       setPanel(false);
       el('[data-action="undo"]').focus();
@@ -644,7 +688,8 @@
       const count = pendingComments().length;
       target.disabled = true;
       errorAt(".panel-error", "");
-      request("comments-submit", { revision: snapshot.revision }).then(() => {
+      request("comments-submit", { revision: snapshot.revision }, submissionRetry).then(() => {
+        submissionRetry = {};
         sentCount = count;
         announce("Innspillene er sendt. Skriv «se innspillene» i samtalen hvis ingen følger med.");
       }).catch((error) => errorAt(".panel-error", error.message)).finally(() => { submitting = false; renderFooter(); });
@@ -681,8 +726,9 @@
       if (marker === "point") beginDraft(event.target, "point", null, { x: event.clientX, y: event.clientY });
       return;
     }
+    if (workshop?.onPrototypeAction(event)) { event.preventDefault(); event.stopImmediatePropagation(); return; }
     const link = event.target.closest("a, area");
-    if (link) { event.preventDefault(); return; }
+    if (link) { event.preventDefault(); followLocalFragment(link); return; }
     const choice = choiceFor(event.target);
     if (!choice) return;
     event.preventDefault();
@@ -786,7 +832,7 @@
       if (data.snapshot) applySnapshot(data.snapshot);
       updateBusy();
       if (data.ok) pending.resolve(data.snapshot);
-      else pending.reject(new Error(data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt." : "Kunne ikke lagre innspillet. Behold utkastet og prøv igjen."));
+      else pending.reject(new Error(data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt." : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen."));
       return;
     }
     if (data.command !== "selection-status" || data.screen !== screen || !pendingEvent || data.type !== pendingEvent.type || data.choice !== pendingEvent.choice || (data.status !== "saved" && data.status !== "failed")) return;
@@ -803,6 +849,8 @@
       refreshFeedback: renderComments,
       showFeedbackError: (message) => errorAt(".panel-error", message),
       isComposing: () => Boolean(draft && !composer.hidden),
+      canTry: () => mode === "browse" && !draft && !preview && !savingDraft,
+      focusPrototype,
       prepareOpen: () => {
         if (savingDraft) return false;
         if (draft && !composer.hidden) hideDraft();

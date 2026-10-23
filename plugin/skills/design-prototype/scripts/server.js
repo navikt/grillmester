@@ -20,7 +20,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
-const { FeedbackStore, FeedbackError, MAX_BODY_BYTES } = require("./feedback-store.js");
+const { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_BODY_BYTES } = require("./feedback-store.js");
 const { validDesign, MAX_DESIGN_BYTES } = require("./design-contract.js");
 
 const MAX_CONTENT_BYTES = 2 * 1024 * 1024;
@@ -635,6 +635,9 @@ function isSafeRasterSrcset(value) {
 }
 
 function mayKeepNetworkAttribute(elementName, attributeName, attributeValue) {
+  if (elementName === "a" && attributeName === "href") {
+    return typeof attributeValue === "string" && /^#[A-Za-z][A-Za-z0-9_.:-]{0,127}$/.test(attributeValue);
+  }
   if (attributeName === "src" && elementName === "img") {
     return isSafeRasterDataUrl(attributeValue);
   }
@@ -1035,15 +1038,16 @@ function renderShellPage(nonce, accessToken, title, screen) {
           hasExactKeys(value.viewport, ["width", "height"]) && finite(value.viewport.width, 1, 20000) && finite(value.viewport.height, 1, 20000);
       }
       function feedbackOperation(data) {
-        if (!hasExactKeys(data, ["channel", "version", "action", "requestId", "payload"]) || data.channel !== channel || data.version !== 1 || !Number.isInteger(data.requestId) || data.requestId < 1 || data.requestId > 1000000000) return null;
+        if (!closedKeys(data, ["channel", "version", "action", "requestId", "payload"], ["mutationId"]) || data.channel !== channel || data.version !== 1 || !Number.isInteger(data.requestId) || data.requestId < 1 || data.requestId > 1000000000 || (Object.hasOwn(data, "mutationId") && (typeof data.mutationId !== "string" || !/^[a-f0-9]{32}$/.test(data.mutationId)))) return null;
         const value = data.payload;
         const validScreen = (screen) => typeof screen === "string" && /^[a-f0-9]{32}$/.test(screen);
         const validId = (id) => typeof id === "string" && /^[a-f0-9]{24}$/.test(id);
         if (data.action === "comments-list" && hasExactKeys(value, [])) return { method: "GET", path: "/comments" };
-        if (data.action === "comment-create" && closedKeys(value, ["screen", "kind", "anchor", "text"], ["proposal", "adjustment", "variant"]) && validScreen(value.screen) && validAnchor(value.anchor) && validText(value.text)) {
+        if (data.action === "comment-create" && closedKeys(value, ["screen", "kind", "anchor", "text"], ["proposal", "adjustment", "variant", "context"]) && validScreen(value.screen) && validAnchor(value.anchor) && validText(value.text)) {
           const baseKeys = ["screen", "kind", "anchor", "text"];
-          const validPoint = ["point", "area"].includes(value.kind) && hasExactKeys(value, baseKeys);
-          const validEdit = value.kind === "edit" && hasExactKeys(value, [...baseKeys, "proposal"]) && hasExactKeys(value.proposal, ["property", "value"]) && value.proposal.property === "text" && validText(value.proposal.value);
+          const validContext = !Object.hasOwn(value, "context") || (hasExactKeys(value.context, ["variant", "target", "values"]) && validVariant(value.context.variant) && validKey(value.context.target) && validValues(value.context.values));
+          const validPoint = ["point", "area"].includes(value.kind) && closedKeys(value, baseKeys, ["context"]) && validContext;
+          const validEdit = value.kind === "edit" && closedKeys(value, [...baseKeys, "proposal"], ["context"]) && validContext && hasExactKeys(value.proposal, ["property", "value"]) && value.proposal.property === "text" && validText(value.proposal.value);
           const validAdjustment = value.kind === "adjustment" && hasExactKeys(value, [...baseKeys, "adjustment"]) && hasExactKeys(value.adjustment, ["variant", "target", "values"]) && validVariant(value.adjustment.variant) && validKey(value.adjustment.target) && validValues(value.adjustment.values) && Object.keys(value.adjustment.values).length > 0;
           const validChoice = value.kind === "variant" && hasExactKeys(value, [...baseKeys, "variant"]) && validKey(value.variant);
           if (validPoint || validEdit || validAdjustment || validChoice) return { method: "POST", path: "/comments", body: value };
@@ -1144,7 +1148,7 @@ function renderShellPage(nonce, accessToken, title, screen) {
         const url = new URL(commentsUrl, window.location.origin);
         url.pathname = operation.path;
         fetch(url, { method: operation.method, credentials: "same-origin", cache: "no-store",
-          ...(operation.body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(operation.body) }),
+          ...(operation.body === undefined ? {} : { headers: { "Content-Type": "application/json", ...(data.mutationId ? { "X-Feedback-Mutation": data.mutationId } : {}) }, body: JSON.stringify(operation.body) }),
         }).then(async (response) => {
           const result = await response.json();
           if (!response.ok && response.status === 409 && operation.path === "/comments/submit") {
@@ -1254,6 +1258,7 @@ function setCommonHeaders(res) {
 }
 
 const feedback = new FeedbackStore(stateDir);
+const mutationReceipts = new FeedbackMutationReceipts();
 const accessToken = crypto.randomBytes(32).toString("base64url");
 const tokenBuffer = Buffer.from(accessToken);
 let authority = null;
@@ -1404,7 +1409,7 @@ function sendJson(res, status, value) {
   res.end(JSON.stringify(value));
 }
 
-function readFeedbackBody(req, res, operation) {
+function readFeedbackBody(req, res, operation, pathname) {
   let chunks = [];
   let size = 0;
   let rejected = false;
@@ -1426,7 +1431,7 @@ function readFeedbackBody(req, res, operation) {
     try { value = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
     catch { sendJson(res, 400, { error: "Invalid JSON." }); return; }
     try {
-      operation(value);
+      mutationReceipts.run(req.headers["x-feedback-mutation"], req.method, pathname, value, operation);
       const snapshot = feedbackSnapshot();
       lastActivity = Date.now();
       sendJson(res, 200, snapshot);
@@ -1499,7 +1504,7 @@ const server = http.createServer((req, res) => {
       sendJson(res, 415, { error: "application/json required." });
       return;
     }
-    readFeedbackBody(req, res, operation);
+    readFeedbackBody(req, res, operation, requestUrl.pathname);
     return;
   }
 

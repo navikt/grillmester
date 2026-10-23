@@ -10,8 +10,10 @@ står i [ADR 0019](../adr/0019-app-canvas-prove.md).
 Dagens preview kjører i `server.js` med Node.js. Python brukes av andre
 repoverktøy, men hoster ikke Visual Companion. En canvas er ikke i seg selv en
 servererstatning: den kontrollerte sesjons-SDK-en lar utvidelsen returnere en
-URL til panelet. Vi har ikke påvist en tilsvarende tjeneste for HTML-hosting,
-assetlevering eller innspillslagring i denne kontrakten.
+URL til panelet. Kontrakten støtter også `file://` for lokale forhåndsvisninger,
+så en selvstendig HTML-skisse kan klare seg uten HTTP-server. Vi har ikke
+påvist en innebygd forbindelse fra denne HTML-filens knapper til samtalen,
+eller en tilsvarende tjeneste for innspillslagring i denne kontrakten.
 
 | Ansvar i dag | Mulig appflyt | Hva som fortsatt trengs |
 | --- | --- | --- |
@@ -31,6 +33,26 @@ assetlevering eller innspillslagring i denne kontrakten.
 | Erstatte all runtime med app-canvas | Avvises som global retning. Det krever vertskapabiliteter som ikke er påvist og fjerner portabilitet til andre klienter. |
 | Valgfri appadapter med portabel fallback | Anbefalt mål. Samme innspillsmodell kan brukes, mens appen får en tettere forbindelse til samtalen. |
 | Bare vise dagens localhost-side i en canvas | Nyttig første steg, men løser ikke varsling alene. Må kombineres med eksplisitt innsending gjennom den bundne sesjonen. |
+| Lokal HTML-fil uten HTTP-server | Egnet til selvstendige skisser og lokale interaksjoner. En egen toveis forbindelse må fortsatt løses for innspill og svar. |
+
+### Filprøve uten server
+
+Den separate `file-preview.mjs`-prøven har to lokale wireframes: timevalg med
+validering/oppsummering og et prioriteringsbrett. Seks automatiserte prøver
+består med faktisk installert SDK mot testvert og vanlig Chrome: private
+filer, eksakt eierskap, utløp, opprydding, lokale interaksjoner og smale vinduer.
+Ingen HTTP-server, nettverkstrafikk eller modellkall brukes. Prøven registreres
+fortsatt av en Node-utvidelse. Den beviser ikke at Node-kjøremiljøet kan fjernes.
+
+Faktisk `file://`-visning i appen gjenstår. Filprøven ble ikke åpnet der fordi
+skjermen var låst; testrepoets tillit og arkiverte sesjon ble ikke endret.
+Se [kjøreoppsett og presise grenser](../../experiments/canvas-review/README.md#local-html-without-an-http-server).
+
+Før en produksjonsadapter må en annen kontrakt også avklares: innsendte
+kommentarer i den portable køen kan fortsatt slettes eller åpnes igjen.
+En sender som leser senere, kan derfor se en nyere versjon av listen.
+Canvas-levering må velge eksplisitt mellom tilbaketrekking og et uforanderlig
+innsendt øyeblikksbilde; den skal ikke tolke en kvittering som varig historikk.
 
 ## Kildekontroll og prøvens bevisverdi
 

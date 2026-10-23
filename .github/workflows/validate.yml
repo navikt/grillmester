@@ -116,7 +116,10 @@ jobs:
           node --check experiments/canvas-review/review.js
           node --check experiments/canvas-review/sdk-smoke.mjs
           node --check experiments/canvas-review/browser-smoke.mjs
-          node --test experiments/canvas-review/probe.test.mjs
+          node --check experiments/canvas-review/file-preview.mjs
+          node --check scripts/smoke_visual_exploration.cjs
+          node --check scripts/smoke_visual_retry.cjs
+          node --test experiments/canvas-review/probe.test.mjs experiments/canvas-review/file-preview.test.mjs
 
       - name: Install exact OpenCode release-test baseline
         shell: bash

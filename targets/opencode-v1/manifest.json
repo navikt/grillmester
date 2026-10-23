@@ -496,7 +496,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "6f7552ee9483050f9e088a2ac2cfc66ec8249190fa675fe4320a982c28a3acfd",
+      "sha256": "4145ac1db9fd329e4c951b1fc44c596e82cb46e914abd6a81c5e610b27d29358",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/comments.js": {
@@ -508,7 +508,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/feedback-store.js": {
-      "sha256": "41421fbef12fd189549e863a9746fde373bf606075dc9f43b2b082302f5b9457",
+      "sha256": "1afd9c8b419fec9c431a562e6e906e434665abf4a4288f5dbdc46c5f7193a490",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/frame-template.tmpl": {
@@ -516,19 +516,19 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "5d92febc331edb71500a61a0874c2c2f48cc6dbd6f5b825b12bee5a261c120c3",
+      "sha256": "651171d2c7e55ed0c2f28133e61f43bdca7548783b72fe78e179338495de5631",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "974f2df0d2ac4d8d76e196749db504b17c2091ed50ec64087b66c74a48ee1d8b",
+      "sha256": "aa62541310be01c000569e96fc9e5169b811ae30fc707f5372e6b673cf946734",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
-      "sha256": "98de4d8e12360ab9546cc6adab4a17d7bdc3799fcdd897d990072a0e7f1855bf",
+      "sha256": "827945c6dc8dbc44fa5131d76f628075d0d19efc8ae682d2b76a91405021f392",
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "fc8916d4687b726f08055753ba4d7571eb57676245e06dc881ff3dc96c9e0630",
+      "sha256": "8de578fe887e4302a1bedd836bbf0a289197b53bd6a8c12f48d83b2170697ab8",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {

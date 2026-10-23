@@ -13,12 +13,13 @@ const options = new Map();
 const args = process.argv.slice(2);
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--headed") { options.set("--headed", true); continue; }
-  if (!["--playwright-module", "--browser-channel", "--evidence-dir"].includes(args[index]) || !args[index + 1] || args[index + 1].startsWith("--")) {
-    console.error("Usage: node scripts/smoke_visual_workshop.cjs [--playwright-module ABSOLUTE_PATH] [--browser-channel chrome] [--headed] [--evidence-dir DIRECTORY]");
+  if (!["--playwright-module", "--browser-channel", "--evidence-dir", "--case"].includes(args[index]) || !args[index + 1] || args[index + 1].startsWith("--")) {
+    console.error("Usage: node scripts/smoke_visual_workshop.cjs [--playwright-module ABSOLUTE_PATH] [--browser-channel chrome] [--headed] [--evidence-dir DIRECTORY] [--case declared-actions]");
     process.exit(2);
   }
   options.set(args[index], args[++index]);
 }
+if (options.has("--case") && options.get("--case") !== "declared-actions") { console.error("Unknown workshop case."); process.exit(2); }
 
 let chromium;
 try { ({ chromium } = require(options.get("--playwright-module") || "playwright")); }
@@ -149,22 +150,24 @@ async function main() {
     page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     page.setDefaultTimeout(10000);
     const errors = [], completedRequests = [];
-    page.on("pageerror", error => errors.push(error.message));
+    page.on("pageerror", error => { errors.push(error.message); console.error(`Browser error: ${error.message}`); });
     page.on("requestfinished", request => completedRequests.push(request.url()));
     await page.goto(info.url);
     const frame = page.frameLocator("#vc-preview");
     const ui = frame.locator("[data-visual-feedback]");
     const list = () => cli("list", info);
 
-    await runWorkshop({ page, frame, ui, info, list, writeScreen });
+    if (!options.has("--case")) await runWorkshop({ page, frame, ui, info, list, writeScreen });
+    await runDeclaredActions({ page, frame, ui, info, list, writeScreen });
 
     assert.deepEqual(errors, [], errors.join("\n"));
     assert(completedRequests.every(url => url.startsWith(new URL(info.url).origin) || /^(data|blob):/.test(url)), "Unexpected completed remote request.");
     const result = {
       browser: browserChannel || "chromium",
       headed: options.has("--headed"),
-      viewports: ["1440x1000", "390x844"],
-      checks: ["declared-controls", "source-css", "local-reset", "structured-batch", "variant-comparison", "narrow-comparison", "narrow-heading-clearance", "narrow-overlay-close", "hidden-variant-pin", "no-spurious-selection", "keep", "fresh-release-enabled", "release-failure-retention", "accepted-decision-batch", "release", "version-mismatch", "historical-labels", "duplicate-target", "invalid-manifest", "keyboard", "area-comparison-boundary", "draft-retention", "field-privacy", "loopback-only"],
+      viewports: options.has("--case") ? ["1440x1000"] : ["1440x1000", "390x844"],
+      checks: options.has("--case") ? [] : ["declared-controls", "source-css", "local-reset", "structured-batch", "variant-comparison", "narrow-comparison", "narrow-heading-clearance", "narrow-overlay-close", "hidden-variant-pin", "no-spurious-selection", "keep", "fresh-release-enabled", "release-failure-retention", "accepted-decision-batch", "release", "version-mismatch", "historical-labels", "duplicate-target", "invalid-manifest", "keyboard", "area-comparison-boundary", "draft-retention", "field-privacy", "loopback-only"],
+      declaredActions: ["native-keyboard", "hidden-button-focus", "variant-isolation", "invalid-choice", "disabled-choice", "nested-unbound-target", "comment-mode", "state-context", "restore-context", "parked-context", "preview-context", "explicit-batch", "field-privacy"],
       errors,
     };
     if (evidence) fs.writeFileSync(path.join(evidence, "visual-workshop-test-results.json"), `${JSON.stringify(result, null, 2)}\n`);
@@ -427,6 +430,104 @@ async function checkInvalidManifest({ page, frame, ui, info, list, writeScreen }
   assert.equal(result.comments[0].kind, "point");
   await screenshot(page, "visual-workshop-invalid-manifest.png");
   console.log("PASS: malformed manifest fails closed while ordinary comments remain available.");
+}
+
+async function runDeclaredActions({ page, frame, ui, info, list, writeScreen }) {
+  const close = ui.getByRole("button", { name: "Lukk innspill", exact: true });
+  if (await close.isVisible()) await close.click();
+  const stateControl = { id: "stage", label: "Steg", type: "select", initial: "start", options: [{ value: "start", label: "Start" }, { value: "review", label: "Gjennomgang" }] };
+  const design = { version: 1, variants: [{ key: "left", label: "Samlet" }, { key: "right", label: "Trinnvis" }], targets: ["left", "right"].map(variant => ({ key: "flow", variant, label: "Avtale", controls: [stateControl] })) };
+  const part = variant => `<section data-vc-variant="${variant}"><h2>${variant === "left" ? "Samlet" : "Trinnvis"}</h2><section data-vc-key="flow"><h3>Avtale</h3><div class="start"><button type="button" data-vc-control="stage" data-vc-value="review">Se gjennom</button></div><div class="review"><p>Bekreft tidspunktet før du går videre.</p><button type="button" data-vc-control="stage" data-vc-value="start">Tilbake</button></div><button type="button" data-vc-control="stage" data-vc-value="unknown">Ukjent valg</button><button type="button" data-vc-control="stage" data-vc-value="review" aria-disabled="true">Ikke tilgjengelig</button><button type="submit" data-vc-control="stage" data-vc-value="review">Ingen skjemainnsending</button><div data-vc-key="undeclared"><button type="button" data-vc-control="stage" data-vc-value="review">Ukjent del</button></div><label>Prøvefelt<input></label></section></section>`;
+  writeScreen("declared-actions", `<style>[data-vc-variants]{display:grid;grid-template-columns:1fr 1fr;gap:24px}[data-vc-key]{padding:16px}[data-vc-setting-stage=start] .review,[data-vc-setting-stage=review] .start{display:none}button{margin:8px;max-width:100%}</style><h1>Prøv en deklarert flyt</h1><p>Teknisk wireframe med oppdiktet innhold.</p><div data-vc-variants>${part("left")}${part("right")}</div>`, design);
+  await frame.getByRole("heading", { name: "Prøv en deklarert flyt", exact: true }).waitFor();
+  const left = frame.locator('[data-vc-variant="left"]'), right = frame.locator('[data-vc-variant="right"]');
+  const target = left.locator('[data-vc-key="flow"]');
+  const state = () => target.getAttribute("data-vc-setting-stage");
+  const baseline = await list();
+  await left.getByLabel("Prøvefelt").fill("SYNTETISK_FELT_SOM_IKKE_SKAL_SAMLES");
+  await left.getByRole("button", { name: "Se gjennom", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  assert.equal(await state(), "review");
+  assert(await target.evaluate(node => document.activeElement === node), "When the activated button hides, focus must move to its visible part.");
+  assert.equal(await right.locator('[data-vc-key="flow"]').getAttribute("data-vc-setting-stage"), "start");
+  await left.getByRole("button", { name: "Tilbake", exact: true }).focus();
+  await page.keyboard.press("Space");
+  assert.equal(await state(), "start");
+  for (const name of ["Ukjent valg", "Ingen skjemainnsending", "Ukjent del"]) {
+    await left.getByRole("button", { name, exact: true }).click();
+    assert.equal(await state(), "start", `${name} must not select a valid setting on another part.`);
+  }
+  // A native keyboard activation reaches aria-disabled controls; runtime must ignore it.
+  await left.getByRole("button", { name: "Ikke tilgjengelig", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  assert.equal(await state(), "start");
+  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
+  assert.equal(await state(), "start", "Comment mode must annotate a control without activating it.");
+  await ui.getByRole("button", { name: "Forkast", exact: true }).click();
+  await ui.locator('[data-action="browse"]').click();
+  await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
+  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await left.getByText("Bekreft tidspunktet før du går videre.", { exact: true }).click();
+  await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Forklar hva bekreftelsen betyr.");
+  await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+  await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+  const saved = (await list()).comments.find(item => item.text === "Forklar hva bekreftelsen betyr.");
+  assert.deepEqual(saved.context, { variant: "left", target: "flow", values: { stage: "review" } });
+  assert.equal(saved.submission, 0);
+  await close.click(); await ui.locator('[data-action="browse"]').click();
+  await left.getByRole("button", { name: "Tilbake", exact: true }).click();
+  await ui.locator('[data-action="panel"]').click();
+  const card = ui.locator(`article[data-id="${saved.id}"]`);
+  assert.match(await card.innerText(), /Steg: Gjennomgang/);
+  await card.getByRole("button", { name: "Vis situasjon", exact: true }).click();
+  assert.equal(await state(), "review");
+  assert(await left.getByText("Bekreft tidspunktet før du går videre.", { exact: true }).evaluate(node => document.activeElement === node));
+  assert.equal((await list()).comments.length, baseline.comments.length + 1, "Trying a flow must never create feedback automatically.");
+  await ui.locator('[data-action="panel"]').click();
+  await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).click();
+  const batch = await cli("wait", info, ["--after", String(baseline.submission), "--timeout", "10"]);
+  assert.equal(batch.comments.length, 1);
+  assert.deepEqual(batch.comments[0].context, saved.context);
+  assert(!JSON.stringify(batch).includes("SYNTETISK_FELT_SOM_IKKE_SKAL_SAMLES"));
+  await close.click(); await ui.locator('[data-action="browse"]').click();
+  await left.getByRole("button", { name: "Tilbake", exact: true }).click();
+  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
+  await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Behold utkastet på startsteget.");
+  await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
+  await ui.locator('[data-action="panel"]').click();
+  await card.getByRole("button", { name: "Vis situasjon", exact: true }).click();
+  assert.equal(await state(), "review");
+  await ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
+  assert.equal(await state(), "start", "Resuming a parked draft must restore its own declared situation.");
+  assert(await left.getByRole("button", { name: "Se gjennom", exact: true }).isVisible());
+  assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Behold utkastet på startsteget.");
+  await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
+  await ui.getByRole("button", { name: "Juster", exact: true }).click();
+  await ui.getByRole("region", { name: "Juster skissen", exact: true }).getByLabel("Steg", { exact: true }).selectOption("review");
+  await ui.getByRole("button", { name: "Lukk justeringer", exact: true }).click();
+  await ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
+  assert.equal(await state(), "start");
+  await ui.getByRole("button", { name: "Forkast", exact: true }).click();
+  assert.equal((await list()).comments.length, baseline.comments.length + 1);
+  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
+  await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Prøv en kortere knappetekst.");
+  await ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
+  await ui.getByLabel("Ny tekst", { exact: true }).fill("Se over");
+  await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+  const edit = await waitFor(async () => (await list()).comments.find(item => item.text === "Prøv en kortere knappetekst."), "saved proposal with context");
+  await ui.locator(`article[data-id="${edit.id}"]`).getByRole("button", { name: "Forhåndsvis tekst", exact: true }).click();
+  assert(await ui.locator(".preview-bar").isVisible());
+  await ui.locator('[data-action="panel"]').click();
+  await card.getByRole("button", { name: "Vis situasjon", exact: true }).click();
+  assert.equal(await state(), "review");
+  assert(!(await ui.locator(".preview-bar").isVisible()), "Showing another situation must first restore the previous text preview.");
+  assert.equal(await left.locator('.start button').textContent(), "Se gjennom");
+  assert.equal(selectionEvents(info), "");
+  await screenshot(page, "visual-workshop-declared-actions.png");
+  console.log("PASS: declared click-through, keyboard focus, safe choices, exact state context and explicit private batch.");
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });

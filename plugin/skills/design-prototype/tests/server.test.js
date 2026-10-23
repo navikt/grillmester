@@ -336,6 +336,80 @@ test("agent HTML is isolated in a sandbox with a no-external-network CSP", async
   }
 });
 
+test("preview keeps only strict same-document anchor fragments", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const allowed = ["#steps-fare", "#field.name:part_1", `#a${"b".repeat(127)}`];
+    const rejected = ["#", "", "#%73teps-fare", "&#35;steps-fare", "#steps&#45;fare", "#field name", " #field", "#1field", `#a${"b".repeat(128)}`, "https://example.invalid/#field", "/#field", "javascript:alert(1)"];
+    const content = allowed.map((href, index) => `<a id="allowed-${index}" href="${href}">Allowed</a>`).join("")
+      + rejected.map((href, index) => `<a id="rejected-${index}" href="${href}">Blocked</a>`).join("")
+      + '<area id="blocked-area" href="#steps-fare"><svg><use id="blocked-use" href="#steps-fare"></use></svg><input id="steps-fare">';
+    await previewScreen(running, content);
+    const response = await fetch(endpoint(running.info.url, "/preview"));
+    const html = await response.text();
+    for (let index = 0; index < allowed.length; index += 1) assert(html.includes(`<a id="allowed-${index}" href="${allowed[index]}">`));
+    for (let index = 0; index < rejected.length; index += 1) assert(html.includes(`<a id="rejected-${index}">`), rejected[index]);
+    assert(html.includes('<area id="blocked-area">'));
+    assert(html.includes('<use id="blocked-use">'));
+    const policy = response.headers.get("content-security-policy");
+    assert.match(policy, /connect-src 'none'/);
+    assert.match(policy, /form-action 'none'/);
+    assert.match(policy, /navigate-to 'none'/);
+  } finally { await stopServer(running); }
+});
+
+test("fragment focus rejects ambiguous, hidden, out-of-sketch, disabled, and busy targets", () => {
+  const source = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
+  const handler = source.match(/  function followLocalFragment\(link\) \{[\s\S]*?\n  \}/)?.[0];
+  assert(handler, "The actual browser helper must expose its fragment handler to this isolated contract check.");
+  let focused = 0, scrolled = 0, lookups = 0;
+  const target = {
+    inside: true, blocked: false, disabled: false, visible: true, visibility: "visible",
+    getAttribute: name => name === "id" ? "field.name:part_1" : null,
+    closest() { return this.blocked ? {} : null; },
+    matches() { return this.disabled; },
+    getClientRects() { return this.visible ? [{}] : []; },
+    scrollIntoView: () => { scrolled += 1; },
+  };
+  const ids = [target];
+  const link = {
+    localName: "a", href: "#field.name:part_1", blocked: false, disabled: false,
+    getAttribute(name) { return name === "href" ? this.href : null; },
+    hasAttribute() { return this.disabled; }, closest() { return this.blocked ? {} : null; },
+  };
+  const context = {
+    mode: "browse", draft: null, preview: null, busy: false,
+    saving: () => context.busy,
+    document: {
+      getElementById(id) { lookups += 1; assert.equal(id, "field.name:part_1"); return target; },
+      body: { querySelector(selector) { assert.equal(selector, ":scope > .vc-content"); return { contains: item => item === target && target.inside }; } },
+      querySelectorAll(selector) { assert.equal(selector, "[id]", "Fragments must never become CSS selectors."); return ids; },
+    },
+    getComputedStyle: item => ({ visibility: item.visibility }),
+    focusPrototype: item => { assert.equal(item, target); focused += 1; },
+  };
+  require("node:vm").runInNewContext(handler, context);
+  assert.equal(context.followLocalFragment(link), true);
+  assert.equal(focused, 1); assert.equal(scrolled, 1);
+  ids.push({ getAttribute: () => "field.name:part_1" });
+  assert.equal(context.followLocalFragment(link), false, "Duplicate targets cannot be chosen by document order.");
+  ids.pop();
+  for (const [property, value] of [["inside", false], ["blocked", true], ["disabled", true], ["visible", false], ["visibility", "hidden"]]) {
+    const previous = target[property]; target[property] = value;
+    assert.equal(context.followLocalFragment(link), false, property); target[property] = previous;
+  }
+  const previousLookups = lookups;
+  for (const href of ["", "#", "#%66ield.name:part_1", "https://example.invalid/#field.name:part_1", "#field name"])
+    { link.href = href; assert.equal(context.followLocalFragment(link), false); }
+  link.href = "#field.name:part_1";
+  for (const [object, property, value] of [[context, "mode", "comment"], [context, "draft", {}], [context, "preview", {}], [context, "busy", true], [link, "blocked", true], [link, "disabled", true], [link, "localName", "area"]]) {
+    const previous = object[property]; object[property] = value;
+    assert.equal(context.followLocalFragment(link), false, property); object[property] = previous;
+  }
+  assert.equal(lookups, previousLookups, "Invalid links and busy states must not resolve a target.");
+  assert.equal(focused, 1); assert.equal(scrolled, 1);
+});
+
 test("parser-state markup cannot swallow the trusted preview helper", async () => {
   const projectDir = makeProject();
   const running = await startServer(projectDir);
@@ -764,10 +838,10 @@ function runComments(args) {
     child.on("close", (code) => resolve({ code, stdout, stderr }));
   });
 }
-async function feedbackRequest(url, pathname, method = "GET", body) {
+async function feedbackRequest(url, pathname, method = "GET", body, headers = {}) {
   return fetch(endpoint(url, pathname), {
     method,
-    headers: { Origin: new URL(url).origin, ...(method === "GET" ? {} : { "Content-Type": "application/json" }) },
+    headers: { Origin: new URL(url).origin, ...(method === "GET" ? {} : { "Content-Type": "application/json" }), ...headers },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }
@@ -819,6 +893,76 @@ test("feedback persists privately across screen versions, with deliberate batche
     assert.equal(persisted.comments.length, 1);
     assert.equal(persisted.screens.length, 2);
     assert.deepEqual(fs.readdirSync(projectDir), []);
+  } finally { await stopServer(running); }
+});
+
+test("feedback retry receipts commit once, preserve newer state, and reject changed intent", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const value = commentFor(screen);
+    const headers = { "X-Feedback-Mutation": "a".repeat(32) };
+    const replies = await Promise.all(Array.from({ length: 4 }, () => feedbackRequest(running.info.url, "/comments", "POST", value, headers)));
+    assert(replies.every((response) => response.status === 200));
+    const snapshots = await Promise.all(replies.map((response) => response.json()));
+    assert(snapshots.every((snapshot) => snapshot.comments.length === 1 && snapshot.revision === snapshots[0].revision));
+    const id = snapshots[0].comments[0].id;
+    const reordered = { text: value.text, anchor: { viewport: value.anchor.viewport, rect: value.anchor.rect, role: value.anchor.role, path: value.anchor.path }, kind: value.kind, screen };
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", reordered, headers)).status, 200);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", { ...value, text: "A different intent." }, headers)).status, 409);
+    assert.equal((await feedbackRequest(running.info.url, `/comments/${id}`, "PATCH", { status: "fixed" }, headers)).status, 409);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", value, { "X-Feedback-Mutation": "invalid" })).status, 400);
+    const beforeSubmit = await (await feedbackRequest(running.info.url, "/comments")).json();
+    const submitHeaders = { "X-Feedback-Mutation": "b".repeat(32) };
+    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: beforeSubmit.revision }, submitHeaders)).status, 200);
+    const deleted = await (await feedbackRequest(running.info.url, `/comments/${id}`, "DELETE", {}, { "X-Feedback-Mutation": "c".repeat(32) })).json();
+    const replay = await (await feedbackRequest(running.info.url, "/comments", "POST", value, headers)).json();
+    assert.deepEqual(replay, deleted, "Replaying a committed create must not resurrect deleted feedback or return an old snapshot.");
+    const resubmitted = await (await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: beforeSubmit.revision }, submitHeaders)).json();
+    assert.deepEqual(resubmitted, deleted, "A submit retry must succeed without creating another batch, despite its old revision.");
+    assert.equal(JSON.stringify(replay).includes(headers["X-Feedback-Mutation"]), false);
+    assert.equal(fs.readFileSync(path.join(running.info.state_dir, "comments.json"), "utf8").includes(headers["X-Feedback-Mutation"]), false);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", value)).status, 200, "Legacy clients without a retry identifier remain supported.");
+  } finally { await stopServer(running); }
+});
+
+test("feedback receipt capacity fails closed without evicting old retries or recording failed commits", () => {
+  const { FeedbackMutationReceipts, FeedbackError } = require("../scripts/feedback-store.js");
+  const receipts = new FeedbackMutationReceipts(2);
+  let writes = 0;
+  const operation = () => { writes += 1; };
+  const a = "a".repeat(32), b = "b".repeat(32), c = "c".repeat(32);
+  assert.throws(() => receipts.run(a, "POST", "/comments", {}, () => { throw new Error("commit failed"); }), /commit failed/);
+  receipts.run(a, "POST", "/comments", {}, operation);
+  receipts.run(b, "PATCH", "/comments/1", {}, operation);
+  assert.equal(writes, 2);
+  assert.throws(() => receipts.run(c, "POST", "/comments", {}, operation), (error) => error instanceof FeedbackError && error.status === 429);
+  receipts.run(a, "POST", "/comments", {}, operation);
+  assert.equal(writes, 2, "The oldest accepted retry still resolves without another write.");
+  assert.throws(() => receipts.run(a, "POST", "/decisions", {}, operation), (error) => error.status === 409);
+  assert.throws(() => receipts.run(b, "DELETE", "/comments/1", {}, operation), (error) => error.status === 409);
+  assert.equal(writes, 2);
+});
+
+test("feedback retry identifiers are not consumed by a failed disk commit", async () => {
+  const running = await startServer(makeProject());
+  const outside = makeProject();
+  try {
+    const screen = await previewScreen(running);
+    const filename = path.join(running.info.state_dir, "comments.json");
+    const saved = fs.readFileSync(filename);
+    const protectedFile = path.join(outside, "protected.json");
+    fs.writeFileSync(protectedFile, "untouched", { mode: 0o600 });
+    fs.unlinkSync(filename); fs.symlinkSync(protectedFile, filename);
+    const headers = { "X-Feedback-Mutation": "d".repeat(32) };
+    const value = commentFor(screen);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", value, headers)).status, 500);
+    assert.equal(fs.readFileSync(protectedFile, "utf8"), "untouched");
+    fs.unlinkSync(filename); fs.writeFileSync(filename, saved, { mode: 0o600 });
+    const recovered = await feedbackRequest(running.info.url, "/comments", "POST", value, headers);
+    assert.equal(recovered.status, 200);
+    assert.equal((await recovered.json()).comments.length, 1);
+    assert.equal((await (await feedbackRequest(running.info.url, "/comments", "POST", value, headers)).json()).comments.length, 1);
   } finally { await stopServer(running); }
 });
 
@@ -964,10 +1108,13 @@ test("the fixed shell validates feedback messages and defers refresh while a not
     send({ ...base, action: "comment-create", requestId: 1, payload: { ...commentFor(screen), html: "hidden" } });
     send({ ...base, action: "comment-create", requestId: 1, payload: commentFor(screen) }, {});
     assert.equal(requests.length, 0);
-    send({ ...base, action: "comment-create", requestId: 1, payload: commentFor(screen) });
+    send({ ...base, action: "comment-create", requestId: 1, mutationId: "not-an-id", payload: commentFor(screen) });
+    assert.equal(requests.length, 0);
+    send({ ...base, action: "comment-create", requestId: 1, mutationId: "a".repeat(32), payload: commentFor(screen) });
     await new Promise(setImmediate);
     assert.equal(requests.length, 1);
     assert.equal(new URL(requests[0].url).pathname, "/comments");
+    assert.equal(requests[0].options.headers["X-Feedback-Mutation"], "a".repeat(32));
     assert.equal(messages.at(-1).command, "comments-result");
     // The iframe loaded a newer version than the parent shell was rendered for.
     send({ ...base, action: "feedback-ready", screen: newer });
@@ -991,6 +1138,16 @@ test("the fixed shell validates feedback messages and defers refresh while a not
     intervals[0]();
     await new Promise(setImmediate);
     assert.equal(frame.src, "newer-frame-loaded");
+    send({ ...base, action: "comments-list", requestId: 2, mutationId: "b".repeat(32), payload: {} });
+    await new Promise(setImmediate);
+    assert.equal(requests.at(-1).options.headers, undefined, "Read requests must not forward a mutation identifier.");
+    const context = { variant: "", target: "summary", values: { stage: "details" } };
+    const beforeInvalid = requests.length;
+    send({ ...base, action: "comment-create", requestId: 3, payload: commentFor(screen, { context: { ...context, text: "untrusted DOM text" } }) });
+    assert.equal(requests.length, beforeInvalid, "The shell rejects undeclared context metadata before HTTP.");
+    send({ ...base, action: "comment-create", requestId: 4, payload: commentFor(screen, { context }) });
+    await new Promise(setImmediate);
+    assert.deepEqual(JSON.parse(requests.at(-1).options.body).context, context);
   } finally { await stopServer(running); }
 });
 
@@ -1183,6 +1340,38 @@ test("structured adjustment and preference feedback is validated against its own
     const next = await workshopScreen(running, nextDesign);
     assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", { ...adjustment, screen: next, adjustment: { variant: "", target: "header", values: { density: "compact" } } })).status, 400);
     assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", { ...adjustment, adjustment: { variant: "", target: "header", values: { density: "compact" } } })).status, 200);
+  } finally { await stopServer(running); }
+});
+
+test("comment context includes only declared settings from its own screen", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await workshopScreen(running);
+    const context = { variant: "", target: "header", values: { density: "compact", description: "hidden" } };
+    for (const kind of ["point", "area", "edit"]) {
+      const value = commentFor(screen, { kind, context, ...(kind === "edit" ? { proposal: { property: "text", value: "A clearer heading." } } : {}) });
+      const response = await feedbackRequest(running.info.url, "/comments", "POST", value);
+      assert.equal(response.status, 200);
+      assert.deepEqual((await response.json()).comments.at(-1).context, context);
+    }
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { context: { ...context, values: {} } }))).status, 200);
+    const invalid = [
+      null,
+      { ...context, text: "DOM content must not be collected" },
+      { ...context, values: { density: "a raw form value" } },
+      { ...context, values: { density: "undeclared" } },
+      { ...context, values: { unknown: "compact" } },
+      { ...context, target: "unknown" },
+      { ...context, variant: "compact" },
+      { ...context, values: [] },
+    ];
+    for (const value of invalid) assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { context: value }))).status, 400, JSON.stringify(value));
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { kind: "adjustment", adjustment: context, context }))).status, 400);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { kind: "variant", variant: "compact", context }))).status, 400);
+    const nextDesign = sampleDesign(); nextDesign.targets[0].controls[0].options.shift();
+    const next = await workshopScreen(running, nextDesign);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(next, { context }))).status, 400);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { context }))).status, 200, "An older draft remains bound to its original declaration.");
   } finally { await stopServer(running); }
 });
 

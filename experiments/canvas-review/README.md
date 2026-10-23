@@ -91,3 +91,37 @@ See [ADR 0019](../../docs/adr/0019-app-canvas-prove.md) and the
 [architecture and acceptance protocol](../../docs/testing/visual-companion-canvas.md)
 for the optional adapter direction and production gates. The portable Node
 server remains the supported path until those gates pass.
+
+## Local HTML without an HTTP server
+
+The separate `file-preview.mjs` experiment returns a `file://` URL from a private
+temporary directory. Its two deliberately plain wireframes exercise time
+selection, validation and a local summary, plus a priority board whose cards can
+move between groups. The page has no network access, canvas actions or connection
+to the conversation. All edits remain in the open page and disappear on reload.
+The Node extension still registers the provider and manages temporary files;
+this proves a server-free page, not a runtime-free extension.
+
+```bash
+FILE_PREVIEW_PLAYWRIGHT_MODULE=/absolute/path/to/node_modules/playwright \
+FILE_PREVIEW_BROWSER_CHANNEL=chrome \
+FILE_PREVIEW_SDK_DIR=/absolute/path/to/existing/copilot-sdk \
+FILE_PREVIEW_EVIDENCE_DIR=/tmp/canvas-file-evidence \
+node --test experiments/canvas-review/file-preview.test.mjs
+```
+
+With both explicit dependency paths, six checks exercise file ownership and
+cleanup, the installed SDK against a test host, and headless Chrome. Both
+concepts fit 1000, 390 and 320 CSS pixels without horizontal overflow. The
+browser checks include tab and radio keyboard operation, invalid-choice focus,
+literal text rendering, moving cards, preserved drafts between concept tabs and
+reset on reload. Native select-popup keyboard behavior and the actual app's
+`file://` rendering remain unverified. No model or real session is used.
+
+For a later disposable native test, stage `file-preview.mjs` and
+`file-preview.html` together in a separate project extension, with the former as
+its package entry. The canvas ID is `design-file-preview`; its optional `concept`
+is `booking` or `priorities`. Do not replace the existing feedback experiment or
+activate this through the distributed plugin. Files expire after 20 minutes,
+panel close removes its file, and final shutdown removes the private directory.
+Closing does not retroactively erase pixels or drafts already loaded by a host.

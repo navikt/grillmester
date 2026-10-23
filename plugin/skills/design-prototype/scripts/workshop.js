@@ -42,6 +42,7 @@
     let lastRevision = -1;
     let snapshot = api.getSnapshot();
     const savedStyles = new Map();
+    const saveRetries = new Map();
     const selected = () => bindings.get(selectedKey);
     const hasDraft = (binding) => Boolean(binding.remark.trim() || signature(binding.values) !== binding.accepted);
     const pending = () => Array.from(bindings.values()).some(hasDraft);
@@ -138,6 +139,37 @@
     function writeValues(binding) {
       if (!binding?.element) return;
       for (const control of binding.descriptor.controls) binding.element.setAttribute(`data-vc-setting-${control.id}`, binding.values[control.id]);
+    }
+    function bindingAt(element) {
+      const target = element?.closest?.("[data-vc-key]");
+      return Array.from(bindings.values()).find((binding) => binding.element === target);
+    }
+    function contextBinding(context) {
+      if (!context) return null;
+      const binding = bindings.get(`${context.variant || ""}/${context.target}`);
+      if (!binding?.element || !context.values || Object.keys(context.values).length !== binding.descriptor.controls.length) return null;
+      return binding.descriptor.controls.every((control) => control.options.some((option) => option.value === context.values[control.id])) ? binding : null;
+    }
+    function refreshPreview(binding) {
+      writeValues(binding);
+      renderControls();
+      status("Lokal visning · legg til innspill for å ta valget videre.");
+      updateDrafts();
+      api.onPresentationChange();
+    }
+    function restoreContext(context) {
+      const binding = contextBinding(context);
+      if (!binding || locking || api.isComposing()) return false;
+      selectedKey = identifier(binding.descriptor);
+      binding.values = { ...context.values };
+      if (comparing && context.variant) {
+        if (!pair.includes(context.variant)) pair[1] = context.variant;
+        activeVariant = context.variant; preferredVariant = context.variant;
+        updateCompareSelects(); applyComparison();
+      }
+      refreshPreview(binding);
+      announce("Viser situasjonen fra innspillet. Andre deler og merknader er beholdt. Visningen er lokal.");
+      return true;
     }
     function controlValue(control, input) {
       return control.type === "select" ? input.value : control.type === "toggle" ? control.options[input.checked ? 1 : 0].value : control.options[Number(input.value)].value;
@@ -327,8 +359,11 @@
         else { if (!binding.descriptor.controls.length) return; operation = "comment-create"; payload = { screen, kind: "adjustment", anchor: anchorFor(binding.element), text: text || "Ta med disse justeringene.", adjustment: { variant: binding.descriptor.variant || "", target: binding.descriptor.key, values } }; }
       }
       error(""); api.showFeedbackError(""); lock(true);
+      const retryKey = `${action}/${decisionId || (action === "workshop-prefer" ? preferredVariant : selectedKey)}`;
+      if (!saveRetries.has(retryKey)) saveRetries.set(retryKey, {});
       try {
-        await request(operation, payload);
+        await request(operation, payload, saveRetries.get(retryKey));
+        saveRetries.delete(retryKey);
         if (binding && (action === "workshop-add" || action === "workshop-keep")) binding.accepted = signature(binding.values);
         if (binding && (action === "workshop-add" || action === "workshop-keep")) { binding.remark = ""; remark.value = ""; }
         updateDrafts();
@@ -400,6 +435,20 @@
       isBusy: () => locking || pending(),
       isComparing: () => comparing,
       endComparison,
+      contextFor(target) {
+        const binding = bindingAt(target);
+        return binding?.descriptor.controls.length ? { variant: binding.descriptor.variant || "", target: binding.descriptor.key, values: { ...binding.values } } : undefined;
+      },
+      canRestoreContext: (context) => Boolean(contextBinding(context)),
+      restoreContext,
+      describeContext(item) {
+        const source = sourceDesign(item);
+        const target = source?.targets.find((entry) => entry.key === item.context.target && entry.variant === item.context.variant);
+        return [target ? targetLabel(target, source) : item.context.target, ...Object.entries(item.context.values).map(([id, value]) => {
+          const control = target?.controls.find((entry) => entry.id === id);
+          return `${control?.label || id}: ${control?.options.find((entry) => entry.value === value)?.label || value}`;
+        })].join("\n");
+      },
       render(value) { snapshot = value; if (value.revision !== lastRevision) { lastRevision = value.revision; renderDecisions(); } },
       describeComment(item) {
         const original = sourceDesign(item);
@@ -420,6 +469,27 @@
         const entry = Array.from(bindings).find(([, binding]) => binding.element === target);
         if (!entry) return false;
         if (!locking) { selectedKey = entry[0]; error(""); status(""); renderControls(); focus(picker); }
+        return true;
+      },
+      onPrototypeAction(event) {
+        const button = event.target.closest?.("button[data-vc-control]");
+        if (!button) return false;
+        if (locking || !api.canTry() || !pane.hidden || button.type !== "button" || button.disabled || button.closest('[inert],[aria-disabled="true"]')) return true;
+        const binding = bindingAt(button);
+        const control = binding?.descriptor.controls.find((entry) => entry.id === button.getAttribute("data-vc-control"));
+        const option = control?.options.find((entry) => entry.value === button.getAttribute("data-vc-value"));
+        if (!binding || !option) { announce("Denne handlingen mangler et gyldig valg i skissen."); return true; }
+        selectedKey = identifier(binding.descriptor);
+        binding.values[control.id] = option.value;
+        refreshPreview(binding);
+        if (!button.getClientRects().length || getComputedStyle(button).visibility === "hidden") {
+          if (binding.element.getClientRects().length && getComputedStyle(binding.element).visibility !== "hidden") {
+            window.scrollTo({ top: Math.max(0, scrollY + binding.element.getBoundingClientRect().top - api.topInset()), behavior: "auto" });
+            api.focusPrototype(binding.element);
+          }
+          else focus(toolbarButton);
+        }
+        announce(`${control.label}: ${option.label}. Lokal visning, ikke sendt.`);
         return true;
       },
     };

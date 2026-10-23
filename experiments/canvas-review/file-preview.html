@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-{{NONCE}}'; style-src 'nonce-{{NONCE}}'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Lokal skisseprøve</title>
+  <style nonce="{{NONCE}}">
+    :root { color-scheme: light; font-family: system-ui, sans-serif; line-height: 1.5; color: #202020; background: #f3f3f3; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input, select, textarea { font: inherit; }
+    button, select { min-height: 44px; }
+    button { padding: .6rem 1rem; border: 1px solid #555; border-radius: .25rem; color: inherit; background: white; cursor: pointer; }
+    button:hover { background: #e7e7e7; }
+    :focus-visible { outline: 3px solid #202020; outline-offset: 3px; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.2; }
+    h2 { font-size: 1.35rem; }
+    h3 { font-size: 1.05rem; }
+    p + p { margin-top: .5rem; }
+    main { width: min(100%, 1056px); margin: auto; padding: clamp(1rem, 4vw, 2.5rem); }
+    header { display: grid; gap: 1rem; margin-bottom: 1.5rem; }
+    .eyebrow { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .notice { padding: 1rem; border: 1px dashed #666; background: white; }
+    .muted { color: #505050; }
+    .tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.5rem 0; }
+    [role=tab][aria-selected=true] { color: white; background: #303030; border-color: #303030; }
+    [hidden] { display: none !important; }
+    .panel { display: grid; gap: 1.5rem; }
+    .intro { display: grid; gap: .5rem; }
+    .booking-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+    .card { padding: 1.25rem; border: 1px solid #aaa; border-radius: .3rem; background: white; min-width: 0; }
+    .stack { display: grid; gap: 1rem; }
+    fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+    legend, .field-label { font-weight: 650; padding: 0; margin-bottom: .5rem; }
+    .choices { display: grid; gap: .5rem; }
+    .choice { display: flex; align-items: center; gap: .65rem; min-height: 48px; padding: .6rem .75rem; border: 1px solid #aaa; border-radius: .2rem; }
+    .choice:has(input:checked) { border: 2px solid #333; padding: calc(.6rem - 1px) calc(.75rem - 1px); background: #efefef; }
+    input[type=radio] { width: 1.2rem; height: 1.2rem; flex-shrink: 0; margin: 0; accent-color: #333; }
+    select, textarea { width: 100%; border: 1px solid #555; border-radius: .2rem; padding: .6rem; background: white; color: inherit; }
+    textarea { resize: vertical; min-height: 100px; }
+    .primary { background: #303030; color: white; }
+    .primary:hover { background: #111; }
+    .error { border-left: 4px solid #333; padding-left: .75rem; font-weight: 650; }
+    .summary { border: 2px solid #555; }
+    .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .column { min-width: 0; border: 1px solid #aaa; background: #e8e8e8; padding: .75rem; border-radius: .3rem; }
+    .column h3 { padding: .25rem 0 .75rem; }
+    .tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: .75rem; }
+    .task { padding: .85rem; background: white; border: 1px solid #888; display: grid; gap: .75rem; }
+    .task label { font-size: .9rem; }
+    .empty { padding: .5rem 0; color: #505050; }
+    .actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+    .status { min-height: 1.5em; }
+    .skip { position: absolute; top: .5rem; left: .5rem; transform: translateY(-200%); background: white; color: #111; padding: .75rem; z-index: 2; }
+    .skip:focus { transform: none; }
+    @media (max-width: 700px) { .booking-layout, .board { grid-template-columns: 1fr; } }
+    @media (prefers-reduced-motion: no-preference) { button { transition: background .12s; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#concepts">Hopp til konseptene</a>
+  <main>
+    <header>
+      <p class="eyebrow">Lokal wireframe · to flyter å prøve</p>
+      <h1>Prøv valgene i skissen</h1>
+      <div class="notice"><p><strong>Bare et lokalt utkast.</strong> Valgene blir ikke sendt til samtalen eller lagret. Ingen time blir bestilt, og ingen oppgaver blir endret.</p><p class="muted">Lukk eller last inn på nytt for å nullstille. Bruk oppdiktet tekst. Dette er en grov wireframe for flyt og tastatur, ikke en ferdig Aksel-flate.</p></div>
+    </header>
+    <div id="concepts" class="tabs" role="tablist" aria-label="Velg konsept">
+      <button id="tab-booking" role="tab" aria-selected="true" aria-controls="booking" tabindex="0">1. Finn en time</button>
+      <button id="tab-priorities" role="tab" aria-selected="false" aria-controls="priorities" tabindex="-1">2. Prioriter oppgaver</button>
+    </div>
+    <section id="booking" class="panel" role="tabpanel" aria-labelledby="tab-booking" tabindex="0">
+      <div class="intro"><h2>Finn en tid som passer</h2><p class="muted">Designspørsmål: Er det lett å velge en time og forstå hva som skjer videre?</p></div>
+      <div class="booking-layout">
+        <div class="card stack">
+          <fieldset><legend>Hvordan vil du møtes?</legend><div class="choices">
+            <label class="choice"><input type="radio" name="meeting" value="Telefon" checked> Telefon · vi ringer deg</label>
+            <label class="choice"><input type="radio" name="meeting" value="Oppmøte"> Oppmøte · et lokalt kontor</label>
+          </div></fieldset>
+          <fieldset aria-describedby="time-help time-error"><legend>Velg en ledig tid</legend><p id="time-help" class="muted">Eksempeltimer, 30 minutter hver.</p><div class="choices">
+            <label class="choice"><input id="slot-first" type="radio" name="slot" value="Mandag kl. 09.00"> Mandag kl. 09.00</label>
+            <label class="choice"><input type="radio" name="slot" value="Mandag kl. 13.30"> Mandag kl. 13.30</label>
+            <label class="choice"><input type="radio" name="slot" value="Tirsdag kl. 10.15"> Tirsdag kl. 10.15</label>
+          </div><p id="time-error" class="error" hidden>Velg en tid før du ser oppsummeringen.</p></fieldset>
+          <div><label class="field-label" for="preparation">Hva vil du forberede? (valgfritt)</label><p id="note-help" class="muted">Maks 180 tegn. Bruk oppdiktet tekst.</p><textarea id="preparation" rows="3" maxlength="180" aria-describedby="note-help note-count"></textarea><p id="note-count" class="muted">0 av 180 tegn</p></div>
+          <div class="actions"><button id="preview-booking" class="primary" type="button">Se lokal oppsummering</button><button id="reset-booking" type="button">Nullstill timevalget</button></div>
+        </div>
+        <aside class="card stack" aria-labelledby="next-title"><h3 id="next-title">Før du går videre</h3><p>Du kan endre tid og møteform før du bestemmer deg. Notatet kan hjelpe deg å huske hva du vil ta opp.</p><div id="booking-summary" class="card summary" hidden tabindex="-1"><h3>Din lokale oppsummering</h3><p id="booking-choice"></p><p id="booking-note"></p><p class="muted">Dette er bare en forhåndsvisning. Ingenting er bestilt eller sendt.</p></div></aside>
+      </div>
+      <p id="booking-status" class="status" role="status"></p>
+    </section>
+    <section id="priorities" class="panel" role="tabpanel" aria-labelledby="tab-priorities" tabindex="0" hidden>
+      <div class="intro"><h2>Hva trenger oppfølging først?</h2><p class="muted">Designspørsmål: Gir tre enkle grupper bedre oversikt? Bruk valget i hvert kort for å flytte det, også med tastatur.</p></div>
+      <div class="board">
+        <section class="column" aria-labelledby="today-title"><h3 id="today-title">I dag <span id="today-count">(2)</span></h3><ul id="today" class="tasks">
+          <li class="task" data-home="today" data-name="Avklar neste steg"><h3>Avklar neste steg</h3><p class="muted">10 min · trenger en avklaring</p><label for="task-plan">Plassering</label><select id="task-plan" aria-label="Plassering for Avklar neste steg"><option value="today">I dag</option><option value="later">Senere</option><option value="parked">Parkert</option></select></li>
+          <li class="task" data-home="today" data-name="Les møteoppsummeringen"><h3>Les møteoppsummeringen</h3><p class="muted">5 min · klar til å starte</p><label for="task-read">Plassering</label><select id="task-read" aria-label="Plassering for Les møteoppsummeringen"><option value="today">I dag</option><option value="later">Senere</option><option value="parked">Parkert</option></select></li>
+        </ul><p class="empty" hidden>Ingen oppgaver her.</p></section>
+        <section class="column" aria-labelledby="later-title"><h3 id="later-title">Senere <span id="later-count">(1)</span></h3><ul id="later" class="tasks">
+          <li class="task" data-home="later" data-name="Samle spørsmål til møtet"><h3>Samle spørsmål til møtet</h3><p class="muted">15 min · før neste møte</p><label for="task-questions">Plassering</label><select id="task-questions" aria-label="Plassering for Samle spørsmål til møtet"><option value="today">I dag</option><option value="later" selected>Senere</option><option value="parked">Parkert</option></select></li>
+        </ul><p class="empty" hidden>Ingen oppgaver her.</p></section>
+        <section class="column" aria-labelledby="parked-title"><h3 id="parked-title">Parkert <span id="parked-count">(0)</span></h3><ul id="parked" class="tasks"></ul><p class="empty">Ingen oppgaver her.</p></section>
+      </div>
+      <div class="actions"><button id="reset-board" type="button">Nullstill prioriteringen</button></div>
+      <p id="board-status" class="status" role="status">Tre eksempeloppgaver. Flyttingen gjelder bare i denne visningen.</p>
+    </section>
+  </main>
+  <script nonce="{{NONCE}}">
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    function selectTab(tab, focus = false) {
+      for (const item of tabs) {
+        const selected = item === tab;
+        item.setAttribute('aria-selected', String(selected)); item.tabIndex = selected ? 0 : -1;
+        document.getElementById(item.getAttribute('aria-controls')).hidden = !selected;
+      }
+      if (focus) tab.focus();
+    }
+    for (const tab of tabs) {
+      tab.addEventListener('click', () => selectTab(tab));
+      tab.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const index = tabs.indexOf(tab);
+        selectTab(tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length], true);
+      });
+    }
+    if (location.hash === '#concept=priorities') selectTab(document.getElementById('tab-priorities'));
+    const note = document.getElementById('preparation');
+    const summary = document.getElementById('booking-summary');
+    const error = document.getElementById('time-error');
+    const bookingStatus = document.getElementById('booking-status');
+    function invalidateSummary() {
+      summary.hidden = true; bookingStatus.textContent = '';
+      document.getElementById('note-count').textContent = `${note.value.length} av 180 tegn`;
+      if (document.querySelector('[name="slot"]:checked')) error.hidden = true;
+    }
+    document.getElementById('booking').addEventListener('input', invalidateSummary);
+    document.getElementById('preview-booking').addEventListener('click', () => {
+      const slot = document.querySelector('[name="slot"]:checked');
+      if (!slot) { error.hidden = false; document.getElementById('slot-first').focus(); return; }
+      error.hidden = true;
+      document.getElementById('booking-choice').textContent = `${slot.value} · ${document.querySelector('[name="meeting"]:checked').value} · 30 minutter`;
+      document.getElementById('booking-note').textContent = note.value.trim() ? `Du vil forberede: ${note.value.trim()}` : 'Du har ikke lagt til et forberedelsesnotat.';
+      summary.hidden = false; summary.focus();
+      bookingStatus.textContent = 'Lokal oppsummering klar. Ingenting er bestilt eller sendt.';
+    });
+    document.getElementById('reset-booking').addEventListener('click', () => {
+      document.querySelectorAll('[name="slot"]').forEach(input => { input.checked = false; });
+      document.querySelector('[name="meeting"][value="Telefon"]').checked = true;
+      note.value = ''; error.hidden = true; invalidateSummary();
+      bookingStatus.textContent = 'Timevalget er nullstilt.';
+    });
+    const groupLabels = { today: 'I dag', later: 'Senere', parked: 'Parkert' };
+    const tasks = [...document.querySelectorAll('.task')];
+    function countTasks() {
+      for (const id of Object.keys(groupLabels)) {
+        const list = document.getElementById(id), count = list.children.length;
+        document.getElementById(`${id}-count`).textContent = `(${count})`;
+        list.nextElementSibling.hidden = count !== 0;
+      }
+    }
+    for (const task of tasks) task.querySelector('select').addEventListener('change', event => {
+      const select = event.target;
+      document.getElementById(select.value).append(task); select.focus(); countTasks();
+      document.getElementById('board-status').textContent = `${task.dataset.name} er flyttet til ${groupLabels[select.value]}. Bare lokalt.`;
+    });
+    document.getElementById('reset-board').addEventListener('click', () => {
+      for (const task of tasks) { document.getElementById(task.dataset.home).append(task); task.querySelector('select').value = task.dataset.home; }
+      countTasks(); document.getElementById('board-status').textContent = 'Prioriteringen er nullstilt.';
+    });
+  </script>
+</body>
+</html>

@@ -10,12 +10,43 @@ const MAX_DECISIONS = 200;
 const MAX_SCREENS = 100;
 const MAX_STORE_BYTES = 2 * 1024 * 1024;
 const MAX_BODY_BYTES = 16 * 1024;
+const MAX_MUTATION_RECEIPTS = 2048;
 const SCREEN = /^[a-f0-9]{32}$/;
 const ID = /^[a-f0-9]{24}$/;
 const ROLES = new Set(["", "button", "link", "textbox", "heading", "img", "navigation", "main", "region", "group", "list", "listitem", "checkbox", "radio", "combobox", "tab", "tabpanel", "table", "row", "cell", "alert", "status", "presentation", "none"]);
 
 class FeedbackError extends Error {
   constructor(status, message) { super(message); this.status = status; }
+}
+function canonicalJson(value, depth = 0) {
+  if (depth > 32) throw new FeedbackError(400, "Feedback payload is too deeply nested.");
+  if (Array.isArray(value)) return `[${value.map((entry) => canonicalJson(entry, depth + 1)).join(",")}]`;
+  if (value !== null && typeof value === "object") return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key], depth + 1)}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
+// Retry receipts live only for this server process. Never evict a receipt:
+// an old retry must not become a new write after the capacity is reached.
+class FeedbackMutationReceipts {
+  constructor(limit = MAX_MUTATION_RECEIPTS) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_MUTATION_RECEIPTS) throw new Error("Invalid mutation receipt limit.");
+    this.limit = limit;
+    this.receipts = new Map();
+  }
+  run(id, method, pathname, value, operation) {
+    if (id === undefined) { operation(value); return; }
+    if (typeof id !== "string" || !/^[a-f0-9]{32}$/.test(id)) throw new FeedbackError(400, "Invalid feedback mutation identifier.");
+    const fingerprint = crypto.createHash("sha256").update(canonicalJson([method, pathname, value])).digest("hex");
+    if (this.receipts.has(id)) {
+      if (this.receipts.get(id) !== fingerprint) throw new FeedbackError(409, "This feedback mutation identifier belongs to a different operation.");
+      return;
+    }
+    if (this.receipts.size >= this.limit) throw new FeedbackError(429, "Feedback retry capacity reached. Start a new preview session.");
+    operation(value);
+    // All feedback operations persist synchronously. A failed commit must
+    // leave the identifier available for a later retry of the same intent.
+    this.receipts.set(id, fingerprint);
+  }
 }
 function keys(value, required, optional = []) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -40,10 +71,12 @@ function validAnchor(value) {
     number(value.viewport.width, 1, 20000) && number(value.viewport.height, 1, 20000);
 }
 function validCreate(value) {
-  if (!keys(value, ["screen", "kind", "anchor", "text"], ["proposal", "adjustment", "variant"]) ||
+  if (!keys(value, ["screen", "kind", "anchor", "text"], ["proposal", "adjustment", "variant", "context"]) ||
       typeof value.screen !== "string" || !SCREEN.test(value.screen) ||
       !["point", "area", "edit", "adjustment", "variant"].includes(value.kind) || !validAnchor(value.anchor) ||
       !boundedText(value.text) || (!value.text.trim() && ["point", "area"].includes(value.kind))) return false;
+  if (Object.hasOwn(value, "context") && (!["point", "area", "edit"].includes(value.kind) ||
+      !keys(value.context, ["variant", "target", "values"]) || !validTargetIdentity(value.context) || !validValues(value.context.values))) return false;
   if (value.kind === "edit") return !Object.hasOwn(value, "adjustment") && !Object.hasOwn(value, "variant") &&
     keys(value.proposal, ["property", "value"]) && value.proposal.property === "text" && boundedText(value.proposal.value);
   if (value.kind === "adjustment") return !Object.hasOwn(value, "proposal") && !Object.hasOwn(value, "variant") &&
@@ -180,6 +213,7 @@ class FeedbackStore {
   create(value) {
     if (!validCreate(value)) throw new FeedbackError(400, "Invalid comment.");
     this.requireScreen(value.screen);
+    if (Object.hasOwn(value, "context")) this.requireTarget(value.screen, value.context);
     if (value.kind === "adjustment") this.requireTarget(value.screen, value.adjustment);
     if (value.kind === "variant" && !this.requireDesign(value.screen).variants.some((variant) => variant.key === value.variant)) throw new FeedbackError(400, "Unknown variant preference.");
     if (this.state.comments.length >= MAX_COMMENTS) throw new FeedbackError(429, "Comment limit reached. Delete older comments or start a new session.");
@@ -258,4 +292,4 @@ class FeedbackStore {
     });
   }
 }
-module.exports = { FeedbackStore, FeedbackError, MAX_BODY_BYTES, MAX_STORE_BYTES, MAX_COMMENTS, MAX_DECISIONS, validCreate, validPatch, keys, ID, SCREEN, readPrivateJson };
+module.exports = { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_MUTATION_RECEIPTS, MAX_BODY_BYTES, MAX_STORE_BYTES, MAX_COMMENTS, MAX_DECISIONS, validCreate, validPatch, keys, ID, SCREEN, readPrivateJson };
