@@ -7,7 +7,10 @@
   const selected = new Map();
   const indicator = document.getElementById("indicator");
   const indicatorText = document.getElementById("indicator-text");
-  const choices = Array.from(document.querySelectorAll(".option, .card"));
+  const interactive = "a[href],button,input,textarea,select,label,summary,[contenteditable],audio[controls],video[controls]";
+  // A layout card containing a form is not a selectable concept card.
+  const choices = Array.from(document.querySelectorAll(".option, .card")).filter((element) =>
+    !element.matches("input,textarea,select,label,summary,[contenteditable]") && !element.querySelector(interactive));
   let persistenceStatus = "idle";
   let pendingEvent = null;
   const post = (value) => parent.postMessage({ channel, version: 1, ...value }, "*");
@@ -74,6 +77,13 @@
     updateIndicator();
   }
 
+  function choiceFor(target) {
+    const choice = target.closest(".option, .card");
+    if (!choice || !choices.includes(choice)) return null;
+    const control = target.closest(interactive);
+    return control && control !== choice ? null : choice;
+  }
+
   // The controls live outside the prototype's styles. Only explicit user input
   // and structural anchors cross the sandbox bridge; page content stays here.
   const host = document.createElement("div");
@@ -89,12 +99,14 @@
     svg{width:17px;height:17px;flex-shrink:0;vertical-align:-3px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.row{display:flex;align-items:center;gap:8px}.between{justify-content:space-between}.muted{color:#71717e;font-size:12px}.small{font-size:12px}.divider{width:1px;height:24px;background:#e7e3eb;flex-shrink:0}.sr{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
     .toolbar{pointer-events:auto;position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:7px;background:#fff;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824;max-width:calc(100vw - 24px)}
     .toolbar button{white-space:nowrap}.toolbar button[aria-pressed=true],.tools button[aria-pressed=true]{color:#7133a2;background:#f1e8f7}.count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:6px;background:#ece9f0;font-size:11px;margin-left:5px}.tools{display:flex;gap:2px}.tools button{font-size:12px;padding:8px}.toolbar .update{background:#eaf1ff;color:#254c95;font-size:12px}.draft-button{color:#7133a2}
-    .hint{position:fixed;top:16px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:9px 14px;border:1px solid #e8d7f1;border-radius:10px;box-shadow:0 3px 15px #25163812;background:#fcf8ff;color:#68368a;font-size:12px;text-align:center}
-    .panel{pointer-events:auto;position:fixed;right:16px;top:16px;bottom:86px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #e1dce8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}
+    .hint{position:fixed;top:64px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:9px 14px;border:1px solid #e8d7f1;border-radius:10px;box-shadow:0 3px 15px #25163812;background:#fcf8ff;color:#68368a;font-size:12px;text-align:center}
+    .panel{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:86px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #e1dce8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}
     .panel-head{padding:18px 18px 12px;border-bottom:1px solid #ece8f0}.panel h2,.composer h2{margin:0;font-size:17px;font-weight:700;letter-spacing:-.3px}.close{min-width:34px;min-height:34px;padding:5px;font-size:22px;color:#74707d;font-weight:400}.panel-intro{margin:7px 0 13px;font-size:12px;color:#797381}.filters{display:flex;gap:4px}.filters button{padding:7px 12px;min-height:32px;font-size:12px}.filters button[aria-pressed=true]{background:#f0e8f7;color:#6e3197}.list{overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0;padding:14px}.empty{padding:28px 16px;text-align:center;color:#787180}.empty svg{width:32px;height:32px;color:#a784c0;margin-bottom:9px}.empty strong{display:block;font-size:14px;color:#393040;margin-bottom:6px}.empty p{margin:0;font-size:12px;line-height:1.6}
     .comment{border:1px solid #e7e1ec;border-radius:12px;padding:13px;margin-bottom:10px;background:#fff;overflow-wrap:anywhere}.comment:focus{outline:2px solid #b264cc;outline-offset:2px}.comment:last-child{margin-bottom:0}.comment.fixed{background:#fbfdfb}.comment .row{flex-wrap:wrap}.comment .number{width:23px;height:23px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#aa267e;color:white;font-size:11px;font-weight:700;flex-shrink:0}.comment.fixed .number{background:#34845a}.badge{font-size:10px;font-weight:600;color:#78607f;background:#f3edf6;padding:3px 6px;border-radius:5px}.badge.old{background:#f0eff1;color:#6e6b73}.comment p{white-space:pre-wrap;margin:11px 0;font-size:13px;line-height:1.55}.comment .reply{border-left:2px solid #d1badf;padding-left:10px;font-size:12px;color:#65556f}.reply strong{display:block;font-size:10px;letter-spacing:.03em;text-transform:uppercase;margin-bottom:4px}.comment-actions{display:flex;flex-wrap:wrap;gap:2px;margin:8px -5px -5px}.comment-actions button{font-size:11px;padding:7px 6px;min-height:30px}.danger{color:#9c3c53}.proposal{white-space:pre-wrap;padding:9px;background:#f5f0fa;border-radius:7px;font-size:12px;margin-top:7px}.proposal-label{font-size:10px;display:block;color:#79598c;margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-    .panel-foot{padding:13px 16px;border-top:1px solid #ece8f0;background:#fcfbfd}.panel-foot .primary{width:100%;margin-top:10px}.connection{display:flex;align-items:center;gap:6px;font-size:11px;color:#787180}.connection::before{content:"";width:6px;height:6px;border-radius:50%;background:#aaa3af}.connection.live::before{background:#3b9166}.foot-status{font-size:11px;color:#685c74;margin:8px 0 0;line-height:1.4}.error{color:#ad2849;font-size:12px;line-height:1.5;margin:8px 0 0}.composer{pointer-events:auto;position:fixed;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - 105px);overflow-y:auto;overscroll-behavior:contain;padding:18px;background:#fff;border:1px solid #d8c2e5;border-radius:15px;box-shadow:0 12px 48px #32143f30}.composer .anchor-label{font-size:11px;color:#706578;margin-top:3px}.composer label{display:block;font-size:12px;font-weight:600;margin:15px 0 7px}.composer textarea{display:block;width:100%;min-height:88px;max-height:200px;resize:vertical;padding:10px;border:1px solid #d9d1e0;border-radius:8px;background:#fff;color:#282230;line-height:1.5;font-size:13px}.composer textarea::placeholder{color:#706578}.composer .compose-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:15px}.composer .proposal-toggle{font-size:12px;padding:7px 0;color:#7133a2;text-align:left;margin-top:8px}.composer .proposal-toggle:hover{background:transparent;text-decoration:underline}.composer .preview-button{font-size:11px;background:#f3edf7;margin-top:8px}.composer .help{font-size:10px;color:#706578;margin-top:9px}.composer .save{min-width:82px}.outline{position:fixed;pointer-events:none;border:2px solid #b52e8c;background:#b52e8c0d;border-radius:4px}.pins{position:fixed;inset:0;pointer-events:none}.pin{position:absolute;pointer-events:auto;min-height:26px;width:26px;height:26px;padding:0;border-radius:50%;background:#aa267e;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px #421b393d;font-size:11px;transform:translate(-50%,-50%)}.pin:hover,.pin:focus{background:#7c145d}.pin.fixed{background:#34845a}.pin.fixed:hover{background:#1e6740}.preview-bar{pointer-events:auto;position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#fff7e7;border:1px solid #e8d4a8;border-radius:11px;padding:8px 12px;box-shadow:0 4px 20px #39250018;font-size:12px;max-width:calc(100vw - 24px);display:flex;align-items:center;gap:12px}.preview-bar button{font-size:12px;background:#f4e4c3;white-space:nowrap}
-    @media(max-width:600px){.toolbar{bottom:max(10px,env(safe-area-inset-bottom));gap:2px;padding:5px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:calc(100vw - 16px)}.toolbar button{font-size:12px;padding:8px}.toolbar .tools{border-left:1px solid #e7e3eb;padding-left:3px}.toolbar .divider{display:none}.panel{top:10px;right:10px;bottom:106px;width:calc(100vw - 20px)}.hint{top:10px;font-size:11px}.composer{max-height:calc(100dvh - 120px)}.toolbar svg{width:15px;height:15px}}
+    .panel-foot{padding:13px 16px;border-top:1px solid #ece8f0;background:#fcfbfd}.panel-foot .primary{width:100%;margin-top:10px}.connection{display:flex;align-items:center;gap:6px;font-size:11px;color:#787180}.connection::before{content:"";width:6px;height:6px;border-radius:50%;background:#aaa3af}.connection.live::before{background:#3b9166}.foot-status{font-size:11px;color:#685c74;margin:8px 0 0;line-height:1.4}.error{color:#ad2849;font-size:12px;line-height:1.5;margin:8px 0 0}.composer{pointer-events:auto;position:fixed;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - 105px);overflow-y:auto;overscroll-behavior:contain;padding:18px;background:#fff;border:1px solid #d8c2e5;border-radius:15px;box-shadow:0 12px 48px #32143f30}.composer .anchor-label{font-size:11px;color:#706578;margin-top:3px}.composer label{display:block;font-size:12px;font-weight:600;margin:15px 0 7px}.composer textarea{display:block;width:100%;min-height:88px;max-height:200px;resize:vertical;padding:10px;border:1px solid #8b7a9a;border-radius:8px;background:#fff;color:#282230;line-height:1.5;font-size:13px}.composer textarea::placeholder{color:#706578}.composer .compose-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:15px}.composer .proposal-toggle{font-size:12px;padding:7px 0;color:#7133a2;text-align:left;margin-top:8px}.composer .proposal-toggle:hover{background:transparent;text-decoration:underline}.composer .preview-button{font-size:11px;background:#f3edf7;margin-top:8px}.composer .help{font-size:10px;color:#706578;margin-top:9px}.composer .save{min-width:82px}.outline{position:fixed;pointer-events:none;border:2px solid #b52e8c;background:#b52e8c0d;border-radius:4px}.pins{position:fixed;inset:0;pointer-events:none}.pin{position:absolute;pointer-events:auto;min-height:26px;width:26px;height:26px;padding:0;border-radius:50%;background:#aa267e;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px #421b393d;font-size:11px;transform:translate(-50%,-50%)}.pin:hover,.pin:focus{background:#7c145d}.pin.fixed{background:#34845a}.pin.fixed:hover{background:#1e6740}.preview-bar{pointer-events:auto;position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#fff7e7;border:1px solid #e8d4a8;border-radius:11px;padding:8px 12px;box-shadow:0 4px 20px #39250018;font-size:12px;max-width:calc(100vw - 24px);display:flex;align-items:center;gap:12px}.preview-bar button{font-size:12px;background:#f4e4c3;white-space:nowrap}
+    @media(max-width:600px){.toolbar{bottom:max(10px,env(safe-area-inset-bottom));gap:2px;padding:5px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:calc(100vw - 16px)}.toolbar button{font-size:12px;padding:8px}.toolbar .tools{border-left:1px solid #e7e3eb;padding-left:3px}.toolbar .divider{display:none}.panel{top:64px;right:10px;bottom:106px;width:calc(100vw - 20px)}.hint{font-size:11px}.composer{max-height:calc(100dvh - 120px)}.toolbar svg{width:15px;height:15px}}
+    @media(max-height:540px){.panel{overflow-y:auto;overscroll-behavior:contain}.panel-head,.panel-foot,.list{flex-shrink:0}.list{flex:none;overflow:visible}}
+    .panel,.list,.composer{scroll-padding:8px}
     @media(prefers-reduced-motion:no-preference){button{transition:background .12s ease}}
   `;
   root.appendChild(style);
@@ -186,9 +198,12 @@
   }
   function pendingComments() { return [...snapshot.comments, ...(snapshot.decisions || [])].filter((item) => item.submission === 0); }
   function busy() { return Boolean(draft || drag || preview || pendingComments().length || requests.size || workshop?.isBusy()); }
+  function saving() { return Boolean(savingDraft || workshop?.isSaving()); }
+  function topInset() { return Math.max(64, Math.ceil((document.body.querySelector(":scope > .vc-header")?.getBoundingClientRect().bottom || 0) + 10)); }
   function updateBusy() {
     const value = busy();
     if (value !== lastBusy) { lastBusy = value; post({ action: "feedback-busy", screen, busy: value }); }
+    all(".toolbar button,.pin").forEach((button) => { button.disabled = saving(); });
     const refresh = el('[data-action="refresh"]');
     refresh.hidden = !updateAvailable;
     refresh.disabled = value;
@@ -214,7 +229,7 @@
     target.hidden = !message;
   }
   function setPanel(open, focus = false) {
-    if (open && savingDraft) return;
+    if (open && saving()) return;
     if (open) workshop?.close();
     panel.hidden = !open;
     el('[data-action="panel"]').setAttribute("aria-expanded", String(open));
@@ -230,6 +245,7 @@
     document.documentElement.style.touchAction = mode === "comment" && marker === "area" && !workshop?.isComparing() ? "none" : originalTouchAction;
   }
   function setMode(next, nextMarker = marker) {
+    if (saving()) return;
     mode = next;
     marker = nextMarker;
     for (const value of ["browse", "comment"]) el(`[data-action="${value}"]`).setAttribute("aria-pressed", String(mode === value));
@@ -298,6 +314,7 @@
     restoreFocus(target);
   }
   function beginDraft(target, kind, rect, position) {
+    if (saving()) return;
     if (!usableTarget(target)) return;
     if (draft) { resumeDraft(); announce("Fullfør eller forkast utkastet før du lager et nytt innspill."); return; }
     if (kind === "area" && workshop?.isComparing()) { announce("Avslutt sammenligning for å markere et område. Punkt kan brukes nå."); return; }
@@ -316,7 +333,7 @@
     updateBusy();
   }
   function resumeDraft() {
-    if (!draft) return;
+    if (!draft || saving()) return;
     if (draft.kind === "area") workshop?.endComparison();
     setPanel(false);
     composer.hidden = false;
@@ -350,10 +367,11 @@
   function positionComposer() {
     if (!draft || composer.hidden) return;
     const bottomSpace = Math.max(80, window.innerHeight - el(".toolbar").getBoundingClientRect().top + 12);
-    composer.style.maxHeight = `calc(100dvh - ${bottomSpace + 12}px)`;
+    const topSpace = topInset();
+    composer.style.maxHeight = `calc(100dvh - ${bottomSpace + topSpace}px)`;
     const bounds = composer.getBoundingClientRect();
     composer.style.left = `${Math.max(12, Math.min(draft.position.x + 14, window.innerWidth - bounds.width - 12))}px`;
-    composer.style.top = `${Math.max(12, Math.min(draft.position.y + 12, window.innerHeight - bounds.height - bottomSpace))}px`;
+    composer.style.top = `${Math.max(topSpace, Math.min(draft.position.y + 12, window.innerHeight - bounds.height - bottomSpace))}px`;
   }
   function showDraftOutline() {
     if (!draft || composer.hidden) return;
@@ -389,6 +407,7 @@
       composer.querySelectorAll("button, textarea").forEach((target) => { target.disabled = false; });
       el(".save").textContent = "Lagre innspill";
       if (draft === submittedDraft) note.focus({ preventScroll: true });
+      updateBusy();
     }
   }
   function commentRect(item) {
@@ -410,6 +429,7 @@
       layoutPending = false;
       const toolbarTop = el(".toolbar").getBoundingClientRect().top;
       panel.style.bottom = `${Math.max(80, innerHeight - toolbarTop + 12)}px`;
+      for (const target of [panel, el(".hint"), el(".preview-bar")]) target.style.top = `${topInset()}px`;
       for (const button of pinLayer.children) {
         const item = snapshot.comments.find((entry) => entry.id === button.dataset.id);
         const rect = item && commentRect(item);
@@ -568,7 +588,7 @@
 
   root.addEventListener("click", (event) => {
     const target = event.target.closest("button");
-    if (!target || target.disabled) return;
+    if (!target || target.disabled || saving()) return;
     const action = target.dataset.action;
     const item = snapshot.comments.find((entry) => entry.id === target.dataset.id);
     if (target.dataset.filter) {
@@ -628,6 +648,7 @@
     if (preview && draft?.proposal) showPreview(draft.target, proposalInput.value);
   });
   root.addEventListener("keydown", (event) => {
+    if (saving()) return;
     if (event.target.closest(".toolbar") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
       const buttons = all(".toolbar button").filter((target) => !target.disabled && target.getClientRects().length);
       const index = buttons.indexOf(event.target.closest("button"));
@@ -656,7 +677,7 @@
     }
     const link = event.target.closest("a, area");
     if (link) { event.preventDefault(); return; }
-    const choice = event.target.closest(".option, .card");
+    const choice = choiceFor(event.target);
     if (!choice) return;
     event.preventDefault();
     toggleSelect(choice);
@@ -714,7 +735,7 @@
       beginDraft(event.target, marker, marker === "area" ? event.target.getBoundingClientRect() : null);
       return;
     }
-    const choice = event.target.closest(".option, .card");
+    const choice = choiceFor(event.target);
     if (!choice || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault();
     toggleSelect(choice);
@@ -725,6 +746,8 @@
     const observer = new ResizeObserver(scheduleLayout);
     observer.observe(document.body);
     observer.observe(el(".toolbar"));
+    const header = document.body.querySelector(":scope > .vc-header");
+    if (header) observer.observe(header);
   }
 
   window.addEventListener("message", (message) => {
@@ -761,7 +784,7 @@
   });
   if (typeof window.__grillmesterInitializeWorkshop === "function") {
     workshop = window.__grillmesterInitializeWorkshop({
-      root, screen, nonce, request, anchorFor, announce,
+      root, screen, nonce, request, anchorFor, announce, topInset,
       getSnapshot: () => snapshot,
       onBusyChange: updateBusy,
       onPresentationChange: () => { updateHint(); renderComments(); },

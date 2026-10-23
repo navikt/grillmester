@@ -130,6 +130,13 @@ ved endringer i denne kontrakten, i tillegg til kommentarsmoken. Bruk separate
 evidensmapper for de to kjøringene. Ingen av dem installerer avhengigheter eller
 starter en modellklient.
 
+`scripts/smoke_visual_scenarios.cjs` supplerer disse med åtte sammenhengende
+oppgaver for ulike simulerte roller, blant annet fire varianter, flere utkast,
+lange norske tekster, skjema i kort og feil under innsending. Se
+[scenarioer og akseptansekriterier](testing/visual-companion-scenarios.md).
+Flagget `--aksel-project` kan bruke en eksisterende, samversjonert Aksel-
+installasjon til faktisk komponentrendering uten å endre kildeprosjektet.
+
 Plugin-smoken skal bekrefte 8 agenter, 44 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
 minimumsklienten Copilot CLI `1.0.79` annonserer hele flaggrosteren som local-run

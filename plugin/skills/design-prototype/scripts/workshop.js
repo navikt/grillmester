@@ -25,7 +25,7 @@
         ? element.closest("[data-vc-variant]") === wrapper
         : !element.closest("[data-vc-variant]")) : [];
       const values = initialValues(target);
-      bindings.set(identifier(target), { descriptor: target, element: found.length === 1 ? found[0] : null, values, accepted: signature(values) });
+      bindings.set(identifier(target), { descriptor: target, element: found.length === 1 ? found[0] : null, values, accepted: signature(values), remark: "" });
     }
     const comparisonParent = variants.length >= 2 ? variantBindings.get(variants[0].key)?.element?.parentElement : null;
     const frameContent = document.body.querySelector(":scope > .vc-content");
@@ -43,13 +43,17 @@
     let snapshot = api.getSnapshot();
     const savedStyles = new Map();
     const selected = () => bindings.get(selectedKey);
-    const pending = () => Boolean(remark.value.trim() || Array.from(bindings.values()).some((binding) => signature(binding.values) !== binding.accepted));
+    const hasDraft = (binding) => Boolean(binding.remark.trim() || signature(binding.values) !== binding.accepted);
+    const pending = () => Array.from(bindings.values()).some(hasDraft);
 
     const style = document.createElement("style");
     style.nonce = nonce;
     style.textContent = `
-      .workshop{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:92px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workshop h2{margin:0;font-size:17px;letter-spacing:-.3px}.workshop h3{font-size:13px;margin:0 0 10px}.workshop-head{padding:16px 18px 12px;border-bottom:1px solid #e9e3ef}.workshop-head p{font-size:12px;color:#706578;margin:8px 0 0}.workshop-body{padding:16px 18px;overflow-y:auto;overscroll-behavior:contain;min-height:0}.workshop label{display:block;font-size:12px;font-weight:600;margin:0 0 7px}.workshop select,.workshop textarea{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #d5cadf;border-radius:8px;padding:9px}.workshop select:focus-visible,.workshop input:focus-visible{outline:3px solid #6852ce;outline-offset:3px}.workshop textarea{min-height:68px;resize:vertical}.workshop-section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #ece7f1}.workshop-section:last-child{border-bottom:0;margin-bottom:0}.workshop-control{margin-top:17px}.workshop-control input[type=range]{width:100%;accent-color:#7133a2}.workshop-control input[type=checkbox]{accent-color:#7133a2;width:18px;height:18px;vertical-align:middle;margin:0 7px 0 0}.workshop-control output{display:block;color:#706578;font-size:11px;margin-top:5px}.workshop-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.workshop-actions button{font-size:12px}.workshop-actions .primary{flex:1}.workshop-foot{padding:12px 18px;border-top:1px solid #e9e3ef;font-size:11px;color:#706578}.workshop-status{font-size:12px;color:#5c3d70;margin:9px 0 0;min-height:17px}.workshop-warning{font-size:12px;line-height:1.5;color:#855514;background:#fff7e7;padding:10px;border-radius:8px;margin:12px 0}.workshop-empty{font-size:12px;color:#706578;line-height:1.5}.workshop-keep-list{display:grid;gap:10px}.workshop-decision{border:1px solid #dce6df;border-radius:9px;padding:11px;overflow-wrap:anywhere}.workshop-decision.followup{border-color:#e9d5ad;background:#fffcf6}.workshop-decision.released{border-color:#e6e1e9;background:#faf9fb}.workshop-decision h4{font-size:12px;margin:0 0 5px}.workshop-decision p{font-size:12px;white-space:pre-wrap;margin:7px 0}.workshop-decision .decision-state{font-size:11px;font-weight:600;color:#2d7350}.workshop-decision.followup .decision-state{color:#855514}.workshop-decision.released .decision-state{color:#706578}.workshop-decision ul{font-size:11px;line-height:1.6;margin:7px 0;padding-left:16px}.workshop-decision button{font-size:11px;min-height:30px;padding:6px 8px}.workshop-decision .badge{margin-left:5px}.compare-bar{pointer-events:auto;position:fixed;top:64px;left:16px;max-width:calc(100vw - 32px);padding:10px 12px;background:#fff;border:1px solid #dfd8e8;border-radius:12px;box-shadow:0 4px 22px #2516381a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}.compare-bar label{font-size:11px;color:#706578}.compare-bar select{font:inherit;max-width:145px;padding:6px;border:1px solid #d5cadf;border-radius:6px;color:#302737;background:#fff}.compare-bar button{font-size:12px;min-height:31px;padding:6px 9px}.compare-tabs{display:flex;gap:4px}.compare-tabs button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}.compare-bar .pair-select{display:flex;align-items:center;gap:5px}.compare-bar .prefer{color:#7133a2;background:#f6f0fa}.workshop-compare-button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}
+      .workshop{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:92px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workshop h2{margin:0;font-size:17px;letter-spacing:-.3px}.workshop h3{font-size:13px;margin:0 0 10px}.workshop-head{padding:16px 18px 12px;border-bottom:1px solid #e9e3ef}.workshop-head p{font-size:12px;color:#706578;margin:8px 0 0}.workshop-body{padding:16px 18px;overflow-y:auto;overscroll-behavior:contain;min-height:0}.workshop label{display:block;font-size:12px;font-weight:600;margin:0 0 7px}.workshop select,.workshop textarea{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #8b7a9a;border-radius:8px;padding:9px}.workshop select:focus-visible,.workshop input:focus-visible{outline:3px solid #6852ce;outline-offset:3px}.workshop textarea{min-height:68px;resize:vertical}.workshop-section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #ece7f1}.workshop-section:last-child{border-bottom:0;margin-bottom:0}.workshop-control{margin-top:17px}.workshop-control input[type=range]{width:100%;accent-color:#7133a2}.workshop-control input[type=checkbox]{accent-color:#7133a2;width:18px;height:18px;vertical-align:middle;margin:0 7px 0 0}.workshop-control output{display:block;color:#706578;font-size:11px;margin-top:5px}.workshop-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.workshop-actions button{font-size:12px}.workshop-actions .primary{flex:1}.workshop-foot{padding:12px 18px;border-top:1px solid #e9e3ef;font-size:11px;color:#706578}.workshop-status{font-size:12px;color:#5c3d70;margin:9px 0 0;min-height:17px}.workshop-warning{font-size:12px;line-height:1.5;color:#855514;background:#fff7e7;padding:10px;border-radius:8px;margin:12px 0}.workshop-empty{font-size:12px;color:#706578;line-height:1.5}.workshop-keep-list{display:grid;gap:10px}.workshop-decision{border:1px solid #dce6df;border-radius:9px;padding:11px;overflow-wrap:anywhere}.workshop-decision.followup{border-color:#e9d5ad;background:#fffcf6}.workshop-decision.released{border-color:#e6e1e9;background:#faf9fb}.workshop-decision h4{font-size:12px;margin:0 0 5px}.workshop-decision p{font-size:12px;white-space:pre-wrap;margin:7px 0}.workshop-decision .decision-state{font-size:11px;font-weight:600;color:#2d7350}.workshop-decision.followup .decision-state{color:#855514}.workshop-decision.released .decision-state{color:#706578}.workshop-decision ul{font-size:11px;line-height:1.6;margin:7px 0;padding-left:16px}.workshop-decision button{font-size:11px;min-height:30px;padding:6px 8px}.workshop-decision .badge{margin-left:5px}.compare-bar{pointer-events:auto;position:fixed;top:64px;left:16px;max-width:calc(100vw - 32px);padding:10px 12px;background:#fff;border:1px solid #dfd8e8;border-radius:12px;box-shadow:0 4px 22px #2516381a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}.compare-bar label{font-size:11px;color:#706578}.compare-bar select{font:inherit;max-width:145px;padding:6px;border:1px solid #8b7a9a;border-radius:6px;color:#302737;background:#fff}.compare-bar button{font-size:12px;min-height:31px;padding:6px 9px}.compare-tabs{display:flex;gap:4px}.compare-tabs button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}.compare-bar .pair-select{display:flex;align-items:center;gap:5px}.compare-bar .prefer{color:#7133a2;background:#f6f0fa}.workshop-compare-button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}
       @media(max-width:759px){.workshop{left:10px;right:10px;top:64px;width:auto}.compare-bar{top:62px;left:10px;right:10px;max-width:none}.compare-bar .pair-select{display:none}.compare-bar .prefer{font-size:11px}.workshop-body{padding:14px}}
+      @media(max-height:540px){.workshop{overflow-y:auto;overscroll-behavior:contain}.workshop-head,.workshop-body,.workshop-foot{flex-shrink:0}.workshop-body{overflow:visible}.compare-bar{max-height:calc(100dvh - 110px);overflow-y:auto}}
+      .workshop,.workshop-body,.compare-bar{scroll-padding:8px}
+      @media(max-width:759px){.compare-bar.has-many .pair-select{display:flex;flex:1 1 calc(50% - 8px);min-width:0}.compare-bar.has-many .pair-select select{width:100%;min-width:0}.compare-bar.has-many .pair-select label{flex-shrink:0}}
     `;
     root.appendChild(style);
     const markup = document.createElement("div");
@@ -64,15 +68,16 @@
           </div>
           <div class="workshop-section workshop-comparison"><h3>Se variantene sammen</h3><button type="button" class="workshop-compare-button" data-action="workshop-compare" aria-pressed="false">Sammenlign varianter</button><p class="workshop-warning compare-warning" hidden></p></div>
           <section aria-label="Beholdes videre"><h3>Beholdes videre</h3><div class="workshop-keep-list"></div></section>
-        </div><div class="workshop-foot">Visningen endrer ikke kildefilene. «Behold dette» legger en føring for neste versjon.<p class="workshop-status" role="status"></p><p class="error workshop-error" role="alert" hidden></p></div>
+        </div><div class="workshop-foot">Visningen endrer ikke kildefilene. «Behold dette» legger en føring for neste versjon.<p class="workshop-drafts" hidden></p><p class="workshop-status" role="status"></p><p class="error workshop-error" role="alert" hidden></p></div>
       </section>
-      <div class="compare-bar" aria-label="Sammenligning" hidden><div class="pair-select"><label for="compare-left">Venstre</label><select id="compare-left" aria-label="Venstre variant"></select></div><div class="pair-select"><label for="compare-right">Høyre</label><select id="compare-right" aria-label="Høyre variant"></select></div><div class="compare-tabs" role="group" aria-label="Velg variant"></div><label for="compare-preferred" class="sr">Foretrukket variant</label><select id="compare-preferred" aria-label="Foretrukket variant"></select><button type="button" class="prefer" data-action="workshop-prefer">Foretrekk denne varianten</button><button type="button" data-action="workshop-stop-compare" aria-label="Avslutt sammenligning">×</button></div>
+      <div class="compare-bar" role="group" aria-label="Sammenligning" hidden><div class="pair-select"><label for="compare-left">Venstre</label><select id="compare-left" aria-label="Venstre variant"></select></div><div class="pair-select"><label for="compare-right">Høyre</label><select id="compare-right" aria-label="Høyre variant"></select></div><div class="compare-tabs" role="group" aria-label="Velg variant"></div><label for="compare-preferred" class="sr">Foretrukket variant</label><select id="compare-preferred" aria-label="Foretrukket variant"></select><button type="button" class="prefer" data-action="workshop-prefer">Foretrekk denne varianten</button><button type="button" data-action="workshop-stop-compare" aria-label="Avslutt sammenligning">×</button></div>
     `;
     root.appendChild(markup);
     const el = (selector) => markup.querySelector(selector);
     const pane = el(".workshop");
     const picker = el("#workshop-target");
     const remark = el("#workshop-remark");
+    el(".compare-bar").classList.toggle("has-many", variants.length > 2);
     const toolbarButton = document.createElement("button");
     toolbarButton.type = "button";
     toolbarButton.dataset.action = "workshop-open";
@@ -90,9 +95,27 @@
     }
     function status(text) { if (el(".workshop-status").textContent !== text) el(".workshop-status").textContent = text; }
     function error(text) { el(".workshop-error").textContent = text || ""; el(".workshop-error").hidden = !text; }
-    function focus(target) { if (target?.isConnected) target.focus({ preventScroll: true }); }
+    function focus(target) { if (target?.isConnected) target.focus(); }
+    function targetLabel(target, source = descriptor) {
+      const variant = source?.variants.find((entry) => entry.key === target.variant);
+      return `${target.label}${variant ? ` · ${variant.label}` : ""}`;
+    }
+    function updateDrafts() {
+      let count = 0;
+      for (const option of picker.options) {
+        const binding = bindings.get(option.value);
+        const draft = hasDraft(binding);
+        if (draft) count += 1;
+        option.textContent = `${targetLabel(binding.descriptor)}${binding.element ? "" : " · utilgjengelig"}${draft ? " · utkast" : ""}`;
+      }
+      el(".workshop-drafts").hidden = !count;
+      el(".workshop-drafts").textContent = `${count} ${count === 1 ? "del har" : "deler har"} lokale utkast. Velg delen for å fortsette.`;
+      toolbarButton.title = count ? `${count} ${count === 1 ? "del med lokalt utkast" : "deler med lokale utkast"}` : "Juster skissen";
+      api.onBusyChange();
+    }
     function updateLayout() {
       pane.style.bottom = `${Math.max(85, innerHeight - root.querySelector(".toolbar").getBoundingClientRect().top + 12)}px`;
+      for (const target of [pane, el(".compare-bar")]) target.style.top = `${api.topInset()}px`;
       applyComparison();
     }
     function close(restore = false) {
@@ -107,6 +130,8 @@
       if (locking || !api.prepareOpen()) return;
       pane.hidden = false;
       toolbarButton.setAttribute("aria-expanded", "true");
+      pane.scrollTop = 0;
+      el(".workshop-body").scrollTop = 0;
       updateLayout();
       focus(bindings.size ? picker : el('[data-action="workshop-close"]'));
     }
@@ -130,6 +155,8 @@
       container.replaceChildren();
       el(".workshop-editor").hidden = !bindings.size;
       picker.value = selectedKey;
+      remark.value = binding?.remark || "";
+      remark.disabled = !binding?.element || locking;
       const unavailable = Boolean(binding && !binding.element);
       el(".target-warning").hidden = !unavailable;
       el(".target-warning").textContent = "Denne delen er utilgjengelig: markeringen mangler eller finnes flere steder i skissen.";
@@ -152,7 +179,7 @@
         input.addEventListener(control.type === "range" ? "input" : "change", () => {
           if (locking) return;
           binding.values[control.id] = controlValue(control, input);
-          writeValues(binding); updateOutput(); status("Lokal visning · legg til innspill for å ta valget videre."); api.onBusyChange();
+          writeValues(binding); updateOutput(); status("Lokal visning · legg til innspill for å ta valget videre."); updateDrafts();
         });
         updateOutput(); box.append(label, input, output); container.appendChild(box);
       }
@@ -242,10 +269,10 @@
     function decisionCard(decision) {
       const binding = bindings.get(`${decision.variant || ""}/${decision.target}`);
       const original = sourceDesign(decision)?.targets.find((target) => target.key === decision.target && target.variant === decision.variant);
-      const target = binding?.descriptor || original;
+      const target = original || binding?.descriptor;
       const needsWork = decision.state === "active" && followup(decision);
       const card = document.createElement("article"); card.className = `workshop-decision${needsWork ? " followup" : ""}${decision.state === "released" ? " released" : ""}`; card.dataset.decision = decision.id; card.tabIndex = -1;
-      const title = document.createElement("h4"); title.textContent = target?.label || decision.target; card.appendChild(title);
+      const title = document.createElement("h4"); title.textContent = target ? targetLabel(target, original ? sourceDesign(decision) : descriptor) : decision.target; card.appendChild(title);
       const state = document.createElement("span"); state.className = "decision-state"; state.textContent = decision.state === "released" ? "Frigitt" : needsWork ? decision.screen === screen ? "Venter på neste versjon" : "Må følges opp" : "Beholdes videre"; card.appendChild(state);
       if (decision.submission === 0) { const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "Ikke sendt"; card.appendChild(badge); }
       if (decision.screen !== screen) { const old = document.createElement("p"); old.className = "muted"; old.textContent = "Fra en tidligere versjon"; card.appendChild(old); }
@@ -285,7 +312,7 @@
     async function save(action, decisionId) {
       if (locking) return;
       const binding = selected();
-      const text = remark.value.trim();
+      const text = action === "workshop-add" || action === "workshop-keep" ? binding?.remark.trim() || "" : "";
       if (new TextEncoder().encode(text).length > 2000) { error("Merknaden er for lang. Kort den ned før du lagrer."); focus(remark); return; }
       let operation, payload;
       if (action === "workshop-release") { operation = "decision-release"; payload = { id: decisionId }; }
@@ -303,7 +330,8 @@
       try {
         await request(operation, payload);
         if (binding && (action === "workshop-add" || action === "workshop-keep")) binding.accepted = signature(binding.values);
-        if (action !== "workshop-release") remark.value = "";
+        if (binding && (action === "workshop-add" || action === "workshop-keep")) { binding.remark = ""; remark.value = ""; }
+        updateDrafts();
         status("Lagret i innspill. Send samlet når du er klar.");
         announce("Valget er lagt til innspill.");
         locking = false; close(); api.openFeedback();
@@ -312,31 +340,36 @@
     }
 
     for (const [key, binding] of bindings) {
-      const variant = variantBindings.get(binding.descriptor.variant);
-      picker.appendChild(option(`${binding.descriptor.label}${variant ? ` · ${variant.label}` : ""}${binding.element ? "" : " · utilgjengelig"}`, key));
+      picker.appendChild(option(targetLabel(binding.descriptor), key));
       writeValues(binding);
     }
     for (const variant of variants) for (const selector of ["#compare-left", "#compare-right", "#compare-preferred"]) el(selector).appendChild(option(variant.label, variant.key));
     picker.addEventListener("change", () => {
       if (locking) return;
-      selectedKey = picker.value; renderControls();
+      selectedKey = picker.value; error(""); status(""); renderControls();
       const variant = selected()?.descriptor.variant;
       if (comparing && variant) { if (!pair.includes(variant)) pair[1] = variant; activeVariant = variant; preferredVariant = variant; updateCompareSelects(); applyComparison(); }
     });
-    remark.addEventListener("input", () => api.onBusyChange());
+    remark.addEventListener("input", () => { const binding = selected(); if (binding) binding.remark = remark.value; updateDrafts(); });
     for (const [selector, index] of [["#compare-left", 0], ["#compare-right", 1]]) el(selector).addEventListener("change", (event) => {
       const previous = pair[index]; pair[index] = event.target.value;
       if (pair[0] === pair[1]) pair[1 - index] = previous;
       if (!pair.includes(activeVariant)) activeVariant = pair[0];
+      if (!pair.includes(preferredVariant)) preferredVariant = pair[index];
       updateCompareSelects(); applyComparison();
     });
-    el("#compare-preferred").addEventListener("change", (event) => { preferredVariant = event.target.value; });
+    el("#compare-preferred").addEventListener("change", (event) => {
+      preferredVariant = event.target.value;
+      if (!pair.includes(preferredVariant)) pair[1] = preferredVariant;
+      activeVariant = preferredVariant;
+      updateCompareSelects(); applyComparison();
+    });
     root.addEventListener("click", (event) => {
       const button = event.target.closest("button"); if (!button || button.disabled) return;
       const action = button.dataset.action;
       if (action === "workshop-open") { if (pane.hidden) open(); else close(true); }
       else if (action === "workshop-close") close(true);
-      else if (action === "workshop-reset" && !locking) { const binding = selected(); if (binding) { binding.values = initialValues(binding.descriptor); binding.accepted = signature(binding.values); writeValues(binding); renderControls(); status("Visningen er tilbakestilt. Lagrede innspill er beholdt."); api.onBusyChange(); } }
+      else if (action === "workshop-reset" && !locking) { const binding = selected(); if (binding) { binding.values = initialValues(binding.descriptor); binding.accepted = signature(binding.values); writeValues(binding); renderControls(); status("Visningen er tilbakestilt. Merknaden og lagrede innspill er beholdt."); updateDrafts(); } }
       else if (action === "workshop-compare" && comparisonAvailable && !locking) { comparing = !comparing; button.setAttribute("aria-pressed", String(comparing)); updateCompareSelects(); applyComparison(); if (comparing) { close(); focus(innerWidth < 760 ? el(".compare-tabs button") : el("#compare-left")); } }
       else if (action === "workshop-stop-compare" && !locking) { endComparison(); focus(toolbarButton); }
       else if (["workshop-add", "workshop-keep", "workshop-prefer", "workshop-release"].includes(action)) void save(action, button.dataset.decision);
@@ -352,27 +385,30 @@
     el(".workshop-comparison").hidden = variants.length < 2;
     el(".compare-warning").hidden = comparisonAvailable || variants.length < 2;
     el(".compare-warning").textContent = "Sammenligning er utilgjengelig: variantene må finnes én gang hver, i samme beholder.";
-    renderControls(); updateCompareSelects(); renderDecisions();
+    renderControls(); updateCompareSelects(); renderDecisions(); updateDrafts();
     window.addEventListener("resize", updateLayout);
     if (typeof ResizeObserver === "function") {
       const observer = new ResizeObserver(updateLayout);
       observer.observe(root.querySelector(".toolbar"));
       observer.observe(el(".compare-bar"));
+      const header = document.body.querySelector(":scope > .vc-header");
+      if (header) observer.observe(header);
     }
     return {
       close,
+      isSaving: () => locking,
       isBusy: () => locking || pending(),
       isComparing: () => comparing,
       endComparison,
       render(value) { snapshot = value; if (value.revision !== lastRevision) { lastRevision = value.revision; renderDecisions(); } },
       describeComment(item) {
         const original = sourceDesign(item);
-        if (item.variant) return variantBindings.get(item.variant)?.label || original?.variants.find((variant) => variant.key === item.variant)?.label || item.variant;
+        if (item.variant) return original?.variants.find((variant) => variant.key === item.variant)?.label || variantBindings.get(item.variant)?.label || item.variant;
         const change = item.adjustment;
         const binding = bindings.get(`${change.variant || ""}/${change.target}`);
         const originalTarget = original?.targets.find((target) => target.key === change.target && target.variant === change.variant);
-        const target = binding?.descriptor || originalTarget;
-        return [target?.label || change.target, ...Object.entries(change.values).map(([id, value]) => {
+        const target = originalTarget || binding?.descriptor;
+        return [target ? targetLabel(target, originalTarget ? original : descriptor) : change.target, ...Object.entries(change.values).map(([id, value]) => {
           const control = target?.controls.find((entry) => entry.id === id) || originalTarget?.controls.find((entry) => entry.id === id);
           return `${control?.label || id}: ${control?.options.find((entry) => entry.value === value)?.label || value}`;
         })].join("\n");
@@ -383,7 +419,7 @@
         const target = event.target.closest?.("[data-vc-key]");
         const entry = Array.from(bindings).find(([, binding]) => binding.element === target);
         if (!entry) return false;
-        if (!locking) { selectedKey = entry[0]; renderControls(); focus(picker); }
+        if (!locking) { selectedKey = entry[0]; error(""); status(""); renderControls(); focus(picker); }
         return true;
       },
     };

@@ -1270,6 +1270,7 @@ function validEvent(value) {
 
 function appendEvent(event) {
   if (eventCount >= MAX_EVENTS) return false;
+  feedback.assertDirectory();
   const eventPath = path.join(stateDir, "events.jsonl");
   const line = `${JSON.stringify({
     type: event.type,
@@ -1277,20 +1278,25 @@ function appendEvent(event) {
     screen: event.screen,
     timestamp: Date.now(),
   })}\n`;
-  const noFollow = fs.constants.O_NOFOLLOW || 0;
   const descriptor = fs.openSync(
     eventPath,
     fs.constants.O_WRONLY |
       fs.constants.O_CREAT |
       fs.constants.O_APPEND |
-      noFollow,
+      fs.constants.O_NOFOLLOW |
+      fs.constants.O_NONBLOCK,
     0o600,
   );
   try {
+    feedback.assertDirectory();
     const stat = fs.fstatSync(descriptor);
-    if (!stat.isFile() || stat.size + Buffer.byteLength(line) > MAX_EVENT_FILE_BYTES) {
-      return false;
+    const linked = fs.lstatSync(eventPath);
+    assertOwnedByCurrentUser(stat, eventPath);
+    if (!stat.isFile() || stat.nlink !== 1 || (stat.mode & 0o077) ||
+        linked.isSymbolicLink() || stat.dev !== linked.dev || stat.ino !== linked.ino) {
+      throw new Error("Unsafe selection state file.");
     }
+    if (stat.size + Buffer.byteLength(line) > MAX_EVENT_FILE_BYTES) return false;
     fs.writeSync(descriptor, line, null, "utf8");
     fs.fchmodSync(descriptor, 0o600);
     eventCount += 1;
@@ -1304,6 +1310,7 @@ function readEventBody(req, res) {
   let chunks = [];
   let size = 0;
   let rejected = false;
+  req.on("error", () => { rejected = true; chunks = []; });
   req.on("data", (chunk) => {
     if (rejected) return;
     size += chunk.length;
@@ -1336,9 +1343,15 @@ function readEventBody(req, res) {
       res.end('{"error":"event belongs to a stale screen"}');
       return;
     }
-    if (!appendEvent(event)) {
-      res.writeHead(429, { "Content-Type": "application/json; charset=utf-8" });
-      res.end('{"error":"event limit reached"}');
+    try {
+      if (!appendEvent(event)) {
+        sendJson(res, 429, { error: "event limit reached" });
+        return;
+      }
+    } catch {
+      // Selection storage is optional. A failed write must never terminate
+      // the session and remove unrelated comments or design decisions.
+      sendJson(res, 500, { error: "Selection storage is unavailable." });
       return;
     }
     lastActivity = Date.now();
@@ -1419,16 +1432,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  let newest;
-  try {
-    newest = newestContent();
-    activateScreen(newest);
-  } catch {
-    res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("Preview state is unavailable.");
-    return;
-  }
-
+  // Existing feedback stays readable and writable even when a newer source
+  // cannot be registered. Its own screen IDs were validated on preview load.
   if (requestUrl.pathname === "/comments" || requestUrl.pathname.startsWith("/comments/") || requestUrl.pathname === "/decisions" || requestUrl.pathname.startsWith("/decisions/")) {
     const commentId = /^\/comments\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
     const decisionId = /^\/decisions\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
@@ -1456,6 +1461,16 @@ const server = http.createServer((req, res) => {
       return;
     }
     readFeedbackBody(req, res, operation);
+    return;
+  }
+
+  let newest;
+  try {
+    newest = newestContent();
+    activateScreen(newest);
+  } catch (error) {
+    res.writeHead(error instanceof FeedbackError ? error.status : 500, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end(error instanceof FeedbackError ? error.message : "Preview state is unavailable.");
     return;
   }
 

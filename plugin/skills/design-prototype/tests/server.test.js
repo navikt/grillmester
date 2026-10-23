@@ -1311,3 +1311,109 @@ test("re-keeping a pending release preserves one accepted hold during a scoped v
     assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen: firstScreen })).status, 409);
   } finally { await stopServer(running); }
 });
+
+test("selection storage failures preserve the session and never alter linked files", async () => {
+  for (const replacement of ["symlink", "hardlink", "directory"]) {
+    const running = await startServer(makeProject());
+    try {
+      const screen = await previewScreen(running);
+      await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen));
+      const outside = path.join(makeProject(), "outside.txt");
+      fs.writeFileSync(outside, "OUTSIDE-CONTENT-MUST-STAY-PRIVATE", { mode: 0o600 });
+      const eventPath = path.join(running.info.state_dir, "events.jsonl");
+      if (replacement === "symlink") fs.symlinkSync(outside, eventPath);
+      else if (replacement === "hardlink") fs.linkSync(outside, eventPath);
+      else fs.mkdirSync(eventPath);
+      const response = await postEvent(running.info.url, { type: "click", choice: "choice-1", screen });
+      assert.equal(response.status, 500, replacement);
+      const error = await response.json();
+      assert.deepEqual(error, { error: "Selection storage is unavailable." });
+      assert.equal(fs.readFileSync(outside, "utf8"), "OUTSIDE-CONTENT-MUST-STAY-PRIVATE");
+      const snapshot = await (await feedbackRequest(running.info.url, "/comments")).json();
+      assert.equal(snapshot.comments.length, 1, "a selection failure must not remove saved feedback");
+      fs.rmSync(eventPath, { recursive: true });
+      assert.equal((await postEvent(running.info.url, { type: "click", choice: "choice-1", screen })).status, 200);
+    } finally { await stopServer(running); }
+  }
+});
+
+test("existing feedback remains available when a new version reaches the screen limit", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const first = await previewScreen(running, "<h1>Version 0</h1>");
+    const created = await (await feedbackRequest(running.info.url, "/comments", "POST", commentFor(first))).json();
+    for (let index = 1; index < 100; index += 1) {
+      const screen = await previewScreen(running, `<h1>Version ${index}</h1>`);
+      assert.match(screen, /^[a-f0-9]{32}$/);
+    }
+    fs.writeFileSync(path.join(running.info.screen_dir, "test.html"), "<h1>One version too many</h1>");
+    const rejected = await fetch(endpoint(running.info.url, "/version"));
+    assert.equal(rejected.status, 429);
+    assert.match(await rejected.text(), /Screen limit reached/);
+    const response = await feedbackRequest(running.info.url, "/comments");
+    assert.equal(response.status, 200, "the content limit must not block access to existing feedback");
+    const snapshot = await response.json();
+    assert.equal(snapshot.screens.length, 100);
+    assert.equal(snapshot.comments[0].id, created.comments[0].id);
+    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", {})).status, 200);
+    const listed = await runComments(["list", "--state-dir", running.info.state_dir]);
+    assert.equal(listed.code, 0, listed.stderr);
+    assert.equal(JSON.parse(listed.stdout).comments[0].submission, 1);
+  } finally { await stopServer(running); }
+});
+
+test("feedback can be read and deleted when design history fills its byte budget", async () => {
+  const { validDesign } = require("../scripts/design-contract.js");
+  const design = {
+    version: 1,
+    variants: [],
+    targets: Array.from({ length: 24 }, (_, index) => ({
+      key: `target-${index}`, variant: "", label: `Target ${index}`,
+      controls: [{ id: "density", label: "Density", type: "select", initial: "option-0",
+        options: Array.from({ length: 8 }, (_, option) => ({ value: `option-${option}`, label: String(option).padEnd(100, "x") })) }],
+    })),
+  };
+  assert.equal(validDesign(design), true);
+  const running = await startServer(makeProject());
+  try {
+    fs.writeFileSync(path.join(running.info.screen_dir, "test.design.json"), JSON.stringify(design));
+    const first = await previewScreen(running, "<h1>Version 0</h1>");
+    const created = await (await feedbackRequest(running.info.url, "/comments", "POST", commentFor(first, { text: "x".repeat(2000) }))).json();
+    let full = false;
+    for (let index = 1; index < 100; index += 1) {
+      fs.writeFileSync(path.join(running.info.screen_dir, "test.html"), `<h1>Version ${index}</h1>`);
+      const response = await fetch(endpoint(running.info.url, "/version"));
+      if (response.status === 429) {
+        assert.match(await response.text(), /storage limit reached/);
+        full = true;
+        break;
+      }
+      assert.equal(response.status, 200);
+    }
+    assert.equal(full, true, "the real byte limit must be reached before the screen count limit");
+    const snapshot = await (await feedbackRequest(running.info.url, "/comments")).json();
+    assert.equal(snapshot.comments[0].id, created.comments[0].id);
+    assert.equal((await feedbackRequest(running.info.url, `/comments/${created.comments[0].id}`, "DELETE", {})).status, 200);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(first))).status, 200);
+  } finally { await stopServer(running); }
+});
+
+test("an interrupted selection request does not stop the preview or erase feedback", async () => {
+  const http = require("node:http");
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen));
+    const url = endpoint(running.info.url, "/events");
+    await new Promise((resolve, reject) => {
+      const request = http.request(url, { method: "POST", headers: { Origin: url.origin, "Content-Type": "application/json", "Content-Length": "1000" } });
+      request.on("error", (error) => error.code === "ECONNRESET" ? resolve() : reject(error));
+      request.write('{"type":"click"');
+      request.once("socket", (socket) => socket.once("connect", () => setTimeout(() => request.destroy(), 50)));
+    });
+    const response = await feedbackRequest(running.info.url, "/comments");
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).comments.length, 1);
+    assert.equal((await postEvent(running.info.url, { type: "click", choice: "choice-1", screen })).status, 200);
+  } finally { await stopServer(running); }
+});

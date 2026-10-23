@@ -227,6 +227,12 @@ Velg få kontroller som hjelper med det konkrete designspørsmålet, for eksempe
 tetthet eller plassering av en oppsummering. Kontroller påvirker bare den
 lokale forhåndsvisningen. Den samlede innsendingen gir de valgte verdiene tilbake.
 
+Hver del beholder sin egen merknad og lokale innstillinger når brukeren bytter
+del. **Utkast** i delvelgeren viser hva som fortsatt må legges til innspill eller
+tilbakestilles. Tilbakestilling gjelder visningen av den valgte delen og bevarer
+merknaden. Ingen slike lokale utkast overlever en manuell omlasting av siden;
+lagrede innspill blir liggende i økten.
+
 Et minimalt oppsett for én skisse:
 
 ```json
@@ -295,6 +301,10 @@ variantene i smale vinduer. Det eksplisitte variantvalget blir et innspill;
 å åpne eller vise en variant velger den ikke. **Behold dette** kan brukes på
 deler fra flere varianter, slik at neste runde kan kombinere det som fungerer.
 Det er ingen automatisk sammenslåing av HTML.
+Med tre eller fire varianter kan begge sider velges også i smale vinduer.
+Valg i listen for foretrukket variant viser alltid varianten før brukeren
+trykker **Foretrekk denne varianten**. Historiske innspill beholder etikettene
+fra versjonen de ble skrevet til, selv om senere skisser endrer navnene.
 Punktinnspill følger synlige elementer under sammenligning. Områdemarkeringer
 skjules fordi layouten er endret; avslutt sammenligning før et nytt område
 markeres. Et påbegynt områdeutkast bevares, og gjenåpning går tilbake til den
@@ -399,6 +409,10 @@ ut i Aksel, bruk ekte markup over — ikke `.mockup`.
 ```
 
 ### Flervalg
+
+Kort med egne lenker, knapper eller skjemakontroller er innholdsbeholdere og
+blir ikke automatisk valgkort. Dermed virker felt og avkryssing normalt. Bruk
+en separat `.option`-knapp hvis et slikt konsept skal ha et eksplisitt valg.
 
 Legg til `data-multiselect` på container:
 

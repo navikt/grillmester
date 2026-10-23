@@ -355,7 +355,7 @@ async function runWorkshop(context) {
   await openWorkshop();
   await adjustment.getByText("Må følges opp", { exact: true }).waitFor();
   const missingDecision = adjustment.locator(`[data-decision="${kept.id}"]`);
-  await missingDecision.getByRole("heading", { name: "Prioriterte oppgaver", exact: true }).waitFor();
+  await missingDecision.getByRole("heading", { name: "Prioriterte oppgaver · Prioritert liste", exact: true }).waitFor();
   await missingDecision.getByText("Tetthet: Tett", { exact: true }).waitFor();
   assert.equal(await frame.locator('[data-vc-key="summary-list"]').count(), 0);
   await closeWorkshop();
