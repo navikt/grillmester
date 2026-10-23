@@ -5,7 +5,8 @@
  *
  * A loopback-only, zero-dependency preview server. Agent-authored HTML is
  * rendered in a sandboxed, opaque-origin iframe. The fixed parent shell owns
- * all HTTP interaction and persists only validated, opaque selection IDs.
+ * all HTTP interaction. Opaque selections and explicitly authored feedback
+ * are persisted separately in private, bounded session state.
  *
  * Usage:
  *   node server.js --project-dir /path/to/project [--port PORT] [--host LOOPBACK]
@@ -19,6 +20,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
+const { FeedbackStore, FeedbackError, MAX_BODY_BYTES } = require("./feedback-store.js");
 
 const MAX_CONTENT_BYTES = 2 * 1024 * 1024;
 const MAX_INLINE_IMAGE_URL_BYTES = MAX_CONTENT_BYTES;
@@ -865,10 +867,11 @@ function wrapInFrame(content, filename, screen, nonce) {
     .replace(/\{\{CONTENT\}\}/g, () => cssWarning + safeContent);
 }
 
-function renderShellPage(nonce, accessToken, title) {
+function renderShellPage(nonce, accessToken, title, screen) {
   const previewPath = `/preview?token=${encodeURIComponent(accessToken)}`;
   const versionPath = `/version?token=${encodeURIComponent(accessToken)}`;
   const eventsPath = `/events?token=${encodeURIComponent(accessToken)}`;
+  const commentsPath = `/comments?token=${encodeURIComponent(accessToken)}`;
   return `<!DOCTYPE html>
 <html lang="nb">
 <head>
@@ -886,7 +889,7 @@ function renderShellPage(nonce, accessToken, title) {
     #vc-paused.visible { display: grid; }
     #vc-paused strong { display: block; margin-bottom: .5rem; font-size: 1.25rem; }
     #vc-status {
-      position: fixed; right: 1rem; bottom: 1rem; z-index: 3;
+      position: fixed; right: 1rem; top: 1rem; z-index: 3;
       border: 1px solid #b7b1a9; border-radius: 999px; padding: .35rem .7rem;
       background: rgba(255,255,255,.94); color: #27262b;
       font: 600 .8rem/1.2 system-ui, sans-serif;
@@ -908,7 +911,15 @@ function renderShellPage(nonce, accessToken, title) {
       const status = document.getElementById("vc-status");
       const versionUrl = ${serializeForInlineScript(versionPath)};
       const eventsUrl = ${serializeForInlineScript(eventsPath)};
-      let lastVersion = null;
+      const commentsUrl = ${serializeForInlineScript(commentsPath)};
+      let lastVersion = ${serializeForInlineScript(screen || "")};
+      let pendingVersion = null;
+      let feedbackBusy = true;
+      let frameReady = false;
+      let provisionalScreen = null;
+      let provisionalBusy = true;
+      let readyEpoch = 0;
+      let refreshing = false;
       let lastSuccessfulPoll = Date.now();
 
       function markConnected() {
@@ -943,6 +954,125 @@ function renderShellPage(nonce, accessToken, title) {
           /^[a-f0-9]{32}$/.test(data.event.screen);
       }
 
+      function closedKeys(value, required, optional = []) {
+        return value && typeof value === "object" && !Array.isArray(value) &&
+          required.every((key) => Object.hasOwn(value, key)) &&
+          Object.keys(value).every((key) => required.includes(key) || optional.includes(key));
+      }
+      function validText(value) {
+        return typeof value === "string" && new TextEncoder().encode(value).length <= 2000;
+      }
+      function validAnchor(value) {
+        const finite = (number, min, max) => typeof number === "number" && Number.isFinite(number) && number >= min && number <= max;
+        return hasExactKeys(value, ["path", "role", "rect", "viewport"]) &&
+          typeof value.path === "string" && value.path.length <= 512 &&
+          /^[a-z][a-z0-9-]*:nth-of-type\\([1-9][0-9]{0,5}\\)(?: > [a-z][a-z0-9-]*:nth-of-type\\([1-9][0-9]{0,5}\\))*$/.test(value.path) &&
+          ["", "button", "link", "textbox", "heading", "img", "navigation", "main", "region", "group", "list", "listitem", "checkbox", "radio", "combobox", "tab", "tabpanel", "table", "row", "cell", "alert", "status", "presentation", "none"].includes(value.role) &&
+          hasExactKeys(value.rect, ["x", "y", "width", "height"]) && finite(value.rect.x, 0, 1000000) && finite(value.rect.y, 0, 1000000) && finite(value.rect.width, 0, 100000) && finite(value.rect.height, 0, 100000) &&
+          hasExactKeys(value.viewport, ["width", "height"]) && finite(value.viewport.width, 1, 20000) && finite(value.viewport.height, 1, 20000);
+      }
+      function feedbackOperation(data) {
+        if (!hasExactKeys(data, ["channel", "version", "action", "requestId", "payload"]) || data.channel !== channel || data.version !== 1 || !Number.isInteger(data.requestId) || data.requestId < 1 || data.requestId > 1000000000) return null;
+        const value = data.payload;
+        const validScreen = (screen) => typeof screen === "string" && /^[a-f0-9]{32}$/.test(screen);
+        const validId = (id) => typeof id === "string" && /^[a-f0-9]{24}$/.test(id);
+        if (data.action === "comments-list" && hasExactKeys(value, [])) return { method: "GET", path: "/comments" };
+        if (data.action === "comment-create" && closedKeys(value, ["screen", "kind", "anchor", "text"], ["proposal"]) && validScreen(value.screen) && ["point", "area", "edit"].includes(value.kind) && validAnchor(value.anchor) && validText(value.text) &&
+          (value.kind === "edit" ? hasExactKeys(value.proposal, ["property", "value"]) && value.proposal.property === "text" && validText(value.proposal.value) : !Object.hasOwn(value, "proposal"))) return { method: "POST", path: "/comments", body: value };
+        if (data.action === "comments-submit" && closedKeys(value, [], ["screen"]) && (!Object.hasOwn(value, "screen") || validScreen(value.screen))) return { method: "POST", path: "/comments/submit", body: value };
+        if (data.action === "comment-delete" && hasExactKeys(value, ["id"]) && validId(value.id)) return { method: "DELETE", path: "/comments/" + value.id, body: {} };
+        if (data.action === "comment-update" && closedKeys(value, ["id"], ["status", "reply"]) && validId(value.id) && Object.keys(value).length > 1 &&
+          (!Object.hasOwn(value, "status") || ["open", "fixed"].includes(value.status)) && (!Object.hasOwn(value, "reply") || validText(value.reply))) {
+          const { id, ...body } = value;
+          return { method: "PATCH", path: "/comments/" + id, body };
+        }
+        return null;
+      }
+      function sendToPreview(message) { frame.contentWindow.postMessage({ channel, version: 1, ...message }, "*"); }
+      function refreshPreview(force = false) {
+        if (!frameReady || !pendingVersion || refreshing) return;
+        refreshing = true;
+        const version = pendingVersion;
+        pendingVersion = null;
+        sendToPreview({ command: "refreshing" });
+        setTimeout(() => {
+          if (feedbackBusy && !force) {
+            pendingVersion = pendingVersion || version;
+            refreshing = false;
+            sendToPreview({ command: "update-available", screen: pendingVersion });
+            return;
+          }
+          lastVersion = version;
+          if (pendingVersion === version) pendingVersion = null;
+          const next = new URL(${serializeForInlineScript(previewPath)}, window.location.origin);
+          next.searchParams.set("v", version);
+          frameReady = false;
+          provisionalScreen = null;
+          readyEpoch += 1;
+          frame.src = next.pathname + next.search;
+          feedbackBusy = true;
+          refreshing = false;
+        }, 400);
+      }
+      function acceptReady(snapshot) {
+        if (frameReady || !provisionalScreen || !(snapshot.screens.some((item) => item.screen === provisionalScreen) || provisionalScreen === "00000000000000000000000000000000")) return;
+        lastVersion = provisionalScreen;
+        frameReady = true;
+        feedbackBusy = provisionalBusy;
+        if (pendingVersion === lastVersion) pendingVersion = null;
+        if (pendingVersion) sendToPreview({ command: "update-available", screen: pendingVersion });
+        if (!feedbackBusy) refreshPreview();
+      }
+      async function pollComments() {
+        const response = await fetch(commentsUrl, { credentials: "same-origin", cache: "no-store" });
+        if (!response.ok) throw new Error("feedback unavailable");
+        const snapshot = await response.json();
+        acceptReady(snapshot);
+        sendToPreview({ command: "comments-snapshot", snapshot });
+      }
+      window.addEventListener("message", (message) => {
+        if (message.source !== frame.contentWindow) return;
+        const data = message.data;
+        if (hasExactKeys(data, ["channel", "version", "action", "screen"]) && data.channel === channel && data.version === 1 && data.action === "feedback-ready" && typeof data.screen === "string" && /^[a-f0-9]{32}$/.test(data.screen)) {
+          provisionalScreen = data.screen;
+          provisionalBusy = true;
+          frameReady = false;
+          const epoch = ++readyEpoch;
+          fetch(commentsUrl, { credentials: "same-origin", cache: "no-store" }).then(async (response) => {
+            if (!response.ok) throw new Error("feedback unavailable");
+            const snapshot = await response.json();
+            if (epoch !== readyEpoch) return;
+            acceptReady(snapshot);
+            sendToPreview({ command: "comments-snapshot", snapshot });
+          }).catch(markDisconnected);
+          return;
+        }
+        if (hasExactKeys(data, ["channel", "version", "action", "screen", "busy"]) && data.channel === channel && data.version === 1 && data.action === "feedback-busy" && typeof data.busy === "boolean" && (data.screen === lastVersion || data.screen === provisionalScreen)) {
+          if (!frameReady) {
+            if (data.screen === provisionalScreen) provisionalBusy = data.busy;
+            return;
+          }
+          feedbackBusy = data.busy;
+          if (!feedbackBusy) refreshPreview();
+          return;
+        }
+        if (hasExactKeys(data, ["channel", "version", "action", "screen"]) && data.channel === channel && data.version === 1 && data.action === "refresh-now" && data.screen === lastVersion) {
+          refreshPreview(true);
+          return;
+        }
+        const operation = feedbackOperation(data);
+        if (!operation) return;
+        const url = new URL(commentsUrl, window.location.origin);
+        url.pathname = operation.path;
+        fetch(url, { method: operation.method, credentials: "same-origin", cache: "no-store",
+          ...(operation.body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(operation.body) }),
+        }).then(async (response) => {
+          const result = await response.json();
+          sendToPreview(response.ok ? { command: "comments-result", requestId: data.requestId, ok: true, snapshot: result }
+            : { command: "comments-result", requestId: data.requestId, ok: false, error: result.error || "Feedback request failed." });
+        }).catch(() => sendToPreview({ command: "comments-result", requestId: data.requestId, ok: false, error: "Feedback is unavailable. Keep your note and try again." }));
+      });
+
       window.addEventListener("message", (message) => {
         if (message.source !== frame.contentWindow || !validSelectionMessage(message.data)) return;
         const event = message.data.event;
@@ -973,17 +1103,14 @@ function renderShellPage(nonce, accessToken, title) {
             return response.text();
           })
           .then((version) => {
-            if (lastVersion === null) {
-              lastVersion = version;
-            } else if (version && version !== lastVersion) {
-              lastVersion = version;
-              frame.contentWindow.postMessage({ channel, version: 1, command: "refreshing" }, "*");
-              setTimeout(() => {
-                const next = new URL(${serializeForInlineScript(previewPath)}, window.location.origin);
-                next.searchParams.set("v", version);
-                frame.src = next.pathname + next.search;
-              }, 400);
+            if (version && version !== lastVersion) {
+              pendingVersion = version;
+              if (frameReady) {
+                sendToPreview({ command: "update-available", screen: version });
+                if (!feedbackBusy) refreshPreview();
+              }
             }
+            return pollComments();
           })
           .catch(markDisconnected);
       }, 2000);
@@ -1040,6 +1167,7 @@ function setCommonHeaders(res) {
   );
 }
 
+const feedback = new FeedbackStore(stateDir);
 const accessToken = crypto.randomBytes(32).toString("base64url");
 const tokenBuffer = Buffer.from(accessToken);
 let authority = null;
@@ -1047,10 +1175,14 @@ let eventCount = 0;
 let lastActivity = Date.now();
 let activeSessionRemoved = false;
 let activeScreen = null;
+let listeningUntil = 0;
+
+function feedbackSnapshot() { return { ...feedback.snapshot(), listeningUntil }; }
 
 function activateScreen(newest) {
   const nextScreen = newest ? newest.screen : "";
   if (activeScreen === nextScreen) return;
+  if (newest) feedback.knowScreen(newest.screen, newest.filename);
   activeScreen = nextScreen;
   eventCount = 0;
   const eventPath = path.join(stateDir, "events.jsonl");
@@ -1168,6 +1300,45 @@ function readEventBody(req, res) {
   });
 }
 
+function sendJson(res, status, value) {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(value));
+}
+
+function readFeedbackBody(req, res, operation) {
+  let chunks = [];
+  let size = 0;
+  let rejected = false;
+  req.on("error", () => { rejected = true; chunks = []; });
+  req.on("data", (chunk) => {
+    if (rejected) return;
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) {
+      rejected = true;
+      chunks = [];
+      sendJson(res, 413, { error: "Feedback payload too large." });
+      return;
+    }
+    chunks.push(chunk);
+  });
+  req.on("end", () => {
+    if (rejected || res.writableEnded) return;
+    let value;
+    try { value = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
+    catch { sendJson(res, 400, { error: "Invalid JSON." }); return; }
+    try {
+      operation(value);
+      const snapshot = feedbackSnapshot();
+      lastActivity = Date.now();
+      sendJson(res, 200, snapshot);
+    } catch (error) {
+      sendJson(res, error instanceof FeedbackError ? error.status : 500, {
+        error: error instanceof FeedbackError ? error.message : "Feedback storage is unavailable.",
+      });
+    }
+  });
+}
+
 const server = http.createServer((req, res) => {
   setCommonHeaders(res);
   if (!isLoopbackAddress(req.socket.remoteAddress)) {
@@ -1208,6 +1379,33 @@ const server = http.createServer((req, res) => {
   } catch {
     res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Preview state is unavailable.");
+    return;
+  }
+
+  if (requestUrl.pathname === "/comments" || requestUrl.pathname.startsWith("/comments/")) {
+    const commentId = /^\/comments\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
+    if (req.method === "GET" && requestUrl.pathname === "/comments") {
+      if (requestUrl.searchParams.get("waiter") === "1") listeningUntil = Date.now() + 2000;
+      sendJson(res, 200, feedbackSnapshot());
+      return;
+    }
+    const operation = req.method === "POST" && requestUrl.pathname === "/comments" ? (value) => feedback.create(value)
+      : req.method === "POST" && requestUrl.pathname === "/comments/submit" ? (value) => feedback.submit(value)
+      : req.method === "PATCH" && commentId ? (value) => feedback.patch(commentId, value)
+      : req.method === "DELETE" && commentId ? (value) => feedback.delete(commentId, value) : null;
+    if (!operation) {
+      sendJson(res, 405, { error: "Unsupported feedback operation." });
+      return;
+    }
+    if (req.headers.origin !== expectedOrigin) {
+      sendJson(res, 403, { error: "Feedback writes require the exact server origin." });
+      return;
+    }
+    if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(String(req.headers["content-type"] || ""))) {
+      sendJson(res, 415, { error: "application/json required." });
+      return;
+    }
+    readFeedbackBody(req, res, operation);
     return;
   }
 
@@ -1256,7 +1454,7 @@ const server = http.createServer((req, res) => {
     const nonce = crypto.randomBytes(18).toString("base64url");
     res.setHeader("Content-Security-Policy", shellCsp(nonce));
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderShellPage(nonce, accessToken, newest?.filename || "prototype"));
+    res.end(renderShellPage(nonce, accessToken, newest?.filename || "prototype", newest?.screen));
     return;
   }
 

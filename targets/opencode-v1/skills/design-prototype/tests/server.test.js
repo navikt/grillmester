@@ -749,3 +749,309 @@ test("cleanup is marker-bound to one exact session and never broad-deletes", asy
   await stopServer(graceful);
   assert.equal(fs.existsSync(gracefulSessionRoot), false);
 });
+
+const COMMENTS = path.resolve(__dirname, "../scripts/comments.js");
+function runComments(args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [COMMENTS, ...args], { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "", stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, stdout, stderr }));
+  });
+}
+async function feedbackRequest(url, pathname, method = "GET", body) {
+  return fetch(endpoint(url, pathname), {
+    method,
+    headers: { Origin: new URL(url).origin, ...(method === "GET" ? {} : { "Content-Type": "application/json" }) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+}
+async function previewScreen(running, content = "<h1>Prototype</h1>") {
+  fs.writeFileSync(path.join(running.info.screen_dir, "test.html"), content);
+  return (await fetch(endpoint(running.info.url, "/version"))).text();
+}
+function commentFor(screen, overrides = {}) {
+  return {
+    screen, kind: "point", text: "Make the primary action clearer.",
+    anchor: { path: "main:nth-of-type(1) > button:nth-of-type(1)", role: "button", rect: { x: 20, y: 40, width: 100, height: 30 }, viewport: { width: 1200, height: 800 } },
+    ...overrides,
+  };
+}
+
+test("feedback persists privately across screen versions, with deliberate batches and replies", async () => {
+  const projectDir = makeProject();
+  const running = await startServer(projectDir);
+  try {
+    const screen = await previewScreen(running);
+    const created = await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen));
+    assert.equal(created.status, 200);
+    const snapshot = await created.json();
+    assert.equal(snapshot.comments.length, 1);
+    assert.equal(snapshot.comments[0].submission, 0);
+    assert.equal(snapshot.screens[0].filename, "test.html");
+    const id = snapshot.comments[0].id;
+    assert.match(id, /^[a-f0-9]{24}$/);
+    const filename = path.join(running.info.state_dir, "comments.json");
+    assert.equal(mode(filename), 0o600);
+    assert.equal(fs.existsSync(path.join(running.info.state_dir, "events.jsonl")), false);
+    const nextScreen = await previewScreen(running, "<h1>Updated prototype</h1>");
+    assert.notEqual(screen, nextScreen);
+    const stale = await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { text: "My frozen tab still shows the prior screen." }));
+    assert.equal(stale.status, 200);
+    const submitted = await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen });
+    const batch = await submitted.json();
+    assert.equal(batch.submission, 1);
+    assert.deepEqual(batch.comments.map((item) => item.submission), [1, 1]);
+    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen })).status, 409);
+    const resolved = await feedbackRequest(running.info.url, `/comments/${id}`, "PATCH", { status: "fixed", reply: "The primary action now has a stronger label." });
+    assert.equal(resolved.status, 200);
+    const after = (await resolved.json()).comments[0];
+    assert.equal(after.status, "fixed");
+    assert.match(after.reply, /stronger label/);
+    assert.equal(after.submission, 1);
+    assert.equal((await feedbackRequest(running.info.url, `/comments/${id}`, "DELETE", {})).status, 200);
+    const persisted = JSON.parse(fs.readFileSync(filename, "utf8"));
+    assert.equal(persisted.comments.length, 1);
+    assert.equal(persisted.screens.length, 2);
+    assert.deepEqual(fs.readdirSync(projectDir), []);
+  } finally { await stopServer(running); }
+});
+
+test("feedback rejects unknown fields, DOM data, unsafe geometry, and forged write origins", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const valid = commentFor(screen);
+    const badValues = [
+      { ...valid, html: "<input value='secret'>" },
+      { ...valid, anchor: { ...valid.anchor, text: "captured content" } },
+      { ...valid, anchor: { ...valid.anchor, path: "#customer-name" } },
+      { ...valid, anchor: { ...valid.anchor, role: "customer account" } },
+      { ...valid, anchor: { ...valid.anchor, rect: { ...valid.anchor.rect, x: -1 } } },
+      { ...valid, anchor: { ...valid.anchor, rect: { ...valid.anchor.rect, height: 1e100 } } },
+      { ...valid, text: "ø".repeat(1001) },
+      { ...valid, text: "" },
+      { ...valid, text: "null\0character" },
+      { ...valid, kind: "script" },
+      { ...valid, proposal: { property: "text", value: "unannounced edit" } },
+      { ...valid, kind: "edit", proposal: { property: "innerHTML", value: "<b>wrong</b>" } },
+      { ...valid, kind: "edit", proposal: { property: "text", value: "fine", original: "captured content" } },
+    ];
+    for (const value of badValues) assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", value)).status, 400, JSON.stringify(value));
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", { ...valid, screen: "a".repeat(32) })).status, 409);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", { ...valid, text: "x".repeat(20000) })).status, 413);
+    const url = endpoint(running.info.url, "/comments");
+    for (const origin of [undefined, "null", "https://attacker.invalid"]) {
+      assert.equal((await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", ...(origin === undefined ? {} : { Origin: origin }) }, body: JSON.stringify(valid) })).status, 403);
+    }
+    assert.equal((await fetch(url, { method: "POST", headers: { "Content-Type": "application/jsonp", Origin: url.origin }, body: JSON.stringify(valid) })).status, 415);
+    const missingToken = new URL(url); missingToken.search = "";
+    assert.equal((await fetch(missingToken)).status, 403);
+    const edit = await feedbackRequest(running.info.url, "/comments", "POST", { ...valid, kind: "edit", text: "", proposal: { property: "text", value: "Continue" } });
+    assert.equal(edit.status, 200);
+    const id = (await edit.json()).comments[0].id;
+    for (const patch of [{}, { text: "changed" }, { status: "done" }, { reply: "x".repeat(2001) }]) assert.equal((await feedbackRequest(running.info.url, `/comments/${id}`, "PATCH", patch)).status, 400);
+    assert.equal((await feedbackRequest(running.info.url, `/comments/${id}`, "DELETE", { force: true })).status, 400);
+  } finally { await stopServer(running); }
+});
+
+test("feedback mutations refuse symlinked and hard-linked state without writing outside the session", async () => {
+  const running = await startServer(makeProject());
+  const outside = makeProject();
+  const protectedFile = path.join(outside, "protected.json");
+  fs.writeFileSync(protectedFile, "untouched", { mode: 0o600 });
+  try {
+    const screen = await previewScreen(running);
+    const stateFile = path.join(running.info.state_dir, "comments.json");
+    const saved = fs.readFileSync(stateFile);
+    for (const link of ["symbolic", "hard"]) {
+      fs.unlinkSync(stateFile);
+      if (link === "symbolic") fs.symlinkSync(protectedFile, stateFile);
+      else fs.linkSync(protectedFile, stateFile);
+      assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen))).status, 500);
+      assert.equal(fs.readFileSync(protectedFile, "utf8"), "untouched");
+      fs.unlinkSync(stateFile);
+      fs.writeFileSync(stateFile, saved, { mode: 0o600 });
+    }
+    const result = await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen));
+    assert.equal(result.status, 200);
+    assert.equal((await result.json()).comments.length, 1);
+    assert.equal(fs.readdirSync(running.info.state_dir).some((name) => name.endsWith(".tmp")), false);
+  } finally { await stopServer(running); }
+});
+
+test("feedback count is capped and concurrent requests do not lose accepted comments", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    for (let start = 0; start < 200; start += 20) {
+      const replies = await Promise.all(Array.from({ length: 20 }, (_, offset) => feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { text: `Comment ${start + offset}` }))));
+      assert.equal(replies.every((reply) => reply.status === 200), true);
+    }
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen))).status, 429);
+    const snapshot = await (await feedbackRequest(running.info.url, "/comments")).json();
+    assert.equal(snapshot.comments.length, 200);
+    assert.equal(new Set(snapshot.comments.map((item) => item.id)).size, 200);
+    assert.ok(fs.statSync(path.join(running.info.state_dir, "comments.json")).size < 2 * 1024 * 1024);
+  } finally { await stopServer(running); }
+});
+
+test("feedback CLI waits for a submitted batch, bounds its wait, and resolves through the server", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const stateArgs = ["--state-dir", running.info.state_dir];
+    const initial = await runComments(["list", ...stateArgs]);
+    assert.equal(initial.code, 0, initial.stderr);
+    assert.equal(JSON.parse(initial.stdout).submission, 0);
+    const timedOut = await runComments(["wait", ...stateArgs, "--after", "0", "--timeout", "0"]);
+    assert.equal(timedOut.code, 0, timedOut.stderr);
+    assert.equal(JSON.parse(timedOut.stdout).type, "feedback-timeout");
+    assert.equal((await runComments(["wait", ...stateArgs, "--timeout", "61"])).code, 2);
+    assert.equal((await runComments(["wait", ...stateArgs, "--after", "-1"])).code, 2);
+    const waiting = runComments(["wait", ...stateArgs, "--after", "0", "--timeout", "4"]);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const lease = await (await feedbackRequest(running.info.url, "/comments")).json();
+    assert.ok(lease.listeningUntil > Date.now());
+    const created = await (await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen))).json();
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen });
+    const batch = await waiting;
+    assert.equal(batch.code, 0, batch.stderr);
+    assert.equal(JSON.parse(batch.stdout).type, "feedback-submission");
+    assert.equal(JSON.parse(batch.stdout).comments[0].submission, 1);
+    const id = created.comments[0].id;
+    const resolved = await runComments(["resolve", ...stateArgs, "--id", id, "--reply", "Adjusted and checked."]);
+    assert.equal(resolved.code, 0, resolved.stderr);
+    assert.equal(JSON.parse(resolved.stdout).comments[0].status, "fixed");
+    assert.equal(JSON.parse(resolved.stdout).comments[0].reply, "Adjusted and checked.");
+    const reopened = await runComments(["reopen", ...stateArgs, "--id", id]);
+    assert.equal(JSON.parse(reopened.stdout).comments[0].status, "open");
+    const deleted = await runComments(["delete", ...stateArgs, "--id", id]);
+    assert.equal(JSON.parse(deleted.stdout).comments.length, 0);
+    const token = new URL(running.info.url).searchParams.get("token");
+    for (const result of [initial, timedOut, batch, resolved, reopened, deleted]) assert.equal(`${result.stdout}${result.stderr}`.includes(token), false);
+  } finally { await stopServer(running); }
+});
+
+test("the fixed shell validates feedback messages and defers refresh while a note is busy", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const html = await (await fetch(running.info.url)).text();
+    const script = html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)[1];
+    const vm = require("node:vm");
+    const callbacks = [], intervals = [], requests = [], messages = [];
+    const frameWindow = { postMessage: (value) => messages.push(value) };
+    const frame = { contentWindow: frameWindow, src: "unchanged" };
+    const status = { textContent: "", classList: { remove() {}, add() {} } };
+    const newer = "f".repeat(32);
+    const newest = "e".repeat(32);
+    let pollVersion = newer;
+    vm.runInNewContext(script, {
+      document: { getElementById: (id) => id === "vc-preview" ? frame : status },
+      window: { location: { origin: new URL(running.info.url).origin }, addEventListener: (_, callback) => callbacks.push(callback) },
+      setInterval: (callback) => intervals.push(callback), setTimeout: (callback) => callback(),
+      URL, TextEncoder, Date,
+      fetch: async (url, options) => { requests.push({ url: String(url), options }); return { ok: true, text: async () => pollVersion, json: async () => ({ revision: 1, submission: 0, screens: [{ screen, filename: "test.html" }, { screen: newer, filename: "test.html" }, { screen: newest, filename: "test.html" }], comments: [], listeningUntil: 0 }) }; },
+    });
+    const send = (data, source = frameWindow) => callbacks.forEach((callback) => callback({ data, source }));
+    const base = { channel: "grillmester-visual-companion", version: 1 };
+    send({ ...base, action: "comment-create", requestId: 1, payload: { ...commentFor(screen), html: "hidden" } });
+    send({ ...base, action: "comment-create", requestId: 1, payload: commentFor(screen) }, {});
+    assert.equal(requests.length, 0);
+    send({ ...base, action: "comment-create", requestId: 1, payload: commentFor(screen) });
+    await new Promise(setImmediate);
+    assert.equal(requests.length, 1);
+    assert.equal(new URL(requests[0].url).pathname, "/comments");
+    assert.equal(messages.at(-1).command, "comments-result");
+    // The iframe loaded a newer version than the parent shell was rendered for.
+    send({ ...base, action: "feedback-ready", screen: newer });
+    send({ ...base, action: "feedback-busy", screen: newer, busy: true });
+    await new Promise(setImmediate);
+    intervals[0]();
+    await new Promise(setImmediate);
+    assert.equal(frame.src, "unchanged");
+    assert.equal(messages.some((message) => message.command === "update-available"), false);
+    pollVersion = newest;
+    intervals[0]();
+    await new Promise(setImmediate);
+    assert.equal(frame.src, "unchanged");
+    assert.ok(messages.some((message) => message.command === "update-available"));
+    send({ ...base, action: "refresh-now", screen: newer });
+    assert.match(frame.src, /v=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/);
+    frame.src = "newer-frame-loaded";
+    send({ ...base, action: "feedback-ready", screen: newest });
+    send({ ...base, action: "feedback-busy", screen: newest, busy: true });
+    await new Promise(setImmediate);
+    intervals[0]();
+    await new Promise(setImmediate);
+    assert.equal(frame.src, "newer-frame-loaded");
+  } finally { await stopServer(running); }
+});
+
+test("feedback refuses a state-directory swap during temporary open before writing bytes", () => {
+  const { FeedbackStore } = require("../scripts/feedback-store.js");
+  const root = fs.realpathSync(makeProject());
+  const state = path.join(root, "state");
+  const moved = path.join(root, "original-state");
+  const outside = path.join(root, "outside");
+  fs.mkdirSync(state, { mode: 0o700 });
+  fs.mkdirSync(outside, { mode: 0o700 });
+  const outsideFile = path.join(outside, "comments.json");
+  fs.writeFileSync(outsideFile, "protected", { mode: 0o600 });
+  const store = new FeedbackStore(state);
+  const before = store.snapshot();
+  const originalOpen = fs.openSync;
+  let swapped = false;
+  fs.openSync = function (filename, ...args) {
+    if (!swapped && String(filename).startsWith(path.join(state, ".comments-"))) {
+      swapped = true;
+      fs.renameSync(state, moved);
+      fs.symlinkSync(outside, state);
+    }
+    return originalOpen.call(fs, filename, ...args);
+  };
+  try {
+    assert.throws(() => store.knowScreen("a".repeat(32), "private-prototype.html"), /unsafe feedback state directory/i);
+  } finally { fs.openSync = originalOpen; }
+  assert.equal(swapped, true);
+  assert.deepEqual(store.snapshot(), before);
+  assert.equal(fs.readFileSync(outsideFile, "utf8"), "protected");
+  for (const filename of fs.readdirSync(outside).filter((name) => name !== "comments.json")) {
+    assert.equal(fs.statSync(path.join(outside, filename)).size, 0, "refused open must not write feedback into the replacement directory");
+  }
+  fs.unlinkSync(state);
+  fs.renameSync(moved, state);
+  store.knowScreen("b".repeat(32), "safe-prototype.html");
+  assert.equal(store.snapshot().screens.length, 1);
+});
+
+test("feedback CLI malformed private state errors never echo file contents", async () => {
+  const root = fs.realpathSync(makeProject());
+  fs.chmodSync(root, 0o700);
+  const marker = "private-credential-do-not-print";
+  fs.writeFileSync(path.join(root, "server-info.json"), `{"url":"${marker}`, { mode: 0o600 });
+  const result = await runComments(["list", "--state-dir", root]);
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /invalid private preview state json/i);
+  assert.equal(`${result.stdout}${result.stderr}`.includes(marker), false);
+});
+
+test("a batch can submit pending notes from both current and previous screen versions", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const first = await previewScreen(running, "<h1>First version</h1>");
+    await feedbackRequest(running.info.url, "/comments", "POST", commentFor(first));
+    const second = await previewScreen(running, "<h1>Second version</h1>");
+    await feedbackRequest(running.info.url, "/comments", "POST", commentFor(second));
+    const response = await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
+    assert.equal(response.status, 200);
+    const snapshot = await response.json();
+    assert.deepEqual(snapshot.comments.map((item) => item.submission), [1, 1]);
+    assert.equal(snapshot.comments.some((item) => item.screen === first), true);
+    assert.equal(snapshot.comments.some((item) => item.screen === second), true);
+    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { all: true })).status, 400);
+  } finally { await stopServer(running); }
+});

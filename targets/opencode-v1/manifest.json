@@ -472,7 +472,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "5a2833ef0696336cba5901d5176a8da04ba4b9f1e67434c2897c815490dc4a72",
+      "sha256": "a34a3ed6a7840af9a3802494364c226617354070b48cb1c9707c80b2cfae6834",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -496,7 +496,15 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "a8d6eb652638280107f59ec08c6e9eb3d8575a5f85ffb5dbcb7d5494cc0bf66b",
+      "sha256": "3929fdcfe87ac25e3c7df5ab0769db4cf1b56ce4dcd67109ac0295b36081cfe2",
+      "mode": "0644"
+    },
+    "skills/design-prototype/scripts/comments.js": {
+      "sha256": "21c65023bd2cd2dc45c56bd1147e726c7789e238ec18c23410251ad1aad39945",
+      "mode": "0644"
+    },
+    "skills/design-prototype/scripts/feedback-store.js": {
+      "sha256": "b5c681e84355bf8012f9f3a7f8a51729ab3f356dc72a4b00e134b65cf6ea6798",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/frame-template.tmpl": {
@@ -504,15 +512,15 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "1af0a5f87e412bd9210fbcc671c41c4cab214ddb3cd5e42389d8d8ce0c35f050",
+      "sha256": "2baa1fad317aed0d44ca261cd0e0f6342a2daaf5cb8678a9c79b0cde089e2779",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "39362235fee00b75d8f15f8276a4ac1cf29370d4308a5e4872892b20a244cbdf",
+      "sha256": "b14eaf23e7355b50cbb8b688506c65e4b90022ecc408514152c97e50aaf829d3",
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "d842e1932631ad1b045103ed3645154c737b485e1c8a024f37bef2de6491fa63",
+      "sha256": "fda744d2e0df117d5458d52d11699405121b7aa77ea5fc38ae6aea2ff241983b",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
