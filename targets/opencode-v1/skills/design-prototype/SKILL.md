@@ -320,18 +320,22 @@ Vis resultat → designer gir feedback → juster → gjenta til fornøyd.
 ## UU, opprydding og degradation
 
 - Sjekk kontrast og semantikk i designet. Full WCAG: `accessibility-review` ved overlevering.
-- Stopp den eksakte non-blocking/async-sesjonen som startet serveren etter
-  leveranse. Ikke signaliser en PID fra gammel metadata; prosess-ID-er kan
+- I den midlertidige nettleserflyten: stopp den eksakte non-blocking/async-sesjonen
+  som startet serveren etter leveranse. Ikke signaliser en PID fra gammel metadata; prosess-ID-er kan
   gjenbrukes. Normal stopp og inaktivitet fjerner bare den aktive, markerte
   temp-sesjonen automatisk.
-- Etter krasj/strømbrudd: bruk startup-JSON-ens ID og kjør
+- Etter krasj/strømbrudd i den midlertidige nettleserflyten: bruk startup-JSON-ens ID og kjør
   `node scripts/server.js --project-dir <consumer-repo> --cleanup <session_id>`.
   Serveren verifiserer markøren og fjerner bare denne sesjonen. Den støtter ikke
   `--cleanup-all`. For flere kjente restsesjoner: vis eksakte ID-er/stier, få
   eksplisitt godkjenning, og rydd én ID om gangen.
-- Med bare Figma read → bruk konteksten, men lever Visual Companion,
-  Figma-klart utkast eller Issue-utkast; ikke hev at en fil ble skrevet.
-- Uten Figma MCP → beskriv konseptet, lever som Issue-utkast.
+- I canvas-flyten eier klienten prosessen og oppryddingen. Bruk panelets
+  lukkehandling; ikke stopp barneprosessen eller kjør midlertidig cleanup på
+  egen hånd. Det prosjektlagrede designrommet skal bevares.
+- Ved bestilt Figma-leveranse med bare read eller uten Figma MCP: bruk
+  tilgjengelig kontekst og avtal Visual Companion, Figma-klart utkast eller
+  Issue-utkast; ikke hev at en Figma-fil ble skrevet.
+- Manglende Figma-kapabilitet endrer ikke en bestilt canvas- eller nettleserleveranse.
 - Uten Node.js → Chat + Figma direkte (hopp over Visual Companion).
 - I cloud/remote uten tilgjengelig loopback-URL → Chat + Figma direkte.
 - Uten Playwright → manuelt skjermbilde fra designer.
@@ -349,7 +353,8 @@ Vis resultat → designer gir feedback → juster → gjenta til fornøyd.
 - Skriv kode i prosjektets kildekode eller deleger kodeimplementering
 - Opprett branch, commit, push, pull request eller deploy automatisk
 - Gjør Figma-, GitHub- eller andre eksterne writes uten eksplisitt godkjenning
-- Installer pakker eller endre `.gitignore`, lockfiler eller andre repo-filer som del av lokal preview
+- Installer pakker eller endre `.gitignore` eller lockfiler som del av preview
+- Skriv repo-filer i den midlertidige nettleserflyten. Bestilte designrom skrives bare gjennom canvas-flyten i avtalt prosjektmappe
 - Bruk ekte data, PII, secrets eller produksjonsinnhold i Visual Companion
 - Eksponer verktøynavn til designeren
 - Feilsøk build-problemer (fall tilbake til neste metode)

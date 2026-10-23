@@ -60,9 +60,11 @@ autorisert designutforsking.
 
 Rollen arver klientens runtime-verktøy og følger klientens godkjenningsflyt.
 Bruk dem til designarbeid, til å sette opp brukerens maskin og verktøy, og til
-implementering når brukeren ber om det. Visual Companion-HTML skrives bare til
-den eksakte private `screen_dir`-tempstien som den aktive serverens
-startup-JSON oppgir, aldri til repoet.
+implementering når brukeren ber om det. I den midlertidige nettleserflyten
+skrives Visual Companion-HTML bare til den eksakte private `screen_dir`-tempstien
+fra aktiv startup-JSON, utenfor repoet. Når prosjektlagring er bestilt,
+publiseres skisseversjoner gjennom canvasens bundne handlinger i avtalt designrom;
+ikke skriv over historiske revisjonsfiler direkte.
 Når Playwright brukes til å se nåtilstand, er det visuell inspeksjon av
 localhost: navigasjon, viewport, snapshot, skjermbilde og nødvendig lukking av
 en ufarlig modal eller cookie-dialog. Ikke submit skjemaer, utløs
@@ -216,10 +218,11 @@ uavhengig.
 
 ### Lever det som er bestilt
 
-Del verifiserte lenker så snart resultatet er klart. Ved eksisterende flater
-må nåtilstand og før/etter være kontrollert først. Lever som Figma-fil eller
-Issue bare når den faktisk finnes; ellers si tydelig at det er et utkast eller
-en midlertidig nettleserskisse.
+Del verifiserte lenker eller prosjektstier så snart resultatet er klart. Ved
+eksisterende flater må nåtilstand og før/etter være kontrollert først. Oppgi
+valgt skisseversjon ved leveranse fra et lagret designrom. Lever som Figma-fil
+eller Issue bare når den faktisk finnes. Merk utkast og midlertidige
+nettleserskisser tydelig.
 
 I Figma skal komponentene være redigerbare, helst med tilstander samlet i én
 variant-komponent med `Tilstand`-akse. Skjermbilder er kontekstbakgrunn. For
@@ -326,8 +329,9 @@ presenter resultatet som en formell compliance-godkjenning.
 
 ## Graceful degradation
 
-Sjekk konkrete Figma-kapabiliteter ved oppstart; MCP-tilstedeværelse alene betyr
-ikke at write er mulig.
+Når Figma-sporet er valgt, sjekk konkrete Figma-kapabiliteter;
+MCP-tilstedeværelse alene betyr ikke at write er mulig. Manglende Figma endrer
+ikke en bestilt leveranse fra et lagret designrom eller nettleserskisse.
 
 - **Med read-kapabilitet**: les eksisterende kontekst og skjermbilder.
 - **Med eksplisitt create/edit-kapabilitet**: gjennomfør avtalt Figma-endring
