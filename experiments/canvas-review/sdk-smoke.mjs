@@ -110,7 +110,7 @@ class StdioHost {
       case 'session.resume':
         assert.equal(message.params.sessionId, this.sessionId);
         this.resume = message.params;
-        reply({ sessionId: this.sessionId, workspacePath: this.workspacePath, capabilities: { ui: { canvases: true } }, openCanvases: [] });
+        reply({ sessionId: this.sessionId, workspacePath: this.workspacePath, capabilities: { ui: {} }, openCanvases: [] });
         break;
       case 'session.send': {
         const record = { ...message.params, messageId: `review-message-${this.sends.length + 1}` };
@@ -198,7 +198,13 @@ try {
     assert.deepEqual(host.resume.canvases[0].actions.map(action => action.name).sort(), ['apply_revision', 'read_state', 'review_batch']);
   });
 
-  const context = { sessionId, extensionId: 'project:design-review-probe', canvasId: 'design-review-probe', instanceId: randomUUID(), host: { capabilities: { canvases: true } }, session: { workingDirectory: workspace } };
+  // The native host may omit both optional rendering flags. The bound open
+  // callback must still work without claiming rendering has been verified.
+  const context = { sessionId, extensionId: 'project:design-review-probe', canvasId: 'design-review-probe', instanceId: randomUUID(), session: { workingDirectory: workspace } };
+  await check('an explicit rendering denial rejects open even with a bound session', async () => {
+    await assert.rejects(host.request('canvas.open', { ...context, host: { capabilities: { canvases: false } } }), /canvas support/);
+    assert.equal(host.sends.length, 0);
+  });
   await pause(30);
   const opened = await host.request('canvas.open', { ...context, input: { concept: 'content' } });
   let canvasUrl = new URL(opened.url);

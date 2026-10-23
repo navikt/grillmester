@@ -58,6 +58,49 @@ test('closed input schemas reject privilege fields, unknown directions and overs
   await assert.rejects(f.probe.canvas.open({ ...f.ctx, instanceId: randomUUID(), host: { capabilities: { canvases: false } } }), /canvas support/);
 });
 
+test('bound opens allow optional rendering flags but reject denials and malformed values', async t => {
+  for (const hostCanvases of [undefined, true, false, null, 'true', 1]) {
+    for (const sessionCanvases of [undefined, true, false, null, 'true', 1]) {
+      const sessionId = randomUUID(), sent = [];
+      const probe = createReviewProbe({ sessionId });
+      t.after(() => probe.close());
+      probe.attachSession({ sessionId, capabilities: { ui: { canvases: sessionCanvases } }, send: input => { sent.push(input); } });
+      const ctx = { sessionId, extensionId: 'review-probe', canvasId: 'design-review-probe', instanceId: randomUUID() };
+      if (hostCanvases !== undefined) ctx.host = { capabilities: { canvases: hostCanvases } };
+      const label = `callback=${String(hostCanvases)}, session=${String(sessionCanvases)}`;
+      const supported = (hostCanvases === undefined && sessionCanvases === undefined)
+        || (hostCanvases === true && sessionCanvases === true)
+        || (hostCanvases === true && sessionCanvases === undefined)
+        || (hostCanvases === undefined && sessionCanvases === true);
+      if (supported) {
+        const { url } = await probe.canvas.open(ctx);
+        assert.equal((await fetch(url)).status, 200, label);
+        await assert.rejects(probe.canvas.open({ ...ctx, sessionId: randomUUID() }), /ownership/, label);
+        await assert.rejects(probe.canvas.open({ ...ctx, extensionId: 'other-provider' }), /owner changed/, label);
+        await probe.canvas.onClose(ctx);
+        await assert.rejects(fetch(url), label);
+      } else await assert.rejects(probe.canvas.open(ctx), /canvas support/, label);
+      assert.deepEqual(sent, [], label);
+      await probe.close();
+    }
+  }
+});
+
+test('open needs an attached exact session before starting a listener', async t => {
+  const sessionId = randomUUID(), probe = createReviewProbe({ sessionId });
+  t.after(() => probe.close());
+  const ctx = { sessionId, extensionId: 'review-probe', canvasId: 'design-review-probe', instanceId: randomUUID() };
+  await assert.rejects(probe.canvas.open(ctx), /not connected/);
+  assert.throws(() => probe.attachSession({ send() {} }), /Invalid joined session/);
+  assert.throws(() => probe.attachSession({ sessionId: randomUUID(), send() {} }), /Invalid joined session/);
+  probe.attachSession({ sessionId, send() {} });
+  for (const host of [undefined, {}, { capabilities: {} }]) {
+    const { url } = await probe.canvas.open({ ...ctx, host });
+    assert.equal((await fetch(url)).status, 200);
+  }
+  await probe.canvas.onClose(ctx);
+});
+
 test('repeated concurrent open reuses one instance and close retires its identity', async t => {
   const f = await fixture(t);
   const duplicate = await Promise.all([f.probe.canvas.open(f.ctx), f.probe.canvas.open(f.ctx)]);
@@ -93,6 +136,7 @@ test('concurrent canvas and extension close both await actual listener cleanup',
   await canvasClose;
 
   const probe = createReviewProbe({ sessionId: f.ctx.sessionId });
+  probe.attachSession({ sessionId: f.ctx.sessionId, send() {} });
   t.after(() => probe.close());
   const opening = assert.rejects(probe.canvas.open(f.ctx), /closed/);
   const closing = probe.canvas.onClose(f.ctx);

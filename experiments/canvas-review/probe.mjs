@@ -139,9 +139,15 @@ export function createReviewProbe({ sessionId, sendTimeoutMs = 10000, lifetimeMs
     inputSchema: { type: 'object', properties: { concept: { type: 'string', enum: Object.keys(concepts) } }, additionalProperties: false },
     async open(ctx) {
       requireValue(!closed, 410, 'Extension is closed.');
-      requireValue(ctx?.host?.capabilities?.canvases === true, 409, 'This host has not declared canvas support.');
-      requireValue(!retired.has(ctx?.instanceId) && retired.size < 20, 410, 'Open a fresh canvas instance or restart this bounded experiment.');
+      requireValue(session, 503, 'The bound session is not connected.');
       const existing = context(ctx, true);
+      // These optional fields describe rendering, not authorization. A bound
+      // host may request open without them; explicit denials still veto it.
+      const hostCanvases = ctx?.host?.capabilities?.canvases;
+      const sessionCanvases = session?.capabilities?.ui?.canvases;
+      requireValue([hostCanvases, sessionCanvases].every(value => value === undefined || typeof value === 'boolean'), 409, 'Invalid canvas support declaration.');
+      requireValue(hostCanvases !== false && sessionCanvases !== false, 409, 'This host has disabled canvas support.');
+      requireValue(!retired.has(ctx?.instanceId) && retired.size < 20, 410, 'Open a fresh canvas instance or restart this bounded experiment.');
       if (existing) { const result = await existing.opening; requireValue(!existing.closed, 410, 'Canvas is closed.'); return result; }
       requireValue(instances.size < 4, 429, 'Close a canvas before opening another.');
       const input = ctx.input ?? {};
@@ -203,7 +209,7 @@ export function createReviewProbe({ sessionId, sendTimeoutMs = 10000, lifetimeMs
   };
   return {
     canvas,
-    attachSession(value) { requireValue(value && typeof value.send === 'function' && (!value.sessionId || value.sessionId === sessionId) && !session, 400, 'Invalid joined session.'); session = value; },
+    attachSession(value) { requireValue(value && typeof value.send === 'function' && value.sessionId === sessionId && !session, 400, 'Invalid joined session.'); session = value; },
     async close() { closed = true; await Promise.all([...instances.values()].map(closeInstance)); },
   };
 }

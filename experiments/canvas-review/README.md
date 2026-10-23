@@ -54,11 +54,20 @@ rechecks and explicitly labels reduced viewports as distinct from browser zoom.
 
 The native entry point is `extension.mjs`. Merely executing it with Node is not
 a real app test: the host must discover it, supply SDK resolution, bind an
-existing session and support canvases. No command here stages it in a project
-or personal extension directory. The native panel, current CSP, actual idle
-and busy scheduling, cross-window lifecycle and storage of the token-bearing
-URL must still be verified in a disposable app session. Do not relax
-`frame-ancestors` or other network boundaries merely to make embedding work.
+existing session and render canvases. No command here stages it in a project
+or personal extension directory. Rendering capabilities in the open callback
+and joined session are optional: an exact, bound host request may attempt
+opening when both flags are absent. Explicit `false` and malformed flags are
+rejected. An attached session with the exact session ID is always required;
+missing flags never replace ownership checks or prove rendering works.
+
+A disposable native app test on 2026-10-23 (version 1.1.31) verified discovery,
+panel rendering with the existing CSP, and one explicit batch starting an idle
+session, updating the sketch and returning a visible reply. Closing the panel
+revoked its listener; repository trust was revoked and the session archived.
+Busy scheduling, concurrent sessions, crash/reopen behavior and storage of the
+token-bearing URL remain unverified in the app. Do not relax `frame-ancestors`
+or other network boundaries merely to make embedding work.
 
 See [ADR 0019](../../docs/adr/0019-app-canvas-prove.md) and the
 [architecture and acceptance protocol](../../docs/testing/visual-companion-canvas.md)

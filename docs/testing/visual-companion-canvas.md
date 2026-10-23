@@ -52,7 +52,8 @@ Den undersøkte, installerte SDK-en har følgende konkrete kontrakt:
   sesjon; `createCanvas` deklarerer åpne-, lukke- og handlingsbehandlere.
 - Handlerne får identiteter for sesjon, utvidelse, canvas og instans.
 - `CanvasProviderOpenResult` har `url`, `title` og `status`. Den undersøkte
-  vertsbeskrivelsen rapporterer om canvas støttes.
+  kontrakten kan rapportere canvas-støtte, men `host.capabilities.canvases`
+  i åpnecallbacken er valgfritt.
 - `session.send` returnerer meldings-ID når meldingen er tatt inn. Videre
   behandling er asynkron. Kømodus er `enqueue`.
 - `onClose` er valgfri og har ingen bekreftet oppryddingstransaksjon.
@@ -129,24 +130,60 @@ i den virkelige appen.
 
 ## Resultater fra den avgrensede prøven
 
-Kontrollert 2026-10-23. Alle data er oppdiktet. Det er ikke startet noen
-Copilot-klient eller modell, og ingen personlig utvidelsesmappe er endret.
+Kontrollert 2026-10-23 med oppdiktede data. De automatiserte prøvene under
+startet ingen klient eller modell. En senere, avgrenset prøve i appen er
+registrert separat nedenfor. Ingen personlig utvidelsesmappe er endret.
 
 | Prøvelag | Resultat | Hva det beviser |
 | --- | --- | --- |
-| Node-tester av HTTP og levetid | 8 bestått | Token, Host, Origin, lukket skjema, tekstgrenser, parallelle åpninger og lukkinger, isolasjon, utløp, sene kvitteringer og historisk skissekontekst |
-| Installert SDK mot deterministisk stdio-vert | 13 bestått | Registrering, eksakt sesjonsbinding, kømelding, deduplisering, handlinger, isolasjon, uavklart levering og lukking gjennom SDK-ens faktiske protokoll |
+| Node-tester av HTTP og levetid | 10 bestått | Token, Host, Origin, lukket skjema, tekstgrenser, parallelle åpninger og lukkinger, isolasjon, utløp, sene kvitteringer, historisk skissekontekst og valgfrie kapabilitetsfelt |
+| Installert SDK mot deterministisk stdio-vert | 14 bestått | Registrering, eksakt sesjonsbinding, kømelding, deduplisering, handlinger, isolasjon, uavklart levering, valgfrie kapabilitetsfelt og lukking gjennom SDK-ens faktiske protokoll |
 | Chrome mot den faktiske prøveflaten med simulert sesjon | 5 bestått | Tastatur, utkast under ny revisjon, smal visning, tapt HTTP-kvittering og uavklart SDK-levering; ingen eksterne ressurskall eller nettleserfeil |
 
 SDK-prøven brukte filene fra appversjon 1.1.31, protokollversjon 3 og
 SDK-inngangsfilens SHA-256
 `a8faeb5d4c8379ce6d8473c86e001fc4e2cd5d260e064d4c622f72c35102871d`.
-Appen ble bare undersøkt som filer, ikke startet. Reproduserbare kommandoer står i
+I dette automatiserte prøvelaget ble appen bare undersøkt som filer.
+Reproduserbare kommandoer står i
 [forsøkets README](../../experiments/canvas-review/README.md).
 
-Panelet førte til konkrete rettelser: utkast holder på skissen det gjelder,
-innsendte runder beholder den opprinnelige tittelen og beskrivelsen, og en
-gjenfunnet HTTP-kvittering fjerner gammel feiltekst uten å slette et nyere utkast.
+Den faktiske appprøven brukte versjon 1.1.31 på macOS og en disponibel
+testmappe med prosjektutvidelsen. Designer ble valgt fra appens katalog,
+deretter ble modellen valgt manuelt. Prøven bekreftet oppdagelse gjennom
+`list_canvas_capabilities`, rendering i appens panel og behandling av ett
+eksplisitt innspill fra en ledig sesjon. CSP beholdt `frame-ancestors 'none'`.
+
+Brukeren valgte `guided` og sendte én runde med ønsket tittel og beskrivelse.
+Innsendingen startet en ny tur uten ekstra chatmelding. Sesjonen kalte
+`open_canvas` og `invoke_canvas_action`, markerte runden som under behandling,
+publiserte revisjonen og besvarte runden. Panelet viste «Forbered deg til møtet»,
+beskrivelsen «Skriv ned to spørsmål du vil ta opp. Ta med notatene til møtet.»,
+skisseversjon 2 og «Runde 1 Besvart» med synlig svar. Totalt ble to
+arbeidsforespørsler sendt: den første chatmeldingen og innspillet fra panelet.
+
+To hindringer ble observert før denne kjeden bestod. Prøvefiltret avviste
+manglende valgfrie kapabilitetsfelt. Det tillater nå manglende felt først etter
+verifisert binding til den tilknyttede sesjonen og eierskap i callbacken;
+uttrykkelig `false` og ugyldige verdier avvises fortsatt. Runtime-en stanset
+også videre kjøring med feil om for stor statisk system- og
+verktøykontekst. Brukeren valgte kontekstrammen 1,1M, og oppfølgingsrunden
+bestod med samme manuelt valgte modell og Designer. Dette avklarer ikke den
+generelle årsaken til feilen. Visningen av 23 % kontekstbruk før endringen
+beviste ikke tilstrekkelig inputbudsjett: respons og headroom reserveres separat.
+[Kontekstdokumentasjonen](https://docs.github.com/en/copilot/concepts/prompting-and-context/context-management)
+beskriver dette skillet. [App-rapport 4612](https://github.com/github/app/issues/4612)
+viser samme feilmelding i en annen installasjon, men beviser ikke årsaken her.
+
+Normal panellukking stengte den konkrete loopback-porten. Tilliten til den
+disponible testmappen ble trukket tilbake, og innstillingene viste «Not accepted».
+Prøveøkten ble arkivert; ingen av dens utvidelsesprosesser var igjen.
+Innsending under en opptatt sesjon, to samtidige sesjoner og livssyklus ved
+krasj eller gjenopptakelse er fortsatt ikke prøvd i appen.
+
+Den simulerte faglige gjennomgangen førte til konkrete rettelser: utkast holder
+på skissen det gjelder, innsendte runder beholder den opprinnelige tittelen og
+beskrivelsen, og en gjenfunnet HTTP-kvittering fjerner gammel feiltekst uten å
+slette et nyere utkast.
 En bekreftet behandling av riktig runde tillater neste runde selv om den første
 leveringskvitteringen mangler. Vanlig statusoppdatering bevarer tekstmarkering
 slik at svar kan kopieres.
@@ -155,8 +192,9 @@ Samtidig lukking av panel og økt venter nå på samme opprydding før den kvitt
 Nettleserprøven bruker innhold, arbeidsoversikt og timebestilling som tre
 oppgavetekster i samme lille grensesnitt. Den beviser ikke tre komplette
 produktkonsepter. 390 px bredde og 720 × 456 px viewport er prøvd; sistnevnte
-er ikke faktisk 200 % zoom. Skjermleser, appens fokusrekkefølge og native
-panelvisning er ikke prøvd. Tilstanden ligger i minnet og tåler ikke restart.
+er ikke faktisk 200 % zoom. Skjermleser, faktisk 200 % zoom og appens
+fokusrekkefølge er ikke verifisert. Tilstanden ligger i minnet og tåler ikke
+restart.
 
 ## Porter før produksjonsintegrasjon
 

@@ -1,8 +1,9 @@
 # Visual Companion: klientkapabiliteter og akseptprøver
 
 Kildekontroll: 2026-10-23. Matrisen skiller dokumenterte klientkapabiliteter fra
-det som må prøves i en konkret installasjon. Den er ikke en rapport om bestått
-livekjøring i Copilot. [Nettleserscenarioene](visual-companion-scenarios.md)
+det som må prøves i en konkret installasjon. Den avgrensede appprøven nedenfor
+bekrefter oppdagelse, panelvisning og én innsendt runde fra en ledig sesjon.
+[Nettleserscenarioene](visual-companion-scenarios.md)
 tester verktøyets oppførsel med syntetisk innhold, uten å bevise klientens
 prosesslevetid, verktøyvalg eller videreføring av en samtale.
 
@@ -72,7 +73,31 @@ UI-endringer. [Kø og styring](https://docs.github.com/en/copilot/how-tos/copilo
 
 Den [avgrensede canvas-prøven](visual-companion-canvas.md) har kontrollert den
 installerte SDK-en mot en simulert vert og prøvd grensesnittet i nettleser.
-Faktisk appvisning, turkjøring og livssyklus er fortsatt ikke validert.
+Disse automatiserte prøvene startet ingen klient eller modell. En faktisk
+prøve 2026-10-23 i app 1.1.31 på macOS valgte Designer fra katalogen og
+modellen manuelt. Prosjektutvidelsen ble funnet gjennom
+`list_canvas_capabilities` og rendret i panelet med uendret CSP.
+
+Én eksplisitt innsending fra panelet startet den ledige sesjonen, som markerte
+runden under behandling, publiserte skisseversjon 2 og besvarte runden.
+Tittel, beskrivelse og svar ble verifisert i panelet. Ingen ekstra chatmelding
+var nødvendig; forsøket brukte to arbeidsforespørsler totalt, inkludert den
+første chatmeldingen.
+
+Prøvefiltret ble rettet slik at manglende valgfrie kapabilitetsfelt tillates
+etter verifisert sesjonsbinding og callback-eierskap; `false` og ugyldige
+verdier avvises. En tidligere feil om for stor statisk kontekst oppstod selv
+om appen viste 23 % kontekstbruk. Etter brukerens valg av kontekstrammen 1,1M
+bestod oppfølgingsrunden med samme modell og Designer. Det er ikke bevis for
+en generell løsning eller rotårsak. En [tilsvarende app-rapport](https://github.com/github/app/issues/4612)
+viser samme feilmelding i en annen installasjon.
+
+Normal panellukking stengte loopback-porten. Testmappens midlertidige tillit
+ble trukket tilbake, prøveøkten arkivert og fravær av dens utvidelsesprosesser
+kontrollert. Innsending under opptatt sesjon, samtidige sesjoner, skjermleser,
+faktisk 200 % zoom og krasjhåndtering er ikke validert.
+
 [ADR 0019](../adr/0019-app-canvas-prove.md) avgrenser forsøket til kode utenfor
 pluginpayloaden. Behold dagens server, samlet innsending og avgrenset venting
-som portabel kontrakt til en valgfri adapter er prøvd i den konkrete appen.
+som portabel kontrakt; den avgrensede appprøven erstatter ikke de øvrige
+akseptprøvene før produksjonsintegrasjon.
