@@ -14,12 +14,12 @@ const args = process.argv.slice(2);
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--headed") { options.set("--headed", true); continue; }
   if (!["--playwright-module", "--browser-channel", "--evidence-dir", "--case"].includes(args[index]) || !args[index + 1] || args[index + 1].startsWith("--")) {
-    console.error("Usage: node scripts/smoke_visual_workshop.cjs [--playwright-module ABSOLUTE_PATH] [--browser-channel chrome] [--headed] [--evidence-dir DIRECTORY] [--case declared-actions]");
+    console.error("Usage: node scripts/smoke_visual_workshop.cjs [--playwright-module ABSOLUTE_PATH] [--browser-channel chrome] [--headed] [--evidence-dir DIRECTORY] [--case declared-actions|keyboard-errors]");
     process.exit(2);
   }
   options.set(args[index], args[++index]);
 }
-if (options.has("--case") && options.get("--case") !== "declared-actions") { console.error("Unknown workshop case."); process.exit(2); }
+if (options.has("--case") && !["declared-actions", "keyboard-errors"].includes(options.get("--case"))) { console.error("Unknown workshop case."); process.exit(2); }
 
 let chromium;
 try { ({ chromium } = require(options.get("--playwright-module") || "playwright")); }
@@ -158,16 +158,20 @@ async function main() {
     const list = () => cli("list", info);
 
     if (!options.has("--case")) await runWorkshop({ page, frame, ui, info, list, writeScreen });
-    await runDeclaredActions({ page, frame, ui, info, list, writeScreen });
+    if (!options.has("--case") || options.get("--case") === "declared-actions") await runDeclaredActions({ page, frame, ui, info, list, writeScreen });
+    const keyboardErrors = !options.has("--case") || options.get("--case") === "keyboard-errors"
+      ? await runKeyboardErrors({ page, frame, ui, info, list, writeScreen }) : null;
 
     assert.deepEqual(errors, [], errors.join("\n"));
     assert(completedRequests.every(url => url.startsWith(new URL(info.url).origin) || /^(data|blob):/.test(url)), "Unexpected completed remote request.");
     const result = {
       browser: browserChannel || "chromium",
       headed: options.has("--headed"),
-      viewports: options.has("--case") ? ["1440x1000"] : ["1440x1000", "390x844"],
+      viewports: options.get("--case") === "keyboard-errors" ? ["320x568", "568x320"]
+        : options.has("--case") ? ["1440x1000"] : ["1440x1000", "390x844", "320x568", "568x320"],
       checks: options.has("--case") ? [] : ["declared-controls", "source-css", "local-reset", "structured-batch", "variant-comparison", "narrow-comparison", "narrow-heading-clearance", "narrow-overlay-close", "hidden-variant-pin", "no-spurious-selection", "keep", "fresh-release-enabled", "release-failure-retention", "accepted-decision-batch", "release", "version-mismatch", "historical-labels", "duplicate-target", "invalid-manifest", "keyboard", "area-comparison-boundary", "draft-retention", "field-privacy", "loopback-only"],
-      declaredActions: ["native-keyboard", "hidden-button-focus", "variant-isolation", "invalid-choice", "disabled-choice", "nested-unbound-target", "comment-mode", "state-context", "restore-context", "parked-context", "preview-context", "explicit-batch", "field-privacy"],
+      declaredActions: options.get("--case") === "keyboard-errors" ? [] : ["native-keyboard", "hidden-button-focus", "variant-isolation", "invalid-choice", "disabled-choice", "nested-unbound-target", "comment-mode", "state-context", "restore-context", "parked-context", "preview-context", "explicit-batch", "field-privacy"],
+      ...(keyboardErrors ? { keyboardErrors } : {}),
       errors,
     };
     if (evidence) fs.writeFileSync(path.join(evidence, "visual-workshop-test-results.json"), `${JSON.stringify(result, null, 2)}\n`);
@@ -528,6 +532,143 @@ async function runDeclaredActions({ page, frame, ui, info, list, writeScreen }) 
   assert.equal(selectionEvents(info), "");
   await screenshot(page, "visual-workshop-declared-actions.png");
   console.log("PASS: declared click-through, keyboard focus, safe choices, exact state context and explicit private batch.");
+}
+
+async function runKeyboardErrors({ page, frame, ui, info, list, writeScreen }) {
+  // This wireframe tests the review controls, not a domain component design.
+  const title = "Vurder lange tekster med tastatur";
+  const baseline = await list();
+  writeScreen("keyboard-errors", fixture(title), manifest());
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto(info.url);
+  await frame.getByRole("heading", { name: title, exact: true }).waitFor();
+  const isFocused = locator => locator.evaluate(node => node === node.getRootNode().activeElement);
+  async function tabTo(locator) {
+    await locator.waitFor();
+    for (let count = 0; count <= 80; count += 1) {
+      if (await isFocused(locator)) return;
+      await page.keyboard.press("Tab");
+    }
+    throw new Error("Keyboard could not reach the required review control.");
+  }
+  async function activate(locator) { await tabTo(locator); await page.keyboard.press("Enter"); }
+  async function type(locator, text) {
+    await tabTo(locator);
+    await page.keyboard.press("ControlOrMeta+A");
+    await page.keyboard.insertText(text);
+  }
+  async function visibleBounds(locator, description) {
+    const bounds = await locator.evaluate(node => {
+      const rect = node.getBoundingClientRect();
+      const clip = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+      for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent), box = parent.getBoundingClientRect();
+        if (/hidden|clip|auto|scroll/.test(style.overflowY)) { clip.top = Math.max(clip.top, box.top); clip.bottom = Math.min(clip.bottom, box.bottom); }
+        if (/hidden|clip|auto|scroll/.test(style.overflowX)) { clip.left = Math.max(clip.left, box.left); clip.right = Math.min(clip.right, box.right); }
+      }
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, clip,
+        fullyVisible: rect.width > 0 && rect.height > 0 && rect.left >= clip.left - 1 && rect.top >= clip.top - 1 && rect.right <= clip.right + 1 && rect.bottom <= clip.bottom + 1 };
+    });
+    assert(bounds.fullyVisible, `${description} is clipped: ${JSON.stringify(bounds)}`);
+    return bounds;
+  }
+  async function checkError(field, error, message, text) {
+    await error.filter({ hasText: message }).waitFor();
+    await waitFor(() => isFocused(field), "validation field focus");
+    assert.equal(await field.inputValue(), text, "Rejected text must remain editable.");
+    return { field: await visibleBounds(field, "Focused field"), error: await visibleBounds(error, "Error message") };
+  }
+  const measurements = {};
+  await activate(ui.getByRole("button", { name: "Kommenter", exact: true }));
+  await activate(frame.getByRole("heading", { name: title, exact: true }));
+  const note = ui.getByLabel("Hva vil du endre?", { exact: true });
+  const composeError = ui.locator(".compose-error");
+  const oversizedNote = "ø".repeat(1001);
+  await type(note, oversizedNote);
+  await page.keyboard.press("ControlOrMeta+Enter");
+  measurements.note = await checkError(note, composeError, "Innspillet er for langt.", oversizedNote);
+  assert.equal((await list()).comments.length, baseline.comments.length);
+  await screenshot(page, "visual-workshop-note-error-320.png");
+
+  const draftText = "Gjør avtalen tydeligere, med ærlige forbehold og neste steg.";
+  await type(note, draftText);
+  await activate(ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }));
+  const proposal = ui.getByLabel("Ny tekst", { exact: true });
+  const oversizedProposal = "😀".repeat(501);
+  await type(proposal, oversizedProposal);
+  await page.keyboard.press("ControlOrMeta+Enter");
+  measurements.proposal = await checkError(proposal, composeError, "Tekstforslaget er for langt.", oversizedProposal);
+  assert.equal((await list()).comments.length, baseline.comments.length);
+  await screenshot(page, "visual-workshop-proposal-error-320.png");
+  await activate(ui.getByRole("button", { name: "Forkast", exact: true }));
+
+  await activate(frame.getByRole("heading", { name: title, exact: true }));
+  await type(note, draftText);
+  let failed = false;
+  const failFirstSave = route => {
+    if (route.request().method() === "POST" && !failed) {
+      failed = true;
+      return route.fulfill({ status: 503, contentType: "application/json", body: '{"error":"Temporary local failure"}' });
+    }
+    return route.continue();
+  };
+  await page.route("**/comments?*", failFirstSave);
+  try {
+    await page.keyboard.press("ControlOrMeta+Enter");
+    measurements.retry = await checkError(note, composeError, "Lagringen ble ikke bekreftet.", draftText);
+    assert.equal((await list()).comments.length, baseline.comments.length);
+    await screenshot(page, "visual-workshop-retry-error-320.png");
+  } finally { await page.unroute("**/comments?*", failFirstSave); }
+  await page.keyboard.press("ControlOrMeta+Enter");
+  const saved = await waitFor(async () => {
+    const snapshot = await list();
+    return snapshot.comments.length === baseline.comments.length + 1 && snapshot;
+  }, "keyboard retry saves once");
+  assert.equal(saved.comments.at(-1).text, draftText);
+  assert.equal(saved.submission, baseline.submission, "Saving must not submit a round.");
+  await page.keyboard.press("Escape");
+  assert(await isFocused(ui.locator('[data-action="panel"]')), "Closing feedback must restore toolbar focus.");
+
+  await page.setViewportSize({ width: 568, height: 320 });
+  await activate(ui.getByRole("button", { name: "Juster", exact: true }));
+  const workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  const remark = workshop.getByLabel("Merknad", { exact: true });
+  await type(remark, oversizedNote);
+  await activate(workshop.getByRole("button", { name: "Behold dette", exact: true }));
+  measurements.remark = await checkError(remark, workshop.locator(".workshop-error"), "Merknaden er for lang.", oversizedNote);
+  assert.equal((await list()).decisions.length, baseline.decisions.length);
+  await screenshot(page, "visual-workshop-remark-error-landscape.png");
+  await page.keyboard.press("Escape");
+  assert(await isFocused(ui.getByRole("button", { name: "Juster", exact: true })), "Closing adjustments must restore toolbar focus.");
+  await activate(ui.getByRole("button", { name: "Juster", exact: true }));
+  assert.equal(await remark.inputValue(), oversizedNote, "Closing and reopening must preserve the rejected draft.");
+  const keepText = "Behold forklaringen om hvem som tar kontakt etter møtet.";
+  await type(remark, keepText);
+  let keepFailed = false;
+  const failFirstKeep = route => {
+    if (route.request().method() === "POST" && !keepFailed) {
+      keepFailed = true;
+      return route.fulfill({ status: 503, contentType: "application/json", body: '{"error":"Temporary local failure"}' });
+    }
+    return route.continue();
+  };
+  await page.route("**/decisions?*", failFirstKeep);
+  try {
+    await activate(workshop.getByRole("button", { name: "Behold dette", exact: true }));
+    measurements.keepRetry = await checkError(remark, workshop.locator(".workshop-error"), "Lagringen ble ikke bekreftet.", keepText);
+    assert.equal((await list()).decisions.length, baseline.decisions.length);
+    await screenshot(page, "visual-workshop-keep-retry-landscape.png");
+  } finally { await page.unroute("**/decisions?*", failFirstKeep); }
+  await activate(workshop.getByRole("button", { name: "Behold dette", exact: true }));
+  const kept = await waitFor(async () => {
+    const snapshot = await list();
+    return snapshot.decisions.some(item => item.text === keepText) && snapshot;
+  }, "keyboard keep retry saves once");
+  assert.equal(kept.decisions.filter(item => item.text === keepText).length, 1);
+  assert.equal(kept.submission, baseline.submission);
+  await page.keyboard.press("Escape");
+  console.log("PASS: keyboard-only byte-limit recovery, visible field errors, retry and pane focus at narrow and short viewports.");
+  return { realParticipants: 0, screenReader: false, keyboardOnly: true, rejectedNoteBytes: Buffer.byteLength(oversizedNote), rejectedProposalBytes: Buffer.byteLength(oversizedProposal), measurements };
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });

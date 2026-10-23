@@ -180,9 +180,15 @@ Designeren kan også skrive et **tekstforslag**, prøve det lokalt og angre.
 Dette er en forhåndsvisning av en ønsket endring, ikke en lagring i kildefilen.
 Bare den nye teksten som designeren selv skrev, kan lagres med innspillet.
 Komplekse elementer, feltverdier og vilkårlig HTML/CSS redigeres ikke.
+**Se i skissen** skjuler teksteditoren midlertidig slik at forslaget kan vurderes
+i sammenheng. **Fortsett å redigere** åpner samme utkast og fokuserer tekstfeltet.
+Dette lagrer eller sender ingenting. Et lagret tekstforslag og et parkert utkast
+på samme element beholder hver sin forhåndsvisning.
 
 **Lagre innspill** bevarer innspillet i den private økten. **Send innspill** gjør
 alle usendte innspill i økten klare til behandling, også fra tidligere versjoner.
+Et nylig lagret eller gjenåpnet innspill og et lagret justeringsvalg vises under
+**Alle**, med fokus på kortet. Vanlig åpning av listen beholder valgt filter.
 Mens designeren skriver eller har usendte
 innspill, skal en ny skisse ikke avbryte arbeidet. En tilgjengelig ny versjon
 kan åpnes når innspillene er sendt eller avbrutt. Lokale visningsvalg holder
@@ -310,6 +316,9 @@ token-URL-er i repoet. Skriptet bruker serverens eksisterende autentiserte
 loopbackgrensesnitt og skriver aldri konkurrerende direkte i state-filen.
 Serveren håndhever grenser for tekst, antall og total størrelse. En avvist
 lagring må vises som feil; ikke fortell designeren at innspillet er lagret.
+Når økten har nådd en lagringsgrense, forklarer grensesnittet at teksten må
+tas vare på før en ny økt startes. Utkastet beholdes; det prøves ikke automatisk
+igjen eller ryddes plass ved å slette eldre innspill.
 Hver kommentar, erstatningstekst og svar kan bruke høyst 2000 UTF-8-byte.
 Økten har plass til 200 kommentarer, 200 beslutninger, 200 innsendte runder
 og 100 skjermversjoner, med maksimalt 2 MiB lagret tilbakemeldingsdata og
@@ -325,6 +334,9 @@ tekst eller nye valg er en ny operasjon; et tidligere lagret innspill slettes
 ikke automatisk. Serveren husker opptil 2048 vellykkede operasjoner i denne
 prosessen og avviser nye når grensen nås. Dette gir ikke gjenoppretting etter
 serverstopp eller varig lagring.
+En forsinket kvittering fra en tidligere skjermversjon kan ikke bekrefte eller
+avbryte et nytt utkast. Kvitteringer og konfliktoppslag er bundet til skjermen
+som startet operasjonen, også når den nye skjermen bruker samme lokale request-ID.
 
 ## Justerbare skisser
 

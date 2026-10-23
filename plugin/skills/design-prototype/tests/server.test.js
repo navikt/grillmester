@@ -1085,6 +1085,32 @@ test("submission journal size failure leaves the original round and pending feed
   assert.equal(store.nextSubmission(0).latestSubmission, 1);
 });
 
+test("large submission reads remain bounded, complete and read-only without exporting the journal", () => {
+  const { MAX_COMMENTS, MAX_STORE_BYTES } = require("../scripts/feedback-store.js");
+  const store = privateFeedbackStore(), screen = "a".repeat(32);
+  store.knowScreen(screen, "test.html");
+  const text = "ø".repeat(1000), proposed = "å".repeat(1000);
+  const comment = store.create(commentFor(screen, { kind: "edit", text, proposal: { property: "text", value: proposed } })).comments[0];
+  store.change((state) => { state.comments = Array.from({ length: MAX_COMMENTS }, (_, index) => ({ ...clone(comment), id: index.toString(16).padStart(24, "0") })); });
+  store.submit({});
+  store.change((state) => { for (const current of state.comments) { current.status = "fixed"; current.reply = "Senere svar med æ, ø og å."; } });
+  const saved = fs.readFileSync(store.filename, "utf8");
+  const batch = store.nextSubmission(0);
+  const bytes = Buffer.byteLength(JSON.stringify(batch));
+  assert(bytes > 800 * 1024, "The fixture must exercise a large UTF-8 response.");
+  assert(bytes <= MAX_STORE_BYTES + 64 * 1024, "The full response, including current status, must fit the CLI read bound.");
+  assert.equal(batch.comments.length, MAX_COMMENTS);
+  assert(batch.comments.every((item) => item.text === text && item.proposal.value === proposed && item.reply === ""));
+  assert(batch.currentComments.every((item) => item.status === "fixed" && item.reply === "Senere svar med æ, ø og å."));
+  assert.equal(Object.hasOwn(batch, "submissions"), false);
+  assert.equal(Object.hasOwn(batch, "batches"), false);
+  const timeout = store.nextSubmission(1);
+  assert.deepEqual(timeout.comments, []);
+  assert(Buffer.byteLength(JSON.stringify(timeout)) < 1024, "An exhausted cursor must not repeat the delivered large payload.");
+  assert.deepEqual(store.nextSubmission(0), batch, "Reading a cursor does not acknowledge or change it.");
+  assert.equal(fs.readFileSync(store.filename, "utf8"), saved);
+});
+
 test("submission commit failure is atomic and a receipt retries exactly once", () => {
   const { FeedbackMutationReceipts } = require("../scripts/feedback-store.js");
   const store = privateFeedbackStore(), screen = "a".repeat(32);
@@ -1376,12 +1402,13 @@ test("the fixed shell validates feedback messages and defers refresh while a not
     const newer = "f".repeat(32);
     const newest = "e".repeat(32);
     let pollVersion = newer;
+    let feedbackStatus = 200;
     vm.runInNewContext(script, {
       document: { getElementById: (id) => id === "vc-preview" ? frame : status },
       window: { location: { origin: new URL(running.info.url).origin }, addEventListener: (_, callback) => callbacks.push(callback) },
       setInterval: (callback) => intervals.push(callback), setTimeout: (callback) => callback(), clearTimeout() {},
       URL, TextEncoder, Date, AbortController,
-      fetch: async (url, options) => { requests.push({ url: String(url), options }); return { ok: true, text: async () => pollVersion, json: async () => ({ revision: 1, submission: 0, screens: [{ screen, filename: "test.html" }, { screen: newer, filename: "test.html" }, { screen: newest, filename: "test.html" }], comments: [], listeningUntil: 0 }) }; },
+      fetch: async (url, options) => { requests.push({ url: String(url), options }); return { ok: feedbackStatus === 200, status: feedbackStatus, text: async () => pollVersion, json: async () => feedbackStatus === 200 ? ({ revision: 1, submission: 0, screens: [{ screen, filename: "test.html" }, { screen: newer, filename: "test.html" }, { screen: newest, filename: "test.html" }], comments: [], listeningUntil: 0 }) : ({ error: "RAW_SERVER_DETAIL_NOT_FOR_UI", errorCode: "capacity" }) }; },
     });
     const send = (data, source = frameWindow) => callbacks.forEach((callback) => callback({ data, source }));
     const base = { channel: "grillmester-visual-companion", version: 1 };
@@ -1428,6 +1455,92 @@ test("the fixed shell validates feedback messages and defers refresh while a not
     send({ ...base, action: "comment-create", requestId: 4, payload: commentFor(screen, { context }) });
     await new Promise(setImmediate);
     assert.deepEqual(JSON.parse(requests.at(-1).options.body).context, context);
+    const beforeNull = requests.length;
+    for (const action of ["decision-keep", "decision-release"]) send({ ...base, action, requestId: 5, payload: null });
+    assert.equal(requests.length, beforeNull, "Null decision payloads must be rejected before property access or HTTP.");
+    for (const status of [429, 400, 500]) {
+      feedbackStatus = status;
+      send({ ...base, action: "comment-create", requestId: status, payload: commentFor(screen) });
+      await new Promise(setImmediate);
+      const result = messages.at(-1);
+      assert.equal(result.ok, false);
+      assert.equal(result.errorCode, status === 429 ? "capacity" : undefined, "Only the HTTP capacity status selects the bounded UI code.");
+    }
+    const helper = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
+    const resultStart = helper.indexOf('    if (data.command === "comments-result") {');
+    const resultEnd = helper.indexOf('    if (data.command !== "selection-status"', resultStart);
+    assert(resultStart >= 0 && resultEnd > resultStart);
+    const pending = new Map();
+    const receive = vm.runInNewContext(`(data) => { ${helper.slice(resultStart, resultEnd)} }`, { requests: pending, window: { clearTimeout() {} }, applySnapshot() {}, updateBusy() {} });
+    for (const errorCode of ["capacity", "unknown", undefined]) {
+      let failure;
+      pending.set(1, { timer: 1, reject: (error) => { failure = error; } });
+      receive({ command: "comments-result", requestId: 1, ok: false, errorCode, error: "RAW_SERVER_DETAIL_NOT_FOR_UI" });
+      assert(failure);
+      assert.equal(failure.message.includes("RAW_SERVER_DETAIL_NOT_FOR_UI"), false);
+      if (errorCode === "capacity") { assert.match(failure.message, /lagringsgrense/); assert.doesNotMatch(failure.message, /prøv samme innspill igjen/i); }
+      else assert.match(failure.message, /prøv samme innspill igjen/i);
+    }
+  } finally { await stopServer(running); }
+});
+
+test("feedback results and conflict refreshes stay with their originating preview document", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const html = await (await fetch(running.info.url)).text();
+    const script = html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)[1];
+    const vm = require("node:vm");
+    const callbacks = [], messages = [];
+    const frameWindow = { postMessage: value => messages.push(value) };
+    const frame = { contentWindow: frameWindow, src: "unchanged" };
+    const status = { textContent: "", classList: { remove() {}, add() {} }, addEventListener() {}, focus() {} };
+    const snapshot = { revision: 1, submission: 0, screens: [{ screen, filename: "test.html" }], comments: [], listeningUntil: 0 };
+    const response = (statusCode, value) => ({ ok: statusCode === 200, status: statusCode, json: async () => value });
+    let write = async () => response(200, snapshot), read = async () => response(200, snapshot);
+    vm.runInNewContext(script, {
+      document: { getElementById: id => id === "vc-preview" ? frame : status },
+      window: { location: { origin: new URL(running.info.url).origin }, addEventListener: (_, callback) => callbacks.push(callback) },
+      setInterval() {}, setTimeout() { return 1; }, clearTimeout() {}, URL, TextEncoder, Date, AbortController,
+      fetch: (url, options) => options?.method === "POST" ? write() : read(),
+    });
+    const base = { channel: "grillmester-visual-companion", version: 1 };
+    const send = data => callbacks.forEach(callback => callback({ data: { ...base, ...data }, source: frameWindow }));
+    const tick = () => new Promise(setImmediate);
+    const ready = async () => { send({ action: "feedback-ready", screen }); await tick(); };
+    await ready();
+    for (const kind of ["success", "http-failure", "transport-failure", "body-decoding"]) {
+      let resolve, reject;
+      const pending = new Promise((done, fail) => { resolve = done; reject = fail; });
+      write = kind === "body-decoding" ? async () => ({ ok: true, status: 200, json: () => pending }) : () => pending;
+      send({ action: "comment-create", requestId: 2, payload: commentFor(screen) });
+      await tick();
+      await ready(); // A reload of even the same screen starts a new document.
+      const before = messages.length;
+      if (kind === "transport-failure") reject(new Error("Controlled old transport failure."));
+      else resolve(kind === "body-decoding" ? snapshot : response(kind === "success" ? 200 : 503, snapshot));
+      await tick();
+      assert.equal(messages.slice(before).some(message => message.command === "comments-result"), false, `An old ${kind} must not settle a new document's reused request number.`);
+    }
+    let releaseRead, readStarted = false;
+    const delayedRead = new Promise(resolve => { releaseRead = resolve; });
+    read = () => { readStarted = true; return delayedRead; };
+    write = async () => response(409, { error: "Controlled conflict." });
+    send({ action: "comments-submit", requestId: 3, payload: { revision: 1 } });
+    await tick();
+    assert.equal(readStarted, true, "The conflict must actually enter its follow-up read before the document changes.");
+    read = async () => response(200, snapshot);
+    await ready();
+    const before = messages.length;
+    releaseRead(response(200, { ...snapshot, revision: 77 }));
+    await tick();
+    assert.equal(messages.slice(before).some(message => message.command === "comments-result" || message.snapshot?.revision === 77), false, "An old conflict read must not refresh or reject the next document.");
+    write = async () => response(200, snapshot);
+    send({ action: "comment-create", requestId: 2, payload: commentFor(screen) });
+    await tick();
+    assert.equal(messages.at(-1).command, "comments-result");
+    assert.equal(messages.at(-1).requestId, 2);
+    assert.equal(messages.at(-1).ok, true, "A current document's own response must still be delivered.");
   } finally { await stopServer(running); }
 });
 

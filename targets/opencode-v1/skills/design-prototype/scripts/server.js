@@ -1106,10 +1106,11 @@ function renderShellPage(nonce, accessToken, title, screen) {
         try { return await read(controller.signal); }
         finally { clearTimeout(timeout); }
       }
-      async function pollComments(signal) {
+      async function pollComments(signal, epoch = readyEpoch) {
         const response = await fetch(commentsUrl, { credentials: "same-origin", cache: "no-store", signal });
         if (!response.ok) throw new Error("feedback unavailable");
         const snapshot = await response.json();
+        if (epoch !== readyEpoch) return;
         acceptReady(snapshot);
         sendToPreview({ command: "comments-snapshot", snapshot });
       }
@@ -1146,20 +1147,25 @@ function renderShellPage(nonce, accessToken, title, screen) {
         }
         const operation = feedbackOperation(data);
         if (!operation) return;
+        const operationEpoch = readyEpoch;
         const url = new URL(commentsUrl, window.location.origin);
         url.pathname = operation.path;
         fetch(url, { method: operation.method, credentials: "same-origin", cache: "no-store",
           ...(operation.body === undefined ? {} : { headers: { "Content-Type": "application/json", ...(data.mutationId ? { "X-Feedback-Mutation": data.mutationId } : {}) }, body: JSON.stringify(operation.body) }),
         }).then(async (response) => {
           const result = await response.json();
+          if (operationEpoch !== readyEpoch) return;
           if (!response.ok && response.status === 409 && (operation.path === "/comments/submit" || operation.path === "/decisions" || operation.path.startsWith("/decisions/"))) {
-            await withReadDeadline(pollComments);
+            await withReadDeadline((signal) => pollComments(signal, operationEpoch));
+            if (operationEpoch !== readyEpoch) return;
             sendToPreview({ command: "comments-result", requestId: data.requestId, ok: false, conflict: true });
             return;
           }
           sendToPreview(response.ok ? { command: "comments-result", requestId: data.requestId, ok: true, snapshot: result }
-            : { command: "comments-result", requestId: data.requestId, ok: false, error: result.error || "Feedback request failed." });
-        }).catch(() => sendToPreview({ command: "comments-result", requestId: data.requestId, ok: false, error: "Feedback is unavailable. Keep your note and try again." }));
+            : { command: "comments-result", requestId: data.requestId, ok: false, ...(response.status === 429 ? { errorCode: "capacity" } : {}), error: result.error || "Feedback request failed." });
+        }).catch(() => {
+          if (operationEpoch === readyEpoch) sendToPreview({ command: "comments-result", requestId: data.requestId, ok: false, error: "Feedback is unavailable. Keep your note and try again." });
+        });
       });
 
       window.addEventListener("message", (message) => {

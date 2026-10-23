@@ -69,6 +69,15 @@ async function session(browser, name, run, lostResponsePath = "/comments", lostR
     page.on("pageerror", error => errors.push(error.message));
     page.on("requestfinished", request => { if (!request.url().startsWith(new URL(running.info.url).origin) && !/^(data|blob):/.test(request.url())) external.push(new URL(request.url()).origin); });
     const frame = page.frameLocator("#vc-preview"), ui = frame.locator("[data-visual-feedback]");
+    const openPeer = async () => {
+      const peer = await context.newPage(); peer.setDefaultTimeout(7000);
+      peer.on("pageerror", error => errors.push(error.message));
+      peer.on("requestfinished", request => { if (!request.url().startsWith(new URL(running.info.url).origin) && !/^(data|blob):/.test(request.url())) external.push(new URL(request.url()).origin); });
+      await peer.goto(running.info.url);
+      const peerFrame = peer.frameLocator("#vc-preview"), peerUi = peerFrame.locator("[data-visual-feedback]");
+      await peerUi.getByRole("button", { name: "Kommenter", exact: true }).waitFor();
+      return { page: peer, frame: peerFrame, ui: peerUi };
+    };
     const url = new URL(running.info.url); url.pathname = "/comments";
     const snapshot = async () => (await fetch(url)).json();
     const mutate = async (pathname, method, value) => {
@@ -88,7 +97,7 @@ async function session(browser, name, run, lostResponsePath = "/comments", lostR
       if (requestPath === "/comments" && route.request().method() === "GET" && frozenRead) {
         await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(frozenRead) }); return;
       }
-      const matchesPath = typeof lostResponsePath === "string" ? requestPath === lostResponsePath : lostResponsePath.test(requestPath);
+      const matchesPath = typeof lostResponsePath === "string" ? requestPath === lostResponsePath : lostResponsePath instanceof RegExp && lostResponsePath.test(requestPath);
       if (!matchesPath || route.request().method() !== lostResponseMethod) { await route.continue(); return; }
       mutations.push(route.request().headers()["x-feedback-mutation"]);
       mutationPayloads.push(route.request().postDataJSON());
@@ -107,12 +116,18 @@ async function session(browser, name, run, lostResponsePath = "/comments", lostR
       await frame.getByRole("heading", { name: "Forbered møtet", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text);
     };
-    await run({ page, frame, ui, snapshot, mutate, mutations, mutationPayloads, begin, releaseRead: () => { frozenRead = null; } });
+    const publish = heading => fs.writeFileSync(path.join(running.info.screen_dir, "test.html"), content.replace("Forbered møtet", heading));
+    const details = await run({ page, frame, ui, snapshot, mutate, mutations, mutationPayloads, begin, openPeer, publish, releaseRead: () => { frozenRead = null; } });
     assert(mutations.every(id => /^[a-f0-9]{32}$/.test(id)), "Each actual browser mutation carries a bounded retry identifier.");
     assert.equal(JSON.stringify(await snapshot()).includes("PRIVATE_PRACTICE_VALUE"), false);
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
     if (evidence) await page.screenshot({ path: path.join(evidence, `${name}.png`), animations: "disabled" });
-    return { name, passed: true, writesAttempted: mutations.length };
+    return { name, passed: true, writesAttempted: mutations.length, ...(details || {}) };
+  } catch (error) {
+    if (evidence && context?.pages()[0]) {
+      try { await context.pages()[0].screenshot({ path: path.join(evidence, `${name}-failed.png`), animations: "disabled" }); } catch { /* Preserve the original assertion if the page has closed. */ }
+    }
+    throw error;
   } finally {
     if (context) await context.close();
     if (running) await stop(running.child);
@@ -228,6 +243,216 @@ const cases = [
     assert.deepEqual(recovered.decisions, restored.decisions, "A release receipt must not release a later re-kept decision.");
     releaseRead();
   } },
+  { name: "release-conflict-with-late-snapshot", lostResponsePath: null, async run({ page, ui, snapshot, openPeer }) {
+    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await ui.locator('[data-action="workshop-keep"]').click();
+    await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+    const original = (await snapshot()).decisions[0];
+    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await ui.locator("#workshop-remark").fill("Min merknad skal overleve en konflikt.");
+    const peer = await openPeer();
+    await peer.ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await peer.ui.getByLabel("Tetthet", { exact: true }).selectOption("compact");
+    await peer.ui.locator("#workshop-remark").fill("Det nyere valget fra den andre fanen.");
+    let releaseOldRead, releaseWrite, readHeld = false, writeHeld = false;
+    const holdRead = new Promise(resolve => { releaseOldRead = resolve; });
+    const holdWrite = new Promise(resolve => { releaseWrite = resolve; });
+    const attempts = [];
+    await page.route("**/comments?**", async route => {
+      if (route.request().method() !== "GET" || readHeld) { await route.continue(); return; }
+      const response = await route.fetch(); readHeld = true;
+      await holdRead;
+      await route.fulfill({ response });
+    });
+    await page.route("**/decisions/*", async route => {
+      if (route.request().method() !== "PATCH") { await route.continue(); return; }
+      attempts.push({ body: route.request().postDataJSON(), mutationId: route.request().headers()["x-feedback-mutation"] });
+      if (!writeHeld) { writeHeld = true; await holdWrite; }
+      await route.continue();
+    });
+    try {
+      await until(() => readHeld, "The older poll was not held.");
+      await ui.locator(".workshop-keep-list").getByRole("button", { name: "Frigi", exact: true }).click();
+      await until(() => writeHeld, "The release was not held before persistence.");
+      await peer.ui.locator('[data-action="workshop-keep"]').click();
+      await peer.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+      const newer = await snapshot();
+      releaseWrite();
+      await ui.locator(".workshop-error").waitFor({ state: "visible" });
+      assert.deepEqual((await snapshot()).decisions, newer.decisions, "A stale release must preserve the newer choice.");
+      assert.equal(await ui.locator("#workshop-remark").inputValue(), "Min merknad skal overleve en konflikt.");
+      assert((await ui.locator(".workshop-keep-list").textContent()).includes("Det nyere valget fra den andre fanen."));
+      releaseOldRead();
+      await page.waitForTimeout(150);
+      assert((await ui.locator(".workshop-keep-list").textContent()).includes("Det nyere valget fra den andre fanen."), "A late older snapshot must not roll back the refreshed choice.");
+      assert.equal(attempts.length, 1, "A conflict must never retry its mutation automatically.");
+      await ui.locator(".workshop-keep-list").getByRole("button", { name: "Frigi", exact: true }).click();
+      await until(async () => (await snapshot()).decisions[0].state === "released", "The explicitly reviewed release did not finish.");
+      assert.equal(attempts.length, 2);
+      assert.equal(attempts[0].body.expectedRevision, original.revision);
+      assert.equal(attempts[1].body.expectedRevision, newer.decisions[0].revision);
+      assert.notEqual(attempts[0].mutationId, attempts[1].mutationId);
+      await ui.getByRole("button", { name: "Juster", exact: true }).click();
+      assert.equal(await ui.locator("#workshop-remark").inputValue(), "Min merknad skal overleve en konflikt.");
+      return { writesAttempted: attempts.length, checks: ["stale release refused", "typed remark retained", "late snapshot ignored", "explicit retry uses reviewed revision"] };
+    } finally { releaseOldRead(); releaseWrite(); }
+  } },
+  { name: "full-comment-queue-keeps-draft", lostResponsePath: null, async run({ page, frame, ui, snapshot, mutate }) {
+    const screen = (await snapshot()).screens[0].screen;
+    const anchor = { path: "h1:nth-of-type(1)", role: "heading", rect: { x: 0, y: 0, width: 200, height: 40 }, viewport: { width: 1300, height: 1000 } };
+    for (let index = 0; index < 200; index += 1) await mutate("/comments", "POST", { screen, kind: "point", text: `Tidligere innspill ${index + 1}.`, anchor });
+    const before = await snapshot();
+    assert.equal(before.comments.length, 200);
+    const attempted = [];
+    page.on("request", request => { if (request.method() === "POST" && new URL(request.url()).pathname === "/comments") attempted.push(request.postDataJSON()); });
+    await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+    await frame.getByRole("heading", { name: "Forbered møtet", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Behold dette utkastet når køen er full.");
+    await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+    await ui.locator(".compose-error").waitFor({ state: "visible" });
+    assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Behold dette utkastet når køen er full.");
+    assert.equal(await ui.getByRole("button", { name: "Lagre innspill", exact: true }).isEnabled(), true);
+    const after = await snapshot();
+    assert.equal(after.revision, before.revision);
+    assert.deepEqual(after.comments, before.comments);
+    assert.equal(attempted.length, 1, "A capacity refusal must not retry automatically.");
+    const message = await ui.locator(".compose-error").textContent();
+    assert.match(message, /full|grens|kapasitet/i, `Capacity must have actionable copy, received: ${message}`);
+    assert.doesNotMatch(message, /prøv samme innspill igjen/i);
+    return { writesAttempted: attempted.length, checks: ["actual comment capacity refused", "draft retained", "no retry loop", "capacity guidance shown"] };
+  } },
+  { name: "edited-draft-after-accepted-save-timeout", lostResponsePath: null, async run({ page, ui, snapshot, begin }) {
+    let releaseReceipt, held = false, lateDelivered = false;
+    const receipt = new Promise(resolve => { releaseReceipt = resolve; });
+    const attempts = [];
+    await page.route("**/comments?**", async route => {
+      if (route.request().method() !== "POST") { await route.continue(); return; }
+      attempts.push({ body: route.request().postDataJSON(), mutationId: route.request().headers()["x-feedback-mutation"] });
+      if (held) { await route.continue(); return; }
+      held = true;
+      const response = await route.fetch();
+      assert.equal(response.status(), 200);
+      await receipt;
+      await route.fulfill({ response });
+      lateDelivered = true;
+    });
+    try {
+      await begin("Det første innspillet er faktisk lagret.");
+      const started = Date.now();
+      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+      await until(async () => (await snapshot()).comments.length === 1, "The first note was not committed before its receipt was delayed.");
+      await ui.locator(".compose-error").waitFor({ state: "visible", timeout: 15000 });
+      assert(Date.now() - started >= 11500, "The actual helper timeout must expire; an immediate transport rejection is a different case.");
+      assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Det første innspillet er faktisk lagret.");
+      await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Et endret utkast etter tidsavbruddet.");
+      releaseReceipt();
+      await until(() => lateDelivered, "The late receipt was not delivered.");
+      await page.waitForTimeout(150);
+      assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Et endret utkast etter tidsavbruddet.", "A late success must not clear or close a newer local draft.");
+      assert.equal(attempts.length, 1, "A timeout must never retry automatically.");
+      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+      await ui.getByRole("button", { name: "Send 2 innspill", exact: true }).waitFor();
+      assert.equal(attempts.length, 2);
+      assert.notEqual(attempts[0].mutationId, attempts[1].mutationId);
+      assert.deepEqual((await snapshot()).comments.map(item => item.text), ["Det første innspillet er faktisk lagret.", "Et endret utkast etter tidsavbruddet."]);
+      return { writesAttempted: attempts.length, checks: ["actual 12-second timeout", "accepted first note retained", "late receipt preserves edited draft", "explicit changed intent gets new key"] };
+    } finally { releaseReceipt(); }
+  } },
+  { name: "parked-draft-versus-saved-preview", lostResponsePath: null, async run({ frame, ui, snapshot, begin }) {
+    await begin("Lagret forslag B.");
+    await ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
+    await ui.getByLabel("Ny tekst", { exact: true }).fill("Lagret overskrift B");
+    await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+    await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+    const saved = await snapshot();
+    await ui.getByRole("button", { name: "Lukk innspill", exact: true }).click();
+    await begin("Mitt nyere utkast A.");
+    await ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
+    await ui.getByLabel("Ny tekst", { exact: true }).fill("Mitt nyere utkast A");
+    await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
+    await ui.locator('[data-action="panel"]').click();
+    await ui.getByRole("button", { name: "Forhåndsvis tekst", exact: true }).click();
+    assert.equal(await frame.locator("h1").textContent(), "Lagret overskrift B");
+    await ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
+    assert.equal(await frame.locator("h1").textContent(), "Forbered møtet", "Resuming a draft must remove another saved proposal's preview even on the same element.");
+    assert.equal(await ui.getByLabel("Ny tekst", { exact: true }).inputValue(), "Mitt nyere utkast A");
+    assert.equal(await ui.getByRole("button", { name: "Se i skissen", exact: true }).isVisible(), false);
+    await ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).click();
+    await ui.getByRole("button", { name: "Se i skissen", exact: true }).click();
+    assert.equal(await frame.locator("h1").textContent(), "Mitt nyere utkast A", "Inspecting the resumed draft must show its own text.");
+    assert.equal(await ui.locator(".composer").isVisible(), false);
+    await ui.getByRole("button", { name: "Fortsett å redigere", exact: true }).click();
+    assert.equal(await ui.getByLabel("Ny tekst", { exact: true }).inputValue(), "Mitt nyere utkast A");
+    assert.equal(await ui.getByLabel("Ny tekst", { exact: true }).evaluate(element => element.getRootNode().activeElement === element), true);
+    assert.deepEqual((await snapshot()).comments, saved.comments, "Preview and resume must never save or replace the parked draft automatically.");
+    assert.equal((await snapshot()).revision, saved.revision);
+    return { writesAttempted: 1, checks: ["saved preview remains separate from parked draft", "resume clears foreign preview", "own inspection shows draft text", "edit focus and unsaved state retained"] };
+  } },
+  { name: "late-receipt-after-version-change", lostResponsePath: null, async run({ page, frame, ui, snapshot, begin, publish }) {
+    let releaseOld, releaseCurrent, oldDelivered = false, currentDelivered = false;
+    const oldReceipt = new Promise(resolve => { releaseOld = resolve; });
+    const currentFailure = new Promise(resolve => { releaseCurrent = resolve; });
+    const attempts = [];
+    await page.route("**/comments?**", async route => {
+      if (route.request().method() !== "POST") { await route.continue(); return; }
+      attempts.push({ body: route.request().postDataJSON(), mutationId: route.request().headers()["x-feedback-mutation"] });
+      if (attempts.length === 1) {
+        const response = await route.fetch();
+        assert.equal(response.status(), 200);
+        await oldReceipt;
+        await route.fulfill({ response });
+        oldDelivered = true;
+      } else if (attempts.length === 2) {
+        await currentFailure;
+        await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Controlled current write failure." }) });
+        currentDelivered = true;
+      } else await route.continue();
+    });
+    try {
+      await begin("Lagret før versjonsbytte.");
+      const started = Date.now();
+      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+      await ui.locator(".compose-error").waitFor({ state: "visible", timeout: 15000 });
+      assert(Date.now() - started >= 11500, "The original response must outlive the actual request timeout.");
+      assert.deepEqual((await snapshot()).comments.map(item => item.text), ["Lagret før versjonsbytte."]);
+      await ui.getByRole("button", { name: "Forkast", exact: true }).click();
+      await ui.locator('[data-action="panel"]').click();
+      await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).click();
+      await until(async () => (await snapshot()).submission === 1, "The accepted first comment was not submitted before changing versions.");
+      publish("Neste versjon");
+      await until(async () => await frame.getByRole("heading", { name: "Neste versjon", exact: true }).count() > 0 || await ui.locator('[data-action="refresh"]').isVisible(), "The next sketch version was not announced.");
+      if (await frame.getByRole("heading", { name: "Neste versjon", exact: true }).count() === 0) await ui.locator('[data-action="refresh"]').click();
+      await frame.getByRole("heading", { name: "Neste versjon", exact: true }).waitFor();
+      await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+      await frame.getByRole("heading", { name: "Neste versjon", exact: true }).click();
+      await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Nytt utkast som ikke er lagret.");
+      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+      await until(() => attempts.length === 2, "The next version's write was not intercepted.");
+      assert.equal(await ui.locator(".composer").getAttribute("aria-busy"), "true");
+      releaseOld();
+      await until(() => oldDelivered, "The old version's receipt was not delivered.");
+      await page.waitForTimeout(150);
+      assert.equal(await ui.locator(".composer").isVisible(), true, "An earlier document's receipt must not close the current unsaved draft.");
+      assert.equal(await ui.locator(".composer").getAttribute("aria-busy"), "true", "The current save must await its own result.");
+      releaseCurrent();
+      await ui.locator(".compose-error").waitFor({ state: "visible" });
+      assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Nytt utkast som ikke er lagret.");
+      assert.equal((await snapshot()).comments.length, 1);
+      assert.equal(attempts.length, 2, "Neither an old receipt nor a current failure may trigger an automatic retry.");
+      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+      await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+      assert.equal(attempts.length, 3);
+      assert.equal(attempts[1].mutationId, attempts[2].mutationId, "An explicit unchanged retry still recovers the current document's intent.");
+      assert.notEqual(attempts[0].body.screen, attempts[1].body.screen);
+      assert.deepEqual((await snapshot()).comments.map(item => item.text), ["Lagret før versjonsbytte.", "Nytt utkast som ikke er lagret."]);
+      return { writesAttempted: attempts.length, checks: ["actual timeout before version change", "old document receipt ignored", "current failure retains draft", "explicit retry saves current version"] };
+    } finally {
+      releaseOld(); releaseCurrent();
+      if (attempts.length >= 1) await until(() => oldDelivered, "Old intercepted response was not released.");
+      if (attempts.length >= 2) await until(() => currentDelivered, "Current intercepted response was not released.");
+    }
+  } },
 ];
 (async () => {
   const chosen = options.has("--case") ? cases.filter(item => item.name === options.get("--case")) : cases;
@@ -240,7 +465,7 @@ const cases = [
       catch (error) { results.push({ name: testcase.name, passed: false, error: String(error.message).replace(/https?:\/\/[^\s]+/g, "[local URL]") }); }
     }
   } finally { await browser.close(); }
-  const report = { passed: results.every(result => result.passed), cases: results, limits: ["Simulated response loss after an actual local commit; no model or native app session is used."] };
+  const report = { passed: results.every(result => result.passed), cases: results, limits: ["Controlled local request and response interruptions; no model or native app session is used."] };
   if (evidence) fs.writeFileSync(path.join(evidence, "retry-results.json"), JSON.stringify(report, null, 2) + "\n");
   console.log(JSON.stringify(report));
   if (!report.passed) process.exitCode = 1;

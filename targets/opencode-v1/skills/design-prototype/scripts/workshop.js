@@ -355,11 +355,15 @@
       if (locking) return;
       const binding = selected();
       const text = action === "workshop-add" || action === "workshop-keep" ? binding?.remark.trim() || "" : "";
-      if (new TextEncoder().encode(text).length > 2000) { error("Merknaden er for lang. Kort den ned før du lagrer."); focus(remark); return; }
+      if (new TextEncoder().encode(text).length > 2000) {
+        remark.before(el(".workshop-error"));
+        error("Merknaden er for lang. Kort den ned før du lagrer.");
+        focus(remark); el(".workshop-error").scrollIntoView({ block: "nearest" }); return;
+      }
       const retryKey = `${action}/${decisionId || (action === "workshop-prefer" ? preferredVariant : selectedKey)}`;
       if (!saveRetries.has(retryKey)) saveRetries.set(retryKey, {});
       const retry = saveRetries.get(retryKey);
-      let operation, payload;
+      let operation, payload, revealSaveError = false;
       if (action === "workshop-release") {
         if (retry.expectedRevision === undefined) retry.expectedRevision = snapshot.decisions?.find((item) => item.id === decisionId)?.revision || 0;
         operation = "decision-release"; payload = { id: decisionId, expectedRevision: retry.expectedRevision };
@@ -387,7 +391,8 @@
         updateDrafts();
         status("Lagret i innspill. Send samlet når du er klar.");
         announce("Valget er lagt til innspill.");
-        locking = false; close(); api.openFeedback();
+        const savedDecision = operation === "decision-keep" ? currentDecision(binding)?.id : decisionId;
+        locking = false; close(); api.openFeedback(operation === "comment-create" ? { comment: payload } : { decisionId: savedDecision });
       } catch (failure) {
         if (action === "workshop-keep" && failure.conflict && binding) {
           const current = currentDecision(binding);
@@ -402,10 +407,16 @@
           announce("Delen er endret et annet sted. Ditt valg og merknaden er beholdt.");
         } else {
           if (failure.conflict) delete retry.expectedRevision;
+          revealSaveError = !pane.hidden && (action === "workshop-add" || action === "workshop-keep");
+          if (revealSaveError) remark.before(el(".workshop-error"));
           error(failure.message); if (pane.hidden) api.showFeedbackError(failure.message);
         }
       }
-      finally { lock(false); if (action === "workshop-keep" && binding?.conflict) focus(el(".keep-conflict")); }
+      finally {
+        lock(false);
+        if (action === "workshop-keep" && binding?.conflict) focus(el(".keep-conflict"));
+        else if (revealSaveError) { focus(remark); el(".workshop-error").scrollIntoView({ block: "nearest" }); }
+      }
     }
 
     for (const [key, binding] of bindings) {

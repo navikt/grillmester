@@ -43,6 +43,16 @@ ikke at komponentene er aktive.
 
 ## Nye klientcase
 
+En isolert registreringsprøve med installert CLI 1.0.91 viste at en lokal
+marketplace laster pluginen direkte fra kildemappen. Katalogen viste åtte
+agenter og 44 skills med aktiv plugin; filene var identiske med kilden.
+Avinstallering deaktiverte pluginen og lot kilden ligge. En manglende kopi
+under `installed-plugins` er derfor ikke alene bevis på mislykket installasjon
+i denne modusen. Prøven brukte disponibel home og konsumentmappe, gjorde ingen
+modellkall og endret ingen klientinnstillinger utenfor prøven. Den bekrefter
+registrering og opprydding, ikke Designer-arbeidsflyten i en levende sesjon.
+De fastsatte versjonene og kravene i releaseprøvene er uendret.
+
 Disse akseptprøvene gjelder den portable serverflyten med `comments.js` og
 `wait`; den separate canvas-prøven er beskrevet nedenfor. De må kjøres i den
 konkrete klienten før adferden kan omtales

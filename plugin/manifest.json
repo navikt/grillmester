@@ -307,7 +307,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "258bb8eee64e5a421ffc2748402cf47fbfc732a7cf802d952f52916654f281be",
+      "sha256": "3045495d2923e7223654945de0eabdfd79cf680f5f44216714646de914fdccf5",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/comments.js": {
@@ -327,19 +327,19 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "a6b2d00c9c226b9ca7634ad31ab0c15f8f4b8351e41089b55f98c7f93a80b002",
+      "sha256": "69ff692907a022160fc6ba65972b34e94bc0b07175b25bd139a488ab24bf192e",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "2221179e11fe63e3016546b2e932aac8992c0a707f49e6978f34b5601088ce03",
+      "sha256": "ed21b6132d1f4e3ab4266646fa7053c500e6077847940b8d9983efd7565814e6",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
-      "sha256": "ea3a8ee43ac392ca044367204e6c0b4e2dba548760d73e88a251d370a97d3148",
+      "sha256": "04a15ca4753acec84c7b0e099c103a5349b0b1a9e68078086bf61e3f3853a3e1",
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "d517283235e895ef8e9ee0326166cc908c9573ce2557bab31499860ef0556e83",
+      "sha256": "54b200a2d763a7cd00757f26b09d4fbc9b3af7085d12a22ad357595ee5d4c56f",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {

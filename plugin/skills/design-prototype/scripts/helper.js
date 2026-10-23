@@ -106,7 +106,10 @@
     .panel-foot{padding:13px 16px;border-top:1px solid #ece8f0;background:#fcfbfd}.panel-foot .primary{width:100%;margin-top:10px}.connection{display:flex;align-items:center;gap:6px;font-size:11px;color:#787180}.connection::before{content:"";width:6px;height:6px;border-radius:50%;background:#aaa3af}.connection.live::before{background:#3b9166}.foot-status{font-size:11px;color:#685c74;margin:8px 0 0;line-height:1.4}.error{color:#ad2849;font-size:12px;line-height:1.5;margin:8px 0 0}.composer{pointer-events:auto;position:fixed;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - 105px);overflow-y:auto;overscroll-behavior:contain;padding:18px;background:#fff;border:1px solid #d8c2e5;border-radius:15px;box-shadow:0 12px 48px #32143f30}.composer .anchor-label{font-size:11px;color:#706578;margin-top:3px}.composer label{display:block;font-size:12px;font-weight:600;margin:15px 0 7px}.composer textarea{display:block;width:100%;min-height:88px;max-height:200px;resize:vertical;padding:10px;border:1px solid #8b7a9a;border-radius:8px;background:#fff;color:#282230;line-height:1.5;font-size:13px}.composer textarea::placeholder{color:#706578}.composer .compose-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:15px}.composer .proposal-toggle{font-size:12px;padding:7px 0;color:#7133a2;text-align:left;margin-top:8px}.composer .proposal-toggle:hover{background:transparent;text-decoration:underline}.composer .preview-button{font-size:11px;background:#f3edf7;margin-top:8px}.composer .help{font-size:10px;color:#706578;margin-top:9px}.composer .save{min-width:82px}.outline{position:fixed;pointer-events:none;border:2px solid #b52e8c;background:#b52e8c0d;border-radius:4px}.pins{position:fixed;inset:0;pointer-events:none}.pin{position:absolute;pointer-events:auto;min-height:26px;width:26px;height:26px;padding:0;border-radius:50%;background:#aa267e;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px #421b393d;font-size:11px;transform:translate(-50%,-50%)}.pin:hover,.pin:focus{background:#7c145d}.pin.fixed{background:#34845a}.pin.fixed:hover{background:#1e6740}.preview-bar{pointer-events:auto;position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#fff7e7;border:1px solid #e8d4a8;border-radius:11px;padding:8px 12px;box-shadow:0 4px 20px #39250018;font-size:12px;max-width:calc(100vw - 24px);display:flex;align-items:center;gap:12px}.preview-bar button{font-size:12px;background:#f4e4c3;white-space:nowrap}
     @media(max-width:600px){.toolbar{bottom:max(10px,env(safe-area-inset-bottom));gap:2px;padding:5px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:calc(100vw - 16px)}.toolbar button{font-size:12px;padding:8px}.toolbar .tools{border-left:1px solid #e7e3eb;padding-left:3px}.toolbar .divider{display:none}.panel{top:64px;right:10px;bottom:106px;width:calc(100vw - 20px)}.hint{font-size:11px}.composer{max-height:calc(100dvh - 120px)}.toolbar svg{width:15px;height:15px}}
     @media(max-height:540px){.panel{overflow-y:auto;overscroll-behavior:contain}.panel-head,.panel-foot,.list{flex-shrink:0}.list{flex:none;overflow:visible}}
+    .preview-bar{width:max-content;flex-wrap:wrap;justify-content:center}.preview-bar span{flex:1 1 100%;text-align:center}.preview-bar:has([data-action="edit-preview"][hidden]) span{flex:initial}
+    @media(min-width:600px){.preview-bar span{flex:initial}}
     .panel,.list,.composer{scroll-padding:8px}
+    .compose-error,.workshop-error{margin-bottom:8px}
     @media(prefers-reduced-motion:no-preference){button{transition:background .12s ease}}
   `;
   root.appendChild(style);
@@ -114,7 +117,7 @@
   ui.innerHTML = `
     <div class="outline" hidden></div><div class="pins"></div>
     <div class="hint" hidden></div>
-    <div class="preview-bar" hidden><span>Lokal tekstvisning</span><button type="button" data-action="undo">Tilbakestill</button></div>
+    <div class="preview-bar" hidden><span>Lokal tekstvisning</span><button type="button" data-action="edit-preview" hidden>Fortsett å redigere</button><button type="button" data-action="undo">Tilbakestill</button></div>
     <section class="panel" aria-label="Innspill til prototypen" hidden>
       <div class="panel-head"><div class="row between"><h2>Innspill <span class="count total">0</span></h2><button type="button" class="close" data-action="close-panel" aria-label="Lukk innspill">×</button></div>
         <p class="panel-intro">Pek på det du vil forbedre. Send samlet når du er klar. Innspillene lagres bare i denne økten.</p>
@@ -126,7 +129,7 @@
       <div class="row between"><h2 id="compose-title">Nytt innspill</h2><button type="button" class="close" data-action="hide-draft" aria-label="Legg utkast til side">×</button></div><div class="anchor-label"></div>
       <label for="feedback-note">Hva vil du endre?</label><textarea id="feedback-note" maxlength="2000" placeholder="For eksempel: Gi overskriften mer luft …"></textarea>
       <button type="button" class="proposal-toggle" data-action="proposal" aria-expanded="false" hidden>Foreslå ny tekst</button>
-      <div class="proposal-fields" hidden><label for="feedback-proposal">Ny tekst</label><textarea id="feedback-proposal" maxlength="2000" placeholder="Skriv inn teksten du foreslår"></textarea><button type="button" class="preview-button" data-action="preview-draft">Forhåndsvis teksten</button><p class="help">Kun en lokal forhåndsvisning. Forslaget sendes som et innspill.</p></div>
+      <div class="proposal-fields" hidden><label for="feedback-proposal">Ny tekst</label><textarea id="feedback-proposal" maxlength="2000" placeholder="Skriv inn teksten du foreslår"></textarea><button type="button" class="preview-button" data-action="preview-draft">Forhåndsvis teksten</button><button type="button" class="preview-button" data-action="inspect-preview" hidden>Se i skissen</button><p class="help">Kun en lokal forhåndsvisning. Forslaget sendes som et innspill.</p></div>
       <p class="error compose-error" role="alert" hidden></p><div class="compose-actions"><button type="button" data-action="discard">Forkast</button><button type="button" class="primary save" data-action="save">Lagre innspill</button></div><div class="help">⌘/Ctrl + Enter lagrer · Esc legger utkastet til side</div>
     </section>
     <div class="toolbar" role="toolbar" aria-label="Verktøy for prototype"><button type="button" data-action="browse" aria-pressed="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3l10 7-5 1-2 5z"/></svg> Utforsk</button><button type="button" data-action="comment" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4h12v9H9l-5 3z"/></svg> Kommenter</button><div class="tools" role="group" aria-label="Type markering" hidden><button type="button" data-action="point" aria-pressed="true">Punkt</button><button type="button" data-action="area" aria-pressed="false">Område</button></div><span class="divider"></span><button type="button" data-action="panel" aria-expanded="false">Innspill<span class="count total">0</span></button><button type="button" class="draft-button" data-action="resume" hidden>Fortsett utkast</button><button type="button" class="update" data-action="refresh" hidden>Vis ny versjon</button></div>
@@ -150,6 +153,7 @@
   let workshop = null;
   let drag = null;
   let preview = null;
+  let previewSpacer = null;
   let updateAvailable = false;
   let lastBusy = null;
   let requestCounter = 0;
@@ -167,7 +171,7 @@
   function announce(text) { el(".sr").textContent = text; }
   function ownEvent(event) { return event.composedPath().includes(host); }
   function usableTarget(target) {
-    return target instanceof Element && target !== host && !host.contains(target)
+    return target instanceof Element && target !== host && target !== previewSpacer && !host.contains(target)
       && !["HTML", "BODY", "SCRIPT", "STYLE", "NOSCRIPT"].includes(target.tagName);
   }
   function targetPath(target) {
@@ -245,6 +249,13 @@
     target.textContent = message || "";
     target.hidden = !message;
   }
+  function composeError(message, field) {
+    const error = el(".compose-error");
+    field.before(error);
+    errorAt(".compose-error", message);
+    field.focus();
+    error.scrollIntoView({ block: "nearest" });
+  }
   function setPanel(open, focus = false) {
     if (open && saving()) return;
     if (open) workshop?.close();
@@ -254,6 +265,17 @@
     if (open && focus) el('[data-action="close-panel"]').focus();
     if (!open && focus) el('[data-action="panel"]').focus();
     updateHint();
+  }
+  function revealFeedback({ comment, commentId, decisionId } = {}) {
+    filter = "all";
+    all("[data-filter]").forEach((entry) => entry.setAttribute("aria-pressed", String(entry.dataset.filter === filter)));
+    renderComments();
+    setPanel(true);
+    const id = commentId || (comment && snapshot.comments.slice().reverse().find((item) =>
+      Object.entries(comment).every(([key, value]) => JSON.stringify(item[key]) === JSON.stringify(value)))?.id);
+    const card = Array.from(el(".list").children).find((entry) => decisionId ? entry.dataset.decision === decisionId : id && entry.dataset.id === id);
+    if (card) { card.scrollIntoView({ block: "nearest" }); card.focus({ preventScroll: true }); }
+    else el('[data-action="close-panel"]').focus();
   }
   function updateHint() {
     const hint = el(".hint");
@@ -297,18 +319,22 @@
       preview = null;
     }
     el(".preview-bar").hidden = true;
+    previewSpacer?.remove(); previewSpacer = null;
+    el('[data-action="edit-preview"]').hidden = true;
+    el('[data-action="inspect-preview"]').hidden = true;
     el('[data-action="preview-draft"]').textContent = "Forhåndsvis teksten";
     updateBusy();
     updateHint();
     scheduleLayout();
   }
-  function showPreview(target, value) {
+  function showPreview(target, value, owner = null) {
     resetPreview();
     if (!eligibleText(target) || !value.trim()) return false;
     const nodes = Array.from(target.childNodes).filter((node) => node.nodeType === Node.TEXT_NODE).map((node) => ({ node, value: node.data }));
-    preview = { target, nodes };
+    preview = { target, nodes, owner };
     nodes.forEach(({ node }, index) => { node.data = index === 0 ? value : ""; });
     el(".preview-bar").hidden = false;
+    el('[data-action="inspect-preview"]').hidden = !draft || owner !== draft;
     el('[data-action="preview-draft"]').textContent = "Tilbakestill tekstvisning";
     updateBusy();
     updateHint();
@@ -369,15 +395,38 @@
   }
   function resumeDraft() {
     if (!draft || saving()) return;
+    if (preview && preview.owner !== draft) resetPreview();
     if (draft.kind === "area") workshop?.endComparison();
     setPanel(false);
     if (composer.hidden && draft.context) workshop?.restoreContext(draft.context);
     composer.hidden = false;
+    if (preview) preview.inspecting = false;
+    previewSpacer?.remove(); previewSpacer = null;
+    el('[data-action="edit-preview"]').hidden = true;
     el('[data-action="resume"]').hidden = true;
     showDraftOutline();
     positionComposer();
     note.focus({ preventScroll: true });
     updateHint();
+  }
+  function inspectPreview() {
+    if (!draft || !preview || preview.owner !== draft || saving()) return;
+    composer.hidden = true;
+    outline.hidden = true;
+    el('[data-action="resume"]').hidden = false;
+    el('[data-action="edit-preview"]').hidden = false;
+    preview.inspecting = true;
+    preview.needsReveal = true;
+    if (!previewSpacer) {
+      previewSpacer = document.createElement("div");
+      previewSpacer.setAttribute("aria-hidden", "true");
+      previewSpacer.style.cssText = "all:initial!important;display:block!important;pointer-events:none!important;";
+      document.body.insertBefore(previewSpacer, host);
+    }
+    el('[data-action="edit-preview"]').focus({ preventScroll: true });
+    announce("Viser tekstforslaget i skissen. Fortsett å redigere for å gå tilbake til utkastet.");
+    updateHint();
+    scheduleLayout();
   }
   function hideDraft() {
     if (!draft || savingDraft) return;
@@ -417,10 +466,10 @@
   async function saveDraft() {
     if (!draft || el(".save").disabled) return;
     const text = note.value.trim();
-    if (!text) { errorAt(".compose-error", "Skriv et innspill før du lagrer."); note.focus(); return; }
-    if (new TextEncoder().encode(text).length > 2000) { errorAt(".compose-error", "Innspillet er for langt. Kort det ned før du lagrer."); note.focus(); return; }
-    if (draft.proposal && new TextEncoder().encode(proposalInput.value.trim()).length > 2000) { errorAt(".compose-error", "Tekstforslaget er for langt. Kort det ned før du lagrer."); proposalInput.focus(); return; }
-    if (draft.proposal && !proposalInput.value.trim()) { errorAt(".compose-error", "Skriv inn teksten du foreslår."); proposalInput.focus(); return; }
+    if (!text) { composeError("Skriv et innspill før du lagrer.", note); return; }
+    if (new TextEncoder().encode(text).length > 2000) { composeError("Innspillet er for langt. Kort det ned før du lagrer.", note); return; }
+    if (draft.proposal && new TextEncoder().encode(proposalInput.value.trim()).length > 2000) { composeError("Tekstforslaget er for langt. Kort det ned før du lagrer.", proposalInput); return; }
+    if (draft.proposal && !proposalInput.value.trim()) { composeError("Skriv inn teksten du foreslår.", proposalInput); return; }
     const payload = { screen, kind: draft.proposal ? "edit" : draft.kind, anchor: draft.anchor, text };
     if (draft.context) payload.context = draft.context;
     if (draft.proposal) payload.proposal = { property: "text", value: proposalInput.value.trim() };
@@ -435,9 +484,9 @@
       if (draft !== submittedDraft) return;
       savingDraft = null;
       discardDraft();
-      setPanel(true, true);
+      revealFeedback({ comment: payload });
       announce("Innspillet er lagret lokalt. Send innspill når du er klar.");
-    } catch (error) { errorAt(".compose-error", error.message); }
+    } catch (error) { composeError(error.message, note); }
     finally {
       savingDraft = null;
       composer.setAttribute("aria-busy", "false");
@@ -466,7 +515,22 @@
       layoutPending = false;
       const toolbarTop = el(".toolbar").getBoundingClientRect().top;
       panel.style.bottom = `${Math.max(80, innerHeight - toolbarTop + 12)}px`;
-      for (const target of [panel, el(".hint"), el(".preview-bar")]) target.style.top = `${topInset()}px`;
+      for (const target of [panel, el(".hint")]) target.style.top = `${topInset()}px`;
+      const previewBar = el(".preview-bar");
+      const inspecting = preview?.inspecting && composer.hidden;
+      previewBar.style.top = inspecting ? "auto" : `${topInset()}px`;
+      previewBar.style.bottom = inspecting ? `${innerHeight - toolbarTop + 12}px` : "auto";
+      if (inspecting && previewSpacer) {
+        previewSpacer.style.setProperty("height", `${innerHeight - previewBar.getBoundingClientRect().top + 12}px`, "important");
+        if (preview.needsReveal) {
+          preview.needsReveal = false;
+          const comparison = el(".compare-bar");
+          const top = Math.max(topInset(), comparison && !comparison.hidden ? comparison.getBoundingClientRect().bottom + 12 : 0);
+          const bottom = previewBar.getBoundingClientRect().top - 12;
+          const rect = preview.target.getBoundingClientRect();
+          if (rect.top < top || rect.bottom > bottom) window.scrollBy({ top: rect.top - top - Math.max(0, (bottom - top - rect.height) / 2), behavior: "auto" });
+        }
+      }
       for (const button of pinLayer.children) {
         const item = snapshot.comments.find((entry) => entry.id === button.dataset.id);
         const rect = item && commentRect(item);
@@ -627,7 +691,7 @@
       else {
         const reopening = item.status === "fixed";
         await request("comment-update", { id: item.id, status: reopening ? "open" : "fixed", ...(reopening ? { resubmit: true } : {}) }, retry);
-        if (reopening) announce("Innspillet er åpnet igjen. Send innspill for å ta det opp i neste runde.");
+        if (reopening) { revealFeedback({ commentId: item.id }); announce("Innspillet er åpnet igjen. Send innspill for å ta det opp i neste runde."); }
       }
       commentRetries.delete(retryKey);
     } catch (error) { errorAt(".panel-error", error.message); }
@@ -664,10 +728,13 @@
     else if (action === "discard") discardDraft();
     else if (action === "hide-draft") hideDraft();
     else if (action === "resume") resumeDraft();
+    else if (action === "inspect-preview") inspectPreview();
+    else if (action === "edit-preview") { resumeDraft(); proposalInput.focus(); }
     else if (action === "undo") {
       const original = preview?.target;
       resetPreview();
       if (!composer.hidden) proposalInput.focus();
+      else if (draft) el('[data-action="resume"]').focus();
       else focusPrototype(original);
     }
     else if (action === "proposal" && draft) {
@@ -679,7 +746,7 @@
       if (draft.proposal) proposalInput.focus();
     } else if (action === "preview-draft" && draft) {
       if (preview) resetPreview();
-      else if (!showPreview(draft.target, proposalInput.value)) { errorAt(".compose-error", "Skriv inn teksten du vil forhåndsvise."); proposalInput.focus(); }
+      else if (!showPreview(draft.target, proposalInput.value, draft)) composeError("Skriv inn teksten du vil forhåndsvise.", proposalInput);
     } else if (action === "preview-saved" && item) {
       if (item.context) { resetPreview(); workshop?.restoreContext(item.context); }
       showPreview(resolveTarget(item.anchor), item.proposal.value);
@@ -708,7 +775,7 @@
     }
   });
   proposalInput.addEventListener("input", () => {
-    if (preview && draft?.proposal) showPreview(draft.target, proposalInput.value);
+    if (preview?.owner === draft && draft?.proposal) showPreview(draft.target, proposalInput.value, draft);
   });
   root.addEventListener("keydown", (event) => {
     if (saving()) return;
@@ -725,7 +792,7 @@
     event.stopPropagation();
     if (!composer.hidden) hideDraft();
     else if (!panel.hidden) setPanel(false, true);
-    else if (preview) resetPreview();
+    else if (preview) { const original = preview.target; resetPreview(); if (draft) el('[data-action="resume"]').focus(); else focusPrototype(original); }
     else { setMode("browse"); el('[data-action="browse"]').focus(); }
   });
 
@@ -805,7 +872,7 @@
     toggleSelect(choice);
   });
   window.addEventListener("scroll", scheduleLayout, { passive: true });
-  window.addEventListener("resize", () => { renderComments(); });
+  window.addEventListener("resize", () => { if (preview?.inspecting) preview.needsReveal = true; renderComments(); });
   if (typeof ResizeObserver === "function") {
     const observer = new ResizeObserver(scheduleLayout);
     observer.observe(document.body);
@@ -845,7 +912,9 @@
       updateBusy();
       if (data.ok) pending.resolve(data.snapshot);
       else {
-        const failure = new Error(data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt." : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen.");
+        const failure = new Error(data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt."
+          : data.errorCode === "capacity" ? "Økten har nådd en lagringsgrense. Innspill og utkast er beholdt. Kopier teksten du vil ta vare på før du starter en ny økt."
+            : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen.");
         failure.conflict = data.conflict === true;
         pending.reject(failure);
       }
@@ -872,7 +941,7 @@
         if (draft && !composer.hidden) hideDraft();
         setMode("browse"); setPanel(false); return true;
       },
-      openFeedback: () => setPanel(true, true),
+      openFeedback: revealFeedback,
     });
   }
   post({ action: "feedback-ready", screen });

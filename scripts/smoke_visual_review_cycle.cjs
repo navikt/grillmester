@@ -238,6 +238,171 @@ const cases = [
       return { findings: [{ observation: "The visible list can remove an old item while its sent receipt remains readable. Reopening shows both the earlier round and the new unsent status; a late reply with the old cursor is rejected.", reopenedLabels: ["Ny runde ikke sendt", "Sendt i runde 1", "Fjern fra listen"] }], measurements: { screenVersions: 3, submittedBatches: 2, roundOneComments: replayedFirst.comments.length, roundTwoComments: second.comments.length, secondRoundSourceScreens: new Set(second.comments.map(item => item.screen)).size, originalReceiptUnchanged: true, removedCurrentItemPresent: false, staleReplyRejected: true, focusAfterRemoval, drained: true } };
     } },
 ];
+cases.push(
+  { name: "first-save-after-filter", role: "Unfamiliar participant trying the filters before writing", viewport: { width: 390, height: 844 },
+    async run(view) {
+      await view.openFeedback();
+      await view.ui.getByText("Hva kan bli bedre?", { exact: true }).waitFor();
+      assert(await view.ui.getByRole("button", { name: "Send innspill", exact: true }).isDisabled());
+      await view.ui.getByRole("button", { name: "Ordnet", exact: true }).click();
+      await view.closeFeedback(); await view.openFeedback();
+      assert.equal(await view.ui.getByRole("button", { name: "Ordnet", exact: true }).getAttribute("aria-pressed"), "true", "Merely reopening feedback must retain the chosen filter.");
+      await view.note("Forklar hvorfor jeg er invitert, før tidspunkt og sted."); await view.save();
+      const state = await view.list(); assert.equal(state.comments.length, 1); assert.equal(state.submission, 0);
+      await view.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+      await view.screenshot("saved-with-filter");
+      assert(await view.ui.locator(`article[data-id="${state.comments[0].id}"]`).isVisible(), "The newly saved note must be visible for review before sending, even after selecting Ordnet.");
+      const card = view.ui.locator(`article[data-id="${state.comments[0].id}"]`);
+      await until(() => card.evaluate(node => node === node.getRootNode().activeElement), "focus reaches the newly saved card");
+      assert.equal(await view.ui.getByRole("button", { name: "Alle", exact: true }).getAttribute("aria-pressed"), "true");
+      return { measurements: { emptyStateExplained: true, ordinaryOpeningRetainedFilter: true, savedCommentVisible: true, savedCardFocused: true, submission: state.submission } };
+    } },
+  { name: "first-reopen-after-filter", role: "First-time designer reopening an unsent item", viewport: { width: 390, height: 844 },
+    async run(view) {
+      await view.note("Jeg trenger mer informasjon om hensikten med møtet."); await view.save();
+      const first = await view.list(), id=first.comments[0].id;
+      await view.ui.locator(`article[data-id="${id}"]`).getByRole("button", { name: "Marker ordnet", exact: true }).click();
+      await until(async () => (await view.list()).comments[0].status === "fixed", "local item marked fixed");
+      await view.ui.getByRole("button", { name: "Ordnet", exact: true }).click();
+      await view.ui.locator(`article[data-id="${id}"]`).getByRole("button", { name: "Åpne igjen", exact: true }).click();
+      await until(async () => (await view.list()).comments[0].status === "open", "local item reopened");
+      await view.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+      await view.screenshot("reopened-with-filter");
+      assert(await view.ui.locator(`article[data-id="${id}"]`).isVisible(), "A reopened item must remain visible for review instead of disappearing under Ordnet.");
+      const card = view.ui.locator(`article[data-id="${id}"]`);
+      await until(() => card.evaluate(node => node === node.getRootNode().activeElement), "focus reaches the reopened card");
+      await card.getByText("Ikke sendt", { exact: true }).waitFor();
+      assert.equal(await card.getByText(/Sendt i runde/).count(), 0, "A never-sent item must not imply an earlier round.");
+      return { measurements: { reopenedCommentVisible: true, reopenedCardFocused: true, neverSentStatusClear: true, submission: (await view.list()).submission } };
+    } },
+  { name: "first-kept-choice-after-filter", role: "Participant preserving useful wording after browsing open feedback", viewport: { width: 390, height: 844 },
+    async run(view) {
+      await view.openFeedback(); await view.ui.getByRole("button", { name: "Åpne", exact: true }).click();
+      await view.adjust(); await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
+      await view.workshop.getByLabel("Merknad", { exact: true }).fill("Behold forklaringen om at den nåværende timen fortsatt gjelder.");
+      await view.workshop.getByRole("button", { name: "Behold dette", exact: true }).press("Enter");
+      await view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); const state = await view.list(); assert.equal(state.decisions.length, 1); assert.equal(state.submission, 0);
+      await view.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+      await view.screenshot("kept-with-filter");
+      assert(await view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).locator(`article[data-decision="${state.decisions[0].id}"]`).isVisible(), "The just-kept choice must be visible when feedback opens, even after selecting Åpne.");
+      const card = view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).locator(`article[data-decision="${state.decisions[0].id}"]`);
+      await until(() => card.evaluate(node => node === node.getRootNode().activeElement), "focus reaches the kept choice");
+      return { measurements: { keptChoiceVisible: true, keptCardFocused: true, submission: state.submission } };
+    } }
+);
+
+
+cases.push({ name: "first-draft-preview-recovery", role: "Content designer trying an alternative before deciding", viewport: { width: 390, height: 844 },
+  async run(view) {
+    const original = "Passer tidspunktet?", proposed = "Velg en tid som passer deg";
+    const note = "Jeg prøver en mer aktiv overskrift før jeg bestemmer meg.";
+    await view.note(note, ".invitation h2");
+    await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
+    await view.ui.getByLabel("Ny tekst", { exact: true }).fill(proposed);
+    await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).press("Enter");
+    assert.equal(await view.frame.locator(".invitation h2").innerText(), proposed);
+    await view.screenshot("preview-before-parking");
+    await view.page.keyboard.press("Escape");
+    await view.ui.getByRole("button", { name: "Fortsett utkast", exact: true }).waitFor();
+    assert.equal(await view.frame.locator(".invitation h2").innerText(), original, "Parking must remove the visual preview.");
+    let state=await view.list(); assert.equal(state.comments.length, 0); assert.equal(state.submission, 0);
+    await view.ui.getByRole("button", { name: "Fortsett utkast", exact: true }).press("Enter");
+    assert.equal(await view.ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), note);
+    assert.equal(await view.ui.getByLabel("Ny tekst", { exact: true }).inputValue(), proposed);
+    const edited = "Finn et annet tidspunkt";
+    await view.ui.getByLabel("Ny tekst", { exact: true }).fill(edited);
+    await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).press("Space");
+    assert.equal(await view.frame.locator(".invitation h2").innerText(), edited);
+    await view.ui.getByRole("button", { name: "Forkast", exact: true }).press("Enter");
+    await view.ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" });
+    assert.equal(await view.frame.locator(".invitation h2").innerText(), original, "Discard must restore the original text.");
+    assert.equal(await view.ui.getByRole("button", { name: "Fortsett utkast", exact: true }).count(), 0);
+    await view.openFeedback(); await view.ui.getByText("Hva kan bli bedre?", { exact: true }).waitFor();
+    assert(await view.ui.getByRole("button", { name: "Send innspill", exact: true }).isDisabled());
+    await view.screenshot("discarded-with-empty-queue");
+    state=await view.list(); assert.equal(state.comments.length, 0); assert.equal(state.submission, 0);
+    return { measurements: { viewport: view.page.viewportSize(), parkedDraftRetainedBothFields: true, localTextRestoredTwice: true, keyboardActions: ["Enter preview", "Escape park", "Enter resume", "Space preview", "Enter discard"], savedComments: 0, submittedBatches: 0 } };
+  }
+});
+
+
+cases.push({ name: "first-adjustment-after-filter", role: "First-time designer recording a changed local setting", viewport: { width: 390, height: 844 },
+  async run(view) {
+    await view.openFeedback(); await view.ui.getByRole("button", { name: "Ordnet", exact: true }).click();
+    await view.adjust(); await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
+    await view.workshop.getByLabel("Merknad", { exact: true }).fill("Vis hva som skjer med den opprinnelige timen når jeg endrer den.");
+    await view.workshop.getByRole("button", { name: "Legg til innspill", exact: true }).press("Enter");
+    await view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor();
+    const state = await view.list(); assert.equal(state.comments.length, 1); assert.equal(state.comments[0].kind, "adjustment");
+    assert.equal(state.comments[0].adjustment.values.detail, "full"); assert.equal(state.submission, 0);
+    const card = view.ui.locator(`article[data-id="${state.comments[0].id}"]`);
+    assert(await card.isVisible(), "The newly recorded adjustment must be visible despite the earlier Ordnet filter.");
+    await until(() => card.evaluate(node => node === node.getRootNode().activeElement), "focus reaches the adjustment card");
+    await card.getByText(/Utfyllende forklaring/).waitFor();
+    assert(await view.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).isEnabled());
+    await view.screenshot("adjustment-visible-and-focused");
+    return { measurements: { adjustmentVisible: true, adjustmentCardFocused: true, declaredValueRecorded: "full", submittedBatches: state.submission } };
+  }
+});
+
+
+function previewInspectionCase(name, viewport, selector = ".invitation h2") {
+  return { name, role: "Content designer inspecting a text proposal in the sketch", viewport,
+    async run(view) {
+      const original = await view.frame.locator(selector).innerText();
+      const bodyChildren = await view.frame.locator("body").evaluate(node => node.children.length);
+      const assertNoExtraSpace = async () => assert.equal(await view.frame.locator("body").evaluate(node => node.children.length), bodyChildren, "Leaving inspection must remove its temporary scroll space.");
+      const note = "Prøv en tydelig handlingsorientert overskrift.", proposed = "Velg en tid som passer deg", edited = "Finn et annet tidspunkt";
+      const noteField = view.ui.getByLabel("Hva vil du endre?", { exact: true }), proposalField = view.ui.getByLabel("Ny tekst", { exact: true });
+      const inspect = async () => {
+        await view.ui.getByRole("button", { name: "Se i skissen", exact: true }).press("Enter");
+        await view.ui.getByRole("dialog", { name: "Nytt innspill", exact: true }).waitFor({ state: "hidden" });
+        // Hiding the editor is synchronous; docking and reveal occur on the next frame.
+        await view.frame.locator("body").evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      };
+      await view.note(note, selector); await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click(); await proposalField.fill(proposed);
+      await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).press("Enter"); await inspect();
+      const geometry = await view.frame.locator(selector).evaluate(node => {
+        const r=node.getBoundingClientRect(), samples=[[.5,.25],[.5,.5],[.5,.75],[.1,.5],[.9,.5]].map(([dx,dy]) => { const x=r.left+r.width*dx,y=r.top+r.height*dy,hit=document.elementFromPoint(x,y);return {x,y,visible:node===hit||node.contains(hit),occludingTag:hit?.tagName||null,occludingClass:typeof hit?.className === "string" ? hit.className : ""}; });
+        return { target: {x:r.x,y:r.y,width:r.width,height:r.height}, viewport:{width:innerWidth,height:innerHeight}, samples };
+      });
+      await view.screenshot("inspection-target-visible");
+      if (evidence) fs.writeFileSync(path.join(evidence, `${name}-geometry.json`), `${JSON.stringify(geometry,null,2)}\n`);
+      assert(geometry.samples.every(sample => sample.visible), "The inspected heading must be unobscured by the editor, preview bar and fixed header.");
+      const editButton = view.ui.getByRole("button", { name: "Fortsett å redigere", exact: true });
+      assert(await editButton.evaluate(node => node === node.getRootNode().activeElement), "Inspection must focus the return-to-edit action.");
+      await editButton.press("Enter"); await assertNoExtraSpace(); assert.equal(await noteField.inputValue(),note); assert.equal(await proposalField.inputValue(),proposed);
+      const resumedField = await proposalField.evaluate(node => { const field=node.getBoundingClientRect(),dialog=node.closest(".composer").getBoundingClientRect();return {focused:node===node.getRootNode().activeElement,field:{top:field.top,bottom:field.bottom},dialog:{top:dialog.top,bottom:dialog.bottom},scrollTop:node.closest(".composer").scrollTop}; });
+      if (evidence) fs.writeFileSync(path.join(evidence, `${name}-resumed-field.json`), `${JSON.stringify(resumedField,null,2)}\n`);
+      await view.screenshot("return-to-editor-focused-field");
+      assert(resumedField.focused && resumedField.field.top >= resumedField.dialog.top && resumedField.field.bottom <= resumedField.dialog.bottom, "The focused proposal field must be visible inside the returned editor.");
+      await proposalField.fill(edited); await inspect(); assert.equal(await view.frame.locator(selector).innerText(), edited);
+      await view.ui.getByRole("button", { name: "Tilbakestill", exact: true }).press("Enter"); await assertNoExtraSpace(); assert.equal(await view.frame.locator(selector).innerText(),original);
+      const resume = view.ui.getByRole("button", { name: "Fortsett utkast", exact: true });
+      assert(await resume.evaluate(node => node === node.getRootNode().activeElement)); await resume.press("Enter");
+      assert.equal(await noteField.inputValue(),note); assert.equal(await proposalField.inputValue(),edited);
+      await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).press("Enter"); await inspect(); await view.page.keyboard.press("Escape"); await assertNoExtraSpace();
+      assert.equal(await view.frame.locator(selector).innerText(),original); assert(await resume.evaluate(node => node === node.getRootNode().activeElement));
+      await resume.press("Enter"); await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).press("Enter"); await inspect(); await editButton.press("Enter");
+      await view.ui.getByRole("button", { name: "Forkast", exact: true }).press("Enter"); await assertNoExtraSpace(); assert.equal(await view.frame.locator(selector).innerText(),original);
+      await view.note(note, selector); await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click(); await proposalField.fill(proposed);
+      await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).press("Enter"); await inspect();
+      view.write("Invitasjon · ny versjon mens tekst prøves"); const refresh=view.ui.locator('[data-action="refresh"]'); await refresh.waitFor();
+      assert(await refresh.isDisabled(), "An inspected draft must still block a new version."); assert.equal(await view.frame.locator(selector).innerText(),proposed);
+      await editButton.press("Enter"); assert.equal(await noteField.inputValue(),note); assert.equal(await proposalField.inputValue(),proposed);
+      await view.screenshot("draft-preserved-during-new-version");
+      await view.ui.getByRole("button", { name: "Forkast", exact: true }).press("Enter"); await view.shown("Invitasjon · ny versjon mens tekst prøves");
+      const state=await view.list(); assert.equal(state.comments.length,0); assert.equal(state.submission,0);
+      return { measurements: { geometry, resumedField, inspectionReturnFocused:true, bothFieldsPreserved:true, originalRestoredByUndoEscapeDiscard:true, temporarySpaceRemoved:true, newVersionBlockedUntilDiscard:true, savedComments:0, submittedBatches:0 } };
+    }
+  };
+}
+cases.push(
+  previewInspectionCase("mobile-preview-inspection-390", {width:390,height:844}),
+  previewInspectionCase("mobile-preview-inspection-320", {width:320,height:568}),
+  previewInspectionCase("mobile-first-heading-preview-320", {width:320,height:568}, "h1")
+);
+
 async function main() {
   const allCases = [cases[0], { ...cases[0], name: "mobile-sent-context-next-version-320", viewport: { width: 320, height: 844 } }, ...cases.slice(1)];
   const selected = options.has("--case") ? allCases.filter(item => item.name === options.get("--case")) : allCases;
