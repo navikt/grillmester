@@ -1,0 +1,8 @@
+{
+  "name": "design-review-probe",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "extension.mjs",
+  "description": "An isolated experiment for session-bound design review canvases."
+}

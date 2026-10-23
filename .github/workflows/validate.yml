@@ -110,6 +110,14 @@ jobs:
           node --check plugin/skills/design-prototype/scripts/feedback-store.js
           node --test plugin/skills/design-prototype/tests/server.test.js
 
+      - name: Test isolated canvas experiment
+        run: |
+          node --check experiments/canvas-review/extension.mjs
+          node --check experiments/canvas-review/review.js
+          node --check experiments/canvas-review/sdk-smoke.mjs
+          node --check experiments/canvas-review/browser-smoke.mjs
+          node --test experiments/canvas-review/probe.test.mjs
+
       - name: Install exact OpenCode release-test baseline
         shell: bash
         run: |

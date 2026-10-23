@@ -57,17 +57,22 @@ bevise protokollen, men ikke at en levende klient følger hele arbeidsflyten.
 | P2 | VS Code, delt fane og separat agentfane | Riktig skjerm og viewport inspiseres. Tilstand i den delte fanen forveksles ikke med separat nettlesertilstand. |
 | P2 | Mobil fjernstyring og cloud | Ingen preview-tilgjengelighet loves uten faktisk adgang fra brukerens flate. Fallback skjer uten skjult tunnel eller installasjon. |
 
-## App-canvas som mulig videre spor
+## App-canvas som prøvd integrasjonsspor
 
 Copilot-appens dokumentasjon beskriver canvas extensions som pluginflater med
-felles tilstand for UI-handlinger og agentkall. Det kan gi tettere samarbeid,
-men er en egen integrasjon. En vanlig localhost-side blir ikke automatisk et
-canvas. Dokumentasjonen som er kontrollert her fastsetter heller ikke en
-garantert oppvåkning av en avsluttet samtaletur ved vilkårlig UI-endring.
+handlinger både brukeren og sesjonen kan bruke. En vanlig localhost-side blir
+ikke automatisk et canvas. GitHubs eksempel viser derimot en konkret bro fra
+eksplisitt UI-handling til `session.send` i den tilknyttede sesjonen.
 [Canvas extensions](https://docs.github.com/en/copilot/how-tos/github-copilot-app/working-with-canvas-extensions).
 
-Behold dagens server, samlet innsending og avgrenset venting som portabel
-kontrakt. Før en eventuell adapter må valgt appversjon, offentlig API, delt
-tilstand, tillatelser, opprydding og hendelse → agenttur prøves. En slik endring
-må følge repoets arkitekturprosess; denne gjennomgangen innfører ingen ny hook,
-MCP-server eller bakgrunnstjeneste.
+SDK-ens dokumenterte kømodus starter en tur når sesjonen er ledig, og legger
+meldingen i kø når den arbeider. Kvitteringen beviser mottak, ikke konsum eller
+utført arbeid. Dette gjelder en eksplisitt sesjonsmelding, ikke vilkårlige
+UI-endringer. [Kø og styring](https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/steering-and-queueing).
+
+Den [avgrensede canvas-prøven](visual-companion-canvas.md) har kontrollert den
+installerte SDK-en mot en simulert vert og prøvd grensesnittet i nettleser.
+Faktisk appvisning, turkjøring og livssyklus er fortsatt ikke validert.
+[ADR 0019](../adr/0019-app-canvas-prove.md) avgrenser forsøket til kode utenfor
+pluginpayloaden. Behold dagens server, samlet innsending og avgrenset venting
+som portabel kontrakt til en valgfri adapter er prøvd i den konkrete appen.

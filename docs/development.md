@@ -144,6 +144,12 @@ nettleserzoom og frakobling med et utkast. Se
 Klientforutsetninger og egne akseptprøver for Copilot app, CLI og andre flater
 står i [klientmatrisen](testing/visual-companion-client-capabilities.md).
 
+En isolert prøve av appens canvas-API ligger i `experiments/canvas-review/`.
+Den bruker et medfølgende SDK mot en simulert vert og et separat nettleseroppsett;
+den starter ingen modellklient og inngår ikke i pluginpayloaden. Se
+[canvas-protokollen](testing/visual-companion-canvas.md) og
+[kjøreinstruksjonene](../experiments/canvas-review/README.md).
+
 Plugin-smoken skal bekrefte 8 agenter, 44 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
 minimumsklienten Copilot CLI `1.0.79` annonserer hele flaggrosteren som local-run
