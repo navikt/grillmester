@@ -66,6 +66,8 @@ async function run(name, concept, exercise, options = {}) {
 try {
   await run('content-keyboard-round', 'content', async ({ page, calls, action, state, refresh }) => {
     await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'feedback-link');
+    await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(() => document.activeElement?.value), 'clear');
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.locator('.surface').getAttribute('data-choice'), 'compact');
@@ -198,6 +200,115 @@ try {
     assert.equal(await page.locator('#note').inputValue(), 'Et senere utkast skal fortsatt finnes.');
     assert.equal(calls.length, 1);
   }, { sendTimeoutMs: 120, send: () => new Promise(() => {}) });
+
+  await run('long-norwegian-note', 'content', async ({ page, calls, state }) => {
+    const longNote = 'Behold den ærlige forklaringen, gjør neste steg tydeligere og la spørsmålet stå åpent. '.repeat(35);
+    assert.ok(Buffer.byteLength(longNote, 'utf8') > 2000);
+    await page.locator('#note').fill(longNote);
+    assert.equal(await page.locator('#note').getAttribute('aria-invalid'), 'true');
+    assert.match(await page.locator('#note-error').textContent(), /Kort ned teksten/);
+    await page.getByRole('button', { name: 'Send innspill', exact: true }).click();
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'note');
+    assert.equal(await page.locator('#note').inputValue(), longNote);
+    assert.equal(calls.length, 0, 'Oversized local drafts must never be sent');
+    await page.screenshot({ path: path.join(evidence, 'long-note-error.png'), fullPage: true });
+    const validNote = 'Behold datoen og forklar hva jeg skal ta med. Ærlig språk og åpne spørsmål gjør neste møte lettere. '.repeat(9);
+    assert.ok(Buffer.byteLength(validNote, 'utf8') <= 2000);
+    await page.locator('#note').fill(validNote);
+    assert.equal(await page.locator('#note').getAttribute('aria-invalid'), 'false');
+    assert.equal(await page.locator('#note-error').isVisible(), false);
+    let rejectOnce = true;
+    await page.route('**/api/submit?*', async route => {
+      if (rejectOnce) { rejectOnce = false; return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Rejected by the simulated validation boundary.' }) }); }
+      return route.continue();
+    });
+    await page.getByRole('button', { name: 'Send innspill', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('#note').getAttribute('aria-invalid') === 'true');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'note');
+    assert.equal(await page.locator('#note').inputValue(), validNote, 'Rejected submissions preserve the complete draft');
+    assert.equal(calls.length, 0);
+    await page.locator('#note').fill(`${validNote} Avklart.`);
+    await page.getByRole('button', { name: 'Send innspill', exact: true }).click();
+    await until(() => state().batches[0]?.delivery === 'queued', 'Corrected Norwegian note was not queued');
+    assert.equal(state().batches[0].note, `${validNote} Avklart.`);
+    assert.equal(calls.length, 1);
+    assert.equal(await page.locator('#note').getAttribute('aria-invalid'), 'false');
+  }, { viewport: { width: 415, height: 900 } });
+
+  await run('keyboard-status-updates', 'dashboard', async ({ page, calls, action, state, refresh }) => {
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'feedback-link');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'note', 'The feedback shortcut reaches its labelled input');
+    await page.keyboard.insertText('Behold prioriteringen, men gjør ventende saker enklere å forstå.');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'submit');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('#review-status').textContent.includes('Lagt i samtalens kø'));
+    await page.evaluate(() => {
+      window.statusMutations = [];
+      for (const id of ['connection', 'review-status', 'update']) {
+        new MutationObserver(records => window.statusMutations.push({ id, count: records.length })).observe(document.getElementById(id), { childList: true, subtree: true, characterData: true });
+      }
+    });
+    for (let count = 0; count < 2; count++) {
+      await page.waitForResponse(response => new URL(response.url()).pathname === '/api/state');
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    }
+    assert.deepEqual(await page.evaluate(() => window.statusMutations), [], 'Unchanged polling must not repeatedly rewrite live-region text');
+    const batch = state().batches[0];
+    action('review_batch', { batchId: batch.id, status: 'working', reply: 'Denne runden vurderes nå.' });
+    await refresh();
+    assert.match(await page.locator('#review-status').textContent(), /Runde 1: Under behandling/);
+    const draft = 'Et nytt innspill som fortsatt gjelder den viste skissen.';
+    await page.locator('#note').fill(draft);
+    action('apply_revision', { expectedRevision: state().revision, title: 'Følg opp det viktigste først', description: 'Ventende saker vises etter oppgavene som haster.' });
+    await page.waitForFunction(() => !document.querySelector('#update').hidden);
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'note', 'A remote revision must not move keyboard focus');
+    assert.equal(await page.locator('#note').inputValue(), draft);
+    await page.evaluate(() => { window.statusMutations = []; });
+    await page.waitForResponse(response => new URL(response.url()).pathname === '/api/state');
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.deepEqual(await page.evaluate(() => window.statusMutations), [], 'The pending-revision notice is not repeated on every poll');
+    action('review_batch', { batchId: batch.id, status: 'resolved', reply: 'Ventende saker er tydeligere skilt fra de prioriterte oppgavene.' });
+    await page.waitForFunction(() => document.querySelector('#review-status').textContent.includes('Runde 1: Besvart'));
+    assert.equal(await page.locator('#latest-reply-link').isVisible(), true);
+    for (let step = 0; step < 14 && await page.evaluate(() => document.activeElement?.id) !== 'latest-reply-link'; step++) await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'latest-reply-link');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement?.dataset.batch), batch.id, 'The latest-reply shortcut focuses the actual answered round');
+    assert.equal(await page.locator('#note').inputValue(), draft);
+    assert.equal(calls.length, 1, 'Status notices and shortcuts never create messages');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  }, { viewport: { width: 415, height: 900 } });
+
+  await run('multiple-rounds-reading', 'content', async ({ page, calls, action, state, refresh }) => {
+    const firstNote = 'Behold datoen og den korte forklaringen. '.repeat(12);
+    await page.locator('#note').fill(firstNote);
+    await page.getByRole('button', { name: 'Send innspill', exact: true }).click();
+    await until(() => state().batches[0]?.delivery === 'queued', 'First round was not queued');
+    await refresh();
+    await page.locator('#note').fill('Et eget forbehold: forklar hva som skjer hvis tidspunktet ikke passer.');
+    await page.getByRole('button', { name: 'Send innspill', exact: true }).click();
+    await until(() => state().batches[1]?.delivery === 'queued', 'Second round was not queued');
+    const [first, second] = state().batches;
+    action('review_batch', { batchId: first.id, status: 'working', reply: 'Den første runden vurderes.' });
+    action('review_batch', { batchId: second.id, status: 'resolved', reply: 'Alternativt tidspunkt er forklart.' });
+    await refresh();
+    await page.waitForFunction(() => document.querySelector('#batches').textContent.includes('Alternativt tidspunkt er forklart.'));
+    assert.equal(await page.locator('#latest-reply-link').getAttribute('href'), `#round-${second.id}`);
+    await page.locator('.batch p').filter({ hasText: firstNote }).first().click({ clickCount: 3 });
+    const selected = await page.evaluate(() => getSelection().toString());
+    assert.ok(selected.includes('Behold datoen'));
+    action('review_batch', { batchId: second.id, status: 'resolved', reply: 'Alternativt tidspunkt og hjelp ved behov er forklart.' });
+    await page.waitForFunction(() => document.querySelector('#batches').textContent.includes('Alternativt tidspunkt og hjelp ved behov er forklart.'));
+    assert.equal(await page.evaluate(() => getSelection().toString()), selected, 'An updated answer in another round must not destroy the selected text');
+    action('review_batch', { batchId: first.id, status: 'resolved', reply: 'Datoen og den korte forklaringen er beholdt.' });
+    await page.waitForFunction(() => document.querySelector('#review-status').textContent.includes('Runde 1: Besvart'));
+    assert.equal(await page.locator('#latest-reply-link').getAttribute('href'), `#round-${first.id}`, 'Latest answer follows actual reply changes, not the highest round number');
+    assert.equal(calls.length, 2);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  }, { viewport: { width: 415, height: 900 } });
 } finally { await browser.close(); }
 
 const report = {

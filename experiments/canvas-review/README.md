@@ -20,14 +20,17 @@ retain the viewed screen while a newer revision waits. Each submitted batch
 keeps the original authored title and description for later review; no DOM text
 or prototype field values are harvested.
 
-All state is **in process memory** and is lost on stop or crash. The probe does
-not reuse the production atomic feedback store and does not prove durable or
+All state is **in process memory** and is lost on extension shutdown or process
+crash. The probe does not reuse the production atomic feedback store and does not prove durable or
 exactly-once delivery across restarts. Each canvas expires after 20 minutes,
 permits at most 50 batches and 50 sketch revisions, and has its own token and
-port. At most four canvases may be open; closed IDs cannot be reused within the
-same extension lifetime. Restart this bounded experiment after 20 closed
-instances. The three concept labels use the same small text-and-direction
-surface; this is not a replacement for the full design editor.
+port. At most four sketch artifacts are retained, including those with closed
+panels. Closing a panel revokes its URL; reopening the same ID restores the
+same sketch and submitted batches through a fresh token. It never changes the
+original expiry or concept, and unsent browser drafts are not retained. Expired
+IDs cannot be reused within the same extension lifetime. Restart this bounded
+experiment after 20 expired instances. The three concept labels use the same
+small text-and-direction surface; this is not a replacement for the full design editor.
 
 ## Verify without a client or model
 
@@ -61,13 +64,28 @@ opening when both flags are absent. Explicit `false` and malformed flags are
 rejected. An attached session with the exact session ID is always required;
 missing flags never replace ownership checks or prove rendering works.
 
-A disposable native app test on 2026-10-23 (version 1.1.31) verified discovery,
-panel rendering with the existing CSP, and one explicit batch starting an idle
-session, updating the sketch and returning a visible reply. Closing the panel
-revoked its listener; repository trust was revoked and the session archived.
-Busy scheduling, concurrent sessions, crash/reopen behavior and storage of the
-token-bearing URL remain unverified in the app. Do not relax `frame-ancestors`
-or other network boundaries merely to make embedding work.
+Disposable native app tests on 2026-10-23 (version 1.1.31) verified discovery,
+panel rendering with the existing CSP, idle-session delivery, an observed queued
+message while busy, and separate replies in two canvas instances. A new unsent
+draft retained its original sketch while a revision waited. Long Norwegian input
+was rejected locally with focus returned to the field; the reply shortcut focused
+the answered round. Concept-specific tab titles distinguish the sketches.
+
+With the final lifecycle code, closing during accepted work revoked the listener.
+The host rejected actions on the closed panel, so the session reopened the same
+instance and completed its retained batch. Manual reopening after completion also
+restored the sketch and reply through a fresh URL, without another message.
+Closing a panel therefore does not cancel accepted work and may be followed by
+an automatic reopen. A production adapter must make that distinction explicit.
+Repository trust was revoked, the session archived, and all test listeners and
+extension processes were stopped. Concurrent sessions, crashes, screen readers,
+actual zoom and storage of the token-bearing URL remain unverified in the app.
+Do not relax `frame-ancestors` or other network boundaries to make embedding work.
+
+The SDK close callback has no view generation. A delayed callback may close a
+newly reopened panel, but cannot reset its retained artifact; opening it again
+restores the same data. Final expiry or extension shutdown discards the artifact
+and rejects further actions. This is bounded in-memory recovery, not persistence.
 
 See [ADR 0019](../../docs/adr/0019-app-canvas-prove.md) and the
 [architecture and acceptance protocol](../../docs/testing/visual-companion-canvas.md)

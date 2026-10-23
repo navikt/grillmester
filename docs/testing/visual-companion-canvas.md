@@ -83,10 +83,19 @@ kontakte en modell.
 
 Prøven lagrer data bare i prosessens minne. «Lagret» betyr derfor tilgjengelig
 i den kjørende prøveøkten, ikke sikret mot krasj eller restart. Den har opptil
-fire samtidige canvas-instanser, 50 innsendte runder og 50 skisserevisjoner per
-instans, og en absolutt levetid på 20 minutter. Lukkede instans-ID-er kan ikke
-gjenbrukes i samme utvidelsesprosess. Etter 20 lukkede instanser må forsøket
+fire beholdte skisser, 50 innsendte runder og 50 skisserevisjoner per instans,
+og en absolutt levetid på 20 minutter. Lukking stopper panelets HTTP-server og
+tilbakekaller URL-en. Gjenåpning av samme ID gir nytt token og samme skisse,
+historikk og innsendte runder. Det forlenger ikke levetiden eller endrer konseptet.
+Usendte nettleserutkast overlever ikke panellukking. Utløpte instans-ID-er kan
+ikke gjenbrukes i samme utvidelsesprosess. Etter 20 utløpte instanser må forsøket
 startes på nytt. Ingen token-URL lagres i delt testevidens.
+
+SDK-ens lukkecallback har ingen visningsgenerasjon. En forsinket callback kan
+derfor lukke en nylig gjenåpnet visning, men kan ikke slette eller nullstille
+skissen; den kan åpnes igjen. Endelig utløp eller avsluttet utvidelse forkaster
+skissen og avviser videre handlinger. Dette er midlertidig gjenoppretting i
+minnet, ikke varig lagring.
 
 En lokal tekstkladd holder den synlige skisseversjonen tilbake når en ny
 revisjon publiseres. Innsendingen bindes til denne opprinnelige versjonen og
@@ -136,9 +145,9 @@ registrert separat nedenfor. Ingen personlig utvidelsesmappe er endret.
 
 | Prøvelag | Resultat | Hva det beviser |
 | --- | --- | --- |
-| Node-tester av HTTP og levetid | 10 bestått | Token, Host, Origin, lukket skjema, tekstgrenser, parallelle åpninger og lukkinger, isolasjon, utløp, sene kvitteringer, historisk skissekontekst og valgfrie kapabilitetsfelt |
-| Installert SDK mot deterministisk stdio-vert | 14 bestått | Registrering, eksakt sesjonsbinding, kømelding, deduplisering, handlinger, isolasjon, uavklart levering, valgfrie kapabilitetsfelt og lukking gjennom SDK-ens faktiske protokoll |
-| Chrome mot den faktiske prøveflaten med simulert sesjon | 5 bestått | Tastatur, utkast under ny revisjon, smal visning, tapt HTTP-kvittering og uavklart SDK-levering; ingen eksterne ressurskall eller nettleserfeil |
+| Node-tester av HTTP og levetid | 16 bestått | Token, Host, Origin, lukket skjema, tekstgrenser, parallelle åpninger og lukkinger, isolasjon, utløp, sene kvitteringer, historisk skissekontekst og valgfrie kapabilitetsfelt |
+| Installert SDK mot deterministisk stdio-vert | 18 bestått | Registrering, eksakt sesjonsbinding, kømelding, deduplisering, handlinger, isolasjon, uavklart levering, valgfrie kapabilitetsfelt og lukking gjennom SDK-ens faktiske protokoll |
+| Chrome mot den faktiske prøveflaten med simulert sesjon | 8 bestått | Tastatur, utkast under ny revisjon, smal visning, norsk langtekst, lesing på tvers av runder, tapt HTTP-kvittering og uavklart SDK-levering; ingen eksterne ressurskall eller nettleserfeil |
 
 SDK-prøven brukte filene fra appversjon 1.1.31, protokollversjon 3 og
 SDK-inngangsfilens SHA-256
@@ -153,7 +162,8 @@ deretter ble modellen valgt manuelt. Prøven bekreftet oppdagelse gjennom
 `list_canvas_capabilities`, rendering i appens panel og behandling av ett
 eksplisitt innspill fra en ledig sesjon. CSP beholdt `frame-ancestors 'none'`.
 
-Brukeren valgte `guided` og sendte én runde med ønsket tittel og beskrivelse.
+I den første prøven ble `guided` valgt og én runde med ønsket tittel og
+beskrivelse sendt.
 Innsendingen startet en ny tur uten ekstra chatmelding. Sesjonen kalte
 `open_canvas` og `invoke_canvas_action`, markerte runden som under behandling,
 publiserte revisjonen og besvarte runden. Panelet viste «Forbered deg til møtet»,
@@ -177,8 +187,31 @@ viser samme feilmelding i en annen installasjon, men beviser ikke årsaken her.
 Normal panellukking stengte den konkrete loopback-porten. Tilliten til den
 disponible testmappen ble trukket tilbake, og innstillingene viste «Not accepted».
 Prøveøkten ble arkivert; ingen av dens utvidelsesprosesser var igjen.
-Innsending under en opptatt sesjon, to samtidige sesjoner og livssyklus ved
-krasj eller gjenopptakelse er fortsatt ikke prøvd i appen.
+En ny appomgang prøvde to separate instanser i samme sesjon: møteforberedelse
+og arbeidsoversikt. Innspill til arbeidsoversikten ble sendt mens den første
+runden var under arbeid. Appen viste «1 queued message», tok deretter opp den
+andre runden automatisk og viste riktig tittel, beskrivelse og svar i hver
+skisse. Et nytt usendt utkast beholdt teksten og skisseversjon 1 mens versjon 2
+ventet. Tømming av utkastet viste den nye skissen. En tekst med 1001 «ø» ble
+stoppet lokalt med feltfeil og fokus tilbake i feltet; ingen ny runde ble sendt.
+«Se siste svar» flyttet fokus til den besvarte runden.
+
+Den siste appprøven lastet inn rettelsene for levetid og gjenåpning. Panelet ble
+lukket mens et kvittert innspill ble behandlet, og den konkrete porten stengte.
+Verten avviste videre canvas-handlinger fordi panelet var lukket. Sesjonen åpnet
+derfor samme instans igjen, fant den beholdte runden og fullførte oppdatering og
+svar. Ny manuell lukking og gjenåpning fra canvasmenyen beholdt skisseversjon 2,
+innspillets ID og svaret, med en ny URL og uten ny melding. Lukking er dermed
+ikke kansellering av allerede innsendt arbeid; panelet kan åpnes igjen av den
+pågående behandlingen. En produksjonsadapter må avklare og synliggjøre dette.
+
+Totalt omfattet appprøvene seks eksplisitte arbeidsforespørsler: to
+oppsettsmeldinger og fire innsendte runder. Fanetitlene er nå forskjellige for
+møteforberedelse, arbeidsoversikt og timebestilling. Etter siste prøve var
+samtlige konkrete prøveporter stengt, testtilliten trukket tilbake, økten
+bekreftet arkivert og ingen prøveutvidelsesprosesser igjen. To samtidige sesjoner,
+krasj, faktisk 200 % zoom, skjermleser og lagring av token-URL er fortsatt ikke
+validert i appen. Samme-instans-gjenåpning beviser ikke varig lagring ved restart.
 
 Den simulerte faglige gjennomgangen førte til konkrete rettelser: utkast holder
 på skissen det gjelder, innsendte runder beholder den opprinnelige tittelen og
@@ -186,12 +219,20 @@ beskrivelsen, og en gjenfunnet HTTP-kvittering fjerner gammel feiltekst uten å
 slette et nyere utkast.
 En bekreftet behandling av riktig runde tillater neste runde selv om den første
 leveringskvitteringen mangler. Vanlig statusoppdatering bevarer tekstmarkering
-slik at svar kan kopieres.
-Samtidig lukking av panel og økt venter nå på samme opprydding før den kvitterer.
+slik at svar kan kopieres. Hoppelenker går til innspillsfeltet og sist oppdaterte
+svar. Statusvarsler endres bare ved en faktisk tilstandsendring, og en for lang
+norsk tekst får en feltkoblet feil uten å miste innholdet. Ved tekstvalideringsfeil
+flyttes fokus tilbake til feltet. Oppdatering av én runde bevarer markert tekst
+i en annen.
+Samtidig lukking av panel og økt venter på samme opprydding før den kvitterer,
+og gjentatt lukking etter avslutning beholder eierkontrollen. En nyere lukking
+kansellerer en ventende gjenåpning. Forsinkede HTTP-innsendinger fra en lukket
+visning kan ikke nå den gjenåpnede skissen. En besvart runde kan ikke utilsiktet
+settes tilbake til under behandling.
 
 Nettleserprøven bruker innhold, arbeidsoversikt og timebestilling som tre
 oppgavetekster i samme lille grensesnitt. Den beviser ikke tre komplette
-produktkonsepter. 390 px bredde og 720 × 456 px viewport er prøvd; sistnevnte
+produktkonsepter. 390 og 415 px bredde og 720 × 456 px viewport er prøvd; sistnevnte
 er ikke faktisk 200 % zoom. Skjermleser, faktisk 200 % zoom og appens
 fokusrekkefølge er ikke verifisert. Tilstanden ligger i minnet og tåler ikke
 restart.

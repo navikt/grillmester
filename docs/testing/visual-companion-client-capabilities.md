@@ -2,7 +2,8 @@
 
 Kildekontroll: 2026-10-23. Matrisen skiller dokumenterte klientkapabiliteter fra
 det som må prøves i en konkret installasjon. Den avgrensede appprøven nedenfor
-bekrefter oppdagelse, panelvisning og én innsendt runde fra en ledig sesjon.
+bekrefter oppdagelse, panelvisning, innsending fra ledig og opptatt sesjon,
+isolerte canvas-instanser og gjenåpning innen samme utvidelsesprosess.
 [Nettleserscenarioene](visual-companion-scenarios.md)
 tester verktøyets oppførsel med syntetisk innhold, uten å bevise klientens
 prosesslevetid, verktøyvalg eller videreføring av en samtale.
@@ -42,7 +43,9 @@ ikke at komponentene er aktive.
 
 ## Nye klientcase
 
-Disse akseptprøvene må kjøres i den konkrete klienten før adferden kan omtales
+Disse akseptprøvene gjelder den portable serverflyten med `comments.js` og
+`wait`; den separate canvas-prøven er beskrevet nedenfor. De må kjøres i den
+konkrete klienten før adferden kan omtales
 som validert der. En stubbet modell eller direkte Node-/nettleserkjøring kan
 bevise protokollen, men ikke at en levende klient følger hele arbeidsflyten.
 
@@ -81,8 +84,11 @@ modellen manuelt. Prosjektutvidelsen ble funnet gjennom
 Én eksplisitt innsending fra panelet startet den ledige sesjonen, som markerte
 runden under behandling, publiserte skisseversjon 2 og besvarte runden.
 Tittel, beskrivelse og svar ble verifisert i panelet. Ingen ekstra chatmelding
-var nødvendig; forsøket brukte to arbeidsforespørsler totalt, inkludert den
-første chatmeldingen.
+var nødvendig. En senere omgang viste «1 queued message» ved innsending mens
+sesjonen arbeidet, etterfulgt av automatisk behandling i riktig canvas. To
+instanser i samme sesjon beholdt hver sin skisse og runde. Dette er ikke en prøve
+av to samtidige sesjoner. Utkast, norsk langtekst og snarvei til svar ble også
+prøvd i panelet; hele appforløpet brukte seks eksplisitte arbeidsforespørsler.
 
 Prøvefiltret ble rettet slik at manglende valgfrie kapabilitetsfelt tillates
 etter verifisert sesjonsbinding og callback-eierskap; `false` og ugyldige
@@ -94,8 +100,12 @@ viser samme feilmelding i en annen installasjon.
 
 Normal panellukking stengte loopback-porten. Testmappens midlertidige tillit
 ble trukket tilbake, prøveøkten arkivert og fravær av dens utvidelsesprosesser
-kontrollert. Innsending under opptatt sesjon, samtidige sesjoner, skjermleser,
-faktisk 200 % zoom og krasjhåndtering er ikke validert.
+kontrollert. Med siste prøveversjon beholdt gjenåpning av samme instans både
+skisse og besvart runde gjennom en ny URL. Ved lukking under behandling krevde
+verten en åpen canvas for videre handlinger; sesjonen åpnet derfor panelet igjen
+og fullførte det allerede innsendte arbeidet. Lukking er ikke kansellering.
+Samtidige sesjoner, skjermleser, faktisk 200 % zoom, krasjhåndtering og lagring
+av token-URL er fortsatt ikke validert.
 
 [ADR 0019](../adr/0019-app-canvas-prove.md) avgrenser forsøket til kode utenfor
 pluginpayloaden. Behold dagens server, samlet innsending og avgrenset venting

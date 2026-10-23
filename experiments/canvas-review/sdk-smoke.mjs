@@ -285,6 +285,13 @@ try {
     assert.equal(host.sends.length, 1);
   });
 
+  await check('a delayed working action cannot downgrade a resolved review', async () => {
+    const before = await state();
+    await assert.rejects(action('review_batch', { batchId: firstBatch.id, status: 'working', reply: 'Delayed earlier review.' }), /resolved batch/);
+    assert.deepEqual(await state(), before);
+    assert.equal(host.sends.length, 1);
+  });
+
   await check('cross-session, wrong provider, wrong instance and undeclared actions fail closed', async () => {
     await assert.rejects(action('read_state', {}, { sessionId: randomUUID() }));
     await assert.rejects(action('read_state', {}, { extensionId: 'project:unrelated' }));
@@ -362,10 +369,12 @@ try {
     assert.equal(firstState.document.title, 'En tydeligere overskrift');
   });
 
+  let unacknowledgedBody;
   await check('unacknowledged send times out honestly without an automatic retry', async () => {
     host.sendBehavior = 'drop';
     const current = await state();
     const body = { expectedRevision: current.revision, screen: current.screen, requestId: randomUUID(), choice: 'guided', note: 'Kontroller levering etter forbindelsesbrudd.' };
+    unacknowledgedBody = body;
     const response = await post(body);
     assert.equal(response.status, 202);
     const batchId = response.value.batch.id;
@@ -376,12 +385,55 @@ try {
     assert.equal(host.sends.length, 5);
   });
 
-  await check('closing the canvas revokes its state and HTTP endpoint', async () => {
+  await check('panel close revokes its endpoint and retains the logical artifact', async () => {
+    const before = await state();
     await host.request('canvas.close', context);
-    await assert.rejects(action('read_state'));
+    assert.deepEqual(await action('read_state'), before);
     await assert.rejects(fetch(canvasUrl, { signal: AbortSignal.timeout(2000) }));
+  });
+
+  await check('native-style reopening preserves the same artifact and rotates its transport token', async () => {
+    const before = await action('read_state');
+    const oldUrl = new URL(canvasUrl);
+    await assert.rejects(host.request('canvas.open', { ...context, extensionId: 'project:unrelated' }), /owner changed/);
+    await assert.rejects(host.request('canvas.open', { ...context, input: { concept: 'content' } }), /another design case/);
+    const [reopened, duplicate] = await Promise.all([
+      host.request('canvas.open', context), host.request('canvas.open', context),
+    ]);
+    assert.equal(reopened.url, duplicate.url);
+    canvasUrl = new URL(reopened.url);
+    assert.notEqual(canvasUrl.searchParams.get('token'), oldUrl.searchParams.get('token'));
+    const oldToken = new URL(canvasUrl); oldToken.search = oldUrl.search;
+    assert.equal((await fetch(oldToken)).status, 403);
+    const oldResponse = await fetch(oldUrl, { signal: AbortSignal.timeout(2000) }).catch(() => null);
+    if (oldResponse) assert.equal(oldResponse.status, 403);
+    assert.deepEqual(await state(), before);
+    assert.equal((await post(unacknowledgedBody)).value.batch.id, unacknowledgedBody.requestId);
+    assert.equal(host.sends.length, 5, 'Reopen must not replay unresolved delivery');
     await host.request('canvas.close', firstContext);
+    assert.equal((await action('read_state', {}, { instanceId: firstContext.instanceId })).batches.length, 4);
     await assert.rejects(fetch(firstUrl, { signal: AbortSignal.timeout(2000) }));
+  });
+
+  await check('duplicate panel close callbacks retain owner checks and permit a later explicit reopen', async () => {
+    const before = await state();
+    await Promise.all([host.request('canvas.close', context), host.request('canvas.close', context)]);
+    await host.request('canvas.close', context);
+    await assert.rejects(host.request('canvas.close', { ...context, extensionId: 'project:unrelated' }));
+    await assert.rejects(host.request('canvas.close', { ...context, sessionId: randomUUID() }));
+    assert.deepEqual(await action('read_state'), before);
+    const oldUrl = new URL(canvasUrl);
+    canvasUrl = new URL((await host.request('canvas.open', context)).url);
+    assert.notEqual(canvasUrl.searchParams.get('token'), oldUrl.searchParams.get('token'));
+    const oldResponse = await fetch(oldUrl, { signal: AbortSignal.timeout(2000) }).catch(() => null);
+    if (oldResponse) assert.equal(oldResponse.status, 403);
+    assert.deepEqual(await state(), before);
+    assert.equal(host.sends.length, 5);
+  });
+
+  await check('extension shutdown finally revokes the reopened endpoint', async () => {
+    await host.stop();
+    await assert.rejects(fetch(canvasUrl, { signal: AbortSignal.timeout(2000) }));
   });
   assert.equal(host.failure, undefined, host.failure?.message);
   const report = {

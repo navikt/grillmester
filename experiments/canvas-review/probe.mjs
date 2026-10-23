@@ -9,6 +9,7 @@ const concepts = {
   dashboard: { title: 'Se hva som trenger oppfølging', description: 'Prøv en arbeidsoversikt som skiller mellom oppgaver, venting og ferdige avklaringer.' },
   booking: { title: 'Finn et tidspunkt som passer', description: 'Prøv en timebestilling som forklarer valget og lar deg be om hjelp.' },
 };
+const canvasTitles = { content: 'Møteforberedelse', dashboard: 'Arbeidsoversikt', booking: 'Timebestilling' };
 const choices = ['clear', 'compact', 'guided'];
 const copy = value => structuredClone(value);
 const text = (value, limit = 2000) => typeof value === 'string' && Buffer.byteLength(value, 'utf8') <= limit;
@@ -25,23 +26,33 @@ export function createReviewProbe({ sessionId, sendTimeoutMs = 10000, lifetimeMs
   requireValue(Number.isInteger(sendTimeoutMs) && sendTimeoutMs > 0 && sendTimeoutMs <= 30000, 400, 'Invalid send deadline.');
   requireValue(Number.isInteger(lifetimeMs) && lifetimeMs > 0 && lifetimeMs <= 20 * 60 * 1000, 400, 'Invalid experiment lifetime.');
   const instances = new Map();
-  const retired = new Set();
+  const retired = new Map();
   let session;
   let closed = false;
 
-  function context(ctx, creating = false) {
+  function ownedInstance(ctx) {
     requireValue(ctx?.sessionId === sessionId && ctx.canvasId === 'design-review-probe' && identifier(ctx.instanceId) && identifier(ctx.extensionId), 403, 'Canvas ownership does not match.');
     const instance = instances.get(ctx.instanceId);
-    if (instance) requireValue(instance.extensionId === ctx.extensionId, 403, 'Canvas owner changed.');
+    const owner = instance?.extensionId ?? retired.get(ctx.instanceId);
+    requireValue(owner === undefined || owner === ctx.extensionId, 403, 'Canvas owner changed.');
+    return instance;
+  }
+  function context(ctx, creating = false) {
+    requireValue(!closed, 410, 'Canvas is closed or unknown.');
+    const instance = ownedInstance(ctx);
+    if (instance) requireValue(!instance.closed, 410, 'Canvas is closed or unknown.');
     else requireValue(creating, 404, 'Canvas is closed or unknown.');
     return instance;
   }
   function snapshot(instance) { return copy(instance.state); }
   function change(instance) { instance.state.revision += 1; }
   function sameRevision(instance, expected) { requireValue(revision(expected) && expected === instance.state.revision, 409, 'Listen er endret. Se gjennom skissen før du sender på nytt.'); }
-  function validToken(instance, token) {
+  function validToken(transport, token) {
     const actual = Buffer.from(token || '');
-    return actual.length === instance.token.length && timingSafeEqual(actual, instance.token);
+    return actual.length === transport.token.length && timingSafeEqual(actual, transport.token);
+  }
+  function requireTransport(instance, transport) {
+    requireValue(!closed && !instance.closed && !transport.closed && instance.transport === transport, 410, 'Skissen er lukket.');
   }
   function respond(res, status, value) {
     if (res.destroyed || res.writableEnded) return;
@@ -97,42 +108,85 @@ export function createReviewProbe({ sessionId, sendTimeoutMs = 10000, lifetimeMs
     deliver(instance, batch);
     return batch;
   }
-  async function handle(instance, req, res) {
+  async function handle(instance, transport, req, res) {
     const nonce = randomBytes(18).toString('base64url');
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`);
     try {
-      requireValue(!instance.closed, 410, 'Skissen er lukket.');
-      requireValue(req.socket.remoteAddress === '127.0.0.1' && req.headers.host === instance.authority, 403, 'Local access only.');
-      const url = new URL(req.url, instance.origin);
-      requireValue(validToken(instance, url.searchParams.get('token')), 403, 'Session token required.');
+      requireTransport(instance, transport);
+      requireValue(req.socket.remoteAddress === '127.0.0.1' && req.headers.host === transport.authority, 403, 'Local access only.');
+      const url = new URL(req.url, transport.origin);
+      requireValue(validToken(transport, url.searchParams.get('token')), 403, 'Session token required.');
       if (req.method === 'GET' && url.pathname === '/') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(pageTemplate.replaceAll('{{NONCE}}', nonce).replace('{{SCRIPT}}', browserScript));
       } else if (req.method === 'GET' && url.pathname === '/api/state') respond(res, 200, snapshot(instance));
       else if (req.method === 'POST' && url.pathname === '/api/submit') {
-        requireValue(req.headers.origin === instance.origin, 403, 'Exact origin required.');
+        requireValue(req.headers.origin === transport.origin, 403, 'Exact origin required.');
         requireValue(req.headers['content-type'] === 'application/json', 415, 'JSON required.');
-        const batch = submit(instance, await body(req));
+        const input = await body(req);
+        // A body accepted by an old view must never enter its reopened artifact.
+        requireTransport(instance, transport);
+        const batch = submit(instance, input);
         respond(res, 202, { batch: copy(batch), snapshot: snapshot(instance) });
       } else respond(res, 404, { error: 'Not found.' });
     } catch (error) { respond(res, error.status || 500, { error: error.status ? error.message : 'Prøven kunne ikke fullføre handlingen.' }); }
   }
-  function closeInstance(instance) {
-    if (instance.closing) return instance.closing;
-    instance.closed = true;
-    retired.add(instance.id);
-    for (const timer of instance.timers) clearTimeout(timer);
-    instance.closing = (async () => {
-      await instance.opening.catch(() => {});
-      const stopped = new Promise(resolve => instance.server.close(resolve));
-      instance.server.closeAllConnections();
+  function closeTransport(instance, transport) {
+    if (!transport) return Promise.resolve();
+    if (transport.closing) return transport.closing;
+    transport.closed = true;
+    transport.closing = (async () => {
+      await transport.opening.catch(() => {});
+      const stopped = new Promise(resolve => transport.server.close(resolve));
+      transport.server.closeAllConnections();
       await stopped;
+      if (instance.transport === transport) instance.transport = null;
+    })();
+    return transport.closing;
+  }
+  function retireInstance(instance) {
+    if (instance.retiring) return instance.retiring;
+    instance.closed = true;
+    retired.set(instance.id, instance.extensionId);
+    for (const timer of instance.timers) clearTimeout(timer);
+    instance.retiring = (async () => {
+      await closeTransport(instance, instance.transport);
       if (instances.get(instance.id) === instance) instances.delete(instance.id);
     })();
-    return instance.closing;
+    return instance.retiring;
+  }
+  async function openTransport(instance) {
+    const closeEpoch = instance.closeEpoch;
+    while (instance.transport?.closing) await instance.transport.closing;
+    requireValue(!closed && !instance.closed, 410, 'Canvas is closed.');
+    // A close received after this open request cancels it, even if the open
+    // was waiting for an earlier view to finish closing.
+    requireValue(instance.closeEpoch === closeEpoch, 410, 'Canvas was closed after this open request.');
+    if (instance.transport) {
+      const transport = instance.transport;
+      const result = await transport.opening;
+      requireTransport(instance, transport);
+      return result;
+    }
+    const transport = { token: Buffer.from(randomBytes(32).toString('base64url')), closed: false };
+    instance.transport = transport;
+    transport.server = http.createServer((req, res) => { void handle(instance, transport, req, res); });
+    transport.server.requestTimeout = 5000;
+    transport.server.headersTimeout = 5000;
+    transport.server.timeout = 5000;
+    transport.opening = new Promise((resolve, reject) => {
+      transport.server.once('error', reject);
+      transport.server.listen(0, '127.0.0.1', () => {
+        transport.authority = `127.0.0.1:${transport.server.address().port}`;
+        transport.origin = `http://${transport.authority}`;
+        resolve({ url: `${transport.origin}/?token=${transport.token.toString()}`, title: canvasTitles[instance.state.concept], status: 'Velg retning, skriv et innspill og send samlet.' });
+      });
+    });
+    try { const result = await transport.opening; requireTransport(instance, transport); return result; }
+    catch (error) { await closeTransport(instance, transport); throw error; }
   }
   const canvas = {
     id: 'design-review-probe', displayName: 'Skisseprøve', description: 'Try explicit design review batches in a session-bound canvas.',
@@ -148,33 +202,31 @@ export function createReviewProbe({ sessionId, sendTimeoutMs = 10000, lifetimeMs
       requireValue([hostCanvases, sessionCanvases].every(value => value === undefined || typeof value === 'boolean'), 409, 'Invalid canvas support declaration.');
       requireValue(hostCanvases !== false && sessionCanvases !== false, 409, 'This host has disabled canvas support.');
       requireValue(!retired.has(ctx?.instanceId) && retired.size < 20, 410, 'Open a fresh canvas instance or restart this bounded experiment.');
-      if (existing) { const result = await existing.opening; requireValue(!existing.closed, 410, 'Canvas is closed.'); return result; }
-      requireValue(instances.size < 4, 429, 'Close a canvas before opening another.');
       const input = ctx.input ?? {};
       requireValue(keys(input, [], ['concept']) && (!Object.hasOwn(input, 'concept') || (typeof input.concept === 'string' && Object.hasOwn(concepts, input.concept))), 400, 'Unknown design case.');
+      if (existing) {
+        requireValue(!Object.hasOwn(input, 'concept') || input.concept === existing.state.concept, 409, 'This canvas already belongs to another design case. Use a new instance.');
+        return openTransport(existing);
+      }
+      // Closed panels still own their artifact until its original expiry.
+      requireValue(instances.size < 4, 429, 'This bounded experiment already holds four canvases.');
       const concept = input.concept ?? 'content';
-      const instance = { id: ctx.instanceId, extensionId: ctx.extensionId, token: Buffer.from(randomBytes(32).toString('base64url')), timers: new Set(), closed: false, state: { revision: 1, screen: 1, concept, document: copy(concepts[concept]), batches: [] } };
+      const instance = { id: ctx.instanceId, extensionId: ctx.extensionId, timers: new Set(), closed: false, closeEpoch: 0, transport: null, state: { revision: 1, screen: 1, concept, document: copy(concepts[concept]), batches: [] } };
       instance.screens = new Map([[1, copy(instance.state.document)]]);
-      instance.server = http.createServer((req, res) => { void handle(instance, req, res); });
-      instance.server.requestTimeout = 5000;
-      instance.server.headersTimeout = 5000;
-      instance.server.timeout = 5000;
-      instance.opening = new Promise((resolve, reject) => {
-        instance.server.once('error', reject);
-        instance.server.listen(0, '127.0.0.1', () => {
-          instance.authority = `127.0.0.1:${instance.server.address().port}`;
-          instance.origin = `http://${instance.authority}`;
-          resolve({ url: `${instance.origin}/?token=${instance.token.toString()}`, title: 'Skisseprøve', status: 'Velg retning, skriv et innspill og send samlet.' });
-        });
-      });
       instances.set(instance.id, instance);
-      const expiry = setTimeout(() => { void closeInstance(instance); }, lifetimeMs);
+      const expiry = setTimeout(() => { void retireInstance(instance); }, lifetimeMs);
       expiry.unref();
       instance.timers.add(expiry);
-      try { const result = await instance.opening; requireValue(!instance.closed, 410, 'Canvas is closed.'); return result; }
-      catch (error) { await closeInstance(instance); throw error; }
+      return openTransport(instance);
     },
-    onClose(ctx) { const instance = context(ctx, true); return instance ? closeInstance(instance) : undefined; },
+    // The SDK supplies no view generation on close. A late callback can close
+    // the current view; reopening restores the same artifact, never a blank one.
+    onClose(ctx) {
+      const instance = ownedInstance(ctx);
+      if (!instance) return;
+      instance.closeEpoch += 1;
+      return instance.retiring ?? closeTransport(instance, instance.transport);
+    },
     actions: [
       {
         name: 'read_state', description: 'Read the current sketch and explicitly submitted review batches for this instance.', inputSchema: { type: 'object', additionalProperties: false },
@@ -202,6 +254,7 @@ export function createReviewProbe({ sessionId, sendTimeoutMs = 10000, lifetimeMs
           requireValue(keys(input, ['batchId', 'status', 'reply']) && ['working', 'resolved'].includes(input.status) && text(input.reply) && input.reply.trim(), 400, 'Invalid review.');
           const batch = instance.state.batches.find(item => item.id === input.batchId);
           requireValue(batch, 404, 'Batch does not belong to this canvas.');
+          requireValue(batch.review !== 'resolved' || input.status !== 'working', 409, 'A resolved batch cannot return to working without an explicit reopen.');
           batch.review = input.status; batch.reply = input.reply; change(instance); return snapshot(instance);
         },
       },
@@ -210,6 +263,6 @@ export function createReviewProbe({ sessionId, sendTimeoutMs = 10000, lifetimeMs
   return {
     canvas,
     attachSession(value) { requireValue(value && typeof value.send === 'function' && value.sessionId === sessionId && !session, 400, 'Invalid joined session.'); session = value; },
-    async close() { closed = true; await Promise.all([...instances.values()].map(closeInstance)); },
+    async close() { closed = true; await Promise.all([...instances.values()].map(retireInstance)); },
   };
 }

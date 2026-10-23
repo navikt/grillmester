@@ -20,6 +20,34 @@ async function fixture(t, options = {}, send = async () => 'accepted-message') {
   return { probe, ctx, url, endpoint, action, state, input, post, sent };
 }
 
+function controlledLifecycle(t) {
+  const servers = [];
+  let cleaning = false;
+  t.mock.method(http, 'createServer', () => {
+    let closeStarted;
+    const server = {
+      stopped: new Promise(resolve => { closeStarted = resolve; }),
+      once() { return this; },
+      listen(_port, _host, ready) { queueMicrotask(ready); },
+      address() { return { port: 45000 + servers.indexOf(this) }; },
+      close(done) { this.finishClose = done; closeStarted(); if (cleaning) queueMicrotask(done); },
+      closeAllConnections() {},
+    };
+    servers.push(server);
+    return server;
+  });
+  const sessionId = randomUUID(), probe = createReviewProbe({ sessionId });
+  probe.attachSession({ sessionId, send() {} });
+  const ctx = { sessionId, extensionId: 'review-probe', canvasId: 'design-review-probe', instanceId: randomUUID() };
+  const state = () => probe.canvas.actions[0].handler({ ...ctx, input: {} });
+  t.after(async () => {
+    cleaning = true;
+    for (const server of servers) server.finishClose?.();
+    await probe.close();
+  });
+  return { probe, ctx, state, servers };
+}
+
 test('HTTP mutations require the exact token, host, origin and JSON type', async t => {
   const f = await fixture(t);
   const missing = new URL(f.url); missing.search = '';
@@ -101,28 +129,35 @@ test('open needs an attached exact session before starting a listener', async t 
   await probe.canvas.onClose(ctx);
 });
 
-test('repeated concurrent open reuses one instance and close retires its identity', async t => {
+test('concurrent open shares a transport and panel close preserves the same artifact', async t => {
   const f = await fixture(t);
   const duplicate = await Promise.all([f.probe.canvas.open(f.ctx), f.probe.canvas.open(f.ctx)]);
   assert(duplicate.every(result => result.url === f.url));
   await assert.rejects(f.probe.canvas.open({ ...f.ctx, extensionId: 'other-provider' }), /owner changed/);
   const openingContext = { ...f.ctx, instanceId: randomUUID() };
   const opening = f.probe.canvas.open(openingContext);
-  const rejectedOpen = assert.rejects(opening, /closed/);
+  const rejectedOpen = assert.rejects(opening, /closed|lukket/);
   await f.probe.canvas.onClose(openingContext);
   await rejectedOpen;
-  await assert.rejects(f.probe.canvas.open(openingContext), /fresh canvas/);
+  const sibling = await f.probe.canvas.open(openingContext);
+  assert.equal((await fetch(sibling.url)).status, 200);
   assert.equal((await fetch(f.url)).status, 200, 'Closing another instance must preserve its sibling');
   await f.probe.canvas.onClose(f.ctx);
   await f.probe.canvas.onClose(f.ctx);
-  await assert.rejects(f.probe.canvas.open(f.ctx), /fresh canvas/);
   await assert.rejects(fetch(f.url));
+  const before = f.state();
+  const reopened = await Promise.all([f.probe.canvas.open(f.ctx), f.probe.canvas.open(f.ctx)]);
+  assert.equal(reopened[0].url, reopened[1].url);
+  assert.notEqual(reopened[0].url, f.url);
+  assert.deepEqual(f.state(), before);
 });
 
-test('at most four open canvases are admitted', async t => {
+test('at most four logical artifacts are retained including closed panels', async t => {
   const f = await fixture(t);
   for (let index = 0; index < 3; index++) await f.probe.canvas.open({ ...f.ctx, instanceId: randomUUID() });
-  await assert.rejects(f.probe.canvas.open({ ...f.ctx, instanceId: randomUUID() }), /Close a canvas/);
+  await f.probe.canvas.onClose(f.ctx);
+  await assert.rejects(f.probe.canvas.open({ ...f.ctx, instanceId: randomUUID() }), /four canvases/);
+  assert.equal((await fetch((await f.probe.canvas.open(f.ctx)).url)).status, 200);
   assert.equal(f.sent.length, 0);
 });
 
@@ -138,11 +173,58 @@ test('concurrent canvas and extension close both await actual listener cleanup',
   const probe = createReviewProbe({ sessionId: f.ctx.sessionId });
   probe.attachSession({ sessionId: f.ctx.sessionId, send() {} });
   t.after(() => probe.close());
-  const opening = assert.rejects(probe.canvas.open(f.ctx), /closed/);
+  const opening = assert.rejects(probe.canvas.open(f.ctx), /closed|lukket/);
   const closing = probe.canvas.onClose(f.ctx);
   await probe.close();
   await Promise.all([opening, closing]);
   assert.throws(() => probe.canvas.actions[0].handler({ ...f.ctx, input: {} }), /closed or unknown/);
+});
+
+test('panel close during and after final shutdown validates ownership and awaits retirement', async t => {
+  const f = controlledLifecycle(t);
+  await f.probe.canvas.open(f.ctx);
+  const shutdown = f.probe.close();
+  const panelClose = f.probe.canvas.onClose(f.ctx);
+  const duplicateClose = f.probe.canvas.onClose(f.ctx);
+  assert.equal(panelClose, duplicateClose);
+  let panelSettled = false;
+  panelClose.then(() => { panelSettled = true; });
+  await f.servers[0].stopped;
+  assert.equal(panelSettled, false, 'A close callback must wait for the pending listener cleanup');
+  for (const overrides of [{ sessionId: randomUUID() }, { extensionId: 'other-provider' }, { canvasId: 'other-canvas' }]) {
+    assert.throws(() => f.probe.canvas.onClose({ ...f.ctx, ...overrides }), error => error.status === 403);
+  }
+  assert.throws(f.state, error => error.status === 410);
+  await assert.rejects(f.probe.canvas.open(f.ctx), error => error.status === 410);
+  f.servers[0].finishClose();
+  await Promise.all([shutdown, panelClose, duplicateClose]);
+  assert.equal(panelSettled, true);
+  assert.equal(f.probe.canvas.onClose(f.ctx), undefined);
+  assert.equal(f.probe.canvas.onClose(f.ctx), undefined);
+  assert.throws(() => f.probe.canvas.onClose({ ...f.ctx, extensionId: 'other-provider' }), error => error.status === 403);
+  assert.throws(() => f.probe.canvas.onClose({ ...f.ctx, sessionId: randomUUID() }), error => error.status === 403);
+  assert.throws(f.state, error => error.status === 410);
+  await assert.rejects(f.probe.canvas.open(f.ctx), error => error.status === 410);
+  assert.equal(f.servers.length, 1);
+});
+
+test('a newer close cancels a reopen waiting for an earlier transport close', async t => {
+  const f = controlledLifecycle(t);
+  await f.probe.canvas.open(f.ctx);
+  const before = f.state();
+  const firstClose = f.probe.canvas.onClose(f.ctx);
+  const pendingReopen = assert.rejects(f.probe.canvas.open(f.ctx), error => error.status === 410);
+  const lastClose = f.probe.canvas.onClose(f.ctx);
+  assert.equal(firstClose, lastClose);
+  await f.servers[0].stopped;
+  assert.equal(f.servers.length, 1);
+  f.servers[0].finishClose();
+  await Promise.all([firstClose, pendingReopen, lastClose]);
+  assert.equal(f.servers.length, 1, 'The cancelled open must not create a fresh transport');
+  assert.deepEqual(f.state(), before);
+  await f.probe.canvas.open(f.ctx);
+  assert.equal(f.servers.length, 2, 'A subsequent explicit open can restore the retained artifact');
+  assert.deepEqual(f.state(), before);
 });
 
 test('finite expiry revokes the endpoint even without an onClose callback', async t => {
@@ -154,7 +236,7 @@ test('finite expiry revokes the endpoint even without an onClose callback', asyn
   assert.equal(f.sent.length, 0);
 });
 
-test('a late delivery receipt after closing cannot mutate a new canvas', async t => {
+test('late delivery after panel close updates only its retained artifact', async t => {
   let acknowledge;
   const f = await fixture(t, {}, () => new Promise(resolve => { acknowledge = resolve; }));
   assert.equal((await f.post(f.input())).status, 202);
@@ -167,6 +249,89 @@ test('a late delivery receipt after closing cannot mutate a new canvas', async t
   const state = f.action('read_state', {}, { instanceId: other.instanceId });
   assert.equal(state.revision, 1);
   assert.deepEqual(state.batches, []);
+  assert.equal(f.state().batches[0].messageId, 'late-message');
+  assert.equal(f.state().batches[0].delivery, 'queued');
+  const beforeReopen = f.state();
+  const reopened = await f.probe.canvas.open(f.ctx);
+  assert.notEqual(reopened.url, f.url);
+  assert.deepEqual(f.state(), beforeReopen);
+  assert.equal(f.sent.length, 1);
+});
+
+test('reopening retains history and batch identity while revoking the old token and owner', async t => {
+  const f = await fixture(t);
+  const first = f.input();
+  assert.equal((await f.post(first)).status, 202);
+  await pause(0);
+  f.action('apply_revision', { expectedRevision: f.state().revision, title: 'Behold denne tittelen', description: 'En forklaring som skal finnes igjen.' });
+  const before = f.state();
+  await f.probe.canvas.onClose(f.ctx);
+  assert.deepEqual(f.state(), before);
+  await assert.rejects(f.probe.canvas.open({ ...f.ctx, extensionId: 'other-provider' }), /owner changed/);
+  await assert.rejects(f.probe.canvas.open({ ...f.ctx, input: { concept: 'booking' } }), /another design case/);
+  const opened = await f.probe.canvas.open(f.ctx);
+  const oldUrl = new URL(f.url), currentUrl = new URL(opened.url);
+  assert.notEqual(currentUrl.search, oldUrl.search);
+  const rejectedToken = new URL(currentUrl); rejectedToken.search = oldUrl.search;
+  assert.equal((await fetch(rejectedToken)).status, 403);
+  const oldResponse = await fetch(oldUrl, { signal: AbortSignal.timeout(2000) }).catch(() => null);
+  if (oldResponse) assert.equal(oldResponse.status, 403, 'Port reuse must still reject the revoked token');
+  assert.deepEqual(f.state(), before);
+  const endpoint = new URL('/api/submit', currentUrl); endpoint.search = currentUrl.search;
+  const response = await fetch(endpoint, { method: 'POST', headers: { Origin: currentUrl.origin, 'Content-Type': 'application/json' }, body: JSON.stringify(first) });
+  assert.equal(response.status, 202);
+  assert.equal((await response.json()).batch.id, first.requestId);
+  assert.equal(f.sent.length, 1, 'Reopening and retrying an accepted batch must not enqueue again');
+  // Close callbacks have no view generation. A late callback may hide the new
+  // view, but it cannot discard the retained artifact or accepted round.
+  await f.probe.canvas.onClose(f.ctx);
+  await assert.rejects(fetch(currentUrl));
+  assert.deepEqual(f.state(), before);
+  assert.equal((await fetch((await f.probe.canvas.open(f.ctx)).url)).status, 200);
+});
+
+test('an incomplete POST from a closed transport cannot mutate its reopened artifact', async t => {
+  const f = await fixture(t);
+  const payload = JSON.stringify(f.input());
+  let request;
+  const disconnected = new Promise(resolve => {
+    request = http.request(f.endpoint('/api/submit'), { method: 'POST', headers: { Origin: new URL(f.url).origin, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } });
+    request.on('error', () => resolve());
+    request.on('response', response => { response.resume(); response.on('end', resolve); });
+  });
+  await new Promise((resolve, reject) => {
+    request.once('error', reject);
+    request.write(payload.slice(0, -1), resolve);
+  });
+  await f.probe.canvas.onClose(f.ctx);
+  const reopened = await f.probe.canvas.open(f.ctx);
+  request.end(payload.slice(-1));
+  await disconnected;
+  assert.equal((await fetch(reopened.url)).status, 200);
+  assert.deepEqual(f.state().batches, []);
+  assert.equal(f.sent.length, 0);
+});
+
+test('panel reopen never extends the original artifact expiry', async t => {
+  const f = await fixture(t, { lifetimeMs: 300 });
+  await pause(150);
+  await f.probe.canvas.onClose(f.ctx);
+  const reopened = await f.probe.canvas.open(f.ctx);
+  await pause(200);
+  assert.throws(() => f.state(), /closed or unknown/);
+  await assert.rejects(fetch(reopened.url, { signal: AbortSignal.timeout(500) }));
+  await assert.rejects(f.probe.canvas.open(f.ctx), /fresh canvas/);
+});
+
+test('a late working action cannot downgrade a resolved batch or replace its reply', async t => {
+  const f = await fixture(t);
+  const input = f.input();
+  assert.equal((await f.post(input)).status, 202);
+  await pause(0);
+  f.action('review_batch', { batchId: input.requestId, status: 'resolved', reply: 'Ferdig vurdert.' });
+  const resolved = f.state();
+  assert.throws(() => f.action('review_batch', { batchId: input.requestId, status: 'working', reply: 'Et forsinket kall.' }), error => error.status === 409);
+  assert.deepEqual(f.state(), resolved);
 });
 
 test('historical batch context is bounded, immutable and independent of new copy', async t => {
