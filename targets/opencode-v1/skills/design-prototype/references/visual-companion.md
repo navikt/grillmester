@@ -3,6 +3,11 @@
 Nettleserbasert verktøy for å vise mockups, varianter og visuelle valg
 under designutforsking.
 
+Denne referansen beskriver den portable, midlertidige nettleserflyten. Når
+klienten tilbyr canvas **Designverksted**, bruk
+[designrom-referansen](design-workspace.md) for integrert innsending,
+prosjektlagring, historikk og deklarerte redigeringsfelt.
+
 ## Aksel-korrekthet (VIKTIG)
 
 > **Bruk markup-snapshotet — `references/aksel-markup-fasit.md`.** Det inneholder
@@ -60,8 +65,9 @@ ulagret regel som rører `padding`/`margin` på generiske selektorer.
    kompatibel Aksel-komponent, bruk dens verifiserte markup.
 
 **VC vs. Figma:** VC med verifisert markup gir komponentnært utseende for
-utforsking av layout, flyt og hierarki. Pixel-/variant-presisjon og handoff
-hører fortsatt hjemme i det aktive Figma-biblioteket. Hvis snapshotet er
+utforsking av layout, flyt og hierarki. Figma passer når leveransen krever
+redigerbare bibliotekkomponenter eller fri visuell finpuss. Et valgt designrom
+kan også brukes direkte som implementeringsgrunnlag. Hvis snapshotet er
 inkompatibelt, fall tilbake til grovere wireframe framfor å late som det er
 oppdatert.
 

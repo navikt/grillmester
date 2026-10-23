@@ -10,14 +10,17 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "01315ecf787c996adb5a3a0b96abb6cf7f42361d225ea05f1ec7cae4ea8ceb8f",
+    "payloadManifestSha256": "5e5f0601d0751cb8d6c75183d5f895f3ad8d807d1bc68df285e333ad181d7cdb",
     "policy": "policy/focused-context-v1.json",
-    "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
+    "policySha256": "26cf8b53327435b97d35e95cc15d2b74fc4d579bb6746970ded622fa39441fae"
   },
   "modelSelection": "inherit-provider-or-session",
   "transformations": {
     "agentFrontmatterRemoved": [
       "model"
+    ],
+    "pluginManifestFieldsRemoved": [
+      "extensions"
     ],
     "agentEscalation": "full-context-handoff",
     "excludedSkillReferences": "full-context-guidance"

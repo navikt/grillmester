@@ -186,6 +186,60 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         ):
             BUILDER.collect_bundle_files(source, SOURCE_SHA)
 
+    def update_manifested_file(self, target: Path, relative: str, content: bytes) -> None:
+        path = target / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        path.chmod(0o644)
+        manifest_path = target / "manifest.json"
+        manifest = json.loads(manifest_path.read_bytes())
+        manifest["files"][relative] = {"sha256": sha256(content), "mode": "0644"}
+        manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+
+    def test_rejects_focused_app_reference_even_with_matching_payload_hash(self) -> None:
+        source = self.make_source()
+        target = source / "targets/copilot-cli-focused-v1"
+        plugin = json.loads((target / "plugin.json").read_bytes())
+        plugin["extensions"] = "extensions/"
+        self.update_manifested_file(target, "plugin.json", json.dumps(plugin).encode())
+
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError, "focused Copilot manifest must omit app extensions"
+        ):
+            BUILDER.collect_bundle_files(source, SOURCE_SHA)
+
+    def test_rejects_app_entry_in_each_portable_projection(self) -> None:
+        for target_name in ("opencode-v1", "opencode-v1-focused", "copilot-cli-focused-v1"):
+            with self.subTest(target=target_name):
+                source = self.make_source(target_name)
+                self.update_manifested_file(
+                    source / "targets" / target_name,
+                    "extensions/visual-companion/extension.mjs", b"export {};\n",
+                )
+                with self.assertRaisesRegex(
+                    BUILDER.BundleBuildError, "must not contain app extensions"
+                ):
+                    BUILDER.collect_bundle_files(source, SOURCE_SHA)
+
+    def test_full_package_requires_the_reviewed_extension_entry(self) -> None:
+        source = self.make_source()
+        (source / "plugin/extensions/visual-companion/extension.mjs").unlink()
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError, "visual-companion extension is missing extension.mjs"
+        ):
+            BUILDER.collect_bundle_files(source, SOURCE_SHA)
+
+    def test_full_package_rejects_extension_install_scripts(self) -> None:
+        source = self.make_source()
+        path = source / "plugin/extensions/visual-companion/package.json"
+        package = json.loads(path.read_bytes())
+        package["scripts"] = {"install": "unexpected-command"}
+        path.write_text(json.dumps(package) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError, "visual-companion package must contain exactly"
+        ):
+            BUILDER.collect_bundle_files(source, SOURCE_SHA)
+
     def test_build_is_byte_reproducible_and_manifested_exactly(self) -> None:
         source = self.make_source()
         first = self.root / "one/first.tar.gz"
@@ -250,6 +304,10 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                     if path.is_file()
                 )
             self.assertEqual(set(files), expected_files)
+            self.assertIn(
+                f"{ARCHIVE_ROOT}/plugin/extensions/visual-companion/extension.mjs", files
+            )
+            self.assertFalse(any("/targets/" in path and "/extensions/" in path for path in files))
 
             manifest_member = files[f"{ARCHIVE_ROOT}/DISTRIBUTION-MANIFEST.json"]
             manifest_stream = archive.extractfile(manifest_member)

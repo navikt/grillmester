@@ -6,9 +6,10 @@ description: "Explore or refine visual concepts, user flows and existing Figma d
 
 > **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
-Utforsk designkonsepter interaktivt i nettleseren, iterer med designeren, og
-lever Figma-klart — eller som Figma-skisse med ekte Aksel-komponenter når
-runtime tilbyr godkjent write.
+Utforsk designkonsepter interaktivt, iterer med designeren, og lever i avtalt
+arbeidsflate: et lagret designrom i prosjektet, en midlertidig nettleserskisse
+eller redigerbare Figma-komponenter når klienten tilbyr godkjent write.
+Et ferdig designrom trenger ingen ny oppbygging i Figma.
 
 Bruk `prototype` når usikkerheten gjelder kjørbar oppførsel, datamodell,
 tilstandsmaskin eller feilkontrakt. Denne skillen utforsker det designeren kan
@@ -18,9 +19,11 @@ implementeringsbrief eller kode innenfor den aktive agentens mandat.
 
 ## Gate for writes og eksterne sideeffekter
 
-Analyse, lesing av eksisterende Figma-kontekst og lokal visualisering er
-read-only for konsumentrepoet. Visual Companion skriver bare til en privat,
-midlertidig sesjonsmappe utenfor repoet. Figma-, Issue- og andre eksterne writes
+Analyse og lesing av eksisterende Figma-kontekst er read-only. Vanlig
+nettleservisning skriver bare til en privat, midlertidig sesjonsmappe utenfor
+repoet. Når brukeren har bedt om å lagre eller fortsette et designrom i
+prosjektet, kan canvas-flyten skrive skisseversjoner og innspill i den avtalte
+prosjektmappen. Dette gir ikke mandat til å endre produktkode. Figma-, Issue- og andre eksterne writes
 krever eksplisitt mandat for mål, handling og omfang. Brukerens konkrete
 bestilling kan gi mandatet; gjenbruk det for operasjonene som fullfører den
 bestilte endringen. Når mandat eller et vesentlig valg mangler, vis en kort
@@ -37,16 +40,16 @@ deploy automatisk.
 - Rask validering av layout, hierarki eller flyt
 - Situasjonsdesign — vis alle situasjoner brukeren kan møte
 
-### Når gå rett til Figma (hopp over Fase 1)
+### Når gå rett til Figma
 
 - Du itererer videre på et eksisterende Figma-design
-- Oppgaven er detaljjustering eller finpuss (spacing, farger, typografi)
+- Oppgaven krever fri visuell finpuss utover skissens deklarerte redigeringsfelt
 - Designeren allerede vet hva de vil og trenger Figma-komponenter
 - Komponentbygging og produksjonsnære leveranser
 
-Visual Companion er best for **tidlig utforsking** — når retningen er uklar og du
-vil se noen tydelige konsepter raskt. Gå videre til Figma når det er bestilt;
-nettleserutforsking trenger ingen automatisk Figma-leveranse.
+Visual Companion passer både tidlig utforsking og videre arbeid med valgte
+skisser. Velg arbeidsflate etter oppgaven og designerens preferanse. Gå videre
+til Figma når det er bestilt; Figma er ingen obligatorisk leveransefase.
 
 ## Fase 1: Visuell utforsking (Visual Companion)
 
@@ -58,6 +61,19 @@ dere lager varianter.
 Når nettlesersporet er valgt, les
 [Visual Companion-referansen](references/visual-companion.md) før oppstart. Ikke
 last den lange referansen i en ren chat- eller Figma-flyt.
+
+### Integrert canvas og lagret designrom
+
+I appen: sjekk om den aktive klienten tilbyr canvas **Designverksted**
+(`design-workspace`). Når den finnes, les
+[designrom-referansen](references/design-workspace.md) og bruk denne flyten.
+Den binder **Send innspill** til den samme samtalen, og kan bevare versjoner,
+innspill og deklarerte redigeringsfelt i prosjektet. Bruk klientens faktiske
+canvas-verktøy; ikke gjett verktøynavn, start en ekstra server eller kjør
+nettleserens `comments.js wait` parallelt med canvas-leveringen.
+
+Uten canvas-kapabiliteten brukes den midlertidige nettleserflyten nedenfor.
+Ikke installer utvidelser eller endre klientinnstillinger automatisk.
 
 ### Forutsetninger
 
@@ -126,7 +142,9 @@ Bruk chat for kravspørsmål, scope, konseptuelle valg og avveininger.
 
 ### Skrive innhold
 
-Skriv HTML-fragmenter til `screen_dir` (en privat tempmappe utenfor repoet).
+I den midlertidige nettleserflyten: skriv HTML-fragmenter til `screen_dir`
+(en privat tempmappe utenfor repoet). I canvas-flyten publiseres nye versjoner
+gjennom den bundne canvas-handlingen; ikke skriv over lagrede revisjonsfiler.
 Serveren wrapper automatisk i Aksel-temat og laster ekte `@navikt/ds-css` fra
 prosjektets node_modules når en trygg, regulær CSS-fil finnes.
 
@@ -230,7 +248,7 @@ innsendte runder skal gi en tydelig feil; ikke rekonstruer dem fra `list`.
 Økten beholder høyst 200 innsendte runder innenfor 2 MiB samlet innspillsdata,
 uten automatisk fjerning av eldre runder. En avvist innsending er fortsatt usendt.
 
-Kommentarer og eksplisitt skrevet erstatningstekst lagres privat og midlertidig
+I den midlertidige nettleserflyten lagres kommentarer og eksplisitt skrevet erstatningstekst privat og midlertidig
 utenfor repoet. Verktøyet henter aldri automatisk tekst fra skissen inn i
 kommentarloggen. Tekstforslag er reversible forhåndsvisninger; de endrer ikke
 HTML-filen eller konsumentrepoet. Forklar at innspillene forsvinner når økten
@@ -262,9 +280,9 @@ valg visuelt før levering. En vanlig skisse trenger ingen deklarasjon.
 
 Vis ulike situasjoner som separate mockups eller sekvens: normal, venter (lasting), feil, tom tilstand, og ferdig/bekreftelse.
 
-## Fase 2: Figma-leveranse
+## Figma-leveranse når den er bestilt
 
-Når konseptet er valgt, sjekk Figma read og write som separate kapabiliteter.
+Når Figma er valgt som leveranse, sjekk read og write som separate kapabiliteter.
 Figma MCP-tilstedeværelse alene er ikke en write-garanti. Hvis en eksplisitt
 create/edit-kapabilitet finnes, les
 [Figma-prototypereferansen](references/figma-prototype.md). Ikke last den lange

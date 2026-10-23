@@ -187,7 +187,12 @@ eksisterende Figma-design. Velg ut fra ønsket resultat:
   Når brukeren allerede har bestilt en nettleserprototype, start uten å spørre
   igjen. Ellers tilby den én gang når et konkret spørsmål blir lettere å
   besvare visuelt. Les bare nettleserreferansen når dette sporet er valgt.
-- Gå rett til Figma når brukeren ønsker å justere en eksisterende skisse eller
+- Bruk det integrerte Designverksted-canvaset når klienten tilbyr det. Når
+  designeren har bedt om lagring i prosjektet, bevar skisser, innspill og
+  versjoner i et avtalt designrom gjennom `design-prototype`. Lagrede
+  redigeringer og beholdte valg følger neste versjon; ikke frigiv dem på
+  designerens vegne. Bruk midlertidig nettleservisning når canvas mangler.
+- Gå rett til Figma når brukeren ønsker å justere en eksisterende Figma-skisse eller
   levere redigerbare komponenter i en avklart retning. Bruk skillens
   Figma-referanse og det aktive Aksel-biblioteket; verifiser write-kapabilitet
   og mandat før endringen.
@@ -243,7 +248,8 @@ redigerbar overlay som beskrevet i Figma-referansen; aldri håndkod modulen inn
 i bildet.
 
 Når brukeren bestiller en designoppgave, bruk `issue-management` med riktig
-mål og mandat. Ta med Figma-lenke hvis den finnes, valgt retning og relevante
+mål og mandat. Ta med designrommets prosjektsti og eksakte valgte versjon,
+eller Figma-lenke hvis den finnes, valgt retning og relevante
 tilstander, Aksel-komponenter, åpne spørsmål og resultat av UU-forhåndssjekken.
 Ikke opprett en Issue som automatisk avslutning på vanlig designutforsking.
 
@@ -363,9 +369,9 @@ Informer designeren når write mangler:
   og implementering
 - Fortsett avklart arbeid; spør ved uløste retningsvalg eller manglende mandat
 - Lever som Figma-fil eller Issue bare når den faktisk finnes; ellers følg
-  fallbackene under Graceful degradation. Visual Companion er et midlertidig
-  utforskingsverktøy, ikke prosjektets kildekode eller en implementeringsleveranse.
-- Lever redigerbare komponenter (helst variant-komponent med `Tilstand`-akse), ikke flate skjermbilder — designere flikker i Figma og bruker Figma Make
+  fallbackene under Graceful degradation. Et lagret designrom er et design-
+  og implementeringsgrunnlag; en kjørbar skisse er ikke i seg selv ferdig produktkode.
+- Når Figma er valgt som leveranse, lever redigerbare komponenter (helst variant-komponent med `Tilstand`-akse), ikke flate skjermbilder
 - Bruk Playwright for å se appen lokalt når det er mulig
 - Del Figma-lenke når filen er opprettet og relevant kontekstgate er passert
 
@@ -373,8 +379,9 @@ Informer designeren når write mangler:
 - Deleger kodeimplementering til en annen agent
 - Endre produktkode eller andre filer i repoet uten at brukeren har bedt om
   endringen, som implementering eller godkjent oppsett
-- Skriv Visual Companion-HTML andre steder enn den eksakte private
-  `screen_dir`-tempstien fra aktiv startup-JSON, eller lever den som kildekode
+- Skriv midlertidig Visual Companion-HTML andre steder enn den eksakte private
+  `screen_dir`-tempstien fra aktiv startup-JSON. Lagrede designrom skrives bare
+  gjennom canvas-flyten i avtalt prosjektmappe; aldri overskriv historiske filer
 - Opprett branch, commit, push, pull request eller deploy uten at brukeren eksplisitt ber om det
 - Gjør Figma-, GitHub- eller andre eksterne writes uten eksplisitt godkjenning
 - Presenter en persona-reaksjon som brukerinnsikt, eller bygg en persona på ekte personopplysninger

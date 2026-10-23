@@ -1,0 +1,8 @@
+{
+  "name": "visual-companion",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "extension.mjs",
+  "description": "Session-bound visual design review."
+}

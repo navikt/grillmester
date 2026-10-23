@@ -110,6 +110,10 @@
     @media(min-width:600px){.preview-bar span{flex:initial}}
     .panel,.list,.composer{scroll-padding:8px}
     .compose-error,.workshop-error{margin-bottom:8px}
+    .canvas-rounds{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #e7e1ec}.canvas-rounds h3{font-size:13px;margin:0 0 10px}.canvas-round{border:1px solid #e7e1ec;border-radius:9px;padding:10px;margin-bottom:8px;overflow-wrap:anywhere}.canvas-round .row{flex-wrap:wrap;font-size:12px}.canvas-round p{font-size:12px;white-space:pre-wrap;margin:8px 0 0}.canvas-round summary,.canvas-history>summary{font-size:12px;cursor:pointer;padding:7px 0;min-height:32px}.canvas-round summary:focus-visible,.canvas-history>summary:focus-visible{outline:3px solid #6852ce;outline-offset:2px}.canvas-round[data-status=unknown]{border-color:#c99a45;background:#fffaf0}.canvas-round[data-status=answered] .badge{background:#e9f4ed;color:#286640}.canvas-close-hint{font-size:11px;color:#685c74;margin:10px 0 0;line-height:1.5}
+    .workspace-panel{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:86px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #e1dce8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workspace-head{padding:14px 16px;border-bottom:1px solid #ece8f0;flex-shrink:0}.workspace-head h2{font-size:17px;margin:0}.workspace-body{padding:16px;overflow-y:auto;overscroll-behavior:contain;min-height:0;scroll-padding:12px}.workspace-body h3{font-size:14px;margin:0 0 8px;overflow-wrap:anywhere}.workspace-body p{font-size:12px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}.workspace-path{display:block;overflow-wrap:anywhere;font-size:11px;color:#685c74}.workspace-revision,.workspace-confirm{border:1px solid #e7e1ec;border-radius:9px;padding:12px;margin:10px 0}.workspace-revision .row{flex-wrap:wrap}.workspace-revision button{font-size:12px}.workspace-confirm{background:#fffaf0;border-color:#c99a45}.workspace-confirm:focus{outline:2px solid #6852ce;outline-offset:2px}.workspace-actions{display:flex;flex-wrap:wrap;gap:5px}.workspace-status{color:#5b426b}.workspace-dirty{color:#80591d}.workspace-history-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:18px}.workspace-history-tools h3{margin:0}.workspace-history-tools button{font-size:12px}.workspace-error{margin:8px 0}.workspace-previous{color:#78607f}
+    @media(max-width:600px){.workspace-panel{right:10px;width:calc(100vw - 20px)}}
+    .workspace-storage-details{font-size:12px;margin:8px 0}.workspace-storage-details summary{cursor:pointer;min-height:32px;padding:7px 0}.workspace-storage-details summary:focus-visible{outline:3px solid #6852ce;outline-offset:2px}
     @media(prefers-reduced-motion:no-preference){button{transition:background .12s ease}}
   `;
   root.appendChild(style);
@@ -122,15 +126,16 @@
       <div class="panel-head"><div class="row between"><h2>Innspill <span class="count total">0</span></h2><button type="button" class="close" data-action="close-panel" aria-label="Lukk innspill">×</button></div>
         <p class="panel-intro">Pek på det du vil forbedre. Send samlet når du er klar. Innspillene lagres bare i denne økten.</p>
         <div class="filters" role="group" aria-label="Filtrer innspill"><button type="button" data-filter="all" aria-pressed="true">Alle</button><button type="button" data-filter="open" aria-pressed="false">Åpne</button><button type="button" data-filter="fixed" aria-pressed="false">Ordnet</button></div>
-      </div><div class="list"></div>
+      </div><div class="list"><section class="canvas-rounds" aria-label="Sendte runder" hidden><h3>Sendte runder</h3><div class="canvas-recent"></div><details class="canvas-history" hidden><summary></summary><div class="canvas-older"></div></details></section><div class="comment-list"></div></div>
       <div class="panel-foot"><div class="row between"><span class="pending muted">Ingen nye innspill</span><span class="connection">Lagres lokalt</span></div><button type="button" class="primary send" data-action="send" disabled>Send innspill</button><p class="foot-status" role="status"></p><p class="error panel-error" role="alert" hidden></p></div>
     </section>
+    <section class="workspace-panel" aria-label="Prosjektarbeid" hidden><div class="workspace-head"><div class="row between"><h2>Arbeid</h2><button type="button" class="close" data-action="workspace-close" aria-label="Lukk arbeid">×</button></div></div><div class="workspace-body"><h3 class="workspace-title"></h3><p class="workspace-storage"></p><code class="workspace-path"></code><p class="workspace-unsaved" hidden>Lagre utkast før du lukker skissen eller samtalen.</p><details class="workspace-storage-details"><summary>Om lagring og gjenåpning</summary><p class="workspace-help"></p></details><p class="workspace-temporary-help" hidden></p><p class="workspace-recovered" hidden>Arbeidet er åpnet fra prosjektet. Tidligere runder sendes ikke på nytt.</p><p class="workspace-dirty" hidden></p><div class="workspace-confirm" tabindex="-1" hidden><h3 class="workspace-confirm-title"></h3><p>Dette lager en ny skisseversjon. Innspill, svar og innsendte runder beholdes.</p><p class="workspace-restore-warning"></p><div class="workspace-actions"><button type="button" class="primary" data-action="workspace-restore">Bruk som ny versjon</button><button type="button" data-action="workspace-cancel">Avbryt</button></div></div><p class="error workspace-error" role="alert" hidden></p><p class="workspace-status" role="status"></p><div class="workspace-history" hidden><div class="workspace-history-tools"><h3>Versjonshistorikk</h3><button type="button" data-action="workspace-reload">Oppdater</button></div><div class="workspace-history-list"></div><button type="button" data-action="workspace-more" hidden>Vis flere versjoner</button></div></div></section>
     <section class="composer" role="dialog" aria-modal="false" aria-labelledby="compose-title" hidden>
       <div class="row between"><h2 id="compose-title">Nytt innspill</h2><button type="button" class="close" data-action="hide-draft" aria-label="Legg utkast til side">×</button></div><div class="anchor-label"></div>
       <label for="feedback-note">Hva vil du endre?</label><textarea id="feedback-note" maxlength="2000" placeholder="For eksempel: Gi overskriften mer luft …"></textarea>
       <button type="button" class="proposal-toggle" data-action="proposal" aria-expanded="false" hidden>Foreslå ny tekst</button>
       <div class="proposal-fields" hidden><label for="feedback-proposal">Ny tekst</label><textarea id="feedback-proposal" maxlength="2000" placeholder="Skriv inn teksten du foreslår"></textarea><button type="button" class="preview-button" data-action="preview-draft">Forhåndsvis teksten</button><button type="button" class="preview-button" data-action="inspect-preview" hidden>Se i skissen</button><p class="help">Kun en lokal forhåndsvisning. Forslaget sendes som et innspill.</p></div>
-      <p class="error compose-error" role="alert" hidden></p><div class="compose-actions"><button type="button" data-action="discard">Forkast</button><button type="button" class="primary save" data-action="save">Lagre innspill</button></div><div class="help">⌘/Ctrl + Enter lagrer · Esc legger utkastet til side</div>
+      <p class="error compose-error" role="alert" hidden></p><div class="compose-actions"><button type="button" data-action="discard">Forkast</button><button type="button" class="primary save" data-action="save">Lagre innspill</button></div><div class="help">⌘/Ctrl + Enter lagrer · Esc legger utkastet til side</div><p class="canvas-close-hint" hidden>Lukker du skissen i appen, går ulagrede utkast og merknader tapt. Lagre dem som innspill først.</p>
     </section>
     <div class="toolbar" role="toolbar" aria-label="Verktøy for prototype"><button type="button" data-action="browse" aria-pressed="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3l10 7-5 1-2 5z"/></svg> Utforsk</button><button type="button" data-action="comment" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4h12v9H9l-5 3z"/></svg> Kommenter</button><div class="tools" role="group" aria-label="Type markering" hidden><button type="button" data-action="point" aria-pressed="true">Punkt</button><button type="button" data-action="area" aria-pressed="false">Område</button></div><span class="divider"></span><button type="button" data-action="panel" aria-expanded="false">Innspill<span class="count total">0</span></button><button type="button" class="draft-button" data-action="resume" hidden>Fortsett utkast</button><button type="button" class="update" data-action="refresh" hidden>Vis ny versjon</button></div>
     <div class="sr" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -151,6 +156,10 @@
   let draft = null;
   let savingDraft = null;
   let workshop = null;
+  let editor = null;
+  let frameRefreshing = false;
+  let savedVersionWaiting = false;
+  const refreshDisabled = new Map();
   let drag = null;
   let preview = null;
   let previewSpacer = null;
@@ -166,6 +175,20 @@
   let originalTouchAction = document.documentElement.style.touchAction;
   const requests = new Map();
   const commentRetries = new Map();
+  const canvasCards = new Map();
+  const canvasStatuses = new Map();
+  let canvasRendered = false;
+  let canvasSignature = "";
+  let workspaceLoading = false;
+  let workspaceRestoring = false;
+  let workspaceRestoreOpen = false;
+  let workspaceEntries = [];
+  let workspaceNextAfter = null;
+  let workspaceConfirmation = null;
+  const workspaceButton = button("Arbeid", "workspace-open");
+  workspaceButton.hidden = true;
+  workspaceButton.setAttribute("aria-expanded", "false");
+  el(".toolbar").insertBefore(workspaceButton, el(".tools"));
   const safeRoles = new Set(["button", "link", "textbox", "heading", "img", "navigation", "main", "region", "group", "list", "listitem", "checkbox", "radio", "combobox", "tab", "tabpanel", "table", "row", "cell", "alert", "status", "presentation", "none"]);
 
   function announce(text) { el(".sr").textContent = text; }
@@ -204,9 +227,23 @@
       && !target.childElementCount && Array.from(target.childNodes).some((node) => node.nodeType === Node.TEXT_NODE);
   }
   function pendingComments() { return [...snapshot.comments, ...(snapshot.decisions || [])].filter((item) => item.submission === 0); }
-  function busy() { return Boolean(draft || drag || preview || pendingComments().length || requests.size || workshop?.isBusy()); }
-  function blocksRefresh() { return Boolean(draft || drag || preview || pendingComments().length || requests.size || workshop?.isSaving() || workshop?.hasRemarks()); }
-  function saving() { return Boolean(savingDraft || workshop?.isSaving()); }
+  function canvasRounds() { return Array.isArray(snapshot.canvas?.rounds) ? snapshot.canvas.rounds : null; }
+  function canvasStatus(round) { return round.review === "answered" ? "answered" : round.previousSession ? "previous" : round.review === "working" ? "working" : round.delivery; }
+  function uncertainDelivery() { return canvasRounds()?.some((round) => !round.previousSession && round.delivery === "unknown" && round.review === "unread") || false; }
+  function sendingDelivery() { return canvasRounds()?.some((round) => !round.previousSession && round.delivery === "sending" && round.review === "unread") || false; }
+  function busy() { return Boolean(draft || drag || preview || !el(".workspace-panel").hidden || pendingComments().length || requests.size || workshop?.isBusy() || editor?.isDirty() || editor?.isOpen() || editor?.isSaving()); }
+  function blocksRefresh() { return Boolean(draft || drag || preview || pendingComments().length || requests.size || workshop?.isSaving() || workshop?.hasRemarks() || editor?.isDirty() || editor?.isSaving()); }
+  function saving() { return Boolean(savingDraft || workshop?.isSaving() || workspaceRestoring || editor?.isSaving() || frameRefreshing || savedVersionWaiting); }
+  function lockRefreshControls() {
+    if (!frameRefreshing && !savedVersionWaiting) return;
+    all("button,textarea,input,select").forEach(node => { if (!refreshDisabled.has(node)) refreshDisabled.set(node, node.disabled); node.disabled = true; });
+  }
+  function setRefreshing(value) {
+    frameRefreshing = value;
+    if (!value && !savedVersionWaiting) { for (const [node, disabled] of refreshDisabled) if (node.isConnected) node.disabled = disabled; refreshDisabled.clear(); }
+    updateBusy(); editor?.refreshControls();
+  }
+  function refreshNow() { savedVersionWaiting = false; setRefreshing(true); post({ action: "refresh-now", screen }); }
   function topInset() { return Math.max(64, Math.ceil((document.body.querySelector(":scope > .vc-header")?.getBoundingClientRect().bottom || 0) + 10)); }
   function updateBusy() {
     const value = busy();
@@ -216,15 +253,17 @@
     refresh.hidden = !updateAvailable;
     const blocked = blocksRefresh();
     const discardView = !blocked && workshop?.isBusy();
-    refresh.disabled = blocked;
+    refresh.disabled = blocked || frameRefreshing || savedVersionWaiting;
     refresh.textContent = discardView ? "Nullstill og vis ny versjon" : "Vis ny versjon";
     refresh.title = blocked ? "Fullfør utkast, send innspill og avslutt forhåndsvisningen først" : discardView ? "Lokale visningsvalg nullstilles. Lagrede innspill beholdes." : "Åpne den nye versjonen";
+    renderWorkspaceSummary();
+    lockRefreshControls();
     scheduleLayout();
   }
   function request(action, payload, retry = {}) {
     if (connectionLost && action !== "comments-list") return Promise.reject(new Error("Økten er frakoblet. Kopier utkastet før du starter en ny økt."));
     let mutationId;
-    if (action !== "comments-list") {
+    if (!["comments-list", "workspace-history", "workspace-editor-read"].includes(action)) {
       const intent = JSON.stringify([action, payload]);
       if (retry.intent !== intent) {
         retry.intent = intent;
@@ -237,9 +276,9 @@
       const timer = window.setTimeout(() => {
         requests.delete(requestId);
         updateBusy();
-        reject(new Error("Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen."));
+        reject(new Error(action === "workspace-history" ? "Historikken kunne ikke hentes. Prøv igjen." : action === "workspace-restore" ? "Gjenopprettingen ble ikke bekreftet. Prøv samme handling igjen før du velger en annen versjon." : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen."));
       }, 12000);
-      requests.set(requestId, { resolve, reject, timer });
+      requests.set(requestId, { resolve, reject, timer, action });
       updateBusy();
       post({ action, requestId, payload, ...(mutationId ? { mutationId } : {}) });
     });
@@ -258,7 +297,7 @@
   }
   function setPanel(open, focus = false) {
     if (open && saving()) return;
-    if (open) workshop?.close();
+    if (open) { editor?.close(); workshop?.close(); closeWorkspace(); }
     panel.hidden = !open;
     el('[data-action="panel"]').setAttribute("aria-expanded", String(open));
     if (open && draft && !composer.hidden) hideDraft();
@@ -273,18 +312,20 @@
     setPanel(true);
     const id = commentId || (comment && snapshot.comments.slice().reverse().find((item) =>
       Object.entries(comment).every(([key, value]) => JSON.stringify(item[key]) === JSON.stringify(value)))?.id);
-    const card = Array.from(el(".list").children).find((entry) => decisionId ? entry.dataset.decision === decisionId : id && entry.dataset.id === id);
+    const card = Array.from(el(".comment-list").children).find((entry) => decisionId ? entry.dataset.decision === decisionId : id && entry.dataset.id === id);
     if (card) { card.scrollIntoView({ block: "nearest" }); card.focus({ preventScroll: true }); }
     else el('[data-action="close-panel"]').focus();
   }
   function updateHint() {
     const hint = el(".hint");
-    hint.hidden = mode !== "comment" || !panel.hidden || !composer.hidden || Boolean(preview);
+    hint.hidden = mode !== "comment" || !panel.hidden || !el(".workspace-panel").hidden || !composer.hidden || Boolean(preview);
     hint.textContent = marker === "area" ? workshop?.isComparing() ? "Avslutt sammenligning for å markere et område · Punkt kan brukes nå" : "Dra rundt et område · eller fokuser et element og trykk Enter" : "Trykk på et element · eller bruk Tab og Enter · Esc avslutter";
     document.documentElement.style.touchAction = mode === "comment" && marker === "area" && !workshop?.isComparing() ? "none" : originalTouchAction;
   }
   function setMode(next, nextMarker = marker) {
     if (saving()) return;
+    editor?.close();
+    closeWorkspace();
     mode = next;
     marker = nextMarker;
     for (const value of ["browse", "comment"]) el(`[data-action="${value}"]`).setAttribute("aria-pressed", String(mode === value));
@@ -395,6 +436,7 @@
   }
   function resumeDraft() {
     if (!draft || saving()) return;
+    closeWorkspace();
     if (preview && preview.owner !== draft) resetPreview();
     if (draft.kind === "area") workshop?.endComparison();
     setPanel(false);
@@ -515,7 +557,8 @@
       layoutPending = false;
       const toolbarTop = el(".toolbar").getBoundingClientRect().top;
       panel.style.bottom = `${Math.max(80, innerHeight - toolbarTop + 12)}px`;
-      for (const target of [panel, el(".hint")]) target.style.top = `${topInset()}px`;
+      el(".workspace-panel").style.bottom = `${Math.max(80, innerHeight - toolbarTop + 12)}px`;
+      for (const target of [panel, el(".workspace-panel"), el(".hint")]) target.style.top = `${topInset()}px`;
       const previewBar = el(".preview-bar");
       const inspecting = preview?.inspecting && composer.hidden;
       previewBar.style.top = inspecting ? "auto" : `${topInset()}px`;
@@ -559,7 +602,7 @@
     const activeAction = active?.dataset.action;
     const activeId = active?.dataset.id;
     const activeDecision = active?.closest("[data-decision]")?.dataset.decision;
-    const list = el(".list");
+    const list = el(".comment-list");
     const restoreCommentFocus = active && (list.contains(active) || pinLayer.contains(active));
     const focusIndex = Math.max(0, Array.from(list.children).indexOf(active?.closest(".comment,.workshop-decision")));
     list.replaceChildren();
@@ -654,18 +697,200 @@
     renderFooter();
     scheduleLayout();
   }
+  function workspaceStored() { return snapshot.workspace?.storage === "project"; }
+  function workspaceDrafts() { return Boolean(draft || drag || preview || workshop?.hasRemarks() || editor?.isDirty()); }
+  function workspaceText(selector, text) { const node = el(selector); if (node.textContent !== text) node.textContent = text; }
+  function renderWorkspaceSummary() {
+    const stored = workspaceStored();
+    workspaceButton.hidden = !stored && canvasRounds() === null;
+    workspaceText(".workspace-title", stored ? snapshot.workspace.title : "Midlertidig økt");
+    workspaceText(".workspace-storage", stored ? `Lagret i prosjektet · versjon ${snapshot.workspace.version}` : "Dette arbeidet er bare tilgjengelig i den midlertidige økten.");
+    workspaceText(".workspace-path", stored ? snapshot.workspace.path : "");
+    el(".workspace-storage-details").hidden = !stored;
+    el(".workspace-unsaved").hidden = !stored;
+    el(".workspace-temporary-help").hidden = stored;
+    workspaceText(".workspace-help", "Lagrede innspill og skisseversjoner beholdes i prosjektet. Å lukke dette panelet beholder utkastene. Ulagrede utkast går tapt hvis du lukker selve skissen eller samtalen. Be i samtalen om å åpne arbeidet igjen. Å lukke skissen frigjør ikke arbeidet for en annen samtale.");
+    workspaceText(".workspace-temporary-help", "Be i samtalen om å opprette eller åpne et prosjektarbeid for varig lagring. Denne midlertidige økten blir ikke automatisk kopiert dit.");
+    el(".workspace-recovered").hidden = !stored || !snapshot.workspace.recovered;
+    el(".workspace-history").hidden = !stored;
+    const dirty = workspaceDrafts();
+    el(".workspace-dirty").hidden = !dirty;
+    workspaceText(".workspace-dirty", "Du har et ulagret utkast, en merknad eller en tekstvisning. Fullfør eller forkast dette før du bruker en eldre versjon.");
+    el(".workspace-confirm").hidden = !workspaceConfirmation;
+    if (workspaceConfirmation) {
+      workspaceText(".workspace-confirm-title", `Bruk versjon ${workspaceConfirmation.entry.revisionId} som utgangspunkt?`);
+      workspaceText(".workspace-restore-warning", dirty ? "Gjenoppretting er satt på vent. Utkastet ditt er beholdt."
+        : workshop?.isBusy() ? "Lokale visningsvalg nullstilles når den nye versjonen åpnes. Lagrede innspill beholdes."
+          : "Skissen åpnes som en ny versjon. Ingen innspill blir sendt til samtalen.");
+    }
+    const restore = el('[data-action="workspace-restore"]');
+    restore.disabled = !stored || !workspaceConfirmation || workspaceConfirmation.conflict || workspaceConfirmation.capacity || dirty || connectionLost || workspaceLoading || savingDraft || workshop?.isSaving() || workspaceRestoring;
+    restore.textContent = workspaceRestoring ? "Lagrer ny versjon …" : workspaceConfirmation?.capacity ? "Lagringsgrensen er nådd" : workspaceConfirmation?.retry.intent ? "Prøv samme gjenoppretting igjen" : "Bruk som ny versjon";
+    all(".workspace-panel button").forEach(node => {
+      const current = node.dataset.action === "workspace-choose" && Number(node.dataset.revisionId) === snapshot.workspace?.version;
+      if (node.dataset.action === "workspace-choose") node.textContent = current ? "Gjeldende versjon" : "Bruk som ny versjon";
+      if (node !== restore) node.disabled = workspaceRestoring || (workspaceLoading && node.dataset.action !== "workspace-close") || current;
+    });
+    el('[data-action="workspace-more"]').hidden = workspaceNextAfter === null;
+    el(".workspace-panel").setAttribute("aria-busy", String(workspaceLoading || workspaceRestoring));
+  }
+  function closeWorkspace(focus = false) {
+    if (workspaceRestoring) return;
+    const wasOpen = !el(".workspace-panel").hidden;
+    el(".workspace-panel").hidden = true;
+    workspaceButton.setAttribute("aria-expanded", "false");
+    if (wasOpen && focus) workspaceButton.focus();
+  }
+  async function openWorkspace() {
+    if (saving()) return;
+    if (draft && !composer.hidden) hideDraft();
+    workshop?.close(); setPanel(false); setMode("browse");
+    el(".workspace-panel").hidden = false;
+    workspaceButton.setAttribute("aria-expanded", "true");
+    el('[data-action="workspace-close"]').focus();
+    renderWorkspaceSummary(); updateBusy(); updateHint();
+    if (workspaceStored() && !workspaceEntries.length && !workspaceLoading) await loadWorkspaceHistory();
+  }
+  function renderWorkspaceHistory() {
+    const list = el(".workspace-history-list");
+    list.replaceChildren();
+    for (const entry of workspaceEntries.slice().sort((a, b) => b.revisionId - a.revisionId)) {
+      const card = document.createElement("article"); card.className = "workspace-revision";
+      card.dataset.revisionId = String(entry.revisionId);
+      const title = document.createElement("h3"); title.textContent = `Versjon ${entry.revisionId} · ${entry.label || entry.filename}`;
+      const detail = document.createElement("p"); detail.className = "muted";
+      const date = new Date(entry.createdAt);
+      detail.textContent = `${Number.isNaN(date.getTime()) ? "" : date.toLocaleString("nb-NO", { dateStyle: "short", timeStyle: "short" })}${entry.restoredFrom ? ` · Fra versjon ${entry.restoredFrom}` : ""}`;
+      const current = entry.revisionId === snapshot.workspace?.version;
+      const choose = button(current ? "Gjeldende versjon" : "Bruk som ny versjon", "workspace-choose");
+      choose.dataset.revisionId = String(entry.revisionId); choose.disabled = current;
+      card.append(title, detail, choose); list.appendChild(card);
+    }
+    if (!workspaceEntries.length) list.appendChild(span("Ingen skisseversjoner er lagret ennå.", "muted"));
+    renderWorkspaceSummary();
+  }
+  async function loadWorkspaceHistory(more = false) {
+    if (!workspaceStored() || workspaceLoading || workspaceRestoring) return;
+    workspaceLoading = true;
+    errorAt(".workspace-error", "");
+    workspaceText(".workspace-status", "Henter versjonshistorikk …");
+    renderWorkspaceSummary();
+    try {
+      const value = await request("workspace-history", { after: more ? workspaceNextAfter : 0, limit: 20 });
+      if (!value || !Array.isArray(value.items) || typeof value.hasMore !== "boolean") throw new Error("Historikken kunne ikke leses.");
+      workspaceEntries = more ? [...workspaceEntries, ...value.items.filter(entry => !workspaceEntries.some(known => known.revisionId === entry.revisionId))] : value.items;
+      workspaceNextAfter = value.hasMore ? value.nextAfter : null;
+      if (!more && (!workspaceConfirmation?.retry.intent || workspaceConfirmation.conflict)) workspaceConfirmation = null;
+      renderWorkspaceHistory();
+      workspaceText(".workspace-status", `${workspaceEntries.length} skisseversjoner i listen.`);
+    } catch (error) { errorAt(".workspace-error", error.message); }
+    finally {
+      workspaceLoading = false; renderWorkspaceSummary();
+    }
+  }
+  async function restoreWorkspace() {
+    const chosen = workspaceConfirmation;
+    if (!chosen || el('[data-action="workspace-restore"]').disabled) return;
+    workspaceRestoring = true;
+    errorAt(".workspace-error", ""); updateBusy();
+    try {
+      await request("workspace-restore", { revisionId: chosen.entry.revisionId, expectedRevision: chosen.expectedRevision }, chosen.retry);
+      workspaceConfirmation = null;
+      workspaceRestoreOpen = true;
+      workspaceText(".workspace-status", "En ny skisseversjon er lagret. Innspill og svar er beholdt.");
+      announce("En ny skisseversjon er lagret. Ingen innspill er sendt.");
+      if (updateAvailable) refreshNow();
+    } catch (error) {
+      if (error.conflict) chosen.conflict = true;
+      if (error.capacity) chosen.capacity = true;
+      errorAt(".workspace-error", error.conflict ? "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt." : error.message);
+    } finally { workspaceRestoring = false; updateBusy(); }
+  }
+  function renderCanvasRounds() {
+    const rounds = canvasRounds();
+    el(".composer .canvas-close-hint").hidden = rounds === null;
+    el(".canvas-rounds").hidden = !rounds?.length;
+    const signature = JSON.stringify(rounds);
+    if (signature === canvasSignature) return;
+    canvasSignature = signature;
+    if (!rounds) return;
+    const labels = { sending: "Sender …", queued: "I kø", unknown: "Levering ikke bekreftet", working: "Behandles", answered: "Besvart", previous: "Fra tidligere samtale" };
+    const ordered = rounds.slice().sort((a, b) => b.submission - a.submission);
+    const active = root.activeElement;
+    const changes = [];
+    for (const [index, round] of ordered.entries()) {
+      const status = canvasStatus(round);
+      let card = canvasCards.get(round.submission);
+      if (!card) {
+        card = document.createElement("article");
+        card.className = "canvas-round";
+        card.dataset.canvasSubmission = String(round.submission);
+        card.setAttribute("aria-label", `Runde ${round.submission}`);
+        const head = document.createElement("div"); head.className = "row";
+        const title = document.createElement("strong"); title.textContent = `Runde ${round.submission}`;
+        head.append(title, span("", "badge"));
+        const uncertain = document.createElement("p"); uncertain.className = "canvas-uncertain";
+        uncertain.textContent = "Runden er lagret. Levering til samtalen er ikke bekreftet. Den sendes ikke på nytt automatisk.";
+        const answer = document.createElement("details"); answer.className = "canvas-answer";
+        const summary = document.createElement("summary"); summary.textContent = "Vis svar";
+        const previous = document.createElement("p"); previous.className = "workspace-previous";
+        answer.append(summary, document.createElement("p")); card.append(head, uncertain, previous, answer);
+        canvasCards.set(round.submission, card);
+      }
+      if (card.dataset.status !== status) {
+        card.dataset.status = status;
+        card.querySelector(".badge").textContent = labels[status] || "Levering ikke bekreftet";
+      }
+      card.querySelector(".canvas-uncertain").hidden = status !== "unknown";
+      const previous = card.querySelector(".workspace-previous");
+      previous.hidden = !round.previousSession;
+      const previousText = round.previousSession ? round.review === "answered" ? "Svaret er fra en tidligere samtale."
+        : ["unknown", "sending"].includes(round.delivery) ? "Tidligere levering er uavklart. Runden sendes ikke på nytt automatisk."
+          : "Runden ble sendt tidligere. Pågående behandling er ikke bekreftet i denne samtalen." : "";
+      if (previous.textContent !== previousText) previous.textContent = previousText;
+      const answer = card.querySelector(".canvas-answer"), reply = typeof round.reply === "string" ? round.reply : "";
+      answer.hidden = !reply || round.review !== "answered";
+      if (answer.querySelector("p").textContent !== reply) answer.querySelector("p").textContent = reply;
+      const container = el(index < 3 ? ".canvas-recent" : ".canvas-older"), position = index < 3 ? index : index - 3;
+      if (container.children[position] !== card) container.insertBefore(card, container.children[position] || null);
+      if (canvasRendered && canvasStatuses.get(round.submission) !== status) changes.push(`Runde ${round.submission}: ${labels[status] || "Levering ikke bekreftet"}.`);
+      canvasStatuses.set(round.submission, status);
+    }
+    for (const [submission, card] of canvasCards) {
+      if (!rounds.some((round) => round.submission === submission)) { card.remove(); canvasCards.delete(submission); canvasStatuses.delete(submission); }
+    }
+    const history = el(".canvas-history");
+    history.hidden = ordered.length <= 3;
+    const historyLabel = `Tidligere runder (${Math.max(0, ordered.length - 3)})`;
+    if (history.querySelector("summary").textContent !== historyLabel) history.querySelector("summary").textContent = historyLabel;
+    if (active?.isConnected && el(".canvas-rounds").contains(active)) {
+      if (el(".canvas-older").contains(active)) history.open = true;
+      if (root.activeElement !== active) active.focus({ preventScroll: true });
+    }
+    canvasRendered = true;
+    if (changes.length) announce(changes.slice(0, 3).join(" "));
+  }
   function renderFooter() {
+    renderCanvasRounds();
     const count = pendingComments().length;
-    el(".panel-intro").textContent = snapshot.submission > 0
+    const canvas = canvasRounds() !== null, uncertain = uncertainDelivery(), sending = sendingDelivery();
+    el(".panel-intro").textContent = workspaceStored()
+      ? "Lagrede innspill beholdes i prosjektet. Ulagrede utkast og merknader går tapt ved lukking."
+      : canvas ? "Lagrede innspill beholdes i økten. Ulagrede utkast og merknader går tapt hvis du lukker skissen i appen."
+      : snapshot.submission > 0
       ? "Send nye innspill samlet. Sendte runder bevares i denne økten, også når du fjerner innspill fra listen."
       : "Pek på det du vil forbedre. Send samlet når du er klar. Innspillene lagres bare i denne økten.";
     const live = !connectionLost && Date.now() < (snapshot.listeningUntil || 0);
     el(".pending").textContent = count ? `${count} innspill ${count === 1 ? "klart" : "klare"} til sending` : sentCount ? `${sentCount} innspill sendt` : "Ingen nye innspill";
-    el(".send").disabled = !count || submitting || connectionLost;
+    el(".send").disabled = !count || submitting || connectionLost || uncertain || sending;
     el(".send").textContent = count ? `Send ${count} innspill` : "Send innspill";
-    el(".connection").textContent = connectionLost ? "Frakoblet" : live ? "Følger med" : "Lagres lokalt";
-    el(".connection").classList.toggle("live", live);
-    const status = connectionLost ? "Innspill kan ikke lagres nå. Kopier teksten du vil beholde før du starter en ny økt." : live ? "Innspillene hentes når du sender." : "Skriv «se innspillene» i samtalen når du har sendt.";
+    el(".connection").textContent = connectionLost ? "Frakoblet" : canvas ? "Knyttet til samtalen" : live ? "Følger med" : "Lagres lokalt";
+    el(".connection").classList.toggle("live", canvas ? !connectionLost : live);
+    const status = connectionLost ? "Innspill kan ikke lagres nå. Kopier teksten du vil beholde før du starter en ny økt."
+      : canvas ? uncertain ? "En tidligere levering er ikke bekreftet. Du kan lagre flere innspill, men ny sending venter til utfallet er avklart."
+        : sending ? "Forrige runde sendes. Du kan lagre flere innspill mens du venter på bekreftelse."
+        : "Send legger runden i samtalens kø. Lukking av skissen avbryter ikke arbeid som er mottatt."
+        : live ? "Innspillene hentes når du sender." : "Skriv «se innspillene» i samtalen når du har sendt.";
     if (el(".foot-status").textContent !== status) el(".foot-status").textContent = status;
     updateBusy();
   }
@@ -675,6 +900,7 @@
     const changed = snapshot.revision !== value.revision;
     snapshot = value;
     workshop?.render(snapshot);
+    editor?.onSnapshot(snapshot);
     if (changed) renderComments();
     else renderFooter();
   }
@@ -705,7 +931,7 @@
     showOutline(commentRect(item));
     if (focus) {
       setPanel(true);
-      const card = Array.from(el(".list").children).find((entry) => entry.dataset.id === item.id);
+      const card = Array.from(el(".comment-list").children).find((entry) => entry.dataset.id === item.id);
       card?.scrollIntoView({ block: "nearest" });
       card?.focus({ preventScroll: true });
     } else focusPrototype(target);
@@ -724,6 +950,20 @@
     else if (action === "point" || action === "area") setMode("comment", action);
     else if (action === "panel") setPanel(panel.hidden, true);
     else if (action === "close-panel") setPanel(false, true);
+    else if (action === "workspace-open") void openWorkspace();
+    else if (action === "workspace-close") { closeWorkspace(true); updateBusy(); updateHint(); }
+    else if (action === "workspace-reload") void loadWorkspaceHistory();
+    else if (action === "workspace-more") void loadWorkspaceHistory(true);
+    else if (action === "workspace-cancel") { workspaceConfirmation = null; renderWorkspaceSummary(); el('[data-action="workspace-reload"]').focus(); }
+    else if (action === "workspace-choose") {
+      const entry = workspaceEntries.find(value => value.revisionId === Number(target.dataset.revisionId));
+      if (entry) {
+        workspaceConfirmation = { entry, expectedRevision: snapshot.revision, retry: {} };
+        errorAt(".workspace-error", ""); renderWorkspaceSummary();
+        el(".workspace-confirm").scrollIntoView({ block: "nearest" }); el(".workspace-confirm").focus({ preventScroll: true });
+      }
+    }
+    else if (action === "workspace-restore") void restoreWorkspace();
     else if (action === "save") void saveDraft();
     else if (action === "discard") discardDraft();
     else if (action === "hide-draft") hideDraft();
@@ -761,8 +1001,8 @@
       }
       locate(item, true);
     } else if (action === "locate" && item) { setPanel(false); locate(item); }
-    else if (action === "refresh" && !blocksRefresh()) post({ action: "refresh-now", screen });
-    else if (action === "send" && !submitting) {
+    else if (action === "refresh" && !blocksRefresh()) refreshNow();
+    else if (action === "send" && !submitting && !uncertainDelivery() && !sendingDelivery()) {
       submitting = true;
       const count = pendingComments().length;
       target.disabled = true;
@@ -770,7 +1010,7 @@
       request("comments-submit", { revision: snapshot.revision }, submissionRetry).then(() => {
         submissionRetry = {};
         sentCount = count;
-        announce("Innspillene er sendt. Skriv «se innspillene» i samtalen hvis ingen følger med.");
+        if (canvasRounds() === null) announce("Innspillene er sendt. Skriv «se innspillene» i samtalen hvis ingen følger med.");
       }).catch((error) => errorAt(".panel-error", error.message)).finally(() => { submitting = false; renderFooter(); });
     }
   });
@@ -792,6 +1032,7 @@
     event.stopPropagation();
     if (!composer.hidden) hideDraft();
     else if (!panel.hidden) setPanel(false, true);
+    else if (!el(".workspace-panel").hidden) { closeWorkspace(true); updateBusy(); updateHint(); }
     else if (preview) { const original = preview.target; resetPreview(); if (draft) el('[data-action="resume"]').focus(); else focusPrototype(original); }
     else { setMode("browse"); el('[data-action="browse"]').focus(); }
   });
@@ -858,6 +1099,7 @@
       if (!composer.hidden) hideDraft();
       else if (preview) resetPreview();
       else if (!panel.hidden) setPanel(false, true);
+      else if (!el(".workspace-panel").hidden) { closeWorkspace(true); updateBusy(); updateHint(); }
       else setMode("browse");
       return;
     }
@@ -887,35 +1129,49 @@
     if (data.channel !== channel || data.version !== 1) return;
     if (data.command === "connection-lost" || data.command === "connection-restored") {
       connectionLost = data.command === "connection-lost";
+      if (connectionLost) { workspaceRestoreOpen = false; savedVersionWaiting = false; setRefreshing(false); }
       renderFooter();
       announce(connectionLost ? "Forbindelsen er brutt. Utkast kan kopieres, men ikke lagres nå." : "Forbindelsen er tilbake.");
       return;
     }
     if (data.command === "refreshing") {
+      setRefreshing(true);
       document.getElementById("refresh-indicator")?.classList.add("visible");
       return;
     }
     if (data.command === "update-available") {
+      const cancelledRefresh = frameRefreshing;
+      setRefreshing(false);
       document.getElementById("refresh-indicator")?.classList.remove("visible");
       updateAvailable = true;
       updateBusy();
+      if (workspaceRestoreOpen && !workspaceDrafts() && !cancelledRefresh) { refreshNow(); return; }
+      if (cancelledRefresh) workspaceRestoreOpen = false;
       announce("En ny versjon er klar. Fullfør innspillene og velg Vis ny versjon.");
       return;
     }
     if (data.command === "comments-snapshot") { applySnapshot(data.snapshot); return; }
-    if (data.command === "comments-result") {
+    if (data.command === "comments-result" || data.command === "workspace-result") {
       const pending = requests.get(data.requestId);
       if (!pending) return;
+      if ((data.command === "workspace-result") !== pending.action.startsWith("workspace-")) return;
       window.clearTimeout(pending.timer);
       requests.delete(data.requestId);
       if (data.snapshot) applySnapshot(data.snapshot);
       updateBusy();
-      if (data.ok) pending.resolve(data.snapshot);
+      if (data.ok) pending.resolve(data.result ?? data.snapshot);
       else {
-        const failure = new Error(data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt."
+        const failure = new Error(pending.action.startsWith("workspace-") && data.errorCode === "capacity" ? "Arbeidet har nådd en lagringsgrense. Historikk og innspill er beholdt. Be i samtalen om å opprette et nytt arbeid."
+          : pending.action === "workspace-editor-read" ? "Feltene kunne ikke hentes. Prøv igjen."
+          : pending.action.startsWith("workspace-editor-") ? data.conflict === true ? "Arbeidet er endret. Utkastet ditt er beholdt. Oppdater grunnlaget før du lagrer." : "Handlingen ble ikke bekreftet. Utkastet ditt er beholdt. Prøv samme handling igjen."
+          : pending.action === "workspace-history" ? "Historikken kunne ikke hentes. Prøv igjen."
+          : pending.action === "workspace-restore" ? "Gjenopprettingen ble ikke bekreftet. Prøv samme handling igjen før du velger en annen versjon."
+          : data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt."
           : data.errorCode === "capacity" ? "Økten har nådd en lagringsgrense. Innspill og utkast er beholdt. Kopier teksten du vil ta vare på før du starter en ny økt."
             : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen.");
         failure.conflict = data.conflict === true;
+        failure.capacity = data.errorCode === "capacity";
+        failure.editorConflict = data.errorCode === "editor-conflict";
         pending.reject(failure);
       }
       return;
@@ -934,14 +1190,34 @@
       refreshFeedback: renderComments,
       showFeedbackError: (message) => errorAt(".panel-error", message),
       isComposing: () => Boolean(draft && !composer.hidden),
-      canTry: () => mode === "browse" && !draft && !preview && !savingDraft,
+      canTry: () => mode === "browse" && !draft && !preview && !saving() && !editor?.isOpen() && !editor?.isDirty(),
+      openEditor: () => editor?.open(),
       focusPrototype,
       prepareOpen: () => {
-        if (savingDraft) return false;
+        if (saving()) return false;
+        editor?.close();
+        closeWorkspace();
         if (draft && !composer.hidden) hideDraft();
         setMode("browse"); setPanel(false); return true;
       },
       openFeedback: revealFeedback,
+    });
+  }
+  if (typeof window.__grillmesterInitializeEditor === "function") {
+    editor = window.__grillmesterInitializeEditor({
+      root, screen, nonce, request, announce, topInset,
+      onBusyChange: updateBusy,
+      isRefreshing: () => frameRefreshing || savedVersionWaiting,
+      focusOpener: () => el('[data-action="workshop-open"]')?.focus(),
+      prepareOpen: () => {
+        if (!workspaceStored() || saving()) return false;
+        if (draft || drag || preview || workshop?.hasRemarks()) {
+          const message = "Fullfør eller forkast utkastet og merknadene før du redigerer skissen.";
+          errorAt(".workshop-error", message); const error = el(".workshop-error"); error.tabIndex = -1; error.focus(); error.scrollIntoView({ block: "nearest" }); announce(message); return false;
+        }
+        workshop?.close(); closeWorkspace(); setPanel(false); setMode("browse"); return true;
+      },
+      openSavedVersion: () => { workspaceRestoreOpen = true; savedVersionWaiting = true; updateBusy(); if (updateAvailable) refreshNow(); },
     });
   }
   post({ action: "feedback-ready", screen });

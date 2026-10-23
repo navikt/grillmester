@@ -6,7 +6,7 @@
   window.__grillmesterInitializeWorkshop = (api) => {
     const { root, screen, nonce, request, anchorFor, announce } = api;
     const design = window.__grillmesterVisualCompanionDesign;
-    const descriptor = design && design.version === 1 ? design : null;
+    const descriptor = design && [1, 2].includes(design.version) ? design : null;
     const variants = descriptor?.variants || [];
     const targets = descriptor?.targets || [];
     const bindings = new Map();
@@ -63,7 +63,7 @@
     const markup = document.createElement("div");
     markup.innerHTML = `
       <section class="workshop" aria-label="Juster skissen" hidden>
-        <div class="workshop-head"><div class="row between"><h2>Juster skissen</h2><button type="button" class="close" data-action="workshop-close" aria-label="Lukk justeringer">×</button></div><p>Prøv mulighetene i skissen. Legg valgene til innspill når du er klar.</p></div>
+        <div class="workshop-head"><div class="row between"><h2>Juster skissen</h2><button type="button" class="close" data-action="workshop-close" aria-label="Lukk justeringer">×</button></div><p>Prøv mulighetene i skissen. Legg valgene til innspill når du er klar.</p><div class="workshop-actions source-editor-entry" hidden><button type="button" data-action="workshop-editor" hidden>Rediger skissen</button></div></div>
         <div class="workshop-body">
           <div class="workshop-section workshop-editor"><label for="workshop-target">Velg del</label><select id="workshop-target" aria-label="Velg del"></select><p class="workshop-warning target-warning" hidden></p><div class="workshop-controls"></div>
             <div class="workshop-actions"><button type="button" data-action="workshop-reset">Tilbakestill visning</button></div>
@@ -138,7 +138,7 @@
       pane.scrollTop = 0;
       el(".workshop-body").scrollTop = 0;
       updateLayout();
-      focus(bindings.size ? picker : el('[data-action="workshop-close"]'));
+      focus(bindings.size ? picker : !el('[data-action="workshop-editor"]').hidden ? el('[data-action="workshop-editor"]') : el('[data-action="workshop-close"]'));
     }
     function writeValues(binding) {
       if (!binding?.element) return;
@@ -449,6 +449,7 @@
       const action = button.dataset.action;
       if (action === "workshop-open") { if (pane.hidden) open(); else close(true); }
       else if (action === "workshop-close") close(true);
+      else if (action === "workshop-editor" && !locking) api.openEditor?.();
       else if (action === "workshop-reset" && !locking) { const binding = selected(); if (binding) { binding.values = initialValues(binding.descriptor); binding.accepted = signature(binding.values); writeValues(binding); renderControls(); status("Visningen er tilbakestilt. Merknaden og lagrede innspill er beholdt."); updateDrafts(); } }
       else if (action === "workshop-compare" && comparisonAvailable && !locking) { comparing = !comparing; button.setAttribute("aria-pressed", String(comparing)); updateCompareSelects(); applyComparison(); if (comparing) { close(); focus(innerWidth < 760 ? el(".compare-tabs button") : el("#compare-left")); } }
       else if (action === "workshop-stop-compare" && !locking) { endComparison(); focus(toolbarButton); }
@@ -506,7 +507,7 @@
           return `${control?.label || id}: ${control?.options.find((entry) => entry.value === value)?.label || value}`;
         })].join("\n");
       },
-      render(value) { snapshot = value; for (const binding of bindings.values()) if (!hasDraft(binding) && !locking && !saveRetries.has(`workshop-keep/${identifier(binding.descriptor)}`)) binding.expectedRevision = undefined; if (value.revision !== lastRevision) { lastRevision = value.revision; renderDecisions(); } },
+      render(value) { snapshot = value; el('[data-action="workshop-editor"]').hidden = descriptor?.version !== 2 || value.workspace?.storage !== "project"; el('.source-editor-entry').hidden = el('[data-action="workshop-editor"]').hidden; for (const binding of bindings.values()) if (!hasDraft(binding) && !locking && !saveRetries.has(`workshop-keep/${identifier(binding.descriptor)}`)) binding.expectedRevision = undefined; if (value.revision !== lastRevision) { lastRevision = value.revision; renderDecisions(); } },
       describeComment(item) {
         const original = sourceDesign(item);
         if (item.variant) return original?.variants.find((variant) => variant.key === item.variant)?.label || variantBindings.get(item.variant)?.label || item.variant;

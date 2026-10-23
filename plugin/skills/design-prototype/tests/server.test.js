@@ -1467,14 +1467,14 @@ test("the fixed shell validates feedback messages and defers refresh while a not
       assert.equal(result.errorCode, status === 429 ? "capacity" : undefined, "Only the HTTP capacity status selects the bounded UI code.");
     }
     const helper = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
-    const resultStart = helper.indexOf('    if (data.command === "comments-result") {');
+    const resultStart = helper.indexOf('    if (data.command === "comments-result" || data.command === "workspace-result") {');
     const resultEnd = helper.indexOf('    if (data.command !== "selection-status"', resultStart);
     assert(resultStart >= 0 && resultEnd > resultStart);
     const pending = new Map();
     const receive = vm.runInNewContext(`(data) => { ${helper.slice(resultStart, resultEnd)} }`, { requests: pending, window: { clearTimeout() {} }, applySnapshot() {}, updateBusy() {} });
     for (const errorCode of ["capacity", "unknown", undefined]) {
       let failure;
-      pending.set(1, { timer: 1, reject: (error) => { failure = error; } });
+      pending.set(1, { action: "comment-create", timer: 1, reject: (error) => { failure = error; } });
       receive({ command: "comments-result", requestId: 1, ok: false, errorCode, error: "RAW_SERVER_DETAIL_NOT_FOR_UI" });
       assert(failure);
       assert.equal(failure.message.includes("RAW_SERVER_DETAIL_NOT_FOR_UI"), false);
