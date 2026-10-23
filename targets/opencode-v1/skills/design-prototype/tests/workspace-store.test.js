@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { randomUUID } = require("node:crypto");
 const { fork } = require("node:child_process");
 const { once } = require("node:events");
 const { WorkspaceStore, validWorkspacePath, MAX_STATE_BYTES, MAX_HTML_BYTES, MAX_WORKSPACE_BYTES, MAX_REVISIONS } = require("../scripts/workspace-store.js");
@@ -277,8 +278,8 @@ process.on("message", async message => {
 process.send({ ready: true });
 `;
 function spawnWorker(t, projectDir, mode, environment = {}) {
-  const filename = path.join(projectDir, "lock-worker.cjs");
-  if (!fs.existsSync(filename)) fs.writeFileSync(filename, workerSource);
+  const filename = path.join(projectDir, `lock-worker-${randomUUID()}.cjs`);
+  fs.writeFileSync(filename, workerSource, { flag: "wx", mode: 0o600 });
   const child = fork(filename, [projectDir, mode], { env: { ...process.env, ...environment, WORKSPACE_STORE_MODULE: modulePath }, stdio: ["ignore", "pipe", "pipe", "ipc"] });
   child.stdout.resume(); child.stderr.resume();
   t.after(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); });
