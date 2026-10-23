@@ -166,7 +166,10 @@ Etter at designeren har sett skjermen:
    og serveren avviser forsinkede hendelser fra eldre skjermer.
 2. Les også hele tilbakemeldingskøen med
    `node scripts/comments.js list --state-dir "$STATE_DIR"`. Kommentarer og
-   tekstforslag er designerens eksplisitte innspill; klikkdata er støtteevidens.
+   tekstforslag, justeringer og variantvalg er designerens eksplisitte innspill;
+   klikkdata er støtteevidens. Les også aktive `decisions` før neste skisse.
+   Bevar disse valgene eller forklar avviket; marker aldri en beslutning som
+   frigitt bare fordi en ny versjon er laget.
    Koble kommentaren til riktig skjerm og strukturell elementsti, aldri bare
    til posisjonen i den nyeste skissen. Eldre kommentarer beholder skjerm-ID-en.
 3. Designeren kan kommentere et punkt eller område, prøve ny ordlyd og trykke
@@ -208,6 +211,16 @@ Bruk dette når et retningsvalg står åpent; gjenbruk ellers det avtalte valget
 4. Fang valgt variant, hvorfor den vant og eventuelle lånte deler. Behold også
    en observerbar referanse: skjermbilde når mulig, ellers HTML-filnavn,
    screen-/choice-ID og designerens eksplisitte valg. Fortsett til avtalt leveranse.
+
+Når designspørsmålet trenger direkte justering, deklarer bare meningsfulle
+kontroller i en valgfri `<stem>.design.json` ved siden av HTML-filen. Bruk
+oppskriften i [referansen](references/visual-companion.md#justerbare-skisser).
+Designeren kan prøve innstillinger, sammenligne navngitte varianter og velge
+**Behold dette** for deler som skal følge neste runde. Dette endrer lokal
+forhåndsvisning; innarbeid de innsendte valgene i en ny HTML-fil med nye
+startverdier. Hold delnøkler stabile bare når betydningen er den samme.
+Skriv deklarasjonen før den nye HTML-filen, og verifiser kontroller og beholdte
+valg visuelt før levering. En vanlig skisse trenger ingen deklarasjon.
 
 ### Situasjoner brukeren møter
 

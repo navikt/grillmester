@@ -185,6 +185,7 @@ function run(args) {
   assert(composer.x>=0&&composer.y>=0&&composer.x+composer.width<=390&&composer.y+composer.height<=844);
   await screenshot(page,'/visual-companion-mobile.png');
   await page.setViewportSize({width:320,height:800});
+  await ui.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   assert.equal(await ui.getByLabel('Hva vil du endre?').inputValue(),'På mobil bør oppgavene ligge i én kolonne.');
   const resizedComposer=await ui.getByRole('dialog').boundingBox();
   assert(resizedComposer.x>=0&&resizedComposer.x+resizedComposer.width<=320);

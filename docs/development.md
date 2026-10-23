@@ -86,6 +86,8 @@ python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/design-prototype/scripts/server.js
 node --check plugin/skills/design-prototype/scripts/helper.js
+node --check plugin/skills/design-prototype/scripts/workshop.js
+node --check plugin/skills/design-prototype/scripts/design-contract.js
 node --check plugin/skills/design-prototype/scripts/comments.js
 node --check plugin/skills/design-prototype/scripts/feedback-store.js
 node --test plugin/skills/design-prototype/tests/server.test.js
@@ -121,6 +123,12 @@ angre, innsending, svar, versjonsbytte, fokus og bevaring av utkast. HTML-fixtur
 bruker bevisst fallback-stiler; en separat visuell gjennomgang med consumerens
 verifiserte Aksel-versjon er fortsatt nødvendig. Skjermleserbruk og klientens
 videreføring av `comments.js wait` må verifiseres separat.
+
+`scripts/smoke_visual_workshop.cjs` bruker samme flagg og tester deklarerte
+justeringer, sammenligning, beholdte valg og ugyldige deklarasjoner. Kjør den
+ved endringer i denne kontrakten, i tillegg til kommentarsmoken. Bruk separate
+evidensmapper for de to kjøringene. Ingen av dem installerer avhengigheter eller
+starter en modellklient.
 
 Plugin-smoken skal bekrefte 8 agenter, 44 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at

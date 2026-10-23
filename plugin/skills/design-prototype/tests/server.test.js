@@ -344,7 +344,7 @@ test("parser-state markup cannot swallow the trusted preview helper", async () =
       path.join(running.info.screen_dir, "parser-state.html"),
       '<textarea id="balanced-textarea">Begrunnelse</textarea>' +
         '<svg><title id="balanced-title">Søk</title></svg>' +
-        '<style id="balanced-style">.safe-marker { color: inherit; }</style>' +
+        '<style id="balanced-style" nonce="untrusted" NONCE="duplicate">.safe-marker { color: inherit; }</style>' +
         '<!--balanced-comment-->' +
         '<!--unclosed-comment-marker' +
         '<plaintext id="unclosed-plaintext">plaintext-marker' +
@@ -364,7 +364,10 @@ test("parser-state markup cannot swallow the trusted preview helper", async () =
 
     assert.match(preview, /<textarea id="balanced-textarea">/);
     assert.match(preview, /<title id="balanced-title">/);
-    assert.match(preview, /<style id="balanced-style">/);
+    const styleNonce = /style-src-elem 'nonce-([^']+)'/.exec(response.headers.get("content-security-policy"))[1];
+    assert(preview.includes(`<style nonce="${styleNonce}" id="balanced-style">`));
+    assert.equal(preview.includes('nonce="untrusted"'), false);
+    assert.equal(preview.includes('NONCE="duplicate"'), false);
     assert.match(preview, /<!--balanced-comment-->/);
     assert.equal(preview.includes("<!--unclosed-comment-marker"), false);
     assert.match(preview, /&lt;!--unclosed-comment-marker/);
@@ -1053,5 +1056,258 @@ test("a batch can submit pending notes from both current and previous screen ver
     assert.equal(snapshot.comments.some((item) => item.screen === first), true);
     assert.equal(snapshot.comments.some((item) => item.screen === second), true);
     assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { all: true })).status, 400);
+  } finally { await stopServer(running); }
+});
+
+function sampleDesign() {
+  return {
+    version: 1,
+    variants: [{ key: "compact", label: "Compact" }, { key: "spacious", label: "Spacious" }],
+    targets: [
+      { key: "header", variant: "", label: "Header", controls: [
+        { id: "density", label: "Density", type: "range", initial: "comfortable", options: [{ value: "compact", label: "Compact" }, { value: "comfortable", label: "Comfortable" }, { value: "spacious", label: "Spacious" }] },
+        { id: "description", label: "Description", type: "toggle", initial: "shown", options: [{ value: "shown", label: "Shown" }, { value: "hidden", label: "Hidden" }] },
+      ] },
+      { key: "card", variant: "compact", label: "Card", controls: [
+        { id: "emphasis", label: "Emphasis", type: "select", initial: "quiet", options: [{ value: "quiet", label: "Quiet" }, { value: "strong", label: "Strong" }] },
+      ] },
+      { key: "card", variant: "spacious", label: "Card", controls: [] },
+    ],
+  };
+}
+function clone(value) { return JSON.parse(JSON.stringify(value)); }
+async function workshopScreen(running, design = sampleDesign(), html = '<h1 data-vc-key="header">Design workshop</h1>') {
+  fs.writeFileSync(path.join(running.info.screen_dir, "test.design.json"), JSON.stringify(design));
+  return previewScreen(running, html);
+}
+function keepFor(screen, overrides = {}) {
+  return { screen, variant: "", target: "header", values: { density: "compact" }, text: "Keep this spacing.", ...overrides };
+}
+
+test("design declarations accept only bounded finite options and closed structural metadata", () => {
+  const { validDesign, MAX_DESIGN_BYTES } = require("../scripts/design-contract.js");
+  const design = sampleDesign();
+  assert.equal(validDesign(design), true);
+  assert.equal(MAX_DESIGN_BYTES, 32768);
+  assert.equal(validDesign({ version: 1, variants: [], targets: [] }), true);
+  const mutations = [
+    (d) => { d.css = "body { color:red }"; },
+    (d) => { d.version = 2; },
+    (d) => { d.variants.pop(); },
+    (d) => { d.variants[1].key = d.variants[0].key; },
+    (d) => { d.variants[0].selector = "#private"; },
+    (d) => { d.variants[0].label = "ø".repeat(61); },
+    (d) => { d.variants[0].key = "#compact"; },
+    (d) => { d.variants[0].label = "line\nbreak"; },
+    (d) => { d.targets[0].variant = "unknown"; },
+    (d) => { d.targets[0].key = "customer[name]"; },
+    (d) => { d.targets.push(clone(d.targets[0])); },
+    (d) => { d.targets = Array.from({ length: 25 }, (_, index) => ({ ...clone(d.targets[0]), key: `target-${index}` })); },
+    (d) => { d.targets[0].controls.push(clone(d.targets[0].controls[0])); },
+    (d) => { d.targets[0].controls[0].initial = "not-declared"; },
+    (d) => { d.targets[0].controls[0].type = "css"; },
+    (d) => { d.targets[0].controls[0].min = 0; },
+    (d) => { d.targets[0].controls[0].initial = 1; },
+    (d) => { d.targets[0].controls[0].options[0].value = "12px"; },
+    (d) => { d.targets[0].controls[0].options[0].css = "padding:2rem"; },
+    (d) => { d.targets[0].controls[0].options[1].value = "compact"; },
+    (d) => { d.targets[0].controls[0].options = []; },
+    (d) => { d.targets[0].controls[0].options = Array.from({ length: 9 }, (_, index) => ({ value: `choice-${index}`, label: "Choice" })); },
+    (d) => { d.targets[0].controls[1].options.push({ value: "sometimes", label: "Sometimes" }); },
+  ];
+  for (const mutate of mutations) { const invalid = clone(design); mutate(invalid); assert.equal(validDesign(invalid), false, JSON.stringify(invalid)); }
+  for (const invalid of [null, [], {}, { version: 1, variants: null, targets: [] }]) assert.equal(validDesign(invalid), false);
+});
+
+test("a design sidecar is optional, changes screen identity, and safely disables invalid controls", async () => {
+  const crypto = require("node:crypto");
+  const running = await startServer(makeProject());
+  try {
+    const html = '<h1 data-vc-key="header">A stable prototype</h1>';
+    const original = await previewScreen(running, html);
+    assert.equal(original, crypto.createHash("sha256").update("test.html").update("\0").update(html).digest("hex").slice(0, 32));
+    const designed = await workshopScreen(running, sampleDesign(), html);
+    assert.notEqual(designed, original);
+    let snapshot = await (await feedbackRequest(running.info.url, "/comments")).json();
+    assert.deepEqual(snapshot.screens.find((item) => item.screen === designed).design, sampleDesign());
+    assert.equal(Object.hasOwn(snapshot.screens.find((item) => item.screen === original), "design"), false);
+    const preview = await (await fetch(endpoint(running.info.url, "/preview"))).text();
+    assert.match(preview, /window\.__grillmesterVisualCompanionDesign=\{"version":1/);
+    const changed = sampleDesign(); changed.targets[0].controls[0].initial = "spacious";
+    const edited = await workshopScreen(running, changed, html);
+    assert.notEqual(edited, designed);
+    const file = path.join(running.info.screen_dir, "test.design.json");
+    fs.writeFileSync(file, '{"private-invalid-metadata":');
+    const invalid = await (await fetch(endpoint(running.info.url, "/preview"))).text();
+    assert.match(invalid, /Justeringspanelet er utilgjengelig/);
+    assert.match(invalid, /window\.__grillmesterVisualCompanionDesign=null;/);
+    assert.equal(invalid.includes("private-invalid-metadata"), false);
+    assert.match(invalid, /A stable prototype/);
+    const invalidScreen = await (await fetch(endpoint(running.info.url, "/version"))).text();
+    assert.equal((await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(invalidScreen))).status, 409);
+    fs.writeFileSync(file, " ".repeat(32769));
+    const oversized = await (await fetch(endpoint(running.info.url, "/preview"))).text();
+    assert.match(oversized, /window\.__grillmesterVisualCompanionDesign=null;/);
+    fs.unlinkSync(file);
+    const outside = path.join(makeProject(), "outside-design.json");
+    fs.writeFileSync(outside, JSON.stringify(sampleDesign()));
+    fs.symlinkSync(outside, file);
+    const linked = await (await fetch(endpoint(running.info.url, "/preview"))).text();
+    assert.match(linked, /window\.__grillmesterVisualCompanionDesign=null;/);
+    fs.unlinkSync(file);
+    assert.equal(await (await fetch(endpoint(running.info.url, "/version"))).text(), original);
+  } finally { await stopServer(running); }
+});
+
+test("structured adjustment and preference feedback is validated against its own screen declaration", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await workshopScreen(running);
+    const adjustment = commentFor(screen, { kind: "adjustment", text: "", adjustment: { variant: "", target: "header", values: { density: "spacious", description: "hidden" } } });
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", adjustment)).status, 200);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { kind: "variant", text: "", variant: "compact" }))).status, 200);
+    const invalid = [
+      { ...adjustment, adjustment: { ...adjustment.adjustment, values: {} } },
+      { ...adjustment, adjustment: { ...adjustment.adjustment, values: { color: "red" } } },
+      { ...adjustment, adjustment: { ...adjustment.adjustment, values: { density: "100px" } } },
+      { ...adjustment, adjustment: { ...adjustment.adjustment, target: "unknown" } },
+      { ...adjustment, adjustment: { ...adjustment.adjustment, variant: "compact" } },
+      { ...adjustment, adjustment: { ...adjustment.adjustment, selector: "body" } },
+      { ...adjustment, proposal: { property: "text", value: "extra" } },
+      { ...adjustment, variant: "compact" },
+      commentFor(screen, { kind: "variant", variant: "unknown" }),
+      commentFor(screen, { kind: "variant", variant: "compact", adjustment: adjustment.adjustment }),
+    ];
+    for (const value of invalid) assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", value)).status, 400, JSON.stringify(value));
+    const nextDesign = sampleDesign(); nextDesign.targets[0].controls[0].options.shift();
+    const next = await workshopScreen(running, nextDesign);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", { ...adjustment, screen: next, adjustment: { variant: "", target: "header", values: { density: "compact" } } })).status, 400);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", { ...adjustment, adjustment: { variant: "", target: "header", values: { density: "compact" } } })).status, 200);
+  } finally { await stopServer(running); }
+});
+
+test("kept decisions survive versions, retain active IDs, and batch explicit releases", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await workshopScreen(running);
+    const kept = await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen));
+    assert.equal(kept.status, 200);
+    const first = (await kept.json()).decisions[0];
+    assert.match(first.id, /^[a-f0-9]{24}$/);
+    assert.equal(first.state, "active");
+    assert.equal(first.submission, 0);
+    const draftWait = await runComments(["wait", "--state-dir", running.info.state_dir, "--after", "0", "--timeout", "0"]);
+    assert.equal(draftWait.code, 0, draftWait.stderr);
+    assert.deepEqual(JSON.parse(draftWait.stdout).decisions, [], "unsubmitted decisions must stay behind the explicit Send boundary");
+    const firstBatch = await (await feedbackRequest(running.info.url, "/comments/submit", "POST", {})).json();
+    assert.equal(firstBatch.submission, 1);
+    assert.equal(firstBatch.decisions[0].submission, 1);
+    const next = await workshopScreen(running, sampleDesign(), '<h1 data-vc-key="header">Next version</h1>');
+    const maintained = await (await feedbackRequest(running.info.url, "/comments")).json();
+    assert.equal(maintained.decisions[0].id, first.id);
+    assert.equal(maintained.decisions[0].screen, screen, "new screens must not rewrite a kept decision without explicit input");
+    const updated = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(next, { values: {}, text: "Keep the whole header." }))).json();
+    assert.equal(updated.decisions.length, 1);
+    assert.equal(updated.decisions[0].id, first.id);
+    assert.equal(updated.decisions[0].screen, next);
+    assert.equal(updated.decisions[0].submission, 0);
+    assert.deepEqual(updated.decisions[0].values, {});
+    const pendingUpdate = JSON.parse((await runComments(["wait", "--state-dir", running.info.state_dir, "--after", "1", "--timeout", "0"])).stdout);
+    assert.equal(pendingUpdate.type, "feedback-timeout");
+    assert.equal(pendingUpdate.decisions[0].screen, screen);
+    assert.deepEqual(pendingUpdate.decisions[0].values, { density: "compact" }, "pending updates must preserve the last submitted constraint");
+    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen })).status, 409);
+    const secondBatch = await (await feedbackRequest(running.info.url, "/comments/submit", "POST", {})).json();
+    assert.equal(secondBatch.submission, 2);
+    await feedbackRequest(running.info.url, "/comments", "POST", commentFor(next));
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
+    const stateArgs = ["--state-dir", running.info.state_dir];
+    const waited = await runComments(["wait", ...stateArgs, "--after", "2", "--timeout", "0"]);
+    assert.equal(waited.code, 0, waited.stderr);
+    const received = JSON.parse(waited.stdout);
+    assert.equal(received.comments.length, 1);
+    assert.equal(received.decisions[0].id, first.id, "older active holds must accompany later batches");
+    const released = await runComments(["release", ...stateArgs, "--id", first.id]);
+    assert.equal(released.code, 0, released.stderr);
+    assert.equal(JSON.parse(released.stdout).decisions[0].state, "released");
+    assert.equal(JSON.parse(released.stdout).decisions[0].submission, 0);
+    const pendingRelease = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "3", "--timeout", "0"])).stdout);
+    assert.equal(pendingRelease.type, "feedback-timeout");
+    assert.equal(pendingRelease.decisions[0].state, "active", "a pending release must not remove the submitted constraint");
+    assert.deepEqual(pendingRelease.decisions[0].values, {});
+    assert.equal((await feedbackRequest(running.info.url, `/decisions/${first.id}`, "PATCH", {})).status, 409);
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
+    const releaseBatch = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "3", "--timeout", "0"])).stdout);
+    assert.equal(releaseBatch.decisions[0].state, "released");
+    assert.equal(releaseBatch.decisions[0].submission, 4);
+    const timeout = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "4", "--timeout", "0"])).stdout);
+    assert.equal(timeout.decisions.length, 0);
+    const token = new URL(running.info.url).searchParams.get("token");
+    assert.equal(`${waited.stdout}${released.stdout}`.includes(token), false);
+  } finally { await stopServer(running); }
+});
+
+test("design decisions reject undeclared controls, extra fields, wrong origins, and unbounded text", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await workshopScreen(running);
+    const valid = keepFor(screen);
+    const invalid = [
+      { ...valid, values: { density: "arbitrary" } },
+      { ...valid, values: { onclick: "run" } },
+      { ...valid, values: [] },
+      { ...valid, values: { density: 2 } },
+      { ...valid, values: {}, target: "unknown" },
+      { ...valid, selector: "#header" },
+      { ...valid, state: "active" },
+      { ...valid, text: "ø".repeat(1001) },
+      { ...valid, variant: "compact" },
+    ];
+    for (const value of invalid) assert.equal((await feedbackRequest(running.info.url, "/decisions", "POST", value)).status, 400, JSON.stringify(value));
+    const url = endpoint(running.info.url, "/decisions");
+    assert.equal((await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(valid) })).status, 403);
+    assert.equal((await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain", Origin: url.origin }, body: JSON.stringify(valid) })).status, 415);
+    const created = await (await feedbackRequest(running.info.url, "/decisions", "POST", valid)).json();
+    const id = created.decisions[0].id;
+    assert.equal((await feedbackRequest(running.info.url, `/decisions/${id}`, "PATCH", { state: "released" })).status, 400);
+    assert.equal((await feedbackRequest(running.info.url, "/decisions/aaaaaaaaaaaaaaaaaaaaaaaa", "PATCH", {})).status, 404);
+  } finally { await stopServer(running); }
+});
+
+test("decision history has its own fixed count limit", () => {
+  const { FeedbackStore, MAX_DECISIONS } = require("../scripts/feedback-store.js");
+  const root = fs.realpathSync(makeProject());
+  fs.chmodSync(root, 0o700);
+  const store = new FeedbackStore(root);
+  const screen = "c".repeat(32);
+  store.knowScreen(screen, "test.html", sampleDesign());
+  for (let index = 0; index < MAX_DECISIONS; index += 1) {
+    const snapshot = store.keep(keepFor(screen));
+    store.release(snapshot.decisions.at(-1).id, {});
+    store.submit({});
+  }
+  assert.equal(store.snapshot().decisions.length, 200);
+  assert.throws(() => store.keep(keepFor(screen)), /Decision limit reached/);
+});
+
+
+test("re-keeping a pending release preserves one accepted hold during a scoped version submission", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const firstScreen = await workshopScreen(running);
+    const kept = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(firstScreen))).json();
+    const id = kept.decisions[0].id;
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
+    await feedbackRequest(running.info.url, `/decisions/${id}`, "PATCH", {});
+    const nextScreen = await workshopScreen(running, sampleDesign(), '<h1 data-vc-key="header">Revised header</h1>');
+    const renewed = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(nextScreen, { values: { density: "spacious" } }))).json();
+    assert.equal(renewed.decisions.length, 1);
+    assert.equal(renewed.decisions[0].id, id);
+    assert.equal(renewed.decisions[0].state, "active");
+    const submitted = await (await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen: nextScreen })).json();
+    assert.equal(submitted.submittedDecisions.filter((item) => item.state === "active").length, 1);
+    assert.equal(submitted.submittedDecisions[0].id, id);
+    assert.deepEqual(submitted.submittedDecisions[0].values, { density: "spacious" });
+    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen: firstScreen })).status, 409);
   } finally { await stopServer(running); }
 });

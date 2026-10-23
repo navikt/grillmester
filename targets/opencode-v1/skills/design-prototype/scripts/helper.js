@@ -135,6 +135,7 @@
   let filter = "all";
   let draft = null;
   let savingDraft = null;
+  let workshop = null;
   let drag = null;
   let preview = null;
   let updateAvailable = false;
@@ -183,8 +184,8 @@
     return usableTarget(target) && /^(P|H[1-6]|SPAN|BUTTON|A|LABEL|LI|TD|TH|CAPTION|LEGEND|STRONG|EM|SMALL)$/.test(target.tagName)
       && !target.childElementCount && Array.from(target.childNodes).some((node) => node.nodeType === Node.TEXT_NODE);
   }
-  function pendingComments() { return snapshot.comments.filter((item) => item.submission === 0); }
-  function busy() { return Boolean(draft || drag || preview || pendingComments().length || requests.size); }
+  function pendingComments() { return [...snapshot.comments, ...(snapshot.decisions || [])].filter((item) => item.submission === 0); }
+  function busy() { return Boolean(draft || drag || preview || pendingComments().length || requests.size || workshop?.isBusy()); }
   function updateBusy() {
     const value = busy();
     if (value !== lastBusy) { lastBusy = value; post({ action: "feedback-busy", screen, busy: value }); }
@@ -214,6 +215,7 @@
   }
   function setPanel(open, focus = false) {
     if (open && savingDraft) return;
+    if (open) workshop?.close();
     panel.hidden = !open;
     el('[data-action="panel"]').setAttribute("aria-expanded", String(open));
     if (open && draft && !composer.hidden) hideDraft();
@@ -224,7 +226,8 @@
   function updateHint() {
     const hint = el(".hint");
     hint.hidden = mode !== "comment" || !panel.hidden || !composer.hidden || Boolean(preview);
-    hint.textContent = marker === "area" ? "Dra rundt et område · eller fokuser et element og trykk Enter" : "Trykk på et element · eller bruk Tab og Enter · Esc avslutter";
+    hint.textContent = marker === "area" ? workshop?.isComparing() ? "Avslutt sammenligning for å markere et område · Punkt kan brukes nå" : "Dra rundt et område · eller fokuser et element og trykk Enter" : "Trykk på et element · eller bruk Tab og Enter · Esc avslutter";
+    document.documentElement.style.touchAction = mode === "comment" && marker === "area" && !workshop?.isComparing() ? "none" : originalTouchAction;
   }
   function setMode(next, nextMarker = marker) {
     mode = next;
@@ -243,7 +246,7 @@
       outline.hidden = true;
       drag = null;
     }
-    if (mode === "comment") setPanel(false);
+    if (mode === "comment") { workshop?.close(); setPanel(false); }
     updateBusy();
     updateHint();
   }
@@ -297,6 +300,7 @@
   function beginDraft(target, kind, rect, position) {
     if (!usableTarget(target)) return;
     if (draft) { resumeDraft(); announce("Fullfør eller forkast utkastet før du lager et nytt innspill."); return; }
+    if (kind === "area" && workshop?.isComparing()) { announce("Avslutt sammenligning for å markere et område. Punkt kan brukes nå."); return; }
     const anchor = anchorFor(target, rect);
     if (!anchor.path) { announce("Dette elementet kan ikke markeres. Velg et mindre detaljert område."); return; }
     resetPreview();
@@ -313,6 +317,7 @@
   }
   function resumeDraft() {
     if (!draft) return;
+    if (draft.kind === "area") workshop?.endComparison();
     setPanel(false);
     composer.hidden = false;
     el('[data-action="resume"]').hidden = true;
@@ -388,11 +393,13 @@
   }
   function commentRect(item) {
     if (item.screen !== screen) return null;
+    const target = resolveTarget(item.anchor);
+    if (!usableTarget(target) || !target.getClientRects().length || getComputedStyle(target).visibility === "hidden") return null;
     if (item.kind !== "area") {
-      const target = resolveTarget(item.anchor);
-      return usableTarget(target) ? target.getBoundingClientRect() : null;
+      const rect = target.getBoundingClientRect();
+      return rect && rect.width > 0 && rect.height > 0 ? rect : null;
     }
-    if (Math.abs(item.anchor.viewport.width - innerWidth) > 2) return null;
+    if (workshop?.isComparing() || Math.abs(item.anchor.viewport.width - innerWidth) > 2) return null;
     const rect = item.anchor.rect;
     return { left: rect.x - scrollX, top: rect.y - scrollY, width: rect.width, height: rect.height, right: rect.x - scrollX + rect.width, bottom: rect.y - scrollY + rect.height };
   }
@@ -430,9 +437,10 @@
     const active = root.activeElement;
     const activeAction = active?.dataset.action;
     const activeId = active?.dataset.id;
+    const activeDecision = active?.closest("[data-decision]")?.dataset.decision;
     const list = el(".list");
     const restoreCommentFocus = active && (list.contains(active) || pinLayer.contains(active));
-    const focusIndex = Math.max(0, Array.from(list.children).indexOf(active?.closest(".comment")));
+    const focusIndex = Math.max(0, Array.from(list.children).indexOf(active?.closest(".comment,.workshop-decision")));
     list.replaceChildren();
     pinLayer.replaceChildren();
     let shown = 0;
@@ -442,6 +450,7 @@
       if (!previous) {
         const pin = button(String(index + 1), "pin", item.id, `pin${item.status === "fixed" ? " fixed" : ""}`);
         pin.setAttribute("aria-label", `Innspill ${index + 1}, ${item.status === "fixed" ? "ordnet" : "åpent"}`);
+        pin.hidden = true;
         pinLayer.appendChild(pin);
       }
       shown += 1;
@@ -466,6 +475,16 @@
         value.appendChild(document.createTextNode(item.proposal.value));
         card.appendChild(value);
       }
+      if (item.adjustment || item.variant) {
+        const details = document.createElement("div");
+        details.className = "proposal";
+        const label = document.createElement("span");
+        label.className = "proposal-label";
+        label.textContent = item.adjustment ? "Justering" : "Foretrukket variant";
+        details.appendChild(label);
+        details.appendChild(document.createTextNode(workshop?.describeComment(item) || item.variant || ""));
+        card.appendChild(details);
+      }
       if (item.reply) {
         const reply = document.createElement("p");
         reply.className = "reply";
@@ -475,6 +494,7 @@
         card.appendChild(reply);
       }
       if (!previous && item.kind === "area" && Math.abs(item.anchor.viewport.width - innerWidth) > 2) card.appendChild(span("Markering skjult ved denne vindusbredden", "muted"));
+      else if (!previous && item.kind === "area" && workshop?.isComparing()) card.appendChild(span("Områdemarkering skjult under sammenligning", "muted"));
       const actions = document.createElement("div");
       actions.className = "comment-actions";
       if (!previous && commentRect(item)) actions.appendChild(button("Vis sted", "locate", item.id));
@@ -483,6 +503,7 @@
       card.appendChild(actions);
       list.appendChild(card);
     });
+    if (filter === "all") shown += workshop?.appendFeedback(list) || 0;
     if (!shown) {
       const empty = document.createElement("div");
       empty.className = "empty";
@@ -493,11 +514,11 @@
       empty.append(title, text);
       list.appendChild(empty);
     }
-    all(".total").forEach((target) => { target.textContent = String(snapshot.comments.length); });
+    all(".total").forEach((target) => { target.textContent = String(snapshot.comments.length + (snapshot.decisions?.length || 0)); });
     if (restoreCommentFocus) {
-      const previousButton = activeAction && all("button").find((target) => target.dataset.action === activeAction && target.dataset.id === activeId);
-      const cards = Array.from(list.querySelectorAll(".comment"));
-      const target = previousButton || cards.find((card) => card.dataset.id === activeId) || cards[Math.min(focusIndex, cards.length - 1)] || el(`[data-filter="${filter}"]`);
+      const previousButton = activeAction && Array.from(list.querySelectorAll("button")).find((target) => !target.disabled && target.dataset.action === activeAction && (activeDecision ? target.dataset.decision === activeDecision : target.dataset.id === activeId));
+      const cards = Array.from(list.querySelectorAll(".comment,.workshop-decision"));
+      const target = previousButton || cards.find((card) => activeDecision ? card.dataset.decision === activeDecision : card.dataset.id === activeId) || cards[Math.min(focusIndex, cards.length - 1)] || el(`[data-filter="${filter}"]`);
       target.focus({ preventScroll: true });
     }
     renderFooter();
@@ -520,6 +541,7 @@
     if (value.revision < snapshot.revision) return;
     const changed = snapshot.revision !== value.revision;
     snapshot = value;
+    workshop?.render(snapshot);
     if (changed) renderComments();
     else renderFooter();
   }
@@ -625,6 +647,7 @@
 
   document.addEventListener("click", (event) => {
     if (ownEvent(event)) return;
+    if (workshop?.onPrototypeClick(event)) { event.preventDefault(); event.stopImmediatePropagation(); return; }
     if (mode === "comment") {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -642,6 +665,7 @@
     if (mode !== "comment" || marker !== "area" || ownEvent(event) || event.button !== 0 || !usableTarget(event.target)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    if (workshop?.isComparing()) { announce("Avslutt sammenligning for å markere et område. Punkt kan brukes nå."); return; }
     if (draft) { resumeDraft(); return; }
     drag = { x: event.clientX, y: event.clientY, target: event.target, pointerId: event.pointerId };
     updateBusy();
@@ -735,6 +759,23 @@
     pendingEvent = null;
     updateIndicator();
   });
+  if (typeof window.__grillmesterInitializeWorkshop === "function") {
+    workshop = window.__grillmesterInitializeWorkshop({
+      root, screen, nonce, request, anchorFor, announce,
+      getSnapshot: () => snapshot,
+      onBusyChange: updateBusy,
+      onPresentationChange: () => { updateHint(); renderComments(); },
+      refreshFeedback: renderComments,
+      showFeedbackError: (message) => errorAt(".panel-error", message),
+      isComposing: () => Boolean(draft && !composer.hidden),
+      prepareOpen: () => {
+        if (savingDraft) return false;
+        if (draft && !composer.hidden) hideDraft();
+        setMode("browse"); setPanel(false); return true;
+      },
+      openFeedback: () => setPanel(true, true),
+    });
+  }
   post({ action: "feedback-ready", screen });
   renderComments();
   request("comments-list", {}).catch((error) => errorAt(".panel-error", error.message));

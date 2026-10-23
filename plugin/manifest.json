@@ -283,7 +283,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "7487852897e19b28669d1e60dff064c272f7d019ca6d18f12d04421b10c0379e",
+      "sha256": "d359fc4ad88e45cdab2fef0379060441315a19523a46a243d5bc2301f2bab387",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -307,15 +307,19 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "283fbd45871dbafd068e5e2653da74c8da8a5b170726e61e1b20ae329dfc7dee",
+      "sha256": "96cc1a8c849b2987d273e582afaa794e3a08c2ee34b1e60c120030b4b1abfd70",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/comments.js": {
-      "sha256": "21c65023bd2cd2dc45c56bd1147e726c7789e238ec18c23410251ad1aad39945",
+      "sha256": "5b35f62092c573164691e9b9deb5c4d3c3ade8fa9990ccd29f616b39cb37506e",
+      "mode": "0644"
+    },
+    "skills/design-prototype/scripts/design-contract.js": {
+      "sha256": "39884598594c204516a8db62961c7bd6aa79019b43d630255eef7c211865a444",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/feedback-store.js": {
-      "sha256": "b5c681e84355bf8012f9f3a7f8a51729ab3f356dc72a4b00e134b65cf6ea6798",
+      "sha256": "a580e8323e18484853b9e49e13f43de688d5b831ee3d3caf80b0213cc1242a77",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/frame-template.tmpl": {
@@ -323,15 +327,19 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "2baa1fad317aed0d44ca261cd0e0f6342a2daaf5cb8678a9c79b0cde089e2779",
+      "sha256": "809f569a372295bf25fa82606b94a7456a56a2cb05695c5a7547dd61697a6bfc",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "b14eaf23e7355b50cbb8b688506c65e4b90022ecc408514152c97e50aaf829d3",
+      "sha256": "c8547052c6e2a3320839668994d9d394002a953cd7d8f3b2ce37f780d8500102",
+      "mode": "0644"
+    },
+    "skills/design-prototype/scripts/workshop.js": {
+      "sha256": "0c070e53bf51ad8b9cd6880d63b766610c7e2dc04b447d0ccdd81f2f9d6927f1",
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "fda744d2e0df117d5458d52d11699405121b7aa77ea5fc38ae6aea2ff241983b",
+      "sha256": "5a1b141953e94f23eaf2567a2c8d64100efdd9f98669df00b8b0729b18b9c357",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {

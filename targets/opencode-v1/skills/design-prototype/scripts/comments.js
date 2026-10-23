@@ -7,7 +7,7 @@ const { readPrivateJson, MAX_STORE_BYTES, ID, validPatch } = require("./feedback
 
 function parseArguments(argv) {
   const [command, ...args] = argv;
-  if (!["list", "wait", "resolve", "reopen", "delete"].includes(command)) throw new Error("Use list, wait, resolve, reopen, or delete with --state-dir DIRECTORY.");
+  if (!["list", "wait", "resolve", "reopen", "delete", "release"].includes(command)) throw new Error("Use list, wait, resolve, reopen, delete, or release with --state-dir DIRECTORY.");
   const options = {};
   for (let index = 0; index < args.length; index += 2) {
     const key = args[index];
@@ -15,9 +15,9 @@ function parseArguments(argv) {
     options[key] = args[index + 1];
   }
   if (!options["--state-dir"]) throw new Error("--state-dir is required.");
-  const mutation = ["resolve", "reopen", "delete"].includes(command);
-  if (mutation && !ID.test(options["--id"] || "")) throw new Error("--id must identify one comment.");
-  if (!mutation && options["--id"] !== undefined) throw new Error("--id is only used with resolve, reopen, or delete.");
+  const mutation = ["resolve", "reopen", "delete", "release"].includes(command);
+  if (mutation && !ID.test(options["--id"] || "")) throw new Error("--id must identify one comment or decision.");
+  if (!mutation && options["--id"] !== undefined) throw new Error("--id is only used with resolve, reopen, delete, or release.");
   if (options["--reply"] !== undefined && (!["resolve", "reopen"].includes(command) || !validPatch({ reply: options["--reply"] }))) throw new Error("--reply must be at most 2000 UTF-8 bytes and accompany resolve or reopen.");
   if (command !== "wait" && (options["--after"] !== undefined || options["--timeout"] !== undefined)) throw new Error("--after and --timeout are only used with wait.");
   const after = Number(options["--after"] || "0");
@@ -68,11 +68,12 @@ async function main() {
     const deadline = Date.now() + timeout * 1000;
     do {
       const snapshot = await request(baseUrl, "/comments", "GET", undefined, true);
-      if (snapshot.submission > after) return { type: "feedback-submission", ...snapshot, comments: snapshot.comments.filter((comment) => comment.submission > after) };
-      if (Date.now() >= deadline) return { type: "feedback-timeout", submission: snapshot.submission, comments: [] };
+      if (snapshot.submission > after) return { type: "feedback-submission", ...snapshot, comments: snapshot.comments.filter((comment) => comment.submission > after), decisions: snapshot.submittedDecisions.filter((item) => (item.state === "active" && item.submission > 0) || item.submission > after) };
+      if (Date.now() >= deadline) return { type: "feedback-timeout", submission: snapshot.submission, comments: [], decisions: snapshot.submittedDecisions.filter((item) => item.state === "active" && item.submission > 0) };
       await new Promise((resolve) => setTimeout(resolve, Math.min(500, Math.max(0, deadline - Date.now()))));
     } while (true);
   }
+  if (command === "release") return request(baseUrl, `/decisions/${options["--id"]}`, "PATCH", {});
   const pathname = `/comments/${options["--id"]}`;
   if (command === "delete") return request(baseUrl, pathname, "DELETE", {});
   const patch = { status: command === "resolve" ? "fixed" : "open" };

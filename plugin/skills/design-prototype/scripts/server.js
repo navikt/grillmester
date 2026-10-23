@@ -21,6 +21,7 @@ const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 const { FeedbackStore, FeedbackError, MAX_BODY_BYTES } = require("./feedback-store.js");
+const { validDesign, MAX_DESIGN_BYTES } = require("./design-contract.js");
 
 const MAX_CONTENT_BYTES = 2 * 1024 * 1024;
 const MAX_INLINE_IMAGE_URL_BYTES = MAX_CONTENT_BYTES;
@@ -208,7 +209,7 @@ function readDescriptorAtMost(descriptor, maxBytes, target) {
   return Buffer.concat(chunks, total);
 }
 
-function readRegularFile(target, allowedRoot, maxBytes) {
+function readRegularFile(target, allowedRoot, maxBytes, raw = false) {
   const lexicalTarget = path.resolve(target);
   const root = fs.realpathSync(allowedRoot);
   if (!isPathInside(root, lexicalTarget)) {
@@ -249,7 +250,7 @@ function readRegularFile(target, allowedRoot, maxBytes) {
     ) {
       throw new Error(`File changed while it was being read: ${target}`);
     }
-    return content.toString("utf8");
+    return raw ? content : content.toString("utf8");
   } finally {
     fs.closeSync(descriptor);
   }
@@ -441,6 +442,11 @@ const frameTemplate = readRegularFile(
 );
 const helperJs = readRegularFile(
   path.join(scriptsDir, "helper.js"),
+  scriptsDir,
+  128 * 1024,
+);
+const workshopJs = readRegularFile(
+  path.join(scriptsDir, "workshop.js"),
   scriptsDir,
   128 * 1024,
 );
@@ -641,7 +647,7 @@ function mayKeepNetworkAttribute(elementName, attributeName, attributeValue) {
   return false;
 }
 
-function withoutNetworkAttributes(tag) {
+function withoutNetworkAttributes(tag, styleNonce = null) {
   let cursor = 1;
   let result = "<";
   if (tag[cursor] === "/") {
@@ -657,6 +663,7 @@ function withoutNetworkAttributes(tag) {
     cursor += 1;
   }
   const elementName = tag.slice(elementNameStart, cursor).toLowerCase();
+  if (elementName === "style" && styleNonce) result += ` nonce="${styleNonce}"`;
   while (cursor < tag.length - 1) {
     const attributeStart = cursor;
     while (isHtmlSpace(tag[cursor])) cursor += 1;
@@ -710,7 +717,7 @@ function withoutNetworkAttributes(tag) {
     if (
       (!NETWORK_CAPABLE_ATTRIBUTES.has(attributeName) ||
         mayKeepNetworkAttribute(elementName, attributeName, attributeValue)) &&
-      !attributeName.startsWith("on")
+      !attributeName.startsWith("on") && attributeName !== "nonce"
     ) {
       result += tag.slice(attributeStart, cursor);
     }
@@ -718,7 +725,7 @@ function withoutNetworkAttributes(tag) {
   return `${result}>`;
 }
 
-function stripActivePreviewMarkup(value) {
+function stripActivePreviewMarkup(value, styleNonce) {
   const source = String(value);
   let result = "";
   let cursor = 0;
@@ -778,7 +785,7 @@ function stripActivePreviewMarkup(value) {
         cursor = tag.end;
         continue;
       }
-      result += withoutNetworkAttributes(source.slice(tagStart, tag.end));
+      result += withoutNetworkAttributes(source.slice(tagStart, tag.end), styleNonce);
       result += source.slice(tag.end, closing.start);
       result += source.slice(closing.start, closing.end);
       cursor = closing.end;
@@ -792,6 +799,26 @@ function stripActivePreviewMarkup(value) {
     cursor = tag.end;
   }
   return result;
+}
+
+function readDesign(filename) {
+  const descriptor = path.join(contentDir, filename.slice(0, -5) + ".design.json");
+  try { fs.lstatSync(descriptor); }
+  catch (error) {
+    if (error.code === "ENOENT") return { design: null, designError: false, designSource: null };
+    return { design: null, designError: true, designSource: "unavailable" };
+  }
+  let source;
+  try {
+    source = readRegularFile(descriptor, contentDir, MAX_DESIGN_BYTES, true);
+    const design = JSON.parse(source.toString("utf8"));
+    if (!validDesign(design)) throw new Error("Invalid design declaration.");
+    return { design, designError: false, designSource: source };
+  } catch {
+    // A malformed or unsafe declaration never becomes trusted controls. Keep
+    // the ordinary preview available with an explicit, content-free warning.
+    return { design: null, designError: true, designSource: source ?? "unavailable" };
+  }
 }
 
 function newestContent() {
@@ -825,16 +852,16 @@ function newestContent() {
         contentDir,
         MAX_CONTENT_BYTES,
       );
+      const declaration = readDesign(candidate.filename);
+      const digest = crypto.createHash("sha256")
+        .update(candidate.filename).update("\0").update(content);
+      if (declaration.designSource !== null) digest.update("\0design\0").update(declaration.designSource);
       return {
         filename: candidate.filename,
-        screen: crypto
-          .createHash("sha256")
-          .update(candidate.filename)
-          .update("\0")
-          .update(content)
-          .digest("hex")
-          .slice(0, 32),
+        screen: digest.digest("hex").slice(0, 32),
         content,
+        design: declaration.design,
+        designError: declaration.designError,
       };
     } catch {
       // A concurrent writer may have replaced the file; try the next safe one.
@@ -843,9 +870,9 @@ function newestContent() {
   return null;
 }
 
-function wrapInFrame(content, filename, screen, nonce) {
+function wrapInFrame(content, filename, screen, nonce, design = null, designError = false) {
   const safeFilename = escapeHtml(filename || "untitled");
-  const safeContent = stripActivePreviewMarkup(content);
+  const safeContent = stripActivePreviewMarkup(content, nonce);
   const akselStyle = akselCss
     ? `<style nonce="${nonce}">\n${safeInlineStyle(akselCss)}\n</style>`
     : "";
@@ -854,6 +881,9 @@ function wrapInFrame(content, filename, screen, nonce) {
     : `<div role="status" style="background:#fef0f0;border:2px solid #c30000;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif">
         <strong>⚠️ Aksel CSS mangler</strong><br>Forhåndsvisningen bruker fallback-stiler. Installer aldri avhengigheter uten eksplisitt godkjenning.
       </div>`;
+  const designWarning = designError
+    ? `<div role="alert" style="background:#fff5df;border:2px solid #a86d00;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif"><strong>Justeringspanelet er utilgjengelig.</strong> Skisseoppsettet må rettes.</div>`
+    : "";
   return frameTemplate
     .replace(/\{\{FILENAME\}\}/g, safeFilename)
     .replace(/\{\{NONCE\}\}/g, nonce)
@@ -861,10 +891,11 @@ function wrapInFrame(content, filename, screen, nonce) {
     .replace(
       /\{\{HELPER_SCRIPT\}\}/g,
       () =>
-        `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};</script>` +
+        `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};</script>` +
+        `<script nonce="${nonce}">\n${workshopJs}\n</script>` +
         `<script nonce="${nonce}">\n${helperJs}\n</script>`,
     )
-    .replace(/\{\{CONTENT\}\}/g, () => cssWarning + safeContent);
+    .replace(/\{\{CONTENT\}\}/g, () => cssWarning + designWarning + safeContent);
 }
 
 function renderShellPage(nonce, accessToken, title, screen) {
@@ -962,6 +993,14 @@ function renderShellPage(nonce, accessToken, title, screen) {
       function validText(value) {
         return typeof value === "string" && new TextEncoder().encode(value).length <= 2000;
       }
+      function validKey(value) {
+        return typeof value === "string" && /^[a-z][a-z0-9-]{0,47}$/.test(value);
+      }
+      function validVariant(value) { return value === "" || validKey(value); }
+      function validValues(value) {
+        return value && typeof value === "object" && !Array.isArray(value) &&
+          Object.keys(value).length <= 8 && Object.entries(value).every(([key, option]) => validKey(key) && validKey(option));
+      }
       function validAnchor(value) {
         const finite = (number, min, max) => typeof number === "number" && Number.isFinite(number) && number >= min && number <= max;
         return hasExactKeys(value, ["path", "role", "rect", "viewport"]) &&
@@ -977,8 +1016,16 @@ function renderShellPage(nonce, accessToken, title, screen) {
         const validScreen = (screen) => typeof screen === "string" && /^[a-f0-9]{32}$/.test(screen);
         const validId = (id) => typeof id === "string" && /^[a-f0-9]{24}$/.test(id);
         if (data.action === "comments-list" && hasExactKeys(value, [])) return { method: "GET", path: "/comments" };
-        if (data.action === "comment-create" && closedKeys(value, ["screen", "kind", "anchor", "text"], ["proposal"]) && validScreen(value.screen) && ["point", "area", "edit"].includes(value.kind) && validAnchor(value.anchor) && validText(value.text) &&
-          (value.kind === "edit" ? hasExactKeys(value.proposal, ["property", "value"]) && value.proposal.property === "text" && validText(value.proposal.value) : !Object.hasOwn(value, "proposal"))) return { method: "POST", path: "/comments", body: value };
+        if (data.action === "comment-create" && closedKeys(value, ["screen", "kind", "anchor", "text"], ["proposal", "adjustment", "variant"]) && validScreen(value.screen) && validAnchor(value.anchor) && validText(value.text)) {
+          const baseKeys = ["screen", "kind", "anchor", "text"];
+          const validPoint = ["point", "area"].includes(value.kind) && hasExactKeys(value, baseKeys);
+          const validEdit = value.kind === "edit" && hasExactKeys(value, [...baseKeys, "proposal"]) && hasExactKeys(value.proposal, ["property", "value"]) && value.proposal.property === "text" && validText(value.proposal.value);
+          const validAdjustment = value.kind === "adjustment" && hasExactKeys(value, [...baseKeys, "adjustment"]) && hasExactKeys(value.adjustment, ["variant", "target", "values"]) && validVariant(value.adjustment.variant) && validKey(value.adjustment.target) && validValues(value.adjustment.values) && Object.keys(value.adjustment.values).length > 0;
+          const validChoice = value.kind === "variant" && hasExactKeys(value, [...baseKeys, "variant"]) && validKey(value.variant);
+          if (validPoint || validEdit || validAdjustment || validChoice) return { method: "POST", path: "/comments", body: value };
+        }
+        if (data.action === "decision-keep" && hasExactKeys(value, ["screen", "variant", "target", "values", "text"]) && validScreen(value.screen) && validVariant(value.variant) && validKey(value.target) && validValues(value.values) && validText(value.text)) return { method: "POST", path: "/decisions", body: value };
+        if (data.action === "decision-release" && hasExactKeys(value, ["id"]) && validId(value.id)) return { method: "PATCH", path: "/decisions/" + value.id, body: {} };
         if (data.action === "comments-submit" && closedKeys(value, [], ["screen"]) && (!Object.hasOwn(value, "screen") || validScreen(value.screen))) return { method: "POST", path: "/comments/submit", body: value };
         if (data.action === "comment-delete" && hasExactKeys(value, ["id"]) && validId(value.id)) return { method: "DELETE", path: "/comments/" + value.id, body: {} };
         if (data.action === "comment-update" && closedKeys(value, ["id"], ["status", "reply"]) && validId(value.id) && Object.keys(value).length > 1 &&
@@ -1182,7 +1229,7 @@ function feedbackSnapshot() { return { ...feedback.snapshot(), listeningUntil };
 function activateScreen(newest) {
   const nextScreen = newest ? newest.screen : "";
   if (activeScreen === nextScreen) return;
-  if (newest) feedback.knowScreen(newest.screen, newest.filename);
+  if (newest) feedback.knowScreen(newest.screen, newest.filename, newest.design);
   activeScreen = nextScreen;
   eventCount = 0;
   const eventPath = path.join(stateDir, "events.jsonl");
@@ -1382,8 +1429,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (requestUrl.pathname === "/comments" || requestUrl.pathname.startsWith("/comments/")) {
+  if (requestUrl.pathname === "/comments" || requestUrl.pathname.startsWith("/comments/") || requestUrl.pathname === "/decisions" || requestUrl.pathname.startsWith("/decisions/")) {
     const commentId = /^\/comments\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
+    const decisionId = /^\/decisions\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
     if (req.method === "GET" && requestUrl.pathname === "/comments") {
       if (requestUrl.searchParams.get("waiter") === "1") listeningUntil = Date.now() + 2000;
       sendJson(res, 200, feedbackSnapshot());
@@ -1392,7 +1440,9 @@ const server = http.createServer((req, res) => {
     const operation = req.method === "POST" && requestUrl.pathname === "/comments" ? (value) => feedback.create(value)
       : req.method === "POST" && requestUrl.pathname === "/comments/submit" ? (value) => feedback.submit(value)
       : req.method === "PATCH" && commentId ? (value) => feedback.patch(commentId, value)
-      : req.method === "DELETE" && commentId ? (value) => feedback.delete(commentId, value) : null;
+      : req.method === "DELETE" && commentId ? (value) => feedback.delete(commentId, value)
+      : req.method === "POST" && requestUrl.pathname === "/decisions" ? (value) => feedback.keep(value)
+      : req.method === "PATCH" && decisionId ? (value) => feedback.release(decisionId, value) : null;
     if (!operation) {
       sendJson(res, 405, { error: "Unsupported feedback operation." });
       return;
@@ -1477,6 +1527,8 @@ const server = http.createServer((req, res) => {
         newest?.filename || "waiting",
         newest?.screen || "00000000000000000000000000000000",
         nonce,
+        newest?.design,
+        newest?.designError,
       ),
     );
     return;

@@ -176,9 +176,15 @@ node scripts/comments.js list --state-dir "$STATE_DIR"
 node scripts/comments.js wait --state-dir "$STATE_DIR" --after 0 --timeout 55
 node scripts/comments.js resolve --state-dir "$STATE_DIR" --id <id> --reply "Knappen har nå en tydeligere tekst."
 node scripts/comments.js reopen --state-dir "$STATE_DIR" --id <id> --reply "Vi prøver en annen plassering."
+node scripts/comments.js release --state-dir "$STATE_DIR" --id <decision-id>
 ```
 
 `list` og `wait` returnerer hele tekster og `submission`, ikke utdrag.
+Les også `decisions`: `wait` tar med aktive beholdte valg og nye frigivelser,
+slik at tidligere beslutninger ikke forsvinner mellom rundene. Frigi bare et
+valg når designeren har bedt om det; en innarbeidet beslutning er fortsatt aktiv.
+`list` viser også utkast. `wait` bruker sist innsendte beslutninger: en lokal
+endring eller frigivelse erstatter ikke det tidligere valget før neste innsending.
 Vent på en innsending etter sist behandlede nummer. Et aktivt ventekall har en
 kort tilstedeværelsesfrist som nettleseren kan vise; vanlig serverkontakt er
 ikke bevis for at noen behandler innspillene. Timeout er et normalt resultat.
@@ -196,7 +202,8 @@ som kom under arbeidet ikke blir hoppet over.
 
 `events.jsonl` beholder sitt lukkede, tekstfrie skjema. `comments.json` lagrer
 bare eksplisitt skrevne kommentarer, eventuelle nye tekstforslag, svar, status,
-skjermversjon og strukturell forankring (taggsti, rolle, ramme og viewport).
+skjermversjon og strukturell forankring (taggsti, rolle, ramme og viewport), samt
+deklarerte variant-/delnøkler, innstillingsvalg og beholdte beslutninger.
 Ingen automatisk kopiering av synlig tekst, feltverdier, DOM-ID-er eller
 klassenavn. Bruk fortsatt bare syntetisk innhold, også i fritekst.
 
@@ -208,8 +215,109 @@ loopbackgrensesnitt og skriver aldri konkurrerende direkte i state-filen.
 Serveren håndhever grenser for tekst, antall og total størrelse. En avvist
 lagring må vises som feil; ikke fortell designeren at innspillet er lagret.
 Hver kommentar, erstatningstekst og svar kan bruke høyst 2000 UTF-8-byte.
-Økten har plass til 200 kommentarer og 100 skjermversjoner, med maksimalt
+Økten har plass til 200 kommentarer, 200 beslutninger og 100 skjermversjoner, med maksimalt
 2 MiB lagret tilbakemeldingsdata og 16 KiB per skriveforespørsel.
+
+## Justerbare skisser
+
+Legg en valgfri `<stem>.design.json` ved siden av `<stem>.html` i `screen_dir`.
+Skriv JSON-filen først, deretter HTML-filen med et nytt filnavn. Deklarasjonen
+tilhører denne skjermversjonen; den er ikke en generell prosjektkonfigurasjon.
+Velg få kontroller som hjelper med det konkrete designspørsmålet, for eksempel
+tetthet eller plassering av en oppsummering. Kontroller påvirker bare den
+lokale forhåndsvisningen. Den samlede innsendingen gir de valgte verdiene tilbake.
+
+Et minimalt oppsett for én skisse:
+
+```json
+{
+  "version": 1,
+  "variants": [],
+  "targets": [{
+    "key": "summary",
+    "variant": "",
+    "label": "Oppsummering",
+    "controls": [{
+      "id": "density",
+      "label": "Tetthet",
+      "type": "select",
+      "initial": "comfortable",
+      "options": [
+        {"value": "compact", "label": "Kompakt"},
+        {"value": "comfortable", "label": "Romslig"}
+      ]
+    }]
+  }]
+}
+```
+
+I HTML-en bindes delen med en eksplisitt nøkkel. Bruk verifisert Aksel-markup
+inni delen og Aksel-tokens i reglene rundt den:
+
+```html
+<style>
+  [data-vc-key="summary"] { display: grid; gap: var(--ax-space-24); }
+  [data-vc-key="summary"][data-vc-setting-density="compact"] {
+    gap: var(--ax-space-8);
+  }
+</style>
+<section data-vc-key="summary">
+  <!-- Verifisert Aksel-markup for oppsummeringen -->
+</section>
+```
+
+Runtime setter bare `data-vc-setting-density` til en deklarert verdi. Hver
+kontroll har `id`, `label`, `type`, `initial` og `options`. `select` er en
+valgliste, `range` bruker diskrete trinn fra alternativlisten, og `toggle`
+krever akkurat to alternativer. Ingen vilkårlig CSS, selektorer eller skript
+sendes fra kontrollene. En del med tom `controls` kan fortsatt beholdes.
+
+### Sammenligne og kombinere
+
+For sammenligning deklareres to til fire varianter, for eksempel
+`{"key":"list","label":"Prioritert liste"}` og
+`{"key":"board","label":"Oversiktsbrett"}`. Hver del peker på variantens
+nøkkel. HTML-en må ha nøyaktig én beholder med variantene som direkte barn:
+
+```html
+<div data-vc-variants>
+  <section data-vc-variant="list">
+    <div data-vc-key="summary"><!-- Listekonseptets oppsummering --></div>
+  </section>
+  <section data-vc-variant="board">
+    <div data-vc-key="summary"><!-- Brettkonseptets oppsummering --></div>
+  </section>
+</div>
+```
+
+Sammenligningsvisningen bruker like brede flater på desktop og bytte mellom
+variantene i smale vinduer. Det eksplisitte variantvalget blir et innspill;
+å åpne eller vise en variant velger den ikke. **Behold dette** kan brukes på
+deler fra flere varianter, slik at neste runde kan kombinere det som fungerer.
+Det er ingen automatisk sammenslåing av HTML.
+Punktinnspill følger synlige elementer under sammenligning. Områdemarkeringer
+skjules fordi layouten er endret; avslutt sammenligning før et nytt område
+markeres. Et påbegynt områdeutkast bevares, og gjenåpning går tilbake til den
+vanlige visningen.
+
+### Beholdte valg og ny runde
+
+Aktive beslutninger vises i **Beholdes videre**. De følger økten til de frigis
+og inngår i samlet innsending. Ved neste skisse sammenholdes de med deklarerte
+deler og startverdier. Manglende deler eller avvik merkes **Må følges opp**.
+Samme nøkkel med samme startverdier er bare en teknisk match; kontroller også
+at utseende, innhold og oppførsel fortsatt oppfyller intensjonen.
+
+Bevar deklarerte nøkler når en del beholder samme betydning. Ikke flytt gamle
+strukturelle kommentarankere til nye elementer, og ikke frigi et beholdt valg
+automatisk når et vanlig innspill markeres fikset. En beholdt del er ikke låst
+mot lokal utforsking; endringer skal fortsatt prøves og sendes bevisst.
+
+Deklarasjonen er begrenset til 32 KiB, 24 deler, åtte kontroller per del og
+to til åtte alternativer per kontroll. Nøkler starter med en liten bokstav og
+har høyst 48 tegn fra `a-z`, `0-9` og `-`; etiketter har høyst 120 UTF-8-byte.
+Manglende eller dupliserte DOM-mål deaktiverer de berørte handlingene. En ugyldig
+eller utrygg JSON-fil gir et tydelig varsel; vanlige kommentarer virker fortsatt.
 
 ## Skrive innhold
 

@@ -3,8 +3,10 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
+const { validDesign, validKey } = require("./design-contract.js");
 
 const MAX_COMMENTS = 200;
+const MAX_DECISIONS = 200;
 const MAX_SCREENS = 100;
 const MAX_STORE_BYTES = 2 * 1024 * 1024;
 const MAX_BODY_BYTES = 16 * 1024;
@@ -38,13 +40,24 @@ function validAnchor(value) {
     number(value.viewport.width, 1, 20000) && number(value.viewport.height, 1, 20000);
 }
 function validCreate(value) {
-  return keys(value, ["screen", "kind", "anchor", "text"], ["proposal"]) &&
-    typeof value.screen === "string" && SCREEN.test(value.screen) &&
-    ["point", "area", "edit"].includes(value.kind) && validAnchor(value.anchor) &&
-    boundedText(value.text) && (value.text.trim().length > 0 || value.kind === "edit") &&
-    (value.kind === "edit"
-      ? keys(value.proposal, ["property", "value"]) && value.proposal.property === "text" && boundedText(value.proposal.value)
-      : !Object.hasOwn(value, "proposal"));
+  if (!keys(value, ["screen", "kind", "anchor", "text"], ["proposal", "adjustment", "variant"]) ||
+      typeof value.screen !== "string" || !SCREEN.test(value.screen) ||
+      !["point", "area", "edit", "adjustment", "variant"].includes(value.kind) || !validAnchor(value.anchor) ||
+      !boundedText(value.text) || (!value.text.trim() && ["point", "area"].includes(value.kind))) return false;
+  if (value.kind === "edit") return !Object.hasOwn(value, "adjustment") && !Object.hasOwn(value, "variant") &&
+    keys(value.proposal, ["property", "value"]) && value.proposal.property === "text" && boundedText(value.proposal.value);
+  if (value.kind === "adjustment") return !Object.hasOwn(value, "proposal") && !Object.hasOwn(value, "variant") &&
+    keys(value.adjustment, ["variant", "target", "values"]) && validTargetIdentity(value.adjustment) && validValues(value.adjustment.values, false);
+  if (value.kind === "variant") return !Object.hasOwn(value, "proposal") && !Object.hasOwn(value, "adjustment") && validKey(value.variant);
+  return !["proposal", "adjustment", "variant"].some((key) => Object.hasOwn(value, key));
+}
+function validTargetIdentity(value) {
+  return (value.variant === "" || validKey(value.variant)) && validKey(value.target);
+}
+function validValues(values, emptyAllowed = true) {
+  return values !== null && typeof values === "object" && !Array.isArray(values) &&
+    (emptyAllowed || Object.keys(values).length > 0) && Object.keys(values).length <= 8 &&
+    Object.entries(values).every(([id, value]) => validKey(id) && validKey(value));
 }
 function validPatch(value) {
   return keys(value, [], ["status", "reply"]) && Object.keys(value).length > 0 &&
@@ -96,7 +109,7 @@ class FeedbackStore {
     this.directory = directory;
     this.directoryStat = privateDirectory(directory);
     this.filename = path.join(directory, "comments.json");
-    this.state = { schemaVersion: 1, revision: 0, submission: 0, screens: [], comments: [] };
+    this.state = { schemaVersion: 1, revision: 0, submission: 0, screens: [], comments: [], decisions: [], submittedDecisions: [] };
     this.persist(this.state);
   }
   assertDirectory() {
@@ -151,13 +164,14 @@ class FeedbackStore {
     return this.snapshot();
   }
   snapshot() {
-    const { revision, submission, screens, comments } = this.state;
-    return JSON.parse(JSON.stringify({ revision, submission, screens, comments }));
+    const { revision, submission, screens, comments, decisions, submittedDecisions } = this.state;
+    return JSON.parse(JSON.stringify({ revision, submission, screens, comments, decisions, submittedDecisions }));
   }
-  knowScreen(screen, filename) {
+  knowScreen(screen, filename, design = null) {
+    if (design !== null && !validDesign(design)) throw new FeedbackError(400, "Invalid design descriptor.");
     if (!SCREEN.test(screen) || this.state.screens.some((item) => item.screen === screen)) return;
     if (this.state.screens.length >= MAX_SCREENS) throw new FeedbackError(429, "Screen limit reached. Start a new preview session.");
-    this.change((state) => { state.screens.push({ screen, filename: path.basename(filename) }); });
+    this.change((state) => { state.screens.push({ screen, filename: path.basename(filename), ...(design === null ? {} : { design }) }); });
   }
   requireScreen(screen) {
     if (!this.state.screens.some((item) => item.screen === screen)) throw new FeedbackError(409, "Feedback belongs to an unknown screen.");
@@ -165,6 +179,8 @@ class FeedbackStore {
   create(value) {
     if (!validCreate(value)) throw new FeedbackError(400, "Invalid comment.");
     this.requireScreen(value.screen);
+    if (value.kind === "adjustment") this.requireTarget(value.screen, value.adjustment);
+    if (value.kind === "variant" && !this.requireDesign(value.screen).variants.some((variant) => variant.key === value.variant)) throw new FeedbackError(400, "Unknown variant preference.");
     if (this.state.comments.length >= MAX_COMMENTS) throw new FeedbackError(429, "Comment limit reached. Delete older comments or start a new session.");
     return this.change((state) => {
       const now = new Date().toISOString();
@@ -181,15 +197,60 @@ class FeedbackStore {
     if (!this.state.comments.some((item) => item.id === id)) throw new FeedbackError(404, "Comment not found.");
     return this.change((state) => { state.comments = state.comments.filter((item) => item.id !== id); });
   }
+  requireDesign(screen) {
+    this.requireScreen(screen);
+    const design = this.state.screens.find((item) => item.screen === screen).design;
+    if (!design) throw new FeedbackError(409, "This screen has no design controls.");
+    return design;
+  }
+  requireTarget(screen, value) {
+    const design = this.requireDesign(screen);
+    const target = design.targets.find((item) => item.variant === value.variant && item.key === value.target);
+    if (!target || !Object.entries(value.values).every(([id, option]) => target.controls.some((control) => control.id === id && control.options.some((item) => item.value === option)))) throw new FeedbackError(400, "Unknown design target or setting.");
+    return target;
+  }
+  keep(value) {
+    if (!keys(value, ["screen", "variant", "target", "values", "text"]) || typeof value.screen !== "string" || !SCREEN.test(value.screen) ||
+        !validTargetIdentity(value) || !validValues(value.values) || !boundedText(value.text)) throw new FeedbackError(400, "Invalid design decision.");
+    this.requireTarget(value.screen, value);
+    // Re-keeping an unsent release cancels that pending change. Reuse its ID
+    // so a scoped batch cannot publish a second active copy of the same hold.
+    const existing = this.state.decisions.find((item) => item.variant === value.variant && item.target === value.target &&
+      (item.state === "active" || (item.state === "released" && item.submission === 0)));
+    if (!existing && this.state.decisions.length >= MAX_DECISIONS) throw new FeedbackError(429, "Decision limit reached. Start a new preview session.");
+    return this.change((state) => {
+      const now = new Date().toISOString();
+      const changes = { ...value, state: "active", submission: 0, updatedAt: now };
+      if (existing) Object.assign(state.decisions.find((item) => item.id === existing.id), changes);
+      else state.decisions.push({ ...changes, id: crypto.randomBytes(12).toString("hex"), createdAt: now });
+    });
+  }
+  release(id, value) {
+    if (!ID.test(id) || !keys(value, [])) throw new FeedbackError(400, "Invalid decision release.");
+    const existing = this.state.decisions.find((item) => item.id === id);
+    if (!existing) throw new FeedbackError(404, "Decision not found.");
+    if (existing.state !== "active") throw new FeedbackError(409, "Decision is already released.");
+    return this.change((state) => Object.assign(state.decisions.find((item) => item.id === id), { state: "released", submission: 0, updatedAt: new Date().toISOString() }));
+  }
   submit(value) {
     if (!keys(value, [], ["screen"]) || (Object.hasOwn(value, "screen") && (typeof value.screen !== "string" || !SCREEN.test(value.screen)))) throw new FeedbackError(400, "Invalid submission.");
     if (Object.hasOwn(value, "screen")) this.requireScreen(value.screen);
     const matches = (item) => (!Object.hasOwn(value, "screen") || item.screen === value.screen) && item.submission === 0;
-    if (!this.state.comments.some(matches)) throw new FeedbackError(409, "No unsent comments to submit.");
+    if (!this.state.comments.some(matches) && !this.state.decisions.some(matches)) throw new FeedbackError(409, "No unsent feedback to submit.");
     return this.change((state) => {
       state.submission += 1;
       for (const comment of state.comments) if (matches(comment)) comment.submission = state.submission;
+      for (const decision of state.decisions) {
+        if (!matches(decision)) continue;
+        decision.submission = state.submission;
+        // Pending edits and releases must not alter the accepted constraints
+        // delivered to the working session before this explicit batch.
+        const published = JSON.parse(JSON.stringify(decision));
+        const index = state.submittedDecisions.findIndex((item) => item.id === decision.id);
+        if (index === -1) state.submittedDecisions.push(published);
+        else state.submittedDecisions[index] = published;
+      }
     });
   }
 }
-module.exports = { FeedbackStore, FeedbackError, MAX_BODY_BYTES, MAX_STORE_BYTES, MAX_COMMENTS, validCreate, validPatch, keys, ID, SCREEN, readPrivateJson };
+module.exports = { FeedbackStore, FeedbackError, MAX_BODY_BYTES, MAX_STORE_BYTES, MAX_COMMENTS, MAX_DECISIONS, validCreate, validPatch, keys, ID, SCREEN, readPrivateJson };
