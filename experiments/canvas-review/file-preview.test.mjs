@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import { createRequire } from 'node:module';
@@ -37,9 +37,15 @@ test('file URLs reference only private generated HTML, including Unicode and spa
   assert.equal(url.hash, '#concept=priorities');
   assert.equal(dirname(dirname(path)), directory);
   assert.equal(statSync(dirname(path)).mode & 0o777, 0o700);
-  assert.equal(statSync(path).mode & 0o777, 0o600);
   assert.equal(opened.title, 'Prioritering · lokal skisse');
-  const html = readFileSync(path, 'utf8');
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  let html;
+  try {
+    const stat = fstatSync(fd);
+    assert(stat.isFile());
+    assert.equal(stat.mode & 0o777, 0o600);
+    html = readFileSync(fd, 'utf8');
+  } finally { closeSync(fd); }
   assert.match(html, /connect-src 'none'/);
   assert.match(html, /Bare et lokalt utkast/);
   assert.match(html, /id="booking"/); assert.match(html, /id="priorities"/);
@@ -164,7 +170,7 @@ test('the actual installed SDK returns a local file and cleans it without HTTP o
   const scratch = mkdtempSync(join(tmpdir(), 'file-preview-sdk-'));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));
   const loader = join(scratch, 'loader.mjs'), register = join(scratch, 'register.mjs');
-  writeFileSync(loader, `export async function resolve(specifier, context, next) { if (specifier === '@github/copilot-sdk/extension') return { url: ${JSON.stringify(pathToFileURL(join(sdk, 'extension.js')).href)}, shortCircuit: true }; return next(specifier, context); }`);
+  writeFileSync(loader, "export async function resolve(specifier, context, next) { if (specifier === '@github/copilot-sdk/extension') return { url: process.env.FILE_PREVIEW_SDK_ENTRY_URL, shortCircuit: true }; return next(specifier, context); }");
   writeFileSync(register, "import { register } from 'node:module'; register(new URL('./loader.mjs', import.meta.url));");
   const protocolVersion = Number(/SDK_PROTOCOL_VERSION\s*=\s*(\d+)/.exec(readFileSync(join(sdk, 'sdkProtocolVersion.d.ts'), 'utf8'))?.[1]);
   assert(Number.isSafeInteger(protocolVersion));
@@ -173,7 +179,7 @@ test('the actual installed SDK returns a local file and cleans it without HTTP o
   let resolveResume;
   const resumed = new Promise(resolvePromise => { resolveResume = resolvePromise; });
   const child = spawn(process.execPath, ['--import', register, fileURLToPath(new URL('./file-preview.mjs', import.meta.url))], {
-    cwd: scratch, env: { PATH: dirname(process.execPath), TMPDIR: scratch, SESSION_ID: sessionId, COPILOT_HOME: join(scratch, 'isolated-home') }, stdio: ['pipe', 'pipe', 'pipe'],
+    cwd: scratch, env: { PATH: dirname(process.execPath), TMPDIR: scratch, SESSION_ID: sessionId, COPILOT_HOME: join(scratch, 'isolated-home'), FILE_PREVIEW_SDK_ENTRY_URL: pathToFileURL(join(sdk, 'extension.js')).href }, stdio: ['pipe', 'pipe', 'pipe'],
   });
   let exited = false;
   const exit = new Promise(resolveExit => child.once('exit', code => { exited = true; resolveExit(code); }));
