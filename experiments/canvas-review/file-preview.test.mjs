@@ -106,7 +106,7 @@ test('file HTML supports both concepts, keyboard, narrow viewports and local-onl
   t.after(() => browser.close());
   const f = fixture(t);
   const opened = f.preview.canvas.open(f.ctx);
-  const context = await browser.newContext({ viewport: { width: 1000, height: 900 }, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: { width: 1000, height: 900 }, reducedMotion: 'no-preference' });
   t.after(() => context.close());
   const page = await context.newPage();
   const errors = [], requests = [];
@@ -115,6 +115,41 @@ test('file HTML supports both concepts, keyboard, narrow viewports and local-onl
   await page.goto(opened.url);
   await page.keyboard.press('Tab');
   assert.equal(await page.locator(':focus').textContent(), 'Hopp til konseptene');
+  const luminance = color => {
+    const channels = color.match(/[\d.]+/g).slice(0, 3).map(value => Number(value) / 255);
+    const linear = channels.map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+    return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  };
+  const contrastSamples = [];
+  for (const motion of ['no-preference', 'reduce']) {
+    await page.emulateMedia({ reducedMotion: motion });
+    for (const targetId of ['tab-priorities', 'tab-booking']) {
+      await page.evaluate(id => {
+        const read = () => [...document.querySelectorAll('[role=tab]')].map(tab => {
+          const style = getComputedStyle(tab);
+          return { id: tab.id, color: style.color, background: style.backgroundColor };
+        });
+        read(); // Flush the previous state before the actual pointer activation.
+        window.tabContrastSample = new Promise(resolveSample => document.getElementById(id).addEventListener('click', () => {
+          const immediate = read();
+          requestAnimationFrame(() => resolveSample({ immediate, firstFrame: read() }));
+        }, { once: true }));
+      }, targetId);
+      await page.locator(`#${targetId}`).click();
+      const sample = { motion, targetId, ...(await page.evaluate(() => window.tabContrastSample)) };
+      for (const phase of ['immediate', 'firstFrame']) for (const tab of sample[phase]) {
+        const foreground = luminance(tab.color), background = luminance(tab.background);
+        tab.contrast = (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+        assert(tab.contrast >= 4.5, `${motion} ${phase} ${tab.id} must remain readable immediately after switching`);
+      }
+      contrastSamples.push(sample);
+    }
+  }
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  if (process.env.FILE_PREVIEW_EVIDENCE_DIR) {
+    mkdirSync(process.env.FILE_PREVIEW_EVIDENCE_DIR, { recursive: true });
+    writeFileSync(join(process.env.FILE_PREVIEW_EVIDENCE_DIR, 'tab-contrast.json'), JSON.stringify(contrastSamples, null, 2));
+  }
   await page.getByRole('button', { name: 'Se lokal oppsummering', exact: true }).click();
   assert.equal(await page.locator(':focus').getAttribute('id'), 'slot-first');
   assert.equal(await page.locator('#time-error').isVisible(), true);

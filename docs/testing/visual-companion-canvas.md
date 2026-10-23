@@ -44,6 +44,12 @@ filer, eksakt eierskap, utløp, opprydding, lokale interaksjoner og smale vindue
 Ingen HTTP-server, nettverkstrafikk eller modellkall brukes. Prøven registreres
 fortsatt av en Node-utvidelse. Den beviser ikke at Node-kjøremiljøet kan fjernes.
 
+Visuell sluttkontroll fant lav kontrast under fanebytte med vanlig bevegelse:
+teksten skiftet før bakgrunnsovergangen var ferdig. Fanene bytter nå uten den
+overgangen. Nettleserprøven måler både umiddelbar visning og første render-frame
+i begge retninger, med og uten redusert bevegelse: laveste tekstkontrast er
+13,20:1, mot 1,00:1 før rettingen. Dette er en avgrenset måling av fanene.
+
 Faktisk `file://`-visning i appen gjenstår. Filprøven ble ikke åpnet der fordi
 skjermen var låst; testrepoets tillit og arkiverte sesjon ble ikke endret.
 Se [kjøreoppsett og presise grenser](../../experiments/canvas-review/README.md#local-html-without-an-http-server).

@@ -57,7 +57,7 @@
     .skip { position: absolute; top: .5rem; left: .5rem; transform: translateY(-200%); background: white; color: #111; padding: .75rem; z-index: 2; }
     .skip:focus { transform: none; }
     @media (max-width: 700px) { .booking-layout, .board { grid-template-columns: 1fr; } }
-    @media (prefers-reduced-motion: no-preference) { button { transition: background .12s; } }
+    @media (prefers-reduced-motion: no-preference) { button:not([role=tab]) { transition: background .12s; } }
   </style>
 </head>
 <body>
