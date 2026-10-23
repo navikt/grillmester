@@ -118,6 +118,7 @@ jobs:
           node --check experiments/canvas-review/browser-smoke.mjs
           node --check experiments/canvas-review/file-preview.mjs
           node --check scripts/smoke_visual_exploration.cjs
+          node --check scripts/smoke_visual_review_cycle.cjs
           node --check scripts/smoke_visual_retry.cjs
           node --test experiments/canvas-review/probe.test.mjs experiments/canvas-review/file-preview.test.mjs
 

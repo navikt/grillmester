@@ -44,8 +44,10 @@
     const savedStyles = new Map();
     const saveRetries = new Map();
     const selected = () => bindings.get(selectedKey);
-    const hasDraft = (binding) => Boolean(binding.remark.trim() || signature(binding.values) !== binding.accepted);
+    const hasDraft = (binding) => Boolean(binding.conflict || binding.remark.trim() || signature(binding.values) !== binding.accepted);
     const pending = () => Array.from(bindings.values()).some(hasDraft);
+    const currentDecision = (binding) => snapshot.decisions?.find((item) => item.variant === (binding.descriptor.variant || "") && item.target === binding.descriptor.key && (item.state === "active" || (item.state === "released" && item.submission === 0)));
+    function beginEdit(binding) { if (binding.expectedRevision === undefined) binding.expectedRevision = currentDecision(binding)?.revision || 0; }
 
     const style = document.createElement("style");
     style.nonce = nonce;
@@ -54,6 +56,7 @@
       @media(max-width:759px){.workshop{left:10px;right:10px;top:64px;width:auto}.compare-bar{top:62px;left:10px;right:10px;max-width:none}.compare-bar .pair-select{display:none}.compare-bar .prefer{font-size:11px}.workshop-body{padding:14px}}
       @media(max-height:540px){.workshop{overflow-y:auto;overscroll-behavior:contain}.workshop-head,.workshop-body,.workshop-foot{flex-shrink:0}.workshop-body{overflow:visible}.compare-bar{max-height:calc(100dvh - 110px);overflow-y:auto}}
       .workshop,.workshop-body,.compare-bar{scroll-padding:8px}
+      .keep-conflict{overflow-wrap:anywhere}.keep-conflict p{white-space:pre-wrap}
       @media(max-width:759px){.compare-bar.has-many .pair-select{display:flex;flex:1 1 calc(50% - 8px);min-width:0}.compare-bar.has-many .pair-select select{width:100%;min-width:0}.compare-bar.has-many .pair-select label{flex-shrink:0}}
     `;
     root.appendChild(style);
@@ -65,6 +68,7 @@
           <div class="workshop-section workshop-editor"><label for="workshop-target">Velg del</label><select id="workshop-target" aria-label="Velg del"></select><p class="workshop-warning target-warning" hidden></p><div class="workshop-controls"></div>
             <div class="workshop-actions"><button type="button" data-action="workshop-reset">Tilbakestill visning</button></div>
             <label for="workshop-remark">Merknad</label><textarea id="workshop-remark" maxlength="2000" placeholder="Valgfritt: forklar hva du vil ta videre"></textarea>
+            <div class="workshop-warning keep-conflict" tabindex="-1" hidden><strong>Delen er endret et annet sted.</strong><p class="keep-conflict-summary"></p><p>Ditt valg og merknaden din er beholdt her.</p><button type="button" data-action="workshop-replace">Bruk mitt valg i stedet</button><button type="button" data-action="workshop-discard-conflict">Forkast mitt utkast</button></div>
             <div class="workshop-actions"><button type="button" class="primary" data-action="workshop-add">Legg til innspill</button><button type="button" data-action="workshop-keep">Behold dette</button></div>
           </div>
           <div class="workshop-section workshop-comparison"><h3>Se variantene sammen</h3><button type="button" class="workshop-compare-button" data-action="workshop-compare" aria-pressed="false">Sammenlign varianter</button><p class="workshop-warning compare-warning" hidden></p></div>
@@ -160,6 +164,7 @@
     function restoreContext(context) {
       const binding = contextBinding(context);
       if (!binding || locking || api.isComposing()) return false;
+      beginEdit(binding);
       selectedKey = identifier(binding.descriptor);
       binding.values = { ...context.values };
       if (comparing && context.variant) {
@@ -177,7 +182,9 @@
     function refreshButtons() {
       const binding = selected();
       el('[data-action="workshop-add"]').disabled = locking || !binding?.element || !binding.descriptor.controls.length;
-      el('[data-action="workshop-keep"]').disabled = locking || !binding?.element;
+      el('[data-action="workshop-keep"]').disabled = locking || !binding?.element || Boolean(binding.conflict);
+      el('[data-action="workshop-replace"]').disabled = locking || !binding?.element;
+      el('[data-action="workshop-discard-conflict"]').disabled = locking;
       el('[data-action="workshop-reset"]').disabled = locking || !binding?.element || !binding.descriptor.controls.length;
       el('[data-action="workshop-compare"]').disabled = locking || !comparisonAvailable;
     }
@@ -189,6 +196,8 @@
       picker.value = selectedKey;
       remark.value = binding?.remark || "";
       remark.disabled = !binding?.element || locking;
+      el(".keep-conflict").hidden = !binding?.conflict;
+      if (binding?.conflict) el(".keep-conflict-summary").textContent = binding.conflict.text;
       const unavailable = Boolean(binding && !binding.element);
       el(".target-warning").hidden = !unavailable;
       el(".target-warning").textContent = "Denne delen er utilgjengelig: markeringen mangler eller finnes flere steder i skissen.";
@@ -210,6 +219,7 @@
         else { input.type = "range"; input.min = "0"; input.max = String(control.options.length - 1); input.step = "1"; input.value = String(control.options.findIndex((entry) => entry.value === binding.values[control.id])); }
         input.addEventListener(control.type === "range" ? "input" : "change", () => {
           if (locking) return;
+          beginEdit(binding);
           binding.values[control.id] = controlValue(control, input);
           writeValues(binding); updateOutput(); status("Lokal visning · legg til innspill for å ta valget videre."); updateDrafts();
         });
@@ -341,13 +351,19 @@
       if (!value) { renderControls(); renderDecisions(); api.refreshFeedback(); }
       api.onBusyChange();
     }
-    async function save(action, decisionId) {
+    async function save(action, decisionId, replace = false) {
       if (locking) return;
       const binding = selected();
       const text = action === "workshop-add" || action === "workshop-keep" ? binding?.remark.trim() || "" : "";
       if (new TextEncoder().encode(text).length > 2000) { error("Merknaden er for lang. Kort den ned før du lagrer."); focus(remark); return; }
+      const retryKey = `${action}/${decisionId || (action === "workshop-prefer" ? preferredVariant : selectedKey)}`;
+      if (!saveRetries.has(retryKey)) saveRetries.set(retryKey, {});
+      const retry = saveRetries.get(retryKey);
       let operation, payload;
-      if (action === "workshop-release") { operation = "decision-release"; payload = { id: decisionId }; }
+      if (action === "workshop-release") {
+        if (retry.expectedRevision === undefined) retry.expectedRevision = snapshot.decisions?.find((item) => item.id === decisionId)?.revision || 0;
+        operation = "decision-release"; payload = { id: decisionId, expectedRevision: retry.expectedRevision };
+      }
       else if (action === "workshop-prefer") {
         const variant = variantBindings.get(preferredVariant);
         if (!variant?.element) return;
@@ -355,23 +371,41 @@
       } else {
         if (!binding?.element) return;
         const values = { ...binding.values };
-        if (action === "workshop-keep") { operation = "decision-keep"; payload = { screen, variant: binding.descriptor.variant || "", target: binding.descriptor.key, values, text: text || "Behold denne delen videre." }; }
+        if (action === "workshop-keep") {
+          if (binding.conflict && !replace) return;
+          beginEdit(binding);
+          operation = "decision-keep"; payload = { screen, variant: binding.descriptor.variant || "", target: binding.descriptor.key, values, text: text || "Behold denne delen videre.", expectedRevision: replace ? binding.conflict.revision : binding.expectedRevision };
+        }
         else { if (!binding.descriptor.controls.length) return; operation = "comment-create"; payload = { screen, kind: "adjustment", anchor: anchorFor(binding.element), text: text || "Ta med disse justeringene.", adjustment: { variant: binding.descriptor.variant || "", target: binding.descriptor.key, values } }; }
       }
       error(""); api.showFeedbackError(""); lock(true);
-      const retryKey = `${action}/${decisionId || (action === "workshop-prefer" ? preferredVariant : selectedKey)}`;
-      if (!saveRetries.has(retryKey)) saveRetries.set(retryKey, {});
       try {
-        await request(operation, payload, saveRetries.get(retryKey));
+        await request(operation, payload, retry);
         saveRetries.delete(retryKey);
         if (binding && (action === "workshop-add" || action === "workshop-keep")) binding.accepted = signature(binding.values);
-        if (binding && (action === "workshop-add" || action === "workshop-keep")) { binding.remark = ""; remark.value = ""; }
+        if (binding && (action === "workshop-add" || action === "workshop-keep")) { binding.remark = ""; remark.value = ""; binding.expectedRevision = undefined; binding.conflict = null; }
         updateDrafts();
         status("Lagret i innspill. Send samlet når du er klar.");
         announce("Valget er lagt til innspill.");
         locking = false; close(); api.openFeedback();
-      } catch (failure) { error(failure.message); if (pane.hidden) api.showFeedbackError(failure.message); }
-      finally { lock(false); }
+      } catch (failure) {
+        if (action === "workshop-keep" && failure.conflict && binding) {
+          const current = currentDecision(binding);
+          const source = snapshot.screens?.find((entry) => entry.screen === current?.screen)?.design;
+          const controls = source?.targets.find((entry) => entry.key === current.target && entry.variant === current.variant)?.controls || [];
+          const values = current ? Object.entries(current.values).map(([id, value]) => {
+            const control = controls.find((entry) => entry.id === id);
+            return `${control?.label || id}: ${control?.options.find((option) => option.value === value)?.label || value}`;
+          }).join(" · ") : "";
+          binding.conflict = { revision: current?.revision || 0, text: current ? `Lagret valg: ${values}${values ? ". " : ""}${current.text}` : "Det tidligere valget er frigitt. Ingen aktiv føring er lagret for denne delen." };
+          error("Se gjennom det lagrede valget før du eventuelt erstatter det.");
+          announce("Delen er endret et annet sted. Ditt valg og merknaden er beholdt.");
+        } else {
+          if (failure.conflict) delete retry.expectedRevision;
+          error(failure.message); if (pane.hidden) api.showFeedbackError(failure.message);
+        }
+      }
+      finally { lock(false); if (action === "workshop-keep" && binding?.conflict) focus(el(".keep-conflict")); }
     }
 
     for (const [key, binding] of bindings) {
@@ -385,7 +419,7 @@
       const variant = selected()?.descriptor.variant;
       if (comparing && variant) { if (!pair.includes(variant)) pair[1] = variant; activeVariant = variant; preferredVariant = variant; updateCompareSelects(); applyComparison(); }
     });
-    remark.addEventListener("input", () => { const binding = selected(); if (binding) binding.remark = remark.value; updateDrafts(); });
+    remark.addEventListener("input", () => { const binding = selected(); if (binding) { beginEdit(binding); binding.remark = remark.value; } updateDrafts(); });
     for (const [selector, index] of [["#compare-left", 0], ["#compare-right", 1]]) el(selector).addEventListener("change", (event) => {
       const previous = pair[index]; pair[index] = event.target.value;
       if (pair[0] === pair[1]) pair[1 - index] = previous;
@@ -408,6 +442,17 @@
       else if (action === "workshop-compare" && comparisonAvailable && !locking) { comparing = !comparing; button.setAttribute("aria-pressed", String(comparing)); updateCompareSelects(); applyComparison(); if (comparing) { close(); focus(innerWidth < 760 ? el(".compare-tabs button") : el("#compare-left")); } }
       else if (action === "workshop-stop-compare" && !locking) { endComparison(); focus(toolbarButton); }
       else if (["workshop-add", "workshop-keep", "workshop-prefer", "workshop-release"].includes(action)) void save(action, button.dataset.decision);
+      else if (action === "workshop-replace" && selected()?.conflict) void save("workshop-keep", undefined, true);
+      else if (action === "workshop-discard-conflict" && !locking) {
+        const binding = selected();
+        if (binding?.conflict) {
+          binding.values = initialValues(binding.descriptor); binding.accepted = signature(binding.values);
+          binding.remark = ""; binding.conflict = null; binding.expectedRevision = undefined;
+          saveRetries.delete(`workshop-keep/${selectedKey}`);
+          writeValues(binding); renderControls(); updateDrafts(); error("");
+          status("Det lagrede valget er beholdt. Ditt lokale utkast er forkastet."); focus(picker);
+        }
+      }
     });
     markup.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
@@ -433,6 +478,7 @@
       close,
       isSaving: () => locking,
       isBusy: () => locking || pending(),
+      hasRemarks: () => Array.from(bindings.values()).some((binding) => Boolean(binding.remark.trim() || binding.conflict)),
       isComparing: () => comparing,
       endComparison,
       contextFor(target) {
@@ -449,7 +495,7 @@
           return `${control?.label || id}: ${control?.options.find((entry) => entry.value === value)?.label || value}`;
         })].join("\n");
       },
-      render(value) { snapshot = value; if (value.revision !== lastRevision) { lastRevision = value.revision; renderDecisions(); } },
+      render(value) { snapshot = value; for (const binding of bindings.values()) if (!hasDraft(binding) && !locking && !saveRetries.has(`workshop-keep/${identifier(binding.descriptor)}`)) binding.expectedRevision = undefined; if (value.revision !== lastRevision) { lastRevision = value.revision; renderDecisions(); } },
       describeComment(item) {
         const original = sourceDesign(item);
         if (item.variant) return original?.variants.find((variant) => variant.key === item.variant)?.label || variantBindings.get(item.variant)?.label || item.variant;
@@ -480,6 +526,7 @@
         const option = control?.options.find((entry) => entry.value === button.getAttribute("data-vc-value"));
         if (!binding || !option) { announce("Denne handlingen mangler et gyldig valg i skissen."); return true; }
         selectedKey = identifier(binding.descriptor);
+        beginEdit(binding);
         binding.values[control.id] = option.value;
         refreshPreview(binding);
         if (!button.getClientRects().length || getComputedStyle(button).visibility === "hidden") {

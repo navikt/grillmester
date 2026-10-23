@@ -54,11 +54,48 @@ Faktisk `file://`-visning i appen gjenstår. Filprøven ble ikke åpnet der ford
 skjermen var låst; testrepoets tillit og arkiverte sesjon ble ikke endret.
 Se [kjøreoppsett og presise grenser](../../experiments/canvas-review/README.md#local-html-without-an-http-server).
 
-Før en produksjonsadapter må en annen kontrakt også avklares: innsendte
-kommentarer i den portable køen kan fortsatt slettes eller åpnes igjen.
-En sender som leser senere, kan derfor se en nyere versjon av listen.
-Canvas-levering må velge eksplisitt mellom tilbaketrekking og et uforanderlig
-innsendt øyeblikksbilde; den skal ikke tolke en kvittering som varig historikk.
+### Felles innsendingskontrakt før adapteren
+
+[ADR 0021](../adr/0021-innsendte-runder.md) fastsetter uforanderlige innsendte
+runder i den eksisterende portable `FeedbackStore`. Journalen og nåtilstanden
+ligger i samme `comments.json` og lagres atomisk. En adapter skal senere lese
+denne journalen, ikke kopiere forsøkslageret eller holde en parallell kø.
+Dette aktiverer ingen appintegrasjon eller ny lifecycle.
+
+`comments.js list` viser dagens liste. `wait --after N` henter én neste runde
+gjennom `/comments/submissions?after=N`, med opprinnelige kommentarer og
+innsendte føringer ved rundens tidspunkt. `currentComments` viser separat om
+samme ID nå er fjernet, fikset, gjenåpnet eller sendt på nytt. Mottakeren må
+avstemme dette før arbeid og bruke `resolve/reopen --submission N` for å avvise
+svar som ellers ville treffe en annen innsending. Et rundesvar flytter bare
+klientens markør til svarets `submission`; `latestSubmission` er opplysning,
+og `hasMore` betyr at neste runde skal leses etterpå.
+
+Journalen har maksimalt 200 runder innenfor eksisterende 2 MiB. Ingen runder
+evikteres. Grensefeil skal avvise hele innsendingen og bevare utkastet. Normal
+stopp fjerner den private økten; restart, import og migrering er ikke innført.
+Dette er bevaring gjennom endringer i en kjørende previewøkt, ikke en garanti
+for varig historikk eller levering til en samtale etter krasj.
+
+Følgende akseptanser gjelder den portable journalen før en adapter bygges:
+
+| Hendelse før lesing | Forventet resultat |
+| --- | --- |
+| Send, endre status/svar, les fra forrige markør | Rundens opprinnelige innhold bevares; nåtilstanden kommer separat. |
+| Send, fjern fra listen, les runden | Runden er fortsatt lesbar, med tydelig fravær i nålisten. Ingen automatisk gjenoppretting eller påstand om kansellert arbeid. |
+| Send, åpne igjen, les før ny Send | Den gamle runden finnes fortsatt; nytt utkast har nummer 0 og leveres ikke som ny runde. |
+| Send samme kommentar i to runder før lesing | Første ventekall leverer første runde, neste leverer andre. Verken samme ID eller siste listenummer kan slå dem sammen. |
+| Endre eller frigjør en beholdt del i en senere runde | En eldre runde viser sine egne innsendte føringer. Senere føringer må ikke lekke inn bakover. |
+| Svar på gammel runde etter nytt utkast eller ny innsending | Rundekontrollen avviser svaret uten å overskrive nåtilstanden. |
+| Tapt HTTP-kvittering og samme innsending forsøkes igjen | Samme operasjonsnøkkel gir ingen ny journaloppføring eller ny revisjon. |
+| Full journal eller mislykket filcommit | Ingen delvis innsendt runde, cursorflytting eller sletting av eldre historikk. |
+| Ny leser mot eldre server eller markør fra senere runde | Tydelig feil, uten rekonstruksjon fra en mutable liste eller stille cursorhopp. |
+
+Canvasforsøkets tester av uforanderlig historisk kontekst, opprinnelig
+skjermbinding, kopier ved lesing og separat leverings-/behandlingsstatus gir
+nyttige akseptmønstre. SDK-prøvens køkvitteringer, ukjent leveringsutfall og
+sesjonsisolasjon gjelder fortsatt bare forsøket. De beviser ikke at den
+portable journalen sender meldinger eller gjenoppretter en krasjet prosess.
 
 ## Kildekontroll og prøvens bevisverdi
 

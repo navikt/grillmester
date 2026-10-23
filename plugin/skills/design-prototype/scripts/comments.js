@@ -4,6 +4,7 @@
 // All mutations go through the preview server, the sole feedback-state writer.
 const path = require("node:path");
 const { readPrivateJson, MAX_STORE_BYTES, ID, validPatch } = require("./feedback-store.js");
+const MAX_RESPONSE_BYTES = MAX_STORE_BYTES + 64 * 1024;
 
 function parseArguments(argv) {
   const [command, ...args] = argv;
@@ -11,7 +12,7 @@ function parseArguments(argv) {
   const options = {};
   for (let index = 0; index < args.length; index += 2) {
     const key = args[index];
-    if (!["--state-dir", "--id", "--reply", "--after", "--timeout"].includes(key) || Object.hasOwn(options, key) || index + 1 >= args.length) throw new Error("Invalid or repeated option.");
+    if (!["--state-dir", "--id", "--reply", "--after", "--timeout", "--submission"].includes(key) || Object.hasOwn(options, key) || index + 1 >= args.length) throw new Error("Invalid or repeated option.");
     options[key] = args[index + 1];
   }
   if (!options["--state-dir"]) throw new Error("--state-dir is required.");
@@ -19,6 +20,7 @@ function parseArguments(argv) {
   if (mutation && !ID.test(options["--id"] || "")) throw new Error("--id must identify one comment or decision.");
   if (!mutation && options["--id"] !== undefined) throw new Error("--id is only used with resolve, reopen, delete, or release.");
   if (options["--reply"] !== undefined && (!["resolve", "reopen"].includes(command) || !validPatch({ reply: options["--reply"] }))) throw new Error("--reply must be at most 2000 UTF-8 bytes and accompany resolve or reopen.");
+  if (options["--submission"] !== undefined && (!["resolve", "reopen"].includes(command) || !/^(0|[1-9][0-9]*)$/.test(options["--submission"]) || !Number.isSafeInteger(Number(options["--submission"])))) throw new Error("--submission must be a nonnegative round number and accompany resolve or reopen.");
   if (command !== "wait" && (options["--after"] !== undefined || options["--timeout"] !== undefined)) throw new Error("--after and --timeout are only used with wait.");
   const after = Number(options["--after"] || "0");
   const timeout = Number(options["--timeout"] || "55");
@@ -35,10 +37,11 @@ function serverAddress(directory) {
   if (info.type !== "server-started" || !loopback || url.protocol !== "http:" || url.username || url.password || !url.port || url.pathname !== "/" || url.hash || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get("token") || "") || [...url.searchParams.keys()].length !== 1) throw new Error("Invalid local preview connection information.");
   return url;
 }
-async function request(baseUrl, pathname, method = "GET", body, waiter = false) {
+async function request(baseUrl, pathname, method = "GET", body, waiter = false, after) {
   const url = new URL(baseUrl);
   url.pathname = pathname;
   if (waiter) url.searchParams.set("waiter", "1");
+  if (after !== undefined) url.searchParams.set("after", String(after));
   let response;
   try {
     response = await fetch(url, {
@@ -51,12 +54,13 @@ async function request(baseUrl, pathname, method = "GET", body, waiter = false) 
   const chunks = [];
   for await (const chunk of response.body) {
     bytes += chunk.length;
-    if (bytes > MAX_STORE_BYTES) throw new Error("Feedback response exceeded its size limit.");
+    if (bytes > MAX_RESPONSE_BYTES) throw new Error("Feedback response exceeded its size limit.");
     chunks.push(chunk);
   }
   let result;
   try { result = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
   catch { throw new Error(`Preview request failed (${response.status}).`); }
+  if (!response.ok && pathname === "/comments/submissions" && [404, 405].includes(response.status)) throw new Error("This preview does not support preserved feedback rounds. Start a new preview session with the current scripts.");
   if (!response.ok) throw new Error(typeof result.error === "string" ? result.error : `Preview request failed (${response.status}).`);
   return result;
 }
@@ -67,9 +71,9 @@ async function main() {
   if (command === "wait") {
     const deadline = Date.now() + timeout * 1000;
     do {
-      const snapshot = await request(baseUrl, "/comments", "GET", undefined, true);
-      if (snapshot.submission > after) return { type: "feedback-submission", ...snapshot, comments: snapshot.comments.filter((comment) => comment.submission > after), decisions: snapshot.submittedDecisions.filter((item) => (item.state === "active" && item.submission > 0) || item.submission > after) };
-      if (Date.now() >= deadline) return { type: "feedback-timeout", submission: snapshot.submission, comments: [], decisions: snapshot.submittedDecisions.filter((item) => item.state === "active" && item.submission > 0) };
+      const snapshot = await request(baseUrl, "/comments/submissions", "GET", undefined, true, after);
+      if (snapshot.submission > after) return { type: "feedback-submission", ...snapshot };
+      if (Date.now() >= deadline) return { type: "feedback-timeout", ...snapshot };
       await new Promise((resolve) => setTimeout(resolve, Math.min(500, Math.max(0, deadline - Date.now()))));
     } while (true);
   }
@@ -77,6 +81,7 @@ async function main() {
   const pathname = `/comments/${options["--id"]}`;
   if (command === "delete") return request(baseUrl, pathname, "DELETE", {});
   const patch = { status: command === "resolve" ? "fixed" : "open" };
+  if (options["--submission"] !== undefined) patch.expectedSubmission = Number(options["--submission"]);
   if (options["--reply"] !== undefined) patch.reply = options["--reply"];
   return request(baseUrl, pathname, "PATCH", patch);
 }

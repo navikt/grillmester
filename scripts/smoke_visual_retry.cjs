@@ -56,7 +56,7 @@ async function stop(child) {
   child.kill("SIGTERM"); const timer = setTimeout(() => child.kill("SIGKILL"), 5000);
   await ended; clearTimeout(timer);
 }
-async function session(browser, name, run, lostResponsePath = "/comments") {
+async function session(browser, name, run, lostResponsePath = "/comments", lostResponseMethod = "POST") {
   const project = fs.mkdtempSync(path.join(os.tmpdir(), "grillmester-retry-"));
   let running, context;
   try {
@@ -71,21 +71,30 @@ async function session(browser, name, run, lostResponsePath = "/comments") {
     const frame = page.frameLocator("#vc-preview"), ui = frame.locator("[data-visual-feedback]");
     const url = new URL(running.info.url); url.pathname = "/comments";
     const snapshot = async () => (await fetch(url)).json();
+    const mutate = async (pathname, method, value) => {
+      const target = new URL(running.info.url); target.pathname = pathname;
+      const response = await fetch(target, { method, headers: { Origin: target.origin, "Content-Type": "application/json" }, body: JSON.stringify(value) });
+      assert.equal(response.status, 200);
+      return response.json();
+    };
     const mutations = [];
+    const mutationPayloads = [];
     let dropped = false;
     let frozenRead = null;
-    await page.route("**/comments**", async route => {
+    await page.route(/\/(?:comments|decisions)(?:\/|\?|$)/, async route => {
       const requestPath = new URL(route.request().url()).pathname;
       // Preserve the reviewed pre-submit list until the explicit retry. This
       // makes the lost-receipt case independent of the background poll timing.
       if (requestPath === "/comments" && route.request().method() === "GET" && frozenRead) {
         await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(frozenRead) }); return;
       }
-      if (requestPath !== lostResponsePath || route.request().method() !== "POST") { await route.continue(); return; }
+      const matchesPath = typeof lostResponsePath === "string" ? requestPath === lostResponsePath : lostResponsePath.test(requestPath);
+      if (!matchesPath || route.request().method() !== lostResponseMethod) { await route.continue(); return; }
       mutations.push(route.request().headers()["x-feedback-mutation"]);
+      mutationPayloads.push(route.request().postDataJSON());
       if (dropped) { await route.continue(); return; }
       dropped = true;
-      if (lostResponsePath === "/comments/submit") frozenRead = await snapshot();
+      if (lostResponsePath === "/comments/submit" || lostResponseMethod === "PATCH") frozenRead = await snapshot();
       const response = await route.fetch();
       assert.equal(response.status(), 200, "The first mutation must reach durable storage before its response is lost.");
       await route.abort("failed");
@@ -98,7 +107,7 @@ async function session(browser, name, run, lostResponsePath = "/comments") {
       await frame.getByRole("heading", { name: "Forbered møtet", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text);
     };
-    await run({ page, frame, ui, snapshot, mutations, begin, releaseRead: () => { frozenRead = null; } });
+    await run({ page, frame, ui, snapshot, mutate, mutations, mutationPayloads, begin, releaseRead: () => { frozenRead = null; } });
     assert(mutations.every(id => /^[a-f0-9]{32}$/.test(id)), "Each actual browser mutation carries a bounded retry identifier.");
     assert.equal(JSON.stringify(await snapshot()).includes("PRIVATE_PRACTICE_VALUE"), false);
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
@@ -174,6 +183,51 @@ const cases = [
     assert.deepEqual(result.comments[0].adjustment.values, { density: "compact" });
     assert.equal(result.comments[0].text, "Samle oversikten tettere.");
   } },
+  { name: "keep-after-lost-receipt", lostResponsePath: "/decisions", async run({ ui, snapshot, mutate, mutations, mutationPayloads }) {
+    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await ui.getByLabel("Tetthet", { exact: true }).selectOption("compact");
+    await ui.locator("#workshop-remark").fill("Behold den tettere oversikten.");
+    await ui.locator('[data-action="workshop-keep"]').click();
+    await ui.locator(".workshop-error").waitFor({ state: "visible" });
+    const committed = await snapshot();
+    assert.equal(committed.decisions.length, 1);
+    assert.equal(committed.decisions[0].text, "Behold den tettere oversikten.");
+    assert.equal(await ui.locator("#workshop-remark").inputValue(), "Behold den tettere oversikten.");
+    const first = committed.decisions[0];
+    const newer = await mutate("/decisions", "POST", { screen: first.screen, variant: first.variant, target: first.target, values: { density: "comfortable" }, text: "Et nyere valg fra en annen fane.", expectedRevision: first.revision });
+    await until(async () => (await ui.locator(".workshop-keep-list").textContent()).includes("Et nyere valg fra en annen fane."), "Polling did not expose the newer choice before retry.");
+    await ui.locator('[data-action="workshop-keep"]').click();
+    await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+    assert.equal(mutations.length, 2);
+    assert.equal(mutations[0], mutations[1], "The kept choice retries the original committed intent.");
+    assert.deepEqual(mutationPayloads[0], mutationPayloads[1], "Polling must not rebase the guard while a saved receipt is still unknown.");
+    assert.equal(mutationPayloads[0].expectedRevision, 0);
+    const recovered = await snapshot();
+    assert.equal(recovered.revision, newer.revision);
+    assert.deepEqual(recovered.decisions, newer.decisions, "Recovering an older receipt must not overwrite the newer choice.");
+  } },
+  { name: "release-after-lost-receipt", lostResponsePath: /^\/decisions\/[a-f0-9]{24}$/, lostResponseMethod: "PATCH", async run({ ui, snapshot, mutate, mutations, mutationPayloads, releaseRead }) {
+    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await ui.locator('[data-action="workshop-keep"]').click();
+    await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+    const original = (await snapshot()).decisions[0];
+    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await ui.locator(".workshop-keep-list").getByRole("button", { name: "Frigi", exact: true }).click();
+    await ui.locator(".workshop-error").waitFor({ state: "visible" });
+    const released = (await snapshot()).decisions[0];
+    assert.equal(released.state, "released");
+    const restored = await mutate("/decisions", "POST", { screen: released.screen, variant: released.variant, target: released.target, values: { density: "compact" }, text: "En annen fane beholdt delen igjen.", expectedRevision: released.revision });
+    await ui.locator(".workshop-keep-list").getByRole("button", { name: "Frigi", exact: true }).click();
+    await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
+    assert.equal(mutations.length, 2);
+    assert.equal(mutations[0], mutations[1]);
+    assert.deepEqual(mutationPayloads[0], mutationPayloads[1], "Release retries retain the guard of the original card.");
+    assert.equal(mutationPayloads[0].expectedRevision, original.revision);
+    const recovered = await snapshot();
+    assert.equal(recovered.revision, restored.revision);
+    assert.deepEqual(recovered.decisions, restored.decisions, "A release receipt must not release a later re-kept decision.");
+    releaseRead();
+  } },
 ];
 (async () => {
   const chosen = options.has("--case") ? cases.filter(item => item.name === options.get("--case")) : cases;
@@ -182,7 +236,7 @@ const cases = [
   const results = [];
   try {
     for (const testcase of chosen) {
-      try { results.push(await session(browser, testcase.name, testcase.run, testcase.lostResponsePath)); }
+      try { results.push(await session(browser, testcase.name, testcase.run, testcase.lostResponsePath, testcase.lostResponseMethod)); }
       catch (error) { results.push({ name: testcase.name, passed: false, error: String(error.message).replace(/https?:\/\/[^\s]+/g, "[local URL]") }); }
     }
   } finally { await browser.close(); }

@@ -151,9 +151,9 @@ Gi designeren URL raskt etter oppstart; for eksisterende flater først etter ver
    - En ny skjerm nullstiller eventloggen, slik at valgene aldri blandes mellom
      to spørsmål
    - Designerens tekstrespons er fasit; bruk klikk som strukturert støtteevidens
-   - Les hele kommentarkøen med `scripts/comments.js list`, og skill innsendte
-     innspill fra utkast. Vent på **Send innspill** med `scripts/comments.js wait`;
-     se under.
+   - Les nåtilstanden med `scripts/comments.js list`, og hent ubehandlede
+     innsendte runder med `scripts/comments.js wait`; se under. Listen alene
+     bevarer ikke hva som ble sendt før en oppføring ble fjernet eller åpnet igjen.
 
 4. **Iterer eller gå videre:**
    - Ny versjon? Skriv ny fil (f.eks. `layout-v2.html`)
@@ -185,7 +185,12 @@ Komplekse elementer, feltverdier og vilkårlig HTML/CSS redigeres ikke.
 alle usendte innspill i økten klare til behandling, også fra tidligere versjoner.
 Mens designeren skriver eller har usendte
 innspill, skal en ny skisse ikke avbryte arbeidet. En tilgjengelig ny versjon
-kan åpnes når innspillene er sendt eller avbrutt. Innsending er aldri en
+kan åpnes når innspillene er sendt eller avbrutt. Lokale visningsvalg holder
+også automatisk oppdatering tilbake. Når bare slike valg gjenstår, kan
+**Nullstill og vis ny versjon** uttrykkelig forkaste dem og åpne den nye
+skissen; lagrede innspill beholdes. Kommentarutkast, merknader, usendte
+innspill, pågående lagring og tekstforhåndsvisning må fortsatt fullføres eller
+avsluttes før versjonsbytte. Innsending er aldri en
 godkjenning av endringer i konsumentrepoet, Figma eller andre eksterne mål.
 
 ### En aktiv tilbakemeldingsrunde
@@ -195,18 +200,23 @@ Kjør fra skillens mappe, med `state_dir` fra den aktive serverens startup-JSON:
 ```bash
 node scripts/comments.js list --state-dir "$STATE_DIR"
 node scripts/comments.js wait --state-dir "$STATE_DIR" --after 0 --timeout 55
-node scripts/comments.js resolve --state-dir "$STATE_DIR" --id <id> --reply "Knappen har nå en tydeligere tekst."
-node scripts/comments.js reopen --state-dir "$STATE_DIR" --id <id> --reply "Vi prøver en annen plassering."
+node scripts/comments.js resolve --state-dir "$STATE_DIR" --id <id> --submission <submission> --reply "Knappen har nå en tydeligere tekst."
+node scripts/comments.js reopen --state-dir "$STATE_DIR" --id <id> --submission <submission> --reply "Vi prøver en annen plassering."
 node scripts/comments.js release --state-dir "$STATE_DIR" --id <decision-id>
 ```
 
 `list` og `wait` returnerer hele tekster og `submission`, ikke utdrag.
 Feltene har ulike formål:
 
-| Resultat | Klart til behandling | Fortsatt utkast |
+| Resultat | Innspill og føringer | Fortsatt utkast |
 | --- | --- | --- |
-| `list` | Kommentarer med `submission > 0`; aktive føringer i `submittedDecisions`. | Kommentarer med `submission: 0`; lokale endringer og frigivelser i `decisions` med `submission: 0`. |
-| `wait` | Kommentarer innsendt etter `--after`; `decisions` med alle aktive innsendte føringer og nye frigivelser. | Uinnsendte kommentarer og beslutninger inngår ikke i disse feltene. |
+| `list` | Nåtilstand, inkludert kommentarens siste innsendingsnummer og aktive føringer i `submittedDecisions`. Dette er ikke leveringshistorikken. | Kommentarer med `submission: 0`; lokale endringer og frigivelser i `decisions` med `submission: 0`. |
+| `wait` | Én neste runde etter `--after`: opprinnelige `comments`, samt `decisions` med aktive føringer ved runden og dens nye frigivelser. | Nye utkast inngår ikke i rundens innhold. Separat `currentComments` viser nåtilstanden for de returnerte ID-ene. |
+
+`currentComments` inneholder `id`, `present` og, når oppføringen fortsatt
+finnes, `status`, `submission`, `reply` og `updatedAt`. `present: false`
+betyr fjernet fra nålisten. I `list` beholder `lastSubmission` siste sendte
+rundenummer også etter at `submission` er blitt 0 ved gjenåpning.
 
 En lokal endring eller frigivelse erstatter ikke det tidligere valget før
 neste innsending. `list.decisions` er derfor ikke kilden til innsendte føringer.
@@ -215,12 +225,24 @@ har bedt om det, og forklar at frigivelsen må med i neste **Send innspill** fø
 mottakeren ser den som innsendt.
 
 `resolve` og `reopen` oppdaterer status og svar uten å lage en ny innsending.
+Bruk `--submission` med nummeret på runden du behandler. Serveren avviser et
+svar som tilhører en annen innsending enn live-kommentaren, også hvis den nå
+er et nytt utkast med nummer 0. Kontrollen gjelder rundetilhørighet; den låser
+ikke alle samtidige statusendringer. Les `currentComments` sammen med rundens
+opprinnelige tekst. Er oppføringen fjernet, fikset, åpnet igjen eller sendt på
+nytt, avstem dette før arbeid og svar. Ikke gjenskap en fjernet kommentar eller
+fjern rundekontrollen for å få et foreldet svar gjennom.
+
+**Fjern fra listen** fjerner en tidligere innsendt oppføring fra nåvisningen,
+også etter at den er åpnet igjen. Den innsendte runden bevares. Dette er ikke
+sletting av historikk eller en bekreftelse på at pågående arbeid er kansellert.
 Punkt-, område- og tekstinnspill kan også ha `context`: deklarert variant,
 del og innstillingsverdier da innspillet ble skrevet. Bruk dette sammen med
 skjermversjonen for å finne riktig situasjon, for eksempel en bekreftelse eller
 feiltilstand. Det er ikke innholdet i skjemaet eller en utført brukerhandling.
 Designerens **Åpne igjen** i nettleseren gjør innspillet usendt og klart til en
-ny runde; først **Send innspill** gjør det tilgjengelig for neste `wait`.
+ny runde; først **Send innspill** gjør den nye runden tilgjengelig for `wait`.
+Den opprinnelige innsendingen kan fortsatt leses med sin egen markør.
 Innsending fra nettleseren kontrollerer revisjonen av den viste listen. Hvis
 en annen fane har endret køen, oppdateres listen og designeren må sende på nytt
 etter gjennomgang. Usete tillegg skal ikke følge med en eldre innsending.
@@ -228,8 +250,18 @@ etter gjennomgang. Usete tillegg skal ikke følge med en eldre innsending.
 Vent etter sist behandlede nummer fra denne serverøkten. Flytt markøren først
 når alle innsendte innspill i det leste svaret er vurdert og besvart eller
 uttrykkelig står igjen til oppfølging. En nyere innsending som kom mens du
-arbeidet, skal behandles etterpå; ikke hopp til et nyere nummer bare fordi det
-vises i `list`. Les køen igjen før neste venting.
+arbeidet, skal behandles etterpå. `submission` i et innsendingssvar er nummeret
+på akkurat den leverte runden. Ved `hasMore: true` hentes neste runde med dette
+nummeret som `--after`; ikke hopp til `latestSubmission` eller nummeret i
+`list`. Lesing kvitterer ikke på serveren. Samme markør kan leses på nytt uten
+å sende noe. En markør foran øktens siste innsending avvises.
+
+`wait` bruker serverens autentiserte `/comments/submissions?after=N`.
+`revision` og `submittedAt` i et innsendingssvar tilhører den leverte runden;
+de er ikke live-revisjonen som skal brukes for en ny nettleserinnsending.
+Server og leseskript må komme fra samme runtimeversjon. Hvis en eldre server
+mangler kontrakten, skal lesingen feile tydelig; den mutable listen er ikke en
+reservekilde til innsendte runder. En ny previewøkt får sin egen markør fra 0.
 
 Tilpass `--timeout` til klientens faktisk støttede verktøykall, innenfor
 0–60 sekunder. Eksempelets 55 sekunder passer bare hvis verktøyet kan fullføre
@@ -264,6 +296,9 @@ gå over; da aktiveres lagring igjen når både skisse og innspillskø svarer.
 bare eksplisitt skrevne kommentarer, eventuelle nye tekstforslag, svar, status,
 skjermversjon og strukturell forankring (taggsti, rolle, ramme og viewport), samt
 deklarerte variant-/delnøkler, innstillingsvalg og beholdte beslutninger.
+Hver innsending bevarer et uforanderlig øyeblikksbilde av akkurat rundens
+kommentarer og endrede beslutninger i samme fil og atomiske lagringsoperasjon.
+Senere svar, gjenåpning og fjerning fra listen endrer ikke denne journalen.
 Kommentarer i en justerbar del beholder også delens deklarerte tilstand.
 Ingen automatisk kopiering av synlig tekst, feltverdier, DOM-ID-er eller
 klassenavn. Bruk fortsatt bare syntetisk innhold, også i fritekst.
@@ -276,8 +311,14 @@ loopbackgrensesnitt og skriver aldri konkurrerende direkte i state-filen.
 Serveren håndhever grenser for tekst, antall og total størrelse. En avvist
 lagring må vises som feil; ikke fortell designeren at innspillet er lagret.
 Hver kommentar, erstatningstekst og svar kan bruke høyst 2000 UTF-8-byte.
-Økten har plass til 200 kommentarer, 200 beslutninger og 100 skjermversjoner, med maksimalt
-2 MiB lagret tilbakemeldingsdata og 16 KiB per skriveforespørsel.
+Økten har plass til 200 kommentarer, 200 beslutninger, 200 innsendte runder
+og 100 skjermversjoner, med maksimalt 2 MiB lagret tilbakemeldingsdata og
+16 KiB per skriveforespørsel. Eldre runder fjernes ikke automatisk for å gi
+plass. En avvist innsending lar hele utkastet, revisjonen og innsendingsnummeret
+stå urørt. Å fjerne en oppføring fra listen frigjør ikke journalhistorikken.
+Ingen automatisk gjenoppretting, import eller migrering følger med en restart.
+CLI-en avgrenser hvert lesesvar til 2 MiB pluss 64 KiB for tilleggsmetadata;
+dette øker ikke lagringsgrensen.
 Nettleseren bruker en tilfeldig operasjonsnøkkel ved lagring. En uendret kladd
 kan prøves igjen etter tapt kvittering uten å lage et ekstra innspill. Endret
 tekst eller nye valg er en ny operasjon; et tidligere lagret innspill slettes
@@ -428,6 +469,21 @@ og inngår i samlet innsending. Ved neste skisse sammenholdes de med deklarerte
 deler og startverdier. Manglende deler eller avvik merkes **Må følges opp**.
 Samme nøkkel med samme startverdier er bare en teknisk match; kontroller også
 at utseende, innhold og oppførsel fortsatt oppfyller intensjonen.
+
+Hvis en annen fane lagrer et nyere valg for samme del mens et lokalt utkast
+pågår, avvises **Behold dette** med en konflikt. Begge intensjonene bevares:
+eget valg og egen merknad står i panelet, og det nyere lagrede valgets verdier
+og tekst vises til sammenligning. **Bruk mitt valg i stedet** erstatter først
+etter et nytt kontrollert lagringsforsøk. Endres delen igjen i mellomtiden,
+vises en ny konflikt. **Forkast mitt utkast** fjerner bare eget lokale utkast;
+det lagrede valget beholdes. Ingen av handlingene sender en ny runde alene.
+
+Hver beholdt beslutning har `revision`. Skrivegrensesnittet støtter valgfri
+`expectedRevision` ved lagring og frigivelse; nettleseren bruker kontrollen og
+binder den til beslutningen ved første lokale endring. Andre deler og vanlige
+kommentarer utløser ikke konflikt for denne delen. En usikker lagring prøves
+igjen med samme operasjonsnøkkel og revisjonskontroll; en ny bekreftet
+erstatningsintensjon bruker den nyere viste revisjonen.
 
 Bevar deklarerte nøkler når en del beholder samme betydning. Ikke flytt gamle
 strukturelle kommentarankere til nye elementer, og ikke frigi et beholdt valg

@@ -944,6 +944,286 @@ test("feedback receipt capacity fails closed without evicting old retries or rec
   assert.equal(writes, 2);
 });
 
+function privateFeedbackStore() {
+  const { FeedbackStore } = require("../scripts/feedback-store.js");
+  const directory = fs.realpathSync(makeProject());
+  fs.chmodSync(directory, 0o700);
+  return new FeedbackStore(directory);
+}
+
+test("submission history keeps both original rounds after resubmission, replies and deletion", () => {
+  const store = privateFeedbackStore();
+  const screen = "a".repeat(32);
+  store.knowScreen(screen, "original.html", sampleDesign());
+  const context = { variant: "", target: "header", values: { density: "compact" } };
+  const created = store.create(commentFor(screen, { kind: "edit", text: "Clarify this heading.", proposal: { property: "text", value: "Prepare for the meeting" }, context }));
+  const id = created.comments[0].id;
+  assert.equal(created.comments[0].lastSubmission, 0);
+  const first = store.submit({ revision: created.revision });
+  const original = clone(first.comments[0]);
+  assert.equal(original.lastSubmission, 1);
+  store.patch(id, { status: "fixed", reply: "The wording is clearer.", expectedSubmission: 1 });
+  let delivered = store.nextSubmission(0);
+  assert.deepEqual(delivered.comments, [original]);
+  assert.equal(delivered.currentComments[0].status, "fixed");
+  assert.equal(delivered.currentComments[0].reply, "The wording is clearer.");
+  const pending = store.patch(id, { status: "open", resubmit: true });
+  assert.equal(pending.comments[0].submission, 0);
+  assert.equal(pending.comments[0].lastSubmission, 1);
+  assert.deepEqual(store.nextSubmission(0).comments, [original], "An unsent reopening must not erase the first round.");
+  const second = store.submit({});
+  const secondOriginal = clone(second.comments[0]);
+  store.delete(id, {});
+  delivered = store.nextSubmission(0);
+  assert.equal(delivered.revision, first.revision);
+  assert.equal(delivered.submission, 1);
+  assert.equal(delivered.latestSubmission, 2);
+  assert.equal(delivered.hasMore, true);
+  assert.equal(Number.isNaN(Date.parse(delivered.submittedAt)), false);
+  assert.deepEqual(delivered.comments, [original]);
+  assert.deepEqual(delivered.currentComments, [{ id, present: false }]);
+  delivered.comments[0].context.values.density = "spacious";
+  delivered.screens[0].filename = "changed.html";
+  assert.deepEqual(store.nextSubmission(0).comments, [original], "Returned nested data cannot mutate the journal.");
+  assert.equal(store.nextSubmission(0).screens[0].filename, "original.html");
+  assert.deepEqual(store.nextSubmission(1).comments, [secondOriginal]);
+  assert.equal(store.nextSubmission(1).hasMore, false);
+  assert.deepEqual(store.nextSubmission(2).comments, []);
+  assert.equal(store.nextSubmission(2).submittedAt, null);
+  assert.deepEqual(store.snapshot().comments, []);
+  assert.equal(Object.hasOwn(store.snapshot(), "submissions"), false, "Ordinary browser snapshots must not include the delivery journal.");
+  const saved = JSON.parse(fs.readFileSync(store.filename, "utf8"));
+  assert.deepEqual(saved.submissions.map((batch) => batch.comments[0]), [original, secondOriginal]);
+});
+
+test("submission history reconstructs constraints at each cursor and preserves scoped screens", () => {
+  const store = privateFeedbackStore();
+  const firstScreen = "a".repeat(32), secondScreen = "b".repeat(32), unrelatedScreen = "c".repeat(32);
+  for (const [screen, filename] of [[firstScreen, "first.html"], [secondScreen, "second.html"], [unrelatedScreen, "unrelated.html"]]) store.knowScreen(screen, filename, sampleDesign());
+  store.create(commentFor(firstScreen));
+  store.create(commentFor(secondScreen, { text: "This belongs to the second version." }));
+  const keep = store.keep(keepFor(firstScreen));
+  const decisionId = keep.decisions[0].id;
+  store.submit({ screen: firstScreen });
+  store.keep(keepFor(secondScreen, { values: { density: "spacious" } }));
+  store.submit({ screen: secondScreen });
+  store.release(decisionId, {});
+  store.submit({});
+  store.keep(keepFor(unrelatedScreen));
+  const first = store.nextSubmission(0), second = store.nextSubmission(1), released = store.nextSubmission(2);
+  assert.equal(first.comments.length, 1);
+  assert.equal(first.comments[0].screen, firstScreen);
+  assert.deepEqual(first.decisions[0].values, { density: "compact" });
+  assert.deepEqual(first.screens.map((item) => item.screen), [firstScreen]);
+  assert.equal(second.comments.length, 1);
+  assert.equal(second.comments[0].screen, secondScreen);
+  assert.deepEqual(second.decisions[0].values, { density: "spacious" });
+  assert.deepEqual(second.screens.map((item) => item.screen), [secondScreen]);
+  assert.deepEqual(released.comments, []);
+  assert.equal(released.decisions[0].state, "released");
+  assert.equal(released.decisions[0].submission, 3);
+  assert.deepEqual(store.nextSubmission(3).decisions, [], "A newer unsent hold is not an accepted constraint.");
+  for (const cursor of [-1, 0.5, "0", null, Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => store.nextSubmission(cursor), (error) => error.status === 400);
+  assert.throws(() => store.nextSubmission(4), (error) => error.status === 409);
+});
+
+test("submission guards prevent an old reply from resolving a pending or newer round", () => {
+  const { validPatch } = require("../scripts/feedback-store.js");
+  const store = privateFeedbackStore(), screen = "a".repeat(32);
+  store.knowScreen(screen, "test.html");
+  const id = store.create(commentFor(screen)).comments[0].id;
+  store.submit({});
+  store.patch(id, { status: "open", resubmit: true });
+  const pending = store.snapshot();
+  assert.throws(() => store.patch(id, { status: "fixed", expectedSubmission: 1 }), (error) => error.status === 409);
+  assert.deepEqual(store.snapshot(), pending);
+  store.submit({});
+  const sent = store.snapshot();
+  assert.throws(() => store.patch(id, { status: "fixed", reply: "Outdated reply", expectedSubmission: 1 }), (error) => error.status === 409);
+  assert.deepEqual(store.snapshot(), sent);
+  const resolved = store.patch(id, { status: "fixed", reply: "Current reply", expectedSubmission: 2 });
+  assert.equal(resolved.comments[0].reply, "Current reply");
+  assert.equal(Object.hasOwn(resolved.comments[0], "expectedSubmission"), false);
+  assert.equal(store.patch(id, { status: "open" }).comments[0].status, "open", "Existing clients can still update current status.");
+  for (const expectedSubmission of [-1, 1.5, "1", null, Number.MAX_SAFE_INTEGER + 1]) assert.equal(validPatch({ status: "fixed", expectedSubmission }), false);
+  assert.equal(validPatch({ expectedSubmission: 2 }), false);
+});
+
+test("submission journal refuses its count limit without evicting earlier rounds", () => {
+  const { MAX_SUBMISSIONS } = require("../scripts/feedback-store.js");
+  const store = privateFeedbackStore(), screen = "a".repeat(32);
+  store.knowScreen(screen, "test.html");
+  const id = store.create(commentFor(screen)).comments[0].id;
+  for (let count = 0; count < MAX_SUBMISSIONS; count += 1) {
+    store.submit({});
+    store.patch(id, { status: "open", resubmit: true });
+  }
+  const before = store.snapshot(), fileBefore = fs.readFileSync(store.filename, "utf8");
+  assert.equal(MAX_SUBMISSIONS, 200);
+  assert.throws(() => store.submit({}), (error) => error.status === 429 && /Submission limit/.test(error.message));
+  assert.deepEqual(store.snapshot(), before);
+  assert.equal(fs.readFileSync(store.filename, "utf8"), fileBefore);
+  assert.equal(store.nextSubmission(0).submission, 1);
+  assert.equal(store.nextSubmission(MAX_SUBMISSIONS - 1).submission, MAX_SUBMISSIONS);
+});
+
+test("submission journal size failure leaves the original round and pending feedback intact", () => {
+  const { MAX_COMMENTS, MAX_STORE_BYTES } = require("../scripts/feedback-store.js");
+  const store = privateFeedbackStore(), screen = "a".repeat(32);
+  store.knowScreen(screen, "test.html");
+  const large = store.create(commentFor(screen, { kind: "edit", text: "x".repeat(2000), proposal: { property: "text", value: "y".repeat(2000) } })).comments[0];
+  // Build a valid, full live queue without hundreds of unrelated disk commits.
+  store.change((state) => { state.comments = Array.from({ length: MAX_COMMENTS }, (_, index) => ({ ...clone(large), id: index.toString(16).padStart(24, "0") })); });
+  store.submit({});
+  store.change((state) => { for (const item of state.comments) item.submission = 0; });
+  const before = store.snapshot(), fileBefore = fs.readFileSync(store.filename, "utf8");
+  assert(Buffer.byteLength(fileBefore) < MAX_STORE_BYTES);
+  assert.throws(() => store.submit({}), (error) => error.status === 429 && /storage limit/.test(error.message));
+  assert.deepEqual(store.snapshot(), before);
+  assert.equal(fs.readFileSync(store.filename, "utf8"), fileBefore);
+  assert.equal(store.nextSubmission(0).comments.length, MAX_COMMENTS);
+  assert.equal(store.nextSubmission(0).latestSubmission, 1);
+});
+
+test("submission commit failure is atomic and a receipt retries exactly once", () => {
+  const { FeedbackMutationReceipts } = require("../scripts/feedback-store.js");
+  const store = privateFeedbackStore(), screen = "a".repeat(32);
+  store.knowScreen(screen, "test.html");
+  store.create(commentFor(screen));
+  const receipts = new FeedbackMutationReceipts(), mutationId = "a".repeat(32);
+  const value = { revision: store.snapshot().revision };
+  const send = () => receipts.run(mutationId, "POST", "/comments/submit", value, (body) => store.submit(body));
+  const before = store.snapshot(), fileBefore = fs.readFileSync(store.filename, "utf8");
+  const rename = fs.renameSync;
+  fs.renameSync = (...args) => { if (args[1] === store.filename) throw new Error("simulated commit failure"); return rename(...args); };
+  try { assert.throws(send, /simulated commit failure/); } finally { fs.renameSync = rename; }
+  assert.deepEqual(store.snapshot(), before);
+  assert.equal(fs.readFileSync(store.filename, "utf8"), fileBefore);
+  assert.deepEqual(store.nextSubmission(0).comments, []);
+  assert.equal(fs.readdirSync(store.directory).some((filename) => filename.endsWith(".tmp")), false);
+  send();
+  const saved = fs.readFileSync(store.filename, "utf8");
+  send();
+  assert.equal(fs.readFileSync(store.filename, "utf8"), saved);
+  assert.equal(store.nextSubmission(0).submission, 1);
+  assert.equal(store.nextSubmission(0).latestSubmission, 1);
+});
+
+test("submission history HTTP reads validate cursors, parameters and the session boundary", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const url = endpoint(running.info.url, "/comments/submissions");
+    assert.equal((await fetch(url)).status, 400);
+    for (const after of ["", "-1", "1.5", "01", "9007199254740992", "x"]) {
+      url.searchParams.set("after", after);
+      assert.equal((await fetch(url)).status, 400, after);
+    }
+    url.searchParams.set("after", "1");
+    assert.equal((await fetch(url)).status, 409, "A cursor from another or newer session must fail explicitly.");
+    url.searchParams.set("after", "0");
+    const initial = await (await fetch(url)).json();
+    assert.equal(initial.submission, 0);
+    assert.equal(initial.latestSubmission, 0);
+    assert.equal(initial.hasMore, false);
+    assert.equal(initial.submittedAt, null);
+    assert.deepEqual(initial.comments, []);
+    for (const [key, value] of [["unknown", "1"], ["after", "0"], ["waiter", "0"]]) {
+      const invalid = new URL(url); invalid.searchParams.append(key, value);
+      assert.equal((await fetch(invalid)).status, 400, key);
+    }
+    const noToken = new URL(url); noToken.searchParams.delete("token");
+    assert.equal((await fetch(noToken)).status, 403);
+    assert.equal((await fetch(url, { headers: { Origin: "https://unrelated.invalid" } })).status, 403);
+    assert.equal((await fetch(url, { method: "POST", headers: { Origin: url.origin, "Content-Type": "application/json" }, body: "{}" })).status, 405);
+    url.searchParams.set("waiter", "1");
+    assert.equal((await fetch(url)).status, 200);
+    const live = await (await feedbackRequest(running.info.url, "/comments")).json();
+    assert(live.listeningUntil > Date.now());
+    assert.equal(Object.hasOwn(live, "submissions"), false);
+    assert.equal(Object.hasOwn(live, "currentComments"), false);
+  } finally { await stopServer(running); }
+});
+
+test("feedback CLI drains immutable rounds and guards replies against a later resubmission", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const created = await (await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { text: "Keep the first note available." }))).json();
+    const removedId = created.comments[0].id;
+    const both = await (await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { text: "Reconsider this note." }))).json();
+    const resentId = both.comments[1].id;
+    const stateArgs = ["--state-dir", running.info.state_dir];
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: both.revision });
+    await feedbackRequest(running.info.url, `/comments/${removedId}`, "DELETE", {});
+    await feedbackRequest(running.info.url, `/comments/${resentId}`, "PATCH", { status: "open", resubmit: true });
+    const beforeResend = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "0", "--timeout", "0"])).stdout);
+    assert.equal(beforeResend.submission, 1);
+    assert.equal(beforeResend.comments.length, 2);
+    assert.deepEqual(beforeResend.currentComments.find((item) => item.id === removedId), { id: removedId, present: false });
+    assert.equal(beforeResend.currentComments.find((item) => item.id === resentId).submission, 0);
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
+    await previewScreen(running, "<h1>A newer screen</h1>");
+    const first = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "0", "--timeout", "0"])).stdout);
+    assert.equal(first.type, "feedback-submission");
+    assert.equal(first.submission, 1);
+    assert.equal(first.latestSubmission, 2);
+    assert.equal(first.hasMore, true);
+    assert.equal(first.comments[0].text, "Keep the first note available.");
+    assert(first.comments.every((item) => item.screen === screen && item.submission === 1));
+    assert.equal(first.currentComments.find((item) => item.id === resentId).submission, 2);
+    const lateReply = await runComments(["resolve", ...stateArgs, "--id", resentId, "--submission", "1", "--reply", "An outdated response."]);
+    assert.equal(lateReply.code, 2);
+    assert.match(lateReply.stderr, /different submission/);
+    const resolved = await runComments(["resolve", ...stateArgs, "--id", resentId, "--submission", "2", "--reply", "A current response."]);
+    assert.equal(resolved.code, 0, resolved.stderr);
+    const second = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "1", "--timeout", "0"])).stdout);
+    assert.equal(second.submission, 2);
+    assert.equal(second.hasMore, false);
+    assert.equal(second.comments.length, 1);
+    assert.equal(second.comments[0].id, resentId);
+    assert.equal(second.comments[0].status, "open");
+    assert.equal(second.comments[0].reply, "");
+    assert.equal(second.currentComments[0].status, "fixed");
+    assert.equal(second.currentComments[0].reply, "A current response.");
+    assert.equal((await runComments(["reopen", ...stateArgs, "--id", resentId, "--submission", "1"])).code, 2);
+    assert.equal((await runComments(["reopen", ...stateArgs, "--id", resentId, "--submission", "2"])).code, 0);
+    const timeout = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "2", "--timeout", "0"])).stdout);
+    assert.equal(timeout.type, "feedback-timeout");
+    assert.deepEqual(timeout.comments, []);
+    assert.deepEqual(timeout.currentComments, []);
+    assert.equal((await runComments(["wait", ...stateArgs, "--after", "3", "--timeout", "0"])).code, 2);
+    for (const command of ["delete", "release", "list", "wait"]) assert.equal((await runComments([command, ...stateArgs, ...(["delete", "release"].includes(command) ? ["--id", resentId] : []), "--submission", "2"])).code, 2);
+    assert.equal(JSON.stringify(first).includes(new URL(running.info.url).searchParams.get("token")), false);
+  } finally { await stopServer(running); }
+});
+
+test("feedback CLI reports each round's accepted constraints before later changes and releases", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await workshopScreen(running);
+    const created = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen))).json();
+    const id = created.decisions[0].id;
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
+    await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen, { values: { density: "spacious" } }));
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
+    await feedbackRequest(running.info.url, `/decisions/${id}`, "PATCH", {});
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
+    const stateArgs = ["--state-dir", running.info.state_dir, "--timeout", "0"];
+    const first = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "0"])).stdout);
+    const second = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "1"])).stdout);
+    const third = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "2"])).stdout);
+    const timeout = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "3"])).stdout);
+    assert.equal(first.submission, 1);
+    assert.deepEqual(first.decisions[0].values, { density: "compact" });
+    assert.equal(first.decisions[0].state, "active");
+    assert.deepEqual(second.decisions[0].values, { density: "spacious" });
+    assert.equal(second.decisions[0].state, "active");
+    assert.equal(third.decisions[0].state, "released");
+    assert.equal(third.decisions[0].submission, 3);
+    assert.deepEqual(timeout.decisions, []);
+  } finally { await stopServer(running); }
+});
+
 test("feedback retry identifiers are not consumed by a failed disk commit", async () => {
   const running = await startServer(makeProject());
   const outside = makeProject();
@@ -1477,6 +1757,118 @@ test("decision history has its own fixed count limit", () => {
   }
   assert.equal(store.snapshot().decisions.length, 200);
   assert.throws(() => store.keep(keepFor(screen)), /Decision limit reached/);
+});
+
+test("decision revision guards preserve another tab's pending choice on the same or a newer screen", () => {
+  for (const crossScreen of [false, true]) {
+    const store = privateFeedbackStore();
+    const firstScreen = "a".repeat(32), laterScreen = crossScreen ? "b".repeat(32) : firstScreen;
+    store.knowScreen(firstScreen, "first.html", sampleDesign());
+    if (crossScreen) store.knowScreen(laterScreen, "later.html", sampleDesign());
+    const staleDraft = keepFor(firstScreen, { expectedRevision: 0, text: "An older local note." });
+    const created = store.keep(keepFor(laterScreen, { expectedRevision: 0, values: { density: "spacious" }, text: "A newer pending choice." }));
+    const first = created.decisions[0];
+    assert.equal(first.revision, created.revision);
+    assert.equal(Object.hasOwn(first, "expectedRevision"), false);
+    const saved = fs.readFileSync(store.filename, "utf8");
+    assert.throws(() => store.keep(staleDraft), (error) => error.status === 409);
+    assert.deepEqual(store.snapshot(), created);
+    assert.equal(fs.readFileSync(store.filename, "utf8"), saved);
+    const accepted = store.submit({});
+    const updated = store.keep(keepFor(laterScreen, { expectedRevision: first.revision, text: "The latest pending note." }));
+    const current = updated.decisions[0];
+    assert(current.revision > first.revision);
+    assert.equal(current.revision, updated.revision);
+    assert.deepEqual(updated.submittedDecisions, accepted.submittedDecisions, "Guarded edits do not publish or replace accepted constraints.");
+    for (const expectedRevision of [0, first.revision]) {
+      assert.throws(() => store.keep(keepFor(firstScreen, { expectedRevision })), (error) => error.status === 409);
+      assert.throws(() => store.release(first.id, { expectedRevision }), (error) => error.status === 409);
+    }
+    assert.deepEqual(store.snapshot(), updated);
+    const released = store.release(first.id, { expectedRevision: current.revision });
+    assert.equal(released.decisions[0].revision, released.revision);
+    assert.deepEqual(released.submittedDecisions, accepted.submittedDecisions);
+    assert.throws(() => store.keep(keepFor(firstScreen, { expectedRevision: current.revision })), (error) => error.status === 409);
+    const restored = store.keep(keepFor(firstScreen, { expectedRevision: released.decisions[0].revision }));
+    assert.equal(restored.decisions[0].id, first.id, "Re-keeping a pending release must guard and reuse that same decision.");
+    assert.equal(restored.decisions.length, 1);
+    store.release(first.id, { expectedRevision: restored.decisions[0].revision });
+    store.submit({});
+    const newHold = store.keep(keepFor(firstScreen, { expectedRevision: 0 }));
+    assert.equal(newHold.decisions.length, 2);
+    assert.notEqual(newHold.decisions[1].id, first.id, "A published release permits an explicitly new hold.");
+  }
+});
+
+test("decision revision guards reject invalid metadata without changing live or accepted state", () => {
+  const store = privateFeedbackStore(), screen = "a".repeat(32);
+  store.knowScreen(screen, "test.html", sampleDesign());
+  const created = store.keep(keepFor(screen, { expectedRevision: 0 }));
+  const { id, revision } = created.decisions[0];
+  const before = store.submit({});
+  for (const expectedRevision of [-1, 1.5, "1", null, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => store.keep(keepFor(screen, { expectedRevision })), (error) => error.status === 400);
+    assert.throws(() => store.release(id, { expectedRevision }), (error) => error.status === 400);
+  }
+  for (const metadata of [{ revision }, { expectedRevision: revision, extra: true }]) {
+    assert.throws(() => store.keep(keepFor(screen, metadata)), (error) => error.status === 400);
+    assert.throws(() => store.release(id, metadata), (error) => error.status === 400);
+  }
+  assert.deepEqual(store.snapshot(), before);
+  const legacy = store.keep(keepFor(screen));
+  assert(legacy.decisions[0].revision > revision, "Legacy callers remain supported and still advance the decision revision.");
+  assert.equal(store.release(id, {}).decisions[0].state, "released");
+});
+
+test("failed guarded decision commits preserve their revision and can retry with the same receipt", () => {
+  const { FeedbackMutationReceipts } = require("../scripts/feedback-store.js");
+  const store = privateFeedbackStore(), screen = "a".repeat(32);
+  store.knowScreen(screen, "test.html", sampleDesign());
+  const receipts = new FeedbackMutationReceipts();
+  const payload = keepFor(screen, { expectedRevision: 0 });
+  const keep = () => receipts.run("a".repeat(32), "POST", "/decisions", payload, (body) => store.keep(body));
+  const failCommit = (operation) => {
+    const before = store.snapshot(), saved = fs.readFileSync(store.filename, "utf8");
+    const rename = fs.renameSync;
+    fs.renameSync = (...args) => { if (args[1] === store.filename) throw new Error("decision commit failed"); return rename(...args); };
+    try { assert.throws(operation, /decision commit failed/); } finally { fs.renameSync = rename; }
+    assert.deepEqual(store.snapshot(), before);
+    assert.equal(fs.readFileSync(store.filename, "utf8"), saved);
+    operation();
+    const committed = store.snapshot();
+    operation();
+    assert.deepEqual(store.snapshot(), committed);
+  };
+  failCommit(keep);
+  const { id, revision } = store.snapshot().decisions[0];
+  const releasePayload = { expectedRevision: revision };
+  failCommit(() => receipts.run("b".repeat(32), "PATCH", `/decisions/${id}`, releasePayload, (body) => store.release(id, body)));
+});
+
+test("guarded decision retries recover an accepted write without overwriting a newer choice", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await workshopScreen(running);
+    const keep = keepFor(screen, { expectedRevision: 0, text: "The original intent." });
+    const keepHeaders = { "X-Feedback-Mutation": "d".repeat(32) };
+    const firstResponse = await feedbackRequest(running.info.url, "/decisions", "POST", keep, keepHeaders);
+    assert.equal(firstResponse.status, 200);
+    const first = (await firstResponse.json()).decisions[0];
+    const second = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen, { expectedRevision: first.revision, text: "A newer local choice." }))).json();
+    assert.equal((await feedbackRequest(running.info.url, "/decisions", "POST", keep)).status, 409);
+    const retry = await feedbackRequest(running.info.url, "/decisions", "POST", keep, keepHeaders);
+    assert.equal(retry.status, 200);
+    assert.deepEqual(await retry.json(), second, "A lost-response retry returns current state without restoring its older content.");
+    const release = { expectedRevision: second.decisions[0].revision };
+    const releaseHeaders = { "X-Feedback-Mutation": "e".repeat(32) };
+    const released = await (await feedbackRequest(running.info.url, `/decisions/${first.id}`, "PATCH", release, releaseHeaders)).json();
+    const restored = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen, { expectedRevision: released.decisions[0].revision, text: "Keep this after reconsidering." }))).json();
+    assert.equal((await feedbackRequest(running.info.url, `/decisions/${first.id}`, "PATCH", release)).status, 409);
+    const releaseRetry = await feedbackRequest(running.info.url, `/decisions/${first.id}`, "PATCH", release, releaseHeaders);
+    assert.equal(releaseRetry.status, 200);
+    assert.deepEqual(await releaseRetry.json(), restored);
+    assert.equal(restored.decisions[0].state, "active");
+  } finally { await stopServer(running); }
 });
 
 

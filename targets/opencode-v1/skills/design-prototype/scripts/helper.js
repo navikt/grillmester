@@ -201,6 +201,7 @@
   }
   function pendingComments() { return [...snapshot.comments, ...(snapshot.decisions || [])].filter((item) => item.submission === 0); }
   function busy() { return Boolean(draft || drag || preview || pendingComments().length || requests.size || workshop?.isBusy()); }
+  function blocksRefresh() { return Boolean(draft || drag || preview || pendingComments().length || requests.size || workshop?.isSaving() || workshop?.hasRemarks()); }
   function saving() { return Boolean(savingDraft || workshop?.isSaving()); }
   function topInset() { return Math.max(64, Math.ceil((document.body.querySelector(":scope > .vc-header")?.getBoundingClientRect().bottom || 0) + 10)); }
   function updateBusy() {
@@ -209,8 +210,11 @@
     all(".toolbar button,.pin").forEach((button) => { button.disabled = saving(); });
     const refresh = el('[data-action="refresh"]');
     refresh.hidden = !updateAvailable;
-    refresh.disabled = value;
-    refresh.title = value ? "Fullfør utkast, send innspill og avslutt forhåndsvisningen først" : "Åpne den nye versjonen";
+    const blocked = blocksRefresh();
+    const discardView = !blocked && workshop?.isBusy();
+    refresh.disabled = blocked;
+    refresh.textContent = discardView ? "Nullstill og vis ny versjon" : "Vis ny versjon";
+    refresh.title = blocked ? "Fullfør utkast, send innspill og avslutt forhåndsvisningen først" : discardView ? "Lokale visningsvalg nullstilles. Lagrede innspill beholdes." : "Åpne den nye versjonen";
     scheduleLayout();
   }
   function request(action, payload, retry = {}) {
@@ -516,7 +520,9 @@
       head.className = "row";
       head.append(span(String(index + 1), "number"), span(item.status === "fixed" ? "Ordnet" : "Åpent", "small"));
       if (previous) head.appendChild(span("Tidligere versjon", "badge old"));
-      if (item.submission === 0) head.appendChild(span("Ikke sendt", "badge"));
+      const lastSubmission = item.lastSubmission || item.submission;
+      if (item.submission === 0) head.appendChild(span(lastSubmission > 0 ? "Ny runde ikke sendt" : "Ikke sendt", "badge"));
+      if (lastSubmission > 0) head.appendChild(span(`Sendt i runde ${lastSubmission}`, "badge"));
       card.appendChild(head);
       const text = document.createElement("p");
       text.textContent = item.text;
@@ -559,7 +565,7 @@
       if (!previous && item.context && workshop?.canRestoreContext(item.context)) actions.appendChild(button("Vis situasjon", "locate", item.id));
       else if (!previous && commentRect(item)) actions.appendChild(button("Vis sted", "locate", item.id));
       if (!previous && item.proposal && eligibleText(resolveTarget(item.anchor))) actions.appendChild(button("Forhåndsvis tekst", "preview-saved", item.id));
-      actions.append(button(item.status === "fixed" ? "Åpne igjen" : "Marker ordnet", "status", item.id), button("Slett", "delete", item.id, "danger"));
+      actions.append(button(item.status === "fixed" ? "Åpne igjen" : "Marker ordnet", "status", item.id), button(lastSubmission > 0 ? "Fjern fra listen" : "Slett", "delete", item.id, "danger"));
       card.appendChild(actions);
       list.appendChild(card);
     });
@@ -586,6 +592,9 @@
   }
   function renderFooter() {
     const count = pendingComments().length;
+    el(".panel-intro").textContent = snapshot.submission > 0
+      ? "Send nye innspill samlet. Sendte runder bevares i denne økten, også når du fjerner innspill fra listen."
+      : "Pek på det du vil forbedre. Send samlet når du er klar. Innspillene lagres bare i denne økten.";
     const live = !connectionLost && Date.now() < (snapshot.listeningUntil || 0);
     el(".pending").textContent = count ? `${count} innspill ${count === 1 ? "klart" : "klare"} til sending` : sentCount ? `${sentCount} innspill sendt` : "Ingen nye innspill";
     el(".send").disabled = !count || submitting || connectionLost;
@@ -611,7 +620,10 @@
     if (!commentRetries.has(retryKey)) commentRetries.set(retryKey, {});
     const retry = commentRetries.get(retryKey);
     try {
-      if (action === "delete") await request("comment-delete", { id: item.id }, retry);
+      if (action === "delete") {
+        await request("comment-delete", { id: item.id }, retry);
+        announce((item.lastSubmission || item.submission) > 0 ? "Innspillet er fjernet fra listen. Den sendte runden er beholdt." : "Innspillet er slettet.");
+      }
       else {
         const reopening = item.status === "fixed";
         await request("comment-update", { id: item.id, status: reopening ? "open" : "fixed", ...(reopening ? { resubmit: true } : {}) }, retry);
@@ -682,7 +694,7 @@
       }
       locate(item, true);
     } else if (action === "locate" && item) { setPanel(false); locate(item); }
-    else if (action === "refresh" && !busy()) post({ action: "refresh-now", screen });
+    else if (action === "refresh" && !blocksRefresh()) post({ action: "refresh-now", screen });
     else if (action === "send" && !submitting) {
       submitting = true;
       const count = pendingComments().length;
@@ -832,7 +844,11 @@
       if (data.snapshot) applySnapshot(data.snapshot);
       updateBusy();
       if (data.ok) pending.resolve(data.snapshot);
-      else pending.reject(new Error(data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt." : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen."));
+      else {
+        const failure = new Error(data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt." : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen.");
+        failure.conflict = data.conflict === true;
+        pending.reject(failure);
+      }
       return;
     }
     if (data.command !== "selection-status" || data.screen !== screen || !pendingEvent || data.type !== pendingEvent.type || data.choice !== pendingEvent.choice || (data.status !== "saved" && data.status !== "failed")) return;

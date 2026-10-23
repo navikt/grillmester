@@ -7,6 +7,7 @@ const { validDesign, validKey } = require("./design-contract.js");
 
 const MAX_COMMENTS = 200;
 const MAX_DECISIONS = 200;
+const MAX_SUBMISSIONS = 200;
 const MAX_SCREENS = 100;
 const MAX_STORE_BYTES = 2 * 1024 * 1024;
 const MAX_BODY_BYTES = 16 * 1024;
@@ -93,9 +94,11 @@ function validValues(values, emptyAllowed = true) {
     Object.entries(values).every(([id, value]) => validKey(id) && validKey(value));
 }
 function validPatch(value) {
-  return keys(value, [], ["status", "reply", "resubmit"]) && Object.keys(value).length > 0 &&
+  return keys(value, [], ["status", "reply", "resubmit", "expectedSubmission"]) &&
+    ["status", "reply", "resubmit"].some((key) => Object.hasOwn(value, key)) &&
     (!Object.hasOwn(value, "status") || ["open", "fixed"].includes(value.status)) &&
     (!Object.hasOwn(value, "reply") || boundedText(value.reply)) &&
+    (!Object.hasOwn(value, "expectedSubmission") || (Number.isSafeInteger(value.expectedSubmission) && value.expectedSubmission >= 0)) &&
     (!Object.hasOwn(value, "resubmit") || (value.resubmit === true && value.status === "open"));
 }
 function assertOwned(stat) {
@@ -143,7 +146,7 @@ class FeedbackStore {
     this.directory = directory;
     this.directoryStat = privateDirectory(directory);
     this.filename = path.join(directory, "comments.json");
-    this.state = { schemaVersion: 1, revision: 0, submission: 0, screens: [], comments: [], decisions: [], submittedDecisions: [] };
+    this.state = { schemaVersion: 1, revision: 0, submission: 0, screens: [], comments: [], decisions: [], submittedDecisions: [], submissions: [] };
     this.persist(this.state);
   }
   assertDirectory() {
@@ -201,6 +204,37 @@ class FeedbackStore {
     const { revision, submission, screens, comments, decisions, submittedDecisions } = this.state;
     return JSON.parse(JSON.stringify({ revision, submission, screens, comments, decisions, submittedDecisions }));
   }
+  nextSubmission(after) {
+    if (!Number.isSafeInteger(after) || after < 0) throw new FeedbackError(400, "Invalid submission cursor.");
+    if (after > this.state.submission) throw new FeedbackError(409, "Submission cursor belongs to a different or newer preview session.");
+    const batch = this.state.submissions.find((item) => item.submission > after);
+    const accepted = new Map();
+    if (batch) {
+      for (const prior of this.state.submissions) {
+        if (prior.submission > batch.submission) break;
+        for (const decision of prior.decisions) accepted.set(decision.id, decision);
+      }
+    } else {
+      for (const decision of this.state.submittedDecisions) accepted.set(decision.id, decision);
+    }
+    const decisions = [...accepted.values()].filter((item) => item.state === "active" || (batch && item.submission === batch.submission));
+    const comments = batch ? batch.comments : [];
+    const screens = new Set([...comments, ...decisions].map((item) => item.screen));
+    const currentComments = comments.map(({ id }) => {
+      const current = this.state.comments.find((item) => item.id === id);
+      return current ? { id, present: true, status: current.status, submission: current.submission, reply: current.reply, updatedAt: current.updatedAt }
+        : { id, present: false };
+    });
+    return JSON.parse(JSON.stringify({
+      revision: batch ? batch.revision : this.state.revision,
+      submission: batch ? batch.submission : this.state.submission,
+      latestSubmission: this.state.submission,
+      hasMore: Boolean(batch && batch.submission < this.state.submission),
+      submittedAt: batch ? batch.submittedAt : null,
+      screens: this.state.screens.filter((item) => screens.has(item.screen)),
+      comments, decisions, currentComments,
+    }));
+  }
   knowScreen(screen, filename, design = null) {
     if (design !== null && !validDesign(design)) throw new FeedbackError(400, "Invalid design descriptor.");
     if (!SCREEN.test(screen) || this.state.screens.some((item) => item.screen === screen)) return;
@@ -219,13 +253,15 @@ class FeedbackStore {
     if (this.state.comments.length >= MAX_COMMENTS) throw new FeedbackError(429, "Comment limit reached. Delete older comments or start a new session.");
     return this.change((state) => {
       const now = new Date().toISOString();
-      state.comments.push({ ...value, id: crypto.randomBytes(12).toString("hex"), status: "open", reply: "", createdAt: now, updatedAt: now, submission: 0 });
+      state.comments.push({ ...value, id: crypto.randomBytes(12).toString("hex"), status: "open", reply: "", createdAt: now, updatedAt: now, submission: 0, lastSubmission: 0 });
     });
   }
   patch(id, value) {
     if (!ID.test(id) || !validPatch(value)) throw new FeedbackError(400, "Invalid comment update.");
-    if (!this.state.comments.some((item) => item.id === id)) throw new FeedbackError(404, "Comment not found.");
-    const { resubmit, ...patch } = value;
+    const current = this.state.comments.find((item) => item.id === id);
+    if (!current) throw new FeedbackError(404, "Comment not found.");
+    if (Object.hasOwn(value, "expectedSubmission") && value.expectedSubmission !== current.submission) throw new FeedbackError(409, "This comment belongs to a different submission. Read its current status before replying.");
+    const { resubmit, expectedSubmission, ...patch } = value;
     return this.change((state) => Object.assign(state.comments.find((item) => item.id === id), patch,
       ...(resubmit ? [{ submission: 0 }] : []), { updatedAt: new Date().toISOString() }));
   }
@@ -247,27 +283,32 @@ class FeedbackStore {
     return target;
   }
   keep(value) {
-    if (!keys(value, ["screen", "variant", "target", "values", "text"]) || typeof value.screen !== "string" || !SCREEN.test(value.screen) ||
+    if (!keys(value, ["screen", "variant", "target", "values", "text"], ["expectedRevision"]) ||
+        (Object.hasOwn(value, "expectedRevision") && (!Number.isSafeInteger(value.expectedRevision) || value.expectedRevision < 0)) || typeof value.screen !== "string" || !SCREEN.test(value.screen) ||
         !validTargetIdentity(value) || !validValues(value.values) || !boundedText(value.text)) throw new FeedbackError(400, "Invalid design decision.");
     this.requireTarget(value.screen, value);
     // Re-keeping an unsent release cancels that pending change. Reuse its ID
     // so a scoped batch cannot publish a second active copy of the same hold.
     const existing = this.state.decisions.find((item) => item.variant === value.variant && item.target === value.target &&
       (item.state === "active" || (item.state === "released" && item.submission === 0)));
+    if (Object.hasOwn(value, "expectedRevision") && value.expectedRevision !== (existing?.revision || 0)) throw new FeedbackError(409, "This decision changed. Review its current settings before replacing it.");
     if (!existing && this.state.decisions.length >= MAX_DECISIONS) throw new FeedbackError(429, "Decision limit reached. Start a new preview session.");
+    const { expectedRevision, ...decision } = value;
     return this.change((state) => {
       const now = new Date().toISOString();
-      const changes = { ...value, state: "active", submission: 0, updatedAt: now };
+      const changes = { ...decision, state: "active", submission: 0, revision: state.revision + 1, updatedAt: now };
       if (existing) Object.assign(state.decisions.find((item) => item.id === existing.id), changes);
       else state.decisions.push({ ...changes, id: crypto.randomBytes(12).toString("hex"), createdAt: now });
     });
   }
   release(id, value) {
-    if (!ID.test(id) || !keys(value, [])) throw new FeedbackError(400, "Invalid decision release.");
+    if (!ID.test(id) || !keys(value, [], ["expectedRevision"]) ||
+        (Object.hasOwn(value, "expectedRevision") && (!Number.isSafeInteger(value.expectedRevision) || value.expectedRevision < 0))) throw new FeedbackError(400, "Invalid decision release.");
     const existing = this.state.decisions.find((item) => item.id === id);
     if (!existing) throw new FeedbackError(404, "Decision not found.");
+    if (Object.hasOwn(value, "expectedRevision") && value.expectedRevision !== (existing.revision || 0)) throw new FeedbackError(409, "This decision changed. Review its current settings before releasing it.");
     if (existing.state !== "active") throw new FeedbackError(409, "Decision is already released.");
-    return this.change((state) => Object.assign(state.decisions.find((item) => item.id === id), { state: "released", submission: 0, updatedAt: new Date().toISOString() }));
+    return this.change((state) => Object.assign(state.decisions.find((item) => item.id === id), { state: "released", submission: 0, revision: state.revision + 1, updatedAt: new Date().toISOString() }));
   }
   submit(value) {
     if (!keys(value, [], ["screen", "revision"]) || (Object.hasOwn(value, "screen") && (typeof value.screen !== "string" || !SCREEN.test(value.screen))) ||
@@ -276,20 +317,29 @@ class FeedbackStore {
     if (Object.hasOwn(value, "screen")) this.requireScreen(value.screen);
     const matches = (item) => (!Object.hasOwn(value, "screen") || item.screen === value.screen) && item.submission === 0;
     if (!this.state.comments.some(matches) && !this.state.decisions.some(matches)) throw new FeedbackError(409, "No unsent feedback to submit.");
+    if (this.state.submissions.length >= MAX_SUBMISSIONS) throw new FeedbackError(429, "Submission limit reached. Start a new preview session.");
     return this.change((state) => {
       state.submission += 1;
-      for (const comment of state.comments) if (matches(comment)) comment.submission = state.submission;
+      const batch = { submission: state.submission, revision: state.revision + 1, submittedAt: new Date().toISOString(), comments: [], decisions: [] };
+      for (const comment of state.comments) {
+        if (!matches(comment)) continue;
+        comment.submission = state.submission;
+        comment.lastSubmission = state.submission;
+        batch.comments.push(JSON.parse(JSON.stringify(comment)));
+      }
       for (const decision of state.decisions) {
         if (!matches(decision)) continue;
         decision.submission = state.submission;
         // Pending edits and releases must not alter the accepted constraints
         // delivered to the working session before this explicit batch.
         const published = JSON.parse(JSON.stringify(decision));
+        batch.decisions.push(JSON.parse(JSON.stringify(published)));
         const index = state.submittedDecisions.findIndex((item) => item.id === decision.id);
         if (index === -1) state.submittedDecisions.push(published);
         else state.submittedDecisions[index] = published;
       }
+      state.submissions.push(batch);
     });
   }
 }
-module.exports = { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_MUTATION_RECEIPTS, MAX_BODY_BYTES, MAX_STORE_BYTES, MAX_COMMENTS, MAX_DECISIONS, validCreate, validPatch, keys, ID, SCREEN, readPrivateJson };
+module.exports = { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_MUTATION_RECEIPTS, MAX_BODY_BYTES, MAX_STORE_BYTES, MAX_COMMENTS, MAX_DECISIONS, MAX_SUBMISSIONS, validCreate, validPatch, keys, ID, SCREEN, readPrivateJson };

@@ -1052,8 +1052,9 @@ function renderShellPage(nonce, accessToken, title, screen) {
           const validChoice = value.kind === "variant" && hasExactKeys(value, [...baseKeys, "variant"]) && validKey(value.variant);
           if (validPoint || validEdit || validAdjustment || validChoice) return { method: "POST", path: "/comments", body: value };
         }
-        if (data.action === "decision-keep" && hasExactKeys(value, ["screen", "variant", "target", "values", "text"]) && validScreen(value.screen) && validVariant(value.variant) && validKey(value.target) && validValues(value.values) && validText(value.text)) return { method: "POST", path: "/decisions", body: value };
-        if (data.action === "decision-release" && hasExactKeys(value, ["id"]) && validId(value.id)) return { method: "PATCH", path: "/decisions/" + value.id, body: {} };
+        const validExpectedRevision = value !== null && typeof value === "object" && (!Object.hasOwn(value, "expectedRevision") || (Number.isSafeInteger(value.expectedRevision) && value.expectedRevision >= 0));
+        if (data.action === "decision-keep" && closedKeys(value, ["screen", "variant", "target", "values", "text"], ["expectedRevision"]) && validExpectedRevision && validScreen(value.screen) && validVariant(value.variant) && validKey(value.target) && validValues(value.values) && validText(value.text)) return { method: "POST", path: "/decisions", body: value };
+        if (data.action === "decision-release" && closedKeys(value, ["id"], ["expectedRevision"]) && validExpectedRevision && validId(value.id)) return { method: "PATCH", path: "/decisions/" + value.id, body: Object.hasOwn(value, "expectedRevision") ? { expectedRevision: value.expectedRevision } : {} };
         if (data.action === "comments-submit" && closedKeys(value, ["revision"], ["screen"]) && Number.isSafeInteger(value.revision) && value.revision >= 0 && (!Object.hasOwn(value, "screen") || validScreen(value.screen))) return { method: "POST", path: "/comments/submit", body: value };
         if (data.action === "comment-delete" && hasExactKeys(value, ["id"]) && validId(value.id)) return { method: "DELETE", path: "/comments/" + value.id, body: {} };
         if (data.action === "comment-update" && closedKeys(value, ["id"], ["status", "reply", "resubmit"]) && validId(value.id) && Object.keys(value).length > 1 &&
@@ -1151,7 +1152,7 @@ function renderShellPage(nonce, accessToken, title, screen) {
           ...(operation.body === undefined ? {} : { headers: { "Content-Type": "application/json", ...(data.mutationId ? { "X-Feedback-Mutation": data.mutationId } : {}) }, body: JSON.stringify(operation.body) }),
         }).then(async (response) => {
           const result = await response.json();
-          if (!response.ok && response.status === 409 && operation.path === "/comments/submit") {
+          if (!response.ok && response.status === 409 && (operation.path === "/comments/submit" || operation.path === "/decisions" || operation.path.startsWith("/decisions/"))) {
             await withReadDeadline(pollComments);
             sendToPreview({ command: "comments-result", requestId: data.requestId, ok: false, conflict: true });
             return;
@@ -1481,6 +1482,20 @@ const server = http.createServer((req, res) => {
   if (requestUrl.pathname === "/comments" || requestUrl.pathname.startsWith("/comments/") || requestUrl.pathname === "/decisions" || requestUrl.pathname.startsWith("/decisions/")) {
     const commentId = /^\/comments\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
     const decisionId = /^\/decisions\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
+    if (req.method === "GET" && requestUrl.pathname === "/comments/submissions") {
+      try {
+        const after = requestUrl.searchParams.get("after");
+        if (!/^(0|[1-9][0-9]*)$/.test(after || "") || !Number.isSafeInteger(Number(after)) ||
+            [...requestUrl.searchParams.keys()].some((key) => !["token", "after", "waiter"].includes(key) || requestUrl.searchParams.getAll(key).length !== 1) ||
+            (requestUrl.searchParams.has("waiter") && requestUrl.searchParams.get("waiter") !== "1")) throw new FeedbackError(400, "Invalid feedback round cursor.");
+        const snapshot = feedback.nextSubmission(Number(after));
+        if (requestUrl.searchParams.get("waiter") === "1") listeningUntil = Date.now() + 2000;
+        sendJson(res, 200, snapshot);
+      } catch (error) {
+        sendJson(res, error instanceof FeedbackError ? error.status : 500, { error: error instanceof FeedbackError ? error.message : "Feedback history is unavailable." });
+      }
+      return;
+    }
     if (req.method === "GET" && requestUrl.pathname === "/comments") {
       if (requestUrl.searchParams.get("waiter") === "1") listeningUntil = Date.now() + 2000;
       sendJson(res, 200, feedbackSnapshot());

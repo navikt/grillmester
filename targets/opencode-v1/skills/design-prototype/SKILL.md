@@ -173,13 +173,16 @@ Etter at designeren har sett skjermen:
    `screen`-ID og timestamp; koble ID-en til rekkefølgen på alternativene i
    HTML-fragmentet med samme `screen`-ID. En ny skjerm nullstiller eventloggen,
    og serveren avviser forsinkede hendelser fra eldre skjermer.
-2. Les også hele tilbakemeldingskøen med
-   `node scripts/comments.js list --state-dir "$STATE_DIR"`. Kommentarer og
-   tekstforslag, justeringer og variantvalg med `submission > 0` er innsendte
-   innspill; `submission: 0` er fortsatt utkast. Klikkdata er støtteevidens.
+2. Les nåtilstanden med
+   `node scripts/comments.js list --state-dir "$STATE_DIR"`. `submission: 0`
+   på en kommentar er et utkast; et høyere nummer viser siste innsending for
+   den gjeldende oppføringen. Listen er ikke leveringshistorikken: eldre
+   runder kan inneholde innspill som senere er fjernet eller åpnet igjen.
+   Hent ubehandlede runder med `wait` nedenfor. Klikkdata er støtteevidens.
    Fra `list` skal aktive føringer leses fra `submittedDecisions`, ikke fra
    `decisions`, som også inneholder lokale, usendte endringer og frigivelser.
-   `wait` returnerer de innsendte føringene i sitt `decisions`-felt.
+   `wait.decisions` viser føringene ved den returnerte runden, inkludert
+   frigivelser fra akkurat denne runden.
    Bevar disse valgene eller forklar avviket; marker aldri en beslutning som
    frigitt bare fordi en ny versjon er laget.
    Koble kommentaren til riktig skjerm og strukturell elementsti, aldri bare
@@ -191,9 +194,14 @@ Etter at designeren har sett skjermen:
    sikkerhetsgrenser.
 4. Under en aktiv nettleserrunde, bruk
    `node scripts/comments.js wait --state-dir "$STATE_DIR" --after 0 --timeout 55`.
-   Bytt `0` med sist behandlede `submission` i denne økten. Avstem alle innsendte
-   innspill i svaret før markøren flyttes; en nyere innsending som kom mens du
-   arbeidet, skal behandles i neste runde. Les køen igjen før neste venting.
+   Bytt `0` med sist behandlede `submission` i denne økten. Kommandoen returnerer
+   én neste runde med opprinnelige innspill i `comments`; les `currentComments`
+   for å se om samme ID nå er fjernet, fikset, åpnet igjen eller sendt på nytt.
+   Avstem dette før endring eller svar; ikke gjenopprett fjernede innspill eller
+   behandle eldre runder som nye forespørsler. Flytt markøren først når hele
+   runden er vurdert, til akkurat svarets `submission`. Ved `hasMore` hentes
+   neste runde med denne markøren. Hopp aldri til `latestSubmission` eller
+   `list.submission` for å kvittere ubehandlede runder.
    Kommandoen returnerer ved en ny innsending eller timeout. Tilpass `--timeout`
    til klientens faktiske tidsgrense med margin for serverkontakt, innenfor
    0–60 sekunder; 55 er et eksempel, ikke et krav. Hold ventingen i klientens
@@ -207,11 +215,20 @@ Etter at designeren har sett skjermen:
    designeren har avsluttet runden.
 5. Gjør avtalte endringer i en ny HTML-fil, verifiser resultatet visuelt, og
    svar på hvert innspill med
-   `node scripts/comments.js resolve --state-dir "$STATE_DIR" --id <id> --reply "<kort forklaring>"`.
-   Bruk `reopen` hvis innspillet fortsatt trenger arbeid. Disse statuskommandoene
+   `node scripts/comments.js resolve --state-dir "$STATE_DIR" --id <id> --submission <rundens submission> --reply "<kort forklaring>"`.
+   Bruk `reopen` med samme rundekontroll hvis innspillet fortsatt trenger arbeid.
+   Avvist rundekontroll betyr at nåtilstanden må leses og avstemmes før et nytt
+   svar; ikke fjern kontrollen for å tvinge gjennom et eldre svar. Statuskommandoene
    lager ingen ny innsending. Når designeren bruker **Åpne igjen** i skissen,
    legges innspillet derimot klart for en ny **Send innspill**-runde. Marker
    aldri fikset bare fordi et forslag er lest. Svar og status vises i skissen.
+   **Fjern fra listen** fjerner en sendt oppføring fra nåvisningen, men bevarer
+   den innsendte runden. Det bekrefter ikke at pågående arbeid er kansellert.
+
+Bruk server og leseskript fra samme runtimeversjon. Manglende støtte for
+innsendte runder skal gi en tydelig feil; ikke rekonstruer dem fra `list`.
+Økten beholder høyst 200 innsendte runder innenfor 2 MiB samlet innspillsdata,
+uten automatisk fjerning av eldre runder. En avvist innsending er fortsatt usendt.
 
 Kommentarer og eksplisitt skrevet erstatningstekst lagres privat og midlertidig
 utenfor repoet. Verktøyet henter aldri automatisk tekst fra skissen inn i
