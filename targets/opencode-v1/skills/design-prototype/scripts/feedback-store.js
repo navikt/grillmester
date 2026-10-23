@@ -60,9 +60,10 @@ function validValues(values, emptyAllowed = true) {
     Object.entries(values).every(([id, value]) => validKey(id) && validKey(value));
 }
 function validPatch(value) {
-  return keys(value, [], ["status", "reply"]) && Object.keys(value).length > 0 &&
+  return keys(value, [], ["status", "reply", "resubmit"]) && Object.keys(value).length > 0 &&
     (!Object.hasOwn(value, "status") || ["open", "fixed"].includes(value.status)) &&
-    (!Object.hasOwn(value, "reply") || boundedText(value.reply));
+    (!Object.hasOwn(value, "reply") || boundedText(value.reply)) &&
+    (!Object.hasOwn(value, "resubmit") || (value.resubmit === true && value.status === "open"));
 }
 function assertOwned(stat) {
   if (typeof process.getuid === "function" && stat.uid !== process.getuid()) throw new Error("Feedback path is not owned by the current user.");
@@ -190,7 +191,9 @@ class FeedbackStore {
   patch(id, value) {
     if (!ID.test(id) || !validPatch(value)) throw new FeedbackError(400, "Invalid comment update.");
     if (!this.state.comments.some((item) => item.id === id)) throw new FeedbackError(404, "Comment not found.");
-    return this.change((state) => Object.assign(state.comments.find((item) => item.id === id), value, { updatedAt: new Date().toISOString() }));
+    const { resubmit, ...patch } = value;
+    return this.change((state) => Object.assign(state.comments.find((item) => item.id === id), patch,
+      ...(resubmit ? [{ submission: 0 }] : []), { updatedAt: new Date().toISOString() }));
   }
   delete(id, value) {
     if (!ID.test(id) || !keys(value, [])) throw new FeedbackError(400, "Invalid comment deletion.");
@@ -233,7 +236,9 @@ class FeedbackStore {
     return this.change((state) => Object.assign(state.decisions.find((item) => item.id === id), { state: "released", submission: 0, updatedAt: new Date().toISOString() }));
   }
   submit(value) {
-    if (!keys(value, [], ["screen"]) || (Object.hasOwn(value, "screen") && (typeof value.screen !== "string" || !SCREEN.test(value.screen)))) throw new FeedbackError(400, "Invalid submission.");
+    if (!keys(value, [], ["screen", "revision"]) || (Object.hasOwn(value, "screen") && (typeof value.screen !== "string" || !SCREEN.test(value.screen))) ||
+        (Object.hasOwn(value, "revision") && (!Number.isSafeInteger(value.revision) || value.revision < 0))) throw new FeedbackError(400, "Invalid submission.");
+    if (Object.hasOwn(value, "revision") && value.revision !== this.state.revision) throw new FeedbackError(409, "Feedback changed. Review the current feedback before submitting.");
     if (Object.hasOwn(value, "screen")) this.requireScreen(value.screen);
     const matches = (item) => (!Object.hasOwn(value, "screen") || item.screen === value.screen) && item.submission === 0;
     if (!this.state.comments.some(matches) && !this.state.decisions.some(matches)) throw new FeedbackError(409, "No unsent feedback to submit.");

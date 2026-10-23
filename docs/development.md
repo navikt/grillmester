@@ -137,6 +137,13 @@ lange norske tekster, skjema i kort og feil under innsending. Se
 Flagget `--aksel-project` kan bruke en eksisterende, samversjonert Aksel-
 installasjon til faktisk komponentrendering uten å endre kildeprosjektet.
 
+`scripts/smoke_visual_review_rounds.cjs` følger fem nye oppgaver over flere
+gjennomganger: to faner, endret retning, gjenåpnet forbehold, faktisk 200 %
+nettleserzoom og frakobling med et utkast. Se
+[flere runder med innspill](testing/visual-companion-review-rounds.md).
+Klientforutsetninger og egne akseptprøver for Copilot app, CLI og andre flater
+står i [klientmatrisen](testing/visual-companion-client-capabilities.md).
+
 Plugin-smoken skal bekrefte 8 agenter, 44 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
 minimumsklienten Copilot CLI `1.0.79` annonserer hele flaggrosteren som local-run

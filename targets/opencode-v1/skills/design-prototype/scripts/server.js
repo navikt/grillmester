@@ -919,6 +919,9 @@ function renderShellPage(nonce, accessToken, title, screen) {
     }
     #vc-paused.visible { display: grid; }
     #vc-paused strong { display: block; margin-bottom: .5rem; font-size: 1.25rem; }
+    #vc-paused p { max-width: 34rem; }
+    #vc-recover { font: inherit; padding: .65rem 1rem; margin-top: .5rem; border: 1px solid #665275; border-radius: .5rem; background: #fff; color: #27262b; cursor: pointer; }
+    #vc-recover:focus-visible { outline: 3px solid #6852ce; outline-offset: 3px; }
     #vc-status {
       position: fixed; right: 1rem; top: 1rem; z-index: 3;
       border: 1px solid #b7b1a9; border-radius: 999px; padding: .35rem .7rem;
@@ -929,8 +932,8 @@ function renderShellPage(nonce, accessToken, title, screen) {
 </head>
 <body>
   <iframe id="vc-preview" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Designskisse" src="${escapeHtml(previewPath)}"></iframe>
-  <div id="vc-paused" role="status" aria-live="polite">
-    <div><strong>Forhåndsvisningen er satt på pause</strong>Gå tilbake til chatten. Agenten kan starte en ny lokal økt hvis dere vil fortsette.</div>
+  <div id="vc-paused" role="dialog" aria-modal="true" aria-labelledby="vc-paused-title">
+    <div><strong id="vc-paused-title">Forhåndsvisningen er satt på pause</strong><p>Forbindelsen er brutt. Innspill kan ikke lagres nå. Du kan fortsatt se skissen og kopiere teksten du vil beholde. Gå tilbake til samtalen for å starte en ny økt.</p><button id="vc-recover" type="button">Se skissen og kopier utkast</button></div>
   </div>
   <div id="vc-status" role="status" aria-live="polite">Kobler til …</div>
   <script nonce="${nonce}">
@@ -940,6 +943,7 @@ function renderShellPage(nonce, accessToken, title, screen) {
       const frame = document.getElementById("vc-preview");
       const paused = document.getElementById("vc-paused");
       const status = document.getElementById("vc-status");
+      const recover = document.getElementById("vc-recover");
       const versionUrl = ${serializeForInlineScript(versionPath)};
       const eventsUrl = ${serializeForInlineScript(eventsPath)};
       const commentsUrl = ${serializeForInlineScript(commentsPath)};
@@ -952,16 +956,36 @@ function renderShellPage(nonce, accessToken, title, screen) {
       let readyEpoch = 0;
       let refreshing = false;
       let lastSuccessfulPoll = Date.now();
+      let connectionLost = false;
+      let recoveryOpen = false;
+      let polling = false;
+
+      recover.addEventListener("click", () => {
+        recoveryOpen = true;
+        paused.classList.remove("visible");
+        frame.inert = false;
+        frame.focus();
+      });
 
       function markConnected() {
         lastSuccessfulPoll = Date.now();
         paused.classList.remove("visible");
+        frame.inert = false;
+        if (connectionLost) sendToPreview({ command: "connection-restored" });
+        connectionLost = false;
+        recoveryOpen = false;
         status.textContent = "Tilkoblet";
       }
 
       function markDisconnected() {
         if (Date.now() - lastSuccessfulPoll >= 15_000) {
-          paused.classList.add("visible");
+          if (!connectionLost) {
+            sendToPreview({ command: "connection-lost" });
+            paused.classList.add("visible");
+            frame.inert = true;
+            recover.focus();
+          } else if (!recoveryOpen) paused.classList.add("visible");
+          connectionLost = true;
           status.textContent = "Pauset";
         } else {
           status.textContent = "Kobler til …";
@@ -1026,10 +1050,11 @@ function renderShellPage(nonce, accessToken, title, screen) {
         }
         if (data.action === "decision-keep" && hasExactKeys(value, ["screen", "variant", "target", "values", "text"]) && validScreen(value.screen) && validVariant(value.variant) && validKey(value.target) && validValues(value.values) && validText(value.text)) return { method: "POST", path: "/decisions", body: value };
         if (data.action === "decision-release" && hasExactKeys(value, ["id"]) && validId(value.id)) return { method: "PATCH", path: "/decisions/" + value.id, body: {} };
-        if (data.action === "comments-submit" && closedKeys(value, [], ["screen"]) && (!Object.hasOwn(value, "screen") || validScreen(value.screen))) return { method: "POST", path: "/comments/submit", body: value };
+        if (data.action === "comments-submit" && closedKeys(value, ["revision"], ["screen"]) && Number.isSafeInteger(value.revision) && value.revision >= 0 && (!Object.hasOwn(value, "screen") || validScreen(value.screen))) return { method: "POST", path: "/comments/submit", body: value };
         if (data.action === "comment-delete" && hasExactKeys(value, ["id"]) && validId(value.id)) return { method: "DELETE", path: "/comments/" + value.id, body: {} };
-        if (data.action === "comment-update" && closedKeys(value, ["id"], ["status", "reply"]) && validId(value.id) && Object.keys(value).length > 1 &&
-          (!Object.hasOwn(value, "status") || ["open", "fixed"].includes(value.status)) && (!Object.hasOwn(value, "reply") || validText(value.reply))) {
+        if (data.action === "comment-update" && closedKeys(value, ["id"], ["status", "reply", "resubmit"]) && validId(value.id) && Object.keys(value).length > 1 &&
+          (!Object.hasOwn(value, "status") || ["open", "fixed"].includes(value.status)) && (!Object.hasOwn(value, "reply") || validText(value.reply)) &&
+          (!Object.hasOwn(value, "resubmit") || (value.resubmit === true && value.status === "open"))) {
           const { id, ...body } = value;
           return { method: "PATCH", path: "/comments/" + id, body };
         }
@@ -1070,8 +1095,14 @@ function renderShellPage(nonce, accessToken, title, screen) {
         if (pendingVersion) sendToPreview({ command: "update-available", screen: pendingVersion });
         if (!feedbackBusy) refreshPreview();
       }
-      async function pollComments() {
-        const response = await fetch(commentsUrl, { credentials: "same-origin", cache: "no-store" });
+      async function withReadDeadline(read) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        try { return await read(controller.signal); }
+        finally { clearTimeout(timeout); }
+      }
+      async function pollComments(signal) {
+        const response = await fetch(commentsUrl, { credentials: "same-origin", cache: "no-store", signal });
         if (!response.ok) throw new Error("feedback unavailable");
         const snapshot = await response.json();
         acceptReady(snapshot);
@@ -1085,7 +1116,8 @@ function renderShellPage(nonce, accessToken, title, screen) {
           provisionalBusy = true;
           frameReady = false;
           const epoch = ++readyEpoch;
-          fetch(commentsUrl, { credentials: "same-origin", cache: "no-store" }).then(async (response) => {
+          withReadDeadline(async (signal) => {
+            const response = await fetch(commentsUrl, { credentials: "same-origin", cache: "no-store", signal });
             if (!response.ok) throw new Error("feedback unavailable");
             const snapshot = await response.json();
             if (epoch !== readyEpoch) return;
@@ -1115,6 +1147,11 @@ function renderShellPage(nonce, accessToken, title, screen) {
           ...(operation.body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(operation.body) }),
         }).then(async (response) => {
           const result = await response.json();
+          if (!response.ok && response.status === 409 && operation.path === "/comments/submit") {
+            await withReadDeadline(pollComments);
+            sendToPreview({ command: "comments-result", requestId: data.requestId, ok: false, conflict: true });
+            return;
+          }
           sendToPreview(response.ok ? { command: "comments-result", requestId: data.requestId, ok: true, snapshot: result }
             : { command: "comments-result", requestId: data.requestId, ok: false, error: result.error || "Feedback request failed." });
         }).catch(() => sendToPreview({ command: "comments-result", requestId: data.requestId, ok: false, error: "Feedback is unavailable. Keep your note and try again." }));
@@ -1142,14 +1179,14 @@ function renderShellPage(nonce, accessToken, title, screen) {
         }).catch(() => reportSelectionStatus("failed"));
       });
 
-      setInterval(() => {
-        fetch(versionUrl, { credentials: "same-origin", cache: "no-store" })
-          .then((response) => {
+      setInterval(async () => {
+        if (polling) return;
+        polling = true;
+        try {
+          await withReadDeadline(async (signal) => {
+            const response = await fetch(versionUrl, { credentials: "same-origin", cache: "no-store", signal });
             if (!response.ok) throw new Error("preview unavailable");
-            markConnected();
-            return response.text();
-          })
-          .then((version) => {
+            const version = await response.text();
             if (version && version !== lastVersion) {
               pendingVersion = version;
               if (frameReady) {
@@ -1157,9 +1194,11 @@ function renderShellPage(nonce, accessToken, title, screen) {
                 if (!feedbackBusy) refreshPreview();
               }
             }
-            return pollComments();
-          })
-          .catch(markDisconnected);
+            await pollComments(signal);
+            markConnected();
+          });
+        } catch { markDisconnected(); }
+        finally { polling = false; }
       }, 2000);
     })();
   </script>

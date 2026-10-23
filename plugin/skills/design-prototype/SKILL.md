@@ -81,7 +81,16 @@ last den lange referansen i en ren chat- eller Figma-flyt.
 3. Les startup-JSON fra stdout — den inneholder `url`, `screen_dir`, `state_dir`,
    `session_id` og `pid`. URL-en inneholder en tilfeldig sesjonstoken; del den
    bare med designeren som deltar i den lokale økten.
-4. Gi designeren URL raskt; for eksisterende flater først etter verifisert før/etter
+4. Kontroller at skissen kan åpnes i den lokale nettleseren, og prøv
+   innspillsforbindelsen fra den aktive klientens eget kjøreverktøy:
+   `node scripts/comments.js list --state-dir "<state_dir fra oppstarten>"`.
+   Oppstart av serveren beviser ikke at klienten kan lese den private stien og
+   kontakte loopback senere. Ved avslag, oppgi den observerte grensen og fortsett
+   med innspill i chatten; ikke svekk sandboxen eller flytt økten inn i repoet.
+5. Behold `session_id`, `state_dir` og sist behandlede `submission` samlet i
+   arbeidskonteksten. En ny serverøkt starter med `submission` 0; gjenbruk aldri
+   markøren eller state-stien fra en annen økt.
+6. Gi designeren URL raskt; for eksisterende flater først etter verifisert før/etter.
 
 ### Eksisterende flate: nåtilstand først
 
@@ -165,8 +174,11 @@ Etter at designeren har sett skjermen:
    og serveren avviser forsinkede hendelser fra eldre skjermer.
 2. Les også hele tilbakemeldingskøen med
    `node scripts/comments.js list --state-dir "$STATE_DIR"`. Kommentarer og
-   tekstforslag, justeringer og variantvalg er designerens eksplisitte innspill;
-   klikkdata er støtteevidens. Les også aktive `decisions` før neste skisse.
+   tekstforslag, justeringer og variantvalg med `submission > 0` er innsendte
+   innspill; `submission: 0` er fortsatt utkast. Klikkdata er støtteevidens.
+   Fra `list` skal aktive føringer leses fra `submittedDecisions`, ikke fra
+   `decisions`, som også inneholder lokale, usendte endringer og frigivelser.
+   `wait` returnerer de innsendte føringene i sitt `decisions`-felt.
    Bevar disse valgene eller forklar avviket; marker aldri en beslutning som
    frigitt bare fordi en ny versjon er laget.
    Koble kommentaren til riktig skjerm og strukturell elementsti, aldri bare
@@ -178,9 +190,14 @@ Etter at designeren har sett skjermen:
    sikkerhetsgrenser.
 4. Under en aktiv nettleserrunde, bruk
    `node scripts/comments.js wait --state-dir "$STATE_DIR" --after 0 --timeout 55`.
-   Bytt `0` med sist behandlede `submission`. Kommandoen returnerer ved en ny
-   innsending eller timeout. Hold den i klientens støttede foreground-/async-
-   verktøykall og les resultatet før du avslutter runden. Ikke start en løs
+   Bytt `0` med sist behandlede `submission` i denne økten. Avstem alle innsendte
+   innspill i svaret før markøren flyttes; en nyere innsending som kom mens du
+   arbeidet, skal behandles i neste runde. Les køen igjen før neste venting.
+   Kommandoen returnerer ved en ny innsending eller timeout. Tilpass `--timeout`
+   til klientens faktiske tidsgrense med margin for serverkontakt, innenfor
+   0–60 sekunder; 55 er et eksempel, ikke et krav. Hold ventingen i klientens
+   støttede foreground-/async-verktøykall,
+   og hent det ferdige resultatet før du avslutter runden. Ikke start en løs
    bakgrunnsvakt eller lov at en avsluttet chat våkner av seg selv. En avtalt,
    aktiv kommentarrunde kan fortsette med et nytt avgrenset ventekall etter
    timeout. Når du avslutter ventingen eller klienten ikke kan videreføre den:
@@ -190,8 +207,10 @@ Etter at designeren har sett skjermen:
 5. Gjør avtalte endringer i en ny HTML-fil, verifiser resultatet visuelt, og
    svar på hvert innspill med
    `node scripts/comments.js resolve --state-dir "$STATE_DIR" --id <id> --reply "<kort forklaring>"`.
-   Bruk `reopen` hvis innspillet fortsatt trenger arbeid. Marker aldri fikset
-   bare fordi et forslag er lest. Svar og status vises i skissen.
+   Bruk `reopen` hvis innspillet fortsatt trenger arbeid. Disse statuskommandoene
+   lager ingen ny innsending. Når designeren bruker **Åpne igjen** i skissen,
+   legges innspillet derimot klart for en ny **Send innspill**-runde. Marker
+   aldri fikset bare fordi et forslag er lest. Svar og status vises i skissen.
 
 Kommentarer og eksplisitt skrevet erstatningstekst lagres privat og midlertidig
 utenfor repoet. Verktøyet henter aldri automatisk tekst fra skissen inn i

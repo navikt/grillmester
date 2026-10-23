@@ -948,15 +948,15 @@ test("the fixed shell validates feedback messages and defers refresh while a not
     const callbacks = [], intervals = [], requests = [], messages = [];
     const frameWindow = { postMessage: (value) => messages.push(value) };
     const frame = { contentWindow: frameWindow, src: "unchanged" };
-    const status = { textContent: "", classList: { remove() {}, add() {} } };
+    const status = { textContent: "", classList: { remove() {}, add() {} }, addEventListener() {}, focus() {} };
     const newer = "f".repeat(32);
     const newest = "e".repeat(32);
     let pollVersion = newer;
     vm.runInNewContext(script, {
       document: { getElementById: (id) => id === "vc-preview" ? frame : status },
       window: { location: { origin: new URL(running.info.url).origin }, addEventListener: (_, callback) => callbacks.push(callback) },
-      setInterval: (callback) => intervals.push(callback), setTimeout: (callback) => callback(),
-      URL, TextEncoder, Date,
+      setInterval: (callback) => intervals.push(callback), setTimeout: (callback) => callback(), clearTimeout() {},
+      URL, TextEncoder, Date, AbortController,
       fetch: async (url, options) => { requests.push({ url: String(url), options }); return { ok: true, text: async () => pollVersion, json: async () => ({ revision: 1, submission: 0, screens: [{ screen, filename: "test.html" }, { screen: newer, filename: "test.html" }, { screen: newest, filename: "test.html" }], comments: [], listeningUntil: 0 }) }; },
     });
     const send = (data, source = frameWindow) => callbacks.forEach((callback) => callback({ data, source }));
@@ -1415,5 +1415,161 @@ test("an interrupted selection request does not stop the preview or erase feedba
     assert.equal(response.status, 200);
     assert.equal((await response.json()).comments.length, 1);
     assert.equal((await postEvent(running.info.url, { type: "click", choice: "choice-1", screen })).status, 200);
+  } finally { await stopServer(running); }
+});
+
+test("a participant reopening feedback creates a new deliberate batch without looping on replies", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const created = await (await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen))).json();
+    const id = created.comments[0].id;
+    const args = ["--state-dir", running.info.state_dir];
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: created.revision });
+    await runComments(["resolve", ...args, "--id", id, "--reply", "Checked the new wording."]);
+    const reopened = await runComments(["reopen", ...args, "--id", id]);
+    assert.equal(reopened.code, 0, reopened.stderr);
+    assert.equal(JSON.parse(reopened.stdout).comments[0].submission, 1, "a working status update must not create a new participant batch");
+    await runComments(["resolve", ...args, "--id", id]);
+    const pending = await (await feedbackRequest(running.info.url, `/comments/${id}`, "PATCH", { status: "open", resubmit: true })).json();
+    assert.equal(pending.comments[0].submission, 0);
+    assert.equal(pending.comments[0].reply, "Checked the new wording.");
+    assert.equal(Object.hasOwn(pending.comments[0], "resubmit"), false, "the command flag is not stored as comment data");
+    const beforeSend = JSON.parse((await runComments(["wait", ...args, "--after", "1", "--timeout", "0"])).stdout);
+    assert.equal(beforeSend.type, "feedback-timeout");
+    await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: pending.revision });
+    const next = JSON.parse((await runComments(["wait", ...args, "--after", "1", "--timeout", "0"])).stdout);
+    assert.equal(next.type, "feedback-submission");
+    assert.equal(next.submission, 2);
+    assert.equal(next.comments[0].id, id);
+    assert.equal(next.comments[0].status, "open");
+    assert.equal(next.comments.length, 1);
+    for (const patch of [{ resubmit: true }, { status: "fixed", resubmit: true }, { status: "open", resubmit: false }, { status: "open", submission: 0 }]) {
+      assert.equal((await feedbackRequest(running.info.url, `/comments/${id}`, "PATCH", patch)).status, 400);
+    }
+  } finally { await stopServer(running); }
+});
+
+test("a reviewed batch refuses unseen comments and changed decisions until the list is refreshed", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await workshopScreen(running);
+    const reviewed = await (await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen))).json();
+    const unseen = await (await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { text: "Added in another tab." }))).json();
+    const stale = await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: reviewed.revision });
+    assert.equal(stale.status, 409);
+    assert.match((await stale.json()).error, /Review the current feedback/);
+    const afterReject = await (await feedbackRequest(running.info.url, "/comments")).json();
+    assert.equal(afterReject.submission, 0);
+    assert.equal(afterReject.comments.length, 2);
+    assert(afterReject.comments.every((item) => item.submission === 0));
+    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: unseen.revision })).status, 200);
+    const kept = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen))).json();
+    const released = await (await feedbackRequest(running.info.url, `/decisions/${kept.decisions[0].id}`, "PATCH", {})).json();
+    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: kept.revision })).status, 409);
+    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: released.revision })).status, 200);
+    for (const revision of [-1, 1.5, "1", null, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision })).status, 400);
+    }
+  } finally { await stopServer(running); }
+});
+
+
+test("a hanging feedback poll stays bounded and permits recovery after connection loss", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const html = await (await fetch(running.info.url)).text();
+    const script = html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)[1];
+    const vm = require("node:vm");
+    let now = 0, nextTimer = 0, mode = "healthy", pendingReads = 0, maxPendingReads = 0, abortedReads = 0;
+    const timers = new Map(), messages = [], callbacks = new Map();
+    function element(id) {
+      const classes = new Set();
+      return {
+        textContent: "", inert: false, src: "unchanged",
+        classList: { add: (name) => classes.add(name), remove: (name) => classes.delete(name), contains: (name) => classes.has(name) },
+        addEventListener: (event, callback) => callbacks.set(`${id}:${event}`, callback),
+        focus() { focused = id; },
+      };
+    }
+    let focused = null;
+    const frame = element("vc-preview"), paused = element("vc-paused"), status = element("vc-status"), recover = element("vc-recover");
+    frame.contentWindow = { postMessage: (message) => messages.push({ ...message, at: now }) };
+    const elements = { "vc-preview": frame, "vc-paused": paused, "vc-status": status, "vc-recover": recover };
+    function schedule(callback, delay, repeat = false) {
+      const id = ++nextTimer;
+      timers.set(id, { callback, at: now + delay, delay, repeat });
+      return id;
+    }
+    async function advance(milliseconds) {
+      const end = now + milliseconds;
+      for (;;) {
+        const next = [...timers.entries()].filter(([, timer]) => timer.at <= end).sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0];
+        if (!next) break;
+        const [id, timer] = next;
+        now = timer.at;
+        if (timer.repeat) timer.at += timer.delay;
+        else timers.delete(id);
+        timer.callback();
+        await new Promise(setImmediate);
+      }
+      now = end;
+      await new Promise(setImmediate);
+    }
+    vm.runInNewContext(script, {
+      document: { getElementById: (id) => elements[id] },
+      window: { location: { origin: new URL(running.info.url).origin }, addEventListener() {} },
+      setTimeout: (callback, delay) => schedule(callback, delay), clearTimeout: (id) => timers.delete(id),
+      setInterval: (callback, delay) => schedule(callback, delay, true), clearInterval: (id) => timers.delete(id),
+      URL, TextEncoder, AbortController, Date: { now: () => now },
+      fetch: async (url, options = {}) => {
+        if (new URL(url, running.info.url).pathname !== "/comments") return { ok: true, text: async () => screen };
+        if (mode === "healthy") return { ok: true, json: async () => ({ revision: 0, submission: 0, screens: [{ screen, filename: "test.html" }], comments: [], decisions: [], submittedDecisions: [] }) };
+        // Headers arrive, but the response body never completes. The deadline
+        // must cover reading the body, not only obtaining a Response object.
+        return { ok: true, json: () => new Promise((resolve, reject) => {
+          pendingReads += 1;
+          maxPendingReads = Math.max(maxPendingReads, pendingReads);
+          const abort = () => {
+            pendingReads -= 1;
+            abortedReads += 1;
+            reject(Object.assign(new Error("Read aborted"), { name: "AbortError" }));
+          };
+          if (options.signal?.aborted) abort();
+          else options.signal?.addEventListener("abort", abort, { once: true });
+        }) };
+      },
+    });
+    await advance(2000);
+    assert.equal(status.textContent, "Tilkoblet");
+    const lastCompletePoll = now;
+    mode = "hanging";
+    await advance(14000);
+    assert.equal(messages.filter((message) => message.command === "connection-lost").length, 0, "short interruptions should not show the recovery dialog");
+    await advance(12000);
+    const disconnected = messages.filter((message) => message.command === "connection-lost");
+    assert.equal(disconnected.length, 1, "a response body that never finishes must be detected as connection loss");
+    assert(disconnected[0].at - lastCompletePoll >= 15000);
+    assert.equal(maxPendingReads, 1, "periodic polls must not accumulate while a previous read is pending");
+    assert(abortedReads > 0, "the blocked response body must be aborted");
+    assert.equal(status.textContent, "Pauset");
+    assert.equal(paused.classList.contains("visible"), true);
+    assert.equal(frame.inert, true);
+    assert.equal(focused, "vc-recover");
+    callbacks.get("vc-recover:click")();
+    assert.equal(paused.classList.contains("visible"), false);
+    assert.equal(frame.inert, false);
+    assert.equal(focused, "vc-preview");
+    await advance(6000);
+    assert.equal(paused.classList.contains("visible"), false, "copying the surviving draft must not be interrupted by repeated failures");
+    mode = "healthy";
+    await advance(8000);
+    assert.equal(pendingReads, 0);
+    assert.equal(status.textContent, "Tilkoblet");
+    assert.equal(messages.filter((message) => message.command === "connection-restored").length, 1);
+    assert.equal(paused.classList.contains("visible"), false);
+    assert.equal(frame.inert, false);
+    assert.equal(frame.src, "unchanged", "recovery must preserve the loaded preview rather than reload its drafts");
   } finally { await stopServer(running); }
 });

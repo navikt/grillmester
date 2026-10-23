@@ -156,6 +156,7 @@
   let submitting = false;
   let sentCount = 0;
   let layoutPending = false;
+  let connectionLost = false;
   let addedTabStops = [];
   let originalTouchAction = document.documentElement.style.touchAction;
   const requests = new Map();
@@ -211,6 +212,7 @@
     scheduleLayout();
   }
   function request(action, payload) {
+    if (connectionLost && action !== "comments-list") return Promise.reject(new Error("Økten er frakoblet. Kopier utkastet før du starter en ny økt."));
     const requestId = ++requestCounter;
     return new Promise((resolve, reject) => {
       const timer = window.setTimeout(() => {
@@ -546,13 +548,13 @@
   }
   function renderFooter() {
     const count = pendingComments().length;
-    const live = Date.now() < (snapshot.listeningUntil || 0);
+    const live = !connectionLost && Date.now() < (snapshot.listeningUntil || 0);
     el(".pending").textContent = count ? `${count} innspill ${count === 1 ? "klart" : "klare"} til sending` : sentCount ? `${sentCount} innspill sendt` : "Ingen nye innspill";
-    el(".send").disabled = !count || submitting;
+    el(".send").disabled = !count || submitting || connectionLost;
     el(".send").textContent = count ? `Send ${count} innspill` : "Send innspill";
-    el(".connection").textContent = live ? "Følger med" : "Lagres lokalt";
+    el(".connection").textContent = connectionLost ? "Frakoblet" : live ? "Følger med" : "Lagres lokalt";
     el(".connection").classList.toggle("live", live);
-    const status = live ? "Innspillene hentes når du sender." : "Skriv «se innspillene» i samtalen når du har sendt.";
+    const status = connectionLost ? "Innspill kan ikke lagres nå. Kopier teksten du vil beholde før du starter en ny økt." : live ? "Innspillene hentes når du sender." : "Skriv «se innspillene» i samtalen når du har sendt.";
     if (el(".foot-status").textContent !== status) el(".foot-status").textContent = status;
     updateBusy();
   }
@@ -569,7 +571,11 @@
     errorAt(".panel-error", "");
     try {
       if (action === "delete") await request("comment-delete", { id: item.id });
-      else await request("comment-update", { id: item.id, status: item.status === "fixed" ? "open" : "fixed" });
+      else {
+        const reopening = item.status === "fixed";
+        await request("comment-update", { id: item.id, status: reopening ? "open" : "fixed", ...(reopening ? { resubmit: true } : {}) });
+        if (reopening) announce("Innspillet er åpnet igjen. Send innspill for å ta det opp i neste runde.");
+      }
     } catch (error) { errorAt(".panel-error", error.message); }
   }
   function locate(item, focus = false) {
@@ -638,7 +644,7 @@
       const count = pendingComments().length;
       target.disabled = true;
       errorAt(".panel-error", "");
-      request("comments-submit", {}).then(() => {
+      request("comments-submit", { revision: snapshot.revision }).then(() => {
         sentCount = count;
         announce("Innspillene er sendt. Skriv «se innspillene» i samtalen hvis ingen følger med.");
       }).catch((error) => errorAt(".panel-error", error.message)).finally(() => { submitting = false; renderFooter(); });
@@ -754,6 +760,12 @@
     if (message.source !== parent || !message.data) return;
     const data = message.data;
     if (data.channel !== channel || data.version !== 1) return;
+    if (data.command === "connection-lost" || data.command === "connection-restored") {
+      connectionLost = data.command === "connection-lost";
+      renderFooter();
+      announce(connectionLost ? "Forbindelsen er brutt. Utkast kan kopieres, men ikke lagres nå." : "Forbindelsen er tilbake.");
+      return;
+    }
     if (data.command === "refreshing") {
       document.getElementById("refresh-indicator")?.classList.add("visible");
       return;
@@ -774,7 +786,7 @@
       if (data.snapshot) applySnapshot(data.snapshot);
       updateBusy();
       if (data.ok) pending.resolve(data.snapshot);
-      else pending.reject(new Error("Kunne ikke lagre innspillet. Behold utkastet og prøv igjen."));
+      else pending.reject(new Error(data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt." : "Kunne ikke lagre innspillet. Behold utkastet og prøv igjen."));
       return;
     }
     if (data.command !== "selection-status" || data.screen !== screen || !pendingEvent || data.type !== pendingEvent.type || data.choice !== pendingEvent.choice || (data.status !== "saved" && data.status !== "failed")) return;

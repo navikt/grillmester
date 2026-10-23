@@ -210,7 +210,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             "Valgfritt: automatisk oppdatering i Copilot CLI",
             '"enabledPlugins"',
             '"marketplace"',
-            "velge **Update** under\n**Settings → Plugins**",
+            "velge **Update** under\n**Customize → Plugins**",
             ".github/copilot/settings.json",
             "strictKnownMarketplaces",
             "scripts/configure_autoupdate.py",
