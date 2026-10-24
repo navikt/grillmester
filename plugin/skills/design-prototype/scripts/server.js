@@ -25,7 +25,7 @@ const { CanvasState } = require("./canvas-state.js");
 const { WorkspaceStore } = require("./workspace-store.js");
 const { WorkspaceState, validWorkspaceState } = require("./workspace-state.js");
 const { validDesign, MAX_DESIGN_BYTES } = require("./design-contract.js");
-const { validateEditorBindings } = require("./editor-bindings.js");
+const { validateEditorBindings, editorBindingErrorMessage } = require("./editor-bindings.js");
 
 const MAX_CONTENT_BYTES = 2 * 1024 * 1024;
 const MAX_INLINE_IMAGE_URL_BYTES = MAX_CONTENT_BYTES;
@@ -76,6 +76,7 @@ function assertKnownArgs() {
     "--workspace-dir",
     "--workspace-create",
     "--workspace-title",
+    "--style-project-path",
   ]);
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -286,6 +287,12 @@ const projectDir = canonicalProjectDirectory(
 const workspacePath = getArg("workspace-dir", null);
 const workspaceCreate = getArg("workspace-create", "false");
 const workspaceTitle = getArg("workspace-title", null);
+const styleProjectPath = getArg("style-project-path", "");
+if (styleProjectPath && (Buffer.byteLength(styleProjectPath) > 240 || styleProjectPath.split("/").length > 8
+    || styleProjectPath.split("/").some(part => !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(part)
+      || /^(?:node_modules|__pycache__|con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(part)))) {
+  failCli("--style-project-path must be a bounded project-relative directory.");
+}
 if (!["true", "false"].includes(workspaceCreate) || (workspacePath && !canvasMode) ||
     (!workspacePath && (args.includes("--workspace-create") || workspaceTitle)) || (workspaceTitle && workspaceCreate !== "true")) {
   failCli("Project workspaces require a bound canvas and an explicit workspace directory.");
@@ -470,15 +477,34 @@ const workshopJs = readRegularFile(
 const editorJs = readRegularFile(path.join(scriptsDir, "editor.js"), scriptsDir, 128 * 1024);
 
 function loadAkselCss() {
+  const styleDirectory = path.join(projectDir, styleProjectPath);
   const candidates = [
-    path.join(projectDir, "node_modules/@navikt/ds-css/dist/index.min.css"),
-    path.join(projectDir, "node_modules/@navikt/ds-css/dist/index.css"),
+    path.join(styleDirectory, "node_modules/@navikt/ds-css/dist/index.min.css"),
+    path.join(styleDirectory, "node_modules/@navikt/ds-css/dist/index.css"),
   ];
   const failures = [];
-  for (const candidate of candidates) {
+  let allowedDirectory = true;
+  if (fs.existsSync(styleDirectory)) {
+    try {
+      const resolved = fs.realpathSync(styleDirectory);
+      if (!isPathInside(projectDir, resolved) || !fs.statSync(resolved).isDirectory()) throw new Error("Style project is outside the session project or is not a directory.");
+    } catch (error) { failures.push(error.message); allowedDirectory = false; }
+  }
+  for (const candidate of allowedDirectory ? candidates : []) {
     if (!fs.existsSync(candidate)) continue;
     try {
-      return readRegularFile(candidate, projectDir, MAX_CSS_BYTES);
+      const bytes = readRegularFile(candidate, projectDir, MAX_CSS_BYTES, true);
+      const css = bytes.toString("utf8");
+      if (!css.trim()) throw new Error("Aksel CSS is empty.");
+      let version = null;
+      try {
+        const metadata = JSON.parse(readRegularFile(path.join(styleDirectory, "node_modules/@navikt/ds-css/package.json"), projectDir, 64 * 1024));
+        if (metadata.name === "@navikt/ds-css" && typeof metadata.version === "string"
+            && /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?(?:\+[A-Za-z0-9.-]+)?$/.test(metadata.version)
+            && metadata.version.length <= 100) version = metadata.version;
+      } catch { /* CSS can be verified even when package version metadata is unavailable. */ }
+      return { css, receipt: { styleProjectPath, status: "loaded", source: path.relative(projectDir, candidate).split(path.sep).join("/"),
+        version, sha256: crypto.createHash("sha256").update(bytes).digest("hex") } };
     } catch (error) {
       failures.push(error.message);
     }
@@ -491,10 +517,11 @@ function loadAkselCss() {
         : "Aksel CSS is unavailable. Preview continues with fallback styles; do not install dependencies without explicit approval.",
     }),
   );
-  return null;
+  return { css: null, receipt: { styleProjectPath, status: "fallback", source: null, version: null, sha256: null,
+    reason: failures.length ? "rejected" : "missing" } };
 }
 
-const akselCss = loadAkselCss();
+const { css: akselCss, receipt: styleReceipt } = loadAkselCss();
 
 function escapeHtml(value) {
   return String(value)
@@ -1771,7 +1798,7 @@ function canvasEvent(value) {
 function canvasReadState() {
   const newest = newestContent();
   activateScreen(newest);
-  return { ...canvasState.summary(), screen: newest?.screen || "", filename: newest?.filename || "",
+  return { ...canvasState.summary(), screen: newest?.screen || "", filename: newest?.filename || "", styles: styleReceipt,
     ...(workspaceState ? { workspace: workspaceState.summary() } : {}) };
 }
 function publishCanvasRevision(input) {
@@ -1864,7 +1891,7 @@ if (canvasMode) {
       } catch (error) {
         canvasEvent({ id: message.id, ok: false, status: requestErrorStatus(error),
           error: error instanceof FeedbackError ? error.message : error.errorCode === "invalid-editor-bindings"
-            ? "Editable fields need unique, well-formed HTML bindings." : "Canvas state is unavailable." });
+            ? editorBindingErrorMessage(error) : "Canvas state is unavailable." });
       }
     });
   });

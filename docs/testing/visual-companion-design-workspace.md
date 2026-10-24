@@ -13,15 +13,28 @@ disposable projects, existing Chrome and Aksel React/CSS 8.19.2 through SSR.
 The browser and SDK hosts were simulated. The separate native app trial below
 uses the real application and is reported independently.
 
+The expanded Lumi and Dialogmøte frontend trial has completed its assisted
+functional rounds. It has
+verified saved-field preservation, deliberate owner recovery, a question-only
+round and historical source restoration with rendered readback. All six rounds
+have saved replies. Closure comparison, original-source audit and cleanup are
+verified. Narrow-panel visual polish, concept selection and a human pilot remain
+uncompleted; final CI verification is pending.
+
 ## Verified behavior
 
 | Layer | Result | Scope |
 | --- | --- | --- |
-| Node regression suites | 135/135 passed | Server, feedback, canvas, workspace files/state, editor bindings, adapter, runtime selection and child backend. |
-| Workspace file tests, included above | 17/17 passed | Reopen, immutable files, corruption rejection, exact capacity boundary, post-rename failure, eight concurrent processes, killed writer, distinct temporary environments and macOS case aliases. |
-| Installed SDK with deterministic stdio host | 14/14 passed | Actual protocol and local child backend: session binding, explicit Send, unknown receipt, isolation, URL revocation, single writer, restart without replay and guarded history restore. |
-| Packaged app runtime with deterministic stdio host | 14/14 passed | The same checks through the app's existing packaged executable and effective extension bootstrap, with isolated configuration and no model calls. |
+| Node regression suites after restoration-message correction | 149/149 passed | Server, feedback, canvas, workspace files/state, editor bindings, adapter, runtime selection, styles and child backend, including distinct preserved-field versus stale-history guidance. The corrected helper is not loaded in the native fixture. |
+| Full Python suite on the final source payload | 823/823 passed | Complete rerun after the helper and reference follow-ups, with all 243 captured source/test/manifest hashes unchanged. The native fixture still uses its earlier loaded payload. |
+| Retained workspace file baseline | 17/17 passed | Reopen, immutable files, corruption rejection, exact capacity boundary, post-rename failure, eight concurrent processes, killed writer, distinct temporary environments and macOS case aliases. |
+| Targeted adapter checks after conditional-publication correction | 20/20 passed | Stubbed session binding, lifecycle, action routing and explicit delivery. These checks do not establish how a model handles a confirmation-only round. |
+| Installed SDK with deterministic stdio host after schema-registration follow-up | 16/16 passed | Ordinary Node 24.18.0; actual protocol and local child backend, including bounded registered style-subproject schema, exact CSS binding, safe diagnostics, delivery, isolation and recovery. Excludes native schema validation and provider reload lifecycle. |
+| Retained packaged app runtime baseline with deterministic stdio host | 14/14 passed | The earlier protocol checks through the app's existing packaged executable and effective extension bootstrap, with isolated configuration and no model calls. This run predates the conditional-publication and monorepo styling changes. |
+| Earlier native app 1.1.31 trial with synthetic sketches | Interaction, recovery and corrected confirmation round passed | Full-plugin discovery, two saved rooms, manual source editing, idle and busy delivery, replies in the correct rooms, explicit same-instance reopen and recovery after ending the owning session. An initial no-change round failed and was corrected and retested below. |
+| Expanded native frontend trial | Assisted functional rounds completed | Real-source Lumi and Dialogmøte copies, twelve verified source pairs and six answered rounds, with separate artifact audits and operator-observed rendering. Narrow-panel polish and concept selection remain; this is not a completed design acceptance or human pilot. |
 | Integrated Chrome cases | 13/13 verified across retained reports | Feedback, history, recovery, bounded editing, keyboard/mobile operation, conflicts, lost receipts and refresh locks. |
+| Isolated Chrome description-list DOM checks | 2/2 passed | Synthetic `dl > div > dt` and `dl > div > dd` bindings preserve the intended target, literal text and compact setting. These are separate from native acceptance. |
 | Independent disconnect case | 1/1 passed | After acknowledged source saving and a connection loss, the old frame restores its old source before accepting further feedback. |
 
 The Chrome result is a combined result, not one uninterrupted 13/13 run. The
@@ -44,12 +57,12 @@ nothing. The tested feedback history retains keyboard focus and distinguishes
 queued, working, answered and previous-session rounds. These are focused
 checks; there was no new screen-reader or actual 200% zoom test in this phase.
 
-The SDK run used protocol 3 and SDK entry SHA-256
+The SDK runs used protocol 3 and SDK entry SHA-256
 `a8faeb5d4c8379ce6d8473c86e001fc4e2cd5d260e064d4c622f72c35102871d`.
 It proves wire behavior against installed SDK files, not native rendering,
 idle/busy scheduling or discovery through the app's plugin catalog.
 
-## Native app startup
+## Native app acceptance
 
 The real app trial used version 1.1.31 and a temporary local marketplace with
 the complete plugin. The active Designer discovered `design-workspace` from
@@ -65,7 +78,139 @@ produces an actionable opening error before writing a room. The regression
 suite includes seven runtime-selection cases, and the additional SDK run uses
 the actual packaged executable and its effective bootstrap. Its 14 passing
 checks establish this startup path independently of a native model session.
-They do not replace the remaining native interaction gates below.
+
+The corrected native trial used Node 24.18.0 and the Designer role. Two
+distinct saved rooms opened through the complete plugin in one disposable
+local project. Both rendered their first sketch. In Møteplan, the source editor
+saved the heading **Min møteplan** and the **Kompakt** density as version 2.
+Reopening the small editor showed both values and their preserved-field labels.
+Saving these edits started no conversation work.
+
+Sending the first Møteplan round while the conversation was idle started work
+automatically. Sending the Pakkeliste round while the native conversation
+visibly showed **Working** produced one queued message. Both rounds subsequently
+received replies in their respective canvases without a separate chat prompt.
+Møteplan reached version 3 with its requested paragraph, edited heading and
+compact density; Pakkeliste reached version 2 with its own requested paragraph.
+An independent read-only file audit verified all five registered HTML/descriptor
+pairs and exactly one submitted round and one answered review in each room.
+
+Closing Møteplan revoked its old preview transport. The host menu
+**Add tab → Canvas → Designverksted** opened a new temporary blank sketch,
+rather than the existing instance. The original tool card still contained the
+revoked link. A subsequent explicit chat request to reopen the same instance
+succeeded with a fresh transport and retained version 3, its answered feedback
+and both preserved fields. Reopening the existing instance without a model
+request therefore remains unverified through the tested host menu; this result
+does not establish an adapter reopen failure.
+
+After `/clear`, the owning extension and both room backends were confirmed
+stopped. A new Designer session in the same exact project opened the existing
+Møteplan room without creating it again. The recovered canvas rendered version
+3 with **Min møteplan** and the requested paragraph. State readback retained
+both preserved fields, and the old answered round was visibly marked as an
+answer from a previous conversation.
+
+The next explicit round reached the new owner, but exposed an instruction
+conflict. Its note requested only confirmation and explicitly said that no new
+sketch version was needed. The delivery prompt and canonical reference still
+directed publication for every round. The Designer response cited that conflict
+and published version 4 anyway. The completed round and an independent file
+comparison confirmed that both its HTML and descriptor were byte-for-byte
+identical to version 3. This failed the no-new-version criterion despite
+successful delivery to the recovered conversation.
+
+The delivery prompt and reference now require a new revision only when the
+requested source actually changes. After the targeted adapter and SDK checks
+passed, the corrected payload was loaded, the owning session was ended and
+the existing room was recovered again. The same confirmation-only note was
+submitted as round 3. Its delivered message visibly contained the conditional
+publication instruction. The canvas showed the round as answered with a saved
+comment reply, while the source stayed at version 4. The comment correctly
+remained open: this was a confirmation, not a claim that a source issue was
+fixed.
+
+The final independent snapshot verified all 14 room files and six source pairs.
+Møteplan's four source pairs, screen identity and both preserved fields were
+unchanged from before the corrected round. Earlier submitted snapshots,
+comments and replies were unchanged; older rounds acquired only the expected
+previous-session attribution. The new round, its comment and reply, and the
+associated state counters were added. The entire Pakkeliste room remained
+byte-for-byte identical to both earlier baselines. The failed round and its
+extra identical version remain in the evidence.
+
+Cleanup was verified at 2026-10-24 06:20 UTC. The temporary live plugin was
+disabled and its marketplace registration removed, while the normal
+Grillmester 0.7.1 installation was re-enabled. The CLI inventory confirmed the
+normal installation and marketplaces, with the existing disabled built-in
+unchanged; the native plugin detail also showed the normal installation enabled.
+After `/clear`, the session was idle and the test-owned extension, preview
+backend and listener were gone. The temporary wake hold was stopped. No
+repository trust was granted; access used individual approvals. Password,
+global power and existing sleep-prevention app settings were unchanged. Saved
+test artifacts were retained as evidence.
+
+The native marketplace-management and canvas lists retained stale trial
+entries. Attempting the scoped removal there reported that the marketplace
+was not registered, consistent with the authoritative CLI inventory. The whole
+app was not restarted and unrelated sessions were left intact. These cached
+entries remain a host UI limitation rather than evidence of an active trial
+registration.
+
+## Expanded frontend trial — bounded technical results
+
+Disposable copies of Lumi and Dialogmøte were rendered with their existing mock
+data before design work. The native app remained at 1.1.31, using the Designer
+role and Node 24.18.0. Original repositories were not write targets. The final
+audit found all 1,057 copied Lumi files and 267 copied Dialogmøte files unchanged
+in their original locations. This covers the manifest-listed regular files,
+not added, omitted, untracked or dependency paths.
+
+| Case | Observed result and remaining boundary |
+| --- | --- |
+| Lumi concepts and fidelity | Both concepts retain all ten normal task rows, counts, rates and 95% intervals. V3 corrected the phrase, six-marker description and theme-overlap wording; ambiguous theme percentages and the unthemed count were omitted rather than recomputed. V6 corrected cross-concept wording and moved a zone label without moving markers, but static audit and the Designer independently found an unintended “30–100”→“30–30” method change. V7 corrects only that number. The final reply and native narrow-panel inspection disclose a separate marker 5/zone-label overlap and close label placement; marker 6 is fixed. Choosing one concept was deliberately not exercised. |
+| Saved edits and question-only reply | The edited heading and compact density survived v2→v3 with both preservation records intact. A question-only round was answered at v2 without changing either source pair; its comment correctly remained open. |
+| Owner recovery and styles | After deliberate `/clear`, the same Lumi room recovered with all five files byte-identical, including its unsent note and preserved values; recovery did not send the note. An explicit subproject style context loaded the exact CSS file. Opening succeeded after the completed fixture update and a subsequent owner clear; no cache defect was established. |
+| Lumi finite states | The test operator checked both concepts' Normal, Få svar and Ingen treff states and both resets in Chrome against the actual published preview. The Designer read and captured that preview but could not automate its iframe clicks, so the click evidence is operator-assisted. |
+| Preservation conflicts and history | Restore was rejected while preservation records remained, including after releasing only the heading. After both explicit releases, v1 restored as v4 and polished v3 as v5. Each new HTML/descriptor pair exactly matches its chosen source; all older pairs, comments, submitted snapshots and replies are unchanged. The operator verified the old v4 appearance and the polished v5 heading/compact setting in the actual iframe accessibility tree. Intermediate release states have UI evidence only. Conflict messages misleadingly referred to stale history; the correction passed local tests but is not loaded in this fixture. |
+| Dialogmøte editing and iteration | A stale v2 editor rejected Save after another tab saved compact density as v3, retained the typed draft, and required explicit discard. Published v4 preserves the heading and density. Its 15 buttons have declared bindings, three readonly examples have matching counters, and four links have local targets. Twelve of thirteen original letter values remain; the requested dead mock video URL was removed. |
+| Dialogmøte queues and response states | Round 1 remained bound to v2 and queued round 2 to v3 after v4 publication; both received separate saved replies. Confirmation round 2 added no version. The proposed fixed-status write was declined; keeping the comment open required operator guidance. Round 3 published v5 to correct receipt/error precedence, combined-state labels and the disabled error-link target. All 28 combinations passed both static analysis and actual operator UI checks. The error link focuses its legend; the embedded receipt→send-error flow retains the reason and hides the receipt. The saved final reply distinguishes the Designer's own check from operator coverage. Descriptor values, letter content, holds and previous rounds are unchanged. |
+
+Final file snapshots contain seven Lumi pairs and five Dialogmøte pairs, with
+three answered rounds in each room. Answering the last rounds changed only
+their comment/review records and state counters; all source pairs, preservation
+records, submitted snapshots and earlier replies stayed unchanged. Afterward,
+a queued Dialogmøte notification prompted a proposed rewrite of an already
+answered round. The operator declined that redundant write before ending the
+owner. No extra version was created; autonomous duplicate handling is not
+established. After both owners were cleared, all 26 room files were byte-for-byte
+identical to these answered snapshots: no redundant reply rewrite persisted.
+
+Expanded-trial cleanup was verified separately. Both native sessions reached
+Idle, owned preview tabs and six trial Chrome tabs were closed, and the frontend
+servers and all four trial listeners were gone. The temporary plugin was
+disabled and its marketplace removed; the authoritative inventory showed the
+normal Grillmester 0.7.1 enabled and the existing browser component disabled.
+The native installed-plugin view agreed. The temporary wake hold was stopped.
+The canvas list may retain a cached entry; it was not activated or treated as
+an active registration. No persistent repository trust was granted, and saved
+evidence was retained.
+
+Both initial designs encountered binding rejections before corrected publication;
+these failed attempts remain in the evidence. The Dialogmøte iteration later
+needed explicit test-operator guidance to stop private preview CSS debugging
+and publish through the actual canvas. Lumi also needed guidance when its first
+owner misread deliberate manual edits and when native click verification could
+not proceed. These are assisted workflow results, not autonomous completion.
+The Dialogmøte owner did independently notice the later manual v3 edit and
+request fresh state before publishing.
+
+New reference guidance describes finite response/receipt combinations, error
+precedence and combined-state labels. That guidance is locally validated but
+has not been loaded into this running native fixture. It does not retroactively
+turn the observed prototype failures into passes. No product source changes,
+real response submission or human usability validation are established by these
+finite demonstrations.
 
 ## Reading an implementation handoff
 
@@ -106,6 +251,10 @@ The required `smoke_plugin_install.py` returned exit 1: its copied
 `installed-plugins/.../plugin.json` expectation was absent with this client's
 live-directory behavior. The separate registration probe does not turn that
 release gate green. Its contract and tested baseline were not changed.
+A later isolated rerun first stopped for a missing `--source-sha` argument;
+with an explicit valid SHA, it reached installation and stopped on the same
+missing copied-manifest expectation. The version-gated checks below also
+stopped before running scenarios on that payload.
 
 | Required gate | Result and boundary |
 | --- | --- |
@@ -114,12 +263,82 @@ release gate green. Its contract and tested baseline were not changed.
 | `smoke_grillmester_local.py --require-binaries --cplt cplt --opencode opencode --copilot copilot` | Exit 1 before all four scenarios: also requires Copilot 1.0.80 and cplt 2026.08.17-062831-1008a92; observed 1.0.91 and 2026.09.15-143904-77f4321. |
 
 No client installation, version change, account change or baseline relaxation
-was used. All 823 Python regression tests passed after regenerating the final
-payload. The earlier attempt reported seven failures and two errors caused by
-a late source change leaving its generated files and content digests stale.
-After the final wording clarified that Figma delivery is optional, all four
-affected role, package and content-digest checks passed again, as did every
-generated-target check and package validation. Runtime files were unchanged.
+was used. Earlier retained full-suite results were 135/135 Node and 823/823
+Python; those logs do not identify an exact source commit. An earlier Python
+attempt reported seven failures and two errors caused by a late source change
+leaving generated files and content digests stale. Regeneration resolved that
+mismatch. A subsequent wording change clarifying that Figma delivery is
+optional passed the four affected role, package and content-digest checks.
+
+The conditional-publication correction first passed 20/20 targeted adapter
+tests, 14/14 installed-SDK checks under ordinary Node, two checks of current
+content hashes and the existing rights-approval decision reference, all four
+generated-target checks and package validation. Its confirmation-only behavior
+was established separately by the native round described above.
+
+The later working-tree payload containing monorepo styling and
+conditional-publication changes passed the full 145-test Node suite and
+823-test Python suite, plus 13 deterministic validation commands. Those commands
+covered marketplace and generated-target checks, Python compilation, package
+validation, JavaScript syntax and diff whitespace. The installed-SDK run passed
+15 checks, adding explicit style-subproject resolution, exact CSS delivery and
+reopen binding.
+
+A subsequent prompt-only follow-up passed five focused Python tests: three
+Designer content contracts covering degraded delivery, tool coverage and the
+implementation boundary, plus the two existing rights-journal checks. Its
+seven deterministic commands checked the marketplace, four generated targets,
+package validation and diff whitespace. That report records the full runtime
+baseline and unchanged hashes for its listed implementation, reference and test
+files. These are distinct validation stages; the full suites were not rerun for
+the prompt-only follow-up.
+
+The binding-diagnostics and description-list grouping change then passed the
+full 148-test Node suite, 16 installed-SDK checks, two focused rights-journal
+checks and ten deterministic validation commands. Two isolated Chrome cases
+checked DOM behavior for editable text inside `dl > div > dt` and
+`dl > div > dd`. The SDK addition verifies safe diagnostics across the wire and
+that a rejected binding followed by a corrected grouped description list creates
+only one revision. These checks do not establish native rendering or model
+behavior.
+
+The subsequent browser-capability and manual-edit guidance changes each passed
+five focused Python tests and seven deterministic checks. A later SDK run kept
+16 checks and strengthened inspection of the actual registered optional
+`styleProjectPath` schema. Eight deterministic checks passed. This harness does
+not reproduce native schema validation or provider reload behavior.
+
+The full Python suite was then rerun: 823 tests passed, with all nine captured
+source and manifest hashes unchanged through the run. Subsequent reference-only
+follow-ups for finite response flows and error precedence each passed five
+focused Python tests and seven deterministic checks; eleven listed runtime and
+test hashes remained unchanged. Their retained baselines are 148 Node tests,
+16 SDK checks and the latest full 823-test Python run. Those full suites were
+not rerun for the reference-only changes, and their new wording is not validated
+by the running native fixture.
+
+The subsequent helper correction distinguishes a preserved-field restore
+conflict from stale history without changing rejection guards, persistence or
+SDK behavior. It passed the full 149-test Node suite, five focused Python tests
+and eight deterministic checks. The new helper behavior test covers both
+messages, unknown errors, unchanged versions, no false success or duplicate
+retry, and no raw server-detail disclosure. At that stage, full Python and SDK
+results were preceding baselines; neither was rerun for that correction. It is not
+loaded in the native fixture. Rights checks preserve existing decision records
+and do not constitute a new legal or licensing review.
+
+A final reference-only follow-up permits inspection of the already-observed
+preview in an existing browser canvas while retaining feedback and revision
+actions in the owner. It passed five focused Python tests and seven
+deterministic checks with twelve runtime/test hashes unchanged from the
+149-test Node baseline. This wording is also not loaded in the native fixture.
+
+The final source payload then passed the full 823-test Python suite with all
+243 captured source, test and manifest hashes unchanged. A sandboxed attempt
+had local access failures; the same suite passed outside the sandbox without
+code changes. Required compilation, server/helper syntax and whitespace checks
+also passed. The 149-test Node and 16-check SDK runs remain their distinct
+preceding evidence; they were not repeated for this final Python run.
 
 ## Reproduce and evidence
 
@@ -150,15 +369,69 @@ independent disconnect case. File tests are in
 `/tmp/grillmester-durable-workspace/workspace-store-tests.log`. Exact release
 commands, exits and observed registration JSON are under
 `/tmp/grillmester-design-room-release-smokes/`.
+The later release-gate rerun is recorded in
+`/tmp/design-workspace-final-release-smokes/results.json`.
 The packaged-runtime report is
 `/tmp/grillmester-durable-adapter/sdk-packaged/sdk-results.json`; it records
 executable, effective bootstrap, loader and SDK hashes without private paths.
+The retained full-suite logs are `/tmp/grillmester-native-runtime-node.log`
+and `/tmp/grillmester-native-runtime-python.log`. The installed-SDK report for
+the conditional-publication correction is
+`/tmp/design-workspace-sdk-conditional-revision/sdk-results.json`.
+The later full-suite and 13-command validation report is
+`/tmp/design-workspace-monorepo-validation/validation.json`. The subsequent
+five-test and seven-command prompt follow-up is
+`/tmp/design-workspace-prompt-followup-validation/validation.json`; its payload
+fingerprint differs from the full-run baseline. The 15-check installed-SDK
+report is `/tmp/design-workspace-sdk-monorepo-css/sdk-results.json`.
+The later 148-test Node, two-test Python and ten-command binding validation is
+`/tmp/design-workspace-binding-validation/validation.json`, with the 16-check
+SDK report in `/tmp/design-workspace-sdk-binding-diagnostics/sdk-results.json`
+and the two synthetic DOM checks in
+`/tmp/grillmester-binding-diagnostics/dom-parity.json`.
+The five-test and seven-command browser-wording follow-up is
+`/tmp/design-workspace-browser-wording-validation/validation.json`; it records
+the separate runtime and full-Python baselines rather than claiming new full
+suite or native passes.
+The registered-schema SDK follow-up is
+`/tmp/design-workspace-schema-registration-validation/validation.json`, with
+results in `/tmp/design-workspace-sdk-registered-schema/sdk-results.json`.
+The later full Python run is
+`/tmp/design-workspace-final-python-validation/validation.json`.
+Reference-only follow-ups are recorded in
+`/tmp/design-workspace-flow-reference-validation/validation.json` and
+`/tmp/design-workspace-cross-state-reference-validation/validation.json`.
+The later helper correction and 149-test Node run are recorded in
+`/tmp/design-workspace-restore-message-validation/validation.json`.
+The subsequent preview-inspection guidance is recorded in
+`/tmp/design-workspace-preview-inspection-validation/validation.json`.
+The final full Python result and unchanged-source comparison are in
+`/tmp/design-workspace-final-payload-validation-unsandboxed/validation.json`;
+that report retains the preceding sandbox attempt and its access limitations.
+Expanded-trial source snapshots, static fidelity/state audits, screenshots,
+post-shutdown comparisons and the original-file audit are retained with the
+private acceptance ledger. It records ten bounded cases passed and one partial
+case for concept selection and narrow-panel visual polish.
+The redacted native artifact comparison is
+`/tmp/grillmester-durable-adapter/native-acceptance/final-artifact-audit.json`.
+Original, failed-round and final file snapshots are retained privately; shared
+evidence omits session identifiers and transport capabilities.
 
 ## Remaining acceptance
 
-The complete saved-room workflow still needs a real app run: plugin discovery,
-opening, deliberate Send from idle and busy conversations, reviewed revision,
-panel close/reopen and continuation after ending the session. A
+The real-frontend technical trial is complete with the explicit operator
+dependencies above. Lumi still has a narrow-panel chart-label overlap, no final
+concept was selected, and complete visual/design acceptance is not established.
+The latest helper diagnostic and reference guidance passed local checks but
+were not loaded into the native fixture. Final CI verification remains pending;
+the separate release-tool gates above remain unproven with the installed client
+versions. Both native trial registrations have been cleaned up.
+
+Existing-instance reopening through the host menu without a model request was
+not established, and stale trial entries remained in the host's cached lists
+after verified registration cleanup. The tested recovery followed a
+deliberate session clear; native app crashes and interrupted delivery with an
+unknown outcome remain separate cases. A
 [human pilot](visual-companion-human-pilot.md) with designers and an
 implementation partner also remains. Simulated panels
 and automated interaction do not establish usability or adoption.

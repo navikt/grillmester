@@ -11,31 +11,37 @@ const failure = message => Object.assign(new Error(message), { status: 503 });
 
 export function workspaceOptions(value = {}) {
   const invalid = () => Object.assign(new Error('Invalid project workspace options.'), { status: 400 });
-  if (!closedKeys(value, [], ['workspacePath', 'create', 'title'])) throw invalid();
+  if (!closedKeys(value, [], ['workspacePath', 'create', 'title', 'styleProjectPath'])) throw invalid();
+  const relativeDirectory = path => typeof path === 'string' && path.length > 0 && Buffer.byteLength(path) <= 240
+    && path.split('/').length <= 8 && path.split('/').every(part => /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(part)
+      && !/^(?:node_modules|__pycache__|con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(part));
+  const styles = {};
+  if (Object.hasOwn(value, 'styleProjectPath')) {
+    if (value.styleProjectPath !== '' && !relativeDirectory(value.styleProjectPath)) throw invalid();
+    styles.styleProjectPath = value.styleProjectPath;
+  }
   if (!Object.hasOwn(value, 'workspacePath')) {
-    if (Object.keys(value).length) throw invalid();
-    return {};
+    if (Object.hasOwn(value, 'create') || Object.hasOwn(value, 'title')) throw invalid();
+    return styles;
   }
   const { workspacePath, create, title } = value;
-  if (typeof workspacePath !== 'string' || !workspacePath || Buffer.byteLength(workspacePath) > 240
-      || workspacePath.split('/').length > 8
-      || workspacePath.split('/').some(part => !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(part)
-        || /^(?:node_modules|__pycache__|con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(part))
+  if (!relativeDirectory(workspacePath)
       || (Object.hasOwn(value, 'create') && typeof create !== 'boolean')
       || (Object.hasOwn(value, 'title') && (create !== true || typeof title !== 'string' || !title.trim()
         || Buffer.byteLength(title) > 200 || /[\u0000-\u001f\u007f]/.test(title)))) throw invalid();
-  return { workspacePath, ...(Object.hasOwn(value, 'create') ? { create } : {}), ...(Object.hasOwn(value, 'title') ? { title } : {}) };
+  return { workspacePath, ...(Object.hasOwn(value, 'create') ? { create } : {}), ...(Object.hasOwn(value, 'title') ? { title } : {}), ...styles };
 }
 
 // One child owns the existing HTTP server and FeedbackStore. This client never
 // reads or rewrites its files and never infers a session from a latest marker.
-export async function createServerBackend({ projectDir, workspacePath, create, title, onSubmitted, onExit, requestTimeoutMs = 10000 } = {}) {
+export async function createServerBackend({ projectDir, workspacePath, create, title, styleProjectPath, onSubmitted, onExit, requestTimeoutMs = 10000 } = {}) {
   if (typeof projectDir !== 'string' || !projectDir || !Number.isInteger(requestTimeoutMs) || requestTimeoutMs < 1 || requestTimeoutMs > 30000) throw failure('Invalid preview backend configuration.');
-  const workspace = workspaceOptions({ ...(workspacePath !== undefined ? { workspacePath } : {}), ...(create !== undefined ? { create } : {}), ...(title !== undefined ? { title } : {}) });
+  const workspace = workspaceOptions({ ...(workspacePath !== undefined ? { workspacePath } : {}), ...(create !== undefined ? { create } : {}), ...(title !== undefined ? { title } : {}), ...(styleProjectPath !== undefined ? { styleProjectPath } : {}) });
   const args = ['--project-dir', projectDir];
   if (workspace.workspacePath !== undefined) args.push('--workspace-dir', workspace.workspacePath);
   if (workspace.create === true) args.push('--workspace-create', 'true');
   if (workspace.title !== undefined) args.push('--workspace-title', workspace.title);
+  if (workspace.styleProjectPath) args.push('--style-project-path', workspace.styleProjectPath);
   let executable;
   try { executable = await resolveNodeRuntime({ projectDir }); }
   catch (error) { throw Object.assign(error, { backendStopped: true, backendWasReady: false }); }

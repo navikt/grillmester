@@ -217,10 +217,25 @@ test('the HTTP editor preserves explicit fields, one save receipt and user-only 
       ] },
     ] };
     const html = '<h1><span data-vc-text="heading">Source heading</span></h1><section data-vc-key="card">Content</section>';
+    const beforeRejected = await backend.readState({});
+    const workspaceFile = join(projectDir, 'designs/editor/workspace.json');
+    const beforeBytes = fs.readFileSync(workspaceFile);
     await assert.rejects(backend.publishRevision({ expectedScreen: '', filename: 'invalid-editor.html',
       html: html.replace('Source heading', '<b>PRIVATE_INVALID_SOURCE</b>'), design }),
-    error => error.status === 400 && error.message === 'Editable fields need unique, well-formed HTML bindings.');
+    error => {
+      assert.equal(error.status, 400);
+      assert.match(error.message, /\[text-content\] texts\[0\],HTML offset 33 \(zero-based UTF-16\)/);
+      assert.match(error.message, /text only, without nested tags or comments/);
+      assert.doesNotMatch(error.message, /PRIVATE_INVALID_SOURCE|heading|invalid-editor|designs\/editor/);
+      assert(Buffer.byteLength(error.message) <= 512);
+      return true;
+    });
+    assert.deepEqual(await backend.readState({}), beforeRejected);
+    assert.deepEqual(fs.readFileSync(workspaceFile), beforeBytes);
+    assert.equal(fs.existsSync(join(projectDir, 'designs/editor/revisions/invalid-editor.html')), false);
+    assert.deepEqual(submitted, []);
     const first = await backend.publishRevision({ expectedScreen: '', filename: 'editor-first.html', html, design });
+    assert.equal(first.workspace.version, 1, 'The corrected first sketch creates only one revision.');
     const editor = await request(view, '/workspace/editor');
     assert.equal(editor.status, 200);
     assert.deepEqual(editor.value.fields.map(field => field.id), ['text:heading', 'control:/card/density']);

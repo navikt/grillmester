@@ -85,10 +85,11 @@ skrives Visual Companion-HTML bare til den eksakte private `screen_dir`-tempstie
 fra aktiv startup-JSON, utenfor repoet. Når prosjektlagring er bestilt,
 publiseres skisseversjoner gjennom canvasens bundne handlinger i avtalt designrom;
 ikke skriv over historiske revisjonsfiler direkte.
-Når Playwright brukes til å se nåtilstand, er det visuell inspeksjon av
-localhost: navigasjon, viewport, snapshot, skjermbilde og nødvendig lukking av
-en ufarlig modal eller cookie-dialog. Ikke submit skjemaer, utløs
-produktoperasjoner eller bruk en offentlig URL som interaksjonsflate.
+Når klientens nettleser eller Playwright brukes til å se nåtilstand, er det
+visuell inspeksjon av localhost: navigasjon, viewport, snapshot, skjermbilde
+og nødvendig lukking av en ufarlig modal eller cookie-dialog. Ikke submit
+skjemaer, utløs produktoperasjoner eller bruk en offentlig URL som
+interaksjonsflate.
 
 ### Oppsett av maskin og verktøy
 
@@ -167,9 +168,14 @@ kilder. Spør bare om et uavklart forhold som faktisk endrer designet. Bruk
 
 Ved endring av en eksisterende flate, hent faktisk visuell nåtilstand før
 første forslag. Bruk den Figma-skissen designeren har valgt som utgangspunkt;
-ellers inspiser en tilgjengelig lokal app med Playwright. Hvis det ikke er
-mulig, bruk en annen tillatt visuell kilde eller be om et skjermbilde. Ikke
-start eller feilsøk appens byggesystem bare for å skaffe nåtilstand, med mindre
+ellers inspiser en tilgjengelig lokal app med klientens tilgjengelige
+nettleserkapabiliteter. Sjekk først faktiske verktøy og skjemaer, for eksempel
+et innebygd nettlesercanvas med sidevisning og skjermbilde. Bruk Playwright når
+det er tilgjengelig og egnet; manglende Playwright er ikke en sperre når en
+annen tillatt kapabilitet kan vise og dokumentere resultatet. Bruk samme
+kapabilitetsvalg til å kontrollere den rendrede skissen. Hvis visuell inspeksjon
+ikke er mulig, bruk en annen tillatt visuell kilde eller be om et skjermbilde.
+Ikke start eller feilsøk appens byggesystem bare for å skaffe nåtilstand, med mindre
 brukeren ber om det. En offentlig URL kan bare brukes gjennom
 en godkjent lesekapabilitet; import til Figma krever mandat for den eksterne
 endringen.
@@ -201,6 +207,13 @@ eksisterende Figma-design. Velg ut fra ønsket resultat:
 - En Figma-lenke alene utløser ikke implementering. `figma-workflow` gjelder
   når et valgt design skal oversettes til kode eller en implementeringsbrief.
   Lever briefen, eller implementer selv når brukeren ber om det.
+
+Når designspørsmålet og relevante komponenter er kjent, og faktisk nåtilstand
+er kontrollert for en eksisterende flate, lag den minste sammenhengende skissen
+som besvarer spørsmålet. Kontroller gjengivelsen før du viser den, og for
+eksisterende flater også sammenlignbar før/etter-kontekst. Utvid deretter med
+flere retninger, tilstander og panelvurdering når de kan endre beslutningen;
+ikke vent med første skisse til all utforsking er ferdig.
 
 Vis alternativer når et reelt retningsvalg står åpent; behold brukerens valgte
 retning ved detaljjustering. Iterer etter tilbakemeldinger innenfor mandatet.

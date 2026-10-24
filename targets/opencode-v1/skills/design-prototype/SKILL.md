@@ -58,9 +58,12 @@ Start med ett navngitt designspørsmål som prototypen skal besvare. Hvis dere
 ikke kan si hva dere skal lære eller velge, fortsett avklaringen i chatten før
 dere lager varianter.
 
-Når nettlesersporet er valgt, les
-[Visual Companion-referansen](references/visual-companion.md) før oppstart. Ikke
-last den lange referansen i en ren chat- eller Figma-flyt.
+Når nettlesersporet er valgt, velg først canvas eller midlertidig nettleserflyt
+nedenfor, og les referansen for den valgte oppstartsveien. I begge flyter: les
+de relevante felles avsnittene om Aksel-markup og deklarerte interaksjoner i
+[Visual Companion-referansen](references/visual-companion.md) før du bruker dem.
+Ikke følg begge oppstarts- og innspillsløkkene, eller last nettleserreferansene
+i en ren chat- eller Figma-flyt.
 
 ### Integrert canvas og lagret designrom
 
@@ -72,14 +75,19 @@ innspill og deklarerte redigeringsfelt i prosjektet. Bruk klientens faktiske
 canvas-verktøy; ikke gjett verktøynavn, start en ekstra server eller kjør
 nettleserens `comments.js wait` parallelt med canvas-leveringen.
 
-Uten canvas-kapabiliteten brukes den midlertidige nettleserflyten nedenfor.
-Ikke installer utvidelser eller endre klientinnstillinger automatisk.
+Uten canvas-kapabiliteten: les
+[Visual Companion-referansen](references/visual-companion.md) og bruk den
+midlertidige nettleserflyten nedenfor. Ikke installer utvidelser eller endre
+klientinnstillinger automatisk.
 
 ### Forutsetninger
 
 - Node.js ≥ 18 (for HTTP-server)
-- `@navikt/ds-css` i prosjektets `node_modules` gir ekte Aksel-stiler. Uten den
-  fortsetter serveren trygt med fallback-stiler.
+- Installert `@navikt/ds-css` i prosjektroten, eller i canvasens eksplisitt
+  valgte frontend via `styleProjectPath`, gir ekte Aksel-stiler. I canvas:
+  kontroller valgt kilde og stilstatus i `read_state.styles`; se
+  designrom-referansen.
+  Uten tilgjengelig CSS fortsetter visningen trygt med fallback-stiler.
 - En lokal klient som kan åpne serverens loopback-URL. I cloud/remote-kjøring
   uten klienteksponert loopback: ikke start serveren; bruk chat + Figma.
 
@@ -146,11 +154,13 @@ I den midlertidige nettleserflyten: skriv HTML-fragmenter til `screen_dir`
 (en privat tempmappe utenfor repoet). I canvas-flyten publiseres nye versjoner
 gjennom den bundne canvas-handlingen; ikke skriv over lagrede revisjonsfiler.
 Serveren wrapper automatisk i Aksel-temat og laster ekte `@navikt/ds-css` fra
-prosjektets node_modules når en trygg, regulær CSS-fil finnes.
+prosjektroten eller canvasens valgte frontend når en trygg, regulær CSS-fil finnes.
 
 **VIKTIG — Aksel-korrekthet:**
 
-Før du skriver en HTML-mockup, sjekk alltid `aksel-design` skill for:
+Bruk `aksel-design` før første HTML-mockup. Gjenbruk verifiserte kontroller
+for uendret prosjekt og pakkeversjon slik skillen beskriver:
+
 - Riktige komponentnavn og struktur
 - Korrekt spacing (token = pixelverdi, f.eks. `--ax-space-16` = 16px)
 - Korrekt fargebruk (`--ax-bg-*`, `--ax-text-*`, `--ax-border-*`)

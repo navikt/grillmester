@@ -803,7 +803,8 @@
     } catch (error) {
       if (error.conflict) chosen.conflict = true;
       if (error.capacity) chosen.capacity = true;
-      errorAt(".workspace-error", error.conflict ? "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt." : error.message);
+      errorAt(".workspace-error", error.editorConflict ? "Versjonen endrer manuelt bevarte felt. Åpne «Rediger skissen» og frigi føringene du vil tillate endret. Oppdater deretter historikken og velg versjonen på nytt."
+        : error.conflict ? "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt." : error.message);
     } finally { workspaceRestoring = false; updateBusy(); }
   }
   function renderCanvasRounds() {

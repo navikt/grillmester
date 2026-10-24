@@ -2,7 +2,7 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { validateEditorBindings } = require("../scripts/editor-bindings.js");
+const { validateEditorBindings, editorBindingErrorMessage } = require("../scripts/editor-bindings.js");
 
 function design(overrides = {}) {
   return { version: 2, texts: [{ id: "heading", label: "Heading", value: "Saved heading" }], variants: [], targets: [], ...overrides };
@@ -16,7 +16,8 @@ const target = (variant = "", editable = true) => ({ key: "card", variant, label
 const span = '<span data-vc-text="heading">Source &amp; heading</span>';
 function rejected(html, descriptor = design()) {
   assert.throws(() => validateEditorBindings(html, descriptor), error => error.status === 400 &&
-    error.message === "Editable fields need unique, well-formed HTML bindings.");
+    error.errorCode === "invalid-editor-bindings" && error.message === editorBindingErrorMessage(error) &&
+    error.message.startsWith("Editable fields need unique, well-formed HTML bindings.") && Buffer.byteLength(error.message) <= 512);
 }
 
 test("v1 and plain previews retain their existing HTML contract", () => {
@@ -106,6 +107,25 @@ test("well-formed tables bind inside cells without browser foster parenting", ()
     `<table>Text<tbody><tr><td>${span}</td></tr></tbody></table>`, `<div><td>${span}</td></div>`]) rejected(html);
 });
 
+test("description lists allow exactly one direct div grouping with stable text and target bindings", () => {
+  const variants = [{ key: "first", label: "First" }, { key: "second", label: "Second" }];
+  const descriptor = design({ variants, targets: [target("first")] });
+  const grouped = `<section data-vc-variant="first"><dl><div data-vc-key="card"><dt>Term</dt><dd>${span}</dd></div>
+    <div><dt>Second term</dt><dd>Second description</dd></div></dl></section>`;
+  assert.equal(validateEditorBindings(grouped, descriptor), true);
+  assert.equal(validateEditorBindings(`<dl><div><dt>${span}</dt><dd>Description</dd></div></dl>`, design()), true);
+  assert.equal(validateEditorBindings(`<dl><dt>Term</dt><dd>${span}</dd></dl>`, design()), true);
+  for (const html of [
+    `<div><dt>Term</dt><dd>${span}</dd></div>`,
+    `<dl><section><dt>Term</dt><dd>${span}</dd></section></dl>`,
+    `<dl><div><div><dt>Term</dt><dd>${span}</dd></div></div></dl>`,
+    `<dl><div><dt>Term<dd>${span}</dd></div></dl>`,
+    `<dl><div><dt>Term</dt><dd>${span}</div></dd></dl>`,
+    `<dl><div><dt>Term</dt><dd>${span}</dd></dl>`,
+  ]) rejected(html);
+  rejected(`<section data-vc-variant="first"><dl><div><dt>Term</dt><dd>${span}</dd></div></dl></section>`, descriptor);
+});
+
 test("obsolete parser-repair elements cannot move a control out of its declared variant", () => {
   const descriptor = design({ variants: [{ key: "first", label: "First" }, { key: "second", label: "Second" }], targets: [target("first")] });
   for (const tag of ["center", "dir", "summary"]) rejected(`${span}<p data-vc-variant="first"><${tag} data-vc-key="card">Text</${tag}></p>`, descriptor);
@@ -137,4 +157,64 @@ test("unknown or malformed v2 descriptors and excessive nesting fail with a clos
     design({ texts: [{ id: "heading", label: "Heading", value: "text", arbitrary: true }] })]) rejected(span, descriptor);
   rejected("<div>".repeat(257) + span + "</div>".repeat(257));
   rejected("x".repeat(2 * 1024 * 1024) + span);
+});
+
+test("binding diagnostics identify the rule and descriptor position without echoing submitted content", () => {
+  const variants = [{ key: "first", label: "First" }, { key: "second", label: "Second" }];
+  const cases = [
+    ["html-syntax", `<div>${span}</section>`, design(), { offset: `<div>${span}`.length }],
+    ["html-nesting", `<table><tr><td>${span}</td></tr></table>`, design(), { offset: 7 }],
+    ["marker-invalid", '<span data-vc-text="private-marker">PRIVATE_VALUE</span>', design(), { offset: 0 }],
+    ["marker-context", `<svg>${span}</svg>`, design(), { offset: 5 }],
+    ["variant-binding", `${span}<section data-vc-variant="first"><section data-vc-variant="second"></section></section>`, design({ variants }), {}],
+    ["text-element", '<div data-vc-text="heading">PRIVATE_VALUE</div>', design(), { textIndex: 0, offset: 0 }],
+    ["text-content", '<span data-vc-text="heading"><b>PRIVATE_VALUE</b></span>', design(), { textIndex: 0, offset: 29 }],
+    ["text-missing", "<p>PRIVATE_VALUE</p>", design(), { textIndex: 0 }],
+    ["text-duplicate", `<section data-vc-variant="first">${span}</section><section data-vc-variant="second">${span}</section>`, design({ variants }), { textIndex: 0 }],
+    ["target-on-wrapper", `${span}<section data-vc-variant="first" data-vc-key="card"></section>`, design({ variants, targets: [target("first")] }), { targetIndex: 0 }],
+    ["target-missing", span, design({ targets: [target()] }), { targetIndex: 0 }],
+    ["target-duplicate", `${span}<div data-vc-key="card"></div><div data-vc-key="card"></div>`, design({ targets: [target()] }), { targetIndex: 0 }],
+  ];
+  for (const [reason, html, descriptor, coordinates] of cases) {
+    descriptor.texts[0].label = "PRIVATE_LABEL";
+    descriptor.texts[0].value = "/private/submitted/source";
+    assert.throws(() => validateEditorBindings(html, descriptor), error => {
+      assert.equal(error.status, 400); assert.equal(error.errorCode, "invalid-editor-bindings");
+      assert.equal(error.bindingDiagnostic.reason, reason);
+      for (const [key, value] of Object.entries(coordinates)) assert.equal(error.bindingDiagnostic[key], value);
+      assert(error.message.includes(`[${reason}]`));
+      if (coordinates.textIndex !== undefined) assert(error.message.includes(`texts[${coordinates.textIndex}]`));
+      if (coordinates.targetIndex !== undefined) assert(error.message.includes(`targets[${coordinates.targetIndex}]`));
+      if (coordinates.offset !== undefined) assert(error.message.includes(`HTML offset ${coordinates.offset} (zero-based UTF-16)`));
+      assert.doesNotMatch(error.message, /PRIVATE_|private-marker|\/private\/|heading|card/);
+      assert.equal(error.message, editorBindingErrorMessage(error));
+      assert(Buffer.byteLength(error.message) <= 512);
+      return true;
+    }, reason);
+  }
+  const secondText = design({ texts: [design().texts[0], { id: "other", label: "Other", value: "Text" }] });
+  assert.throws(() => validateEditorBindings(span, secondText), error => error.message.includes("[text-missing] texts[1]"));
+});
+
+test("the public binding formatter allows only known advice and bounded numeric coordinates", () => {
+  const generic = "Editable fields need unique, well-formed HTML bindings.";
+  for (const reason of [undefined, null, "PRIVATE_REASON", "__proto__", "constructor"]) {
+    assert.equal(editorBindingErrorMessage({ errorCode: "invalid-editor-bindings", message: "PRIVATE_ERROR",
+      bindingDiagnostic: { reason, offset: 2, textIndex: 0 } }), generic);
+  }
+  assert.equal(editorBindingErrorMessage(new Error("PRIVATE_ERROR")), generic);
+  const error = { errorCode: "invalid-editor-bindings", message: "PRIVATE_ERROR", bindingDiagnostic: {
+    reason: "text-content", offset: "PRIVATE_OFFSET", textIndex: -1, targetIndex: Infinity,
+    source: "PRIVATE_SOURCE", label: "PRIVATE_LABEL", value: "PRIVATE_VALUE", path: "/private/path",
+  } };
+  const message = editorBindingErrorMessage(error);
+  assert.doesNotMatch(message, /PRIVATE_|\/private\/|offset|texts\[|targets\[/);
+  for (const coordinates of [{ offset: 2 * 1024 * 1024 + 1 }, { offset: 0.5 }, { textIndex: 16 }, { targetIndex: 24 }]) {
+    assert.equal(editorBindingErrorMessage({ ...error, bindingDiagnostic: { reason: "text-content", ...coordinates } }), message);
+  }
+  const bounded = editorBindingErrorMessage({ ...error, bindingDiagnostic: {
+    reason: "target-missing", offset: 2 * 1024 * 1024, textIndex: 15, targetIndex: 23,
+  } });
+  assert(bounded.includes("texts[15],targets[23],HTML offset 2097152"));
+  assert(Buffer.byteLength(bounded) <= 512);
 });

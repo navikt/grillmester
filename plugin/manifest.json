@@ -79,7 +79,7 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "0d5df38f78f14dedd6423ec949a3c12490270b0fcd071c305f24c4542e9707e2",
+      "sha256": "83d168e95e48d38336d5d338bacb8e68eb5441addbbcb93bd0693dc6c2fb7a8a",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -107,11 +107,11 @@
       "mode": "0644"
     },
     "extensions/visual-companion/adapter.mjs": {
-      "sha256": "c46256e991929e4fadad6237b75573b7bf32b258e5a8b103378f30b9a27fc11c",
+      "sha256": "a949ff7a2597202549db1e7d067a2bcefa1222d9735f07b47a23e4709e9a6ae1",
       "mode": "0644"
     },
     "extensions/visual-companion/backend.mjs": {
-      "sha256": "9b32ed60846f416655f0d4d39d2c0fdd2e5ba9d34054df1089a625013f23240d",
+      "sha256": "3a462e816f4b8c1634ed1c4be9ed8e43e3c5927060ec97780eab596cb450960f",
       "mode": "0644"
     },
     "extensions/visual-companion/extension.mjs": {
@@ -127,11 +127,11 @@
       "mode": "0644"
     },
     "extensions/visual-companion/tests/adapter.test.mjs": {
-      "sha256": "53b0b55ca54cacf5cc253e5f55ff1884268e88f01f03d583f6d7be44cf2b5dad",
+      "sha256": "aac9c94179e9a76309ec415e2bb8b8d93d0fb6973f68707c78e60cee392e32e8",
       "mode": "0644"
     },
     "extensions/visual-companion/tests/backend.test.mjs": {
-      "sha256": "04c334b13e65776af008e9627f8e0dc7b4cac0040824aef3714e39d3dd1b328f",
+      "sha256": "92da57d2140b2704f62e7e6a2385dd45019aa74812a85e75a18a4b7844fffb44",
       "mode": "0644"
     },
     "extensions/visual-companion/tests/runtime.test.mjs": {
@@ -139,7 +139,11 @@
       "mode": "0644"
     },
     "extensions/visual-companion/tests/sdk-smoke.mjs": {
-      "sha256": "ab86582f1e5202d9576166218b89eaaa57b280a0397de5c538e90ef7b837e064",
+      "sha256": "166c2b068b2e34acabfa3d29a886e3d2105ba979e39d5603ec3a0a5fa8fccd0e",
+      "mode": "0644"
+    },
+    "extensions/visual-companion/tests/styles.test.mjs": {
+      "sha256": "979d559bc9ef70b86ae7ffd26f778b3e333b6937a79f370a028c01e44f3c2132",
       "mode": "0644"
     },
     "plugin.json": {
@@ -151,7 +155,7 @@
       "mode": "0644"
     },
     "skills/aksel-design/SKILL.md": {
-      "sha256": "1e51810a5bf7bc390fe6aa0f722739caa5bf4020fe8fc851e5f10b56f92359f1",
+      "sha256": "8dd24935338a2efb8a739cfbf1db5e0195f67018778c7345a02dc65030a92c19",
       "mode": "0644"
     },
     "skills/aksel-design/references/components.md": {
@@ -319,7 +323,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "c36a1e93fde882d03932557d9b90822663468df0d8b74a0a7f8c61ff547fd0c1",
+      "sha256": "b8a221d2c1309c266cd5e17957f8b2e75b2d9d73ae011a31ae5ac81d492c0183",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -343,7 +347,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "0aceaf6365f81cc1247c3677f6461b42fa6064e86a2d4d8fdac23afe28431492",
+      "sha256": "9f78a201afaddf1df1b2b805de4a8e8aef5d35738f12a419fc291d69d7fbeaa6",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -351,7 +355,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "f0c1f307fcd7578b0e8e2510fe0790502c30d8874bde04f7d6be2c01f4071cc9",
+      "sha256": "64b589ed355a15d59a0132639b5b1c604b760fd431521e91e41bef2371dc46c3",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/canvas-state.js": {
@@ -367,7 +371,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/editor-bindings.js": {
-      "sha256": "2ab7757d3745e60fb7e81b584ab083e2525b24640194c748227ec8aa8334721e",
+      "sha256": "9057262e1e93d0b8c79944af1a08675f7c293b98ccb2f54af7d3724e62f2a6b1",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/editor-contract.js": {
@@ -387,11 +391,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "d1314c111ebd5c16e0e735bccec2dfe94a7b62b5f3a62a131775590be0bd7c3e",
+      "sha256": "80f351648b825733cf8333db23eab0849d17fcbf57f7b5f839073584db4ebc0d",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "acae98817e338fd18f53cd5e6dd7665086ef79397c952654451384a11a5a5cb9",
+      "sha256": "c991b7a92f63e541807738f5ef978cbfac865898cf00bdbfba0f3973adf5844b",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
@@ -411,11 +415,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/editor-bindings.test.js": {
-      "sha256": "018a7d3410fbe9757fbbe6e493c8ea081797975ae523f04fd1d28066f0171130",
+      "sha256": "027f1f883aad57bfafd4fc544247cf5a8c921e8d6fe0254156fadd5cc67aa07c",
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "729e850e1f33d6fe81fce0e2a421ea6ef8535ac1d9ae52f1081095b9bd6ebdd3",
+      "sha256": "65d355a42d1a6a5323b101a4d894199879dd69b11d5bc3cae41d6f34a4964e38",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-state.test.js": {

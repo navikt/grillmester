@@ -134,6 +134,15 @@ og avstem allerede besvarte innspill før videre arbeid. Ikke velg en annen
 
 Gi designeren URL raskt etter oppstart; for eksisterende flater først etter verifisert før/etter.
 
+When an available browser canvas can read the owning shell but cannot inspect
+its isolated iframe, open the iframe's observed, exact preview `src` in that
+same browser canvas. Use this only for rendered inspection and clicks on
+declared local prototype states. Keep feedback, source edits and revision
+actions in the owning Designverksted shell and its bound actions; this
+preview-only check does not prove saving or integrated delivery. Do not
+construct URLs, create a separate harness, inject DOM or install tools for
+this fallback.
+
 ## Løkken
 
 1. **Skriv HTML-fragment** til en ny fil i `screen_dir`
@@ -447,6 +456,43 @@ siden konteksten gjelder nærmeste del, ikke hele siden.
 Når et parkert kommentarutkast gjenåpnes, kommer også utkastets situasjon
 tilbake. Bytte til en annen kommentars situasjon avslutter en aktiv lokal
 tekstforhåndsvisning før riktig innhold vises.
+
+### Small, explicit response flows
+
+A target allows at most 8 controls; each control has 2–8 options (`toggle`:
+exactly 2). One `button[type="button"][data-vc-control][data-vc-value]` changes
+one declared control in its nearest valid `data-vc-key` target. It cannot
+update several controls atomically.
+
+For a response and its receipt, keep two preview-only controls in the same
+target: `answer` = `none|attend|change|cancel` (initial `none`), and `view` =
+`draft|receipt` (initial `draft`). Omit `editable: true` from both controls.
+Answer buttons appear in the draft view and set only `answer`, for example
+`data-vc-control="answer" data-vc-value="change"`. A “Show example receipt”
+button sets only `view=receipt`; the selected answer remains unchanged.
+A “Back to example” button sets only `view=draft`.
+
+Hide scenario content by default. For each non-`none` answer, declare its
+fixed draft and matching receipt, shown by CSS combining both setting
+attributes, for example
+`[data-vc-key="reply"][data-vc-setting-view="receipt"][data-vc-setting-answer="change"] .receipt-change`.
+For `answer=none`, hide the receipt button and show “Choose an example answer”.
+Handle `none` in receipt view too, with that explanation and the back button:
+**Juster** can select either control independently. Every combination must
+have coherent content, even when reached without the intended button sequence.
+
+Before showing the flow, enumerate every reachable combination of its controls.
+Each error state must hide all receipts and show its error regardless of `view`;
+derive status labels from that same combined state. Exercise every error after
+a receipt, an unanswered state after a receipt, and moved or rescheduled states
+in both draft and receipt views.
+
+These are static scenarios: use readonly example fields, accurate fixed
+counters and explicit simulated-receipt labels. Do not promise typed-value
+retention, validation, form submission or dynamic copying into a receipt.
+All content and option values must already exist in the fragment and descriptor.
+Add only error states needed for the design question, within the option limits;
+do not put every combination of answer and stage into one control.
 
 ### Sammenligne og kombinere
 

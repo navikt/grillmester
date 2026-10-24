@@ -120,6 +120,41 @@ test('invalid workspace inputs fail before creating a preview or reading another
   await f.adapter.close();
 });
 
+test('an explicit style subproject stays bound without changing the project or room location', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  const input = { workspacePath: 'design/room', create: true, styleProjectPath: 'apps/frontend' };
+  await f.adapter.canvas.open({ ...f.ctx, input });
+  const original = f.backends[0].callbacks;
+  assert.equal(original.workspacePath, 'design/room');
+  assert.equal(original.styleProjectPath, 'apps/frontend');
+  await f.adapter.canvas.onClose(f.ctx);
+  await f.adapter.canvas.open(f.ctx);
+  await f.adapter.canvas.open({ ...f.ctx, input: { styleProjectPath: 'apps/frontend' } });
+  for (const styleProjectPath of ['', 'apps/other']) await assert.rejects(
+    f.adapter.canvas.open({ ...f.ctx, input: { styleProjectPath } }), error => error.status === 409 && /style project changed/.test(error.message));
+  assert.equal(f.backends.length, 1); assert.equal(f.sends.length, 0);
+  await f.adapter.canvas.open({ ...f.ctx, instanceId: 'root-styles', input: { styleProjectPath: '' } });
+  assert.equal(f.backends[1].callbacks.projectDir, original.projectDir);
+  assert.equal(f.backends[1].callbacks.workspacePath, undefined);
+  assert.equal(f.backends[1].callbacks.styleProjectPath, '');
+  await f.adapter.canvas.open({ ...f.ctx, instanceId: 'root-styles' });
+  await assert.rejects(f.adapter.canvas.open({ ...f.ctx, instanceId: 'root-styles', input: { styleProjectPath: 'apps/frontend' } }), /style project changed/);
+  await f.adapter.close();
+});
+
+test('invalid style selectors fail before opening and an omitted selector retains legacy root styling', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  for (const styleProjectPath of [null, true, 12, [], '/tmp/app', '../app', 'apps/../app', './app', '.',
+    'apps//app', 'apps/app/', 'C:/app', 'apps\\app', '.hidden', 'node_modules', 'apps/AUX', 'a/'.repeat(8) + 'a', 'a'.repeat(65)]) {
+    await assert.rejects(f.adapter.canvas.open({ ...f.ctx, input: { styleProjectPath } }), error => error.status === 400);
+  }
+  assert.equal(f.backends.length, 0);
+  await f.adapter.canvas.open(f.ctx);
+  await f.adapter.canvas.open({ ...f.ctx, input: { styleProjectPath: '' } });
+  assert.equal(f.backends.length, 1); assert.equal(f.backends[0].callbacks.styleProjectPath, undefined);
+  await f.adapter.close();
+});
+
 test('identical workspace paths in different host worktrees stay separately bound', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'visual-worktree-binding-'));
   const primary = join(directory, 'primary'), worktree = join(directory, 'worktree');

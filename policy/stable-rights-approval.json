@@ -23,14 +23,14 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "0d5df38f78f14dedd6423ec949a3c12490270b0fcd071c305f24c4542e9707e2",
+        "designer": "83d168e95e48d38336d5d338bacb8e68eb5441addbbcb93bd0693dc6c2fb7a8a",
         "doctor-who": "70f249d6c300f54128c55676182115de3ac3c5f6f3aeb1da9774853cdc4c86c4"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
-        "aksel-design": "cabdc14913c3689523bd2620b36949e1214e7dee891461c11c8def6c1984dcda",
+        "aksel-design": "a8f0d961b93ba276b06151770a8b826af2d2b6999454bc993e33a558ed598f7e",
         "architecture-review": "8bface79bd152ee4ebe7738fec8c60a49be10b94ca7fb7e3661772072f77d474",
-        "design-prototype": "393e0972bfe87d7f6fcd80249551c05ea375fd08de606cbdf9128d6dceb38f42",
+        "design-prototype": "ee982f4b8bf39f275d40b20d501355dd886d27607e0b4d40f201aaa374b0afa3",
         "doctor": "536a4f1f117939f1149d2b67aeeb16fba174948f9fa54575de988992b44988f0",
         "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
         "figma-workflow": "bc9c94cc0b06ceeee7996ccc478461d0e84d7c85ca76ba7afb09defa4c6163a2",

@@ -528,6 +528,17 @@ test("a new screen clears prior opaque selection events", async () => {
   }
 });
 
+test("style subproject CLI selectors reject absolute, traversal and ambiguous paths before startup", async () => {
+  const projectDir = makeProject();
+  for (const selected of ["/tmp/app", "../app", "apps/../app", "./app", "apps//app", "apps\\app", "apps/.hidden", "apps/node_modules"]) {
+    const result = await runCli(projectDir, ["--style-project-path", selected]);
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /bounded project-relative directory/);
+    assert.equal(result.stdout, "");
+  }
+  assert.deepEqual(fs.readdirSync(projectDir), []);
+});
+
 test("symlinked preview and CSS files cannot escape their allowed roots", async () => {
   const projectDir = makeProject();
   const outsideSecret = path.join(makeProject(), "secret.html");
@@ -1482,6 +1493,69 @@ test("the fixed shell validates feedback messages and defers refresh while a not
       else assert.match(failure.message, /prøv samme innspill igjen/i);
     }
   } finally { await stopServer(running); }
+});
+
+test("restore distinguishes preserved-field conflicts from stale history without retrying or claiming success", async () => {
+  const source = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
+  const excerpt = (start, end) => {
+    const from = source.indexOf(start), to = source.indexOf(end, from);
+    assert(from >= 0 && to > from);
+    return source.slice(from, to);
+  };
+  const summary = excerpt("  function workspaceStored()", "  function closeWorkspace(");
+  const restore = excerpt("  async function restoreWorkspace()", "  function renderCanvasRounds()");
+  const result = excerpt('    if (data.command === "comments-result" || data.command === "workspace-result") {', '    if (data.command !== "selection-status"');
+  for (const errorCode of ["editor-conflict", undefined, "unknown"]) {
+    const nodes = new Map(), requests = new Map(), calls = [], announcements = [];
+    const el = selector => {
+      if (!nodes.has(selector)) nodes.set(selector, { textContent: "", hidden: false, disabled: false, dataset: {}, setAttribute() {} });
+      return nodes.get(selector);
+    };
+    const snapshot = { revision: 7, workspace: { storage: "project", title: "Test", path: "designs/test", version: 3 } };
+    const confirmation = { entry: { revisionId: 1 }, expectedRevision: snapshot.revision, retry: {} };
+    const context = {
+      el, all: () => [el('[data-action="workspace-restore"]')], snapshot, requests,
+      workspaceButton: {}, workspaceConfirmation: confirmation, workspaceRestoring: false,
+      workspaceLoading: false, workspaceNextAfter: null, workspaceRestoreOpen: false,
+      draft: null, drag: null, preview: null, workshop: null, editor: null,
+      connectionLost: false, savingDraft: false, updateAvailable: false,
+      canvasRounds: () => [], window: { clearTimeout() {} },
+      errorAt: (selector, text) => { el(selector).textContent = text; },
+      announce: text => announcements.push(text),
+      refreshNow: () => assert.fail("A rejected restore must not refresh the sketch."),
+      applySnapshot: () => assert.fail("A rejected restore must not apply a snapshot."),
+      request: (action, payload, retry) => {
+        calls.push({ action, payload, retry });
+        return new Promise((resolve, reject) => requests.set(1, { action, resolve, reject, timer: 1 }));
+      },
+    };
+    const browser = require("node:vm").runInNewContext(`${summary}\n${restore}\nfunction updateBusy() { renderWorkspaceSummary(); }\nrenderWorkspaceSummary();\n({ restore: restoreWorkspace, receive: (data) => { ${result} } })`, context);
+    const running = browser.restore();
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].action, "workspace-restore");
+    assert.deepEqual(JSON.parse(JSON.stringify(calls[0].payload)), { revisionId: 1, expectedRevision: 7 });
+    assert.equal(calls[0].retry, confirmation.retry);
+    browser.receive({ command: "workspace-result", requestId: 1, ok: false, conflict: true, errorCode, error: "PRIVATE_SERVER_DETAIL" });
+    await running;
+    const message = el(".workspace-error").textContent;
+    if (errorCode === "editor-conflict") {
+      assert.match(message, /manuelt bevarte felt/);
+      assert.match(message, /«Rediger skissen» og frigi føringene/);
+      assert.doesNotMatch(message, /^Arbeidet er endret/);
+    } else assert.equal(message, "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt.");
+    assert.doesNotMatch(message, /PRIVATE_SERVER_DETAIL/);
+    assert.equal(context.workspaceConfirmation, confirmation);
+    assert.equal(confirmation.conflict, true);
+    assert.equal(context.workspaceRestoring, false);
+    assert.equal(el('[data-action="workspace-restore"]').disabled, true);
+    assert.equal(snapshot.workspace.version, 3);
+    assert.equal(snapshot.revision, 7);
+    assert.equal(context.workspaceRestoreOpen, false);
+    assert.deepEqual(announcements, []);
+    assert.equal(requests.size, 0);
+    await browser.restore();
+    assert.equal(calls.length, 1, "A blocked restore cannot silently retry the rejected write.");
+  }
 });
 
 test("feedback results and conflict refreshes stay with their originating preview document", async () => {

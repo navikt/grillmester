@@ -219,6 +219,12 @@ try {
   }\n`);
   await writeFile(join(temporary, 'register.mjs'), "import {register} from 'node:module'; register(new URL('./loader.mjs', import.meta.url));\n");
   const workspace = join(temporary, 'workspace'); await mkdir(workspace);
+  const styleProjectPath = 'apps/frontend';
+  const stylePackage = join(workspace, styleProjectPath, 'node_modules/@navikt/ds-css');
+  const selectedCss = '.navds-heading { --style-proof: selected-subproject; }\n';
+  await mkdir(join(stylePackage, 'dist'), { recursive: true });
+  await writeFile(join(stylePackage, 'dist/index.min.css'), selectedCss);
+  await writeFile(join(stylePackage, 'package.json'), JSON.stringify({ name: '@navikt/ds-css', version: '8.9.0' }));
   async function launch() {
     const sessionId = `test-session-${randomUUID()}`;
     const home = join(temporary, `home-${hosts.length}`); await mkdir(home);
@@ -257,13 +263,24 @@ try {
     return { status: response.status, value: await response.json() };
   };
   const note = (screen, text) => ({ screen, kind: 'point', text, anchor: { path: 'h1:nth-of-type(1)', role: 'heading', rect: { x: 1, y: 1, width: 200, height: 30 }, viewport: { width: 1000, height: 800 } } });
-  let view, extraView, otherView, current, comment;
-  await check('two real SDK joins register only the canvas on their exact sessions', async () => {
+  let view, extraView, otherView, styledView, bindingView, current, comment;
+  await check('two real SDK joins register the bounded canvas open schema on their exact sessions', async () => {
     for (const host of hosts) {
       assert.equal(host.resume.sessionId, host.sessionId); assert.equal(host.resume.requestPermission, false);
       assert.equal(host.resume.gitHubToken, undefined); assert.equal(host.resume.requestedEnvironmentVariables, undefined);
       assert.equal(host.resume.canvases.length, 1); assert.equal(host.resume.canvases[0].id, canvasId);
       assert.deepEqual(host.resume.canvases[0].actions.map(item => item.name).sort(), methods);
+      const inputSchema = host.resume.canvases[0].inputSchema;
+      assert.equal(inputSchema.type, 'object'); assert.equal(inputSchema.additionalProperties, false);
+      assert(Array.isArray(inputSchema.required)); assert(!inputSchema.required.includes('styleProjectPath'));
+      const styleSelector = inputSchema.properties.styleProjectPath;
+      assert.equal(styleSelector.type, 'string'); assert.equal(styleSelector.maxLength, 240);
+      assert.equal(typeof styleSelector.description, 'string');
+      assert(styleSelector.description.length > 0 && styleSelector.description.length <= 1000);
+      assert.match(styleSelector.description, /project-relative subproject/);
+      assert.match(styleSelector.description, /empty string for the session project root/);
+      assert.match(styleSelector.description, /retain the selection on reopen/);
+      assert.match(styleSelector.description, /Supply again in a new session/);
       assert.equal(host.sends.length, 0);
     }
   });
@@ -279,6 +296,55 @@ try {
     await assert.rejects(action(one, ctx, 'publish_revision', { expectedScreen: '', filename: 'wrong.html', html: '<h1>Stale</h1>' }));
     const shell = await fetch(view.url); assert.match(shell.headers.get('content-security-policy'), /frame-ancestors 'none'/);
     assert.match(await shell.text(), /sandbox="allow-scripts"/); assert.equal(one.sends.length, 0);
+  });
+  await check('an explicit style subproject crosses the SDK wire, renders exact CSS and remains bound on reopen', async () => {
+    const styledCtx = { ...ctx, instanceId: 'styled-sketch' };
+    styledView = await open(one, { ...styledCtx, input: { styleProjectPath } });
+    const styled = await action(one, styledCtx, 'publish_revision', {
+      expectedScreen: '', filename: 'styled.html', html: '<h1 class="navds-heading">Valgt stilgrunnlag</h1>',
+    });
+    assert.deepEqual(styled.styles, { styleProjectPath, status: 'loaded', version: '8.9.0',
+      source: 'apps/frontend/node_modules/@navikt/ds-css/dist/index.min.css', sha256: sha256(selectedCss) });
+    const previewUrl = new URL(styledView.url); previewUrl.pathname = '/preview';
+    const html = await (await fetch(previewUrl, { signal: AbortSignal.timeout(3000) })).text();
+    assert(html.includes(selectedCss)); assert.doesNotMatch(html, /Aksel CSS mangler/);
+    assert.equal((await action(one, ctx, 'read_state')).styles.status, 'fallback');
+    await one.request('canvas.close', styledCtx);
+    await assert.rejects(fetch(styledView.url, { signal: AbortSignal.timeout(1000) }));
+    styledView = await open(one, styledCtx);
+    assert.deepEqual((await action(one, styledCtx, 'read_state')).styles, styled.styles);
+    await assert.rejects(open(one, { ...styledCtx, input: { styleProjectPath: '' } }), /style project changed/);
+    assert.equal(one.sends.length, 0);
+  });
+  await check('binding diagnostics cross the SDK safely and a corrected grouped description list creates only one revision', async () => {
+    const bindingCtx = { ...ctx, instanceId: 'binding-recovery' };
+    const bindingPath = 'designs/binding-recovery';
+    bindingView = await open(one, { ...bindingCtx, input: { workspacePath: bindingPath, create: true, title: 'Oversikt' } });
+    const descriptor = { version: 2, variants: [], targets: [], texts: [{ id: 'heading', label: 'Overskrift', value: 'Oversikt' }] };
+    const html = '<dl><div><dt>Visning</dt><dd><span data-vc-text="heading">Oversikt</span></dd></div></dl>';
+    const before = await action(one, bindingCtx, 'read_state');
+    const workspaceFile = join(workspace, bindingPath, 'workspace.json');
+    const beforeBytes = await readFile(workspaceFile);
+    await assert.rejects(action(one, bindingCtx, 'publish_revision', {
+      expectedScreen: '', filename: 'invalid-binding.html', design: descriptor,
+      html: html.replace('Oversikt', '<b>PRIVATE_SOURCE_VALUE</b>'),
+    }), error => {
+      assert.match(error.message, /\[text-content\] texts\[0\],HTML offset \d+ \(zero-based UTF-16\)/);
+      assert.doesNotMatch(JSON.stringify(error.rpcError), /PRIVATE_SOURCE_VALUE|heading|invalid-binding|designs\/binding-recovery/);
+      assert(Buffer.byteLength(error.message) <= 512);
+      return true;
+    });
+    assert.deepEqual(await action(one, bindingCtx, 'read_state'), before);
+    assert.deepEqual(await readFile(workspaceFile), beforeBytes);
+    await assert.rejects(readFile(join(workspace, bindingPath, 'revisions/invalid-binding.html')), { code: 'ENOENT' });
+    const corrected = await action(one, bindingCtx, 'publish_revision', { expectedScreen: '', filename: 'grouped-list.html', html, design: descriptor });
+    assert.equal(corrected.workspace.version, 1);
+    assert.deepEqual((await action(one, bindingCtx, 'list_history')).items.map(item => item.revisionId), [1]);
+    assert.equal((await action(one, bindingCtx, 'read_revision', { revisionId: 1, part: 'html' })).content, html);
+    const editor = await request(bindingView, '/workspace/editor');
+    assert.equal(editor.status, 200);
+    assert.deepEqual(editor.value.fields.map(field => field.id), ['text:heading']);
+    assert.equal(one.sends.length, 0);
   });
   await check('two instances and two sessions in one project have separate stores', async () => {
     extraView = await open(one, extraCtx); otherView = await open(two, secondCtx);
@@ -345,7 +411,7 @@ try {
   });
   await check('extension shutdown stops every owned backend transport', async () => {
     for (const host of hosts) { assert.equal(host.failure, undefined); const stopped = await host.stop(); assert.equal(stopped.code, 0); }
-    for (const opened of [view, extraView, otherView]) await assert.rejects(fetch(opened.url, { signal: AbortSignal.timeout(1000) }));
+    for (const opened of [view, extraView, otherView, styledView, bindingView]) await assert.rejects(fetch(opened.url, { signal: AbortSignal.timeout(1000) }));
   });
   const owner = await launch(), successor = await launch();
   const ownerCtx = context(owner), successorCtx = context(successor);
@@ -416,6 +482,7 @@ try {
     limits: ['Installed SDK against a deterministic stdio host and actual local preview server.',
       packagedRuntime ? 'Packaged executable used only for its extension bootstrap; no native renderer, client session, model, account or credentials were used.'
         : 'No native renderer, client, model, account or credentials were used.',
+      'Registered schemas are inspected; the test host does not perform native JSON Schema validation or cache refresh.',
       'Queue mode and session routing are wire assertions; actual idle/busy host behavior remains a native acceptance test.'] };
   if (options['evidence-dir']) { await mkdir(options['evidence-dir'], { recursive: true }); await writeFile(join(options['evidence-dir'], 'sdk-results.json'), JSON.stringify(report, null, 2) + '\n'); }
   process.stdout.write(JSON.stringify(report) + '\n');
