@@ -82,19 +82,20 @@ Follow consumer language and attribution; add no AI marker unless required.
 
 ## Approval boundary
 
-Reading and drafting are read-only. Before posting, editing, closing, or
-changing any label, type, assignee, relationship or project field:
+Reading and drafting are read-only. Route tracker writes through
+`issue-management`, reusing the user's authorization for the target repository,
+items and bounded mutations. An explicit request to apply those changes does
+not need a second approval just because triage prepared them.
 
-1. show repository, item, every mutation and full comment
-2. obtain explicit approval
-3. apply only the approved set and verify it
-
-The requested outcome is not permission for additional cleanup mutations.
+If authority or a material choice is missing, show the proposed items,
+metadata and full comment, then ask only for what remains unresolved. Verify
+the authorized changes after writing. A request to assess an item alone does
+not authorize posting, contacting its reporter or additional cleanup.
 
 ## Grenser
 
 - Always verify before declaring work ready or invalid.
-- Ask before every external tracker write or scope expansion.
+- Ask when authority for a tracker write is missing or the work expands scope.
 - Never guess tracker metadata or closure rationale.
 - Never treat delivered closed work as evidence that an idea was rejected.
 - Never mark work agent-ready without verifiable acceptance criteria.

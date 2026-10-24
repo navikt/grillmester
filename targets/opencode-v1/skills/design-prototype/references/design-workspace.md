@@ -7,6 +7,12 @@ action schemas; do not invent tool aliases or install an extension during a
 design session. Without this capability, use the portable temporary browser
 flow in [Visual Companion](visual-companion.md).
 
+A canvas action failure is not absence of the capability. Diagnose the returned
+error and existing binding; do not start a portable server, polling loop or a
+second writer as a recovery shortcut. If work cannot continue, preserve the
+room and explain the observed limitation. An agreed later handoff to another
+surface does not imply automatic synchronization.
+
 ## Open and continue
 
 The canvas opens in the owning session's project directory. A worktree remains
@@ -55,6 +61,25 @@ Unsent **saved** feedback survives reopening. Text still being typed, local
 preview choices and unsaved editor drafts do not survive closing the sketch or
 the conversation. Closing a small in-sketch panel retains its drafts. Explain
 this distinction accurately; do not promise recovery of unsaved typing.
+
+## Inspect the rendered sketch
+
+Use the client's available browser capabilities, including a built-in browser
+canvas; missing Playwright alone is not a blocker. When the browser can read
+the owning shell but cannot inspect its isolated iframe, open the iframe's
+observed, exact preview `src` in that same browser. Use this only for rendered
+inspection and clicks on declared local prototype states. Keep feedback,
+source edits and revision actions in the owning Designverksted shell and its
+bound actions. A preview-only check does not prove saving or integrated
+delivery. Do not construct URLs, create a separate harness, inject DOM or
+install tools for this fallback.
+
+Use the reported style source and current source pair as context, then inspect
+the actual rendered result. Loaded Aksel CSS is not evidence that a font loaded.
+Check the actual panel/content width and relevant state before calling content
+missing or a visual choice defective. Record uncertainty when the available
+view cannot establish the claim; a screenshot and geometry measurement support
+different conclusions.
 
 ## Publish and respond
 

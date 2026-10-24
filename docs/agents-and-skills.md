@@ -2,6 +2,8 @@
 
 Grillmester kombinerer fire brukerinnganger med fire interne roller. Du velger
 inngangen; agentteamet bruker interne roller og relevante skills etter behov.
+Start gjerne med Grillmester for utvikling og Designer for visuell utforsking.
+Barista gir et eksplisitt soloalternativ; Doctor Who retter seg mot produktarbeid.
 
 ## Offentlige agenter
 
@@ -14,65 +16,81 @@ Se [lokale modeller](local-models.md) for eksplisitt valg og capability-smoke.
 
 ### Grillmester 🔥
 
-**Bruk når:** Oppgaven er viktig, uklar eller tverrgående, eller trenger
-produkt-/arkitekturvalg før kode.
+**Bruk når:** Du vil få en utviklingsoppgave undersøkt, gjennomført og verifisert,
+med avklaring og arbeidsdeling tilpasset oppgaven. Også små, presise endringer
+kan starte her.
 
 **Prøv:**
 
-> Vi vurderer å endre denne flyten. Skill mellom fakta, antakelser og
-> beslutninger, utforsk reelle alternativer og foreslå den minste trygge
-> leveransen. Ikke implementer før jeg har godkjent retningen.
+> Rett valideringen som er beskrevet i issue #123. Undersøk repoets mønstre,
+> gjennomfør den avklarte endringen og kjør relevante tester. Spør bare hvis
+> et vesentlig valg fortsatt står åpent.
 
-**Forventet leveranse:** Et forståelig beslutningsgrunnlag, eventuelt domenemodell
-eller ADR, én komplett vertical slice, fersk verifikasjon og uavhengig review.
+**Forventet leveranse:** En avgrenset endring med fersk verifikasjon og selvreview.
+Uavhengig review følger oppgavens risiko og repoets regler; for R0–R2 er den
+valgfri. Beslutningsgrunnlag, domenemodell eller ADR inngår når arbeidet trenger
+det og skrivingen er innenfor oppdraget.
 
-Grillmester undersøker fakta og utfordrer uklare mål, antakelser og valg fra
-start. For én sammenhengende avklaring bruker den `grill-with-docs` når
-begreper eller varige beslutninger skal dokumenteres. Når flere uløste
+Grillmester sjekker fakta, ønsket resultat og en relevant feilcase først. Når
+retningen er avklart, fortsetter den med plan etter behov, implementering og
+verifikasjon uten et nytt intervju. Uklare mål og materielle valg undersøkes
+før arbeidet som avhenger av dem. For én sammenhengende avklaring mot repoets
+begreper og beslutninger brukes `grill-with-docs`; domenemetoden lastes når
+begreper endres eller en varig beslutning trenger vurdering. Når flere uløste
 beslutninger avhenger av hverandre og trenger en delt oversikt på tvers av
 økter, velger den `wayfinder`. Wayfinder organiserer beslutningene og bruker
 grilling, dokumentert grilling, research eller prototyper inne i hvert
 spørsmål. Størrelsen på den senere implementasjonen er ikke alene grunn til
 å opprette et kart.
 
-Små, avgrensede R0–R2-slices implementerer Grillmester selv. Større slices og
-slices med mye bygg- og testiterasjon delegeres til Kokk. R3/R4 går til Kokk,
-slik at koden og den uavhengige reviewen kommer fra ulike forfattere.
-Grillmester sier hvilket valg den tar, og du kan overstyre valget; for R3/R4 får
-du først en advarsel.
+For R0–R2 gjennomfører Grillmester avklart arbeid selv eller bruker Kokk når en
+avgrenset implementeringsoppgave har konkret nytte av en separat utfører.
+Mange filer eller lang testtid utløser ikke delegering alene. R3/R4 går til Kokk,
+slik at koden og den uavhengige reviewen kommer fra ulike forfattere. Det er én
+skriver per leveransedel; review skjer på en stabil diff. Grillmester sier
+hvorfor den velger utfører. Du kan overstyre valget; for R3/R4 forklares først
+konsekvensen for skillet mellom implementering og review.
 
-**Ikke bruk når:** Oppgaven er liten og ferdig spesifisert. Da er Barista
-raskere og enklere.
+Dette er en anbefalt arbeidsflyt, ikke et løfte om kortere svartid eller lavere
+modellkostnad. Barista, modellvalg og lagrede standardvalg beholdes.
 
 ### Barista ☕
 
-**Bruk når:** Målet og akseptansekriteriene er tydelige, og oppgaven kan løses
-som vanlig repoarbeid uten tung orkestrering.
+**Bruk når:** Målet og akseptansekriteriene er tydelige, og du ønsker at samme
+rolle undersøker, implementerer og verifiserer solo. Størrelse og filantall
+alene utløser ikke rollebytte.
 
 **Prøv:**
 
 > Legg til valideringen som er beskrevet i issue #123. Hold scope til denne
 > flyten, følg repoets mønstre og kjør relevante tester.
 
-**Forventet leveranse:** En liten, reviewbar diff med forklaring av hva som ble
-endret og hvilke verifikasjoner som faktisk ble kjørt.
+**Forventet leveranse:** En avgrenset, reviewbar diff med forklaring av hva som ble
+endret og hvilke verifikasjoner som faktisk ble kjørt. Uavhengig review kan
+velges eksplisitt; kodeimplementeringen delegeres ikke til Kokk.
 
 **Ikke bruk når:** Oppgaven skjuler et uløst produktvalg, bryter en offentlig
 kontrakt eller krever en reverserings-/migreringsbeslutning.
 
 ### Designer 🎨
 
-**Bruk når:** Du trenger designutforsking, brukerflyt, Aksel-komponentvalg,
-Visual Companion eller en Figma-leveranse.
+**Bruk når:** Du trenger designutforsking, brukerflyt, Aksel-komponentvalg eller
+videre iterasjon av en skisse, et lagret designrom eller et Figma-design.
 
 **Prøv:**
 
 > Utforsk tre tydelig forskjellige måter å hjelpe brukeren videre etter denne
 > feilen. Bruk Aksel-prinsipper, vis tradeoffs og anbefal én retning.
 
-**Forventet leveranse:** Visuelle alternativer, begrunnet anbefaling og et
-konsept, en Visual Companion eller Figma-klar/Figma-basert leveranse avhengig av
-tilgjengelige verktøy.
+**Forventet leveranse:** En synlig skisse eller forbedring i avtalt arbeidsflate,
+med relevante tilstander og kontroll av det rendrede resultatet. Visuelle
+alternativer og panel brukes når de belyser et faktisk designvalg. En liten
+justering trenger verken nye varianter eller nytt intervju.
+
+Når Copilot app tilbyr Designverksted, brukes det integrerte canvaset. Bestilte
+designrom lagres i avtalt prosjektmappe med versjoner og innspill. Uten denne
+kapabiliteten kan en midlertidig nettleserskisse brukes. Figma er en egen,
+valgfri arbeidsflate; en canvasleveranse trenger ingen Figma-overlevering.
 
 Nye eller løst definerte konsepter starter med grilling av mål, målgruppe,
 antakelser og hva utforskingen skal lære, før første skisse. Designer er også
@@ -86,8 +104,11 @@ av verktøy og implementere et valgt design når du ber om det.
 **Ikke bruk når:** Oppgaven er ren kode uten designspørsmål. Da passer Barista
 eller Grillmester bedre.
 
-Designer fungerer best med Aksel MCP og Figma MCP. Ved arbeid mot en kjørende
-app anbefales også Playwright MCP. Se [MCP-oppsett](mcp-setup.md).
+Designer bruker klientens tilgjengelige nettleserverktøy til å se eksisterende
+flater og kontrollere skissene, for eksempel Browser-canvas eller Playwright.
+Manglende Playwright er ikke en sperre når et annet tillatt verktøy gir visuell
+inspeksjon. Aksel- og Figma-integrasjoner brukes etter oppgaven og tilgjengelige
+kapabiliteter. Se [MCP-oppsett](mcp-setup.md).
 
 ### Doctor Who 🕰️
 

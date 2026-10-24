@@ -75,8 +75,12 @@ develop it. Add sections only when evidence and reader need justify them.
 
 ## Approval boundary
 
-The requested local README edit is allowed. Before publishing, committing,
-opening a PR, commenting, or editing other docs, show the diff and get approval.
+Carry out the requested local README edit and any related documentation or
+delivery actions already authorized by the user. Reuse that bounded authority
+for committing, opening a PR or publishing; the local edit alone does not
+authorize those actions or contacting others. If authority or a material
+choice is missing, prepare the diff and exact target, then ask only for what
+remains unresolved.
 
 ## Grenser
 
@@ -86,12 +90,12 @@ opening a PR, commenting, or editing other docs, show the diff and get approval.
 - Preserve accurate manual content.
 - Validate local links and commands proportionally to risk.
 
-### Spør først
+### Spør når valget eller fullmakten mangler
 
-- Remove substantial manual sections.
+- Remove substantial manual sections whose accuracy is unresolved.
 - Choose between conflicting product descriptions or language rules.
-- Add an unverified private link, owner or contact channel.
-- Perform any external write.
+- Resolve a private link, owner or contact channel that cannot be verified.
+- Perform an external write beyond the user's authorized scope.
 
 ### Aldri
 

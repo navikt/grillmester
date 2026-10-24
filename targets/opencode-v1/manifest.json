@@ -92,7 +92,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "657096bc47408dfd29bceae6babfbe078ddde22a11e01ccf697ac9bb04d6b664",
+      "sha256": "790d7011374c9575d4ce66aa2be55d86002f89fe44730147d65984cf096d4892",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -104,7 +104,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "7831e317cae0d9d3f2e47bc1bb9102b189084866bb8669d6fe33bd08f551681f",
+      "sha256": "329481ff1bd34e3da3e1675dd3180259ca84e96b24784c99e25043321d178d40",
       "mode": "0644"
     },
     "agents/kokk.md": {
@@ -304,7 +304,7 @@
       "mode": "0644"
     },
     "skills/aksel-design/SKILL.md": {
-      "sha256": "08dfcca67ec99ff4736cc46dc9708ff017b4ba907dba4cbb33b650a24aa2e0dc",
+      "sha256": "4335bd25f1d7cfc9c9f3e68dff88e55df669047e2190e2f4e6c818a569ba2d57",
       "mode": "0644"
     },
     "skills/aksel-design/references/components.md": {
@@ -432,7 +432,7 @@
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {
-      "sha256": "00e85f64ed91ae3b73bb024d2b8a5837b50e7e0b6e553d2ce21e3491aec126f3",
+      "sha256": "18d22bba1e09a94482baddeab9a0b859d377e2188c1f923b058c4ae18a9b85b1",
       "mode": "0644"
     },
     "skills/architecture-review/references/nav-context.md": {
@@ -472,7 +472,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "de28a9cf85b0ac7397e727badc85b17e410f2d2080de8c3c9ec31948d6562334",
+      "sha256": "9dd57f75e303f2fbf8990220e8d55d907513bbe9c43754b70bc07a828c3ad563",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -496,15 +496,15 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "ad4449ef1d88091a479a804b8f637fb4eca572789247ece857997a180e51f680",
+      "sha256": "6c8feb25e4e8694f34e01a640588eb1c00c77c4cad27e13d2818bab647bedee7",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
-      "sha256": "8c2790ce47d4b0345bb88e3d192c8eb5f7032ed97be75ff6333deb61bc7bd61f",
+      "sha256": "157b4ecfe1e7209f44e21d6b83eca246155f71c3c4444be906a206e9c73e6231",
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "d244b04c96ce2d4c32bbfe34d45a68e559ae73a89c4705051b78ad5daf229d51",
+      "sha256": "38977d527711cd89d069a811dfd4044c5b22a83033cea92105684238f4b0ea68",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/canvas-state.js": {
@@ -632,7 +632,7 @@
       "mode": "0644"
     },
     "skills/grill-with-docs/SKILL.md": {
-      "sha256": "0f99191266be96f306b33214b72e024bce32089c8f8780a63a2c384649289b5d",
+      "sha256": "6072a8b61b690b69411c3d1dba3d8c96d65d62ad9c473d7c486c76c12088d20b",
       "mode": "0644"
     },
     "skills/grilling/SKILL.md": {
@@ -672,7 +672,7 @@
       "mode": "0644"
     },
     "skills/klarsprak/SKILL.md": {
-      "sha256": "45a37aaf1f948db8112d6298d8a0d8c2309636c1278c61e9fcbefab6c6b83bb5",
+      "sha256": "a59aabe83ddea68d6964abbf4c4acd6d39c0510f377519d9f7ca49b3b5358c7f",
       "mode": "0644"
     },
     "skills/klarsprak/references/ai-markorer.md": {
@@ -812,7 +812,7 @@
       "mode": "0644"
     },
     "skills/readme-update/SKILL.md": {
-      "sha256": "b8d03357061c16a49d68d70aa24eb1ec9004cb35abd85f0698da2ee2e593a61b",
+      "sha256": "4e1f2f1c2542823342676f81cb1cd9dee0c878095ec60a1c7999b1ca47dbf5c9",
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
@@ -872,7 +872,7 @@
       "mode": "0644"
     },
     "skills/triage/SKILL.md": {
-      "sha256": "27c26929dec443511e8260401addf1df54d14130d7d06e42a447f4e213e84f67",
+      "sha256": "ae1affb3b78a511b388ba1a8bb751dfa8a97a564c92ce9aa0ccba6771c5e73af",
       "mode": "0644"
     },
     "skills/wayfinder/SKILL.md": {

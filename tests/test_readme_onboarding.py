@@ -67,14 +67,14 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
     def test_readme_uses_native_plugin_and_links_to_separate_pilots(self) -> None:
         plugin = self.text.split(
             "### Copilot CLI", 1
-        )[1].split("### Copilot app", 1)[0]
+        )[1].split("## Velg agent", 1)[0]
         pilot = self.pilot_guide.split(
             "## OpenCode og lokale modeller — pilot fra checkout", 1
         )[1]
         normalized = " ".join(pilot.split())
         self.assertLess(
-            self.text.index("copilot plugin marketplace add navikt/grillmester#marketplace"),
             self.text.index("### Copilot app"),
+            self.text.index("### Copilot CLI"),
         )
         self.assertNotIn("nav-pilot install", self.text)
         self.assertNotIn("scripts/grillmester.py", self.text)

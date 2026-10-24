@@ -57,12 +57,17 @@ når en endring ville endre kontrakten.
 - Skill språklige forslag fra innholdsendringer.
 - Følg den mest spesifikke consumer-eide språkregelen.
 
-### Spør først
+### Spør når valget eller fullmakten mangler
 
-- Omstrukturere et helt dokument.
-- Endre terminologi som inngår i domene- eller API-kontrakter.
-- Publisere, kommentere eksternt eller opprette PR/issue; vis mål og få
-  eksplisitt godkjenning.
+- Omstrukturere et helt dokument når oppdraget bare gjelder lokal språkvask.
+- Avklare en meningsendring eller endring av domene- eller API-kontrakter.
+- Publisere, kommentere eksternt eller opprette PR/issue når dette ikke allerede
+  inngår i brukerens godkjente omfang. Vis konkret tekst og mål, og spør bare om
+  det som mangler.
+
+Gjenbruk fullmakt brukeren allerede har gitt for samme handling og mål.
+En språkvask alene gir ikke fullmakt til publisering, kontakt med andre eller
+utvidelse av oppdraget.
 
 ### Aldri
 

@@ -42,7 +42,12 @@ Bekreft med `get_libraries(fileKey)` etter filopprettelse.
 
 ## Søk og bruk komponenter
 
-Se komponent-gate og demo-tekst-regler i `SKILL.md` — de gjelder alltid før søk.
+Bruk det aktive Aksel-biblioteket som autoritet. Den bundlede
+[komponentkatalogen](aksel-figma-katalog.json) er en oppdagelsessnapshot, ikke
+en erstatning for preflight mot biblioteket. Kontroller komponentnøkkel,
+varianter og tekst-/fontkrav før første write. Erstatt demo-tekst med oppgavens
+innhold og bygg inkrementelt med eksakte verifiserte navn; se preflighten og
+tekstreglene nedenfor.
 
 ```
 search_design_system(query: "Button", fileKey: "<key>")
