@@ -245,6 +245,7 @@ test("state and revision reads reject symbolic and hard links", t => {
 const workerSource = `"use strict";
 const fs = require("node:fs");
 const path = require("node:path");
+const { performance } = require("node:perf_hooks");
 const { WorkspaceStore } = require(process.env.WORKSPACE_STORE_MODULE);
 const projectDir = process.argv[2], mode = process.argv[3];
 const options = { projectDir, workspacePath: "designs/example", validateState: value => value?.schemaVersion === 1 && Number.isSafeInteger(value.revision) };
@@ -257,12 +258,16 @@ process.on("message", async message => {
     setInterval(() => store.load(), 1000);
     return;
   }
-  for (let attempt = 0; attempt < 30; attempt++) {
+  // Acquisition deliberately fails fast while another opener is choosing.
+  // Bound elapsed time, not retry count, so concurrent disk work cannot consume
+  // the budget early; spread retries to avoid synchronized contenders.
+  const deadline = performance.now() + 8000;
+  for (let attempt = 0; performance.now() < deadline; attempt++) {
     let store;
     try { store = new WorkspaceStore(options); }
     catch (error) {
       if (error.status !== 409 && !["ENOENT", "EEXIST"].includes(error.code)) { process.send({ error: error.message }); process.exit(1); }
-      await pause(5 + attempt); continue;
+      await pause(Math.min(100, 5 + attempt * 3) + (process.pid * 17 + attempt * 13) % 19); continue;
     }
     const critical = path.join(projectDir, "writer-active");
     try {

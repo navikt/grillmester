@@ -203,6 +203,13 @@ function validPersistedFeedback(state) {
       (last ? item.lastSubmission === last.submission && immutableComment(item) === immutableComment(last) : item.lastSubmission === 0);
   })) return false;
   if (accepted.size !== state.submittedDecisions.length || !state.submittedDecisions.every(item => canonicalJson(item) === canonicalJson(accepted.get(item.id)))) return false;
+  const currentDecisions = new Map(state.decisions.map(item => [item.id, item]));
+  if ([...accepted.keys()].some(id => !currentDecisions.has(id)) ||
+      state.decisions.some(item => item.submission > 0 && canonicalJson(item) !== canonicalJson(accepted.get(item.id)))) return false;
+  for (const decisions of [state.decisions, state.submittedDecisions]) {
+    const activeTargets = decisions.filter(item => item.state === "active").map(item => `${item.variant}/${item.target}`);
+    if (new Set(activeTargets).size !== activeTargets.length) return false;
+  }
   if (state.canvas !== undefined) {
     if (!keys(state.canvas, ["rounds"]) || !Array.isArray(state.canvas.rounds) || state.canvas.rounds.length !== state.submission || !state.canvas.rounds.every((item, index) =>
       keys(item, ["submission", "delivery", "review", "reply"], ["previousSession"]) && item.submission === index + 1 && ["sending", "queued", "unknown"].includes(item.delivery) &&

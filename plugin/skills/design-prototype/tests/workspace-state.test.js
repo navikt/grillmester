@@ -109,6 +109,67 @@ test("hydration rejects malformed or cross-linked histories instead of resetting
   assert.deepEqual(JSON.parse(fs.readFileSync(room.store.filename)), bad);
 });
 
+for (const [label, mutate] of [
+  ["missing current copy of an accepted choice", state => { state.decisions = []; }],
+  ["two active choices for the same target", state => { state.decisions.push({ ...clone(state.decisions[0]), id: "b".repeat(24), submission: 0 }); }],
+  ["changed accepted choice without a pending update", state => { state.decisions[0].values.density = "compact"; }],
+  ["two accepted choices hidden by an unsent release", state => {
+    const duplicate = { ...clone(state.submittedDecisions[0]), id: "b".repeat(24) };
+    state.decisions[0].state = "released"; state.decisions[0].submission = 0;
+    state.decisions.push(clone(duplicate)); state.submittedDecisions.push(clone(duplicate)); state.submissions[0].decisions.push(duplicate);
+  }],
+]) {
+  test(`hydration rejects ${label} without rewriting the saved choice`, t => {
+    const room = fixture(t), screen = publish(room);
+    room.feedback.keep({ screen, variant: "", target: "card", values: { density: "roomy" }, text: "Behold luft" });
+    room.feedback.submit({});
+    const good = clone(room.feedback.state), damaged = clone(good);
+    mutate(damaged);
+    room.store.close();
+    const bytes = Buffer.from(`${JSON.stringify(damaged)}\n`);
+    fs.writeFileSync(room.store.filename, bytes);
+    assert.throws(() => room.open(), reject(409));
+    assert.deepEqual(fs.readFileSync(room.store.filename), bytes, "An invalid accepted choice must be preserved for deliberate repair.");
+    fs.writeFileSync(room.store.filename, `${JSON.stringify(good)}\n`);
+    assert.deepEqual(room.open().feedback.state.decisions, good.decisions, "A rejected hydration must release its writer claim.");
+  });
+}
+
+test("reopening retains pending choice edits, releases and scoped re-keeps without changing accepted history", t => {
+  const first = fixture(t), screen = publish(first);
+  const keep = (room, density, targetScreen = screen) => room.feedback.keep({ screen: targetScreen, variant: "", target: "card", values: { density }, text: "Behold valgt luft" });
+  const reopen = room => { room.store.close(); return first.open(); };
+  keep(first, "roomy"); first.feedback.submit({});
+  const id = first.feedback.state.decisions[0].id;
+  const originalRound = clone(first.feedback.state.submissions[0]);
+  keep(first, "compact");
+  let room = reopen(first);
+  assert.equal(room.feedback.state.decisions[0].submission, 0);
+  assert.equal(room.feedback.state.decisions[0].values.density, "compact");
+  assert.equal(room.feedback.state.submittedDecisions[0].values.density, "roomy");
+  room.feedback.release(id, {});
+  room = reopen(room);
+  assert.equal(room.feedback.state.decisions[0].state, "released");
+  assert.equal(room.feedback.state.submittedDecisions[0].state, "active");
+  const nextScreen = publish(room, "next.html", html.replace("Innhold", "Neste skisse"));
+  keep(room, "compact", nextScreen);
+  room = reopen(room);
+  assert.equal(room.feedback.state.decisions.length, 1);
+  assert.equal(room.feedback.state.decisions[0].id, id);
+  room.feedback.submit({ screen: nextScreen });
+  assert.equal(room.feedback.state.submittedDecisions[0].values.density, "compact");
+  assert.deepEqual(room.feedback.state.submissions[0], originalRound);
+  room = reopen(room);
+  room.feedback.release(id, {}); room.feedback.submit({});
+  room = reopen(room);
+  keep(room, "roomy", nextScreen); room.feedback.submit({});
+  assert.equal(room.feedback.state.decisions.length, 2, "A newly kept choice can use a new ID after its predecessor was released and submitted.");
+  room = reopen(room);
+  assert.equal(room.feedback.state.submittedDecisions.filter(choice => choice.state === "active").length, 1);
+  assert.equal(room.feedback.state.submissions.length, 4);
+  assert.deepEqual(room.feedback.state.submissions[0], originalRound);
+});
+
 test("content and history page without truncating multibyte characters or reordering versions", t => {
   const room = fixture(t), source = `<p>${"😀ø\\\"".repeat(20000)}</p>`;
   publish(room, "large.html", source, null);

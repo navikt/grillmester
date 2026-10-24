@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
-import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createCanvasAdapter, CANVAS_ID } from '../adapter.mjs';
+import feedbackApi from '../../../skills/design-prototype/scripts/feedback-store.js';
+import canvasApi from '../../../skills/design-prototype/scripts/canvas-state.js';
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve, reject; const promise = new Promise((done, fail) => { resolve = done; reject = fail; }); return { promise, resolve, reject }; };
@@ -208,6 +210,74 @@ test('one committed round sends a bounded exact reference once, never content or
   assert.deepEqual(backend.calls.filter(item => item.method === 'markDelivery').map(item => item.input), [{ submission: 1, status: 'queued' }]);
   assert.equal(backend.calls.some(item => item.method === 'reviewSubmission'), false);
   await f.adapter.close();
+});
+
+test('late queue receipts preserve early answers and expose live status without replaying work', async () => {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'visual-queued-rounds-')));
+  const store = new feedbackApi.FeedbackStore(directory, { canvas: true });
+  const canvas = new canvasApi.CanvasState(store), screen = 'a'.repeat(32);
+  store.knowScreen(screen, 'meeting.html');
+  const acknowledgements = [deferred(), deferred()];
+  let callbacks, sent = 0;
+  const f = fixture({ send: () => acknowledgements[sent++].promise, factory: async options => {
+    callbacks = options;
+    return {
+      openView: async () => ({ url: 'http://127.0.0.1:1234/' }),
+      readState: async () => canvas.summary(),
+      readSubmission: async input => canvas.read(input),
+      reviewSubmission: async input => canvas.review(input),
+      updateComment: async input => canvas.updateComment(input),
+      markDelivery: async input => canvas.delivery(input),
+      retire: async () => options.onExit(),
+    };
+  } });
+  try {
+    f.adapter.attachSession(f.session); await f.adapter.canvas.open(f.ctx);
+    const submit = text => {
+      store.create({ screen, kind: 'point', text,
+        anchor: { path: 'h1:nth-of-type(1)', role: 'heading', rect: { x: 0, y: 0, width: 120, height: 40 }, viewport: { width: 390, height: 844 } } });
+      store.submit({}); callbacks.onSubmitted(store.state.submission);
+    };
+    submit('Behold overskriften.'); await tick();
+    await f.action('review_submission', { submission: 1, status: 'working', reply: 'Vurderer bekreftelsen.' });
+    await f.action('review_submission', { submission: 1, status: 'answered', reply: 'Overskriften beholdes.' });
+    submit('Behold også den kompakte visningen.'); await tick();
+    await f.action('review_submission', { submission: 2, status: 'working', reply: 'Vurderer visningen.' });
+    await f.action('review_submission', { submission: 2, status: 'answered', reply: 'Kompakt visning beholdes.' });
+    const immutable = JSON.stringify(store.state.submissions);
+    const answers = store.state.canvas.rounds.map(({ review, reply }) => ({ review, reply }));
+
+    // Host acknowledgements may arrive after another explicit instruction has
+    // already caused the owning conversation to handle the exact rounds.
+    acknowledgements[1].resolve('second-receipt'); await tick();
+    acknowledgements[0].resolve('first-receipt'); await tick();
+    assert.deepEqual(store.state.canvas.rounds.map(({ review, reply }) => ({ review, reply })), answers);
+    assert.deepEqual(store.state.canvas.rounds.map(round => round.delivery), ['queued', 'queued']);
+    callbacks.onSubmitted(2); callbacks.onSubmitted(1); await tick();
+    assert.equal(f.sends.length, 2, 'Late receipts and duplicate callbacks cannot deliver either round again.');
+
+    const revision = store.state.revision;
+    // When the host later consumes either original notice, its exact reference
+    // resolves to the live answer rather than to unread status at send time.
+    for (const message of f.sends) {
+      const { submission } = JSON.parse(message.prompt.split('\n').at(-1));
+      const page = await f.action('read_submission', { submission });
+      assert.equal(page.round.review, 'answered');
+      assert.equal(page.round.reply, answers[submission - 1].reply);
+      assert.equal(page.items.find(item => item.type === 'comment').current.status, 'open', 'An answered round does not imply a fixed comment.');
+      await assert.rejects(f.action('review_submission', { submission, status: 'working', reply: 'Starter på nytt.' }), error => error.status === 409);
+      await f.action('review_submission', { submission, status: 'answered', reply: page.round.reply });
+    }
+    assert.equal(store.state.revision, revision, 'Reads, rejected restarts and identical answers leave saved state unchanged.');
+
+    // A stale notification is not permission to repeat the work, but the API
+    // must still allow a later deliberate clarification of an existing reply.
+    await f.action('review_submission', { submission: 2, status: 'answered', reply: 'Kompakt visning beholdes; mobilvisningen vurderes i neste runde.' });
+    assert.equal(store.state.revision, revision + 1);
+    assert.equal((await f.action('read_submission', { submission: 2 })).round.reply, 'Kompakt visning beholdes; mobilvisningen vurderes i neste runde.');
+    assert.equal(JSON.stringify(store.state.submissions), immutable);
+    assert.equal(f.sends.length, 2);
+  } finally { await f.adapter.close(); await rm(directory, { recursive: true, force: true }); }
 });
 
 test('rejected or missing acknowledgements remain unknown and are never resent', async () => {

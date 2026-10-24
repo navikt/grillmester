@@ -417,15 +417,82 @@ The redacted native artifact comparison is
 Original, failed-round and final file snapshots are retained privately; shared
 evidence omits session identifiers and transport capabilities.
 
+## Additional adversarial and responsive checks, 24 October
+
+The follow-up found four contradictory persisted-choice shapes: a missing
+current copy of an accepted choice, duplicate active targets, an accepted
+choice changed without becoming pending, and duplicate accepted choices hidden
+by an unsent release. Hydration now rejects these without rewriting the room.
+Pending edits, releases, scoped re-keeps and a new choice after a submitted
+release remain valid through repeated reopening.
+
+Five real process-kill cases cover partial HTML, partial descriptor and partial
+journal bytes, complete revision files before the journal rename, and immediately
+after rename. Prior source pairs, submitted and unsent
+feedback, and manually preserved values survive at one complete publication
+boundary. Missing or changed older source files also reject reopening without
+silently repairing or replacing data. These are process-interruption tests on
+a running filesystem, not simulations of power loss.
+
+The full Node suite passed **162/162**, with no skips. The Python run passed
+821 of 823 checks; both remaining checks passed after correcting the single
+stale design-prototype digest in the existing rights journal. Its decisions,
+dates and review references were unchanged. Generator checks and validation
+passed. Installed-client release preflights still require the pinned CI inputs.
+An existing eight-writer
+test exposed a timing-sensitive retry budget under parallel load; its 30 rapid
+attempts allowed only about 585 ms of waiting. The test now uses an eight-second
+monotonic deadline with bounded, staggered retries. The same eight processes,
+exclusive critical-section check, exact final revision and overall timeout
+remain. Earlier failed runs are retained in the private evidence.
+
+Delayed queued notices now explicitly require checking the round's live review
+and reply before doing work. Already answered notices retain their answer and
+version unless a newer explicit request requires follow-up. An unread round
+may become working; an explicit correction to an answered round retains answered.
+The adapter regression and **17 installed-SDK checks** cover late reversed
+acknowledgements, duplicate callbacks, immutable original inputs, rejected
+restart, identical-answer no-op and permitted deliberate answer correction.
+This establishes protocol behavior and registered guidance, not model obedience
+or withdrawal of a message already queued in the native client.
+
+A separate static layout fixture rendered the exact Lumi fragment, descriptor,
+frame template and existing Aksel CSS at 320, 375, 768 and 1280 CSS pixels.
+All **48 combinations** of width, direction, situation and density matched the
+requested width, selected direction and expected marker count. None had
+horizontal document overflow or overlapping numbered markers. The baseline
+reproduced the old 6/7 marker collision. Captions now sit outside the data plane;
+a named, keyboard-focusable horizontal chart region preserves the coordinates.
+ArrowRight moved the chart by 40 px without moving the page horizontally.
+Narrow ranking and interval rows were inspected visually. Numeric data,
+all 16 marker declarations and the descriptor were preserved. This fixture
+excludes the feedback helper and native app; it is a layout check only.
+
+The reviewed candidate was then published as Lumi version 8 through the guarded
+workspace action. All 14 files belonging to its seven older source pairs and
+all comments, decisions, submitted snapshots and review answers were unchanged.
+A separate room exercised the current full browser wrapper: save a manual
+heading as version 2, receive the specific held-field restore conflict, release
+the hold without changing the text, refresh history and restore version 1 as
+version 3. The restored source pair was byte-identical; no feedback was sent.
+
+Evidence is retained under `/tmp/design-workspace-recovery-validation/`,
+`/tmp/design-workspace-queued-notice-sdk/`,
+`/tmp/design-workspace-extended-python-final/` and
+`/tmp/design-workspace-responsive-probe-3ys3jdko/`.
+
 ## Remaining acceptance
 
 The real-frontend technical trial is complete with the explicit operator
-dependencies above. Lumi still has a narrow-panel chart-label overlap, no final
-concept was selected, and complete visual/design acceptance is not established.
-The latest helper diagnostic and reference guidance passed local checks but
-were not loaded into the native fixture. Final CI verification remains pending;
-the separate release-tool gates above remain unproven with the installed client
-versions. Both native trial registrations have been cleaned up.
+dependencies above. The follow-up resolves the measured narrow-layout overlap
+in Lumi version 8, but no final concept was selected and complete visual/design
+acceptance is not established. The latest helper diagnostic was exercised in
+the full browser wrapper. The latest payload and queued-notice guidance were
+not tested in the native client because the desktop was locked. Both native
+trial registrations remain cleaned up. CI at the earlier delivery passed eight
+checks, including the pinned release-tool gates, on revision `71a03d0` after
+one unchanged Intel rerun; that result does not cover this follow-up. The new
+revision's CI result is recorded separately in the pull request.
 
 Existing-instance reopening through the host menu without a model request was
 not established, and stale trial entries remained in the host's cached lists
