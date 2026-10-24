@@ -111,7 +111,7 @@
       "mode": "0644"
     },
     "extensions/visual-companion/backend.mjs": {
-      "sha256": "de9d41906259c3ca30f16ff66bc1642da5dd12f7dd31cfc43ac1a55394d7fe4c",
+      "sha256": "9b32ed60846f416655f0d4d39d2c0fdd2e5ba9d34054df1089a625013f23240d",
       "mode": "0644"
     },
     "extensions/visual-companion/extension.mjs": {
@@ -122,6 +122,10 @@
       "sha256": "ab26f505294c4d16ebf2aa3341cf93dbe0a5232b1659f4362122abfcfd194642",
       "mode": "0644"
     },
+    "extensions/visual-companion/runtime.mjs": {
+      "sha256": "dfa5318ec73802f2d477b35e0039b5cba53b4bb65a403eff9b12dedf10dbb808",
+      "mode": "0644"
+    },
     "extensions/visual-companion/tests/adapter.test.mjs": {
       "sha256": "53b0b55ca54cacf5cc253e5f55ff1884268e88f01f03d583f6d7be44cf2b5dad",
       "mode": "0644"
@@ -130,8 +134,12 @@
       "sha256": "04c334b13e65776af008e9627f8e0dc7b4cac0040824aef3714e39d3dd1b328f",
       "mode": "0644"
     },
+    "extensions/visual-companion/tests/runtime.test.mjs": {
+      "sha256": "15617e261924166d2df03c99f62c458147d2c9dd5bc994a5d5b53fd70dc49f31",
+      "mode": "0644"
+    },
     "extensions/visual-companion/tests/sdk-smoke.mjs": {
-      "sha256": "d95a5846d291712cba10ce580dc21c0c4304b84bffc1324d5dadd8f965d8f65c",
+      "sha256": "ec4e374d4e92c0ebab851953d6946709b8c274b23969cc1e07eff7e3400ac091",
       "mode": "0644"
     },
     "plugin.json": {
@@ -335,7 +343,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "70e1259f6fe7665de9065bb62b436b9b2e392b31e85783c49d395773143d442b",
+      "sha256": "0aceaf6365f81cc1247c3677f6461b42fa6064e86a2d4d8fdac23afe28431492",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {

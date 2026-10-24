@@ -1,22 +1,30 @@
 #!/usr/bin/env node
 // Test the installed SDK and full preview child against a deterministic host.
-// No client, account credentials, model call or dependency installation is used.
+// An optional packaged executable runs only its extension bootstrap. No client
+// session, account credentials, model call or dependency installation is used.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const options = {};
+const usage = 'Use --sdk-dir PATH [--evidence-dir PATH] [--runtime-binary PATH --runtime-bootstrap PATH --runtime-dist-dir PATH].';
 for (let index = 2; index < process.argv.length; index += 2) {
   const key = process.argv[index];
-  assert(['--sdk-dir', '--evidence-dir'].includes(key) && process.argv[index + 1], 'Use --sdk-dir PATH [--evidence-dir PATH].');
+  assert(['--sdk-dir', '--evidence-dir', '--runtime-binary', '--runtime-bootstrap', '--runtime-dist-dir'].includes(key)
+    && process.argv[index + 1] && !process.argv[index + 1].startsWith('--') && !Object.hasOwn(options, key.slice(2)), usage);
   options[key.slice(2)] = resolve(process.argv[index + 1]);
 }
 assert(options['sdk-dir'], 'An existing host SDK path is required.');
+const runtimeOptions = ['runtime-binary', 'runtime-bootstrap', 'runtime-dist-dir'];
+assert(runtimeOptions.every(key => options[key]) || runtimeOptions.every(key => !options[key]),
+  'Packaged mode requires --runtime-binary, --runtime-bootstrap and --runtime-dist-dir together.');
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const pause = milliseconds => new Promise(resolvePause => setTimeout(resolvePause, milliseconds));
 async function until(read, accept, message, timeout = 8000) {
   const end = Date.now() + timeout;
@@ -150,6 +158,35 @@ const sdkEntry = await readFile(join(sdkDir, 'extension.js'));
 const protocolDeclaration = await readFile(join(sdkDir, 'sdkProtocolVersion.d.ts'), 'utf8');
 const protocolVersion = Number(/SDK_PROTOCOL_VERSION\s*=\s*(\d+)/.exec(protocolDeclaration)?.[1]);
 assert(Number.isSafeInteger(protocolVersion));
+let packagedRuntime;
+if (options['runtime-binary']) {
+  const binary = await realpath(options['runtime-binary']);
+  const bootstrap = await realpath(options['runtime-bootstrap']);
+  const distDir = await realpath(options['runtime-dist-dir']);
+  await access(binary, constants.X_OK);
+  assert((await stat(binary)).isFile() && (await stat(distDir)).isDirectory(), 'Supply an existing packaged executable and extracted distribution.');
+  // The reviewed SEA index dispatches by basename, then loads its own local
+  // preload. Require that effective file rather than claiming an ignored path.
+  assert.equal(basename(bootstrap), 'extension_bootstrap.mjs');
+  assert.equal(bootstrap, await realpath(join(distDir, 'preloads', 'extension_bootstrap.mjs')),
+    '--runtime-bootstrap must name the effective preload in --runtime-dist-dir.');
+  const [bootstrapSource, resolverSource, indexSource, loaderSource] = await Promise.all([
+    readFile(bootstrap, 'utf8'), readFile(join(dirname(bootstrap), 'extension_sdk_resolver.mjs'), 'utf8'),
+    readFile(join(distDir, 'index.js'), 'utf8'), readFile(join(distDir, 'sea-loader.js'), 'utf8'),
+  ]);
+  for (const key of ['COPILOT_EXTENSION_PARENT_PID', 'EXTENSION_PATH', 'COPILOT_SDK_PATH'])
+    assert(bootstrapSource.includes(`process.env.${key}`), `Packaged bootstrap does not expose the reviewed ${key} contract.`);
+  assert(indexSource.includes('extension_bootstrap.mjs') && indexSource.includes('resolveBootstrapPath')
+    && indexSource.includes('preloads'), 'Packaged index does not expose the reviewed bootstrap dispatch.');
+  assert(loaderSource.includes('COPILOT_CLI_DIST_DIR') && loaderSource.includes('COPILOT_AUTO_UPDATE'),
+    'Packaged loader does not expose explicit distribution and auto-update controls.');
+  for (const filename of ['app.js', 'cli-main.js', `prebuilds/${process.platform}-${process.arch}/runtime.node`])
+    assert((await stat(join(distDir, filename))).isFile(), `Packaged distribution is incomplete: ${filename}`);
+  packagedRuntime = { binary, bootstrap, distDir, evidence: {
+    mode: 'packaged', binarySha256: sha256(await readFile(binary)), bootstrapSha256: sha256(bootstrapSource),
+    resolverSha256: sha256(resolverSource), indexSha256: sha256(indexSource), loaderSha256: sha256(loaderSource),
+  } };
+}
 const temporary = await mkdtemp(join(tmpdir(), 'visual-canvas-sdk-'));
 const hosts = [], checks = [];
 const check = async (name, run) => { await run(); checks.push(name); process.stdout.write(`ok ${checks.length} - ${name}\n`); };
@@ -166,12 +203,25 @@ try {
   const workspace = join(temporary, 'workspace'); await mkdir(workspace);
   async function launch() {
     const sessionId = `test-session-${randomUUID()}`;
-    const child = spawn(process.execPath, ['--import', join(temporary, 'register.mjs'), join(here, '../extension.mjs')], {
+    const home = join(temporary, `home-${hosts.length}`); await mkdir(home);
+    const environment = { PATH: dirname(process.execPath), TMPDIR: temporary, SESSION_ID: sessionId,
+      HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(home, 'config'), XDG_CACHE_HOME: join(home, 'cache'),
+      COPILOT_HOME: join(home, 'copilot'), NODE_DISABLE_COMPILE_CACHE: '1' };
+    const executable = packagedRuntime?.binary ?? process.execPath;
+    const args = packagedRuntime ? [packagedRuntime.bootstrap]
+      : ['--import', join(temporary, 'register.mjs'), join(here, '../extension.mjs')];
+    if (packagedRuntime) Object.assign(environment, {
+      COPILOT_CLI_DIST_DIR: packagedRuntime.distDir, COPILOT_AUTO_UPDATE: 'false',
+      COPILOT_PKG_CACHE_HOME: join(home, 'package-cache'), COPILOT_CACHE_HOME: join(home, 'cache'),
+      COPILOT_EXTENSION_PARENT_PID: String(process.pid), EXTENSION_PATH: join(here, '../extension.mjs'), COPILOT_SDK_PATH: sdkDir,
+    });
+    else Object.assign(environment, {
+      VISUAL_SDK_EXTENSION_URL: pathToFileURL(join(sdkDir, 'extension.js')).href,
+      VISUAL_SDK_INDEX_URL: pathToFileURL(join(sdkDir, 'index.js')).href,
+    });
+    const child = spawn(executable, args, {
       cwd: workspace,
-      env: { PATH: dirname(process.execPath), TMPDIR: temporary, SESSION_ID: sessionId,
-        COPILOT_HOME: join(temporary, `home-${hosts.length}`),
-        VISUAL_SDK_EXTENSION_URL: pathToFileURL(join(sdkDir, 'extension.js')).href,
-        VISUAL_SDK_INDEX_URL: pathToFileURL(join(sdkDir, 'index.js')).href },
+      env: environment,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     const host = new StdioHost(child, sessionId, workspace, protocolVersion); hosts.push(host);
@@ -343,8 +393,12 @@ try {
     assert.equal(saved.workspace.version, 3); assert.equal(saved.submission, 2); assert.equal(reopened.sends.length, 0);
     assert.equal((await reopened.stop()).code, 0);
   });
-  const report = { passed: true, protocolVersion, sdkSha256: createHash('sha256').update(sdkEntry).digest('hex'), checks,
-    limits: ['Installed SDK against a deterministic stdio host and actual local preview server.', 'No native renderer, client, model, account or credentials were used.', 'Queue mode and session routing are wire assertions; actual idle/busy host behavior remains a native acceptance test.'] };
+  const report = { passed: true, protocolVersion, sdkSha256: sha256(sdkEntry),
+    runtime: packagedRuntime?.evidence ?? { mode: 'node', version: process.versions.node }, checks,
+    limits: ['Installed SDK against a deterministic stdio host and actual local preview server.',
+      packagedRuntime ? 'Packaged executable used only for its extension bootstrap; no native renderer, client session, model, account or credentials were used.'
+        : 'No native renderer, client, model, account or credentials were used.',
+      'Queue mode and session routing are wire assertions; actual idle/busy host behavior remains a native acceptance test.'] };
   if (options['evidence-dir']) { await mkdir(options['evidence-dir'], { recursive: true }); await writeFile(join(options['evidence-dir'], 'sdk-results.json'), JSON.stringify(report, null, 2) + '\n'); }
   process.stdout.write(JSON.stringify(report) + '\n');
 } finally {

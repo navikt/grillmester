@@ -10,15 +10,17 @@ implementation.
 Design, accessibility and implementation perspectives were simulated reviews,
 not research with human participants. Browser tests used synthetic content,
 disposable projects, existing Chrome and Aksel React/CSS 8.19.2 through SSR.
-The host was simulated; no model requests or real app sessions were used.
+The browser and SDK hosts were simulated. The separate native app trial below
+uses the real application and is reported independently.
 
 ## Verified behavior
 
 | Layer | Result | Scope |
 | --- | --- | --- |
-| Node regression suites | 128/128 passed | Server, feedback, canvas, workspace files/state, editor bindings, adapter and child backend. |
+| Node regression suites | 135/135 passed | Server, feedback, canvas, workspace files/state, editor bindings, adapter, runtime selection and child backend. |
 | Workspace file tests, included above | 17/17 passed | Reopen, immutable files, corruption rejection, exact capacity boundary, post-rename failure, eight concurrent processes, killed writer, distinct temporary environments and macOS case aliases. |
 | Installed SDK with deterministic stdio host | 14/14 passed | Actual protocol and local child backend: session binding, explicit Send, unknown receipt, isolation, URL revocation, single writer, restart without replay and guarded history restore. |
+| Packaged app runtime with deterministic stdio host | 14/14 passed | The same checks through the app's existing packaged executable and effective extension bootstrap, with isolated configuration and no model calls. |
 | Integrated Chrome cases | 13/13 verified across retained reports | Feedback, history, recovery, bounded editing, keyboard/mobile operation, conflicts, lost receipts and refresh locks. |
 | Independent disconnect case | 1/1 passed | After acknowledged source saving and a connection loss, the old frame restores its old source before accepting further feedback. |
 
@@ -46,6 +48,24 @@ The SDK run used protocol 3 and SDK entry SHA-256
 `a8faeb5d4c8379ce6d8473c86e001fc4e2cd5d260e064d4c622f72c35102871d`.
 It proves wire behavior against installed SDK files, not native rendering,
 idle/busy scheduling or discovery through the app's plugin catalog.
+
+## Native app startup
+
+The real app trial used version 1.1.31 and a temporary local marketplace with
+the complete plugin. The active Designer discovered `design-workspace` from
+`plugin:grillmester:visual-companion`, including all eight actions. The first
+open failed before creating a room: the backend treated the host's packaged
+Node executable as an ordinary Node script runner. That executable dispatches
+its own application entry point, so the preview child exited before readiness.
+
+The adapter now resolves and probes an existing ordinary Node 18+ runtime,
+without installing one or forwarding host credentials and startup options.
+Project-local and relative PATH candidates are excluded. A missing runtime
+produces an actionable opening error before writing a room. The regression
+suite includes seven runtime-selection cases, and the additional SDK run uses
+the actual packaged executable and its effective bootstrap. Its 14 passing
+checks establish this startup path independently of a native model session.
+They do not replace the remaining native interaction gates below.
 
 ## Reading an implementation handoff
 
@@ -110,6 +130,12 @@ node --test plugin/skills/design-prototype/tests/*.test.js \
   plugin/extensions/visual-companion/tests/*.test.mjs
 node plugin/extensions/visual-companion/tests/sdk-smoke.mjs \
   --sdk-dir /path/to/existing/copilot-sdk --evidence-dir /tmp/design-workspace-sdk
+node plugin/extensions/visual-companion/tests/sdk-smoke.mjs \
+  --sdk-dir /path/to/existing/copilot-sdk \
+  --runtime-binary /path/to/existing/packaged-executable \
+  --runtime-bootstrap /path/to/existing/dist/preloads/extension_bootstrap.mjs \
+  --runtime-dist-dir /path/to/existing/dist \
+  --evidence-dir /tmp/design-workspace-sdk-packaged
 node scripts/smoke_visual_canvas.cjs \
   --playwright-module /path/to/existing/node_modules/playwright \
   --browser-channel chrome --aksel-project /path/to/existing/aksel-project \
@@ -124,6 +150,9 @@ independent disconnect case. File tests are in
 `/tmp/grillmester-durable-workspace/workspace-store-tests.log`. Exact release
 commands, exits and observed registration JSON are under
 `/tmp/grillmester-design-room-release-smokes/`.
+The packaged-runtime report is
+`/tmp/grillmester-durable-adapter/sdk-packaged/sdk-results.json`; it records
+executable, effective bootstrap, loader and SDK hashes without private paths.
 
 ## Remaining acceptance
 

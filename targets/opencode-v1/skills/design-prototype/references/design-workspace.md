@@ -183,3 +183,8 @@ new room explicitly. The adapter has a Node runtime and a private loopback
 preview transport; a native canvas panel does not remove these requirements.
 Project workspace locking currently requires a Unix host. Other hosts must
 report that project storage is unsupported, without resetting an existing room.
+The preview needs an existing ordinary Node.js runtime, version 18 or newer.
+If the client uses a bundled executable, the adapter looks for Node in the
+host's absolute `PATH` entries. Missing Node stops opening before a room is
+created; it does not trigger an installation. A client that runs extensions
+successfully is not by itself proof that a preview runtime is available.

@@ -1,7 +1,6 @@
 import { fork } from 'node:child_process';
-import { dirname } from 'node:path';
-import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { previewEnvironment, resolveNodeRuntime } from './runtime.mjs';
 
 const serverPath = fileURLToPath(new URL('../../skills/design-prototype/scripts/server.js', import.meta.url));
 const channel = 'visual-companion-canvas';
@@ -37,9 +36,12 @@ export async function createServerBackend({ projectDir, workspacePath, create, t
   if (workspace.workspacePath !== undefined) args.push('--workspace-dir', workspace.workspacePath);
   if (workspace.create === true) args.push('--workspace-create', 'true');
   if (workspace.title !== undefined) args.push('--workspace-title', workspace.title);
+  let executable;
+  try { executable = await resolveNodeRuntime({ projectDir }); }
+  catch (error) { throw Object.assign(error, { backendStopped: true, backendWasReady: false }); }
   const child = fork(serverPath, args, {
-    cwd: projectDir, execPath: process.execPath, execArgv: [],
-    env: { PATH: dirname(process.execPath), TMPDIR: tmpdir() },
+    cwd: projectDir, execPath: executable, execArgv: [],
+    env: previewEnvironment(executable),
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
   });
   child.stdout.resume(); child.stderr.resume();

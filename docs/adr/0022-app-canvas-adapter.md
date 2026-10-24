@@ -38,6 +38,14 @@ Adapteren bruker en avgrenset IPC-kontrakt; den blir ikke en ny skriver til
 `comments.json`. Samme validering, skjermbinding, beholdte valg, atomiske
 innsendingsjournal og HTTP-grenser gjelder i nettleser og canvas.
 
+Barneprosessen trenger en vanlig Node.js-runtime, minst versjon 18. En pakket
+appbinær kan være vert for utvidelsen uten å kunne starte vilkårlige
+Node-skript. Adapteren skal derfor verifisere runtime-en, og ved behov finne
+en allerede installert Node gjennom vertens absolutte `PATH`-oppføringer.
+Den installerer ikke Node, arver ikke klientens legitimasjon eller
+oppstartsflagg og bruker ikke private flagg for å gjøre appbinæren om til
+en skriptkjører. Manglende runtime skal gi en konkret feil før et rom opprettes.
+
 Den autentiserte loopback-URL-en beholdes. Canvas-API-et gir en visningsflate
 og samtalekobling, ikke en dokumentert erstatning for den eksisterende
 HTTP-serveren. Den separate filprøven inngår ikke i denne produksjonsflyten.
