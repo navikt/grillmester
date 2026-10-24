@@ -157,6 +157,11 @@ Record the inspected Aksel version with visual evidence when appearance matters:
 the source revision is immutable, but the preview loads the project's currently
 installed styles and does not freeze an external design-system version.
 
+For a developer continuing from repository files, use the
+[developer handoff reference](design-handoff.md). It explains how to read the
+registered HTML/descriptor pair without opening the canvas, distinguish current
+room state from historical decisions, and record a compact implementation brief.
+
 Use Figma when the designer wants to continue there: as input, for free visual
 refinement, shared library work or a requested editable handoff. Verify read and
 write capabilities separately. Do not automatically rebuild every chosen

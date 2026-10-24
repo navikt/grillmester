@@ -47,6 +47,25 @@ The SDK run used protocol 3 and SDK entry SHA-256
 It proves wire behavior against installed SDK files, not native rendering,
 idle/busy scheduling or discovery through the app's plugin catalog.
 
+## Reading an implementation handoff
+
+A separate technical exercise created four source versions through the actual
+workspace APIs. The brief selected version 2, while version 4 had a different
+heading, different body text and an unsent note. A reader given only the brief
+and saved project files recovered version 2's heading, density choice and body
+text without opening the canvas. The registered HTML and descriptor hashes
+matched; all nine project files remained byte-for-byte unchanged after reading.
+
+The exercise also exposed the limits of a version-only handoff. Raw HTML held
+older fallback text and spacing settings; the descriptor contained the saved
+edits. Current preserved fields and feedback status did not establish historical
+approval or verified state coverage for the chosen version. The
+[handoff guidance](../../plugin/skills/design-prototype/references/design-handoff.md)
+therefore records the exact pair, agreed decisions, relevant submitted rounds,
+values to preserve and observed coverage. It does not add a new file format.
+This was a technical cold-read with synthetic content, not human usability
+research or a check of rendered appearance.
+
 ## Installation and release gates
 
 An independent isolated registration probe used the installed Copilot CLI
@@ -110,8 +129,9 @@ commands, exits and observed registration JSON are under
 
 The complete saved-room workflow still needs a real app run: plugin discovery,
 opening, deliberate Send from idle and busy conversations, reviewed revision,
-panel close/reopen and continuation after ending the session. A human pilot
-with designers and an implementation partner also remains. Simulated panels
+panel close/reopen and continuation after ending the session. A
+[human pilot](visual-companion-human-pilot.md) with designers and an
+implementation partner also remains. Simulated panels
 and automated interaction do not establish usability or adoption.
 
 This work does not provide shared concurrent editing, free layout manipulation,
@@ -119,3 +139,7 @@ automatic production-code changes, a lossless Figma round trip or recovery of
 unsaved typing after closing the sketch. HTML and its descriptor remain the
 paired source. The native panel still uses Node and private loopback transport;
 project storage currently requires the reviewed Unix locking contract.
+There is no hosted, persistent review link for colleagues: a local preview URL
+is not a shared design library. Reading saved files without the app is possible,
+but independently opening an equivalent interactive preview and collecting
+cross-device comments remain separate product requirements.

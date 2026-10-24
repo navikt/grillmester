@@ -491,8 +491,12 @@
       "sha256": "6fd96335b791e658a9ea169360051ccd5bfe92ab4a9157376bc66dff621b1e2e",
       "mode": "0644"
     },
+    "skills/design-prototype/references/design-handoff.md": {
+      "sha256": "143bdc2869262a40303a56fc892cb15d7a91720554f32857cb9e3f5705836683",
+      "mode": "0644"
+    },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "cd07744009a943623496bb135371c8367ec7177857dbf6ede0a10fcd41ea51d7",
+      "sha256": "70e1259f6fe7665de9065bb62b436b9b2e392b31e85783c49d395773143d442b",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
