@@ -317,6 +317,10 @@ jobs:
           source_root="${SOURCE_ROOT}"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/server.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/helper.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/workshop.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/design-contract.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/comments.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/feedback-store.js"
           node --test "${source_root}/plugin/skills/design-prototype/tests/server.test.js"
 
       - name: Install exact OpenCode release-test baseline

@@ -200,6 +200,43 @@ class PackageValidationTest(unittest.TestCase):
         self.write_json("plugin/plugin.json", manifest)
         self.assert_error("expands the reviewed component surface")
 
+    def test_canvas_extension_has_the_reviewed_dependency_free_entry(self) -> None:
+        errors: list[str] = []
+        VALIDATE.validate_canvas_extension(self.root, errors)
+        self.assertEqual([], errors)
+
+    def test_canvas_extension_rejects_dependency_and_lifecycle_metadata(self) -> None:
+        relative = "plugin/extensions/visual-companion/package.json"
+        original = self.load_json(relative)
+        for field in ("dependencies", "devDependencies", "scripts"):
+            with self.subTest(field=field):
+                self.write_json(relative, {**original, field: {}})
+                errors: list[str] = []
+                VALIDATE.validate_canvas_extension(self.root, errors)
+                self.assertTrue(any("unreviewed metadata" in error for error in errors))
+
+    def test_canvas_extension_rejects_redirected_or_missing_entry(self) -> None:
+        relative = "plugin/extensions/visual-companion/package.json"
+        package = self.load_json(relative)
+        self.write_json(relative, {**package, "main": "../../unreviewed.mjs"})
+        errors: list[str] = []
+        VALIDATE.validate_canvas_extension(self.root, errors)
+        self.assertTrue(any("reviewed name" in error for error in errors))
+        self.write_json(relative, package)
+        (self.root / "plugin/extensions/visual-companion/extension.mjs").unlink()
+        errors = []
+        VALIDATE.validate_canvas_extension(self.root, errors)
+        self.assertIn("visual-companion extension needs a regular extension.mjs", errors)
+
+    def test_canvas_extension_rejects_another_extension_or_installed_packages(self) -> None:
+        directory = self.root / "plugin/extensions"
+        (directory / "unreviewed").mkdir()
+        (directory / "visual-companion/node_modules").mkdir()
+        errors: list[str] = []
+        VALIDATE.validate_canvas_extension(self.root, errors)
+        self.assertIn("plugin/extensions must contain only visual-companion", errors)
+        self.assertTrue(any("must not bundle installed dependencies" in error for error in errors))
+
     def test_agent_tool_drift_is_rejected(self) -> None:
         path = self.root / "plugin/agents/grill-inspektor.agent.md"
         path.write_text(

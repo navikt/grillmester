@@ -232,7 +232,9 @@ def load_policy(root: Path, policy_path: Path) -> tuple[dict[str, Any], str]:
     )
     require_exact_fields(
         copilot,
-        expected=frozenset({"removeAgentFrontmatterFields"}),
+        expected=frozenset({
+            "removeAgentFrontmatterFields", "removePluginManifestFields",
+        }),
         label="policy copilotCli",
     )
     require_exact_fields(
@@ -252,6 +254,10 @@ def load_policy(root: Path, policy_path: Path) -> tuple[dict[str, Any], str]:
         )
     if copilot["removeAgentFrontmatterFields"] != ["model"]:
         raise ProjectionError("focused Copilot agents must remove only the model field")
+    if copilot["removePluginManifestFields"] != ["extensions"]:
+        raise ProjectionError(
+            "focused Copilot manifest must remove only the extensions field"
+        )
     if handoff != {
         "status": "NEEDS_FULL_CONTEXT",
         "command": "grillmester local --full",
@@ -827,8 +833,17 @@ def build_copilot_projection(
     plugin_manifest = parse_object(plugin_bytes, label="Copilot manifest")
     if plugin_manifest.get("name") != "grillmester":
         raise ProjectionError("focused Copilot source must be the Grillmester plugin")
+    if plugin_manifest.get("extensions") != "extensions/":
+        raise ProjectionError(
+            "Copilot source must use the reviewed extensions/ directory"
+        )
+    for field in policy["copilotCli"]["removePluginManifestFields"]:
+        plugin_manifest.pop(field, None)
     files: dict[str, GeneratedFile] = {}
-    add_file(files, "plugin.json", (plugin_bytes, plugin_mode))
+    focused_plugin = (
+        json.dumps(plugin_manifest, indent=2, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+    add_file(files, "plugin.json", (focused_plugin, plugin_mode))
     for relative in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
         add_file(
             files,
@@ -876,6 +891,7 @@ def build_copilot_projection(
         "modelSelection": "inherit-provider-or-session",
         "transformations": {
             "agentFrontmatterRemoved": ["model"],
+            "pluginManifestFieldsRemoved": ["extensions"],
             "agentEscalation": "full-context-handoff",
             "excludedSkillReferences": "full-context-guidance",
         },

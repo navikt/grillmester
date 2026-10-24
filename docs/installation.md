@@ -76,7 +76,7 @@ samme versjon.
 
 GitHubs
 [plugin-deep-links](https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/github-copilot-app/open-with-deep-links#open-plugin-flows)
-åpner **Settings → Plugins** med en ferdig utfylt verdi. De installerer eller
+åpner **Customize → Plugins** med en ferdig utfylt verdi. De installerer eller
 registrerer ingenting før brukeren bekrefter i appen.
 
 App-lenken for marketplace tar `OWNER/REPO` eller Git-URL, ikke CLIs
@@ -89,7 +89,8 @@ eller aktivering inn i repoet. Den aktiverer heller ikke cloud agent for teamet;
 bruk repoaktivering for det.
 
 For å oppdatere en installert plugin må du foreløpig velge **Update** under
-**Settings → Plugins** i Copilot app. Dette er en kjent klientbegrensning.
+**Customize → Plugins** i Copilot app. Eldre appversjoner kan plassere
+pluginvisningen under **Settings**. Dette er en kjent klientbegrensning.
 GitHub dokumenterer foreløpig ikke automatisk oppdatering av en personlig
 installasjon fra en egendefinert marketplace. Dette må observeres med to
 faktiske Grillmester-versjoner før det loves som App-adferd.

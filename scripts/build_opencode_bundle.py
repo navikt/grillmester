@@ -429,6 +429,9 @@ def _target_files(
             )
         declared[relative] = (digest, mode)
 
+    if any(path.parts[0] == "extensions" for path in declared):
+        raise BundleBuildError("OpenCode target must not contain app extensions")
+
     expected_agent_paths = {
         PurePosixPath("agents") / f"{agent_id}.md"
         for agent_id in expected_agents
@@ -632,6 +635,7 @@ def _focused_target_files(
         }
         expected_transformations = {
             "agentFrontmatterRemoved": ["model"],
+            "pluginManifestFieldsRemoved": ["extensions"],
             "agentEscalation": "full-context-handoff",
             "excludedSkillReferences": "full-context-guidance",
         }
@@ -686,6 +690,9 @@ def _focused_target_files(
                 f"unsupported {target_name} mode for {relative}: {raw_mode}"
             )
         declared[relative] = (digest, mode)
+
+    if any(path.parts[0] == "extensions" for path in declared):
+        raise BundleBuildError(f"{target_name} must not contain app extensions")
 
     expected_agents = {
         PurePosixPath("agents")
@@ -753,6 +760,10 @@ def _focused_target_files(
             raise BundleBuildError(
                 f"{target_name} file differs from its manifest: {relative}"
             )
+        if client == "copilot" and relative == PurePosixPath("plugin.json"):
+            plugin = _parse_json_object(content, label="focused Copilot plugin manifest")
+            if "extensions" in plugin:
+                raise BundleBuildError("focused Copilot manifest must omit app extensions")
         result.append(BundleFile(directory / relative, content, expected_mode))
     result.append(BundleFile(directory / "manifest.json", manifest_bytes, 0o644))
     return result, manifest_bytes
@@ -858,6 +869,36 @@ def _plugin_files(
         raise BundleBuildError("Copilot plugin manifest must name grillmester")
     if not isinstance(manifest.get("version"), str) or not manifest["version"].strip():
         raise BundleBuildError("Copilot plugin manifest needs a version")
+    if manifest.get("extensions") != "extensions/":
+        raise BundleBuildError("Copilot plugin must use the reviewed extensions/ directory")
+    extension_root = PurePosixPath("extensions/visual-companion")
+    for filename in ("package.json", "extension.mjs"):
+        if extension_root / filename not in relative_files:
+            raise BundleBuildError(f"visual-companion extension is missing {filename}")
+    if any(
+        path.parts[0] == "extensions" and path.parts[:2] != extension_root.parts
+        for path in relative_files
+    ):
+        raise BundleBuildError("Copilot plugin contains an unreviewed app extension")
+    package = _parse_json_object(
+        relative_files[extension_root / "package.json"].content,
+        label="visual-companion package",
+    )
+    _require_exact_fields(
+        package, {"name", "version", "private", "type", "main", "description"},
+        label="visual-companion package",
+    )
+    if package.get("private") is not True or any(package.get(key) != value for key, value in {
+        "name": "visual-companion",
+        "type": "module", "main": "extension.mjs",
+    }.items()):
+        raise BundleBuildError("visual-companion package entry is not the reviewed contract")
+    forbidden = {"node_modules", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml"}
+    if any(
+        path.parts[:2] == extension_root.parts and forbidden.intersection(path.parts[2:])
+        for path in relative_files
+    ):
+        raise BundleBuildError("visual-companion must not bundle installed dependencies or lockfiles")
     observed_agents = {
         path.name.removesuffix(".agent.md")
         for path in relative_files
@@ -1187,7 +1228,10 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
             "status": "NEEDS_FULL_CONTEXT",
             "command": "grillmester local --full",
         },
-        "copilotCli": {"removeAgentFrontmatterFields": ["model"]},
+        "copilotCli": {
+            "removeAgentFrontmatterFields": ["model"],
+            "removePluginManifestFields": ["extensions"],
+        },
     }
     if focused_policy != expected_focused_policy:
         raise BundleBuildError("focused context policy differs from the reviewed v1 contract")
