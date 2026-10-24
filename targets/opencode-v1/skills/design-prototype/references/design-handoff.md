@@ -33,11 +33,15 @@ through the canvas or constructing `WorkspaceStore` acquires its writer claim.
    These two files form the chosen source. If `designHash` is `null`, that version
    has no descriptor. Do not select files by modification time or infer a version
    from its filename: an unregistered file can remain after an interrupted save.
-4. The entry's `hash`, `designHash` and `bytes` identify the saved file contents.
-   Hashes are SHA-256 of the exact file bytes, including the descriptor's trailing
-   newline; `bytes` is the HTML byte count. If a referenced file is missing or
-   fails this check, report the mismatch and retain the chosen reference rather
-   than substituting a different version.
+4. Before using the chosen source for implementation or a brief, calculate
+   SHA-256 from the actual bytes of each referenced file. Compare the HTML hash
+   with the entry's `hash` and, when present, the descriptor hash with
+   `designHash`; also compare the HTML byte count with `bytes`. Include the
+   descriptor's trailing newline. Reading the recorded hashes or checking file
+   size alone is not verification. If a referenced file is missing or a value
+   differs, report the mismatch and stop dependent work. Retain the chosen
+   reference; do not repair the files, rewrite their hashes or substitute another
+   version.
 
 For a version 2 descriptor, `texts[].value` is the canonical text for the matching
 `data-vc-text` binding. A target's `controls[].initial` supplies its declared

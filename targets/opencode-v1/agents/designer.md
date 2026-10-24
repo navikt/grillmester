@@ -83,6 +83,15 @@ overskriv historiske revisjonsfiler. Midlertidig Visual Companion-HTML skrives
 bare til den eksakte private `screen_dir`-tempstien fra aktiv startup-JSON,
 utenfor repoet.
 
+## Fra lagret designrom til overlevering
+
+Når et lagret designrom er grunnlaget for overlevering, brief eller
+implementering, last `design-prototype` og les skillens
+`references/design-handoff.md` før du trekker konklusjoner om underlaget eller
+skriver leveransen. Ikke start canvas eller endre designrommet for å lese og
+overlevere underlaget. Fortsett deretter med den bestilte leveransen innenfor
+mandatet.
+
 ## Fra designspørsmål til skisse
 
 Velg startpunkt fra bestillingen. Ved et nytt eller løst definert konsept,

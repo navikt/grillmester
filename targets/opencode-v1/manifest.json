@@ -92,7 +92,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "9963bfedf581ac95ca56f7b590540434f03ccd2da1f495f516a48f2a5004811e",
+      "sha256": "15e9e50767efc4a30d9eb5c2fbab0610d1ae63db7b646a94a259bb6b35c5af7f",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -492,7 +492,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-handoff.md": {
-      "sha256": "28e8f4050e0f369bb6bbb981a380905f8d13ecdfecb76da67004bda0d45f0b82",
+      "sha256": "98442123b82003427d0b3ced2717af6ae4220ef56e1384be4c3a888c075fc235",
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
