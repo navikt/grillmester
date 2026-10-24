@@ -13,6 +13,13 @@ before dependent work. When the user explicitly selects the latest version,
 resolve it to a registered `revisionId` and record that exact value. Do not
 silently replace an agreed older version with the current room state.
 
+An explicit revision choice also selects that pair's canonical values as the
+handoff baseline. Do not ask the user to choose those values again solely because
+current holds, later revisions or unsent notes differ. Read-only handoff does not
+require releasing or changing current holds. Treat conflicting feedback from the
+rounds the user included, or another explicit requirement, as remaining work;
+distinguish that conflict from the already chosen source.
+
 ## Read the chosen source without opening canvas
 
 Read the files as ordinary text/JSON in an editor. This needs no canvas session

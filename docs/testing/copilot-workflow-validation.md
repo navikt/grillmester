@@ -50,9 +50,9 @@ a long conversation does not authorize a new session or transfer artifact.
 
 ## Evidence status
 
-All cases above are **UNVERIFIED in their named client for this instruction
-revision** until an observed conversation supplies a result; cases without a
-named client use the Copilot app. Existing canvas
+Except for the bounded observations below, cases above are **UNVERIFIED in their
+named client for this instruction revision**; cases without a named client use
+the Copilot app. Existing canvas
 trials concern their recorded revisions and do not prove the new routing.
 Structural checks, independent instruction review and forced loopback loads
 must be reported separately from these observations.
@@ -62,6 +62,92 @@ artifact, and the exact evidence location. Record unavailable capabilities and
 operator intervention without converting a blocked case into a pass. Before
 removing Barista, compare settled-work completion and unnecessary handovers;
 retain it if the merged workflow loses useful explicit solo behavior.
+
+### Saved room to CLI implementation, 24 October 2026
+
+The full plugin at `42164e2` was loaded into a fresh Grillmester conversation in
+Copilot CLI `1.0.102-0.unstable` (build commit `0401dd9`), through cplt
+`2026.09.15-143904-77f4321`. The disposable frontend used React 19.2.4, Vite 7.3.5
+and Aksel React/CSS 8.9.0. Its room was a byte-for-byte copy of an earlier
+app-created synthetic room. The natural request selected version 2 while the
+latest was 4; it did not name a skill or explain the source-resolution procedure.
+
+- **Observed:** naturally loaded `design-prototype`, its handoff reference and
+  `aksel-design`; read the registered version-2 HTML/descriptor pair; used the
+  descriptor heading and compact setting with the older version's body text.
+  The implementation uses actual Aksel components. It did not open canvas or
+  a preview server to read the room. All nine room files remained unchanged.
+- **Verification order failed:** measured the HTML byte count and eventually
+  computed matching SHA-256 hashes, but only after product writes. This exposed
+  an instruction gap: the handoff reference now explicitly requires calculation
+  and comparison before using the pair. This original trial does not establish
+  compliance with the strengthened instruction.
+- **Client build blocked:** the wrapper denied execution of the Vite
+  shim and then loading Rollup's native module from the disposable dependency
+  directory. No sandbox policy was changed. A separate operator build of a
+  fixed implementation snapshot succeeded. All five final frontend source files
+  match that snapshot by SHA-256; this is not autonomous CLI build evidence.
+- **Client rendering:** a Chromium comparison at 416 px passed after correcting
+  an extra heading gap. It compared static server-rendered component markup with
+  the selected HTML after applying its descriptor values. It did not exercise
+  the Vite build or hydrated application, and the client explicitly reported
+  that it had not visually inspected its screenshot.
+- **Independent rendering:** 20 checks passed at 320, 375, 768 and 1280 px,
+  including chosen copy, 8 px compact spacing, no horizontal overflow, labelled
+  editable input, visible keyboard focus, literal/Unicode/long/empty input and
+  room-byte preservation. Screenshots were inspected separately. External font
+  requests were blocked, so the observed typography is fallback; the trial does
+  not prove font or pixel parity with the original canvas environment.
+
+This fixture is one heading, paragraph and text field. It does not test a full
+meeting-booking journey, persistence, backend behavior, screen readers, actual
+browser zoom or human usability. The room had submitted comments but no unsent
+comment, so this trial does not prove separation of unsent feedback. Ordinary
+one-time client permission approvals were supplied by an operator.
+
+### Designer brief and altered source, 24 October 2026
+
+Two fresh Designer CLI conversations used the same client/wrapper versions as
+above, the same selected model settings and the identical natural request. Each
+received a fresh copy of the same 24-file fixture. The request named an output
+brief, selected version 2 and submitted round 1, prohibited product/room edits,
+and asked whether version 2 of a second room was usable. The first room included
+a newer unchosen heading and an unsent comment. The second room's chosen
+descriptor had one appended space: valid JSON with unchanged values, but bytes
+that did not match the registered SHA-256.
+
+The first payload already contained the explicit hash-check instruction. The
+retest payload matches `df08dd8`; its only differences were Designer's explicit
+saved-room entry and that agent's generated manifest digest. Prompts did not
+name a skill or disclose the deliberate mismatch. The private evidence retains
+both frozen payload manifests, prompts, source baselines, tool traces and
+resulting briefs; only one-time client permissions were supplied by an operator.
+
+- **Initial failure:** wrote the brief without loading the handoff reference or
+  calculating file hashes. Treated the canonical descriptor values versus older
+  raw HTML as unresolved design choices, missed the byte mismatch and suggested
+  a newer version as a possible source. This exposed a routing gap: making the
+  reference stricter was insufficient when Designer did not load it.
+- **Retest, partial result:** naturally loaded `design-prototype` and the handoff
+  reference, calculated the chosen files' hashes and HTML byte counts before
+  writing the brief, and detected the appended space. The brief named the exact
+  mismatch, retained the files, used the selected version's canonical values and
+  kept the unsent comment outside submitted round 1. However, its own review
+  still made the already chosen heading conditional on reconfirmation and
+  release of the newer hold. Correct source discovery and integrity checks did
+  not establish a fully usable brief.
+- **Follow-up clarification:** the reference now explicitly treats the chosen
+  pair's canonical values as settled source, without requiring release of
+  current holds. Actual conflicts with included feedback remain open work.
+  This final wording has independent source review and package validation, but
+  is **UNVERIFIED in a fresh live client**; the recorded retry used `df08dd8`.
+
+These are individual bounded observations, not a quality or speed comparison
+across models or clients. The brief request itself prohibited product and room
+edits, so detecting the altered pair here does not prove that an implementation
+request would stop before writing product code. The fixtures have no submitted
+decision journal entries; they test comment-round selection, not replay of
+active/released decisions. Neither brief trial supplies visual or human evidence.
 
 ## VS Code canvas trial
 
