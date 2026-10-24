@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, open, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -25,6 +25,19 @@ const runtimeOptions = ['runtime-binary', 'runtime-bootstrap', 'runtime-dist-dir
 assert(runtimeOptions.every(key => options[key]) || runtimeOptions.every(key => !options[key]),
   'Packaged mode requires --runtime-binary, --runtime-bootstrap and --runtime-dist-dir together.');
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+async function binaryDigest(filename) {
+  const handle = await open(filename, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const before = await handle.stat({ bigint: true });
+    assert(before.isFile(), 'Supply an existing packaged executable.');
+    const bytes = await handle.readFile();
+    const after = await handle.stat({ bigint: true });
+    assert(before.size === BigInt(bytes.length) && after.size === before.size
+      && after.mtimeNs === before.mtimeNs && after.ctimeNs === before.ctimeNs,
+    'Packaged executable changed while its evidence hash was being read.');
+    return sha256(bytes);
+  } finally { await handle.close(); }
+}
 const pause = milliseconds => new Promise(resolvePause => setTimeout(resolvePause, milliseconds));
 async function until(read, accept, message, timeout = 8000) {
   const end = Date.now() + timeout;
@@ -48,15 +61,20 @@ class StdioHost {
     this.stderr = '';
     this.resume = undefined;
     this.failure = undefined;
-    this.exit = new Promise(resolveExit => child.once('exit', (code, signal) => {
-      this.exited = true;
-      for (const pending of this.pending.values()) {
-        clearTimeout(pending.timer);
-        pending.reject(new Error(`Extension exited: ${code ?? signal}`));
-      }
-      this.pending.clear();
-      resolveExit({ code, signal });
-    }));
+    this.exit = new Promise(resolveExit => {
+      const finish = (code, signal) => {
+        if (this.exited) return;
+        this.exited = true;
+        for (const pending of this.pending.values()) {
+          clearTimeout(pending.timer);
+          pending.reject(new Error(`Extension exited: ${code ?? signal}`));
+        }
+        this.pending.clear();
+        resolveExit({ code, signal });
+      };
+      child.once('exit', finish);
+      child.once('close', finish); // A failed spawn closes without emitting exit.
+    });
     child.on('error', error => { this.failure = error; });
     child.stdin.on('error', error => { if (!this.exited) this.failure = error; });
     child.stderr.on('data', chunk => { this.stderr = (this.stderr + chunk).slice(-16384); });
@@ -163,8 +181,8 @@ if (options['runtime-binary']) {
   const binary = await realpath(options['runtime-binary']);
   const bootstrap = await realpath(options['runtime-bootstrap']);
   const distDir = await realpath(options['runtime-dist-dir']);
-  await access(binary, constants.X_OK);
-  assert((await stat(binary)).isFile() && (await stat(distDir)).isDirectory(), 'Supply an existing packaged executable and extracted distribution.');
+  const binarySha256 = await binaryDigest(binary);
+  assert((await stat(distDir)).isDirectory(), 'Supply an existing extracted distribution.');
   // The reviewed SEA index dispatches by basename, then loads its own local
   // preload. Require that effective file rather than claiming an ignored path.
   assert.equal(basename(bootstrap), 'extension_bootstrap.mjs');
@@ -183,7 +201,7 @@ if (options['runtime-binary']) {
   for (const filename of ['app.js', 'cli-main.js', `prebuilds/${process.platform}-${process.arch}/runtime.node`])
     assert((await stat(join(distDir, filename))).isFile(), `Packaged distribution is incomplete: ${filename}`);
   packagedRuntime = { binary, bootstrap, distDir, evidence: {
-    mode: 'packaged', binarySha256: sha256(await readFile(binary)), bootstrapSha256: sha256(bootstrapSource),
+    mode: 'packaged', binarySha256, bootstrapSha256: sha256(bootstrapSource),
     resolverSha256: sha256(resolverSource), indexSha256: sha256(indexSource), loaderSha256: sha256(loaderSource),
   } };
 }
