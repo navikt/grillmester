@@ -1,6 +1,6 @@
 ---
 name: design-prototype
-description: "Explore or refine visual concepts, user flows and existing Figma designs through Aksel browser sketches or editable Figma components. Use for layout, hierarchy and visual alternatives; use `prototype` for executable behavior and `figma-workflow` to translate a chosen design into code or an implementation brief."
+description: "Explore visual concepts, user flows and Figma designs, or read a saved design room as implementation or brief input. Use for layout, hierarchy and visual alternatives; use `prototype` for executable behavior and `figma-workflow` for a chosen Figma design to code or brief."
 ---
 # Fra designspørsmål til synlig skisse
 
@@ -12,6 +12,21 @@ neste fase. Bruk `prototype` når usikkerheten gjelder faktisk kjørbar
 oppførsel, datamodell, tilstandsmaskin eller feilkontrakt. En skisse med
 simulerte situasjoner beviser ikke backendlogikk. Bruk `figma-workflow` når et
 valgt Figma-design skal oversettes til kode eller implementeringsbrief.
+
+## Implementering eller brief fra lagret designrom
+
+Når bestillingen er å implementere eller lage en brief fra et lagret designrom,
+les [overleveringsreferansen](references/design-handoff.md) direkte. Les valgt
+registrert HTML-/descriptor-par og relevante beslutninger som vanlige filer;
+rå HTML alene kan mangle lagrede tekst- og kontrollverdier. Dette krever ikke
+canvas, Node, Figma eller eierskap til rommet. Ikke åpne rommet, start en
+previewserver eller endre designfilene for å lese underlaget.
+
+Gå deretter tilbake til den aktive agentens implementerings- eller brief-flyt.
+Bruk repoets produktkomponenter og verifikasjon; skissens rammeverk og simulerte
+handlinger er ikke ferdig produktkode. En bestilling av brief gir ikke mandat
+til implementering. Oppstart, visuell iterasjon og avslutning nedenfor gjelder
+bare når den arbeidsflaten faktisk er valgt, ikke ved denne leseflyten.
 
 ## Velg én aktiv arbeidsflate
 

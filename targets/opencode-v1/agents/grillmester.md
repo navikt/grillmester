@@ -190,6 +190,14 @@ Choose the working route and explain the reason in one sentence:
 - Large implementation volume with a settled direction needs ordinary planning
   and implementation, not Wayfinder. Size alone never selects a decision map.
 
+When implementation or a brief should follow a saved design room, load
+`design-prototype` and use its developer handoff reference directly. Read the
+chosen registered HTML/descriptor pair and relevant decisions without opening
+canvas, starting a preview server, or acquiring the room's writer claim. Keep
+the room unchanged. Carry its exact path, chosen version and acceptance criteria
+into the implementation scope or Kokk brief; the sketch is design evidence,
+not production code or proof of working behavior.
+
 The route choice is the agent's responsibility, not a permission menu. Honor an
 explicit user choice such as `grill-me` for a standalone stress-test or a request
 to discuss without writing. Tracker mutations still need authorization within

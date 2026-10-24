@@ -92,7 +92,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "790d7011374c9575d4ce66aa2be55d86002f89fe44730147d65984cf096d4892",
+      "sha256": "9963bfedf581ac95ca56f7b590540434f03ccd2da1f495f516a48f2a5004811e",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -104,11 +104,11 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "329481ff1bd34e3da3e1675dd3180259ca84e96b24784c99e25043321d178d40",
+      "sha256": "1317cfb588437844ed7d9cf1ed298be481df65ece7613187d1860ca85edef63c",
       "mode": "0644"
     },
     "agents/kokk.md": {
-      "sha256": "a13ed7a0dd34c8bdccf3d7587504bfc9a73d9c4c8c0fe7c877238888b8cfff0a",
+      "sha256": "2984c2d841ee1c4b22059b646d1a89cacac823865b4bc36f8b47c8a643d05600",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
@@ -148,7 +148,7 @@
       "mode": "0644"
     },
     "commands/design-prototype.md": {
-      "sha256": "ccb53f8dc4492b9f079c3a2c38ee25d1d3916e75f657b63292a57f0734e77eee",
+      "sha256": "24f4fab8d3168b046ebbefc08fb173d5962387b3b9a7576820ab475e9df4d49f",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
@@ -472,7 +472,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "9dd57f75e303f2fbf8990220e8d55d907513bbe9c43754b70bc07a828c3ad563",
+      "sha256": "de738aba0770ad9061f736d30fdd3cbd45f7f12d86cff65ae28ff46f553f38a2",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -492,7 +492,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-handoff.md": {
-      "sha256": "143bdc2869262a40303a56fc892cb15d7a91720554f32857cb9e3f5705836683",
+      "sha256": "28e8f4050e0f369bb6bbb981a380905f8d13ecdfecb76da67004bda0d45f0b82",
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {

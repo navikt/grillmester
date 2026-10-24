@@ -65,6 +65,38 @@ tekniske grensen.
 | **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en avgrenset kjøring med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web avhenger av cplt-policy; eksplisitte GitHub- og package-tokens krever separate opt-in-flagg. OpenCode isolerer ambient GitHub-konto, mens Copilot-profilen kan mediere en native Keychain-credential. `run` krever et separat worktree og etterkontroll. |
 | **OpenCode 2 beta** | Forventet filkompatibilitet, men ingen støttet runtimeflate. | Permissions, provider/model-adferd og full runtimeparitet må testes separat. |
 
+### Designverksted og overlevering mellom klienter
+
+Designverksted er prøvd i Copilot app med den fulle pluginen. Canvas-verten
+eier den visuelle flaten og samtalebindingen; Grillmesters lokale Node-prosess
+serverer skissen og lagrer prosjektrommet. Se [de observerte prøvene](testing/visual-companion-design-workspace.md).
+
+VS Code dokumenterer også canvas som preview i lokale Copilot Agent Host-økter
+på desktop, med `chat.canvases.enabled` slått på før økten opprettes.
+I VS Code 1.142.0 er dette en applikasjonsinnstilling, ikke en innstilling for
+prøveprosjektet. Dette gjelder ikke økttypen «Local», remote Agent Host,
+webklienten eller vertskap i et hjelpevindu.
+En canvas-plugin installert i Copilot app kan ifølge dokumentasjonen oppdages
+fra en støttet VS Code-økt. Dette er plattformstøtte, ikke verifisert
+Grillmester-paritet; kontroller faktisk pluginversjon, canvas og lagret rom før
+en klientovergang regnes som prøvd.
+Kilde kontrollert 2026-10-24: [VS Code: canvases with the Copilot harness](https://code.visualstudio.com/docs/agents/run/agent-harnesses#use-canvases-with-the-copilot-harness).
+
+CLI-utvidelser er eksperimentelle. At utvidelsen lastes, beviser ikke at
+klienten tilbyr en canvasflate. Uten native canvas bruker `design-prototype`
+den portable nettleserflyten når Node og loopback er tilgjengelig; den gir
+midlertidige skisser og ikke det prosjektlagrede designrommet.
+Se [GitHubs utvidelsesbeskrivelse](https://docs.github.com/en/copilot/concepts/customizations/extensions).
+
+Implementering fra et allerede lagret designrom krever derimot ingen åpen app
+eller canvas. Fullpakken inneholder [overleveringsoppskriften](../plugin/skills/design-prototype/references/design-handoff.md):
+velg eksakt repo/worktree og revisjon, les registrert HTML sammen med eventuell
+designbeskrivelse, og avklar relevante beslutninger og akseptansekriterier.
+Rå HTML kan ha eldre tekst enn den lagrede designbeskrivelsen. Produktkode
+verifiseres separat, og endringer synkroniseres ikke automatisk tilbake til
+skissen. `grillmester local` sin fokuserte profil har et mindre skillutvalg;
+bruk full kontekst når denne designoppskriften trengs.
+
 Discovery-smoken kontakter ingen modell. OpenCodes runtime-smoke bruker en
 deterministisk loopbackprovider og beviser config, delegering, `.env`-deny,
 progressiv skill-reference og write/deny uten modellvarians.

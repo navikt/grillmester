@@ -79,7 +79,7 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "4e60c6d2161c4d80bfa84ad102b2c436c63bed043ac507e597ce38b5faf47d57",
+      "sha256": "6379f111e90f2296139f1801fb12dbca86b4d9df5854a844879f8c2e805cbf26",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -91,11 +91,11 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "589d3bcdeff4a0a117569c3f7e78d11338f489ed6c47e3694f065d101c1d9936",
+      "sha256": "e3513942d0a8790619e17c0a4674a79730a97b5cce26119e9f999d463519c6c7",
       "mode": "0644"
     },
     "agents/kokk.agent.md": {
-      "sha256": "f5395462091d689b125a135b2a06dde948a58561d8a2c1f44de907790eb79172",
+      "sha256": "2442df2f11a265cf24855fb801e30c19f8923269b7863e6756cce51b357d4d55",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
@@ -323,7 +323,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "e1bf899ae2442f82cc33b64181aaae401e3a7492c5bbb4432e2de14cf2375879",
+      "sha256": "62d8949543f1dc9195ac57e7e506a082daa1d86e786337ff640c189fc39fec5f",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -343,7 +343,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-handoff.md": {
-      "sha256": "143bdc2869262a40303a56fc892cb15d7a91720554f32857cb9e3f5705836683",
+      "sha256": "28e8f4050e0f369bb6bbb981a380905f8d13ecdfecb76da67004bda0d45f0b82",
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {

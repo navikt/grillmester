@@ -7,6 +7,12 @@ decisions, state coverage and remaining acceptance criteria. This can be part
 of an existing task or an authorized issue. Saving a room does not publish its
 files or authorize a new issue, Git action or product-code change.
 
+Resolve the room and chosen version from the request or existing agreed brief.
+If that choice remains materially ambiguous, ask only for the missing choice
+before dependent work. When the user explicitly selects the latest version,
+resolve it to a registered `revisionId` and record that exact value. Do not
+silently replace an agreed older version with the current room state.
+
 ## Read the chosen source without opening canvas
 
 Read the files as ordinary text/JSON in an editor. This needs no canvas session
@@ -77,6 +83,12 @@ When appearance matters, link the inspected visual evidence and record the Aksel
 or other style version used. The saved pair does not freeze external styles.
 Preview evidence does not establish production interaction, accessibility or
 backend correctness; name the checks the implementer still needs for this task.
+
+Return to the active role's normal implementation or brief workflow with this
+source and its acceptance criteria. Reimplement the selected design with the
+application's components and patterns; do not promote the preview shell or
+simulated actions into production. A brief request does not authorize product-code
+or room changes; write or publish the brief only within the requested scope.
 
 ## Compact handoff example
 

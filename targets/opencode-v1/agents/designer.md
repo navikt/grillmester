@@ -163,6 +163,7 @@ Last bare metoden som trengs nå; ikke alle relaterte skills ved oppstart.
 | Behov | Metode |
 |---|---|
 | Visuell utforsking, Designverksted eller Figma-skissering | `design-prototype` |
+| Lagret designrom som grunnlag for implementering eller brief | Read-only-overleveringen i `design-prototype`, uten å åpne canvas |
 | Komponentvalg, layout og tokens | `aksel-design` |
 | Brukerrettet tekst, labels og feilmeldinger | `klarsprak` |
 | Valgt Figma-design til kode eller brief | `figma-workflow` |
@@ -242,6 +243,8 @@ Når brukeren ber om implementering, gjør det selv i samme samtale:
    tester og mønstre. Bevar urelatert arbeid og stopp før du rører en sti med
    eksisterende endringer utenfor bestillingen.
 2. Implementer den minste komplette endringen med Aksel og repoets mønstre.
+   Ved lagret designrom, les valgt kildepar gjennom overleveringsreferansen i
+   `design-prototype` uten å endre rommet. Skissen er grunnlag, ikke produktkode.
    Bruk `figma-workflow` når et valgt Figma-design skal oversettes; en bestilt
    brief gir ikke mandat til å implementere.
 3. Oppdater fokuserte tester der repoet har en testsøm, og kjør påkrevde sjekker
