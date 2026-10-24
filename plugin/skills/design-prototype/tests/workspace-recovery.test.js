@@ -18,6 +18,11 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const note = (screen, text) => ({ screen, kind: "point", text, anchor: { path: "h1:nth-of-type(1)", role: "heading",
   rect: { x: 0, y: 0, width: 100, height: 30 }, viewport: { width: 390, height: 844 } } });
 
+function readOrNull(filename) {
+  try { return fs.readFileSync(filename); }
+  catch (error) { if (error.code === "ENOENT") return null; throw error; }
+}
+
 function open(projectDir, create = false) {
   const store = new WorkspaceStore({ projectDir, workspacePath: "designs/example", create, validateState: validWorkspaceState });
   try {
@@ -128,10 +133,10 @@ for (const failure of ["missing older source", "changed older descriptor"]) {
     const original = fs.readFileSync(filename);
     if (failure === "missing older source") fs.unlinkSync(filename);
     else fs.writeFileSync(filename, JSON.stringify({ ...declaration, texts: [{ ...declaration.texts[0], value: "Endret utenfor rommet" }] }));
-    const damaged = fs.existsSync(filename) ? fs.readFileSync(filename) : null;
+    const damaged = readOrNull(filename);
     assert.throws(() => open(seeded.projectDir), error => error.status === 409 || error.code === "ENOENT");
     assert.deepEqual(fs.readFileSync(path.join(directory, "workspace.json")), seeded.bytes);
-    assert.deepEqual(fs.existsSync(filename) ? fs.readFileSync(filename) : null, damaged);
+    assert.deepEqual(readOrNull(filename), damaged);
     fs.writeFileSync(filename, original);
     const restored = open(seeded.projectDir);
     t.after(() => restored.store.close());

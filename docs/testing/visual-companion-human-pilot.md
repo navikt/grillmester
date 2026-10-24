@@ -96,3 +96,20 @@ Report five concrete measures, with raw denominators:
 Before adding features, address any observed mistaken send, lost-needed-work assumption, unintentional ownership release or confident wrong-version handoff. If both handoffs are unambiguous, neither designer makes a critical state mistake, and each completes at least three of four tasks independently, proceed to a broader pilot. This is a local decision rule, not a usability certification. Otherwise fix the observed flow and repeat its affected task with someone unfamiliar with it; do not add a feature merely because one participant requests one.
 
 For the retrospective ask only: **«Når ble du usikker på hva som var gjeldende?»**, **«Hva ville du normalt gjort annerledes?»**, and **«Hva manglet utvikleren for å fortsette?»** Keep the participants' wording and distinguish a requested solution from the underlying obstacle.
+
+## Separate narrow-chart follow-up
+
+The Lumi version 8 technical check preserved coordinates and removed marker
+collisions, but a narrow panel cannot show both ends of the chart at once.
+Keep this product question separate from the 45-minute workspace pilot and its
+completion criteria. Use the unchanged paired source, chart direction B in
+Normal at a 416 CSS-pixel viewport, with the chart initially scrolled fully
+left. Record the actual width and starting position. Ask an unfamiliar
+participant:
+
+- **«Hvilke to oppgaver ville du undersøkt først, og hvorfor?»** Record whether they discover the rest of the chart without help and notice and consider task 1, which starts outside this viewport. Do not require a predetermined choice.
+- **«Vis alle oppgavene i kartet.»** Record discovery of horizontal scrolling and whether zone orientation survives scrolling.
+- **«Løs samme prioriteringsoppgave med listen og kartet. Hvilken gir deg tryggest grunnlag?»** Compare reasoning, misunderstandings and active time; vary the first view across participants.
+
+Technical layout passes do not establish that the initial crop supports sound
+prioritisation. This follow-up is prepared, not run, and selects no default view.

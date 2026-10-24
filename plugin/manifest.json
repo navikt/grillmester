@@ -423,7 +423,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-recovery.test.js": {
-      "sha256": "94c047f4ac3f115ad9129c7ee6403e495655829b76a6078a5f94b2575d529a42",
+      "sha256": "1f580afb8b93bbb62b6cdfb0e1e475719434a26215aeb5b8e7e53ebfa4b62108",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-state.test.js": {

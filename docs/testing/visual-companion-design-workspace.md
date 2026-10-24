@@ -18,21 +18,22 @@ functional rounds. It has
 verified saved-field preservation, deliberate owner recovery, a question-only
 round and historical source restoration with rendered readback. All six rounds
 have saved replies. Closure comparison, original-source audit and cleanup are
-verified. Narrow-panel visual polish, concept selection and a human pilot remain
-uncompleted; final CI verification is pending.
+verified. The later follow-up below resolves the measured narrow-layout overlap
+and verifies 48 responsive combinations. Concept selection and a human pilot
+remain incomplete; exact-revision CI results are recorded in the pull request.
 
 ## Verified behavior
 
 | Layer | Result | Scope |
 | --- | --- | --- |
-| Node regression suites after restoration-message correction | 149/149 passed | Server, feedback, canvas, workspace files/state, editor bindings, adapter, runtime selection, styles and child backend, including distinct preserved-field versus stale-history guidance. The corrected helper is not loaded in the native fixture. |
-| Full Python suite on the final source payload | 823/823 passed | Complete rerun after the helper and reference follow-ups, with all 243 captured source/test/manifest hashes unchanged. The native fixture still uses its earlier loaded payload. |
+| Earlier Node regression baseline after restoration-message correction | 149/149 passed | Server, feedback, canvas, workspace files/state, editor bindings, adapter, runtime selection, styles and child backend, including distinct preserved-field versus stale-history guidance. This baseline predates the additional 162-test run below. |
+| Earlier full Python baseline | 823/823 passed | Complete rerun after the helper and reference follow-ups, with all 243 captured source/test/manifest hashes unchanged. The later storage and queued-notice changes are reported separately below. |
 | Retained workspace file baseline | 17/17 passed | Reopen, immutable files, corruption rejection, exact capacity boundary, post-rename failure, eight concurrent processes, killed writer, distinct temporary environments and macOS case aliases. |
 | Targeted adapter checks after conditional-publication correction | 20/20 passed | Stubbed session binding, lifecycle, action routing and explicit delivery. These checks do not establish how a model handles a confirmation-only round. |
 | Installed SDK with deterministic stdio host after schema-registration follow-up | 16/16 passed | Ordinary Node 24.18.0; actual protocol and local child backend, including bounded registered style-subproject schema, exact CSS binding, safe diagnostics, delivery, isolation and recovery. Excludes native schema validation and provider reload lifecycle. |
 | Retained packaged app runtime baseline with deterministic stdio host | 14/14 passed | The earlier protocol checks through the app's existing packaged executable and effective extension bootstrap, with isolated configuration and no model calls. This run predates the conditional-publication and monorepo styling changes. |
 | Earlier native app 1.1.31 trial with synthetic sketches | Interaction, recovery and corrected confirmation round passed | Full-plugin discovery, two saved rooms, manual source editing, idle and busy delivery, replies in the correct rooms, explicit same-instance reopen and recovery after ending the owning session. An initial no-change round failed and was corrected and retested below. |
-| Expanded native frontend trial | Assisted functional rounds completed | Real-source Lumi and Dialogmøte copies, twelve verified source pairs and six answered rounds, with separate artifact audits and operator-observed rendering. Narrow-panel polish and concept selection remain; this is not a completed design acceptance or human pilot. |
+| Expanded native frontend trial | Assisted functional rounds completed | Real-source Lumi and Dialogmøte copies, twelve verified source pairs and six answered rounds, with separate artifact audits and operator-observed rendering. The later layout and native follow-up is reported below; this is not a completed design acceptance or human pilot. |
 | Integrated Chrome cases | 13/13 verified across retained reports | Feedback, history, recovery, bounded editing, keyboard/mobile operation, conflicts, lost receipts and refresh locks. |
 | Isolated Chrome description-list DOM checks | 2/2 passed | Synthetic `dl > div > dt` and `dl > div > dd` bindings preserve the intended target, literal text and compact setting. These are separate from native acceptance. |
 | Independent disconnect case | 1/1 passed | After acknowledged source saving and a connection loss, the old frame restores its old source before accepting further feedback. |
@@ -446,6 +447,11 @@ monotonic deadline with bounded, staggered retries. The same eight processes,
 exclusive critical-section check, exact final revision and overall timeout
 remain. Earlier failed runs are retained in the private evidence.
 
+CodeQL flagged a check-before-read pattern in the new corruption test. Both
+occurrences now read directly and treat only `ENOENT` as absence, preserving
+the missing-file and damaged-file assertions. The seven affected recovery
+cases passed after this test-only correction; runtime files were unchanged.
+
 Delayed queued notices now explicitly require checking the round's live review
 and reply before doing work. Already answered notices retain their answer and
 version unless a newer explicit request requires follow-up. An unread round
@@ -481,18 +487,64 @@ Evidence is retained under `/tmp/design-workspace-recovery-validation/`,
 `/tmp/design-workspace-extended-python-final/` and
 `/tmp/design-workspace-responsive-probe-3ys3jdko/`.
 
+## Latest native read-only follow-up, 24 October
+
+After the desktop became available, the complete current payload was loaded
+from a freshly verified temporary marketplace in a cleared conversation.
+Designer reopened Lumi version 8 with the explicit frontend style subproject
+and identified the three earlier rounds as answered. The installed Playwright
+browser was unavailable. Without installing anything or needing an operator
+navigation hint, Designer used the built-in Browser canvas, discovered the
+sandboxed iframe boundary and opened its observed preview URL directly.
+It inspected screenshots, measured the 416 px viewport and 352 px content area,
+and confirmed the inline Aksel stylesheet and spacing token. Source Sans 3
+was not loaded; this run used a system-font fallback and does not establish
+font fidelity. One screenshot
+request returned the wrong region; Designer noticed and corrected its targeting.
+Individual tool approvals were still supplied by the operator.
+
+The 560 px chart can be read by horizontal scrolling, but its extremes are not
+visible together in this panel. Tasks 1 and 4 start outside the viewport, while
+other tasks disappear at the opposite scroll position. This is a product
+tradeoff to assess in the prepared human follow-up, not evidence that scrolling
+is the best default. The priority list was inspected in the same narrow view.
+
+Two separate question/confirmation rounds were submitted from the sketch while
+Designer was busy. Before ending its initial request it independently read the
+fresh state, found both rounds, read each immutable submission, saved comment
+replies and marked both answered. Neither requested a new sketch. All 16
+existing source files, the revision history, the first three comments and round
+answers, prior submissions, decisions and manual-ownership state were unchanged;
+the current source stayed at version 8.
+
+Both delayed host notifications then ran as separate conversation turns.
+Designer re-read each already answered round and current state, retained both
+answers and finished without another write or submission. The complete room
+state and every room file were byte-identical before and after both queued
+notices. This verifies this observed native sequence, not universal model
+obedience or cancellation of already queued messages. Questions remained open
+comments with replies while their review rounds were answered.
+
+The conversation was then cleared and idle, both owned panels and the evidence
+browser tab were closed, the temporary marketplace was removed, the ordinary
+0.7.1 package was re-enabled and the temporary wake hold was stopped. No trial
+backend remained. All room files also matched after shutdown. A separate audit
+confirmed the 1,057 Lumi and 267 Dialogmøte original files listed in the copy
+manifests remained unchanged; unlisted files were outside that comparison.
+Private evidence is retained under the latest native-trial directory, including
+the before/after file audit, queued-notice equality check and rendered replies.
+
 ## Remaining acceptance
 
-The real-frontend technical trial is complete with the explicit operator
-dependencies above. The follow-up resolves the measured narrow-layout overlap
-in Lumi version 8, but no final concept was selected and complete visual/design
-acceptance is not established. The latest helper diagnostic was exercised in
-the full browser wrapper. The latest payload and queued-notice guidance were
-not tested in the native client because the desktop was locked. Both native
-trial registrations remain cleaned up. CI at the earlier delivery passed eight
-checks, including the pinned release-tool gates, on revision `71a03d0` after
-one unchanged Intel rerun; that result does not cover this follow-up. The new
-revision's CI result is recorded separately in the pull request.
+The real-frontend technical trial and latest native queued-notice check are
+complete with the explicit operator dependencies above. The follow-up resolves
+the measured narrow-layout overlap in Lumi version 8, but no final concept was
+selected and complete visual/design acceptance is not established. The latest
+helper diagnostic was exercised in the full browser wrapper; the complete
+current payload was subsequently loaded and exercised in the native client.
+Trial registrations are cleaned up. Exact-revision CI results, including the
+pinned release-tool gates and the test-only CodeQL correction, are recorded
+separately in the pull request.
 
 Existing-instance reopening through the host menu without a model request was
 not established, and stale trial entries remained in the host's cached lists
