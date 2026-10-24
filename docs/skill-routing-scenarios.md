@@ -52,3 +52,7 @@ An automated loopback smoke can verify catalog identities, packaged content,
 native loading, delegation, and emitted evidence without a real model. Mark
 natural-language routing as unverified until an actual client conversation has
 observed it; a payload assertion alone is not behavioral evidence.
+
+For the simplified app workflows and a future Barista migration decision,
+use the bounded [Copilot workflow validation cases](testing/copilot-workflow-validation.md).
+Their app outcomes remain unverified until observed on the changed revision.
