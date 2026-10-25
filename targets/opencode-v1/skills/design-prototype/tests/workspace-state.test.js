@@ -219,7 +219,8 @@ test("source edits save one paired revision, survive restart and protect values 
   receipts.run(id, "POST", "/workspace/editor/save", input, value => room.workspace.editorSave(value));
   receipts.run(id, "POST", "/workspace/editor/save", input, value => room.workspace.editorSave(value));
   assert.equal(room.workspace.summary().version, 2); assert.equal(room.feedback.state.submission, 0);
-  assert.equal(room.workspace.current().content, html, "The immutable HTML and revised descriptor form the source pair.");
+  assert.equal(room.workspace.current().content, html.replace("Velg tidspunkt", "Finn en tid som passer")
+    .replace('data-vc-setting-density="roomy"', 'data-vc-setting-density="compact"'), "The saved HTML carries the descriptor's saved values.");
   assert.equal(room.workspace.current().design.texts[0].value, input.changes[0].value);
   assert.equal(room.workspace.editorRead({}).fields.filter(item => item.locked).length, 2);
   const held = clone(room.workspace.current().design);
@@ -251,4 +252,23 @@ test("editor rejects stale, undeclared, invalid and contradictory choices withou
   assert.equal(room.feedback.state.decisions[0].state, "active");
   const read = room.workspace.editorRead({}); assert(Buffer.byteLength(JSON.stringify(read)) <= 64 * 1024);
   const v1 = design(); v1.version = 1; delete v1.texts; delete v1.targets[0].controls[0].editable; assert(validDesign(v1));
+});
+
+test("editor saves and restores write the descriptor's text and editable settings into the saved HTML", t => {
+  const room = fixture(t), { feedback, workspace, store } = room;
+  const screen = publish(room);
+  workspace.editorSave({ screen, expectedRevision: feedback.state.revision, changes: [
+    { id: "text:heading", value: "Finn <en> tid & sted" }, { id: "control:/card/density", value: "compact" }] });
+  const edited = feedback.state.workspace.revisions.at(-1);
+  const savedHtml = fs.readFileSync(path.join(store.revisionsDir, edited.filename), "utf8");
+  assert.match(savedHtml, /<span data-vc-text="heading">Finn &lt;en&gt; tid &amp; sted<\/span>/);
+  assert.match(savedHtml, /data-vc-key="card" data-vc-setting-density="compact"/);
+  assert.equal(savedHtml.includes("Velg tidspunkt"), false, "The saved HTML alone must show the saved text.");
+  assert.equal(workspace.current().content, savedHtml);
+  // Restoring the first version writes that version's own values.
+  workspace.editorRelease({ screen: workspace.current().screen, expectedRevision: feedback.state.revision, ids: ["text:heading", "control:/card/density"] });
+  workspace.restore({ revisionId: 1, expectedRevision: feedback.state.revision });
+  const restored = fs.readFileSync(path.join(store.revisionsDir, feedback.state.workspace.revisions.at(-1).filename), "utf8");
+  assert.match(restored, /<span data-vc-text="heading">Velg tidspunkt<\/span>/);
+  assert.match(restored, /data-vc-setting-density="roomy"/);
 });

@@ -4,7 +4,7 @@ const crypto = require("node:crypto");
 const { FeedbackError, keys, ID, SCREEN, validPersistedFeedback } = require("./feedback-store.js");
 const { validDesign, validEditableText } = require("./design-contract.js");
 const { editorFields, validHolds, conflictingHolds, holdFor, setField } = require("./editor-contract.js");
-const { validateEditorBindings } = require("./editor-bindings.js");
+const { validateEditorBindings, materializeEditorValues } = require("./editor-bindings.js");
 
 const PAGE_BYTES = 64 * 1024;
 const filenamePattern = /^[a-z0-9][a-z0-9-]{0,95}\.html$/;
@@ -190,7 +190,7 @@ class WorkspaceState {
     requireValue(changed, 400, "There are no changed source fields to save.");
     const version = this.feedback.state.workspace.version + 1;
     return this.publish({ expectedScreen: current.screen, filename: `edited-v${version}-${crypto.randomBytes(4).toString("hex")}.html`,
-      html: current.content, design: nextDesign, label: "Redigert skisse" }, undefined, [...holds.values()]);
+      html: materializeEditorValues(current.content, nextDesign), design: nextDesign, label: "Redigert skisse" }, undefined, [...holds.values()]);
   }
   editorRelease(input) {
     requireValue(keys(input, ["screen", "expectedRevision", "ids"]) && Array.isArray(input.ids) && input.ids.length > 0 && input.ids.length <= 32 &&
@@ -209,7 +209,7 @@ class WorkspaceState {
     const current = this.feedback.state.workspace;
     return this.publish({ expectedScreen: current.revisions[current.version - 1]?.screen || "",
       filename: `restored-${revision.revisionId}-v${current.version + 1}-${crypto.randomBytes(4).toString("hex")}.html`,
-      html: saved.html, design: saved.design }, revision.revisionId);
+      html: materializeEditorValues(saved.html, saved.design), design: saved.design }, revision.revisionId);
   }
 }
 

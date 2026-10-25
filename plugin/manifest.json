@@ -347,7 +347,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "a6edadf0b932c8216aea2169d668412529b44cdff3c690dfc5b668b427d0639f",
+      "sha256": "e6b2a82603f2934ec50bf0e54e8090956f4cf035fc50621929e8c1bc7cced8d1",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -371,7 +371,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/editor-bindings.js": {
-      "sha256": "9057262e1e93d0b8c79944af1a08675f7c293b98ccb2f54af7d3724e62f2a6b1",
+      "sha256": "5ada5da9b41c3214baf425d44000ae601a1b57b5a0d62662e12d7d194cdcc6ce",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/editor-contract.js": {
@@ -403,7 +403,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workspace-state.js": {
-      "sha256": "b0158a4caf0bd283e55e8e5da3a3b41f9886a0e73f9a8489580af3eccfac6257",
+      "sha256": "6b398102de48db057ab30b08b2f29d2d7651e07e3db1dca4174e77cc27766af5",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workspace-store.js": {
@@ -431,7 +431,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-state.test.js": {
-      "sha256": "4e9ccb09fe6ccd87f53f74516bfb484c076b6bdaede35cfac50795ca4d13a70e",
+      "sha256": "fd0b534c94f13459690f1826ad5e9f8d804912f4cdfd1eae45ddb9f315c175ad",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-store.test.js": {

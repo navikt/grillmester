@@ -168,12 +168,14 @@ remain preview-only by omitting this flag. Version 2 allows at most 16 text
 fields and 32 editable fields in total, 2,000 UTF-8 bytes per text value, and a
 24 KiB descriptor. Existing v1 limits remain unchanged.
 
-**Rediger skissen → Lagre som ny versjon** updates the descriptor and copies the
-HTML into one new immutable pair. The trusted renderer applies text values as
-text content and finite choices as declared setting attributes. The descriptor
-and HTML together are the source; raw HTML exported alone may contain older
-fallback text and is not the complete edited sketch. No generic HTML editor or
-lossless HTML/Figma round trip is provided.
+**Rediger skissen → Lagre som ny versjon** updates the descriptor and writes its
+text values and editable settings into the declared bindings of a new immutable
+HTML file; restoring a version does the same for that version's values. The
+trusted renderer applies text values as text content and finite choices as
+declared setting attributes. The descriptor and HTML together remain the source,
+and descriptor values win where they differ: rooms saved before this behavior
+can contain older text in edited HTML. No generic HTML editor or lossless
+HTML/Figma round trip is provided.
 
 Every changed source field becomes a preserved manual value. Later publication
 or restore must retain its value, ID and declared meaning. The canvas exposes

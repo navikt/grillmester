@@ -139,8 +139,11 @@ felt og beholdte verdier kan leses innenfor transportgrensen. Ingen vilkårlig
 CSS, selektorer, skript, attributter eller frie HTML-fragmenter inngår.
 
 En lagret manuell endring lager en ny skisseversjon og en varig føring i samme
-tilstandsovergang. Det sender ingen melding. HTML og sidecar er den parede
-kanoniske kilden; rå HTML alene er ikke en full eksport av endringene.
+tilstandsovergang. Det sender ingen melding. Lagringen skriver tekstverdiene
+og de redigerbare innstillingene inn i de deklarerte bindingene i den nye
+HTML-filen, og en gjenoppretting gjør det samme for sin versjon. HTML og
+sidecar er fortsatt den parede kanoniske kilden, og deklarasjonen vinner ved
+avvik; rom lagret før denne endringen kan ha eldre tekst i redigert HTML.
 Forhåndsvisningen bruker de deklarerte verdiene gjennom støttede bindinger.
 Et manglende, duplisert eller ustøttet felt skal ikke fremstå som vellykket
 redigert. Verdien og føringen må bevares mens avviket synliggjøres.
