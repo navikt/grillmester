@@ -18,9 +18,20 @@ valgt Figma-design skal oversettes til kode eller implementeringsbrief.
 Når bestillingen er å implementere eller lage en brief fra et lagret designrom,
 les [overleveringsreferansen](references/design-handoff.md) direkte. Les valgt
 registrert HTML-/descriptor-par og relevante beslutninger som vanlige filer;
-rå HTML alene kan mangle lagrede tekst- og kontrollverdier. Dette krever ikke
+rå HTML alene kan mangle lagrede tekst- og kontrollverdier. Verifiser registrert
+SHA-256 og byteantall etter overleveringsreferansen før enhver skriving som
+avhenger av et lagret par; stopp og rapporter ved avvik. Dette krever ikke
 canvas, Node, Figma eller eierskap til rommet. Ikke åpne rommet, start en
 previewserver eller endre designfilene for å lese underlaget.
+
+Ved en chatbestilling om å endre et felt designeren har lagret i editoren, kan
+ikke agenten tillate endringen. Be designeren endre feltet i editoren eller velge
+**Tillat senere endring**, og fortsett med resten av bestillingen.
+
+- **Behold dette** → *kept choice*: ber agenten beholde en del av skissen.
+- **Lagret felt** → *preserved field*: editorverdi som sperrer overskriving til
+  designeren velger **Tillat senere endring**.
+- **Runde** → *round*: en innsendt samling innspill og valg.
 
 Gå deretter tilbake til den aktive agentens implementerings- eller brief-flyt.
 Bruk repoets produktkomponenter og verifikasjon; skissens rammeverk og simulerte
@@ -39,7 +50,7 @@ chatten. Ikke be designeren velge transport, og ikke last alle oppskriftene.
 |---|---|
 | Nettleserskisse, og klienten tilbyr **Designverksted** (`design-workspace`) | [Designrom](references/design-workspace.md): åpning, prosjektlagring, publisering, innspillsrunder, historikk og lukking |
 | Nettleserskisse uten canvas, med lokal Node.js ≥ 18 og klienttilgjengelig loopback | [Midlertidig nettleserflyt](references/visual-companion.md): oppstart, private tempstier, CLI-innspill og opprydding |
-| Bestilt redigering eller redigerbare komponenter i Figma | Bekreft read og write separat; ved faktisk create/edit-kapabilitet, les [Figma-oppskriften](references/figma-prototype.md) |
+| Bestilt redigering eller redigerbare komponenter i Figma | Bekreft read og write separat; ved faktisk create/edit-kapabilitet, les [Figma-oppskriften](references/figma-prototype.md). For lagret rom, les hashverifisert registrert par via [overleveringsreferansen](references/design-handoff.md): descriptorens `texts[].value` og redigerbare `controls[].initial` overstyrer HTML-tekst og innstillingsattributter; bygg aldri fra rå HTML alene. |
 
 I appen brukes det tilgjengelige Designverksted-canvaset for nettleserskisser.
 Bruk klientens faktiske verktøy og skjemaer. Start ikke ekstra server eller

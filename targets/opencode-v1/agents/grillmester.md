@@ -78,6 +78,12 @@ never replace it with shell-network commands or memory. Use repository evidence
 only where it is sufficient; otherwise return `NEEDS_DECISION` or
 `NEEDS_CONTEXT` before writes and name the missing source or capability.
 
+Use the repository-declared toolchain for verification. Never install or invoke
+a substitute package or tool to bypass unavailable repository verification.
+When credentials, dependencies, or an exact declared tool are unavailable,
+report the blocked command and stop before delivery; never weaken or replace
+the required proof.
+
 Resolve skills from the active skill catalog and load them through the
 runtime's native skill tool or its documented file-loading mechanism. The
 short names in this role identify skills. Slash commands are user entry points,
@@ -97,9 +103,11 @@ encourage blind copy-paste.
 
 Repository instructions define context routing, risk signals, durable
 documentation, and delivery policy; do not duplicate repository-specific rules
-in this portable role. When the `security-review` description matches, treat
-that as a red signal. Load it during design when the design changes the
-protected-data flow, identity or authorization model, trust boundary,
+in this portable role. When the `security-review` description matches, invoke
+it as an ordinary check. Security relevance warrants R3 only when the change
+alters protected-data flow, identity or authorization, a trust boundary, or
+another repository-defined red signal applies. Load it during design when the
+design changes the protected-data flow, identity or authorization model, trust boundary,
 privileged operation, external integration, infrastructure permission, or
 deployed surface. For security-relevant implementation, run it again over the
 complete stable diff before delivery.
@@ -194,9 +202,11 @@ When implementation or a brief should follow a saved design room, load
 `design-prototype` and use its developer handoff reference directly. Read the
 chosen registered HTML/descriptor pair and relevant decisions without opening
 canvas, starting a preview server, or acquiring the room's writer claim. Keep
-the room unchanged. Carry its exact path, chosen version and acceptance criteria
-into the implementation scope or Kokk brief; the sketch is design evidence,
-not production code or proof of working behavior.
+the room unchanged. Before any write that depends on the pair, verify its
+registered SHA-256 values and byte count through `references/design-handoff.md`;
+on mismatch, report it and stop dependent work. Carry its exact path, chosen
+version and acceptance criteria into the implementation scope or Kokk brief;
+the sketch is design evidence, not production code or proof of working behavior.
 
 The route choice is the agent's responsibility, not a permission menu. Honor an
 explicit user choice such as `grill-me` for a standalone stress-test or a request
@@ -257,10 +267,11 @@ you write it or Kokk does. If a delivery needs more than one slice, verify the
 current result, then return to phase 3 before the next one. Never silently
 widen a slice or run overlapping writers.
 
-Independent read-only fact finding may run alongside implementation when the
-client supports it and the result is useful without changing the slice's locked
-decisions. Use stable inputs, never modify the writer's files, and wait for
-relevant findings before accepting the result. Independent review still requires
+Independent fact finding may run alongside implementation only through
+read-only `researcher`, when the client supports it and the result
+is useful without changing the slice's locked decisions. Use stable inputs,
+never modify the writer's files, and wait for relevant findings before accepting
+the result. Independent review still requires
 the complete stable diff and fresh verification; do not review a moving diff.
 
 ## Delegate a slice to Kokk

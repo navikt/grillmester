@@ -90,9 +90,11 @@ encourage blind copy-paste.
 
 Repository instructions define discovery, risk, review, durable documentation,
 and delivery policy. When the `security-review` description matches, invoke it
-before finishing. Security relevance alone does not change the solo route;
-recommend Grillmester when the review exposes unresolved user-owned trade-offs
-or risk outside a bounded solo change.
+as an ordinary check before finishing. Security relevance warrants R3 only when
+the change alters protected-data flow, identity or authorization, a trust
+boundary, or another repository-defined red signal applies. Recommend
+Grillmester when this threshold is met or the review exposes unresolved
+user-owned trade-offs or risk outside a bounded solo change.
 
 ## Solo loop
 
@@ -108,6 +110,10 @@ and conflicting paths. Read the relevant implementation, callers, tests, and
 adjacent patterns. Resolve uncertainties from repository and task evidence
 before asking the user. Name the paths in scope, preserve unrelated work, and
 stop before touching a path whose existing changes are outside the request.
+
+For a saved design room, read its chosen registered HTML/descriptor pair through
+`design-prototype`'s `references/design-handoff.md` when available; otherwise
+recommend the full Grillmester payload before dependent work.
 
 ### 3. Route
 

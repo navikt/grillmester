@@ -7,6 +7,8 @@ description: "Create or update a README from verified implementation and operati
 > **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Describe current behavior, never a desired future presented as current state.
+Edit only the requested README unless the user names other documentation to
+update. For a review request, return findings without editing files.
 
 ## Discover the documentation contract
 
@@ -75,12 +77,12 @@ develop it. Add sections only when evidence and reader need justify them.
 
 ## Approval boundary
 
-Carry out the requested local README edit and any related documentation or
-delivery actions already authorized by the user. Reuse that bounded authority
-for committing, opening a PR or publishing; the local edit alone does not
-authorize those actions or contacting others. If authority or a material
-choice is missing, prepare the diff and exact target, then ask only for what
-remains unresolved.
+Carry out the requested local README edit, edits to other documentation the
+user has named, and delivery actions already authorized by the user. Reuse
+that bounded authority for committing, opening a PR or publishing; the local
+edit alone does not authorize those actions or contacting others. If authority
+or a material choice is missing, prepare the diff and exact target, then ask
+only for what remains unresolved.
 
 ## Grenser
 

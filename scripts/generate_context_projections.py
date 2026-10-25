@@ -512,14 +512,23 @@ def apply_focused_text_overlay(
             text = replace_once(text, old, new, path=relative)
             text = replace_once(
                 text,
-                "Security relevance alone does not change the solo route;\n"
-                "recommend Grillmester when the review exposes unresolved user-owned "
-                "trade-offs\n"
-                "or risk outside a bounded solo change.",
-                "Security relevance alone does not change the solo route. If review exposes\n"
-                "unresolved user-owned trade-offs or risk outside a bounded solo change,\n"
+                "Recommend\n"
+                "Grillmester when this threshold is met or the review exposes unresolved\n"
+                "user-owned trade-offs or risk outside a bounded solo change.",
+                "When this threshold is met or review exposes unresolved user-owned\n"
+                "trade-offs or risk outside a bounded solo change,\n"
                 "return `Status: NEEDS_FULL_CONTEXT` with the full-context handoff\n"
                 "defined in the Route step.",
+                path=relative,
+            )
+            text = replace_once(
+                text,
+                "For a saved design room, read its chosen registered HTML/descriptor pair through\n"
+                "`design-prototype`'s `references/design-handoff.md` when available; otherwise\n"
+                "recommend the full Grillmester payload before dependent work.",
+                "For a saved design room, the handoff reference is outside this focused payload.\n"
+                "Before dependent work, return `Status: NEEDS_FULL_CONTEXT` with the\n"
+                "full-context handoff defined in the Route step.",
                 path=relative,
             )
             text = replace_once(

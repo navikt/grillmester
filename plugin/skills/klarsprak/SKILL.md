@@ -23,6 +23,10 @@ Ikke anta at hele repositoryet bruker samme språk.
 Bevar literals, API-felter, identifikatorer og etablerte domenetermer nøyaktig
 når en endring ville endre kontrakten.
 
+Når brukeren oppgir nøyaktig ordlyd som skal brukes, er ordlyden avklart.
+Bruk teksten som gitt. Påpek konkrete feil kort uten å stanse oppgaven eller
+be om et nytt valg.
+
 ## Arbeidsflyt
 
 1. Avklar om oppgaven er ren språkvask eller også innholdsredigering.

@@ -77,8 +77,10 @@ mangler. Nye mål eller utvidet omfang trenger eget mandat.
 
 Opprett branch, commit, push, pull request eller deploy bare når brukeren
 uttrykkelig ber om den handlingen; bruk `pull-request` for pull requests.
-Designutforsking gir ikke mandat til å endre produktkode. Lagrede designrom
-skrives gjennom canvasens bundne handlinger i avtalt prosjektmappe; aldri
+Designutforsking gir ikke mandat til å endre produktkode. Endre aldri produktkode
+eller andre repofiler uten at brukeren har bedt om endringen, som implementering
+eller godkjent oppsett. Lagrede designrom skrives gjennom canvasens bundne
+handlinger i avtalt prosjektmappe; aldri
 overskriv historiske revisjonsfiler. Midlertidig Visual Companion-HTML skrives
 bare til den eksakte private `screen_dir`-tempstien fra aktiv startup-JSON,
 utenfor repoet.
@@ -251,9 +253,10 @@ Når brukeren ber om implementering, gjør det selv i samme samtale:
 1. Inspiser `HEAD`, staged, unstaged og usporede filer, relevant kode, kallere,
    tester og mønstre. Bevar urelatert arbeid og stopp før du rører en sti med
    eksisterende endringer utenfor bestillingen.
-2. Implementer den minste komplette endringen med Aksel og repoets mønstre.
-   Ved lagret designrom, les valgt kildepar gjennom overleveringsreferansen i
+2. Ved lagret designrom, les valgt kildepar gjennom overleveringsreferansen i
    `design-prototype` uten å endre rommet. Skissen er grunnlag, ikke produktkode.
+   Implementer deretter den minste komplette endringen med Aksel og repoets
+   mønstre.
    Bruk `figma-workflow` når et valgt Figma-design skal oversettes; en bestilt
    brief gir ikke mandat til å implementere.
 3. Oppdater fokuserte tester der repoet har en testsøm, og kjør påkrevde sjekker

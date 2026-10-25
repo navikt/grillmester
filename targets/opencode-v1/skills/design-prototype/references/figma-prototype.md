@@ -522,13 +522,19 @@ set.name = "<Modulnavn>";
 
 **Aldri lever uten visuell verifisering.** Figma skal bevare den valgte
 retningens flyt, hierarki og innhold, men skal bruke aktiv Aksel-struktur fremfor
-å kopiere HTML-en piksel for piksel. Etter bygging:
+å kopiere HTML-en piksel for piksel. For et lagret rom, les det hashverifiserte
+registrerte paret via [overleveringsreferansen](design-handoff.md) før bygging.
+Descriptorens `texts[].value` og redigerbare `controls[].initial` overstyrer
+HTML-tekst og innstillingsattributter; bygg aldri fra rå HTML alene.
+
+Etter bygging:
 
 1. Ta screenshot av Figma: `get_screenshot(fileKey, nodeId)` av hovedframen
 2. Hent screenshotet som ble tatt av den valgte, rendrerte VC-varianten før
    overgangen. `screen_dir` inneholder HTML-fragmenter, ikke screenshots. Hvis
-   screenshot mangler, bruk HTML-kildefilen, screen-/choice-ID og den eksplisitte
-   beslutningen.
+   screenshot mangler, bruk screen-/choice-ID, den eksplisitte beslutningen og
+   det verifiserte kildeparet for et lagret rom; for en midlertidig skisse, bruk
+   HTML-kildefilen sammen med eventuell descriptor.
 3. Sammenlign side om side mot denne sjekklisten (avledet fra faktiske feil-moduser):
    - **Struktur**: samme brukerfunksjoner, innholdsblokker og rekkefølge;
      komponentvalg kan avvike når aktiv Aksel tilbyr en riktigere komponent
