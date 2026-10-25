@@ -15,14 +15,19 @@ Copilot app bruker sin native pluginflyt:
 1. [Legg til Grillmester-markedsplassen](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Fmarketplace%2Fadd%3Fsource%3Dnavikt%252Fgrillmester)
 2. [Installer Grillmester](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester%2540grillmester)
 
-Lenkene åpner **Settings → Plugins** med ferdig utfylt verdi; ingenting
+Lenkene åpner **Customize → Plugins** med ferdig utfylt verdi; ingenting
 installeres før du bekrefter. Oppdater pluginen med **Update** under
-**Settings → Plugins**; automatisk oppdatering nedenfor gjelder CLI. Se
+**Customize → Plugins**; automatisk oppdatering nedenfor gjelder CLI. Se
 [appdetaljer](docs/installation.md#copilot-app). App-lenken følger repoets
 default branch; bruk Copilot CLI med en reviewet versjonstagg når pinning er
 påkrevd.
 
 Bruk `/app-sandbox-setup` for manuelt sandbox-oppsett i Copilot app på macOS med plan, bekreftelse, verify og rollback.
+
+Designverksted krever vanlig Node.js på appens `PATH`; utvidelsen støtter
+Node.js 18 eller nyere, og gjeldende LTS anbefales. Prosjektlagrede designrom
+støttes bare på Unix-verter som macOS og Linux. Forhåndsvisningen bruker en
+privat lokal loopback-server. Se [forutsetninger](docs/installation.md#før-du-begynner).
 
 ### Copilot CLI
 

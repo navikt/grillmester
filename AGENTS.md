@@ -50,7 +50,24 @@ python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/design-prototype/scripts/server.js
 node --check plugin/skills/design-prototype/scripts/helper.js
-node --test plugin/skills/design-prototype/tests/server.test.js
+node --check plugin/skills/design-prototype/scripts/workshop.js
+node --check plugin/skills/design-prototype/scripts/design-contract.js
+node --check plugin/skills/design-prototype/scripts/comments.js
+node --check plugin/skills/design-prototype/scripts/feedback-store.js
+node --check plugin/skills/design-prototype/scripts/canvas-state.js
+node --check plugin/skills/design-prototype/scripts/workspace-store.js
+node --check plugin/skills/design-prototype/scripts/workspace-state.js
+node --check plugin/skills/design-prototype/scripts/editor-contract.js
+node --check plugin/skills/design-prototype/scripts/editor-bindings.js
+node --check plugin/skills/design-prototype/scripts/editor.js
+node --test plugin/skills/design-prototype/tests/*.test.js
+node --check plugin/extensions/visual-companion/extension.mjs
+node --check plugin/extensions/visual-companion/adapter.mjs
+node --check plugin/extensions/visual-companion/backend.mjs
+node --check plugin/extensions/visual-companion/runtime.mjs
+node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
+node --check scripts/smoke_visual_canvas.cjs
+node --test plugin/extensions/visual-companion/tests/*.test.mjs
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py --require-binary
 python3 scripts/smoke_opencode_runtime.py --require-binary --cplt cplt

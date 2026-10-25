@@ -21,6 +21,8 @@ have saved replies. Closure comparison, original-source audit and cleanup are
 verified. The later follow-up below resolves the measured narrow-layout overlap
 and verifies 48 responsive combinations. Concept selection and a human pilot
 remain incomplete; exact-revision CI results are recorded in the pull request.
+The local results below do not identify an exact source commit unless explicitly
+stated. They are local evidence, separate from the revision-bound CI results.
 
 ## Verified behavior
 
@@ -33,7 +35,7 @@ remain incomplete; exact-revision CI results are recorded in the pull request.
 | Installed SDK with deterministic stdio host after schema-registration follow-up | 16/16 passed | Ordinary Node 24.18.0; actual protocol and local child backend, including bounded registered style-subproject schema, exact CSS binding, safe diagnostics, delivery, isolation and recovery. Excludes native schema validation and provider reload lifecycle. |
 | Retained packaged app runtime baseline with deterministic stdio host | 14/14 passed | The earlier protocol checks through the app's existing packaged executable and effective extension bootstrap, with isolated configuration and no model calls. This run predates the conditional-publication and monorepo styling changes. |
 | Earlier native app 1.1.31 trial with synthetic sketches | Interaction, recovery and corrected confirmation round passed | Full-plugin discovery, two saved rooms, manual source editing, idle and busy delivery, replies in the correct rooms, explicit same-instance reopen and recovery after ending the owning session. An initial no-change round failed and was corrected and retested below. |
-| Expanded native frontend trial | Assisted functional rounds completed | Real-source Lumi and Dialogmøte copies, twelve verified source pairs and six answered rounds, with separate artifact audits and operator-observed rendering. The later layout and native follow-up is reported below; this is not a completed design acceptance or human pilot. |
+| Expanded native frontend trial | Assisted functional rounds completed | Real-source Lumi and Dialogmøte copies, twelve verified source pairs and six answered rounds, with artifact comparisons and rendered checks. The later layout and native follow-up is reported below; this is not a completed design acceptance or human pilot. |
 | Integrated Chrome cases | 13/13 verified across retained reports | Feedback, history, recovery, bounded editing, keyboard/mobile operation, conflicts, lost receipts and refresh locks. |
 | Isolated Chrome description-list DOM checks | 2/2 passed | Synthetic `dl > div > dt` and `dl > div > dd` bindings preserve the intended target, literal text and compact setting. These are separate from native acceptance. |
 | Independent disconnect case | 1/1 passed | After acknowledged source saving and a connection loss, the old frame restores its old source before accepting further feedback. |
@@ -93,8 +95,8 @@ visibly showed **Working** produced one queued message. Both rounds subsequently
 received replies in their respective canvases without a separate chat prompt.
 Møteplan reached version 3 with its requested paragraph, edited heading and
 compact density; Pakkeliste reached version 2 with its own requested paragraph.
-An independent read-only file audit verified all five registered HTML/descriptor
-pairs and exactly one submitted round and one answered review in each room.
+All five registered HTML/descriptor pairs matched their saved source, with
+exactly one submitted round and one answered review in each room.
 
 Closing Møteplan revoked its old preview transport. The host menu
 **Add tab → Canvas → Designverksted** opened a new temporary blank sketch,
@@ -116,7 +118,7 @@ The next explicit round reached the new owner, but exposed an instruction
 conflict. Its note requested only confirmation and explicitly said that no new
 sketch version was needed. The delivery prompt and canonical reference still
 directed publication for every round. The Designer response cited that conflict
-and published version 4 anyway. The completed round and an independent file
+and published version 4 anyway. The completed round and a file
 comparison confirmed that both its HTML and descriptor were byte-for-byte
 identical to version 3. This failed the no-new-version criterion despite
 successful delivery to the recovered conversation.
@@ -131,7 +133,7 @@ comment reply, while the source stayed at version 4. The comment correctly
 remained open: this was a confirmation, not a claim that a source issue was
 fixed.
 
-The final independent snapshot verified all 14 room files and six source pairs.
+The final snapshot contained all 14 room files and six source pairs.
 Møteplan's four source pairs, screen identity and both preserved fields were
 unchanged from before the corrected round. Earlier submitted snapshots,
 comments and replies were unchanged; older rounds acquired only the expected
@@ -146,10 +148,8 @@ Grillmester 0.7.1 installation was re-enabled. The CLI inventory confirmed the
 normal installation and marketplaces, with the existing disabled built-in
 unchanged; the native plugin detail also showed the normal installation enabled.
 After `/clear`, the session was idle and the test-owned extension, preview
-backend and listener were gone. The temporary wake hold was stopped. No
-repository trust was granted; access used individual approvals. Password,
-global power and existing sleep-prevention app settings were unchanged. Saved
-test artifacts were retained as evidence.
+backend and listener were gone. No repository trust was granted; access used
+individual approvals. Saved test artifacts were retained as evidence.
 
 The native marketplace-management and canvas lists retained stale trial
 entries. Attempting the scoped removal there reported that the marketplace
@@ -169,21 +169,21 @@ not added, omitted, untracked or dependency paths.
 
 | Case | Observed result and remaining boundary |
 | --- | --- |
-| Lumi concepts and fidelity | Both concepts retain all ten normal task rows, counts, rates and 95% intervals. V3 corrected the phrase, six-marker description and theme-overlap wording; ambiguous theme percentages and the unthemed count were omitted rather than recomputed. V6 corrected cross-concept wording and moved a zone label without moving markers, but static audit and the Designer independently found an unintended “30–100”→“30–30” method change. V7 corrects only that number. The final reply and native narrow-panel inspection disclose a separate marker 5/zone-label overlap and close label placement; marker 6 is fixed. Choosing one concept was deliberately not exercised. |
+| Lumi concepts and fidelity | Both concepts retain all ten normal task rows, counts, rates and 95% intervals. V3 corrected the phrase, six-marker description and theme-overlap wording; ambiguous theme percentages and the unthemed count were omitted rather than recomputed. V6 corrected cross-concept wording and moved a zone label without moving markers, but contained an unintended “30–100”→“30–30” method change. V7 corrects only that number. The final reply and native narrow-panel inspection disclose a separate marker 5/zone-label overlap and close label placement; marker 6 is fixed. Choosing one concept was deliberately not exercised. |
 | Saved edits and question-only reply | The edited heading and compact density survived v2→v3 with both preservation records intact. A question-only round was answered at v2 without changing either source pair; its comment correctly remained open. |
 | Owner recovery and styles | After deliberate `/clear`, the same Lumi room recovered with all five files byte-identical, including its unsent note and preserved values; recovery did not send the note. An explicit subproject style context loaded the exact CSS file. Opening succeeded after the completed fixture update and a subsequent owner clear; no cache defect was established. |
-| Lumi finite states | The test operator checked both concepts' Normal, Få svar and Ingen treff states and both resets in Chrome against the actual published preview. The Designer read and captured that preview but could not automate its iframe clicks, so the click evidence is operator-assisted. |
-| Preservation conflicts and history | Restore was rejected while preservation records remained, including after releasing only the heading. After both explicit releases, v1 restored as v4 and polished v3 as v5. Each new HTML/descriptor pair exactly matches its chosen source; all older pairs, comments, submitted snapshots and replies are unchanged. The operator verified the old v4 appearance and the polished v5 heading/compact setting in the actual iframe accessibility tree. Intermediate release states have UI evidence only. Conflict messages misleadingly referred to stale history; the correction passed local tests but is not loaded in this fixture. |
+| Lumi finite states | Both concepts' Normal, Få svar and Ingen treff states and both resets worked in Chrome against the actual published preview. Preview reading and capture succeeded, but iframe clicks required manual interaction. |
+| Preservation conflicts and history | Restore was rejected while preservation records remained, including after releasing only the heading. After both explicit releases, v1 restored as v4 and polished v3 as v5. Each new HTML/descriptor pair exactly matches its chosen source; all older pairs, comments, submitted snapshots and replies are unchanged. The actual iframe accessibility tree showed the old v4 appearance and the polished v5 heading/compact setting. Intermediate release states have UI evidence only. Conflict messages misleadingly referred to stale history; the correction passed local tests but is not loaded in this fixture. |
 | Dialogmøte editing and iteration | A stale v2 editor rejected Save after another tab saved compact density as v3, retained the typed draft, and required explicit discard. Published v4 preserves the heading and density. Its 15 buttons have declared bindings, three readonly examples have matching counters, and four links have local targets. Twelve of thirteen original letter values remain; the requested dead mock video URL was removed. |
-| Dialogmøte queues and response states | Round 1 remained bound to v2 and queued round 2 to v3 after v4 publication; both received separate saved replies. Confirmation round 2 added no version. The proposed fixed-status write was declined; keeping the comment open required operator guidance. Round 3 published v5 to correct receipt/error precedence, combined-state labels and the disabled error-link target. All 28 combinations passed both static analysis and actual operator UI checks. The error link focuses its legend; the embedded receipt→send-error flow retains the reason and hides the receipt. The saved final reply distinguishes the Designer's own check from operator coverage. Descriptor values, letter content, holds and previous rounds are unchanged. |
+| Dialogmøte queues and response states | Round 1 remained bound to v2 and queued round 2 to v3 after v4 publication; both received separate saved replies. Confirmation round 2 added no version. The proposed fixed-status write was declined; keeping the comment open required explicit guidance. Round 3 published v5 to correct receipt/error precedence, combined-state labels and the disabled error-link target. All 28 combinations passed static analysis and manual UI checks. The error link focuses its legend; the embedded receipt→send-error flow retains the reason and hides the receipt. The saved final reply distinguishes automated checks from manual interaction. Descriptor values, letter content, holds and previous rounds are unchanged. |
 
 Final file snapshots contain seven Lumi pairs and five Dialogmøte pairs, with
 three answered rounds in each room. Answering the last rounds changed only
 their comment/review records and state counters; all source pairs, preservation
 records, submitted snapshots and earlier replies stayed unchanged. Afterward,
 a queued Dialogmøte notification prompted a proposed rewrite of an already
-answered round. The operator declined that redundant write before ending the
-owner. No extra version was created; autonomous duplicate handling is not
+answered round. That redundant write was declined before the owning session
+ended. No extra version was created; autonomous duplicate handling is not
 established. After both owners were cleared, all 26 room files were byte-for-byte
 identical to these answered snapshots: no redundant reply rewrite persisted.
 
@@ -192,19 +192,19 @@ Idle, owned preview tabs and six trial Chrome tabs were closed, and the frontend
 servers and all four trial listeners were gone. The temporary plugin was
 disabled and its marketplace removed; the authoritative inventory showed the
 normal Grillmester 0.7.1 enabled and the existing browser component disabled.
-The native installed-plugin view agreed. The temporary wake hold was stopped.
+The native installed-plugin view agreed.
 The canvas list may retain a cached entry; it was not activated or treated as
 an active registration. No persistent repository trust was granted, and saved
 evidence was retained.
 
 Both initial designs encountered binding rejections before corrected publication;
 these failed attempts remain in the evidence. The Dialogmøte iteration later
-needed explicit test-operator guidance to stop private preview CSS debugging
+needed explicit guidance to stop private preview CSS debugging
 and publish through the actual canvas. Lumi also needed guidance when its first
 owner misread deliberate manual edits and when native click verification could
 not proceed. These are assisted workflow results, not autonomous completion.
-The Dialogmøte owner did independently notice the later manual v3 edit and
-request fresh state before publishing.
+The later manual v3 edit prompted a fresh state read before publication in
+Dialogmøte.
 
 New reference guidance describes finite response/receipt combinations, error
 precedence and combined-state labels. That guidance is locally validated but
@@ -217,9 +217,9 @@ finite demonstrations.
 
 A separate technical exercise created four source versions through the actual
 workspace APIs. The brief selected version 2, while version 4 had a different
-heading, different body text and an unsent note. A reader given only the brief
-and saved project files recovered version 2's heading, density choice and body
-text without opening the canvas. The registered HTML and descriptor hashes
+heading, different body text and an unsent note. Version 2's heading, density
+choice and body text were recovered from only the brief and saved project files,
+without opening the canvas. The registered HTML and descriptor hashes
 matched; all nine project files remained byte-for-byte unchanged after reading.
 
 The exercise also exposed the limits of a version-only handoff. Raw HTML held
@@ -234,7 +234,7 @@ research or a check of rendered appearance.
 
 ## Installation and release gates
 
-An independent isolated registration probe used the installed Copilot CLI
+An isolated registration probe used the installed Copilot CLI
 1.0.91 and a disposable copy of the generated full payload. Marketplace add,
 install, list and uninstall all returned exit 0. The actual list schema
 reported `source: "live"`, `enabled: true` and an `installedFrom` directory;
@@ -456,11 +456,13 @@ Delayed queued notices now explicitly require checking the round's live review
 and reply before doing work. Already answered notices retain their answer and
 version unless a newer explicit request requires follow-up. An unread round
 may become working; an explicit correction to an answered round retains answered.
-The adapter regression and **17 installed-SDK checks** cover late reversed
-acknowledgements, duplicate callbacks, immutable original inputs, rejected
-restart, identical-answer no-op and permitted deliberate answer correction.
-This establishes protocol behavior and registered guidance, not model obedience
-or withdrawal of a message already queued in the native client.
+The adapter unit regression covers late reversed acknowledgements, duplicate
+callbacks, immutable original inputs, rejected restart, identical-answer no-op
+and permitted deliberate answer correction. The separate installed-SDK harness
+passed **16 checks**; it does not exercise that queued-notice scenario.
+These checks establish adapter behavior and SDK protocol behavior within their
+respective scopes, not model obedience or withdrawal of a message already
+queued in the native client.
 
 A separate static layout fixture rendered the exact Lumi fragment, descriptor,
 frame template and existing Aksel CSS at 320, 375, 768 and 1280 CSS pixels.
@@ -493,15 +495,14 @@ After the desktop became available, the complete current payload was loaded
 from a freshly verified temporary marketplace in a cleared conversation.
 Designer reopened Lumi version 8 with the explicit frontend style subproject
 and identified the three earlier rounds as answered. The installed Playwright
-browser was unavailable. Without installing anything or needing an operator
-navigation hint, Designer used the built-in Browser canvas, discovered the
-sandboxed iframe boundary and opened its observed preview URL directly.
-It inspected screenshots, measured the 416 px viewport and 352 px content area,
-and confirmed the inline Aksel stylesheet and spacing token. Source Sans 3
-was not loaded; this run used a system-font fallback and does not establish
-font fidelity. One screenshot
-request returned the wrong region; Designer noticed and corrected its targeting.
-Individual tool approvals were still supplied by the operator.
+browser was unavailable. The sandboxed iframe boundary was identified through
+the built-in Browser canvas, and its observed preview URL was opened directly
+without additional installation or navigation guidance. Screenshots were
+inspected; measurements showed a 416 px viewport, a 352 px content area, the
+inline Aksel stylesheet and its spacing token. Source Sans 3 was not loaded;
+this run used a system-font fallback and does not establish font fidelity.
+One screenshot request returned the wrong region; retargeting corrected it.
+Individual tool approvals were still required.
 
 The 560 px chart can be read by horizontal scrolling, but its extremes are not
 visible together in this panel. Tasks 1 and 4 start outside the viewport, while
@@ -510,7 +511,7 @@ tradeoff to assess in the prepared human follow-up, not evidence that scrolling
 is the best default. The priority list was inspected in the same narrow view.
 
 Two separate question/confirmation rounds were submitted from the sketch while
-Designer was busy. Before ending its initial request it independently read the
+Designer was busy. Before ending its initial request it read the
 fresh state, found both rounds, read each immutable submission, saved comment
 replies and marked both answered. Neither requested a new sketch. All 16
 existing source files, the revision history, the first three comments and round
@@ -526,9 +527,9 @@ obedience or cancellation of already queued messages. Questions remained open
 comments with replies while their review rounds were answered.
 
 The conversation was then cleared and idle, both owned panels and the evidence
-browser tab were closed, the temporary marketplace was removed, the ordinary
-0.7.1 package was re-enabled and the temporary wake hold was stopped. No trial
-backend remained. All room files also matched after shutdown. A separate audit
+browser tab were closed, the temporary marketplace was removed, and the ordinary
+0.7.1 package was re-enabled. No trial backend remained. All room files also
+matched after shutdown. A separate audit
 confirmed the 1,057 Lumi and 267 Dialogmøte original files listed in the copy
 manifests remained unchanged; unlisted files were outside that comparison.
 Private evidence is retained under the latest native-trial directory, including
@@ -537,7 +538,7 @@ the before/after file audit, queued-notice equality check and rendered replies.
 ## Remaining acceptance
 
 The real-frontend technical trial and latest native queued-notice check are
-complete with the explicit operator dependencies above. The follow-up resolves
+complete with the assistance described above. The follow-up resolves
 the measured narrow-layout overlap in Lumi version 8, but no final concept was
 selected and complete visual/design acceptance is not established. The latest
 helper diagnostic was exercised in the full browser wrapper; the complete

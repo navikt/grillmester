@@ -18,6 +18,11 @@ repoaktivering og enterprise-policy.
   pluginbruk i Copilot CLI følger klientens egen runtime og krever ikke
   Grillmester-launcheren.
 - Copilot app bruker sin egen Plugins-UI og startes ikke gjennom cplt.
+- Designverksted krever en vanlig Node.js-installasjon på appens `PATH`.
+  Utvidelsen støtter Node.js 18 eller nyere; bruk helst gjeldende LTS.
+  Start appen på nytt etter at Node.js er gjort tilgjengelig. Prosjektlagrede
+  designrom støttes bare på Unix-verter som macOS og Linux. Forhåndsvisningen
+  bruker en privat lokal loopback-server, også inne i appens canvas.
 
 Bruk `marketplace`-branchen for løpende native Copilot-oppdateringer, eller velg
 en reviewet tag fra

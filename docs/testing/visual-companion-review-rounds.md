@@ -25,8 +25,9 @@ HTML, og rapporten oppgir at Aksel ikke ble verifisert.
 
 Skriptet oppretter en egen midlertidig nettleserprofil. Forstørrelsescaset
 velger 200 % i nettleserens egne innstillinger og kontrollerer at CSS-viewporten
-halveres og `devicePixelRatio` dobles. Det er faktisk nettleserzoom, ikke en
-CSS-transform eller et skjermbilde i større størrelse. Bruk Chrome eller
+halveres og `devicePixelRatio` dobles. Endringen skjer via nettleserens
+zoominnstilling. En emulert halvert viewport med doblet enhetsskala beviser
+ikke nettleserzoom. Bruk Chrome eller
 Chromium med den støttede innstillingssiden; en ukjent side eller en zoom som
 ikke slår inn, skal gi feil, ikke en falsk bestått prøve. Brukerens vanlige
 profil og zoominnstilling berøres ikke.

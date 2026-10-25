@@ -5,6 +5,10 @@ date: 2026-10-23
 
 # Avgrenset prøve av app-canvas
 
+Delvis erstattet av [ADR 0023](0023-prosjektlagret-designrom.md) for lagring og
+opprydding i prosjektlagrede rom. Skisseversjoner, innspill og svar beholdes
+ved stopp; transport og samtalebinding er fortsatt midlertidige.
+
 ## Kontekst
 
 Visual Companion gir innspill, tekstforslag, deklarerte justeringer og
@@ -69,12 +73,12 @@ bakgrunnsvakt eller ny filsynkronisering i konsumentrepoer. En prosjektmappe
 eller personlig extensions-mappe blir ikke opprettet automatisk.
 
 Før distribusjon må vi beslutte og teste hvordan apputvidelsen inngår i de
-deterministiske targetene. Den fokuserte Copilot-projeksjonen kopierer i dag
-`plugin.json` byte-eksakt, men bare utvalgte agenter og skills. Et nytt
-`extensions`-felt kan derfor peke på filer som ikke følger med. Dette må løses
-eksplisitt i genereringspolicyen eller gjennom en separat pakke. OpenCode og
-klienter uten canvas skal fortsatt fungere. En overgang til et annet
-pluginmanifestformat inngår ikke i forsøket.
+deterministiske targetene. Den fokuserte Copilot-projeksjonen avleder
+`plugin.json` etter `policy/focused-context-v1.json` og tar bare med utvalgte
+agenter og skills. Policyen fjerner `extensions` fra manifestet, slik at det
+ikke peker på utelatte utvidelsesfiler. OpenCode og klienter uten canvas skal
+fortsatt fungere. En overgang til et annet pluginmanifestformat inngår ikke
+i forsøket.
 
 Vi må også avklare om appen lagrer canvas-URL eller innhold i historikken.
 Midlertidige innspill skal ikke bli varige prosjektartefakter uten en egen

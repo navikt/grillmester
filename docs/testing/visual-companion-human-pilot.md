@@ -6,11 +6,11 @@ This pilot does not establish that colleagues can browse and review designs inde
 
 ## Prerequisite, scope and people
 
-Complete the separate native acceptance runbook first: full-plugin discovery, deliberate idle/busy delivery, exact instance routing, panel reopen and new-session recovery. That five-work-request run is operated technical acceptance; it cannot establish whether an unfamiliar person understands the tool. Do not spend participant time repairing installation, session ownership or transport. A blocked native gate postpones this pilot; a simulated host is not an equivalent substitute.
+Confirm the native acceptance checks described in [the verification report](visual-companion-design-workspace.md#native-app-acceptance): full-plugin discovery, deliberate idle/busy delivery, exact instance routing, panel reopen and new-session recovery. Record the tested payload and any assistance or unresolved limits. These are technical acceptance checks; they cannot establish whether an unfamiliar person understands the tool. Do not spend participant time repairing installation, session ownership or transport. A blocked native gate postpones this pilot; a simulated host is not an equivalent substitute.
 
 One facilitator runs a single **45-minute session**. Designer A does the content case; Designer B does the operational case. Each works independently, with the other designer out of view until their own tasks end. The developer joins only for the handoff portion, without seeing either designer's work. The facilitator observes; the developer is not also the moderator. This gives two first-use observations, not a comparison of which case or designer performs better.
 
-Use a disposable local project and synthetic content. Prepare both cases in separate saved rooms through ordinary canvas actions. Use the tested full payload and installed Aksel version; record their versions. No production implementation, external publication, Figma transfer or new dependency is needed. Count live pilot work requests separately from the five-request acceptance run, within the applicable authorized allowance. Record actual requests and stop before exceeding it.
+Use a disposable local project and synthetic content. Prepare both cases in separate saved rooms through ordinary canvas actions. Use the tested full payload and installed Aksel version; record their versions. No production implementation, external publication, Figma transfer or new dependency is needed. Count live pilot work requests separately from technical acceptance checks, within the applicable authorized allowance. Record actual requests and stop before exceeding it.
 
 ## Before participants arrive
 

@@ -33,8 +33,11 @@ All five sampled points hit the actual heading. After the final spacing polish,
 the 320 px heading occupied y129–201 and the smaller heading y169–225; the
 focused proposal field occupied y196–284 inside the editor's y67–460 clip.
 Undo, Escape and discard restored original text; a new screen stayed blocked
-until discard. Independent landscape and actual 200% browser zoom checks also
-passed: CSS viewport 1440×913/DPR1 became 720×456/DPR2, not a scaled image.
+until discard. Separate landscape and actual 200% browser zoom checks also
+passed. The retained `keyboard/panel.cjs` script selected 200% in Chrome's
+settings: CSS viewport 1440×913/DPR1 became 720×456/DPR2. This result used
+browser zoom; setting a smaller viewport and higher device scale alone would
+only emulate those dimensions.
 
 A second defect placed error text outside the scrollable editor or workshop
 while the field itself stayed visible. Errors now appear beside their field
@@ -125,7 +128,8 @@ Local reports and named screenshots are under `/tmp/grillmester-five-rounds`:
 `iteration-2-polished/` measurements, `iteration-3/`, `iteration-4-capacity/`,
 `iteration-4-timeout/`, `iteration-5/retry-final/`, and
 `keyboard/verified-results.json` with its four source reports. Original failures
-remain separate. The tests
+remain separate. The browser-zoom script is `keyboard/panel.cjs`, with its
+preview result in `keyboard/preview-final/preview-zoom-200-results.json`. The tests
 close their own browser contexts and servers and omit capability URLs.
 
 These results establish the tested local flows, not real-device usability,
