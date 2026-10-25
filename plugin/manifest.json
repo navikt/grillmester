@@ -131,7 +131,7 @@
       "mode": "0644"
     },
     "extensions/visual-companion/tests/backend.test.mjs": {
-      "sha256": "058d2e28d33f31f16da70575a6b54b0744ea95dc1c68029c46b94682164603ac",
+      "sha256": "7a16dd1c13a1af7649ec4b44e50d06e3f33a5a7706b039d0ddbed2f3468e7612",
       "mode": "0644"
     },
     "extensions/visual-companion/tests/runtime.test.mjs": {
@@ -347,7 +347,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "e6b2a82603f2934ec50bf0e54e8090956f4cf035fc50621929e8c1bc7cced8d1",
+      "sha256": "568a8f389ddd18442b2d1ecc69163a7021004abcfaeb698b562178048f5eaec1",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -379,7 +379,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/editor.js": {
-      "sha256": "112f180b949ea23baf0c34567e821f8ebc1e91a0cbb20ea899b4b97ba08a5fa4",
+      "sha256": "62c108b9b37025e799fd07efa5837b49839d0c7a795424fac6c437609bd8b392",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/feedback-store.js": {
@@ -391,23 +391,23 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "267444eda793c25e962edd4db94ac4f3f76931eb5da197b6ecf274cc667c4fd2",
+      "sha256": "1e46681a431ae6fdd6bb4b48d2fd3b6f1a9b44f27673f544fa934a6ba2b17f09",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "0dfaa2d89964c47d1b8b35063a688ee52886e0b7be8d52ebcb20ac09c43e9d10",
+      "sha256": "bc02bceef3d4dd1451265f079d1c70c4b4140390e78916ebcb663c1c76c6aceb",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
-      "sha256": "dd9a1d877fdbeec8315f55fe5c081ad499a884523dd8da428348f4367eadaae7",
+      "sha256": "90a198dbe3ac6e70693b5b133c4108f45827c00f3e041707706532c996ea21d3",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workspace-state.js": {
-      "sha256": "6b398102de48db057ab30b08b2f29d2d7651e07e3db1dca4174e77cc27766af5",
+      "sha256": "8a2f35d70a73c4b72021fa0d82c066efa87cae29f3ebea0f6d279b241aeff8e4",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workspace-store.js": {
-      "sha256": "aa7410196dc10579b55c72c08ffed316eb26b3daf715a60bc6cdeee31ca0306c",
+      "sha256": "1042bc264ce9e07ed48367e741850d2cb5697d3311affb05f0fb6ee0ab82d141",
       "mode": "0644"
     },
     "skills/design-prototype/tests/canvas.test.js": {
@@ -419,7 +419,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "ca0d0fcff34f37a5cec52ec13898384332559d895642e0cd3f8d86e9652b3d13",
+      "sha256": "3ebbc39e34d7525992e34ff8939b92d475018ca9e9a7f1482768e3cd8a977500",
+      "mode": "0644"
+    },
+    "skills/design-prototype/tests/workspace-lifecycle.test.js": {
+      "sha256": "93ed5bea4bee70cc2b4535506911301cde75ffe6c40d9b08f77bcfde50636e08",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-recovery.test.js": {
@@ -435,7 +439,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-store.test.js": {
-      "sha256": "eac50ff14a114ad09c904fb0c4942ade205dc0d2a884978089e5b9b8bbb5308d",
+      "sha256": "19bae723a4cf70b79ac54ef2aadaf04b8767d1df681693bfcfa7aec3cf145db2",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {

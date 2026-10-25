@@ -108,7 +108,7 @@
     .comment{border:1px solid #e7e1ec;border-radius:12px;padding:13px;margin-bottom:10px;background:#fff;overflow-wrap:anywhere}.comment:focus{outline:2px solid #b264cc;outline-offset:2px}.comment:last-child{margin-bottom:0}.comment.fixed{background:#fbfdfb}.comment .row{flex-wrap:wrap}.comment .number{width:23px;height:23px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#aa267e;color:white;font-size:11px;font-weight:700;flex-shrink:0}.comment.fixed .number{background:#34845a}.badge{font-size:10px;font-weight:600;color:#78607f;background:#f3edf6;padding:3px 6px;border-radius:5px}.badge.old{background:#f0eff1;color:#6e6b73}.comment p{white-space:pre-wrap;margin:11px 0;font-size:13px;line-height:1.55}.comment .reply{border-left:2px solid #d1badf;padding-left:10px;font-size:12px;color:#65556f}.reply strong{display:block;font-size:10px;letter-spacing:.03em;text-transform:uppercase;margin-bottom:4px}.comment-actions{display:flex;flex-wrap:wrap;gap:2px;margin:8px -5px -5px}.comment-actions button{font-size:11px;padding:7px 6px;min-height:30px}.danger{color:#9c3c53}.proposal{white-space:pre-wrap;padding:9px;background:#f5f0fa;border-radius:7px;font-size:12px;margin-top:7px}.proposal-label{font-size:10px;display:block;color:#79598c;margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
     .panel-foot{padding:13px 16px;border-top:1px solid #ece8f0;background:#fcfbfd}.panel-foot .primary{width:100%;margin-top:10px}.connection{display:flex;align-items:center;gap:6px;font-size:11px;color:#787180}.connection::before{content:"";width:6px;height:6px;border-radius:50%;background:#aaa3af}.connection.live::before{background:#3b9166}.foot-status{font-size:11px;color:#685c74;margin:8px 0 0;line-height:1.4}.error{color:#ad2849;font-size:12px;line-height:1.5;margin:8px 0 0}.composer{pointer-events:auto;position:fixed;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - 105px);overflow-y:auto;overscroll-behavior:contain;padding:18px;background:#fff;border:1px solid #d8c2e5;border-radius:15px;box-shadow:0 12px 48px #32143f30}.composer .anchor-label{font-size:11px;color:#706578;margin-top:3px}.composer label{display:block;font-size:12px;font-weight:600;margin:15px 0 7px}.composer textarea{display:block;width:100%;min-height:88px;max-height:200px;resize:vertical;padding:10px;border:1px solid #8b7a9a;border-radius:8px;background:#fff;color:#282230;line-height:1.5;font-size:13px}.composer textarea::placeholder{color:#706578}.composer .compose-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:15px}.composer .proposal-toggle{font-size:12px;padding:7px 0;color:#7133a2;text-align:left;margin-top:8px}.composer .proposal-toggle:hover{background:transparent;text-decoration:underline}.composer .preview-button{font-size:11px;background:#f3edf7;margin-top:8px}.composer .help{font-size:10px;color:#706578;margin-top:9px}.composer .save{min-width:82px}.outline{position:fixed;pointer-events:none;border:2px solid #b52e8c;background:#b52e8c0d;border-radius:4px}.pins{position:fixed;inset:0;pointer-events:none}.pin{position:absolute;pointer-events:auto;min-height:26px;width:26px;height:26px;padding:0;border-radius:50%;background:#aa267e;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px #421b393d;font-size:11px;transform:translate(-50%,-50%)}.pin:hover,.pin:focus{background:#7c145d}.pin.fixed{background:#34845a}.pin.fixed:hover{background:#1e6740}.preview-bar{pointer-events:auto;position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#fff7e7;border:1px solid #e8d4a8;border-radius:11px;padding:8px 12px;box-shadow:0 4px 20px #39250018;font-size:12px;max-width:calc(100vw - 24px);display:flex;align-items:center;gap:12px}.preview-bar button{font-size:12px;background:#f4e4c3;white-space:nowrap}
     @media(max-width:600px){.toolbar{bottom:max(10px,env(safe-area-inset-bottom));gap:2px;padding:5px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:calc(100vw - 16px)}.toolbar button{font-size:12px;padding:8px}.toolbar .tools{border-left:1px solid #e7e3eb;padding-left:3px}.toolbar .divider{display:none}.panel{top:64px;right:10px;bottom:106px;width:calc(100vw - 20px)}.hint{font-size:11px}.composer{max-height:calc(100dvh - 120px)}.toolbar svg{width:15px;height:15px}}
-    @media(max-height:540px){.panel{overflow-y:auto;overscroll-behavior:contain}.panel-head,.panel-foot,.list{flex-shrink:0}.list{flex:none;overflow:visible}}
+    @media(max-height:540px){.panel{overflow-y:auto;overscroll-behavior:contain}.panel-head,.panel-foot,.list{flex-shrink:0}.list{flex:none;overflow:visible}.panel-foot{position:sticky;bottom:0;z-index:1}}
     .preview-bar{width:max-content;flex-wrap:wrap;justify-content:center}.preview-bar span{flex:1 1 100%;text-align:center}.preview-bar:has([data-action="edit-preview"][hidden]) span{flex:initial}
     @media(min-width:600px){.preview-bar span{flex:initial}}
     .panel,.list,.composer{scroll-padding:8px}
@@ -132,7 +132,7 @@
       </div><div class="list"><section class="canvas-rounds" aria-label="Sendte runder" hidden><h3>Sendte runder</h3><div class="canvas-recent"></div><details class="canvas-history" hidden><summary></summary><div class="canvas-older"></div></details></section><div class="comment-list"></div></div>
       <div class="panel-foot"><div class="row between"><span class="pending muted">Ingen nye innspill</span><span class="connection">Lagres lokalt</span></div><button type="button" class="primary send" data-action="send" disabled>Send innspill</button><p class="foot-status" role="status"></p><p class="error panel-error" role="alert" hidden></p></div>
     </section>
-    <section class="workspace-panel" aria-label="Prosjektarbeid" hidden><div class="workspace-head"><div class="row between"><h2>Arbeid</h2><button type="button" class="close" data-action="workspace-close" aria-label="Lukk arbeid">×</button></div></div><div class="workspace-body"><h3 class="workspace-title"></h3><p class="workspace-storage"></p><code class="workspace-path"></code><p class="workspace-unsaved" hidden>Lagre utkast før du lukker skissen eller samtalen.</p><details class="workspace-storage-details"><summary>Om lagring og gjenåpning</summary><p class="workspace-help"></p></details><p class="workspace-temporary-help" hidden></p><p class="workspace-recovered" hidden>Arbeidet er åpnet fra prosjektet. Tidligere runder sendes ikke på nytt.</p><p class="workspace-dirty" hidden></p><div class="workspace-confirm" tabindex="-1" hidden><h3 class="workspace-confirm-title"></h3><p>Dette lager en ny skisseversjon. Innspill, svar og innsendte runder beholdes.</p><p class="workspace-restore-warning"></p><div class="workspace-actions"><button type="button" class="primary" data-action="workspace-restore">Bruk som ny versjon</button><button type="button" data-action="workspace-cancel">Avbryt</button></div></div><p class="error workspace-error" role="alert" hidden></p><p class="workspace-status" role="status"></p><div class="workspace-history" hidden><div class="workspace-history-tools"><h3>Versjonshistorikk</h3><button type="button" data-action="workspace-reload">Oppdater</button></div><div class="workspace-history-list"></div><button type="button" data-action="workspace-more" hidden>Vis flere versjoner</button></div></div></section>
+    <section class="workspace-panel" aria-label="Prosjektarbeid" hidden><div class="workspace-head"><div class="row between"><h2>Arbeid</h2><button type="button" class="close" data-action="workspace-close" aria-label="Lukk arbeid">×</button></div></div><div class="workspace-body"><h3 class="workspace-title"></h3><p class="workspace-storage"></p><code class="workspace-path"></code><p class="workspace-unsaved" hidden>Lagre utkast før du lukker skissen eller samtalen.</p><details class="workspace-storage-details"><summary>Om lagring og gjenåpning</summary><p class="workspace-help"></p></details><p class="workspace-temporary-help" hidden></p><p class="workspace-recovered" hidden>Arbeidet er åpnet fra prosjektet. Tidligere runder sendes ikke på nytt.</p><p class="workspace-dirty" hidden></p><div class="workspace-confirm" tabindex="-1" hidden><h3 class="workspace-confirm-title"></h3><p>Dette lager en ny skisseversjon. Innspill, svar og innsendte runder beholdes.</p><p class="workspace-restore-warning"></p><div class="workspace-actions"><button type="button" class="primary" data-action="workspace-restore">Bruk som ny versjon</button><button type="button" class="primary" data-action="workspace-release-restore" hidden>Tillat endring og bruk versjonen</button><button type="button" data-action="workspace-cancel">Avbryt</button></div></div><p class="error workspace-error" role="alert" hidden></p><p class="workspace-status" role="status"></p><div class="workspace-history" hidden><div class="workspace-history-tools"><h3>Versjonshistorikk</h3><button type="button" data-action="workspace-reload">Oppdater</button></div><div class="workspace-history-list"></div><button type="button" data-action="workspace-more" hidden>Vis flere versjoner</button></div></div></section>
     <section class="composer" role="dialog" aria-modal="false" aria-labelledby="compose-title" hidden>
       <div class="row between"><h2 id="compose-title">Nytt innspill</h2><button type="button" class="close" data-action="hide-draft" aria-label="Legg utkast til side">×</button></div><div class="anchor-label"></div>
       <label for="feedback-note">Hva vil du endre?</label><textarea id="feedback-note" maxlength="2000" placeholder="For eksempel: Gi overskriften mer luft …"></textarea>
@@ -559,6 +559,9 @@
     requestAnimationFrame(() => {
       layoutPending = false;
       const toolbarTop = el(".toolbar").getBoundingClientRect().top;
+      const toolbarSpace = Math.max(80, innerHeight - toolbarTop + 12);
+      document.documentElement.style.scrollPaddingBottom = `${toolbarSpace}px`;
+      document.body.style.paddingBottom = `${toolbarSpace}px`;
       panel.style.bottom = `${Math.max(80, innerHeight - toolbarTop + 12)}px`;
       el(".workspace-panel").style.bottom = `${Math.max(80, innerHeight - toolbarTop + 12)}px`;
       for (const target of [panel, el(".workspace-panel"), el(".hint")]) target.style.top = `${topInset()}px`;
@@ -712,7 +715,7 @@
     el(".workspace-storage-details").hidden = !stored;
     el(".workspace-unsaved").hidden = !stored;
     el(".workspace-temporary-help").hidden = stored;
-    workspaceText(".workspace-help", "Lagrede innspill og skisseversjoner beholdes i prosjektet. Å lukke dette panelet beholder utkastene. Ulagrede utkast går tapt hvis du lukker selve skissen eller samtalen. Be i samtalen om å åpne arbeidet igjen. Å lukke skissen frigjør ikke arbeidet for en annen samtale.");
+    workspaceText(".workspace-help", "Lagrede innspill og skisseversjoner beholdes i prosjektet. Å lukke dette panelet beholder utkastene. Ulagrede utkast går tapt hvis du lukker selve skissen eller samtalen. Be i samtalen om å åpne arbeidet igjen. Å lukke skissen frigjør ikke arbeidet for en annen samtale. Forhåndsvisningen bruker systemfont fordi Aksel-fonten ikke lastes fra nettet.");
     workspaceText(".workspace-temporary-help", "Be i samtalen om å opprette eller åpne et prosjektarbeid for varig lagring. Denne midlertidige økten blir ikke automatisk kopiert dit.");
     el(".workspace-recovered").hidden = !stored || !snapshot.workspace.recovered;
     el(".workspace-history").hidden = !stored;
@@ -732,8 +735,13 @@
     all(".workspace-panel button").forEach(node => {
       const current = node.dataset.action === "workspace-choose" && Number(node.dataset.revisionId) === snapshot.workspace?.version;
       if (node.dataset.action === "workspace-choose") node.textContent = current ? "Gjeldende versjon" : "Bruk som ny versjon";
-      if (node !== restore) node.disabled = workspaceRestoring || (workspaceLoading && node.dataset.action !== "workspace-close") || current;
+      if (node !== restore && node.dataset.action !== "workspace-release-restore") node.disabled = workspaceRestoring || (workspaceLoading && node.dataset.action !== "workspace-close") || current;
     });
+    const releaseRestore = el('[data-action="workspace-release-restore"]');
+    const held = workspaceConfirmation?.conflicts?.length ? workspaceConfirmation.conflicts : null;
+    releaseRestore.hidden = !held;
+    releaseRestore.disabled = !held || dirty || connectionLost || workspaceLoading || savingDraft || workspaceRestoring;
+    if (held) releaseRestore.textContent = workspaceRestoring ? "Lagrer ny versjon …" : `Tillat endring og bruk versjon ${workspaceConfirmation.entry.revisionId}`;
     el('[data-action="workspace-more"]').hidden = workspaceNextAfter === null;
     el(".workspace-panel").setAttribute("aria-busy", String(workspaceLoading || workspaceRestoring));
   }
@@ -806,8 +814,33 @@
     } catch (error) {
       if (error.conflict) chosen.conflict = true;
       if (error.capacity) chosen.capacity = true;
-      errorAt(".workspace-error", error.editorConflict ? "Versjonen endrer manuelt bevarte felt. Åpne «Rediger skissen» og frigi føringene du vil tillate endret. Oppdater deretter historikken og velg versjonen på nytt."
+      if (error.editorConflict) chosen.conflicts = error.conflicts || [];
+      const fields = (chosen.conflicts || []).map(item => `«${item.label}»`).join(", ");
+      errorAt(".workspace-error", error.unavailable ? "Versjonen kan ikke brukes fordi en lagret fil er endret eller mangler. Ingen ny versjon er laget, og de andre versjonene kan fortsatt brukes."
+        : error.editorConflict ? fields ? `Versjon ${chosen.entry.revisionId} endrer felt du har lagret: ${fields}. Velg «Tillat endring og bruk versjon ${chosen.entry.revisionId}» for å bruke den. Verdiene beholdes til en ny versjon endrer dem.`
+          : `Versjon ${chosen.entry.revisionId} endrer felt du har lagret. Tillat senere endring av feltene i «Rediger skissen», og velg versjonen på nytt.`
         : error.conflict ? "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt." : error.message);
+    } finally { workspaceRestoring = false; updateBusy(); }
+  }
+  // Release exactly the preserved fields that blocked this restore, then restore.
+  async function releaseAndRestore() {
+    const chosen = workspaceConfirmation;
+    if (!chosen?.conflicts?.length || el('[data-action="workspace-release-restore"]').disabled) return;
+    workspaceRestoring = true;
+    errorAt(".workspace-error", ""); updateBusy();
+    try {
+      chosen.releaseRetry ||= {};
+      await request("workspace-editor-release", { screen, expectedRevision: snapshot.revision, ids: chosen.conflicts.map(item => item.id) }, chosen.releaseRetry);
+      chosen.conflicts = []; chosen.conflict = false; chosen.retry = {};
+      await request("workspace-restore", { revisionId: chosen.entry.revisionId, expectedRevision: snapshot.revision }, chosen.retry);
+      workspaceConfirmation = null;
+      workspaceRestoreOpen = true;
+      workspaceText(".workspace-status", "Senere endring er tillatt, og en ny skisseversjon er lagret. Innspill og svar er beholdt.");
+      announce("En ny skisseversjon er lagret. Ingen innspill er sendt.");
+      if (updateAvailable) refreshNow();
+    } catch (error) {
+      if (error.conflict) chosen.conflict = true;
+      errorAt(".workspace-error", error.conflict ? "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt." : error.message);
     } finally { workspaceRestoring = false; updateBusy(); }
   }
   function renderCanvasRounds() {
@@ -834,7 +867,7 @@
         const title = document.createElement("strong"); title.textContent = `Runde ${round.submission}`;
         head.append(title, span("", "badge"));
         const uncertain = document.createElement("p"); uncertain.className = "canvas-uncertain";
-        uncertain.textContent = "Runden er lagret. Levering til samtalen er ikke bekreftet. Den sendes ikke på nytt automatisk.";
+        uncertain.textContent = `Runden er lagret. Levering til samtalen er ikke bekreftet, og den sendes ikke på nytt automatisk. Skriv «se runde ${round.submission}» i samtalen for å få den behandlet.`;
         const answer = document.createElement("details"); answer.className = "canvas-answer";
         const summary = document.createElement("summary"); summary.textContent = "Vis svar";
         const previous = document.createElement("p"); previous.className = "workspace-previous";
@@ -878,6 +911,7 @@
     renderCanvasRounds();
     const count = pendingComments().length;
     const canvas = canvasRounds() !== null, uncertain = uncertainDelivery(), sending = sendingDelivery();
+    const unconfirmed = uncertain ? canvasRounds().find((round) => !round.previousSession && round.delivery === "unknown" && round.review === "unread").submission : null;
     el(".panel-intro").textContent = workspaceStored()
       ? "Lagrede innspill beholdes i prosjektet. Ulagrede utkast og merknader går tapt ved lukking."
       : canvas ? "Lagrede innspill beholdes i økten. Ulagrede utkast og merknader går tapt hvis du lukker skissen i appen."
@@ -891,7 +925,7 @@
     el(".connection").textContent = connectionLost ? "Frakoblet" : canvas ? "Knyttet til samtalen" : live ? "Følger med" : "Lagres lokalt";
     el(".connection").classList.toggle("live", canvas ? !connectionLost : live);
     const status = connectionLost ? "Innspill kan ikke lagres nå. Kopier teksten du vil beholde før du starter en ny økt."
-      : canvas ? uncertain ? "En tidligere levering er ikke bekreftet. Du kan lagre flere innspill, men ny sending venter til utfallet er avklart."
+      : canvas ? uncertain ? `Levering av runde ${unconfirmed} er ikke bekreftet. Skriv «se runde ${unconfirmed}» i samtalen, så avklares den. Du kan lagre flere innspill imens.`
         : sending ? "Forrige runde sendes. Du kan lagre flere innspill mens du venter på bekreftelse."
         : "Send legger runden i samtalens kø. Lukking av skissen avbryter ikke arbeid som er mottatt."
         : live ? "Innspillene hentes når du sender." : "Skriv «se innspillene» i samtalen når du har sendt.";
@@ -968,6 +1002,7 @@
       }
     }
     else if (action === "workspace-restore") void restoreWorkspace();
+    else if (action === "workspace-release-restore") void releaseAndRestore();
     else if (action === "save") void saveDraft();
     else if (action === "discard") discardDraft();
     else if (action === "hide-draft") hideDraft();
@@ -1177,6 +1212,8 @@
         failure.conflict = data.conflict === true;
         failure.capacity = data.errorCode === "capacity";
         failure.editorConflict = data.errorCode === "editor-conflict";
+        failure.unavailable = data.errorCode === "revision-unavailable";
+        failure.conflicts = Array.isArray(data.conflicts) ? data.conflicts.filter((item) => item && typeof item.id === "string" && typeof item.label === "string").slice(0, 32) : [];
         pending.reject(failure);
       }
       return;

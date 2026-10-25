@@ -5,7 +5,8 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { validDesign, MAX_DESIGN_BYTES } = require("./design-contract.js");
 
-const MAX_STATE_BYTES = 2 * 1024 * 1024;
+// Each version keeps its descriptor in the state, so 100 large descriptors fit.
+const MAX_STATE_BYTES = 4 * 1024 * 1024;
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const MAX_WORKSPACE_BYTES = 64 * 1024 * 1024;
 const MAX_REVISIONS = 100;
@@ -17,7 +18,7 @@ const MAX_CLAIMS = 128;
 
 // Messages are fixed English text plus at most a validated revision filename,
 // never a path or user content, so a client error can be shown as it is.
-function fail(status, message) { throw Object.assign(new Error(message), { status, expose: status < 500 }); }
+function fail(status, message, errorCode) { throw Object.assign(new Error(message), { status, expose: status < 500, ...(errorCode ? { errorCode } : {}) }); }
 function sameFile(a, b) { return a.dev === b.dev && a.ino === b.ino; }
 function digest(bytes) { return crypto.createHash("sha256").update(bytes).digest("hex"); }
 function owned(stat) { return typeof process.getuid !== "function" || stat.uid === process.getuid(); }
@@ -105,14 +106,20 @@ class WorkspaceClaim {
     const identity = fs.lstatSync(workspace, { bigint: true });
     const root = path.join(fs.realpathSync("/tmp"), `grillmester-design-locks-${process.getuid()}`);
     this.directory = path.join(root, digest(Buffer.from(`${identity.dev}:${identity.ino}`)));
-    for (const entry of [root, this.directory]) {
-      try { fs.mkdirSync(entry, { mode: 0o700 }); } catch (error) { if (error.code !== "EEXIST") throw error; }
-      directory(entry, true);
-    }
-    this.directoryStat = directory(this.directory, true);
     this.filename = path.join(this.directory, `${process.pid}-${this.nonce}.json`);
+    // A closing holder removes the room's lock directory when it is empty, so
+    // creating it and the claim can race with that removal; retry briefly.
+    for (let attempt = 0; !this.stat; attempt += 1) {
+      try {
+        for (const entry of [root, this.directory]) {
+          try { fs.mkdirSync(entry, { mode: 0o700 }); } catch (error) { if (error.code !== "EEXIST") throw error; }
+          directory(entry, true);
+        }
+        this.directoryStat = directory(this.directory, true);
+        this.stat = writeExclusive(this.filename, this.content(), () => this.assertDirectory());
+      } catch (error) { if (error.code !== "ENOENT" || attempt >= 2) throw error; }
+    }
     try {
-      this.stat = writeExclusive(this.filename, this.content(), () => this.assertDirectory());
       const others = this.scan();
       this.ticket = 1 + Math.max(0, ...others.map(item => item.ticket || 0));
       if (!Number.isSafeInteger(this.ticket)) fail(409, "Design workspace lock capacity reached.");
@@ -126,8 +133,9 @@ class WorkspaceClaim {
       } finally { fs.closeSync(fd); }
       for (const other of this.scan()) {
         if (other.name === path.basename(this.filename)) continue;
-        if (other.ticket === null || other.ticket < this.ticket || other.ticket === this.ticket && other.name < path.basename(this.filename)) {
-          fail(409, "This design workspace is already open. Close its other session before opening it here.");
+        if (other.ticket === null) fail(409, "Another workspace opener is still acquiring its lock.");
+        if (other.ticket < this.ticket || other.ticket === this.ticket && other.name < path.basename(this.filename)) {
+          fail(409, `This design workspace is already open in process ${CLAIM.exec(other.name)[1]}. Close that session before opening it here. If no such session runs, remove ${path.join(this.directory, other.name)}.`);
         }
       }
     } catch (error) { this.close(); throw error; }
@@ -147,7 +155,7 @@ class WorkspaceClaim {
       const filename = path.join(this.directory, name);
       let record;
       try { record = readFile(filename, 1024, true); }
-      catch (error) { if (error.code === "ENOENT") continue; throw error; }
+      catch (error) { if (error.code === "ENOENT" || !fs.existsSync(filename)) continue; throw error; }
       const pid = Number(match[1]);
       if (!alive(pid)) {
         this.assertDirectory();
@@ -170,7 +178,11 @@ class WorkspaceClaim {
   }
   close() {
     if (!this.stat) return;
-    try { this.assertDirectory(); removeExact(this.filename, this.stat); } finally { this.stat = null; }
+    try { this.assertDirectory(); removeExact(this.filename, this.stat); }
+    finally {
+      this.stat = null;
+      try { fs.rmdirSync(this.directory); } catch { /* Another claim or opener keeps the directory. */ }
+    }
   }
 }
 
@@ -268,7 +280,7 @@ class WorkspaceStore {
     // backup files (.DS_Store, ._x, .x.swp, x~) can never be referenced, so they
     // neither block the room nor count towards its limits.
     const names = fs.readdirSync(this.revisionsDir).filter(name => FILENAME.test(name) || DESCRIPTOR.test(name));
-    if (names.length > MAX_REVISIONS * 2) fail(429, "Design workspace revision limit reached.");
+    if (names.length > MAX_REVISIONS * 4) fail(429, "Design workspace revision limit reached.");
     for (const name of names) {
       const isHtml = FILENAME.test(name);
       const fd = fs.openSync(path.join(this.revisionsDir, name), fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
@@ -325,7 +337,9 @@ class WorkspaceStore {
     const designBytes = design === null ? null : Buffer.from(`${JSON.stringify(design)}\n`);
     if (htmlBytes.length > MAX_HTML_BYTES || designBytes && designBytes.length > MAX_DESIGN_BYTES) fail(413, "Design revision exceeds its size limit.");
     const inventory = this.inventory();
-    if (inventory.count >= MAX_REVISIONS || inventory.bytes + htmlBytes.length + (designBytes?.length || 0) + (this.lastBytes?.length || 0) > MAX_WORKSPACE_BYTES) fail(429, "Design workspace storage limit reached.");
+    // The registered version count is enforced by the state. Unregistered files
+    // left by an interrupted save count towards the byte limit only.
+    if (inventory.bytes + htmlBytes.length + (designBytes?.length || 0) + (this.lastBytes?.length || 0) > MAX_WORKSPACE_BYTES) fail(429, "Design workspace storage limit reached.");
     const written = [];
     try {
       for (const name of [filename, filename.slice(0, -5) + ".design.json"]) {
@@ -351,19 +365,24 @@ class WorkspaceStore {
     this.assertOpen();
     if (!meta || !FILENAME.test(meta.filename) || !HASH.test(meta.hash) || !(meta.designHash === null || HASH.test(meta.designHash))
         || !Number.isSafeInteger(meta.bytes) || meta.bytes < 1 || meta.bytes > MAX_HTML_BYTES) fail(400, "Invalid revision reference.");
-    const html = readFile(path.join(this.revisionsDir, meta.filename), MAX_HTML_BYTES).bytes;
-    if (html.length !== meta.bytes || digest(html) !== meta.hash) fail(409, `Design revision ${meta.filename} no longer matches its saved hash.`);
+    const unavailable = (message) => fail(409, message, "revision-unavailable");
+    const read = (name, maximum) => {
+      try { return readFile(path.join(this.revisionsDir, name), maximum).bytes; }
+      catch (error) { if (error.code === "ENOENT") unavailable(`Design revision file ${name} is missing.`); throw error; }
+    };
+    const html = read(meta.filename, MAX_HTML_BYTES);
+    if (html.length !== meta.bytes || digest(html) !== meta.hash) unavailable(`Design revision ${meta.filename} no longer matches its saved hash.`);
     let design = null;
     if (meta.designHash !== null) {
       const descriptor = meta.filename.slice(0, -5) + ".design.json";
-      const bytes = readFile(path.join(this.revisionsDir, descriptor), MAX_DESIGN_BYTES).bytes;
-      try { design = JSON.parse(bytes.toString("utf8")); } catch { fail(409, `Design descriptor ${descriptor} is not valid JSON.`); }
+      const bytes = read(descriptor, MAX_DESIGN_BYTES);
+      try { design = JSON.parse(bytes.toString("utf8")); } catch { unavailable(`Design descriptor ${descriptor} is not valid JSON.`); }
       // A repository formatter may re-indent JSON. The stored form is
       // JSON.stringify(value) + "\n", so the same value still has the same hash.
       if (digest(bytes) !== meta.designHash && digest(Buffer.from(`${JSON.stringify(design)}\n`)) !== meta.designHash) {
-        fail(409, `Design descriptor ${descriptor} no longer matches its saved hash.`);
+        unavailable(`Design descriptor ${descriptor} no longer matches its saved hash.`);
       }
-      if (!validDesign(design)) fail(409, `Design descriptor ${descriptor} is invalid.`);
+      if (!validDesign(design)) unavailable(`Design descriptor ${descriptor} is invalid.`);
     }
     return { html: html.toString("utf8"), design };
   }

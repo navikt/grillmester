@@ -1194,8 +1194,11 @@ function renderShellPage(nonce, accessToken, title, screen) {
           if (!response.ok && response.status === 409 && (operation.workspace || operation.path === "/comments/submit" || operation.path === "/decisions" || operation.path.startsWith("/decisions/"))) {
             await withReadDeadline((signal) => pollComments(signal, operationEpoch));
             if (operationEpoch !== readyEpoch) return;
+            const conflicts = Array.isArray(result.conflicts) && result.conflicts.length <= 32 && result.conflicts.every((item) => hasExactKeys(item, ["id", "label"])
+              && typeof item.id === "string" && item.id.length <= 160 && typeof item.label === "string" && item.label.length <= 400) ? result.conflicts : null;
             sendToPreview({ command: resultCommand, requestId: data.requestId, ok: false, conflict: true,
-              ...(result.errorCode === "editor-conflict" ? { errorCode: "editor-conflict" } : {}) });
+              ...(["editor-conflict", "revision-unavailable"].includes(result.errorCode) ? { errorCode: result.errorCode } : {}),
+              ...(conflicts ? { conflicts } : {}) });
             return;
           }
           sendToPreview(response.ok ? { command: resultCommand, requestId: data.requestId, ok: true, ...(operation.workspace && operation.method === "GET" ? { result } : { snapshot: result }) }
@@ -1497,7 +1500,8 @@ function readFeedbackBody(req, res, operation, pathname, maximumBytes = MAX_BODY
     } catch (error) {
       sendJson(res, requestErrorStatus(error), {
         error: error instanceof FeedbackError || error?.expose === true ? error.message : "Feedback storage is unavailable.",
-        ...(error.errorCode === "editor-conflict" ? { errorCode: "editor-conflict" } : {}),
+        ...(["editor-conflict", "revision-unavailable"].includes(error.errorCode) ? { errorCode: error.errorCode } : {}),
+        ...(error.errorCode === "editor-conflict" && Array.isArray(error.conflicts) ? { conflicts: error.conflicts } : {}),
       });
     } finally {
       // A post-rename error can follow a committed round. Notify that transition
@@ -1592,6 +1596,8 @@ const server = http.createServer((req, res) => {
     }
     if (req.method === "GET" && requestUrl.pathname === "/comments") {
       if (requestUrl.searchParams.get("waiter") === "1") listeningUntil = Date.now() + 2000;
+      // An open canvas polls continuously; a closed one cannot reach the server.
+      if (canvasMode) lastActivity = Date.now();
       sendJson(res, 200, feedbackSnapshot());
       return;
     }
@@ -1662,6 +1668,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (requestUrl.pathname === "/version") {
+    if (canvasMode) lastActivity = Date.now();
     res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
     res.end(newest ? newest.screen : "");
     return;
@@ -1887,7 +1894,10 @@ void runPreview().catch(error => {
   const status = Number.isInteger(error.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
   const detail = String(error?.message || "");
   const file = /[a-z0-9][a-z0-9-]{0,95}\.(?:design\.json|html)/.exec(detail)?.[0];
-  const message = status === 409 && /already open|still acquiring|simultaneous workspace open/.test(detail)
+  const holder = /already open in process ([0-9]+)/.exec(detail)?.[1], lockFile = /remove (\/\S+\.json)\.$/.exec(detail)?.[1];
+  const message = status === 409 && holder && lockFile
+    ? `Arbeidsrommet er åpent i en annen økt (prosess ${holder}). Lukk den andre økten før du prøver igjen. Kjører ingen slik økt, kan låsfilen slettes: ${lockFile}`
+    : status === 409 && /already open|still acquiring|simultaneous workspace open/.test(detail)
     ? "Arbeidsrommet er åpent i en annen økt. Lukk den andre økten før du prøver igjen."
     : status === 409 && /requires an empty/.test(detail) ? "Mappen for det nye arbeidsrommet er ikke tom. Ingen filer er endret. Velg en annen mappe, eller åpne det eksisterende arbeidet."
     : status === 409 && file ? `Arbeidsrommet kan ikke åpnes fordi den lagrede filen ${file} ikke stemmer med registeret. Ingen filer er endret. Hent filen tilbake fra versjonskontroll, og hold rommappen utenfor formatering.`

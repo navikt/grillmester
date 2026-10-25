@@ -150,9 +150,13 @@ test("state and revision limits reject whole writes without changing the saved r
   assert.throws(() => store.writeRevision({ filename: "large.html", html: "x".repeat(MAX_HTML_BYTES + 1) }), rejectsStatus(413));
   assert.deepEqual(fs.readFileSync(store.filename), before);
   assert.deepEqual(fs.readdirSync(store.revisionsDir), []);
+  // Unregistered files left by interrupted saves never consume version slots;
+  // the registered version count is enforced by the workspace state.
   for (let i = 0; i < MAX_REVISIONS; i++) fs.writeFileSync(path.join(store.revisionsDir, `revision-${i}.html`), "<p>x</p>");
+  store.writeRevision({ filename: "after-orphans.html", html: "<p>x</p>" });
+  for (let i = MAX_REVISIONS; i < MAX_REVISIONS * 4; i++) fs.writeFileSync(path.join(store.revisionsDir, `revision-${i}.html`), "<p>x</p>");
   assert.throws(() => store.writeRevision({ filename: "too-many.html", html: "<p>x</p>" }), rejectsStatus(429));
-  assert.equal(fs.readdirSync(store.revisionsDir).length, MAX_REVISIONS);
+  assert.equal(fs.readdirSync(store.revisionsDir).length, MAX_REVISIONS * 4 + 1);
 });
 
 test("reopening applies the combined state and revision storage limit without changing files", t => {

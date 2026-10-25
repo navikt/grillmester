@@ -1629,8 +1629,8 @@ test("restore distinguishes preserved-field conflicts from stale history without
     await running;
     const message = el(".workspace-error").textContent;
     if (errorCode === "editor-conflict") {
-      assert.match(message, /manuelt bevarte felt/);
-      assert.match(message, /«Rediger skissen» og frigi føringene/);
+      assert.match(message, /^Versjon 1 endrer felt du har lagret\./);
+      assert.match(message, /Tillat senere endring av feltene i «Rediger skissen»/);
       assert.doesNotMatch(message, /^Arbeidet er endret/);
     } else assert.equal(message, "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt.");
     assert.doesNotMatch(message, /PRIVATE_SERVER_DETAIL/);
@@ -1646,6 +1646,63 @@ test("restore distinguishes preserved-field conflicts from stale history without
     await browser.restore();
     assert.equal(calls.length, 1, "A blocked restore cannot silently retry the rejected write.");
   }
+});
+
+
+test("a restore blocked by named preserved fields offers one release-and-restore action", async () => {
+  const source = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
+  const excerpt = (start, end) => {
+    const from = source.indexOf(start), to = source.indexOf(end, from);
+    assert(from >= 0 && to > from);
+    return source.slice(from, to);
+  };
+  const summary = excerpt("  function workspaceStored()", "  function closeWorkspace(");
+  const restore = excerpt("  async function restoreWorkspace()", "  function renderCanvasRounds()");
+  const result = excerpt('    if (data.command === "comments-result" || data.command === "workspace-result") {', '    if (data.command !== "selection-status"');
+  const nodes = new Map(), requests = new Map(), calls = [];
+  const el = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { textContent: "", hidden: false, disabled: false, dataset: {}, setAttribute() {} });
+    return nodes.get(selector);
+  };
+  const snapshot = { revision: 7, workspace: { storage: "project", title: "Test", path: "designs/test", version: 3 } };
+  const confirmation = { entry: { revisionId: 1 }, expectedRevision: snapshot.revision, retry: {} };
+  let sequence = 0;
+  const context = {
+    el, all: () => [el('[data-action="workspace-restore"]'), el('[data-action="workspace-release-restore"]')], snapshot, requests,
+    workspaceButton: {}, workspaceConfirmation: confirmation, workspaceRestoring: false,
+    workspaceLoading: false, workspaceNextAfter: null, workspaceRestoreOpen: false,
+    draft: null, drag: null, preview: null, workshop: null, editor: null, screen: "c".repeat(32),
+    connectionLost: false, savingDraft: false, updateAvailable: false,
+    canvasRounds: () => [], window: { clearTimeout() {} },
+    errorAt: (selector, text) => { el(selector).textContent = text; },
+    announce() {}, refreshNow() {}, applySnapshot() {},
+    request: (action, payload, retry) => {
+      calls.push({ action, payload: JSON.parse(JSON.stringify(payload)), retry });
+      const id = ++sequence;
+      return new Promise((resolve, reject) => requests.set(id, { action, resolve, reject, timer: 1 }));
+    },
+  };
+  const browser = require("node:vm").runInNewContext(`${summary}\n${restore}\nfunction updateBusy() { renderWorkspaceSummary(); }\nrenderWorkspaceSummary();\n({ restore: restoreWorkspace, release: releaseAndRestore, receive: (data) => { ${result} }, confirmation: () => workspaceConfirmation })`, context);
+  const running = browser.restore();
+  browser.receive({ command: "workspace-result", requestId: 1, ok: false, conflict: true, errorCode: "editor-conflict",
+    conflicts: [{ id: "text:heading", label: "Overskrift" }, { id: "control:/card/density", label: "Luft · Oppsummering" }] });
+  await running;
+  assert.match(el(".workspace-error").textContent, /Versjon 1 endrer felt du har lagret: «Overskrift», «Luft · Oppsummering»\./);
+  const action = el('[data-action="workspace-release-restore"]');
+  assert.equal(action.hidden, false);
+  assert.equal(action.disabled, false);
+  assert.equal(action.textContent, "Tillat endring og bruk versjon 1");
+  assert.equal(el('[data-action="workspace-restore"]').disabled, true, "The plain restore stays blocked.");
+  const releasing = browser.release();
+  assert.deepEqual(calls[1], { action: "workspace-editor-release", payload: { screen: "c".repeat(32), expectedRevision: 7, ids: ["text:heading", "control:/card/density"] }, retry: calls[1].retry });
+  snapshot.revision = 8;
+  browser.receive({ command: "workspace-result", requestId: 2, ok: true, snapshot: { ...snapshot } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(calls[2].payload, { revisionId: 1, expectedRevision: 8 });
+  browser.receive({ command: "workspace-result", requestId: 3, ok: true, snapshot: { ...snapshot } });
+  await releasing;
+  assert.equal(browser.confirmation(), null);
+  assert.equal(calls.length, 3, "Exactly one release and one restore are written.");
 });
 
 test("feedback results and conflict refreshes stay with their originating preview document", async () => {

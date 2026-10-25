@@ -321,7 +321,9 @@ test('the HTTP editor preserves explicit fields, one save receipt and user-only 
     assert.equal(currentEditor.value.fields.every(field => field.locked), true);
     assert.equal(currentEditor.value.fields[0].value, changes[0].value);
     assert.equal(currentEditor.value.fields[1].value, 'compact');
-    assert.equal((await backend.readRevision({ revisionId: 2, part: 'html' })).content, html, 'Saving fields never rewrites arbitrary HTML.');
+    assert.equal((await backend.readRevision({ revisionId: 2, part: 'html' })).content,
+      '<h1><span data-vc-text="heading">Min lagrede overskrift</span></h1><section data-vc-key="card" data-vc-setting-density="compact">Content</section>',
+      'Saving writes only the declared text and editable setting into the HTML.');
     assert.deepEqual(JSON.parse((await backend.readRevision({ revisionId: 2, part: 'design' })).content).texts[0].value, changes[0].value);
     await assert.rejects(backend.publishRevision({ expectedScreen: edited.screen, filename: 'overwrite.html', html, design }),
       error => error.status === 409 && /manually saved field/.test(error.message));

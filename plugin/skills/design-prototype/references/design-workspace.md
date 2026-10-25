@@ -40,7 +40,9 @@ its own project; do not redirect to the main checkout or another session.
 loaded when this backend opened. This is normal on reopening, not evidence of
 corruption or a failed restore. Check the returned workspace ID, path, current
 version and preserved fields. Previous-session rounds remain historical and
-are not automatically replayed. Use the documented receipt and existing source
+are not automatically replayed. Opening marks them in memory only: it writes no
+project file, so a read-only checkout opens and version control shows no change.
+Use the documented receipt and existing source
 pair for routine questions; inspect runtime implementation only for an
 unexpected result, an undocumented value or an actual error. Keep fresh
 state/version guards before writes.
@@ -97,7 +99,9 @@ this distinction accurately; do not promise recovery of unsaved typing.
 
 Delivery states distinguish sending, queued and unknown receipt; review states
 distinguish unread, working and answered. If receipt is unknown, inspect the
-same conversation rather than automatically resending. Reopening preserves old
+same conversation rather than automatically resending. An unread round with
+unknown receipt blocks new sends until that round is read; the panel asks the
+designer to write «se runde N» in the conversation, which resolves it. Reopening preserves old
 rounds as **Fra tidligere samtale** and never replays them. Act on an old round
 only when the designer explicitly resumes it. New deliberate rounds can be
 sent in the newly owning conversation.
@@ -229,8 +233,9 @@ a room open. A damaged older pair makes only that version unavailable:
 usable. A descriptor re-indented with the same value and files that can never
 be revisions, such as `.DS_Store` or editor backups, are tolerated.
 
-A room retains at most 100 sketch versions, 200 submitted rounds, a 2 MiB
-state document and 64 MiB total saved content. Each HTML revision is at most
+A room retains at most 100 sketch versions, 200 submitted rounds, a 4 MiB
+state document and 64 MiB total saved content. Files left by an interrupted
+save count towards the byte limit only, never towards the version count. Each HTML revision is at most
 2 MiB; descriptors are at most 32 KiB for v1 or 24 KiB for v2. Limits reject whole changes;
 history is not evicted. A new session reopens the same full room. At capacity,
 preserve the original room and arrange a new room explicitly. The adapter has a
@@ -238,6 +243,10 @@ Node runtime and a private loopback preview transport; a native canvas panel
 does not remove these requirements.
 Project workspace locking currently requires a Unix host. Other hosts must
 report that project storage is unsupported, without resetting an existing room.
+A room held by another session names that process and its lock file. If no such
+session runs, for example after a crash whose process number was later reused,
+deleting that one file releases the room. An open canvas keeps its preview
+alive; a closed canvas stops after four hours without activity.
 The preview needs an existing ordinary Node.js runtime, version 18 or newer.
 If the client uses a bundled executable, the adapter looks for Node in the
 host's absolute `PATH` entries. Missing Node stops opening before a room is

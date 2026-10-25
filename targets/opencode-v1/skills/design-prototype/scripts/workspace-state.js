@@ -64,10 +64,10 @@ class WorkspaceState {
           round.previousSession = true;
           if (round.delivery === "sending") round.delivery = "unknown";
       }
-      // No client from the old process survives its token/IPC boundary. Recovery
-      // changes only session ownership, preserving the revision and shrinking
-      // preallocated booleans so a full journal remains reopenable.
-      feedback.persist(state);
+      // No client from the old process survives its token/IPC boundary. Mark that
+      // in memory only: opening a room never rewrites it, so a read-only checkout
+      // opens and version control shows no change. The next real write saves it.
+      feedback.state = state;
     }
   }
   summary() {
@@ -123,7 +123,8 @@ class WorkspaceState {
     requireValue(workspace.version < 100, 429, "This workspace has reached its version limit.");
     requireValue(!workspace.revisions.some(item => item.filename === filename), 409, "Use a new filename for each sketch version.");
     const holds = editedHolds ?? workspace.holds ?? [];
-    if (conflictingHolds(holds, design).length) throw this.editorConflict("The revision changes a manually saved field. Preserve its value and declaration, or ask the designer to release it in the editor.");
+    const conflicts = conflictingHolds(holds, design).map(({ id, label }) => ({ id, label }));
+    if (conflicts.length) throw this.editorConflict(`The revision changes a manually saved field (${conflicts.map(item => item.label).join(", ")}). Preserve its value and declaration, or ask the designer to allow later changes in the editor.`, conflicts);
     if (design?.version === 2) validateEditorBindings(html, design);
     const saved = this.store.writeRevision({ filename, html, design });
     const revisionId = workspace.version + 1;
@@ -145,8 +146,8 @@ class WorkspaceState {
     }
     return this.summary();
   }
-  editorConflict(message) {
-    return Object.assign(new FeedbackError(409, message), { errorCode: "editor-conflict" });
+  editorConflict(message, conflicts = []) {
+    return Object.assign(new FeedbackError(409, message), { errorCode: "editor-conflict", conflicts });
   }
   editorRead(input) {
     requireValue(keys(input, []), 400, "Invalid editor read.");
