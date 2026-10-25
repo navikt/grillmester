@@ -72,6 +72,11 @@ velges eksplisitt; kodeimplementeringen delegeres ikke til Kokk.
 **Ikke bruk når:** Oppgaven skjuler et uløst produktvalg, bryter en offentlig
 kontrakt eller krever en reverserings-/migreringsbeslutning.
 
+**Forskjell fra Grillmester:** Barista implementerer selv og kan bare tilkalle
+Grill-inspektør for uavhengig review. Den bruker en annen standardmodell, har
+kortere instruksjoner og er med i de fokuserte nyttelastene for lokale
+modeller. Å fjerne rollen er en egen beslutning (ADR 0024).
+
 ### Designer 🎨
 
 **Bruk når:** Du trenger designutforsking, brukerflyt, Aksel-komponentvalg eller
