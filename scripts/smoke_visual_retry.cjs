@@ -227,12 +227,12 @@ const cases = [
     await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
     const original = (await snapshot()).decisions[0];
     await ui.getByRole("button", { name: "Juster", exact: true }).click();
-    await ui.locator(".workshop-keep-list").getByRole("button", { name: "Frigi", exact: true }).click();
+    await ui.locator(".workshop-keep-list").getByRole("button", { name: "Slutt å beholde", exact: true }).click();
     await ui.locator(".workshop-error").waitFor({ state: "visible" });
     const released = (await snapshot()).decisions[0];
     assert.equal(released.state, "released");
     const restored = await mutate("/decisions", "POST", { screen: released.screen, variant: released.variant, target: released.target, values: { density: "compact" }, text: "En annen fane beholdt delen igjen.", expectedRevision: released.revision });
-    await ui.locator(".workshop-keep-list").getByRole("button", { name: "Frigi", exact: true }).click();
+    await ui.locator(".workshop-keep-list").getByRole("button", { name: "Slutt å beholde", exact: true }).click();
     await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
     assert.equal(mutations.length, 2);
     assert.equal(mutations[0], mutations[1]);
@@ -272,7 +272,7 @@ const cases = [
     });
     try {
       await until(() => readHeld, "The older poll was not held.");
-      await ui.locator(".workshop-keep-list").getByRole("button", { name: "Frigi", exact: true }).click();
+      await ui.locator(".workshop-keep-list").getByRole("button", { name: "Slutt å beholde", exact: true }).click();
       await until(() => writeHeld, "The release was not held before persistence.");
       await peer.ui.locator('[data-action="workshop-keep"]').click();
       await peer.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
@@ -286,7 +286,7 @@ const cases = [
       await page.waitForTimeout(150);
       assert((await ui.locator(".workshop-keep-list").textContent()).includes("Det nyere valget fra den andre fanen."), "A late older snapshot must not roll back the refreshed choice.");
       assert.equal(attempts.length, 1, "A conflict must never retry its mutation automatically.");
-      await ui.locator(".workshop-keep-list").getByRole("button", { name: "Frigi", exact: true }).click();
+      await ui.locator(".workshop-keep-list").getByRole("button", { name: "Slutt å beholde", exact: true }).click();
       await until(async () => (await snapshot()).decisions[0].state === "released", "The explicitly reviewed release did not finish.");
       assert.equal(attempts.length, 2);
       assert.equal(attempts[0].body.expectedRevision, original.revision);
@@ -421,9 +421,11 @@ const cases = [
       await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).click();
       await until(async () => (await snapshot()).submission === 1, "The accepted first comment was not submitted before changing versions.");
       publish("Neste versjon");
-      await until(async () => await frame.getByRole("heading", { name: "Neste versjon", exact: true }).count() > 0 || await ui.locator('[data-action="refresh"]').isVisible(), "The next sketch version was not announced.");
-      if (await frame.getByRole("heading", { name: "Neste versjon", exact: true }).count() === 0) await ui.locator('[data-action="refresh"]').click();
-      await frame.getByRole("heading", { name: "Neste versjon", exact: true }).waitFor();
+      // The refresh control stays visible but disabled while an automatic refresh runs.
+      const nextHeading = frame.getByRole("heading", { name: "Neste versjon", exact: true }), refresh = ui.locator('[data-action="refresh"]');
+      await until(async () => await nextHeading.count() > 0 || (await refresh.isVisible() && await refresh.isEnabled()), "The next sketch version was not announced.");
+      if (await nextHeading.count() === 0) await refresh.click();
+      await nextHeading.waitFor();
       await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
       await frame.getByRole("heading", { name: "Neste versjon", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Nytt utkast som ikke er lagret.");

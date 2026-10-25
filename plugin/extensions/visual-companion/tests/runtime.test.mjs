@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, delimiter, join } from 'node:path';
 import { previewEnvironment, resolveNodeRuntime } from '../runtime.mjs';
@@ -14,9 +14,17 @@ async function fixture(run) {
 }
 
 async function executable(filename, source) {
-  await mkdir(dirname(filename), { recursive: true });
+  // An explicit mode keeps runtime folders protected under a permissive umask.
+  await mkdir(dirname(filename), { recursive: true, mode: 0o755 });
   await writeFile(filename, `#!${process.execPath}\n${source}\n`, { mode: 0o700 });
 }
+
+// Records each execution, then reports the Node that runs the script.
+const recordingRuntime = marker => `
+  require('node:fs').appendFileSync(${JSON.stringify(marker)}, 'x');
+  process.stdout.write(JSON.stringify({ protocol: 'preview-node-runtime-v1', version: process.versions.node,
+    executable: process.execPath, ordinary: true }));
+`;
 
 test('an ordinary current Node is preferred even without PATH', () => fixture(async ({ projectDir }) => {
   assert.equal(await resolveNodeRuntime({ projectDir, path: '' }), await realpath(process.execPath));
@@ -72,6 +80,51 @@ test('project paths, symlinks into the project, empty entries and relative entri
     path: ['', '.', 'relative-bin', projectDir, linked].join(delimiter) }), /Node\.js 18 or newer/);
   await assert.rejects(readFile(entered), error => error.code === 'ENOENT');
   assert.deepEqual(await readdir(projectDir), ['node']);
+}));
+
+test('dependency folders outside the project, such as a monorepo root, cannot supply a runtime', () => fixture(async ({ root, projectDir }) => {
+  const entered = join(root, 'dependency-runtime-entered');
+  const dependencies = [join(root, 'node_modules', '.bin'), join(root, 'vendor', 'NODE_MODULES', 'tool', 'bin')];
+  for (const bin of dependencies) await executable(join(bin, 'node'), recordingRuntime(entered));
+  await assert.rejects(resolveNodeRuntime({ projectDir, isSea: true, path: dependencies.join(delimiter) }), /Node\.js 18 or newer/);
+  await assert.rejects(readFile(entered), error => error.code === 'ENOENT');
+  const tools = join(root, 'tools');
+  await executable(join(tools, 'node'), recordingRuntime(entered));
+  assert.equal(await resolveNodeRuntime({ projectDir, isSea: true, path: [...dependencies, tools].join(delimiter) }),
+    await realpath(process.execPath));
+  assert.equal(await readFile(entered, 'utf8'), 'x');
+}));
+
+test('a runtime that another account can replace is never executed and is named', () => fixture(async ({ root, projectDir }) => {
+  const entered = join(root, 'writable-runtime-entered');
+  const worldFile = join(root, 'world-writable-file'), worldFolder = join(root, 'world-writable-folder');
+  await executable(join(worldFile, 'node'), recordingRuntime(entered));
+  await executable(join(worldFolder, 'node'), recordingRuntime(entered));
+  await chmod(join(worldFile, 'node'), 0o777);
+  await chmod(worldFolder, 0o777);
+  const path = [worldFile, worldFolder].join(delimiter);
+  const skipped = await realpath(join(worldFile, 'node'));
+  await assert.rejects(resolveNodeRuntime({ projectDir, isSea: true, path }),
+    error => /Node\.js 18 or newer/.test(error.message) && error.message.includes(`Skipped ${skipped} because another account can replace it.`));
+  await assert.rejects(readFile(entered), error => error.code === 'ENOENT');
+  // Group write is normal for private user groups (umask 002) and admin-group prefixes.
+  await chmod(worldFolder, 0o775);
+  assert.equal(await resolveNodeRuntime({ projectDir, isSea: true, path }), await realpath(process.execPath));
+  assert.equal(await readFile(entered, 'utf8'), 'x');
+}));
+
+test('a probe cannot nominate a runtime that another account can replace', () => fixture(async ({ root, projectDir }) => {
+  const shared = join(root, 'shared'), nominated = join(shared, 'node'), bin = join(root, 'bin');
+  await executable(nominated, 'process.exit(1);');
+  await executable(join(bin, 'node'), `process.stdout.write(JSON.stringify({ protocol: 'preview-node-runtime-v1',
+    version: process.versions.node, executable: ${JSON.stringify(nominated)}, ordinary: true }));`);
+  await chmod(shared, 0o777);
+  await assert.rejects(resolveNodeRuntime({ projectDir, isSea: true, path: bin }), /Node\.js 18 or newer/);
+  await chmod(shared, 0o755);
+  await chmod(nominated, 0o702);
+  await assert.rejects(resolveNodeRuntime({ projectDir, isSea: true, path: bin }), /Node\.js 18 or newer/);
+  await chmod(nominated, 0o770);
+  assert.equal(await resolveNodeRuntime({ projectDir, isSea: true, path: bin }), await realpath(nominated));
 }));
 
 test('invalid and old runtimes are rejected, and duplicate realpaths are probed only once', () => fixture(async ({ root, projectDir }) => {

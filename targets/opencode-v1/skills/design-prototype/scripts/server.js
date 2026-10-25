@@ -742,11 +742,15 @@ function serializeStartTag(tag, styleNonce = null) {
   return `${result}${tag.selfClosing ? " /" : ""}>`;
 }
 
-function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
+function stripActivePreviewMarkup(value, styleNonce, markupContext = false) {
   const source = String(value);
   let result = "";
   let cursor = 0;
   const knownUnclosedRawTextElements = new Set();
+  // Parsers without the relaxed select rules ignore raw-text openers inside
+  // <select> until "</select>" (or an opener that closes it, which only makes
+  // this flag stay set longer than needed).
+  let selectOpen = false;
   while (cursor < source.length) {
     const tagStart = source.indexOf("<", cursor);
     if (tagStart === -1) {
@@ -779,6 +783,7 @@ function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
       continue;
     }
     if (tag.closing) {
+      if (tag.name === "select") selectOpen = false;
       result += `</${tag.name}>`;
       cursor = tag.end;
       continue;
@@ -787,7 +792,8 @@ function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
     // The tree builder can stay there after a self-closing-looking tag or an
     // ignored end tag, so after any opener every later raw-text element is
     // treated as possibly foreign.
-    if (tag.name === "svg" || tag.name === "math") foreign = true;
+    if (tag.name === "svg" || tag.name === "math") markupContext = true;
+    if (tag.name === "select") selectOpen = true;
     if (tag.name === "script") {
       const closing = findClosingTag(source, tag.end, "script");
       cursor = closing ? closing.end : source.length;
@@ -806,11 +812,15 @@ function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
         continue;
       }
       // Text without a possible tag, comment or end tag opener reads the same
-      // as raw text and as markup. Otherwise sanitize foreign contents as markup.
+      // as raw text and as markup. Otherwise sanitize contents that may be
+      // parsed as markup; noscript is markup wherever scripting is disabled.
       const content = source.slice(tag.end, closing.start);
-      result += serializeStartTag(tag, styleNonce);
-      result += foreign && /<[A-Za-z!\/?]/.test(content) ? stripActivePreviewMarkup(content, styleNonce, true) : content;
-      result += `</${tag.name}>`;
+      const asMarkup = (markupContext || selectOpen || tag.name === "noscript") && /<[A-Za-z!\/?]/.test(content);
+      const inner = asMarkup ? stripActivePreviewMarkup(content, styleNonce, true) : content;
+      // An opener written from contents parsed as markup keeps later raw text suspect.
+      if (asMarkup && /<(?:svg|math)[\s/>]/.test(inner)) markupContext = true;
+      if (asMarkup && /<select[\s/>]/.test(inner)) selectOpen = true;
+      result += `${serializeStartTag(tag, styleNonce)}${inner}</${tag.name}>`;
       cursor = closing.end;
       continue;
     }
@@ -903,7 +913,7 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
   const cssWarning = akselCss
     ? ""
     : `<div role="status" style="background:#fef0f0;border:2px solid #c30000;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif">
-        <strong>⚠️ Aksel CSS mangler</strong><br>Forhåndsvisningen bruker fallback-stiler. Installer aldri avhengigheter uten eksplisitt godkjenning.
+        <strong>⚠️ Aksel CSS mangler</strong><br>Skissen vises med reservestiler fordi prosjektets Aksel-stiler ikke ble funnet.
       </div>`;
   const designWarning = designError
     ? `<div role="alert" style="background:#fff5df;border:2px solid #a86d00;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif"><strong>Justeringspanelet er utilgjengelig.</strong> Skisseoppsettet må rettes.</div>`
@@ -1899,6 +1909,7 @@ void runPreview().catch(error => {
     ? `Arbeidsrommet er åpent i en annen økt (prosess ${holder}). Lukk den andre økten før du prøver igjen. Kjører ingen slik økt, kan låsfilen slettes: ${lockFile}`
     : status === 409 && /already open|still acquiring|simultaneous workspace open/.test(detail)
     ? "Arbeidsrommet er åpent i en annen økt. Lukk den andre økten før du prøver igjen."
+    : status === 409 && /revisions but no workspace\.json/.test(detail) ? "Mappen har skisseversjoner, men mangler workspace.json. Ingen filer er endret. Hent workspace.json tilbake fra versjonskontroll, eller flytt revisions-mappen til side for å starte på nytt."
     : status === 409 && /requires an empty/.test(detail) ? "Mappen for det nye arbeidsrommet er ikke tom. Ingen filer er endret. Velg en annen mappe, eller åpne det eksisterende arbeidet."
     : status === 409 && file ? `Arbeidsrommet kan ikke åpnes fordi den lagrede filen ${file} ikke stemmer med registeret. Ingen filer er endret. Hent filen tilbake fra versjonskontroll, og hold rommappen utenfor formatering.`
     : status === 409 ? "Arbeidsrommet ble endret utenfra eller har filer som ikke stemmer med registeret. Ingen filer er endret. Kontroller prosjektfilene før du prøver igjen."

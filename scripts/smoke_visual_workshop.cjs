@@ -147,20 +147,27 @@ async function main() {
     }
     writeScreen("workshop", fixture(), manifest());
     browser = await chromium.launch({ headless: !options.has("--headed"), ...(browserChannel ? { channel: browserChannel } : {}) });
-    page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-    page.setDefaultTimeout(10000);
     const errors = [], completedRequests = [];
-    page.on("pageerror", error => { errors.push(error.message); console.error(`Browser error: ${error.message}`); });
-    page.on("requestfinished", request => completedRequests.push(request.url()));
-    await page.goto(info.url);
+    // Headless Chrome stops routing pointer input to the lower part of the
+    // sandboxed preview after a live viewport change, even after a reload.
+    // Each viewport therefore gets its own page instead of a resize.
+    const openPage = async viewport => {
+      const opened = await browser.newPage({ viewport });
+      opened.setDefaultTimeout(10000);
+      opened.on("pageerror", error => { errors.push(error.message); console.error(`Browser error: ${error.message}`); });
+      opened.on("requestfinished", request => completedRequests.push(request.url()));
+      await opened.goto(info.url);
+      return opened;
+    };
+    page = await openPage({ width: 1440, height: 1000 });
     const frame = page.frameLocator("#vc-preview");
     const ui = frame.locator("[data-visual-feedback]");
     const list = () => cli("list", info);
 
-    if (!options.has("--case")) await runWorkshop({ page, frame, ui, info, list, writeScreen });
+    if (!options.has("--case")) await runWorkshop({ page, frame, ui, info, list, writeScreen, openPage });
     if (!options.has("--case") || options.get("--case") === "declared-actions") await runDeclaredActions({ page, frame, ui, info, list, writeScreen });
     const keyboardErrors = !options.has("--case") || options.get("--case") === "keyboard-errors"
-      ? await runKeyboardErrors({ page, frame, ui, info, list, writeScreen }) : null;
+      ? await runKeyboardErrors({ page, frame, ui, info, list, writeScreen, openPage }) : null;
 
     assert.deepEqual(errors, [], errors.join("\n"));
     assert(completedRequests.every(url => url.startsWith(new URL(info.url).origin) || /^(data|blob):/.test(url)), "Unexpected completed remote request.");
@@ -177,7 +184,8 @@ async function main() {
     if (evidence) fs.writeFileSync(path.join(evidence, "visual-workshop-test-results.json"), `${JSON.stringify(result, null, 2)}\n`);
     console.log(JSON.stringify(result));
   } catch (error) {
-    if (page) await screenshot(page, "visual-workshop-failure.png").catch(() => {});
+    const latest = browser?.contexts().flatMap(item => item.pages()).filter(item => !item.isClosed()).at(-1) || page;
+    if (latest) await screenshot(latest, "visual-workshop-failure.png").catch(() => {});
     throw error;
   } finally {
     try { await browser?.close(); }
@@ -186,11 +194,17 @@ async function main() {
 }
 
 async function runWorkshop(context) {
-  const { page, frame, ui, info, list, writeScreen } = context;
+  const { info, list, writeScreen, openPage } = context;
+  let { page, frame, ui } = context;
   await frame.getByRole("heading", { name: "Velg arbeidsoversikt" }).waitFor();
   await frame.getByLabel("Privat prøveverdi", { exact: true }).fill("PRIVAT_VERDI_SKAL_IKKE_BLI_INNSPILL");
   const summary = frame.locator('[data-vc-key="summary-list"]');
-  const adjustment = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  let adjustment = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  // The helpers below follow whichever page is shown.
+  const show = target => {
+    page = target; frame = page.frameLocator("#vc-preview"); ui = frame.locator("[data-visual-feedback]");
+    adjustment = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  };
   const control = name => adjustment.getByLabel(name, { exact: true });
   const settings = () => summary.evaluate(node => ({
     density: node.getAttribute("data-vc-setting-density"),
@@ -260,7 +274,7 @@ async function runWorkshop(context) {
   }, "kept decision saved");
   assert.equal(kept.values.density, "compact");
   assert.equal(kept.submission, 0);
-  const queuedRelease = ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).getByRole("button", { name: "Frigi", exact: true });
+  const queuedRelease = ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).getByRole("button", { name: "Slutt å beholde", exact: true });
   await waitFor(() => queuedRelease.isEnabled(), "newly saved keep can be released without another snapshot revision");
   const beforeKeepSubmission = await list();
   const unsentKeep = await cli("wait", info, ["--after", String(beforeKeepSubmission.submission), "--timeout", "0"]);
@@ -282,7 +296,13 @@ async function runWorkshop(context) {
   assert.equal((await list()).comments.length, beforeCompare.comments.length, "Opening comparison must not send a preference.");
   assert.equal(selectionEvents(info), "");
   await screenshot(page, "visual-workshop-comparison.png");
-  await page.setViewportSize({ width: 390, height: 844 });
+  // A narrow page compares on its own; the desktop page keeps its comparison.
+  const desktop = page;
+  show(await openPage({ width: 390, height: 844 }));
+  await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor();
+  await openWorkshop();
+  await adjustment.getByRole("button", { name: "Sammenlign varianter", exact: true }).click();
+  await ui.locator(`.pin[data-id="${proposed.id}"]`).waitFor(); // Shown until the variant switch hides it.
   await ui.getByRole("button", { name: "Arbeidsbrett", exact: true }).focus();
   await page.keyboard.press("Space");
   assert(await frame.locator('[data-vc-variant="board"]').isVisible());
@@ -308,7 +328,9 @@ async function runWorkshop(context) {
   assert.equal(preference.submission, 0);
   assert.equal(selectionEvents(info), "");
   await send(1);
-  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.close();
+  show(desktop);
+  await page.bringToFront();
   console.log("PASS: equal desktop panes, narrow variant switch and explicit preference without selection events.");
 
   await closeFeedback();
@@ -385,7 +407,7 @@ async function runWorkshop(context) {
   await openWorkshop();
   const decisions = ui.getByRole("region", { name: "Beholdes videre", exact: true });
   const beforeReleaseSubmission = await list();
-  await decisions.getByRole("button", { name: "Frigi", exact: true }).click();
+  await decisions.getByRole("button", { name: "Slutt å beholde", exact: true }).click();
   await waitFor(async () => (await list()).decisions.some(item => item.id === kept.id && item.state === "released" && item.submission === 0), "released decision pending submission");
   const unsentRelease = await cli("wait", info, ["--after", String(beforeReleaseSubmission.submission), "--timeout", "0"]);
   assert(unsentRelease.decisions.some(item => item.id === kept.id && item.state === "active" && item.values.density === "compact"), "An unsent release must preserve the last submitted active constraint for the consumer.");
@@ -534,14 +556,17 @@ async function runDeclaredActions({ page, frame, ui, info, list, writeScreen }) 
   console.log("PASS: declared click-through, keyboard focus, safe choices, exact state context and explicit private batch.");
 }
 
-async function runKeyboardErrors({ page, frame, ui, info, list, writeScreen }) {
+async function runKeyboardErrors({ page, frame, ui, list, writeScreen, openPage }) {
   // This wireframe tests the review controls, not a domain component design.
   const title = "Vurder lange tekster med tastatur";
   const baseline = await list();
   writeScreen("keyboard-errors", fixture(title), manifest());
-  await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto(info.url);
-  await frame.getByRole("heading", { name: title, exact: true }).waitFor();
+  // Each viewport gets its own page; the helpers below follow the shown page.
+  const show = async viewport => {
+    page = await openPage(viewport); frame = page.frameLocator("#vc-preview"); ui = frame.locator("[data-visual-feedback]");
+    await frame.getByRole("heading", { name: title, exact: true }).waitFor();
+  };
+  await show({ width: 320, height: 568 });
   const isFocused = locator => locator.evaluate(node => node === node.getRootNode().activeElement);
   async function tabTo(locator) {
     await locator.waitFor();
@@ -629,7 +654,8 @@ async function runKeyboardErrors({ page, frame, ui, info, list, writeScreen }) {
   await page.keyboard.press("Escape");
   assert(await isFocused(ui.locator('[data-action="panel"]')), "Closing feedback must restore toolbar focus.");
 
-  await page.setViewportSize({ width: 568, height: 320 });
+  await page.close();
+  await show({ width: 568, height: 320 });
   await activate(ui.getByRole("button", { name: "Juster", exact: true }));
   const workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
   const remark = workshop.getByLabel("Merknad", { exact: true });

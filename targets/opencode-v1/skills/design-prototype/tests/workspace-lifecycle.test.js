@@ -84,3 +84,15 @@ test("a held room names its holder and lock file, and closing removes an empty l
   const second = open();
   assert.equal(second.workspace.summary().version, 0);
 });
+
+test("sketch revisions without workspace.json are explained on open and create, and never adopted", t => {
+  const { projectDir, open } = fixture(t);
+  const revisions = path.join(projectDir, "designs/example/revisions");
+  fs.mkdirSync(revisions, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(revisions, "first.html"), html);
+  for (const create of [false, true]) {
+    assert.throws(() => open(create), error => error.status === 409 && /sketch revisions but no workspace\.json\. Restore workspace\.json/.test(error.message));
+  }
+  assert.deepEqual(fs.readdirSync(path.join(projectDir, "designs/example")), ["revisions"]);
+  assert.equal(fs.readFileSync(path.join(revisions, "first.html"), "utf8"), html, "The leftover file is preserved for review.");
+});

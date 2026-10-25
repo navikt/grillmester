@@ -1650,6 +1650,37 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertGreaterEqual(len(validation), 19)
         self.assertEqual(set(), validation - release)
 
+    def test_validation_syntax_checks_every_visual_smoke(self) -> None:
+        """Browser smokes stay out of CI, so their syntax is checked instead."""
+
+        text = VALIDATE_WORKFLOW.read_text(encoding="utf-8")
+        smokes = sorted((ROOT / "scripts").glob("smoke_visual_*.cjs"))
+        self.assertGreaterEqual(len(smokes), 8)
+        for smoke in smokes:
+            with self.subTest(smoke=smoke.name):
+                self.assertEqual(1, text.count(f"node --check scripts/{smoke.name}\n"))
+
+    def test_native_macos_gate_runs_node_suites_with_the_validation_node(self) -> None:
+        """Case-insensitive filesystem cases only run on the native macOS gate."""
+
+        setup = re.compile(
+            r"uses: (actions/setup-node@[0-9a-f]{40} # v[0-9.]+)\n"
+            r" +with:\n +node-version: ([0-9]+)\n"
+        )
+        validation = VALIDATE_WORKFLOW.read_text(encoding="utf-8")
+        macos = MACOS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertEqual(1, len(set(setup.findall(validation))))
+        self.assertEqual(set(setup.findall(validation)), set(setup.findall(macos)))
+        self.assertEqual(1, macos.count("actions/setup-node@"))
+        node_steps = macos[macos.index("actions/setup-node@") :]
+        for suite in (
+            "node --test plugin/skills/design-prototype/tests/*.test.js\n",
+            "node --test plugin/extensions/visual-companion/tests/*.test.mjs\n",
+        ):
+            with self.subTest(suite=suite):
+                self.assertEqual(1, node_steps.count(suite))
+                self.assertIn(suite, validation)
+
 
 if __name__ == "__main__":
     unittest.main()

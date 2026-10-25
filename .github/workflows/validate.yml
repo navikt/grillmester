@@ -122,6 +122,7 @@ jobs:
           node --check plugin/extensions/visual-companion/extension.mjs
           node --check plugin/extensions/visual-companion/adapter.mjs
           node --check plugin/extensions/visual-companion/backend.mjs
+          node --check plugin/extensions/visual-companion/runtime.mjs
           node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
           node --check scripts/smoke_visual_canvas.cjs
           node --test plugin/extensions/visual-companion/tests/*.test.mjs
@@ -136,6 +137,10 @@ jobs:
           node --check scripts/smoke_visual_exploration.cjs
           node --check scripts/smoke_visual_review_cycle.cjs
           node --check scripts/smoke_visual_retry.cjs
+          node --check scripts/smoke_visual_companion.cjs
+          node --check scripts/smoke_visual_review_rounds.cjs
+          node --check scripts/smoke_visual_scenarios.cjs
+          node --check scripts/smoke_visual_workshop.cjs
           node --test experiments/canvas-review/probe.test.mjs experiments/canvas-review/file-preview.test.mjs
 
       - name: Install exact OpenCode release-test baseline

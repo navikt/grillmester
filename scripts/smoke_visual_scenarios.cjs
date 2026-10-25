@@ -94,24 +94,32 @@ async function session(browser, testcase) {
   const project = path.join(temporary, "project"); fs.mkdirSync(project);
   if (aksel) { const target = path.join(project, "node_modules/@navikt/ds-css/dist"); fs.mkdirSync(target, { recursive: true }); fs.copyFileSync(aksel.css, path.join(target, "index.min.css")); }
   const child = spawn(process.execPath, [path.join(runtime, "server.js"), "--project-dir", project], { stdio: ["ignore", "pipe", "pipe"] });
-  let page;
+  let page, frame, ui, workshop;
   try {
     const info = await started(child);
-    page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }); page.setDefaultTimeout(7000);
     const errors = [], remoteRequests = [];
-    page.on("pageerror", error => errors.push(error.message));
-    page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) remoteRequests.push(new URL(request.url()).origin); });
+    // Headless Chrome stops routing pointer input to the lower part of the
+    // sandboxed preview after a live viewport change, even after a reload, so a
+    // new viewport gets a fresh page. The helpers below follow the shown page.
+    const show = async viewport => {
+      await page?.close();
+      page = await browser.newPage({ viewport }); page.setDefaultTimeout(7000);
+      page.on("pageerror", error => errors.push(error.message));
+      page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) remoteRequests.push(new URL(request.url()).origin); });
+      frame = page.frameLocator("#vc-preview"); ui = frame.locator("[data-visual-feedback]");
+      workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+    };
+    await show(testcase.viewport || { width: 1440, height: 1000 });
     let sequence = 0;
     const write = (name, html, descriptor) => { const stem = `${String(++sequence).padStart(2, "0")}-${name}`; if (descriptor) fs.writeFileSync(path.join(info.screen_dir, `${stem}.design.json`), JSON.stringify(descriptor)); fs.writeFileSync(path.join(info.screen_dir, `${stem}.html`), html); };
-    const frame = page.frameLocator("#vc-preview"), ui = frame.locator("[data-visual-feedback]");
+    const reopen = async viewport => { await show(viewport); await page.goto(info.url); await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); return { page, frame, ui, workshop }; };
     const screenshot = async name => { if (evidence) { await page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor(); await settle(page); await page.screenshot({ path: path.join(evidence, `${testcase.name}-${name}.png`), animations: "disabled" }); } };
     const open = async (html, descriptor) => { write(testcase.name, html, descriptor); await page.goto(info.url); await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); };
     const list = () => cli(info, "list");
     const send = async count => { const previous = await list(); const waiting = cli(info, "wait", ["--after", String(previous.submission), "--timeout", "10"]); await ui.getByRole("button", { name: `Send ${count} innspill`, exact: true }).click(); const result = await waiting; assert.equal(result.type, "feedback-submission"); return result; };
     const closePanel = async () => { const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click(); };
-    const workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
     const adjust = async () => { if (!(await workshop.isVisible())) await ui.getByRole("button", { name: "Juster", exact: true }).click(); await workshop.waitFor(); };
-    await testcase.run({ page, frame, ui, open, write, list, send, closePanel, workshop, adjust, screenshot, info });
+    await testcase.run({ page, frame, ui, open, write, list, send, closePanel, workshop, adjust, screenshot, info, reopen });
     assert.deepEqual(errors, [], "No browser exceptions are allowed."); assert.deepEqual(remoteRequests, [], "No remote resource may finish loading.");
     return { name: testcase.name, role: testcase.role, status: "passed", outcomes: testcase.outcomes };
   } catch (error) {
@@ -269,7 +277,7 @@ const cases = [
   {
     name: "interactive-card", role: "Participant trying a form inside a concept card",
     outcomes: ["Text input preserves spaces and textarea preserves newlines", "Checkboxes and buttons retain their native interactions", "Form interaction does not select a concept", "A separate explicit concept choice still works", "Selection and connection status remain separate at desktop and 320 pixels"],
-    async run({ page, frame, ui, open, screenshot, info }) {
+    async run({ page, frame, ui, open, screenshot, info, reopen }) {
       const textarea = aksel ? aksel.render("Textarea", { id: "practice-details", label: "Hva vil du ta opp?", minRows: 2 }) : '<label>Hva vil du ta opp?<textarea id="practice-details"></textarea></label>';
       const checkbox = aksel ? aksel.render("Checkbox", { id: "practice-reminder", value: "reminder" }, "Send en påminnelse") : '<label><input type="checkbox" id="practice-reminder">Send en påminnelse</label>';
       const choice = aksel ? aksel.render("Button", { variant: "secondary", type: "button", className: "option" }, "Velg samlet avtale") : '<button class="option" type="button">Velg samlet avtale</button>';
@@ -285,9 +293,13 @@ const cases = [
       await frame.getByRole("heading", { name: "En samlet avtale", exact: true }).click(); assert.equal(events(), "", "A card containing a form is layout, not an implicit concept choice.");
       await frame.getByRole("button", { name: "Velg samlet avtale", exact: true }).click();
       await waitFor(() => events(), "explicit card choice saved"); const choices = events().split("\n").map(line => JSON.parse(line)); assert.equal(choices.length, 1); assert.equal(choices[0].choice, "choice-1");
-      await page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor();
       for (const width of [1440, 320]) {
-        await page.setViewportSize({ width, height: width === 320 ? 800 : 1000 }); await settle(page);
+        if (width === 320) {
+          // The selection is page state, so the fresh narrow page chooses the card again.
+          ({ page, frame, ui } = await reopen({ width, height: 800 }));
+          await frame.getByRole("button", { name: "Velg samlet avtale", exact: true }).click(); await frame.locator("#indicator").waitFor({ state: "visible" });
+        }
+        await page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor(); await settle(page);
         const indicator = await frame.locator("#indicator").boundingBox(), status = await page.locator("#vc-status").boundingBox();
         assert(indicator && status && !overlap(indicator, status), "The connection badge must not obscure the selected concept.");
         assert(indicator.x >= 0 && indicator.x + indicator.width <= width + 1, "The selected concept must fit the viewport.");
@@ -315,10 +327,10 @@ const cases = [
     },
   },
   {
-    name: "compact-landscape", role: "Designer reviewing on a compact landscape screen",
+    name: "compact-landscape", role: "Designer reviewing on a compact landscape screen", viewport: { width: 667, height: 375 },
     outcomes: ["Adjustment actions remain reachable at 667 by 375", "Panels can be scrolled and closed without losing work", "Portrait rotation preserves the draft", "Comparison can show the third and fourth variants together on mobile", "Connection status does not cover the close control in landscape"],
-    async run({ page, frame, ui, open, workshop, adjust, list, send, closePanel, screenshot }) {
-      await page.setViewportSize({ width: 667, height: 375 }); await open(overview("Velg en retning på liten skjerm"), design()); await adjust();
+    async run({ page, frame, ui, open, workshop, adjust, list, send, closePanel, screenshot, reopen }) {
+      await open(overview("Velg en retning på liten skjerm"), design()); await adjust();
       await page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor(); await settle(page);
       const bounds = await workshop.boundingBox(); assert(bounds && bounds.y >= 0 && bounds.y + bounds.height <= 375, "The adjustment panel must fit the landscape viewport.");
       const closeButton = workshop.getByRole("button", { name: "Lukk justeringer", exact: true });
@@ -341,7 +353,11 @@ const cases = [
       await ui.getByRole("button", { name: "Kommenter", exact: true }).click(); const title = frame.getByRole("heading", { name: "Velg en retning på liten skjerm", exact: true }); await title.scrollIntoViewIfNeeded(); await title.click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Sammenligningen må fungere når jeg roterer skjermen."); await page.setViewportSize({ width: 375, height: 667 });
       assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Sammenligningen må fungere når jeg roterer skjermen.");
-      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await send(1); await closePanel();
+      // Keyboard activation still reaches the rotated preview, so it saves the draft; pointer input continues on a fresh page.
+      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).focus(); await page.keyboard.press("Enter");
+      await waitFor(async () => (await list()).comments.length === 2, "rotated draft saved");
+      ({ page, frame, ui, workshop } = await reopen({ width: 375, height: 667 }));
+      await ui.locator('[data-action="panel"]').click(); await send(1); await closePanel();
       await adjust(); await workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).click(); await ui.getByRole("button", { name: "Arbeidsbrett", exact: true }).click();
       assert(await frame.locator('[data-vc-variant="board"]').isVisible()); assert(!(await frame.locator('[data-vc-variant="list"]').isVisible())); await ui.getByLabel("Venstre variant", { exact: true }).selectOption("timeline");
       await ui.getByLabel("Høyre variant", { exact: true }).selectOption("calendar");

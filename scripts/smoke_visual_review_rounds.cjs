@@ -163,7 +163,7 @@ const cases = [
       await screenshot("new-layout-waits"); await save(); const second = await send(view, 1); assert.equal(second.comments[0].screen, screenBefore);
       await frame.getByRole("heading", { name: "Tredje runde: Samtalen kommer først", exact: true }).waitFor(); await adjust();
       const previous = workshop.locator(`article[data-decision="${kept.id}"]`); assert((await previous.innerText()).includes("Må følges opp"));
-      await previous.getByRole("button", { name: "Frigi", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); await adjust();
+      await previous.getByRole("button", { name: "Slutt å beholde", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); await adjust();
       await workshop.getByLabel("Velg del", { exact: true }).selectOption("conversation/next-step"); await workshop.getByLabel("Merknad", { exact: true }).fill("Samtalen skal avklare ansvaret sammen med brukeren."); await workshop.getByRole("button", { name: "Behold dette", exact: true }).click();
       const third = await send(view, 2); assert.equal(third.decisions.find(item => item.id === kept.id).state, "released");
       assert.equal(third.decisions.find(item => item.state === "active").variant, "conversation");

@@ -219,9 +219,12 @@ class WorkspaceStore {
       this.claim = new WorkspaceClaim(this.directory);
       this.assertDirectories();
       const inventory = fs.readdirSync(this.directory);
+      const visible = names => names.filter(name => !name.startsWith("."));
+      if (inventory.includes("revisions") && (create || !inventory.includes("workspace.json"))) directory(this.revisionsDir);
+      // Sketch files without their register are never adopted by open or create.
+      if (!inventory.includes("workspace.json") && inventory.includes("revisions") && !visible(inventory).some(name => name !== "revisions")
+        && fs.readdirSync(this.revisionsDir).some(name => FILENAME.test(name) || DESCRIPTOR.test(name))) fail(409, "Design workspace has sketch revisions but no workspace.json. Restore workspace.json from version control, or move the revisions directory aside to start over.");
       if (create) {
-        if (inventory.includes("revisions")) directory(this.revisionsDir);
-        const visible = names => names.filter(name => !name.startsWith("."));
         if (visible(inventory).some(name => name !== "revisions") || inventory.includes("revisions") && visible(fs.readdirSync(this.revisionsDir)).length) fail(409, "Create requires an empty design workspace directory.");
       } else if (!inventory.includes("workspace.json")) fail(404, "Design workspace was not found. Choose Create to start a new room.");
       try { directory(this.revisionsDir); }
@@ -275,10 +278,12 @@ class WorkspaceStore {
   }
   inventory() {
     this.assertDirectories();
-    let bytes = 0, count = 0;
+    let bytes = 0;
     // Only names that can be registered are revision files. Finder, editor and
     // backup files (.DS_Store, ._x, .x.swp, x~) can never be referenced, so they
-    // neither block the room nor count towards its limits.
+    // neither block the room nor count towards its limits. The registered
+    // version count is enforced by the state; files left by an interrupted save
+    // count towards bytes and this scan bound only.
     const names = fs.readdirSync(this.revisionsDir).filter(name => FILENAME.test(name) || DESCRIPTOR.test(name));
     if (names.length > MAX_REVISIONS * 4) fail(429, "Design workspace revision limit reached.");
     for (const name of names) {
@@ -289,10 +294,9 @@ class WorkspaceStore {
         if (stat.size > (isHtml ? MAX_HTML_BYTES : MAX_DESIGN_BYTES)) fail(413, "Design workspace file exceeds its size limit.");
         bytes += stat.size;
       } finally { fs.closeSync(fd); }
-      if (isHtml) count += 1;
     }
-    if (count > MAX_REVISIONS || bytes > MAX_WORKSPACE_BYTES) fail(429, "Design workspace storage limit reached.");
-    return { bytes, count };
+    if (bytes > MAX_WORKSPACE_BYTES) fail(429, "Design workspace storage limit reached.");
+    return { bytes };
   }
   persist(nextState) {
     this.assertOpen();
@@ -337,8 +341,6 @@ class WorkspaceStore {
     const designBytes = design === null ? null : Buffer.from(`${JSON.stringify(design)}\n`);
     if (htmlBytes.length > MAX_HTML_BYTES || designBytes && designBytes.length > MAX_DESIGN_BYTES) fail(413, "Design revision exceeds its size limit.");
     const inventory = this.inventory();
-    // The registered version count is enforced by the state. Unregistered files
-    // left by an interrupted save count towards the byte limit only.
     if (inventory.bytes + htmlBytes.length + (designBytes?.length || 0) + (this.lastBytes?.length || 0) > MAX_WORKSPACE_BYTES) fail(429, "Design workspace storage limit reached.");
     const written = [];
     try {

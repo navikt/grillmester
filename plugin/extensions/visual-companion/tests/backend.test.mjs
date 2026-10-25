@@ -202,6 +202,12 @@ test('startup names a damaged current file and a used directory without blaming 
       && !/annen økt/.test(error.message));
     fs.mkdirSync(join(projectDir, 'designs/empty'));
     await assert.rejects(createServerBackend({ projectDir, workspacePath: 'designs/empty' }), error => error.status === 404 && /finnes ikke/.test(error.message));
+    fs.mkdirSync(join(projectDir, 'designs/unregistered/revisions'), { recursive: true });
+    fs.writeFileSync(join(projectDir, 'designs/unregistered/revisions/first.html'), '<h1>Uten register</h1>');
+    for (const create of [false, true]) {
+      await assert.rejects(createServerBackend({ projectDir, workspacePath: 'designs/unregistered', ...(create ? { create, title: 'Uten register' } : {}) }),
+        error => error.status === 409 && /mangler workspace\.json\. Ingen filer er endret\. Hent workspace\.json tilbake/.test(error.message));
+    }
     assert.equal(fs.readFileSync(current, 'utf8'), '<h1>Gjeldende</h1>\n', 'A failed startup changes no project file.');
   } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
 });

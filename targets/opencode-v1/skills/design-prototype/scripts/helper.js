@@ -132,7 +132,7 @@
       </div><div class="list"><section class="canvas-rounds" aria-label="Sendte runder" hidden><h3>Sendte runder</h3><div class="canvas-recent"></div><details class="canvas-history" hidden><summary></summary><div class="canvas-older"></div></details></section><div class="comment-list"></div></div>
       <div class="panel-foot"><div class="row between"><span class="pending muted">Ingen nye innspill</span><span class="connection">Lagres lokalt</span></div><button type="button" class="primary send" data-action="send" disabled>Send innspill</button><p class="foot-status" role="status"></p><p class="error panel-error" role="alert" hidden></p></div>
     </section>
-    <section class="workspace-panel" aria-label="Prosjektarbeid" hidden><div class="workspace-head"><div class="row between"><h2>Arbeid</h2><button type="button" class="close" data-action="workspace-close" aria-label="Lukk arbeid">×</button></div></div><div class="workspace-body"><h3 class="workspace-title"></h3><p class="workspace-storage"></p><code class="workspace-path"></code><p class="workspace-unsaved" hidden>Lagre utkast før du lukker skissen eller samtalen.</p><details class="workspace-storage-details"><summary>Om lagring og gjenåpning</summary><p class="workspace-help"></p></details><p class="workspace-temporary-help" hidden></p><p class="workspace-recovered" hidden>Arbeidet er åpnet fra prosjektet. Tidligere runder sendes ikke på nytt.</p><p class="workspace-dirty" hidden></p><div class="workspace-confirm" tabindex="-1" hidden><h3 class="workspace-confirm-title"></h3><p>Dette lager en ny skisseversjon. Innspill, svar og innsendte runder beholdes.</p><p class="workspace-restore-warning"></p><div class="workspace-actions"><button type="button" class="primary" data-action="workspace-restore">Bruk som ny versjon</button><button type="button" class="primary" data-action="workspace-release-restore" hidden>Tillat endring og bruk versjonen</button><button type="button" data-action="workspace-cancel">Avbryt</button></div></div><p class="error workspace-error" role="alert" hidden></p><p class="workspace-status" role="status"></p><div class="workspace-history" hidden><div class="workspace-history-tools"><h3>Versjonshistorikk</h3><button type="button" data-action="workspace-reload">Oppdater</button></div><div class="workspace-history-list"></div><button type="button" data-action="workspace-more" hidden>Vis flere versjoner</button></div></div></section>
+    <section class="workspace-panel" aria-label="Versjoner og lagring" hidden><div class="workspace-head"><div class="row between"><h2>Versjoner</h2><button type="button" class="close" data-action="workspace-close" aria-label="Lukk versjoner">×</button></div></div><div class="workspace-body"><h3 class="workspace-title"></h3><p class="workspace-storage"></p><code class="workspace-path"></code><p class="workspace-unsaved" hidden>Lagre utkast før du lukker skissen eller samtalen.</p><details class="workspace-storage-details"><summary>Om lagring og gjenåpning</summary><p class="workspace-help"></p></details><p class="workspace-temporary-help" hidden></p><p class="workspace-recovered" hidden>Arbeidet er åpnet fra prosjektet. Tidligere runder sendes ikke på nytt.</p><p class="workspace-dirty" hidden></p><div class="workspace-confirm" tabindex="-1" hidden><h3 class="workspace-confirm-title"></h3><p>Dette lager en ny skisseversjon. Innspill, svar og innsendte runder beholdes.</p><p class="workspace-restore-warning"></p><div class="workspace-actions"><button type="button" class="primary" data-action="workspace-restore">Bruk som ny versjon</button><button type="button" class="primary" data-action="workspace-release-restore" hidden>Tillat endring og bruk versjonen</button><button type="button" data-action="workspace-cancel">Avbryt</button></div></div><p class="error workspace-error" role="alert" hidden></p><p class="workspace-status" role="status"></p><div class="workspace-history" hidden><div class="workspace-history-tools"><h3>Versjonshistorikk</h3><button type="button" data-action="workspace-reload">Oppdater</button></div><div class="workspace-history-list"></div><button type="button" data-action="workspace-more" hidden>Vis flere versjoner</button></div></div></section>
     <section class="composer" role="dialog" aria-modal="false" aria-labelledby="compose-title" hidden>
       <div class="row between"><h2 id="compose-title">Nytt innspill</h2><button type="button" class="close" data-action="hide-draft" aria-label="Legg utkast til side">×</button></div><div class="anchor-label"></div>
       <label for="feedback-note">Hva vil du endre?</label><textarea id="feedback-note" maxlength="2000" placeholder="For eksempel: Gi overskriften mer luft …"></textarea>
@@ -188,7 +188,7 @@
   let workspaceEntries = [];
   let workspaceNextAfter = null;
   let workspaceConfirmation = null;
-  const workspaceButton = button("Arbeid", "workspace-open");
+  const workspaceButton = button("Versjoner", "workspace-open");
   workspaceButton.hidden = true;
   workspaceButton.setAttribute("aria-expanded", "false");
   el(".toolbar").insertBefore(workspaceButton, el(".tools"));
@@ -279,7 +279,8 @@
       const timer = window.setTimeout(() => {
         requests.delete(requestId);
         updateBusy();
-        reject(new Error(action === "workspace-history" ? "Historikken kunne ikke hentes. Prøv igjen." : action === "workspace-restore" ? "Gjenopprettingen ble ikke bekreftet. Prøv samme handling igjen før du velger en annen versjon." : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen."));
+        reject(new Error(action === "workspace-history" ? "Historikken kunne ikke hentes. Prøv igjen." : action === "workspace-restore" ? "Gjenopprettingen ble ikke bekreftet. Prøv samme handling igjen før du velger en annen versjon."
+          : action.startsWith("workspace-editor-") ? "Handlingen ble ikke bekreftet. Utkastet ditt er beholdt. Prøv samme handling igjen." : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen."));
       }, 12000);
       requests.set(requestId, { resolve, reject, timer, action });
       updateBusy();
@@ -823,23 +824,27 @@
     } finally { workspaceRestoring = false; updateBusy(); }
   }
   // Release exactly the preserved fields that blocked this restore, then restore.
+  // Each step keeps its exact payload, so retrying after a lost response reuses
+  // that step's receipt instead of starting a different change.
   async function releaseAndRestore() {
     const chosen = workspaceConfirmation;
     if (!chosen?.conflicts?.length || el('[data-action="workspace-release-restore"]').disabled) return;
     workspaceRestoring = true;
     errorAt(".workspace-error", ""); updateBusy();
     try {
-      chosen.releaseRetry ||= {};
-      await request("workspace-editor-release", { screen, expectedRevision: snapshot.revision, ids: chosen.conflicts.map(item => item.id) }, chosen.releaseRetry);
-      chosen.conflicts = []; chosen.conflict = false; chosen.retry = {};
-      await request("workspace-restore", { revisionId: chosen.entry.revisionId, expectedRevision: snapshot.revision }, chosen.retry);
+      chosen.release ||= { payload: { screen, expectedRevision: snapshot.revision, ids: chosen.conflicts.map(item => item.id) }, retry: {} };
+      await request("workspace-editor-release", chosen.release.payload, chosen.release.retry);
+      chosen.conflicts = []; chosen.conflict = false; chosen.release = null;
+      // A retry through «Prøv samme gjenoppretting igjen» sends this same restore.
+      chosen.expectedRevision = snapshot.revision; chosen.retry = {};
+      await request("workspace-restore", { revisionId: chosen.entry.revisionId, expectedRevision: chosen.expectedRevision }, chosen.retry);
       workspaceConfirmation = null;
       workspaceRestoreOpen = true;
       workspaceText(".workspace-status", "Senere endring er tillatt, og en ny skisseversjon er lagret. Innspill og svar er beholdt.");
       announce("En ny skisseversjon er lagret. Ingen innspill er sendt.");
       if (updateAvailable) refreshNow();
     } catch (error) {
-      if (error.conflict) chosen.conflict = true;
+      if (error.conflict) { chosen.conflict = true; chosen.release = null; }
       errorAt(".workspace-error", error.conflict ? "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt." : error.message);
     } finally { workspaceRestoring = false; updateBusy(); }
   }
@@ -1250,7 +1255,7 @@
       root, screen, nonce, request, announce, topInset,
       onBusyChange: updateBusy,
       isRefreshing: () => frameRefreshing || savedVersionWaiting,
-      focusOpener: () => el('[data-action="workshop-open"]')?.focus(),
+      focusOpener: () => (el('[data-action="editor-open"]:not([hidden])') || el('[data-action="workshop-open"]'))?.focus(),
       prepareOpen: () => {
         if (!workspaceStored() || saving()) return false;
         if (draft || drag || preview || workshop?.hasRemarks()) {
