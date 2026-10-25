@@ -97,7 +97,7 @@ class ProjectProbesTest(unittest.TestCase):
                     self.assertEqual(0 if failure is None else 7, code, output)
                     form = "mise exec -- java" if command == "mise" else "JAVA_HOME=… java"
                     self.assertIn(f"info (bare java; agents use {form})", output)
-                    self.assertNotIn("fixture-private-value", output)
+                    self.assertNotIn("fixture-private-value", output + self.cli_stderr)
                     if command == "JAVA_HOME":
                         self.assertEqual(["java", "-version"], runner.call_args_list[1].args[0])
                         self.assertEqual(jdk, runner.call_args_list[1].kwargs["env"]["JAVA_HOME"])
@@ -127,7 +127,7 @@ class ProjectProbesTest(unittest.TestCase):
                 code, output = self.run_cli("verify")
                 self.assertEqual(expected, code, output)
                 self.assertIn("java | gate", output)
-                self.assertNotIn("info (bare java", output)
+                self.assertNotIn("info (bare java", output + self.cli_stderr)
                 self.assertEqual(2, runner.call_count)
                 if pin:
                     self.assertIn("managed java | gate | ok (version 25) | not-installed", output)
@@ -189,10 +189,10 @@ class ProjectProbesTest(unittest.TestCase):
                 self.assertEqual(expected, code, output)
                 self.assertIn(category, output)
                 self.assertIn("11.3.0", output)
-                self.assertNotIn("fixture-private-value", output)
+                self.assertNotIn("fixture-private-value", output + self.cli_stderr)
                 self.assertIn("node | gate", output)
                 self.assertIn("pnpm | gate", output)
-                self.assertNotIn("info (bare", output)
+                self.assertNotIn("info (bare", output + self.cli_stderr)
                 self.assertEqual(2, runner.call_count)
                 self.assertEqual([["node", "-v"], ["pnpm", "-v"]],
                                  [call.args[0] for call in runner.call_args_list])

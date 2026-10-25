@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import warnings
 from unittest import mock
 from pathlib import Path
 
@@ -120,7 +121,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         })
         environment.start()
         self.addCleanup(environment.stop)
-        with sqlite3.connect(str(self.db)) as connection:
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
             connection.executescript("""
                 CREATE TABLE projects (
                     id TEXT PRIMARY KEY, name TEXT, main_repo_path TEXT UNIQUE,
@@ -174,14 +175,38 @@ class AppSandboxSetupTest(unittest.TestCase):
             )
 
     def run_cli(self, command: str, *options: str) -> tuple[int, str]:
+        """Return stdout; retain and forward this call's stderr separately."""
         output = io.StringIO()
-        with mock.patch.dict(os.environ, {"HOME": str(self.home),
-                                         "DOCKER_HOST": "unix://" + str(self.home / ".fixture-docker/docker.sock")}), \
-                contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
-            code = self.app.main([
-                command, "--db", str(self.db), "--home", str(self.home), *options,
-            ])
+        diagnostics = io.StringIO()
+        try:
+            with mock.patch.dict(os.environ, {"HOME": str(self.home),
+                                             "DOCKER_HOST": "unix://" + str(self.home / ".fixture-docker/docker.sock")}), \
+                    contextlib.redirect_stdout(output), contextlib.redirect_stderr(diagnostics):
+                code = self.app.main([
+                    command, "--db", str(self.db), "--home", str(self.home), *options,
+                ])
+        finally:
+            self.cli_stderr = diagnostics.getvalue()
+            sys.stderr.write(self.cli_stderr)
         return code, output.getvalue()
+
+    def test_json_plan_keeps_stderr_diagnostics_separate(self) -> None:
+        original_main = self.app.main
+        diagnostics = io.StringIO()
+
+        def warned_main(argv):
+            warnings.warn("fixture database diagnostic", ResourceWarning)
+            return original_main(argv)
+
+        with warnings.catch_warnings(), contextlib.redirect_stderr(diagnostics), \
+                mock.patch.object(self.app, "main", side_effect=warned_main):
+            warnings.simplefilter("always", ResourceWarning)
+            code, output = self.run_cli("plan", "--json")
+
+        self.assertEqual(0, code, output)
+        self.assertTrue(json.loads(output)["changed"])
+        self.assertIn("ResourceWarning: fixture database diagnostic", diagnostics.getvalue())
+        self.assertEqual(diagnostics.getvalue(), self.cli_stderr)
 
     def test_plan_is_read_only_and_prints_diff_and_digest(self) -> None:
         before = self.db.read_bytes(), self.db.stat().st_mtime_ns
@@ -211,14 +236,14 @@ class AppSandboxSetupTest(unittest.TestCase):
         return re.search(r"Plan digest: ([0-9a-f]{64})", output).group(1)
 
     def policies(self) -> list[dict]:
-        with sqlite3.connect(str(self.db)) as connection:
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
             return [
                 json.loads(row[0])
                 for row in connection.execute("SELECT policy_json FROM project_sandbox_policies ORDER BY project_id")
             ]
 
     def set_policy(self, policy: object) -> None:
-        with sqlite3.connect(str(self.db)) as connection:
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
             connection.execute(
                 "INSERT OR REPLACE INTO project_sandbox_policies VALUES (?, ?)",
                 ("p1", json.dumps(policy)),
@@ -281,7 +306,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
         self.assertIn("no changes", output)
-        self.assertNotIn("removed retired", output)
+        self.assertNotIn("removed retired", output + self.cli_stderr)
 
     def test_missing_secret_paths_have_one_home_relative_explanation(self) -> None:
         code, output = self.run_cli("plan", "--json")
@@ -446,8 +471,8 @@ class AppSandboxSetupTest(unittest.TestCase):
             self.assertIn("GH_TOKEN format: GitHub token shape", output)
             self.assertIn("sandboxed processes can likely read a real token", output)
             self.assertIn("Toolchain probes skipped (--no-toolchain).", output)
-            self.assertNotIn(real_shape, output)
-            self.assertNotIn("A1A1", output)
+            self.assertNotIn(real_shape, output + self.cli_stderr)
+            self.assertNotIn("A1A1", output + self.cli_stderr)
             probes["loopback"] = "denied"
             with mock.patch.dict(os.environ, {"GH_TOKEN": "placeholder-value",
                                               "HTTPS_PROXY": "http://localhost:4321"}):
@@ -455,20 +480,20 @@ class AppSandboxSetupTest(unittest.TestCase):
             self.assertEqual(7, code, output)
             self.assertIn("GH_TOKEN format: other (placeholder?)", output)
             self.assertIn("rerun verify with --mask-credentials", output)
-            self.assertNotIn("placeholder-value", output)
+            self.assertNotIn("placeholder-value", output + self.cli_stderr)
             with mock.patch.dict(os.environ, {"GH_TOKEN": "", "HTTPS_PROXY": "http://127.0.0.1:4321"}):
                 code, output = self.run_cli("verify", "--no-toolchain", "--mask-credentials")
             self.assertEqual(0, code, output)
             self.assertIn("GH_TOKEN format: absent", output)
-            self.assertNotIn("rerun verify with --mask-credentials", output)
-            self.assertNotIn("masking is likely OFF", output)
+            self.assertNotIn("rerun verify with --mask-credentials", output + self.cli_stderr)
+            self.assertNotIn("masking is likely OFF", output + self.cli_stderr)
             probes["loopback"] = "OK"
             with mock.patch.dict(os.environ, {"GH_TOKEN": real_shape, "HTTPS_PROXY": "http://[::1]:4321"}):
                 code, output = self.run_cli("verify", "--no-toolchain", "--mask-credentials")
             self.assertEqual(7, code, output)
             self.assertIn("proxy env points to loopback: yes", output)
             self.assertIn("masking is likely OFF", output)
-            self.assertNotIn("can likely read a real token", output)
+            self.assertNotIn("can likely read a real token", output + self.cli_stderr)
             # An unsandboxed session explains itself; masking hints would contradict it.
             probes["HOME write"] = "OK"
             with mock.patch.dict(os.environ, {"GH_TOKEN": real_shape, "HTTPS_PROXY": ""}):
@@ -476,7 +501,7 @@ class AppSandboxSetupTest(unittest.TestCase):
             self.assertEqual(7, code, output)
             self.assertIn("this session is not sandboxed", output)
             for hint in ("masking is likely", "can likely read a real token"):
-                self.assertNotIn(hint, output)
+                self.assertNotIn(hint, output + self.cli_stderr)
         code, output = self.run_cli("plan", "--no-toolchain")
         self.assertEqual(1, code, output)
         self.assertIn("--no-toolchain applies only to verify", output)
@@ -588,8 +613,8 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertTrue(any("could not remove empty placeholder directory" in warning
                             for warning in json.loads(output)["warnings"]))
         self.assertIn("could not remove empty placeholder directory", output)
-        self.assertNotIn("fixture-private-value", output)
-        self.assertNotIn("no changes", output)
+        self.assertNotIn("fixture-private-value", output + self.cli_stderr)
+        self.assertNotIn("no changes", output + self.cli_stderr)
         self.assertTrue(path.is_dir())
         code, output = self.run_cli("apply", "--confirm", self.digest())
         self.assertEqual(0, code, output)
@@ -767,7 +792,7 @@ class AppSandboxSetupTest(unittest.TestCase):
             connection.execute("UPDATE project_sandbox_policies SET policy_json = ?", ("{private invalid",))
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
-        self.assertNotIn("private invalid", output)
+        self.assertNotIn("private invalid", output + self.cli_stderr)
 
     def test_corrupt_project_does_not_block_valid_project_and_is_digest_bound(self) -> None:
         self.set_policy([])
@@ -864,7 +889,7 @@ class AppSandboxSetupTest(unittest.TestCase):
                     )
                     self.assertEqual(3, code, output)
                     self.assertIn("guide", output)
-                    self.assertNotIn("fixture-trigger-fired", output)
+                    self.assertNotIn("fixture-trigger-fired", output + self.cli_stderr)
                     self.assertEqual(before, (self.db.read_bytes(), self.db.stat().st_mtime_ns))
                     self.assertFalse((self.db.parent / "app-sandbox-setup-backups").exists())
                 with sqlite3.connect(str(self.db)) as connection:
@@ -976,7 +1001,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         with mock.patch.object(self.app.sqlite3, "connect", side_effect=PermissionError("private fixture")):
             code, output = self.run_cli("apply", "--confirm", "0" * 64)
         self.assertEqual(2, code, output)
-        self.assertNotIn("private fixture", output)
+        self.assertNotIn("private fixture", output + self.cli_stderr)
         self.assertIn("Run outside the sandbox", output)
 
     def test_busy_db_returns_5(self) -> None:
@@ -1005,7 +1030,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertTrue(policy["allowGhCredentials"])
         self.assertTrue(policy["allowLocalNetwork"])
         self.assertIn("loopback deny", output)
-        self.assertNotIn("When credential masking is OFF", output)
+        self.assertNotIn("When credential masking is OFF", output + self.cli_stderr)
 
     def test_credential_warning_tracks_all_resulting_project_policies(self) -> None:
         self.set_policy({"allowGitCredentials": True, "allowGhCredentials": True})
@@ -1019,7 +1044,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         for flag in ((), ("--mask-credentials",)):
             code, output = self.run_cli("plan", *flag)
             self.assertEqual(0, code, output)
-            self.assertNotIn("When credential masking is OFF", output)
+            self.assertNotIn("When credential masking is OFF", output + self.cli_stderr)
             self.assertIn("Credential masking covers only app-injected", output)
         for field in ("allowGitCredentials", "allowGhCredentials"):
             with self.subTest(field=field):
@@ -1086,7 +1111,7 @@ class AppSandboxSetupTest(unittest.TestCase):
                 code, output = self.run_cli("plan")
                 self.assertEqual(0, code, output)
                 self.assertIn("no changes", output)
-                self.assertNotIn("removed retired", output)
+                self.assertNotIn("removed retired", output + self.cli_stderr)
 
     def test_jdk_info_uses_direct_filesystem_homes_without_subprocess(self) -> None:
         root = self.home / "Library/Java/JavaVirtualMachines"
@@ -1173,7 +1198,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         for line in (missing, hardening):
             self.assertNotIn(str(self.home), line)
             self.assertFalse(self.app.has_control(line))
-        self.assertNotIn("Tool paths skipped", output)
+        self.assertNotIn("Tool paths skipped", output + self.cli_stderr)
 
     def test_missing_hardening_paths_are_readonly_but_missing_tool_grants_are_skipped(self) -> None:
         hardening = (
@@ -1442,7 +1467,7 @@ class AppSandboxSetupTest(unittest.TestCase):
             self.assertIn(str(path), output)
         self.assertIn("not covered by the deny list", output)
         self.assertIn("app-sandbox-setup-backups", output)
-        self.assertNotIn("deleting", output)
+        self.assertNotIn("deleting", output + self.cli_stderr)
 
     def test_app_owned_db_files_are_never_flagged(self) -> None:
         owned = [self.db.parent / f"data.db{suffix}"
@@ -1452,8 +1477,8 @@ class AppSandboxSetupTest(unittest.TestCase):
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
         for path in owned:
-            self.assertNotIn(str(path), output)
-        self.assertNotIn("Backup copy", output)
+            self.assertNotIn(str(path), output + self.cli_stderr)
+        self.assertNotIn("Backup copy", output + self.cli_stderr)
 
     def test_guide_includes_machine_paths_and_handles_unavailable_db(self) -> None:
         (self.home / ".gradle").mkdir()
@@ -1482,7 +1507,7 @@ class AppSandboxSetupTest(unittest.TestCase):
                       "Denied", "Outbound internet", "Local network", "Git credentials",
                       "GitHub CLI credentials", "/sandbox on"):
             self.assertIn(label, output)
-        self.assertNotIn("allowGitCredentials=none", output)
+        self.assertNotIn("allowGitCredentials=none", output + self.cli_stderr)
 
     def test_json_plan_is_parseable_and_does_not_disclose_unknown_values(self) -> None:
         self.set_policy({"extra": {"fixture": "do-not-echo"}})
@@ -1494,7 +1519,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertTrue(result["changed"])
         self.assertEqual("example", result["projects"][0]["name"])
         self.assertIn("readwritePaths", result["projects"][0]["diff"])
-        self.assertNotIn("do-not-echo", output)
+        self.assertNotIn("do-not-echo", output + self.cli_stderr)
         self.assertEqual(before, self.db.read_bytes())
 
     def test_backup_includes_committed_wal_contents(self) -> None:
@@ -1519,7 +1544,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         with mock.patch.object(self.app, "backup_db", side_effect=OSError("private fixture")):
             code, output = self.run_cli("apply", "--confirm", digest)
         self.assertEqual(1, code, output)
-        self.assertNotIn("private fixture", output)
+        self.assertNotIn("private fixture", output + self.cli_stderr)
         self.assertEqual(before, self.db.read_bytes())
         target = self.root / "external-backups"
         target.mkdir()
@@ -1555,7 +1580,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         with mock.patch.object(self.app, "open_db", side_effect=open_with_write_failure):
             code, output = self.run_cli("apply", "--confirm", digest)
         self.assertEqual(1, code, output)
-        self.assertNotIn("private-fixture-error", output)
+        self.assertNotIn("private-fixture-error", output + self.cli_stderr)
         self.assertEqual(before, self.db.read_bytes())
         self.assertEqual([], self.policies())
         self.assertTrue(placeholder.is_dir())
@@ -1598,8 +1623,8 @@ class AppSandboxSetupTest(unittest.TestCase):
             self.assertIn(str(config_dir / name), readonly)
         self.assertIn("commit.gpgsign", output)
         self.assertIn('"example": SSH remote', output)
-        self.assertNotIn("git@fixture.invalid", output)
-        self.assertNotIn("fixture-private-value", output)
+        self.assertNotIn("git@fixture.invalid", output + self.cli_stderr)
+        self.assertNotIn("fixture-private-value", output + self.cli_stderr)
 
     def test_disk_credentials_are_readonly_with_private_value_free_warnings(self) -> None:
         hosts = self.home / ".config/gh/hosts.yml"
@@ -1619,7 +1644,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertNotIn(str(self.home / ".azure"), policy["deniedPaths"])
         self.assertIn("inline token", output)
         self.assertIn("inline auth", output)
-        self.assertNotIn("fixture-private-value", output)
+        self.assertNotIn("fixture-private-value", output + self.cli_stderr)
 
     def test_empty_db_and_unicode_output_keep_canonical_digest(self) -> None:
         with sqlite3.connect(str(self.db)) as connection:
@@ -1627,7 +1652,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         code, output = self.run_cli("plan", "--json")
         self.assertEqual(0, code, output)
         self.assertIn("æøå", output)
-        self.assertNotIn("\\u00", output)
+        self.assertNotIn("\\u00", output + self.cli_stderr)
         self.assertEqual('"\\u00e6\\u00f8\\u00e5"', self.app.canonical("æøå"))
         with sqlite3.connect(str(self.db)) as connection:
             connection.execute("DELETE FROM projects")
@@ -1680,7 +1705,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         code, output = self.run_cli("rollback", "--from", str(backup))
         self.assertEqual(0, code, output)
         self.assertIn('Project: "example"', output)
-        self.assertNotIn('Project: "unchanged"', output)
+        self.assertNotIn('Project: "unchanged"', output + self.cli_stderr)
         self.assertIn("1 projects unchanged", output)
         code, output = self.run_cli("rollback", "--from", str(backup), "--json")
         self.assertEqual(0, code, output)
@@ -1691,7 +1716,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual(0, code, output)
         code, output = self.run_cli("rollback", "--from", str(backup))
         self.assertEqual(0, code, output)
-        self.assertNotIn("Project:", output)
+        self.assertNotIn("Project:", output + self.cli_stderr)
         self.assertIn("2 projects unchanged", output)
         self.assertIn("no changes", output)
 
@@ -1710,7 +1735,7 @@ class AppSandboxSetupTest(unittest.TestCase):
             self.assertIn("actual", output)
             self.assertIn("GH_TOKEN set: yes", output)
             self.assertIn("proxy env points to loopback: yes", output)
-            self.assertNotIn("fixture-private-value", output)
+            self.assertNotIn("fixture-private-value", output + self.cli_stderr)
             probes["loopback"] = "denied"
             code, output = self.run_cli("verify", "--mask-credentials")
             self.assertEqual(0, code, output)
@@ -1818,7 +1843,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.set_policy({"readonlyPaths": [str(self.home / ".copilot/installed-plugins")]})
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
-        self.assertNotIn("broad existing", output)
+        self.assertNotIn("broad existing", output + self.cli_stderr)
 
     def test_own_grants_are_not_reported_as_broad_on_idempotent_rerun(self) -> None:
         original_exists = Path.exists
@@ -1838,7 +1863,7 @@ class AppSandboxSetupTest(unittest.TestCase):
             self.assertIn("/Library/Java/JavaVirtualMachines", policy["readonlyPaths"])
             code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
-        self.assertNotIn("broad existing", output)
+        self.assertNotIn("broad existing", output + self.cli_stderr)
         self.assertIn("no changes", output)
 
     def test_owned_grant_exemption_does_not_cover_broader_user_paths(self) -> None:
@@ -1867,13 +1892,14 @@ class AppSandboxSetupTest(unittest.TestCase):
                        "equal to denied/readonly", "addition skipped",
                        "allowOutbound=true", "allowLocalNetwork=true", "credential value overridden"):
             self.assertTrue(any(branch in line for line in warnings), (branch, output))
-        self.assertNotIn(name, output)
-        self.assertFalse(any(self.app.has_control(line) for line in output.splitlines()))
+        self.assertNotIn(name, output + self.cli_stderr)
+        self.assertFalse(any(self.app.has_control(line)
+                             for line in (output + self.cli_stderr).splitlines()))
         self.set_policy([])
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
         self.assertIn(self.app.display(name) + ": corrupt policy skipped", output)
-        self.assertNotIn("When credential masking is OFF", output)
+        self.assertNotIn("When credential masking is OFF", output + self.cli_stderr)
         with self.app.open_db(self.db) as connection:
             plan = self.app.rollback_plan(connection, {
                 "p1": {"sandbox_enabled": 0, "policy_json": None},
@@ -1943,7 +1969,7 @@ class AppSandboxSetupTest(unittest.TestCase):
                 mock.patch.object(self.app.sqlite3, "connect", side_effect=failing_target):
             code, output = self.run_cli("apply", "--confirm", digest)
         self.assertEqual(1, code, output)
-        self.assertNotIn("fixture-private-value", output)
+        self.assertNotIn("fixture-private-value", output + self.cli_stderr)
         self.assertEqual(before, self.db.read_bytes())
         self.assertEqual([], list((self.db.parent / "app-sandbox-setup-backups").iterdir()))
         self.assertEqual(1, len(sources))
@@ -1958,8 +1984,8 @@ class AppSandboxSetupTest(unittest.TestCase):
         config.write_text('{"auths":{"fixture.invalid":{"auth":""}}}', encoding="utf-8")
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
-        self.assertNotIn("contains an inline token", output)
-        self.assertNotIn("contains inline auth", output)
+        self.assertNotIn("contains an inline token", output + self.cli_stderr)
+        self.assertNotIn("contains inline auth", output + self.cli_stderr)
 
     def test_main_repo_unsafe_parent_and_denied_ancestor_fall_back(self) -> None:
         for relative in ("Downloads/repo", "Documents/repo", "Desktop/repo",
