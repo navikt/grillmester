@@ -14,12 +14,14 @@ async function startComparison(ui) {
   if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await compare.click();
 }
-// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
 async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await adjust.click();
 }
+// «Behold denne delen» saves an ordinary wish that names the part.
+const keepWishes = batch => batch.comments.filter(item => item.text.startsWith("Behold denne delen.") && item.context);
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -152,7 +154,7 @@ function command(info, action, extra = []) {
 }
 function controls(page) {
   const frame = page.frameLocator("#vc-preview"), ui = frame.locator("[data-visual-feedback]");
-  const workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  const workshop = ui.getByRole("region", { name: "Juster visningen", exact: true });
   const closeFeedback = async () => { const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click(); };
   const closeWorkshop = async () => { const close = workshop.getByRole("button", { name: "Lukk justeringer", exact: true }); if (await close.isVisible()) await close.click(); };
   const adjust = async (key) => { await closeFeedback(); if (!(await workshop.isVisible())) await openAdjust(ui); if (key) await workshop.getByLabel("Velg del", { exact: true }).selectOption(key); };
@@ -160,7 +162,7 @@ function controls(page) {
   return { page, frame, ui, workshop, closeFeedback, closeWorkshop, adjust, browse,
     target: (variant, key) => frame.locator(`[data-vc-variant="${variant}"] [data-vc-key="${key}"]`),
     async set(key, label, value) { await adjust(key); await workshop.getByLabel(label, { exact: true }).selectOption(value); await browse(); },
-    async keep(key, note) { await adjust(key); await workshop.getByLabel("Merknad", { exact: true }).fill(note); await workshop.getByRole("button", { name: "Behold dette", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); },
+    async keep(key, note) { await adjust(key); await workshop.getByLabel("Merknad", { exact: true }).fill(note); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); },
     async note(selector, text) { await closeWorkshop(); await closeFeedback(); const mode = ui.getByRole("button", { name: "Endre", exact: true }); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await mode.click(); await frame.locator(selector).click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" }); },
     async openFeedback() { if (!(await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).isVisible())) await ui.locator('[data-action="panel"]').click(); },
   };
@@ -232,7 +234,7 @@ const cases = [
       const comment = (await view.list()).comments[0]; assert.deepEqual(comment.context, { variant: "steps", target: "application", values: { state: "review" } });
       await view.set("steps/application", "Situasjon", "error"); await replay(view, comment, "steps", "application", "review");
       await view.keep("overview/help", "Ta med hjelpen fra oversiktsforslaget i den trinnvise flyten.");
-      const batch = await view.send(2); assert.equal(batch.comments.length, 1); assert.equal(batch.decisions.length, 1); assert.equal(batch.decisions[0].variant, "overview");
+      const batch = await view.send(2); assert.equal(batch.comments.length, 2); assert.equal(batch.decisions.length, 0); assert.deepEqual(keepWishes(batch).map(item => item.context.variant), ["overview"]);
       assert(!JSON.stringify(batch).includes('"340"'), "A native field value must not be collected as comment context.");
       await view.screenshot("combined-feedback"); await view.browse();
       const metrics = await layoutMetrics(view); assert.equal(metrics.duplicateIds.length, 0); assert(metrics.documentWidth <= metrics.viewport.width + 1);
@@ -264,7 +266,7 @@ const cases = [
       await replay(view, comment, "board", "overview", "error"); assert.equal(await view.target("board", "overview").getAttribute("data-vc-setting-density"), "compact");
       await view.set("list/overview", "Luft mellom oppgaver", "compact"); await view.keep("list/overview", "Behold den kompakte listen for rask gjennomgang av frister.");
       await view.keep("board/meaning", "Behold forklaringen som ikke er avhengig av farge.");
-      const batch = await view.send(3); assert.equal(batch.comments.length, 1); assert.equal(batch.decisions.length, 2); assert.deepEqual(batch.decisions.map(item => item.variant).sort(), ["board", "list"]);
+      const batch = await view.send(3); assert.equal(batch.comments.length, 3); assert.equal(batch.decisions.length, 0); assert.deepEqual(keepWishes(batch).map(item => item.context.variant).sort(), ["board", "list"]);
       await view.screenshot("mixed-decisions"); await view.browse(); const metrics = await layoutMetrics(view); assert(metrics.documentWidth <= metrics.viewport.width + 1);
       return { ...metrics, comparison: compared, densityHeights, keyboardTabsToRetry: tabs, sharedTasks: tasks.length, statesVisited: ["loaded", "error", "loading", "empty", "loaded"], batch: { comments: batch.comments.length, decisions: batch.decisions.length }, contextRestored: true, commentButtonDidNotAct: true };
     } },
@@ -283,7 +285,7 @@ const cases = [
       await assertState(view, "current", "appointment", "cancel-confirm"); const comment = (await view.list()).comments[0]; assert.deepEqual(comment.context, { variant: "current", target: "appointment", values: { state: "cancel-confirm" } });
       await view.set("current/appointment", "Situasjon", "booked"); await replay(view, comment, "current", "appointment", "cancel-confirm");
       await view.keep("options/consequence", "Ta med konsekvensforklaringen sammen med avtalen først.");
-      const batch = await view.send(2); assert.equal(batch.comments.length, 1); assert.equal(batch.decisions.length, 1); assert(!JSON.stringify(batch).includes("friday"), "Native radio values must not be copied into the feedback protocol.");
+      const batch = await view.send(2); assert.equal(batch.comments.length, 2); assert.equal(batch.decisions.length, 0); assert.equal(keepWishes(batch).length, 1); assert(!JSON.stringify(batch).includes("friday"), "Native radio values must not be copied into the feedback protocol.");
       await view.screenshot("consequence-feedback"); await view.browse(); const metrics = await layoutMetrics(view); assert.equal(metrics.duplicateIds.length, 0); assert(metrics.documentWidth <= metrics.viewport.width + 1);
       return { ...metrics, comparison: compared, keyboardTabs: { cancel: tabs, safeReturn: safeTabs, undo: undoTabs }, statesVisited: ["booked", "change", "booked", "cancel-confirm", "booked", "cancel-confirm", "cancelled", "booked"], batch: { comments: batch.comments.length, decisions: batch.decisions.length }, contextRestored: true, localRadioPreserved: true };
     } },

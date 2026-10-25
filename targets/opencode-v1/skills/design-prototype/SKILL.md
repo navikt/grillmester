@@ -31,7 +31,11 @@ endring**, og fortsett med resten av bestillingen. Ved implementering eller
 brief er en ønsket verdi i produktet et krav i bestillingen, ikke en endring av
 rommet, og den krever ingen slik tillatelse.
 
-- **Behold dette** → *kept choice*: ber agenten beholde en del av skissen.
+- **Behold denne delen** → *keep wish*: et vanlig innspill som ber agenten
+  beholde en del i neste versjon.
+- **Beholdt valg** → *kept choice*: eldre beslutning om å beholde en del. Nye
+  lages ikke; eksisterende gjelder til designeren velger **Tillat senere
+  endring**.
 - **Lagret felt** → *preserved field*: editorverdi som sperrer overskriving til
   designeren velger **Tillat senere endring**.
 - **Runde** → *round*: en innsendt samling innspill og valg.

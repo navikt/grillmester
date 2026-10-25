@@ -28,7 +28,7 @@ rerun. The recorded run used Aksel 8.19.2 and headless Chrome.
 | --- | --- |
 | `mobile-sent-context-next-version` | After exploring a state, sending a comment and receiving a reply, automatic replacement stays blocked by the local view. The explicit reset action opens the new screen. A written remark still blocks replacement. Original context and reply survive; one Tab reaches the new screen's first action. |
 | `mobile-sent-context-next-version-320` | Repeat the same interaction at 320 px; the reset action and toolbar remain within the viewport. |
-| `stale-tab-same-part-replacement` | Three tabs edit the same part across three screen versions. A stale save preserves both intentions and the accepted direction. A third writer forces another confirmation. Explicit replacement succeeds only against the shown revision; discarding another conflicted draft leaves the saved choice intact. Every conflict focuses its explanation, with one Tab to the replacement action. |
+| `stale-tab-same-part-wishes` | An older tab and the revised tab both keep the same part. Each saves its own wish on the screen it was made on, with that screen's values; neither replaces the other, no kept choice is created and both reach the next explicit round. |
 | `reversal-and-delayed-reader` | Remove one sent comment and reopen another, then submit again across two source screens. A reader starting at zero receives the unchanged first round, then the second. Current status is separate. An old-round reply is rejected, removal retains focus and a third screen preserves the latest reply. |
 
 ## Findings and refinements
@@ -46,7 +46,10 @@ show the newer saved values. **Bruk mitt valg i stedet** uses the revision
 displayed in that conflict; another change produces another conflict.
 **Forkast mitt utkast** changes only local state. The three-tab follow-up
 observed three conflicts, one shared decision ID and an unchanged accepted
-direction until the next deliberate submission.
+direction until the next deliberate submission. [ADR 0025](../adr/0025-behold-som-innspill-og-juster-visning-i-prov.md)
+later made **Behold denne delen** an ordinary wish, so this conflict flow no
+longer exists for new choices; the replacement case checks that two tabs save
+two wishes. Releasing kept choices from older rooms keeps its revision checks.
 
 The original mutable list could lose or change a submitted round before the
 reader fetched it. The journal in ADR 0021 preserves that round and gives its
@@ -74,10 +77,10 @@ conflict state, reopened comment and narrow reset toolbar.
 ## Related regression coverage and limits
 
 `scripts/smoke_visual_retry.cjs` now has six browser cases that deliberately
-lose a successful HTTP response. Two new cases exercise keeping and releasing
-a decision while another writer saves a newer choice. A retry reuses the
-original operation and revision instead of overwriting or releasing that
-newer choice. The six cases passed without browser exceptions or completed
+lose a successful HTTP response. A keep wish retries as one comment. Two
+cases release a kept choice seeded as in an older room while another writer
+saves a newer choice. A retry reuses the original operation and revision
+instead of releasing that newer choice. The six cases passed without browser exceptions or completed
 external resource requests.
 
 The server suite covers immutable rounds, cursor validation, current status,

@@ -14,10 +14,10 @@ async function startComparison(ui) {
   if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await compare.click();
 }
-// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
 async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await adjust.click();
 }
 const options = new Map();
@@ -88,7 +88,7 @@ function command(info, action, extra = []) {
 }
 function controls(page) {
   const frame = page.frameLocator("#vc-preview"), ui = frame.locator("[data-visual-feedback]");
-  const workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  const workshop = ui.getByRole("region", { name: "Juster visningen", exact: true });
   return {
     page, frame, ui, workshop,
     closeFeedback: async () => { const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click(); },
@@ -161,11 +161,11 @@ const cases = [
   },
   {
     name: "change-direction", role: "Service designer changing direction after two reviews",
-    outcomes: ["A newly written sketch waits while a local comment is unfinished", "The old comment keeps its original screen after the new layout opens", "A release and replacement decision are delivered as an explicit new round"],
+    outcomes: ["A newly written sketch waits while a local comment is unfinished", "The old comment keeps its original screen after the new layout opens", "A new wish to keep another part is delivered as an explicit new round"],
     async run(view) {
       const { ui, frame, workshop, adjust, list, send, closeFeedback, write, note, save, screenshot } = view;
-      await adjust(); await workshop.getByLabel("Velg del", { exact: true }).selectOption("guided/next-step"); await workshop.getByRole("button", { name: "Behold dette", exact: true }).click();
-      const first = await send(view, 1); const kept = first.decisions[0]; await closeFeedback();
+      await adjust(); await workshop.getByLabel("Velg del", { exact: true }).selectOption("guided/next-step"); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click();
+      const first = await send(view, 1); const kept = first.comments[0]; assert.equal(kept.context.variant, "guided"); assert.equal(first.decisions.length, 0); await closeFeedback();
       write("Andre runde: Behold tydelig ansvar"); await frame.getByRole("heading", { name: "Andre runde: Behold tydelig ansvar", exact: true }).waitFor();
       await note("Etter ny gjennomgang trenger vi samtalen før oppgaven.");
       const screenBefore = (await list()).screens.at(-1).screen;
@@ -173,12 +173,14 @@ const cases = [
       await ui.getByRole("button", { name: "Vis ny versjon", exact: true }).waitFor(); assert(await ui.getByRole("button", { name: "Vis ny versjon", exact: true }).isDisabled());
       assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Etter ny gjennomgang trenger vi samtalen før oppgaven.");
       await screenshot("new-layout-waits"); await save(); const second = await send(view, 1); assert.equal(second.comments[0].screen, screenBefore);
-      await frame.getByRole("heading", { name: "Tredje runde: Samtalen kommer først", exact: true }).waitFor(); await adjust();
-      const previous = workshop.locator(`article[data-decision="${kept.id}"]`); assert((await previous.innerText()).includes("Må følges opp"));
-      await previous.getByRole("button", { name: "Slutt å beholde", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); await adjust();
-      await workshop.getByLabel("Velg del", { exact: true }).selectOption("conversation/next-step"); await workshop.getByLabel("Merknad", { exact: true }).fill("Samtalen skal avklare ansvaret sammen med brukeren."); await workshop.getByRole("button", { name: "Behold dette", exact: true }).click();
-      const third = await send(view, 2); assert.equal(third.decisions.find(item => item.id === kept.id).state, "released");
-      assert.equal(third.decisions.find(item => item.state === "active").variant, "conversation");
+      await frame.getByRole("heading", { name: "Tredje runde: Samtalen kommer først", exact: true }).waitFor();
+      // The earlier wish stays readable under Sendt; the new direction is a new wish.
+      await view.openFeedback(); await ui.getByRole("tab", { name: /^Sendt/ }).click();
+      assert((await ui.locator(`article[data-id="${kept.id}"]`).innerText()).includes("Tidligere versjon")); await closeFeedback(); await adjust();
+      await workshop.getByLabel("Velg del", { exact: true }).selectOption("conversation/next-step"); await workshop.getByLabel("Merknad", { exact: true }).fill("Samtalen skal avklare ansvaret sammen med brukeren."); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click();
+      const third = await send(view, 1); assert.equal(third.decisions.length, 0);
+      const replacement = third.comments.find(item => item.context?.variant === "conversation");
+      assert.equal(replacement?.text, "Behold denne delen.\nSamtalen skal avklare ansvaret sammen med brukeren.");
       const oldCard = ui.locator(`article[data-id="${second.comments[0].id}"]`); assert((await oldCard.innerText()).includes("Tidligere versjon")); await screenshot("explicit-new-direction");
     },
   },
@@ -187,15 +189,19 @@ const cases = [
     outcomes: ["An accepted part and a separate reservation remain distinct", "A reply on an earlier screen remains readable after further work", "Reopening the reservation can be submitted as another round without releasing the accepted part"],
     async run(view) {
       const { workshop, adjust, note, save, send, closeFeedback, frame, ui, write, info, screenshot } = view;
-      await adjust(); await workshop.getByLabel("Velg del", { exact: true }).selectOption("summary/next-step"); await workshop.getByLabel("Merknad", { exact: true }).fill("Behold den felles oppsummeringen av ansvar."); await workshop.getByRole("button", { name: "Behold dette", exact: true }).click(); await closeFeedback();
-      await note("Jeg støtter retningen, men hjelpen må beskrives før vi går videre."); await save(); const first = await send(view, 2); const reservation = first.comments[0], decision = first.decisions[0];
+      await adjust(); await workshop.getByLabel("Velg del", { exact: true }).selectOption("summary/next-step"); await workshop.getByLabel("Merknad", { exact: true }).fill("Behold den felles oppsummeringen av ansvar."); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click(); await closeFeedback();
+      await note("Jeg støtter retningen, men hjelpen må beskrives før vi går videre."); await save(); const first = await send(view, 2);
+      const reservation = first.comments.find(item => !item.context), accepted = first.comments.find(item => item.context);
+      assert.equal(accepted.context.target, "next-step"); assert.equal(first.decisions.length, 0);
       write("Ny gjennomgang med tydeligere hjelp"); await frame.getByRole("heading", { name: "Ny gjennomgang med tydeligere hjelp", exact: true }).waitFor();
       await command(info, "resolve", ["--id", reservation.id, "--reply", "Vi har lagt til veien til hjelp før neste steg."]); await view.openFeedback();
       const card = ui.locator(`article[data-id="${reservation.id}"]`); await card.getByText("Vi har lagt til veien til hjelp før neste steg.", { exact: false }).waitFor();
       await card.getByRole("button", { name: "Åpne igjen", exact: true }).click(); await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
       await screenshot("reservation-reopened"); const second = await send(view, 1);
       assert.equal(second.comments.length, 1); assert.equal(second.comments[0].id, reservation.id); assert.equal(second.comments[0].status, "open");
-      assert.equal(second.decisions.find(item => item.id === decision.id).state, "active"); assert.equal(second.comments[0].reply, "Vi har lagt til veien til hjelp før neste steg.");
+      assert.equal(second.comments[0].reply, "Vi har lagt til veien til hjelp før neste steg.");
+      const standing = (await view.list()).comments.find(item => item.id === accepted.id);
+      assert.equal(standing.status, "open"); assert(standing.submission > 0 && standing.submission < second.submission, "Reopening the reservation leaves the accepted part's wish as sent.");
     },
   },
   {

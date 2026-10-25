@@ -37,7 +37,7 @@
     markup.innerHTML = `<section class="source-editor" aria-label="Rediger skissen" hidden><div class="source-editor-head"><div class="row between"><h2>Rediger skissen</h2><button type="button" class="close" data-editor-action="close" aria-label="Lukk redigering">×</button></div><p>Lagre tekst og valg som en ny versjon. Ingen innspill sendes.</p></div><div class="source-editor-body"><p id="source-editor-error" class="source-editor-error error" role="alert" hidden></p><p class="source-editor-conflict" hidden>En nyere versjon eller et nylig lagret felt er tilgjengelig. Utkastet ditt er beholdt. Kopier det du vil ta videre, eller forkast endringene før du åpner den nye versjonen.</p><div class="source-editor-fields"></div></div><div class="source-editor-foot"><p class="source-editor-change-count"></p><div class="source-editor-actions"><button type="button" class="primary" data-editor-action="save">Lagre som ny versjon</button><button type="button" data-editor-action="discard">Forkast endringer</button><button type="button" data-editor-action="read" hidden>Hent feltene igjen</button></div><p class="source-editor-status" role="status"></p></div></section>`;
     root.appendChild(markup);
     const el = selector => markup.querySelector(selector), pane = el(".source-editor");
-    // A direct toolbar entry: editing saved text should not hide behind "Juster".
+    // A direct Endre entry beside «Be om endring»: editing saved text is its own tool.
     const toolbarButton = document.createElement("button");
     toolbarButton.type = "button"; toolbarButton.dataset.action = "editor-open"; toolbarButton.textContent = "Rediger"; toolbarButton.hidden = true;
     toolbarButton.addEventListener("click", () => { if (!toolbarButton.disabled) void open(); });
@@ -167,7 +167,7 @@
       } catch (failure) {
         if (failure.conflict || failure.editorConflict) { needsRebase = true; if (!failure.editorConflict) stale = true; }
         if (failure.capacity) capacity = true;
-        error(failure.editorConflict ? "Endringen strider mot en del du har valgt å beholde. Utkastet ditt er beholdt. Lukk redigeringen og velg «Slutt å beholde» eller oppdater «Behold dette» før du fortsetter." : failure.message);
+        error(failure.editorConflict ? "Endringen strider mot en del som beholdes fra en tidligere runde. Utkastet ditt er beholdt. Velg «Tillat senere endring» for delen under Innspill, og lagre igjen." : failure.message);
         status("");
       } finally { writing = false; update(); }
     }

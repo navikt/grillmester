@@ -142,14 +142,15 @@ designer to release those fields first.
 In **Versjoner**, **Vis** shows a stored version read-only in the preview. The
 version is hash-verified and sanitized like the current sketch, its saved
 values are shown as a restore would publish them, and viewing writes nothing.
-Feedback, **Juster** and editing stay with the current version; the preview
+Feedback, **Juster visning** and editing stay with the current version; the preview
 offers **Tilbake til gjeldende versjon** and **Bruk som ny versjon**. A newer
 version does not replace a stored version on screen until the designer returns.
 
 ## Declare source fields
 
-Version 1 descriptors retain their existing local **Juster** behavior. Version
-2 adds explicit source editing while preserving the same finite controls:
+Version 1 descriptors retain their local **Juster visning** behavior in
+**Prøv**. Version 2 adds explicit source editing in **Endre** while preserving the
+same finite controls:
 
 ```json
 {
@@ -221,11 +222,16 @@ current descriptor when carrying them into a new version. Do not edit
 room. Only the designer's explicit editor action releases a preserved field;
 the designer may also edit and save that field again.
 
-A source edit conflicting with an active **Behold dette** choice is rejected.
-The designer must update or release that choice explicitly. Publication and
-restore are not blocked by **Behold dette**: a version that drops the part or
-changes its values is marked **Må følges opp** in the canvas. Carry the choice
-into the next version, or ask the designer whether to stop keeping it. New
+**Behold denne delen** saves an ordinary wish: a point comment whose text starts
+with «Behold denne delen.» and whose `context` names the part and its values.
+Keep that part in the next version and do not change it later unless a newer
+wish asks for that. Rooms saved before this change can hold active kept choices
+in `decisions`. A source edit conflicting with an active kept choice is
+rejected until the designer releases it with **Tillat senere endring** in the
+feedback basket. Publication and restore are not blocked by a kept choice: a
+version that drops the part or changes its values is marked **Må følges opp**
+in the canvas. Carry the choice into the next version, or ask the designer
+whether to release it. New
 source publication does not erase unsaved drafts: the preview offers an
 explicit version switch, while stale saves retain the draft and require a
 fresh review. **Foreslå ny tekst** remains feedback with a reversible preview,

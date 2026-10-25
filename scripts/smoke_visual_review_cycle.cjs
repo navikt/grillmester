@@ -8,10 +8,10 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { createRequire } = require("node:module");
-// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
 async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await adjust.click();
 }
 const options = new Map();
@@ -80,7 +80,7 @@ function command(info, action, extra = []) {
   });
 }
 function viewFor(page) {
-  const frame = page.frameLocator("#vc-preview"), ui = frame.locator("[data-visual-feedback]"), workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  const frame = page.frameLocator("#vc-preview"), ui = frame.locator("[data-visual-feedback]"), workshop = ui.getByRole("region", { name: "Juster visningen", exact: true });
   const closeFeedback = async () => { const control = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await control.isVisible()) await control.click(); };
   const closeWorkshop = async () => { const control = workshop.getByRole("button", { name: "Lukk justeringer", exact: true }); if (await control.isVisible()) await control.click(); };
   const openFeedback = async () => { await closeWorkshop(); if (!(await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).isVisible())) await ui.locator('[data-action="panel"]').click(); };
@@ -89,16 +89,9 @@ function viewFor(page) {
     async browse() { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="browse"]').getAttribute("aria-pressed") !== "true") await ui.locator('[data-action="browse"]').click(); },
     async note(value, selector = "h1") { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await ui.getByRole("button", { name: "Endre", exact: true }).click(); await frame.locator(selector).click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(value); },
     async save() { await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" }); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); },
-    async keep(detail, value) { await adjust(); await workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption(detail); await workshop.getByLabel("Merknad", { exact: true }).fill(value); await workshop.getByRole("button", { name: "Behold dette", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); },
+    async keep(detail, value) { await adjust(); await workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption(detail); await workshop.getByLabel("Merknad", { exact: true }).fill(value); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); },
     async shown(title) { await frame.getByRole("heading", { name: title, exact: true }).waitFor(); },
   };
-}
-async function verifyConflictKeyboard(view) {
-  const region = view.workshop.locator(".keep-conflict");
-  await until(() => region.evaluate(node => node === node.getRootNode().activeElement), "focus enters the conflict explanation");
-  await view.page.keyboard.press("Tab");
-  const replace = view.workshop.getByRole("button", { name: "Bruk mitt valg i stedet", exact: true });
-  assert(await replace.evaluate(node => node === node.getRootNode().activeElement), "One Tab from the conflict explanation must reach its explicit replacement action.");
 }
 async function runCase(browser, testcase) {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "grillmester-review-cycle-"));
@@ -160,53 +153,31 @@ const cases = [
       assert.equal((await view.list()).submission, 1); await view.screenshot("reply-on-new-version");
       return { findings, measurements: { viewport: view.page.viewportSize(), automaticVersionChangeBlockedByLocalView: blocked, explicitResetOpensNewVersion: true, unsavedRemarkProtected: true, tabsToNewAction, submittedBatches: 1, originalContextPreserved: true, oldReplyVisible: true } };
     } },
-  { name: "stale-tab-same-part-replacement", role: "Service designer comparing an old tab with the revised tab", viewport: { width: 1440, height: 1000 },
+  { name: "stale-tab-same-part-wishes", role: "Service designer comparing an old tab with the revised tab", viewport: { width: 1440, height: 1000 },
     async run(view) {
       const old = await view.newTab();
       await old.shown("Invitasjon · første gjennomgang");
-      await view.keep("full", "Behold forklaringen om hva som skjer med den gamle tiden."); const firstState = await view.send(view, 1); const hold = firstState.decisions[0]; assert.equal(hold.values.detail, "full");
-      await view.screenshot("old-tab-before-adjust", old); await old.adjust(); await view.screenshot("old-tab-adjust-open", old); await old.workshop.getByLabel("Merknad", { exact: true }).fill("Fra den gamle skissen: bruk kort forklaring.");
+      await view.keep("full", "Behold forklaringen om hva som skjer med den gamle tiden."); const firstState = await view.send(view, 1);
+      const first = firstState.comments[0]; assert.equal(first.context.values.detail, "full"); assert.equal(firstState.decisions.length, 0);
+      await view.screenshot("old-tab-before-adjust", old); await old.adjust(); await view.screenshot("old-tab-adjust-open", old);
+      await old.workshop.getByLabel("Merknad", { exact: true }).fill("Fra den gamle skissen: bruk kort forklaring.");
       view.write("Invitasjon · utfyllende forklaring", "full"); await view.shown("Invitasjon · utfyllende forklaring"); await old.shown("Invitasjon · første gjennomgang");
       await view.keep("full", "Den nye forklaringen skal beholdes som skrevet.");
-      const beforeStale = await view.list(); assert.equal(beforeStale.decisions.length, 1); assert.equal(beforeStale.submittedDecisions[0].values.detail, "full");
-      await old.workshop.getByRole("button", { name: "Behold dette", exact: true }).click();
-      const replace = old.workshop.getByRole("button", { name: "Bruk mitt valg i stedet", exact: true }); await replace.waitFor();
-      await verifyConflictKeyboard(old);
-      assert.equal(await old.workshop.getByLabel("Merknad", { exact: true }).inputValue(), "Fra den gamle skissen: bruk kort forklaring.");
       assert.equal(await old.workshop.getByLabel("Mengde forklaring", { exact: true }).inputValue(), "short");
-      const duringConflict = await view.list(); assert.equal(duringConflict.decisions[0].text, beforeStale.decisions[0].text); assert.equal(duringConflict.decisions[0].values.detail, "full");
-      await old.workshop.getByText("Den nye forklaringen skal beholdes som skrevet.", { exact: true }).waitFor();
-      await view.screenshot("conflicting-draft-preserved", old);
-      const third = await view.newTab(); await third.shown("Invitasjon · utfyllende forklaring"); await third.adjust();
-      await third.workshop.getByText("Den nye forklaringen skal beholdes som skrevet.", { exact: true }).waitFor();
-      await third.keep("full", "En tredje gjennomgang presiserer at gammel tid fortsatt gjelder.");
-      await replace.click();
-      await old.workshop.locator(".keep-conflict-summary").filter({ hasText: "En tredje gjennomgang presiserer" }).waitFor();
-      await verifyConflictKeyboard(old);
-      const afterSecondConflict = await view.list(); assert.equal(afterSecondConflict.decisions[0].text, "En tredje gjennomgang presiserer at gammel tid fortsatt gjelder.");
-      assert.equal(await old.workshop.getByLabel("Merknad", { exact: true }).inputValue(), "Fra den gamle skissen: bruk kort forklaring.");
-      await view.screenshot("third-writer-requires-new-confirmation", old);
-      await third.adjust(); await third.workshop.getByLabel("Merknad", { exact: true }).fill("Et nytt lokalt utkast som jeg velger å forkaste.");
-      await replace.click(); await old.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor();
-      const afterStale = await view.list(); assert.equal(afterStale.decisions.length, 1); assert.equal(afterStale.decisions[0].id, hold.id); assert.equal(afterStale.decisions[0].values.detail, "short");
-      assert.equal(afterStale.submittedDecisions[0].values.detail, "full", "Stale local intent cannot silently alter the accepted round.");
-      assert.equal(afterStale.submission, 1);
-      await third.workshop.getByRole("button", { name: "Behold dette", exact: true }).click();
-      await third.workshop.getByRole("button", { name: "Forkast mitt utkast", exact: true }).waitFor();
-      await verifyConflictKeyboard(third);
-      assert.equal(await third.workshop.getByLabel("Merknad", { exact: true }).inputValue(), "Et nytt lokalt utkast som jeg velger å forkaste.");
-      await third.workshop.getByRole("button", { name: "Forkast mitt utkast", exact: true }).click();
-      assert.equal(await third.workshop.getByLabel("Merknad", { exact: true }).inputValue(), "");
-      assert.equal((await view.list()).decisions[0].text, afterStale.decisions[0].text, "Discarding a conflicted local draft must not modify the saved other intent.");
-      await view.screenshot("discard-keeps-saved-other-choice", third);
-      await view.openFeedback(); const latestCard = view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).locator(`article[data-decision="${hold.id}"]`); await latestCard.getByText("Fra den gamle skissen: bruk kort forklaring.", { exact: true }).waitFor();
-      await view.screenshot("explicit-draft-replacement"); await view.screenshot("old-tab-origin", old);
-      const acceptedBeforeSecondSend = await view.read(1); assert.equal(acceptedBeforeSecondSend.type, "feedback-timeout"); assert.equal(acceptedBeforeSecondSend.decisions[0].values.detail, "full");
-      await view.send(old, 1); const second = await view.read(1); assert.equal(second.decisions.find(item => item.id === hold.id).values.detail, "short");
-      assert.equal(second.decisions.find(item => item.id === hold.id).screen, hold.screen, "The old-tab intent must retain its source screen.");
-      view.write("Invitasjon · kort forklaring etter ny runde", "short"); await view.shown("Invitasjon · kort forklaring etter ny runde"); await old.shown("Invitasjon · kort forklaring etter ny runde"); await third.shown("Invitasjon · kort forklaring etter ny runde");
-      await view.openFeedback(); await view.screenshot("replacement-applied");
-      return { findings: [{ observation: "Saving from an older tab preserves both intentions. A third writer forces another conflict even after the first explicit replacement click. A fresh confirmation can replace the saved hold; discarding another conflicted local draft leaves that saved hold intact.", previouslySavedDraft: beforeStale.decisions[0].text, deliberateReplacement: afterStale.decisions[0].text, visibleSource: "Fra en tidligere versjon" }], measurements: { tabs: 3, screenVersions: 3, submittedBatches: 2, observedConflicts: 3, conflictFocusTransitions: 3, tabsFromConflictToReplacement: 1, conflictPreservedBothDrafts: true, explicitReplacementRequired: true, thirdWriterRequiredAnotherConfirmation: true, discardLeftSavedOtherChoiceIntact: true, holdIds: new Set(afterStale.decisions.map(item => item.id)).size, priorAcceptedValueUntilSend: "full", nextAcceptedValue: "short" } };
+      // Keeping the same part from an older tab is another wish; it replaces nothing.
+      await old.workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click(); await old.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor();
+      const state = await view.list(), pending = state.comments.filter(item => item.submission === 0);
+      assert.equal(pending.length, 2, "Two tabs keeping the same part save two wishes.");
+      const fromOld = pending.find(item => item.text.includes("Fra den gamle skissen")), fromNew = pending.find(item => item.text.includes("Den nye forklaringen"));
+      assert.equal(fromOld.screen, first.screen, "The older tab's wish keeps the screen it was made on.");
+      assert.notEqual(fromNew.screen, first.screen);
+      assert.equal(fromOld.context.values.detail, "short"); assert.equal(fromNew.context.values.detail, "full");
+      assert.equal(state.decisions.length, 0); assert.equal(state.submission, 1);
+      await view.screenshot("both-wishes-kept", old);
+      await view.send(old, 2); const second = await view.read(1);
+      assert.deepEqual(second.comments.map(item => item.id).sort(), [fromOld.id, fromNew.id].sort());
+      await view.openFeedback(); await view.screenshot("both-wishes-sent");
+      return { findings: [{ observation: "Keeping the same part from an older tab saves a separate wish on its own screen. Neither tab's wish replaces the other, and both reach the next round.", oldTabScreenRetained: true }], measurements: { wishes: 2, decisions: 0, submittedBatches: 2 } };
     } },
   { name: "reversal-and-delayed-reader", role: "Content designer revising a sent round while the reader resumes from an older cursor", viewport: { width: 390, height: 844 },
     async run(view) {
@@ -285,12 +256,13 @@ cases.push(
       await view.openFeedback(); await view.ui.getByRole("tab", { name: /^Sendt/ }).click(); await view.ui.getByRole("button", { name: "Åpne", exact: true }).click();
       await view.adjust(); await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
       await view.workshop.getByLabel("Merknad", { exact: true }).fill("Behold forklaringen om at den nåværende timen fortsatt gjelder.");
-      await view.workshop.getByRole("button", { name: "Behold dette", exact: true }).press("Enter");
-      await view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); const state = await view.list(); assert.equal(state.decisions.length, 1); assert.equal(state.submission, 0);
+      await view.workshop.getByRole("button", { name: "Behold denne delen", exact: true }).press("Enter");
+      await view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); const state = await view.list(); assert.equal(state.decisions.length, 0); assert.equal(state.submission, 0);
+      const wish = state.comments.find(item => item.submission === 0 && item.context); assert.equal(wish.text, "Behold denne delen.\nBehold forklaringen om at den nåværende timen fortsatt gjelder.");
       await view.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
       await view.screenshot("kept-with-filter");
-      assert(await view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).locator(`article[data-decision="${state.decisions[0].id}"]`).isVisible(), "The just-kept choice must be visible when feedback opens, even after selecting Åpne.");
-      const card = view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).locator(`article[data-decision="${state.decisions[0].id}"]`);
+      assert(await view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).locator(`article[data-id="${wish.id}"]`).isVisible(), "The new keep wish must be visible when feedback opens, even after selecting Åpne.");
+      const card = view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).locator(`article[data-id="${wish.id}"]`);
       await until(() => card.evaluate(node => node === node.getRootNode().activeElement), "focus reaches the kept choice");
       return { measurements: { keptChoiceVisible: true, keptCardFocused: true, submission: state.submission } };
     } }

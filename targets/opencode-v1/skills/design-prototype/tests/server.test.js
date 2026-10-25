@@ -2052,7 +2052,7 @@ test("a design sidecar is optional, changes screen identity, and safely disables
     const file = path.join(running.info.screen_dir, "test.design.json");
     fs.writeFileSync(file, '{"private-invalid-metadata":');
     const invalid = await (await fetch(endpoint(running.info.url, "/preview"))).text();
-    assert.match(invalid, /Justeringspanelet er utilgjengelig/);
+    assert.match(invalid, /«Juster visning» er utilgjengelig/);
     assert.match(invalid, /window\.__grillmesterVisualCompanionDesign=null;/);
     assert.equal(invalid.includes("private-invalid-metadata"), false);
     assert.match(invalid, /A stable prototype/);

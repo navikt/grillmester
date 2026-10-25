@@ -8,10 +8,10 @@ const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { createRequire } = require("node:module");
-// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
 async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await adjust.click();
 }
 const options = new Map();
@@ -61,7 +61,7 @@ async function until(check, label, timeout = 12000) {
 function viewFor(page) {
   const frame = page.frameLocator("#vc-preview"), ui = frame.locator("[data-visual-feedback]");
   const closeFeedback = async () => { const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click(); };
-  const workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  const workshop = ui.getByRole("region", { name: "Juster visningen", exact: true });
   const closeWorkshop = async () => { const close = workshop.getByRole("button", { name: "Lukk justeringer", exact: true }); if (await close.isVisible()) await close.click(); };
   return { page, frame, ui, workshop, closeFeedback, closeWorkshop,
     async openFeedback() { await closeWorkshop(); if (!(await ui.locator(".panel").isVisible())) await ui.locator('[data-action="panel"]').click(); },
@@ -110,8 +110,10 @@ async function runCase(browser, createCanvasAdapter, testcase) {
         await view.openFeedback(); await view.ui.getByRole("button", { name: `Send ${count} innspill`, exact: true }).click();
         return until(async () => { const current = await snapshot(); return current.submission > previous && current; }, "explicit submission committed");
       };
+      // Rooms saved before «Behold denne delen» became a wish can hold kept choices.
+      const seedDecision = async value => { const url = new URL(opened.url); url.pathname = "/decisions"; const response = await fetch(url, { method: "POST", headers: { Origin: url.origin, "Content-Type": "application/json" }, body: JSON.stringify(value) }); assert(response.ok, `Seeding a kept choice failed (${response.status}).`); };
       const reopen = async () => { const previous = opened; opened = await bound.adapter.canvas.open(ctx); assert.notEqual(opened.url, previous.url, "Reopening rotates the transport capability."); await navigate(opened.url); return { previous, current: opened }; };
-      const item = { ...view, ctx, action, publish, snapshot, send, reopen, host: bound, close: () => bound.adapter.canvas.onClose(ctx), url: () => opened.url, retired: false };
+      const item = { ...view, ctx, action, publish, snapshot, send, reopen, seedDecision, host: bound, close: () => bound.adapter.canvas.onClose(ctx), url: () => opened.url, retired: false };
       item.retire = async () => { item.retired = true; await context.close(); await bound.adapter.close(); };
       views.push(item); return item;
     };
@@ -133,7 +135,7 @@ async function runCase(browser, createCanvasAdapter, testcase) {
 async function screenshotFailure(view, name) { try { await view.page.screenshot({ path: path.join(evidence, `${name}.png`), animations: "disabled" }); } catch { /* Preserve the assertion if the page closed. */ } }
 async function openEditor(view) {
   await view.closeFeedback();
-  // Rediger is one of the Endre tools, next to Be om endring and Juster. After a
+  // Rediger is one of the Endre tools, next to Be om endring. After a
   // save the preview reloads, so wait until the current document offers it.
   const edit = view.ui.getByRole("button", { name: "Rediger", exact: true });
   await until(async () => {
@@ -259,9 +261,9 @@ const cases = [
   } },
   { name: "editor-manual-hold-and-keep-conflict", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "constraints", "Avtalens overskrift", { fixture: editableSketch, openInput: { workspacePath: "design/constraints", create: true, title: "Bevarte valg" } });
-    await openAdjust(view.ui);
-    await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
-    await view.workshop.getByRole("button", { name: "Behold dette", exact: true }).click(); await view.ui.locator(".panel").waitFor();
+    // A room saved before keeping became a wish can still hold a kept choice.
+    await view.seedDecision({ screen: (await view.action("read_state")).screen, variant: "", target: "meeting", values: { detail: "full" }, text: "Behold den fulle forklaringen." });
+    await until(async () => (await view.snapshot()).decisions.length === 1, "earlier kept choice present");
     let editor = await openEditor(view); await editor.getByLabel("Overskrift", { exact: true }).fill("Min beholdte overskrift");
     // The source is short, while the explicitly kept workshop choice is full.
     await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).selectOption("full");
@@ -275,9 +277,10 @@ const cases = [
     const saved = await view.snapshot(); await assert.rejects(view.action("restore_revision", { revisionId: 1, expectedRevision: saved.revision }), error => error.status === 409);
     editor = await openEditor(view); await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).selectOption("short");
     await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).click(); await editor.locator(".source-editor-error").waitFor();
-    assert.match(await editor.locator(".source-editor-error").textContent(), /Behold dette/); assert.equal((await view.snapshot()).workspace.version, 2);
+    assert.match(await editor.locator(".source-editor-error").textContent(), /Tillat senere endring/); assert.equal((await view.snapshot()).workspace.version, 2);
     await editor.getByRole("button", { name: "Lukk redigering", exact: true }).click();
-    await view.openFeedback(); await view.ui.getByRole("button", { name: "Slutt å beholde", exact: true }).click();
+    await view.openFeedback(); await view.ui.locator(".panel").getByRole("button", { name: "Tillat senere endring", exact: true }).click();
+    await until(async () => (await view.snapshot()).decisions[0].state === "released", "earlier kept choice released");
     editor = await openEditor(view); assert.equal(await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).inputValue(), "short");
     await editor.getByRole("button", { name: "Oppdater grunnlaget", exact: true }).click();
     await until(async () => await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).isEnabled(), "explicit same-source rebase after keep release");
@@ -343,7 +346,7 @@ const cases = [
     await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Vis versjon 1", exact: true }).click();
     await view.frame.getByRole("heading", { name: "Timeavtale · første", exact: true }).waitFor(); await banner.waitFor();
     assert.equal(await view.frame.locator('[data-vc-key="meeting"]').getAttribute("data-vc-setting-detail"), "short", "A stored version starts from its declared values.");
-    for (const name of ["Kommenter", "Juster", "Innspill"]) assert.equal(await view.ui.getByRole("button", { name, exact: true }).count(), 0, `${name} is not offered on a stored version.`);
+    for (const name of ["Endre", "Juster visning", "Innspill"]) assert.equal(await view.ui.getByRole("button", { name, exact: true }).count(), 0, `${name} is not offered on a stored version.`);
     assert.deepEqual(await view.snapshot(), before, "Viewing changes nothing in the room."); assert.equal(restoreRequests, 0);
     await screenshot(view, "stored-version-read-only");
     await view.publish("Timeavtale · tredje"); await new Promise(resolve => setTimeout(resolve, 4500));
@@ -397,6 +400,33 @@ const cases = [
     assert.equal(bound.calls.length, 0);
     return { leftEditorWithProv: true, restoredThroughPreservedField: 3, displayedVersionMarked: 3, automaticSubmissions: 0 };
   } },
+  { name: "wish-while-editing-names-saved-version", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
+    const bound = host(), view = await instance(bound, "wish-edit", "Avtale · lagret", { fixture: editableSketch, openInput: { workspacePath: "design/onske-under-redigering", create: true, title: "Ønske under redigering" } });
+    let editor = await openEditor(view);
+    await editor.getByLabel("Overskrift", { exact: true }).fill("Ulagret overskrift");
+    await view.frame.getByRole("heading", { name: "Ulagret overskrift", exact: true }).waitFor();
+    // A wish names the saved sketch; the unsaved field stays in Rediger.
+    await view.ui.locator('[data-action="change-ask"]').click();
+    assert(await editor.isHidden(), "Be om endring leaves Rediger.");
+    const heading = view.frame.getByRole("heading", { name: "Avtale · lagret", exact: true });
+    await heading.waitFor(); await heading.click();
+    await view.ui.getByText("Gjelder den lagrede versjonen. Ulagrede endringer i «Rediger» er ikke med.", { exact: true }).waitFor();
+    await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Overskriften kan være kortere.");
+    await screenshot(view, "wish-names-saved-version");
+    // Rediger shows the unfinished wish instead of opening over it.
+    await view.ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Rediger", exact: true }).click();
+    await view.ui.locator(".composer").waitFor();
+    assert(await editor.isHidden(), "Rediger stays closed while a wish draft is unfinished.");
+    assert.equal(await view.ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Overskriften kan være kortere.");
+    await view.ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await view.ui.locator(".panel").waitFor();
+    editor = await openEditor(view);
+    assert.equal(await editor.getByLabel("Overskrift", { exact: true }).inputValue(), "Ulagret overskrift", "The unsaved field survives the wish.");
+    assert(await view.ui.locator(".compose-scope").isHidden());
+    const saved = await view.snapshot();
+    assert.equal(saved.comments.length, 1); assert.equal(saved.workspace.version, 1); assert.equal(bound.calls.length, 0);
+    return { wishNamesSavedVersion: true, editorWaitsForDraft: true, unsavedFieldKept: true, automaticSubmissions: 0 };
+  } },
   { name: "workspace-limit-preserves-history", async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "capacity", "Timeavtale · første", { openInput: { workspacePath: "design/capacity", create: true, title: "Bevart historikk" } });
     await view.publish("Timeavtale · andre"); await view.frame.getByRole("heading", { name: "Timeavtale · andre", exact: true }).waitFor();
@@ -417,8 +447,10 @@ const cases = [
     await openAdjust(original.ui);
     await original.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
     await original.workshop.getByLabel("Merknad", { exact: true }).fill("Behold forklaringen om den opprinnelige avtalen.");
-    await original.workshop.getByRole("button", { name: "Behold dette", exact: true }).click(); await original.ui.locator(".panel").waitFor();
-    await original.note("Første innspill, sendt i den tidligere samtalen."); await original.save(); await original.send(2); await original.round(1, "unknown");
+    await original.workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click(); await original.ui.locator(".panel").waitFor();
+    await original.seedDecision({ screen: (await original.action("read_state")).screen, variant: "", target: "meeting", values: { detail: "full" }, text: "Behold forklaringen fra en eldre runde." });
+    await until(async () => (await original.snapshot()).decisions.length === 1, "earlier kept choice present");
+    await original.note("Første innspill, sendt i den tidligere samtalen."); await original.save(); await original.send(3); await original.round(1, "unknown");
     await original.note("Nytt innspill som er lagret, men ikke sendt."); await original.save();
     await original.publish("Timeavtale · neste dag");
     const saved = await original.snapshot(); assert.equal(saved.workspace.storage, "project"); assert.equal(saved.workspace.version, 2);
@@ -426,7 +458,8 @@ const cases = [
     const next = host(), reopened = await instance(next, "second-opening", "Timeavtale · neste dag", { openInput: { workspacePath: "design/timeavtale" }, publishInitial: false });
     const recovered = await reopened.snapshot();
     assert.equal(recovered.workspace.id, saved.workspace.id); assert.equal(recovered.workspace.version, saved.workspace.version); assert.equal(recovered.workspace.recovered, true);
-    assert.deepEqual(recovered.comments, saved.comments); assert.deepEqual(recovered.decisions, saved.decisions);
+    assert.deepEqual(recovered.comments, saved.comments); assert.deepEqual(recovered.decisions, saved.decisions); assert.equal(recovered.decisions.length, 1);
+    assert(recovered.comments.some(item => item.text.startsWith("Behold denne delen.") && item.context?.target === "meeting"), "The keep wish is recovered as an ordinary wish.");
     assert.equal(next.calls.length, 0, "Opening a project must not deliver historical rounds.");
     await reopened.openFeedback(); const old = await reopened.round(1, "previous");
     assert.equal(await old.locator(".badge").textContent(), "Fra tidligere samtale");
@@ -513,18 +546,18 @@ const cases = [
     const bound = host(() => new Promise(resolve => { acknowledge = resolve; }));
     const view = await instance(bound, "meeting", "Møteavtale · første versjon");
     await openAdjust(view.ui);
-    assert(await view.workshop.locator(".source-editor-entry").isHidden(), "Legacy sketches must not gain an empty source-editor entry.");
     await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
     await view.workshop.getByLabel("Merknad", { exact: true }).fill("Behold forklaringen om gjeldende avtale.");
     assert.equal(bound.calls.length, 0);
-    await view.workshop.getByRole("button", { name: "Behold dette", exact: true }).click();
+    await view.workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click();
     await view.ui.locator(".panel").waitFor();
     await view.note("Gjør tidspunktet lettere å finne."); await view.save();
     assert.equal(bound.calls.length, 0, "Saving and keeping are local until explicit Send.");
     await view.send(2); await until(() => bound.calls.length === 1, "one host notification");
     await view.round(1, "sending");
     const batch = await view.action("read_submission", { submission: 1 });
-    assert(batch.items.some(item => item.type === "comment")); assert(batch.items.some(item => item.type === "decision"));
+    assert(batch.items.some(item => item.type === "comment" && item.value.text === "Behold denne delen.\nBehold forklaringen om gjeldende avtale." && item.value.context?.target === "meeting"), "The keep wish travels as a wish.");
+    assert(!batch.items.some(item => item.type === "decision"), "Keeping a part no longer creates a kept choice.");
     assert.equal(bound.calls[0].identity.instanceId, "meeting"); assert.equal(bound.calls[0].identity.submission, 1);
     assert.equal(bound.calls[0].prompt.includes("Gjør tidspunktet lettere"), false, "The message carries a bounded reference; the action reads actual feedback.");
     acknowledge("accepted-round-1"); await view.round(1, "queued");

@@ -185,14 +185,19 @@ sikkerhetsgrenser for å omgå den.
 ## Innspill i skissen
 
 Verktøylinjen har to moduser. **Prøv** lar designeren bruke skissen som
-prototype. **Endre** samler tre verktøy i en stripe over verktøylinjen: **Be om
-endring**, **Juster** og **Rediger**. **Be om endring** lar designeren peke på
-et element med **Punkt**, dra ut et område med **Område**, eller velge **Hele
-skissen** eller en deklarert del i **Eller velg en del**. **Juster** prøver
-deklarerte valg lokalt, og **Rediger** lagrer tekst og valg som en ny versjon i
-et prosjektlagret rom. Når **Juster** eller **Rediger** er åpent, står fanene i
-panelets tittelrad. På smale, høye skjermer åpnes de som et ark fra bunnen, slik
-at toppen av skissen er synlig mens verdiene endres. Tastaturbrukere kan
+prototype. Når skissen deklarerer deler eller varianter, viser **Vis** en stripe
+over verktøylinjen med **Juster visning** og **Sammenlign varianter**. **Juster
+visning** prøver deklarerte valg lokalt; **Legg til innspill** og **Behold denne
+delen** legger et ønske i innspillskurven. **Endre** samler **Be om endring**
+og, i et prosjektlagret rom med redigerbar skisse, **Rediger**. **Be om
+endring** lar designeren peke på et element med **Punkt**, dra ut et område med
+**Område**, eller velge **Hele skissen** eller en deklarert del i **Eller velg
+en del**. **Rediger** lagrer tekst og valg som en ny versjon. Et innspill som
+skrives mens **Rediger** har ulagrede endringer, gjelder den lagrede versjonen;
+de ulagrede verdiene blir stående i **Rediger**. Når **Juster visning** eller
+**Rediger** er åpent, står stripens knapper i panelets tittelrad. På smale, høye
+skjermer åpnes de som et ark fra bunnen, slik at toppen av skissen er synlig
+mens verdiene endres. Tastaturbrukere kan
 fokusere et element og bruke kommentarkontrollene; områdealternativet bruker da
 hele elementets ramme. Kommentarlisten viser åpne og fiksete innspill, svar og
 hvilke som tilhører en tidligere versjon. Eldre nåler flyttes aldri automatisk
@@ -210,9 +215,11 @@ på samme element beholder hver sin forhåndsvisning.
 **Lagre innspill** bevarer innspillet i den private økten. **Send innspill**
 gjør alle usendte innspill i økten klare til behandling, også fra tidligere
 versjoner. Innspillskurven har to faner. **Klar til sending** viser usendte
-innspill og usendte endringer av beholdte deler; **Sendt** viser sendte innspill
-med svar og status, stående beholdte deler og innsendte runder, med filtrene
-**Alle**, **Åpne** og **Ordnet**. Et nylig lagret eller gjenåpnet innspill vises
+innspill og usendte frigivelser av beholdte valg; **Sendt** viser sendte innspill
+med svar og status, stående beholdte valg og innsendte runder, med filtrene
+**Alle**, **Åpne** og **Ordnet**. Beholdte valg finnes bare i rom som ble lagret
+før **Behold denne delen** ble et vanlig innspill; se
+[Beholdte valg fra eldre rom](#beholdte-valg-fra-eldre-rom). Et nylig lagret eller gjenåpnet innspill vises
 under **Klar til sending**, med fokus på kortet, og etter sending åpnes
 **Sendt**. Når noe venter på sending, åpner kurven på **Klar til sending**;
 ellers beholder vanlig åpning valgt fane og filter. Nålene i skissen viser alle
@@ -447,7 +454,7 @@ CSS kan vise riktig innhold ut fra `data-vc-setting-stage`. Alle situasjonene
 må finnes i skissen; handlingen kjører ikke eget JavaScript, leser ikke
 feltverdier og utfører ingen validering, bestilling eller innsending. Merk
 simulerte resultater tydelig, og bruk `prototype` når faktisk oppførsel er
-designspørsmålet. Knappen virker bare i **Prøv** med justeringspanelet
+designspørsmålet. Knappen virker bare i **Prøv** med **Juster visning**
 lukket og uten et påbegynt kommentarutkast eller tekstforhåndsvisning.
 I **Be om endring** kommenterer man knappen. Ugyldige mål og valg aktiveres ikke.
 En lokal lenke som `href="#ticket-price"` kan rulle til og fokusere et
@@ -457,8 +464,8 @@ understrek, bindestrek, punktum eller kolon, maksimalt 128 tegn. Lenken
 endrer ikke URL eller historikk. Eksterne lenker og navigasjon er fortsatt
 blokkert, og DOM-ID-en følger ikke innspillet.
 
-Knappen og justeringspanelet endrer samme lokale verdi. Valget blir først et
-innspill gjennom **Legg til innspill** eller **Behold dette**, deretter
+Knappen og **Juster visning** endrer samme lokale verdi. Valget blir først et
+innspill gjennom **Legg til innspill** eller **Behold denne delen**, deretter
 **Send innspill**. En kommentar til en justerbar del tar med delens deklarerte
 tilstand som kontekst, selv om man senere går tilbake til et annet steg.
 **Vis situasjon** viser disse verdiene igjen på samme skjermversjon, bevarer
@@ -491,7 +498,7 @@ attributes, for example
 `[data-vc-key="reply"][data-vc-setting-view="receipt"][data-vc-setting-answer="change"] .receipt-change`.
 For `answer=none`, hide the receipt button and show “Choose an example answer”.
 Handle `none` in receipt view too, with that explanation and the back button:
-**Juster** can select either control independently. Every combination must
+**Juster visning** can select either control independently. Every combination must
 have coherent content, even when reached without the intended button sequence.
 
 Before showing the flow, enumerate every reachable combination of its controls.
@@ -528,8 +535,8 @@ nøkkel. HTML-en må ha nøyaktig én beholder med variantene som direkte barn:
 **Sammenlign varianter** ligger under **Vis** i **Prøv**, fordi det er en måte
 å prøve skissen på. Sammenligningsvisningen bruker like brede flater på desktop
 og bytte mellom variantene i smale vinduer. Det eksplisitte variantvalget blir et innspill;
-å åpne eller vise en variant velger den ikke. **Behold dette** kan brukes på
-deler fra flere varianter, slik at neste runde kan kombinere det som fungerer.
+å åpne eller vise en variant velger den ikke. **Behold denne delen** kan brukes
+på deler fra flere varianter, slik at neste runde kan kombinere det som fungerer.
 Det er ingen automatisk sammenslåing av HTML.
 Med tre eller fire varianter kan begge sider velges også i smale vinduer.
 Valg i listen for foretrukket variant viser alltid varianten før brukeren
@@ -540,33 +547,43 @@ skjules fordi layouten er endret; avslutt sammenligning før et nytt område
 markeres. Et påbegynt områdeutkast bevares, og gjenåpning går tilbake til den
 vanlige visningen.
 
-### Beholdte valg og ny runde
+### Behold en del og ny runde
 
-Aktive beslutninger vises i **Beholdes videre**. De følger økten til brukeren
-velger **Slutt å beholde**, og inngår i samlet innsending. Ved neste skisse sammenholdes de med deklarerte
-deler og startverdier. Manglende deler eller avvik merkes **Må følges opp**.
-Samme nøkkel med samme startverdier er bare en teknisk match; kontroller også
-at utseende, innhold og oppførsel fortsatt oppfyller intensjonen.
+**Behold denne delen** lagrer et vanlig punktinnspill på delen. Teksten starter
+med «Behold denne delen.», eventuelt fulgt av designerens merknad på neste
+linje, og `context` navngir variant, del og verdiene som var valgt. Behandle det
+som andre innspill: behold delen slik den vises i neste versjon, og ikke endre
+den senere uten at et nytt innspill ber om det. Besvar det med `resolve` eller
+`reopen` som vanlig. Det finnes ingen egen frigivelse; et senere innspill som
+ber om noe annet, går foran.
 
-Hvis en annen fane lagrer et nyere valg for samme del mens et lokalt utkast
-pågår, avvises **Behold dette** med en konflikt. Begge intensjonene bevares:
-eget valg og egen merknad står i panelet, og det nyere lagrede valgets verdier
-og tekst vises til sammenligning. **Bruk mitt valg i stedet** erstatter først
-etter et nytt kontrollert lagringsforsøk. Endres delen igjen i mellomtiden,
-vises en ny konflikt. **Forkast mitt utkast** fjerner bare eget lokale utkast;
-det lagrede valget beholdes. Ingen av handlingene sender en ny runde alene.
-
-Hver beholdt beslutning har `revision`. Skrivegrensesnittet støtter valgfri
-`expectedRevision` ved lagring og frigivelse; nettleseren bruker kontrollen og
-binder den til beslutningen ved første lokale endring. Andre deler og vanlige
-kommentarer utløser ikke konflikt for denne delen. En usikker lagring prøves
-igjen med samme operasjonsnøkkel og revisjonskontroll; en ny bekreftet
-erstatningsintensjon bruker den nyere viste revisjonen.
+Lagrede felt fra **Rediger** er varige føringer som regenerering ikke kan
+endre stilltiende. De frigis bare når designeren velger **Tillat senere
+endring** i **Rediger**. Det samme gjelder aktive beholdte valg fra eldre rom.
+Begge vises med samme handling, **Tillat senere endring**.
 
 Bevar deklarerte nøkler når en del beholder samme betydning. Ikke flytt gamle
-strukturelle kommentarankere til nye elementer, og ikke frigi et beholdt valg
-automatisk når et vanlig innspill markeres fikset. En beholdt del er ikke låst
-mot lokal utforsking; endringer skal fortsatt prøves og sendes bevisst.
+strukturelle kommentarankere til nye elementer. Samme nøkkel med samme
+startverdier er bare en teknisk match; kontroller også at utseende, innhold og
+oppførsel fortsatt oppfyller intensjonen.
+
+### Beholdte valg fra eldre rom
+
+Rom som ble lagret før **Behold denne delen** ble et innspill, kan ha beholdte
+valg. Grensesnittet lager ingen nye, men leser, viser og sender de eksisterende.
+Aktive valg vises i innspillskurven som **Beholdt del** og gjelder til
+designeren velger **Tillat senere endring**. Frigivelsen inngår i neste samlede
+innsending. Ved neste skisse sammenholdes valgene med deklarerte deler og
+startverdier; manglende deler eller avvik merkes **Må følges opp**. En
+redigering i **Rediger** som strider mot et aktivt valg, avvises til valget er
+frigitt.
+
+Hvert beholdt valg har `revision`, og frigivelse bruker valgfri
+`expectedRevision`. En usikker frigivelse prøves igjen med samme operasjonsnøkkel
+og revisjonskontroll. Er valget endret eller frigitt i mellomtiden, avvises
+frigivelsen, og kortet viser gjeldende valg før designeren eventuelt frigir
+det. Ikke frigi et beholdt valg automatisk når et vanlig innspill markeres
+fikset, og bruk `release` bare når designeren har bedt om det.
 
 Deklarasjonen er begrenset til 32 KiB, 24 deler, åtte kontroller per del og
 to til åtte alternativer per kontroll. Nøkler starter med en liten bokstav og

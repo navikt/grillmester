@@ -7,7 +7,10 @@ date: 2026-10-23
 
 Delvis erstattet av [ADR 0023](0023-prosjektlagret-designrom.md) for
 prosjektlagrede rom: skisseversjoner og innspill lagres varig, og en avgrenset
-editor kan lagre feltendringer. «Behold dette» er fortsatt en egen bestilling til agenten, atskilt fra lagrede felt.
+editor kan lagre feltendringer. Delvis erstattet av
+[ADR 0025](0025-behold-som-innspill-og-juster-visning-i-prov.md): «Behold denne
+delen» er et vanlig innspill, nye beholdte valg lages ikke, og «Juster visning»
+ligger i «Prøv». Eksisterende beholdte valg leses og frigis som beskrevet under.
 
 ## Kontekst
 

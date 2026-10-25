@@ -15,10 +15,10 @@ async function startComparison(ui) {
   if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await compare.click();
 }
-// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
 async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await adjust.click();
 }
 
@@ -119,7 +119,7 @@ async function session(browser, testcase) {
       page.on("pageerror", error => errors.push(error.message));
       page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) remoteRequests.push(new URL(request.url()).origin); });
       frame = page.frameLocator("#vc-preview"); ui = frame.locator("[data-visual-feedback]");
-      workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+      workshop = ui.getByRole("region", { name: "Juster visningen", exact: true });
     };
     await show(testcase.viewport || { width: 1440, height: 1000 });
     let sequence = 0;
@@ -143,7 +143,7 @@ async function session(browser, testcase) {
 const cases = [
   {
     name: "four-directions", role: "Designer comparing and combining concepts",
-    outcomes: ["Four variants can be compared in changing pairs", "A preferred variant belongs to the visible pair", "Kept parts remain distinguishable across variants", "The full mixed brief reaches the CLI in one batch", "Historical decisions retain their original labels"],
+    outcomes: ["Four variants can be compared in changing pairs", "A preferred variant belongs to the visible pair", "Wishes to keep parts remain distinguishable across variants", "The full mixed brief reaches the CLI in one batch", "Earlier wishes retain their original labels"],
     async run({ frame, ui, open, write, list, send, closePanel, workshop, adjust, screenshot }) {
       await open(overview(), design());
       await startComparison(ui);
@@ -160,34 +160,33 @@ const cases = [
         await adjust(); await workshop.getByLabel("Velg del", { exact: true }).selectOption(`${key}/summary`);
         await workshop.getByLabel("Tetthet", { exact: true }).selectOption(key === "list" ? "compact" : "comfortable");
         await workshop.getByLabel("Merknad", { exact: true }).fill(key === "list" ? "Ta med prioriteringen fra listen." : "Ta med grupperingen fra brettet.");
-        await workshop.getByRole("button", { name: "Behold dette", exact: true }).click();
-        await waitFor(async () => (await list()).decisions.some(item => item.variant === key), `kept part from ${key}`); await closePanel();
+        await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click();
+        await waitFor(async () => (await list()).comments.some(item => item.context?.variant === key), `keep wish for ${key}`); await closePanel();
       }
-      await adjust();
-      const saved = await list();
-      for (const decision of saved.decisions) {
-        const card = workshop.locator(`article[data-decision="${decision.id}"]`);
-        assert((await card.innerText()).includes(variants.find(variant => variant.key === decision.variant).label), "A kept part needs its variant name when target labels repeat.");
-      }
-      await workshop.getByRole("region", { name: "Beholdes videre", exact: true }).scrollIntoViewIfNeeded();
-      await screenshot("mixed-brief");
-      await ui.getByRole("button", { name: "Lukk justeringer", exact: true }).click();
       await ui.locator('[data-action="panel"]').click();
+      const saved = await list();
+      const keeps = saved.comments.filter(item => item.context);
+      assert.equal(keeps.length, 2); assert.equal(saved.decisions.length, 0, "Keeping a part is a wish, not a kept choice.");
+      for (const wish of keeps) {
+        const card = ui.locator(`article[data-id="${wish.id}"]`);
+        assert((await card.innerText()).includes(variants.find(variant => variant.key === wish.context.variant).label), "A kept part needs its variant name when target labels repeat.");
+      }
+      await screenshot("mixed-brief");
       const batch = await send(3);
-      assert.equal(batch.comments.length, 1); assert.equal(batch.comments[0].variant, "calendar");
-      assert.deepEqual(batch.decisions.map(item => `${item.variant}/${item.target}`).sort(), ["board/summary", "list/summary"]);
+      assert.equal(batch.comments.length, 3); assert.equal(batch.comments.find(item => item.variant)?.variant, "calendar"); assert.equal(batch.decisions.length, 0);
+      assert.deepEqual(batch.comments.filter(item => item.context).map(item => `${item.context.variant}/${item.context.target}`).sort(), ["board/summary", "list/summary"]);
       await closePanel();
       const renamed = design(); renamed.variants.forEach(variant => { variant.label = `Ny ${variant.label.toLowerCase()}`; }); renamed.targets.forEach(target => { target.label = "Ny oppsummering"; target.controls[0].label = "Ny tetthet"; target.controls[0].options.forEach(option => { option.label = `Ny ${option.label.toLowerCase()}`; }); });
       write("renamed-directions", overview("Neste skisse med nye navn"), renamed);
-      await frame.getByRole("heading", { name: "Neste skisse med nye navn", exact: true }).waitFor(); await adjust();
-      for (const decision of batch.decisions) {
-        const card = workshop.locator(`article[data-decision="${decision.id}"]`);
+      await frame.getByRole("heading", { name: "Neste skisse med nye navn", exact: true }).waitFor();
+      await ui.locator('[data-action="panel"]').click(); await ui.getByRole("tab", { name: /^Sendt/ }).click();
+      for (const wish of batch.comments.filter(item => item.context)) {
+        const card = ui.locator(`article[data-id="${wish.id}"]`);
         const text = await card.innerText();
-        assert(text.includes(`Oppsummering · ${variants.find(variant => variant.key === decision.variant).label}`), "A previous decision must retain the names used when it was made.");
-        assert(!text.includes("Ny oppsummering"), "A new target label must not rewrite the historical decision.");
-        assert(text.includes(decision.variant === "list" ? "Tetthet: Tett" : "Tetthet: Romslig"), "A previous choice must retain its original control and option labels.");
+        assert(text.includes(`Oppsummering · ${variants.find(variant => variant.key === wish.context.variant).label}`), "An earlier wish must retain the names used when it was made.");
+        assert(!text.includes("Ny oppsummering"), "A new target label must not rewrite the earlier wish.");
+        assert(text.includes(wish.context.variant === "list" ? "Tetthet: Tett" : "Tetthet: Romslig"), "An earlier wish must retain its original control and option labels.");
       }
-      await workshop.getByRole("region", { name: "Beholdes videre", exact: true }).scrollIntoViewIfNeeded();
       await screenshot("historical-brief");
     },
   },
@@ -356,7 +355,7 @@ const cases = [
       assert(noteBounds.y >= panelBounds.y && noteBounds.y + noteBounds.height <= panelBounds.y + panelBounds.height, "The entire note field must fit in the visible part of the short panel.");
       await screenshot("controls");
       await workshop.getByRole("button", { name: "Legg til innspill", exact: true }).click(); await waitFor(async () => (await list()).comments.length === 1, "landscape adjustment saved"); await send(1); await closePanel();
-      await adjust(); await workshop.getByRole("button", { name: "Behold dette", exact: true }).scrollIntoViewIfNeeded();
+      await adjust(); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).scrollIntoViewIfNeeded();
       await page.keyboard.press("Escape"); await adjust();
       const pickerBounds = await workshop.getByLabel("Velg del", { exact: true }).boundingBox();
       const reopened = await workshop.boundingBox();

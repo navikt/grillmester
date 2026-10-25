@@ -45,7 +45,7 @@
     .vc-header {
       background: var(--ax-bg-default);
       border-bottom: 1px solid var(--ax-border-subtle);
-      padding: var(--ax-space-12) var(--ax-space-24);
+      padding: var(--ax-space-12, 12px) var(--ax-space-24, 24px);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -80,12 +80,12 @@
 
     /* --- Selection indicator --- */
     .vc-indicator {
-      background: var(--ax-bg-accent-strong);
-      color: var(--ax-text-contrast);
-      padding: var(--ax-space-8) var(--ax-space-16);
+      background: var(--ax-bg-accent-strong, #23262a);
+      color: var(--ax-text-contrast, #fff);
+      padding: var(--ax-space-8, 8px) var(--ax-space-16, 16px);
       font-size: 0.875rem;
       font-weight: 600;
-      border-radius: var(--ax-radius-4);
+      border-radius: var(--ax-radius-4, 4px);
       display: none;
       align-items: center;
       gap: var(--ax-space-8);

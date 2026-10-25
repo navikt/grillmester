@@ -14,11 +14,19 @@ async function startComparison(ui) {
   if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await compare.click();
 }
-// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
 async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await adjust.click();
+}
+// Rooms saved before «Behold denne delen» became a wish can still hold kept
+// choices. Seed one through the server API to cover reading and releasing them.
+async function seedLegacyDecision(info, value) {
+  const url = new URL(info.url);
+  url.pathname = "/decisions";
+  const response = await fetch(url, { method: "POST", headers: { Origin: url.origin, "Content-Type": "application/json" }, body: JSON.stringify(value) });
+  assert(response.ok, `Seeding a kept choice failed (${response.status}).`);
 }
 
 const options = new Map();
@@ -211,11 +219,13 @@ async function runWorkshop(context) {
   await frame.getByRole("heading", { name: "Velg arbeidsoversikt" }).waitFor();
   await frame.getByLabel("Privat prøveverdi", { exact: true }).fill("PRIVAT_VERDI_SKAL_IKKE_BLI_INNSPILL");
   const summary = frame.locator('[data-vc-key="summary-list"]');
-  let adjustment = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  let adjustment = ui.getByRole("region", { name: "Juster visningen", exact: true });
+  let basket = ui.getByRole("region", { name: "Innspill til prototypen", exact: true });
   // The helpers below follow whichever page is shown.
   const show = target => {
     page = target; frame = page.frameLocator("#vc-preview"); ui = frame.locator("[data-visual-feedback]");
-    adjustment = ui.getByRole("region", { name: "Juster skissen", exact: true });
+    adjustment = ui.getByRole("region", { name: "Juster visningen", exact: true });
+    basket = ui.getByRole("region", { name: "Innspill til prototypen", exact: true });
   };
   const control = name => adjustment.getByLabel(name, { exact: true });
   const settings = () => summary.evaluate(node => ({
@@ -243,11 +253,15 @@ async function runWorkshop(context) {
     const close = ui.getByRole("button", { name: "Lukk innspill", exact: true });
     if (await close.isVisible()) await close.click();
   };
+  // Earlier kept choices are read and released under «Sendt» in Innspill.
+  const openSent = async () => {
+    await closeWorkshop();
+    if (!(await basket.isVisible())) await ui.locator('[data-action="panel"]').click();
+    await basket.getByRole("tab", { name: /^Sendt/ }).click();
+  };
 
-  // Keyboard: Endre opens its bar, then Juster opens the adjustment panel.
-  await ui.getByRole("button", { name: "Endre", exact: true }).focus();
-  await page.keyboard.press("Enter");
-  await ui.getByRole("button", { name: "Juster", exact: true }).focus();
+  // Keyboard: Prøv's Vis bar opens «Juster visning» without entering Endre.
+  await ui.getByRole("button", { name: "Juster visning", exact: true }).focus();
   await page.keyboard.press("Enter");
   await adjustment.waitFor();
   await control("Velg del").selectOption("list/summary-list");
@@ -282,23 +296,32 @@ async function runWorkshop(context) {
   await closeFeedback();
   await openWorkshop();
   await control("Velg del").selectOption("list/summary-list");
-  await adjustment.getByRole("button", { name: "Behold dette", exact: true }).click();
-  const kept = await waitFor(async () => {
+  await adjustment.getByRole("button", { name: "Behold denne delen", exact: true }).click();
+  // Keeping a part is a wish in the basket, named by its part and values.
+  const keepWish = await waitFor(async () => {
     const value = await list();
-    return value.decisions?.find(item => item.state === "active" && item.target === "summary-list");
-  }, "kept decision saved");
+    return value.comments.find(item => item.kind === "point" && item.context?.target === "summary-list");
+  }, "keep wish saved");
+  assert.equal(keepWish.text, "Behold denne delen.");
+  assert.equal(keepWish.context.variant, "list");
+  assert.equal(keepWish.context.values.density, "compact");
+  assert.equal(keepWish.submission, 0);
+  assert.equal((await list()).decisions.length, 0, "«Behold denne delen» must not create a separate kept choice.");
+  await seedLegacyDecision(info, { screen: keepWish.screen, variant: "list", target: "summary-list", values: { ...keepWish.context.values }, text: "Behold denne delen videre." });
+  const kept = await waitFor(async () => (await list()).decisions.find(item => item.state === "active" && item.target === "summary-list"), "earlier kept choice present");
   assert.equal(kept.values.density, "compact");
   assert.equal(kept.submission, 0);
-  const queuedRelease = ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).getByRole("button", { name: "Slutt å beholde", exact: true });
+  const queuedRelease = ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).getByRole("button", { name: "Tillat senere endring", exact: true });
   await waitFor(() => queuedRelease.isEnabled(), "newly saved keep can be released without another snapshot revision");
   const beforeKeepSubmission = await list();
   const unsentKeep = await cli("wait", info, ["--after", String(beforeKeepSubmission.submission), "--timeout", "0"]);
   assert(!unsentKeep.decisions.some(item => item.id === kept.id), "Unsent keeps must not become active decisions in the consumer wait result.");
-  const firstBatch = await send(2);
+  const firstBatch = await send(3);
   assert(firstBatch.comments.some(item => item.id === proposed.id));
+  assert(firstBatch.comments.some(item => item.id === keepWish.id), "The keep wish travels with the round.");
   assert(firstBatch.decisions.some(item => item.id === kept.id && item.submission === firstBatch.submission));
   assert(!fs.readFileSync(path.join(info.state_dir, "comments.json"), "utf8").includes("PRIVAT_VERDI_SKAL_IKKE_BLI_INNSPILL"));
-  console.log("PASS: keyboard controls, rendered preview/reset, structured feedback, keep and batch through the CLI.");
+  console.log("PASS: keyboard controls, rendered preview/reset, structured feedback, keep wish, earlier kept choice and batch through the CLI.");
 
   await closeFeedback();
   await openWorkshop();
@@ -384,32 +407,30 @@ async function runWorkshop(context) {
   await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
   await send(1);
   await frame.getByRole("heading", { name: "Arbeidsoversikt etter gjennomgang", exact: true }).waitFor();
-  await openWorkshop();
-  await adjustment.getByText("Må følges opp", { exact: true }).waitFor();
+  await openSent();
+  await basket.getByText("Må følges opp", { exact: true }).waitFor();
   const carried = (await list()).decisions.find(item => item.id === kept.id);
   assert.equal(carried.screen, kept.screen, "Kept decisions must retain the original screen identity.");
   assert.equal(carried.values.density, "compact");
   assert.equal(carried.state, "active");
-  await adjustment.getByText("Må følges opp", { exact: true }).scrollIntoViewIfNeeded();
+  await basket.getByText("Må følges opp", { exact: true }).scrollIntoViewIfNeeded();
   await screenshot(page, "visual-workshop-decision-mismatch.png");
-  await closeWorkshop();
+  await closeFeedback();
   const missingDesign = manifest();
   missingDesign.targets = missingDesign.targets.filter(target => target.key !== "summary-list");
   writeScreen("missing-target", fixture("En del mangler i denne versjonen", true), missingDesign);
   await frame.getByRole("heading", { name: "En del mangler i denne versjonen", exact: true }).waitFor();
-  await openWorkshop();
-  await adjustment.getByText("Må følges opp", { exact: true }).waitFor();
-  const missingDecision = adjustment.locator(`[data-decision="${kept.id}"]`);
+  await openSent();
+  await basket.getByText("Må følges opp", { exact: true }).waitFor();
+  const missingDecision = basket.locator(`[data-decision="${kept.id}"]`);
   await missingDecision.getByRole("heading", { name: "Prioriterte oppgaver · Prioritert liste", exact: true }).waitFor();
   await missingDecision.getByText("Tetthet: Tett", { exact: true }).waitFor();
   assert.equal(await frame.locator('[data-vc-key="summary-list"]').count(), 0);
-  await closeWorkshop();
+  await closeFeedback();
   writeScreen("kept-version", fixture("Arbeidsoversikt med beholdt tetthet"), manifest("compact"));
   await frame.getByRole("heading", { name: "Arbeidsoversikt med beholdt tetthet", exact: true }).waitFor();
-  await openWorkshop();
-  assert.equal(await adjustment.getByText("Må følges opp", { exact: true }).count(), 0, "Matching declared values must not be reported as a mismatch.");
-  await closeWorkshop();
-  await ui.locator('[data-action="panel"]').click();
+  await openSent();
+  assert.equal(await basket.getByText("Må følges opp", { exact: true }).count(), 0, "Matching declared values must not be reported as a mismatch.");
   await page.route("**/decisions/**", async route => route.request().method() === "PATCH"
     ? route.fulfill({ status: 503, contentType: "application/json", body: '{"error":"Unavailable"}' })
     : route.continue());
@@ -419,18 +440,14 @@ async function runWorkshop(context) {
   assert.equal((await list()).decisions.find(item => item.id === kept.id).state, "active", "A failed release must preserve the kept decision.");
   await page.unroute("**/decisions/**");
   await waitFor(() => queuedRelease.isEnabled(), "failed release restores its control");
-  await closeFeedback();
-  await openWorkshop();
-  const decisions = ui.getByRole("region", { name: "Beholdes videre", exact: true });
   const beforeReleaseSubmission = await list();
-  await decisions.getByRole("button", { name: "Slutt å beholde", exact: true }).click();
+  await queuedRelease.click();
   await waitFor(async () => (await list()).decisions.some(item => item.id === kept.id && item.state === "released" && item.submission === 0), "released decision pending submission");
   const unsentRelease = await cli("wait", info, ["--after", String(beforeReleaseSubmission.submission), "--timeout", "0"]);
   assert(unsentRelease.decisions.some(item => item.id === kept.id && item.state === "active" && item.values.density === "compact"), "An unsent release must preserve the last submitted active constraint for the consumer.");
   const releasedBatch = await send(1);
   assert(releasedBatch.decisions.some(item => item.id === kept.id && item.state === "released"));
   await closeFeedback();
-  await closeWorkshop();
   console.log("PASS: draft/focus preservation, retained decision identity, mismatch/missing target, matching new version and release.");
 
   const duplicateHtml = fixture("En tvetydig del skal ikke kunne justeres").replace(
@@ -442,7 +459,7 @@ async function runWorkshop(context) {
   await openWorkshop();
   await control("Velg del").selectOption("list/summary-list");
   assert(await adjustment.getByRole("button", { name: "Legg til innspill", exact: true }).isDisabled(), "An ambiguous target must not allow adjustments.");
-  assert(await adjustment.getByRole("button", { name: "Behold dette", exact: true }).isDisabled(), "An ambiguous target must not allow a keep decision.");
+  assert(await adjustment.getByRole("button", { name: "Behold denne delen", exact: true }).isDisabled(), "An ambiguous target must not allow a keep wish.");
   assert(await control("Tetthet").isDisabled(), "An ambiguous target must not expose an active setting control.");
   assert.equal(await frame.locator('[data-vc-key="summary-list"][data-vc-setting-density]').count(), 0, "Ambiguous targets must not receive declared settings.");
   await closeWorkshop();
@@ -455,7 +472,7 @@ async function checkInvalidManifest({ page, frame, ui, info, list, writeScreen }
   invalid.targets[0].controls[0].options[0].value = "url(https://invalid.example/style)";
   writeScreen("invalid-manifest", fixture("Oppsettet må rettes"), invalid);
   await frame.getByRole("heading", { name: "Oppsettet må rettes" }).waitFor();
-  await frame.getByText("Justeringspanelet er utilgjengelig. Skisseoppsettet må rettes.", { exact: true }).waitFor();
+  await frame.getByText("«Juster visning» er utilgjengelig. Skisseoppsettet må rettes.", { exact: true }).waitFor();
   assert.equal(await frame.locator("body").evaluate(() => window.__grillmesterVisualCompanionDesign), null);
   assert.equal(await frame.locator("[data-vc-setting-density]").count(), 0, "Invalid metadata must never activate a declared setting.");
   const before = await list();
@@ -547,7 +564,7 @@ async function runDeclaredActions({ page, frame, ui, info, list, writeScreen }) 
   assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Behold utkastet på startsteget.");
   await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
   await openAdjust(ui);
-  await ui.getByRole("region", { name: "Juster skissen", exact: true }).getByLabel("Steg", { exact: true }).selectOption("review");
+  await ui.getByRole("region", { name: "Juster visningen", exact: true }).getByLabel("Steg", { exact: true }).selectOption("review");
   await ui.getByRole("button", { name: "Lukk justeringer", exact: true }).click();
   await ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
   assert.equal(await state(), "start");
@@ -674,18 +691,18 @@ async function runKeyboardErrors({ page, frame, ui, list, writeScreen, openPage 
 
   await page.close();
   await show({ width: 568, height: 320 });
-  await activate(ui.getByRole("button", { name: "Endre", exact: true }));
-  await activate(ui.getByRole("button", { name: "Juster", exact: true }));
-  const workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  await activate(ui.getByRole("button", { name: "Juster visning", exact: true }));
+  const workshop = ui.getByRole("region", { name: "Juster visningen", exact: true });
   const remark = workshop.getByLabel("Merknad", { exact: true });
+  const savedComments = (await list()).comments.length;
   await type(remark, oversizedNote);
-  await activate(workshop.getByRole("button", { name: "Behold dette", exact: true }));
+  await activate(workshop.getByRole("button", { name: "Behold denne delen", exact: true }));
   measurements.remark = await checkError(remark, workshop.locator(".workshop-error"), "Merknaden er for lang.", oversizedNote);
-  assert.equal((await list()).decisions.length, baseline.decisions.length);
+  assert.equal((await list()).comments.length, savedComments);
   await screenshot(page, "visual-workshop-remark-error-landscape.png");
   await page.keyboard.press("Escape");
-  assert(await isFocused(ui.getByRole("button", { name: "Juster", exact: true })), "Closing adjustments must restore focus to the Juster entry in the Endre bar.");
-  await activate(ui.getByRole("button", { name: "Juster", exact: true }));
+  assert(await isFocused(ui.getByRole("button", { name: "Juster visning", exact: true })), "Closing adjustments must restore focus to «Juster visning» in the Vis bar.");
+  await activate(ui.getByRole("button", { name: "Juster visning", exact: true }));
   assert.equal(await remark.inputValue(), oversizedNote, "Closing and reopening must preserve the rejected draft.");
   const keepText = "Behold forklaringen om hvem som tar kontakt etter møtet.";
   await type(remark, keepText);
@@ -697,19 +714,21 @@ async function runKeyboardErrors({ page, frame, ui, list, writeScreen, openPage 
     }
     return route.continue();
   };
-  await page.route("**/decisions?*", failFirstKeep);
+  await page.route("**/comments?*", failFirstKeep);
   try {
-    await activate(workshop.getByRole("button", { name: "Behold dette", exact: true }));
+    await activate(workshop.getByRole("button", { name: "Behold denne delen", exact: true }));
     measurements.keepRetry = await checkError(remark, workshop.locator(".workshop-error"), "Lagringen ble ikke bekreftet.", keepText);
-    assert.equal((await list()).decisions.length, baseline.decisions.length);
+    assert.equal((await list()).comments.length, savedComments);
     await screenshot(page, "visual-workshop-keep-retry-landscape.png");
-  } finally { await page.unroute("**/decisions?*", failFirstKeep); }
-  await activate(workshop.getByRole("button", { name: "Behold dette", exact: true }));
+  } finally { await page.unroute("**/comments?*", failFirstKeep); }
+  await activate(workshop.getByRole("button", { name: "Behold denne delen", exact: true }));
+  const keepWishText = `Behold denne delen.\n${keepText}`;
   const kept = await waitFor(async () => {
     const snapshot = await list();
-    return snapshot.decisions.some(item => item.text === keepText) && snapshot;
+    return snapshot.comments.some(item => item.text === keepWishText) && snapshot;
   }, "keyboard keep retry saves once");
-  assert.equal(kept.decisions.filter(item => item.text === keepText).length, 1);
+  assert.equal(kept.comments.filter(item => item.text === keepWishText).length, 1);
+  assert.equal(kept.decisions.length, baseline.decisions.length, "A keep wish must not create a kept choice.");
   assert.equal(kept.submission, baseline.submission);
   await page.keyboard.press("Escape");
   console.log("PASS: keyboard-only byte-limit recovery, visible field errors, retry and pane focus at narrow and short viewports.");

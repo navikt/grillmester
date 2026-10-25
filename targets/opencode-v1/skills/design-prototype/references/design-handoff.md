@@ -96,6 +96,10 @@ visible in the preview.
   its context. The revision register does not record a submission cutoff;
   include the cutoff or replayed rounds in the handoff instead of guessing from
   timestamps. Ask only when a conflict would change the implementation.
+- A keep wish is a submitted comment whose text starts with «Behold denne
+  delen.» and whose `context` names the part and values. It is not a decision.
+  Treat its part as kept unless a later submitted wish asks otherwise, and
+  compare it with the chosen pair like any other submitted comment.
 - A submitted choice is not proof that the chosen source incorporates it.
   Compare the decision with the chosen descriptor and HTML, and name any
   disagreement or unfinished work. Record the selected direction and rationale
