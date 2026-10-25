@@ -496,7 +496,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "affe59f9f8ada430fe9b9b4f103542034d391b976ed75f9c8c5ef1b10c4bc668",
+      "sha256": "9be58e9865bc96217a331dd0888a8a9dc5cd880ea5a02a857b846febeda3fe06",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -540,11 +540,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "566f46707c9206b8282ff491526c3b4682324d9e056b447ec0c015ad1f2ce30e",
+      "sha256": "9966b2ecce0502c365119c316fd51ec0fceb1fb8b6ce862f9227ec1822945b36",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "9e7c2f51d55e7b5d5b1186b2c1555575c18ad0c970b2099faba4f5f50729d410",
+      "sha256": "6e31fbd32493290355d54bbecfcdb4f0dfa390651b55552086ce8e2281b551cc",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
@@ -552,7 +552,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workspace-state.js": {
-      "sha256": "8a2f35d70a73c4b72021fa0d82c066efa87cae29f3ebea0f6d279b241aeff8e4",
+      "sha256": "3175f007db894516f41eff2885b955d30136ee3e5b5484fc29fc23ed758a6180",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workspace-store.js": {
@@ -568,11 +568,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "53d8bb975ea310db1db72217005f380beadaee391aab9313d878303fc9b20c00",
+      "sha256": "bb74b2e325deff3ad19c9f7dda9503654952cd2a13a73f5899b628efefb36051",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-lifecycle.test.js": {
-      "sha256": "8be7a6d54a89b381fe6fa24dcb47b85ff3813a74503f8118a5f96b44971520ec",
+      "sha256": "2f77ed1eb1cce03635c7d439541cecec114a0d5c4618f07969c29dfa74dd33a5",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-recovery.test.js": {

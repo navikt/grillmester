@@ -99,6 +99,14 @@ class WorkspaceState {
     const hasMore = candidates.length > items.length;
     return { items, nextAfter: hasMore ? items[items.length - 1].revisionId : null, hasMore };
   }
+  // A stored version shown read-only: its saved values are written into the
+  // HTML exactly as a restore would publish them, and nothing is changed.
+  view(revisionId) {
+    const revision = this.find(revisionId);
+    const saved = this.store.readRevision(revision);
+    return { revisionId: revision.revisionId, filename: revision.filename, screen: revision.screen,
+      html: materializeEditorValues(saved.html, saved.design), design: saved.design };
+  }
   read(input) {
     requireValue(keys(input, ["revisionId", "part"], ["offset"]) && ["html", "design"].includes(input.part) &&
       (!Object.hasOwn(input, "offset") || integer(input.offset)), 400, "Invalid sketch version page.");

@@ -6,6 +6,8 @@
 
   const channel = "grillmester-visual-companion";
   const screen = window.__grillmesterVisualCompanionScreen;
+  // Set when a stored version is shown read-only instead of the current sketch.
+  const view = window.__grillmesterVisualCompanionView || null;
   const nonce = scriptNonce;
   const selected = new Map();
   const indicator = document.getElementById("indicator");
@@ -55,6 +57,7 @@
   }
 
   function toggleSelect(element) {
+    if (view) return;
     const choice = element.dataset.vcChoiceId;
     if (!/^choice-[1-9][0-9]{0,3}$/.test(choice || "")) return;
     const container = element.closest(".options, .cards");
@@ -100,6 +103,7 @@
     *,*::before,*::after{box-sizing:border-box} [hidden]{display:none!important}
     button,input,textarea{font:inherit} button{appearance:none;border:0;cursor:pointer;color:inherit;background:transparent;border-radius:8px;line-height:1.35;min-height:36px;padding:8px 11px;font-weight:600}button:hover{background:#f0edf4}button:disabled{cursor:default;opacity:.45}button:focus-visible,textarea:focus-visible{outline:3px solid #6852ce;outline-offset:3px}button:disabled:hover{background:transparent}button.primary{background:#7133a2;color:white}button.primary:hover{background:#5e2889}button.primary:disabled{background:#7133a2}
     svg{width:17px;height:17px;flex-shrink:0;vertical-align:-3px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.row{display:flex;align-items:center;gap:8px}.between{justify-content:space-between}.muted{color:#71717e;font-size:12px}.small{font-size:12px}.divider{width:1px;height:24px;background:#e7e3eb;flex-shrink:0}.sr{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+    .toolbar.viewing{flex-wrap:wrap;justify-content:center;width:max-content}.view-banner{display:contents}.view-text{flex:1 1 100%;text-align:center;font-weight:600;padding:4px 8px;color:#23262a}
     .toolbar{pointer-events:auto;position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:7px;background:#fff;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824;max-width:calc(100vw - 24px)}
     .toolbar button{white-space:nowrap}.toolbar button[aria-pressed=true],.tools button[aria-pressed=true]{color:#7133a2;background:#f1e8f7}.count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:6px;background:#ece9f0;font-size:11px;margin-left:5px}.tools{display:flex;gap:2px}.tools button{font-size:12px;padding:8px}.toolbar .update{background:#eaf1ff;color:#254c95;font-size:12px}.draft-button{color:#7133a2}
     .hint{position:fixed;top:64px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:9px 14px;border:1px solid #e8d7f1;border-radius:10px;box-shadow:0 3px 15px #25163812;background:#fcf8ff;color:#68368a;font-size:12px;text-align:center}
@@ -192,6 +196,20 @@
   workspaceButton.hidden = true;
   workspaceButton.setAttribute("aria-expanded", "false");
   el(".toolbar").insertBefore(workspaceButton, el(".tools"));
+  // Feedback, adjustments and editing belong to the current version, so a
+  // stored version only offers going back or using it as a new version.
+  if (view) {
+    for (const action of ["comment", "panel", "resume", "refresh"]) el(`[data-action="${action}"]`).hidden = true;
+    el(".toolbar .divider").hidden = true;
+    pinLayer.hidden = true;
+    const banner = document.createElement("div"); banner.className = "view-banner";
+    const text = span(view.unavailable ? `Versjon ${view.revisionId || ""} kan ikke vises.` : `Viser lagret versjon ${view.revisionId}. Ingen ny versjon er laget.`, "view-text");
+    text.setAttribute("role", "status");
+    banner.append(text, button("Tilbake til gjeldende versjon", "view-current"));
+    if (!view.unavailable) banner.append(button("Bruk som ny versjon", "view-restore"));
+    el(".toolbar").prepend(banner);
+    el(".toolbar").classList.add("viewing");
+  }
   const safeRoles = new Set(["button", "link", "textbox", "heading", "img", "navigation", "main", "region", "group", "list", "listitem", "checkbox", "radio", "combobox", "tab", "tabpanel", "table", "row", "cell", "alert", "status", "presentation", "none"]);
 
   function announce(text) { el(".sr").textContent = text; }
@@ -737,6 +755,11 @@
       const current = node.dataset.action === "workspace-choose" && Number(node.dataset.revisionId) === snapshot.workspace?.version;
       if (node.dataset.action === "workspace-choose") node.textContent = current ? "Gjeldende versjon" : "Bruk som ny versjon";
       if (node !== restore && node.dataset.action !== "workspace-release-restore") node.disabled = workspaceRestoring || (workspaceLoading && node.dataset.action !== "workspace-close") || current;
+      if (node.dataset.revisionId && ["workspace-view", "view-current"].includes(node.dataset.action)) {
+        const shown = Number(node.dataset.revisionId) === (view ? view.revisionId : snapshot.workspace?.version);
+        node.textContent = shown ? "Vises nå" : "Vis";
+        node.disabled ||= shown || dirty || connectionLost;
+      }
     });
     const releaseRestore = el('[data-action="workspace-release-restore"]');
     const held = workspaceConfirmation?.conflicts?.length ? workspaceConfirmation.conflicts : null;
@@ -776,7 +799,11 @@
       const current = entry.revisionId === snapshot.workspace?.version;
       const choose = button(current ? "Gjeldende versjon" : "Bruk som ny versjon", "workspace-choose");
       choose.dataset.revisionId = String(entry.revisionId); choose.disabled = current;
-      card.append(title, detail, choose); list.appendChild(card);
+      // Viewing is read-only and separate from using a version as a new one.
+      const show = button("Vis", view && current ? "view-current" : "workspace-view");
+      show.dataset.revisionId = String(entry.revisionId);
+      show.setAttribute("aria-label", `Vis versjon ${entry.revisionId}`);
+      card.append(title, detail, show, choose); list.appendChild(card);
     }
     if (!workspaceEntries.length) list.appendChild(span("Ingen skisseversjoner er lagret ennå.", "muted"));
     renderWorkspaceSummary();
@@ -811,7 +838,8 @@
       workspaceRestoreOpen = true;
       workspaceText(".workspace-status", "En ny skisseversjon er lagret. Innspill og svar er beholdt.");
       announce("En ny skisseversjon er lagret. Ingen innspill er sendt.");
-      if (updateAvailable) refreshNow();
+      if (view) post({ action: "view-current" });
+      else if (updateAvailable) refreshNow();
     } catch (error) {
       if (error.conflict) chosen.conflict = true;
       if (error.capacity) chosen.capacity = true;
@@ -842,7 +870,8 @@
       workspaceRestoreOpen = true;
       workspaceText(".workspace-status", "Senere endring er tillatt, og en ny skisseversjon er lagret. Innspill og svar er beholdt.");
       announce("En ny skisseversjon er lagret. Ingen innspill er sendt.");
-      if (updateAvailable) refreshNow();
+      if (view) post({ action: "view-current" });
+      else if (updateAvailable) refreshNow();
     } catch (error) {
       if (error.conflict) { chosen.conflict = true; chosen.release = null; }
       errorAt(".workspace-error", error.conflict ? "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt." : error.message);
@@ -1005,6 +1034,15 @@
         errorAt(".workspace-error", ""); renderWorkspaceSummary();
         el(".workspace-confirm").scrollIntoView({ block: "nearest" }); el(".workspace-confirm").focus({ preventScroll: true });
       }
+    }
+    else if (action === "workspace-view") { if (!workspaceDrafts()) post({ action: "view-revision", revisionId: Number(target.dataset.revisionId) }); }
+    else if (action === "view-current") post({ action: "view-current" });
+    else if (action === "view-restore" && view) {
+      void openWorkspace().then(() => {
+        workspaceConfirmation = { entry: workspaceEntries.find(value => value.revisionId === view.revisionId) || { revisionId: view.revisionId }, expectedRevision: snapshot.revision, retry: {} };
+        errorAt(".workspace-error", ""); renderWorkspaceSummary();
+        el(".workspace-confirm").scrollIntoView({ block: "nearest" }); el(".workspace-confirm").focus({ preventScroll: true });
+      });
     }
     else if (action === "workspace-restore") void restoreWorkspace();
     else if (action === "workspace-release-restore") void releaseAndRestore();
@@ -1184,6 +1222,7 @@
       return;
     }
     if (data.command === "update-available") {
+      if (view) return;
       const cancelledRefresh = frameRefreshing;
       setRefreshing(false);
       document.getElementById("refresh-indicator")?.classList.remove("visible");
@@ -1228,7 +1267,7 @@
     pendingEvent = null;
     updateIndicator();
   });
-  if (typeof window.__grillmesterInitializeWorkshop === "function") {
+  if (!view && typeof window.__grillmesterInitializeWorkshop === "function") {
     workshop = window.__grillmesterInitializeWorkshop({
       root, screen, nonce, request, anchorFor, announce, topInset,
       getSnapshot: () => snapshot,
@@ -1250,7 +1289,7 @@
       openFeedback: revealFeedback,
     });
   }
-  if (typeof window.__grillmesterInitializeEditor === "function") {
+  if (!view && typeof window.__grillmesterInitializeEditor === "function") {
     editor = window.__grillmesterInitializeEditor({
       root, screen, nonce, request, announce, topInset,
       onBusyChange: updateBusy,

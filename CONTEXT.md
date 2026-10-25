@@ -61,7 +61,8 @@ _Avoid_: samtale, produktkode
 
 **Skisseversjon**:
 En lagret, uforanderlig revisjon av skissen og dens eventuelle deklarerte
-kontroller. Gjenoppretting lager en ny versjon og bevarer historikken.
+kontroller. «Vis» viser den uten å endre noe; gjenoppretting lager en ny
+versjon og bevarer historikken.
 _Avoid_: runde, gjeldende utkast
 
 **Runde**:

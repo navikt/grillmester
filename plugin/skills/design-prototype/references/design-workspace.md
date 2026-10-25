@@ -139,6 +139,13 @@ new version from an earlier pair. It preserves comments, decisions and prior
 versions. A restore that contradicts preserved source fields requires the
 designer to release those fields first.
 
+In **Versjoner**, **Vis** shows a stored version read-only in the preview. The
+version is hash-verified and sanitized like the current sketch, its saved
+values are shown as a restore would publish them, and viewing writes nothing.
+Feedback, **Juster** and editing stay with the current version; the preview
+offers **Tilbake til gjeldende versjon** and **Bruk som ny versjon**. A newer
+version does not replace a stored version on screen until the designer returns.
+
 ## Declare source fields
 
 Version 1 descriptors retain their existing local **Juster** behavior. Version

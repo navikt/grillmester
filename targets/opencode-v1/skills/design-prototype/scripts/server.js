@@ -904,7 +904,7 @@ function newestContent() {
   return null;
 }
 
-function wrapInFrame(content, filename, screen, nonce, design = null, designError = false) {
+function wrapInFrame(content, filename, screen, nonce, design = null, designError = false, view = null) {
   const safeFilename = escapeHtml(filename || "untitled");
   const safeContent = stripActivePreviewMarkup(content, nonce);
   const akselStyle = akselCss
@@ -925,7 +925,7 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
     NONCE: nonce,
     AKSEL_STYLE: akselStyle,
     HELPER_SCRIPT:
-      `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};</script>` +
+      `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};window.__grillmesterVisualCompanionView=${serializeForInlineScript(view)};</script>` +
       `<script nonce="${nonce}">\n${workshopJs}\n</script>` +
       `<script nonce="${nonce}">\n${editorJs}\n</script>` +
       `<script nonce="${nonce}">\n${helperJs}\n</script>`,
@@ -991,6 +991,10 @@ function renderShellPage(nonce, accessToken, title, screen) {
       let provisionalBusy = true;
       let readyEpoch = 0;
       let refreshing = false;
+      // A stored version shown read-only; automatic refreshes wait until the
+      // designer returns to the current version.
+      let viewing = null;
+      let newestVersion = "";
       let lastSuccessfulPoll = Date.now();
       let connectionLost = false;
       let recoveryOpen = false;
@@ -1110,28 +1114,31 @@ function renderShellPage(nonce, accessToken, title, screen) {
         return null;
       }
       function sendToPreview(message) { frame.contentWindow.postMessage({ channel, version: 1, ...message }, "*"); }
+      function showFrame(next) {
+        frameReady = false;
+        provisionalScreen = null;
+        readyEpoch += 1;
+        frame.src = next.pathname + next.search;
+        feedbackBusy = true;
+      }
       function refreshPreview(force = false) {
-        if (!frameReady || !pendingVersion || refreshing) return;
+        if (!frameReady || !pendingVersion || refreshing || viewing !== null) return;
         refreshing = true;
         const version = pendingVersion;
         pendingVersion = null;
         sendToPreview({ command: "refreshing" });
         setTimeout(() => {
-          if (feedbackBusy && !force) {
+          if ((feedbackBusy && !force) || viewing !== null) {
             pendingVersion = pendingVersion || version;
             refreshing = false;
-            sendToPreview({ command: "update-available", screen: pendingVersion });
+            if (viewing === null) sendToPreview({ command: "update-available", screen: pendingVersion });
             return;
           }
           lastVersion = version;
           if (pendingVersion === version) pendingVersion = null;
           const next = new URL(${serializeForInlineScript(previewPath)}, window.location.origin);
           next.searchParams.set("v", version);
-          frameReady = false;
-          provisionalScreen = null;
-          readyEpoch += 1;
-          frame.src = next.pathname + next.search;
-          feedbackBusy = true;
+          showFrame(next);
           refreshing = false;
         }, 400);
       }
@@ -1187,6 +1194,21 @@ function renderShellPage(nonce, accessToken, title, screen) {
         }
         if (hasExactKeys(data, ["channel", "version", "action", "screen"]) && data.channel === channel && data.version === 1 && data.action === "refresh-now" && data.screen === lastVersion) {
           refreshPreview(true);
+          return;
+        }
+        if (hasExactKeys(data, ["channel", "version", "action", "revisionId"]) && data.channel === channel && data.version === 1 && data.action === "view-revision"
+            && Number.isSafeInteger(data.revisionId) && data.revisionId >= 1 && data.revisionId <= 999999 && frameReady && !refreshing) {
+          viewing = data.revisionId;
+          const next = new URL(${serializeForInlineScript(previewPath)}, window.location.origin);
+          next.searchParams.set("revision", String(data.revisionId));
+          showFrame(next);
+          return;
+        }
+        if (hasExactKeys(data, ["channel", "version", "action"]) && data.channel === channel && data.version === 1 && data.action === "view-current" && viewing !== null) {
+          viewing = null;
+          const next = new URL(${serializeForInlineScript(previewPath)}, window.location.origin);
+          if (newestVersion) next.searchParams.set("v", newestVersion);
+          showFrame(next);
           return;
         }
         const operation = feedbackOperation(data);
@@ -1248,9 +1270,10 @@ function renderShellPage(nonce, accessToken, title, screen) {
             const response = await fetch(versionUrl, { credentials: "same-origin", cache: "no-store", signal });
             if (!response.ok) throw new Error("preview unavailable");
             const version = await response.text();
+            if (version) newestVersion = version;
             if (version && version !== lastVersion) {
               pendingVersion = version;
-              if (frameReady) {
+              if (frameReady && viewing === null) {
                 sendToPreview({ command: "update-available", screen: version });
                 if (!feedbackBusy) refreshPreview();
               }
@@ -1697,6 +1720,24 @@ const server = http.createServer((req, res) => {
     lastActivity = Date.now();
     const nonce = crypto.randomBytes(18).toString("base64url");
     res.setHeader("Content-Security-Policy", previewCsp(nonce));
+    const revisions = requestUrl.searchParams.getAll("revision");
+    if (revisions.length) {
+      // A stored version is shown read-only: it is hash-verified and sanitized
+      // like the current sketch, and viewing it never changes the room.
+      const revisionId = revisions.length === 1 && /^[1-9][0-9]{0,5}$/.test(revisions[0]) ? Number(revisions[0]) : 0;
+      let view = null, status = 200;
+      try {
+        if (!workspaceState) throw new FeedbackError(409, "This preview has no saved project workspace.");
+        if (!revisionId) throw new FeedbackError(400, "Invalid sketch version.");
+        view = workspaceState.view(revisionId);
+      } catch (error) { status = requestErrorStatus(error); }
+      res.writeHead(status, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(view
+        ? wrapInFrame(view.html, view.filename, view.screen, nonce, view.design, false, { revisionId: view.revisionId })
+        : wrapInFrame(`<div style="display:flex;align-items:center;justify-content:center;min-height:60vh"><div style="text-align:center"><h2>Versjonen kan ikke vises</h2><p class="subtitle">${status === 409 && workspaceState ? "En lagret fil for denne versjonen er endret eller mangler. Ingen filer er endret." : "Versjonen finnes ikke i dette arbeidet."}</p></div></div>`,
+          "unavailable", "00000000000000000000000000000000", nonce, null, false, { revisionId, unavailable: true }));
+      return;
+    }
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     const content = newest
       ? newest.content

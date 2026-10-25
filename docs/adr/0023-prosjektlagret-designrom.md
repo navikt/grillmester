@@ -73,11 +73,14 @@ lagring med usikker holdbarhet. Minne, retryidentitet og refererte revisjoner
 må gjenspeile commiten; feilen kan ikke behandles som en rollback eller et
 mandat til å slette innholdet.
 
-Historikk leses i avgrensede sider. Gjenoppretting av en tidligere skisse
-oppretter en ny revisjon med referanse til opphavet. Tidligere revisjoner,
-innsendte runder og senere innspill slettes eller omskrives ikke. Brukeren
-må først fullføre eller forkaste et lokalt utkast og usendte innspill som
-ville blitt avbrutt av versjonsbyttet.
+Historikk leses i avgrensede sider. En lagret versjon kan vises
+skrivebeskyttet gjennom den samme tokenbeskyttede forhåndsvisningen. Den
+verifiseres mot registeret og renses som gjeldende skisse, og visningen
+skriver ingenting. Gjenoppretting av en tidligere skisse oppretter en ny
+revisjon med referanse til opphavet. Tidligere revisjoner, innsendte
+runder og senere innspill slettes eller omskrives ikke. Brukeren må først
+fullføre eller forkaste et lokalt utkast og usendte innspill som ville
+blitt avbrutt av versjonsbyttet.
 
 ### Én skriver og riktig prosjekt
 

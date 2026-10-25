@@ -286,13 +286,41 @@ const cases = [
     const final = await view.snapshot(); assert.equal(final.workspace.version, 4); assert.equal(final.submission, 0); assert.equal(bound.calls.length, 0);
     return { manualPublishAndRestoreConflicts: 2, keepConflictRetainsDraft: true, explicitSameSourceRebase: true, manualReleases: 2, releaseCreatesNoRevision: true, publicationAfterRelease: true, automaticSubmissions: 0 };
   } },
+  { name: "workspace-view-stored-version-read-only", viewport: { width: 390, height: 844 }, async run({ host, instance, screenshot }) {
+    const bound = host(), view = await instance(bound, "view-stored", "Timeavtale · første", { openInput: { workspacePath: "design/visning", create: true, title: "Visning" } });
+    await view.publish("Timeavtale · andre"); await view.frame.getByRole("heading", { name: "Timeavtale · andre", exact: true }).waitFor();
+    const before = await view.snapshot(); let restoreRequests = 0;
+    view.page.on("request", request => { if (new URL(request.url()).pathname === "/workspace/restore") restoreRequests += 1; });
+    const banner = view.ui.getByText("Viser lagret versjon 1. Ingen ny versjon er laget.", { exact: true });
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Vis versjon 1", exact: true }).click();
+    await view.frame.getByRole("heading", { name: "Timeavtale · første", exact: true }).waitFor(); await banner.waitFor();
+    for (const name of ["Kommenter", "Juster", "Innspill"]) assert.equal(await view.ui.getByRole("button", { name, exact: true }).count(), 0, `${name} is not offered on a stored version.`);
+    assert.deepEqual(await view.snapshot(), before, "Viewing changes nothing in the room."); assert.equal(restoreRequests, 0);
+    await screenshot(view, "stored-version-read-only");
+    await view.publish("Timeavtale · tredje"); await new Promise(resolve => setTimeout(resolve, 4500));
+    assert(await view.frame.getByRole("heading", { name: "Timeavtale · første", exact: true }).isVisible(), "A newer version does not replace the stored version on screen.");
+    await view.ui.getByRole("button", { name: "Tilbake til gjeldende versjon", exact: true }).click();
+    await view.frame.getByRole("heading", { name: "Timeavtale · tredje", exact: true }).waitFor();
+    await view.ui.locator('[data-action="comment"]').waitFor(); assert.equal(await banner.count(), 0);
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Vis versjon 1", exact: true }).click(); await banner.waitFor();
+    await view.ui.getByRole("button", { name: "Bruk som ny versjon", exact: true }).first().click();
+    await view.ui.locator('[data-action="workspace-restore"]').click();
+    await until(async () => (await view.snapshot()).workspace.version === 4, "stored version used as a new version");
+    await view.ui.locator('[data-action="comment"]').waitFor(); assert.equal(await banner.count(), 0);
+    await view.frame.getByRole("heading", { name: "Timeavtale · første", exact: true }).waitFor();
+    assert.equal(restoreRequests, 1); assert.equal(bound.calls.length, 0);
+    await screenshot(view, "stored-version-used-as-new");
+    return { viewedRevision: 1, viewingWritesNothing: true, newerVersionWaited: true, returnedToCurrent: true, restoredFromView: 4, automaticSubmissions: 0 };
+  } },
   { name: "workspace-limit-preserves-history", async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "capacity", "Timeavtale · første", { openInput: { workspacePath: "design/capacity", create: true, title: "Bevart historikk" } });
     await view.publish("Timeavtale · andre"); await view.frame.getByRole("heading", { name: "Timeavtale · andre", exact: true }).waitFor();
     const before = await view.snapshot(); let attempts = 0;
     // The backend capacity limit has its own tests; exercise the browser's permanent-error guidance without creating 100 revisions here.
     await view.page.route(/\/workspace\/restore(?:\?|$)/, async route => { attempts += 1; await route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: "Workspace capacity reached." }) }); });
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="1"] button').click(); await view.ui.locator('[data-action="workspace-restore"]').click();
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Bruk som ny versjon", exact: true }).click(); await view.ui.locator('[data-action="workspace-restore"]').click();
     await view.ui.locator(".workspace-error").waitFor(); assert.match(await view.ui.locator(".workspace-error").textContent(), /lagringsgrense/);
     assert(await view.ui.getByRole("button", { name: "Lagringsgrensen er nådd", exact: true }).isDisabled());
     assert.equal(await view.ui.getByRole("button", { name: "Prøv samme gjenoppretting igjen", exact: true }).count(), 0);
@@ -343,7 +371,7 @@ const cases = [
     let restoreRequests = 0;
     view.page.on("request", request => { if (new URL(request.url()).pathname === "/workspace/restore") restoreRequests += 1; });
     await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
-    await view.ui.locator('.workspace-revision[data-revision-id="1"] button').click();
+    await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Bruk som ny versjon", exact: true }).click();
     assert(await view.ui.locator('[data-action="workspace-restore"]').isDisabled()); assert.equal(restoreRequests, 0);
     assert.match(await view.ui.locator(".workspace-restore-warning").textContent(), /Utkastet ditt er beholdt/);
     await screenshot(view, "draft-blocks-restore");
@@ -351,7 +379,7 @@ const cases = [
     assert.equal(await view.ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Ulagret begrunnelse som må beholdes."); assert.equal(await view.ui.getByLabel("Ny tekst", { exact: true }).inputValue(), "Din neste avtale");
     await view.ui.getByRole("button", { name: "Forkast", exact: true }).click();
     await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
-    await view.ui.locator('.workspace-revision[data-revision-id="1"] button').click();
+    await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Bruk som ny versjon", exact: true }).click();
     await view.ui.locator('[data-action="workspace-restore"]').click();
     await view.frame.getByRole("heading", { name: "Timeavtale · opprinnelig", exact: true }).waitFor();
     const restored = await view.snapshot();
@@ -380,7 +408,7 @@ const cases = [
       if (attempts.length !== 1) { await route.continue(); return; }
       const response = await route.fetch(); assert.equal(response.status(), 200); await route.abort("failed");
     });
-    await view.ui.locator('.workspace-revision[data-revision-id="1"] button').click(); await view.ui.locator('[data-action="workspace-restore"]').click();
+    await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Bruk som ny versjon", exact: true }).click(); await view.ui.locator('[data-action="workspace-restore"]').click();
     await view.ui.locator(".workspace-error").waitFor();
     const committed = await view.snapshot(); assert.equal(committed.workspace.version, 23);
     assert.equal(await view.frame.getByRole("heading", { name: "Timeavtale · versjon 22", exact: true }).isVisible(), true, "The uncertain receipt must not silently replace the visible sketch.");

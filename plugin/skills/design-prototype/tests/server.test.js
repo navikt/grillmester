@@ -1832,6 +1832,60 @@ test("feedback results and conflict refreshes stay with their originating previe
   } finally { await stopServer(running); }
 });
 
+test("viewing a stored version pauses automatic refresh until the designer returns to the current version", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const html = await (await fetch(running.info.url)).text();
+    const script = html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)[1];
+    const vm = require("node:vm");
+    const callbacks = [], messages = [];
+    let poll = null;
+    const frameWindow = { postMessage: value => messages.push(value) };
+    const frame = { contentWindow: frameWindow, src: "unchanged" };
+    const status = { textContent: "", classList: { remove() {}, add() {} }, addEventListener() {}, focus() {} };
+    const older = "a".repeat(32), newest = "b".repeat(32);
+    const snapshot = { revision: 1, submission: 0, screens: [{ screen, filename: "test.html" }, { screen: older, filename: "old.html" }, { screen: newest, filename: "new.html" }], comments: [], listeningUntil: 0 };
+    let version = screen;
+    const response = value => ({ ok: true, status: 200, json: async () => value, text: async () => value });
+    vm.runInNewContext(script, {
+      document: { getElementById: id => id === "vc-preview" ? frame : status },
+      window: { location: { origin: new URL(running.info.url).origin }, addEventListener: (_, callback) => callbacks.push(callback) },
+      // The poll is driven by the test; the 400 ms refresh delay runs at once.
+      setInterval(callback) { poll = callback; }, setTimeout(callback, delay) { if (delay === 400) callback(); return 1; }, clearTimeout() {},
+      URL, TextEncoder, Date, AbortController,
+      fetch: url => Promise.resolve(response(String(url).includes("/version") ? version : snapshot)),
+    });
+    const base = { channel: "grillmester-visual-companion", version: 1 };
+    const send = data => callbacks.forEach(callback => callback({ data: { ...base, ...data }, source: frameWindow }));
+    const tick = () => new Promise(setImmediate);
+    const ready = async shown => { send({ action: "feedback-ready", screen: shown }); await tick(); send({ action: "feedback-busy", screen: shown, busy: false }); await tick(); };
+    await ready(screen);
+    for (const invalid of [{ revisionId: 0 }, { revisionId: "1" }, { revisionId: 1, extra: true }]) send({ action: "view-revision", ...invalid });
+    assert.equal(frame.src, "unchanged", "Malformed view requests are ignored.");
+    send({ action: "view-revision", revisionId: 1 });
+    assert.equal(new URL(frame.src, "http://local").searchParams.get("revision"), "1");
+    const viewing = frame.src;
+    send({ action: "view-revision", revisionId: 2 });
+    assert.equal(frame.src, viewing, "A document that is still loading cannot switch versions.");
+    await ready(older);
+    version = newest;
+    const before = messages.length;
+    await poll();
+    await tick();
+    assert.equal(frame.src, viewing, "A newer version does not replace the stored version on screen.");
+    assert.equal(messages.slice(before).some(message => message.command === "update-available"), false);
+    send({ action: "view-current" });
+    const back = new URL(frame.src, "http://local");
+    assert.equal(back.searchParams.get("revision"), null);
+    assert.equal(back.searchParams.get("v"), newest, "Returning shows the newest version.");
+    await ready(newest);
+    const after = frame.src;
+    send({ action: "view-current" });
+    assert.equal(frame.src, after, "Returning is a no-op once the current version is shown.");
+  } finally { await stopServer(running); }
+});
+
 test("feedback refuses a state-directory swap during temporary open before writing bytes", () => {
   const { FeedbackStore } = require("../scripts/feedback-store.js");
   const root = fs.realpathSync(makeProject());
