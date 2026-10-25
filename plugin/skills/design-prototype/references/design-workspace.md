@@ -190,7 +190,10 @@ room. Only the designer's explicit editor action releases a preserved field;
 the designer may also edit and save that field again.
 
 A source edit conflicting with an active **Behold dette** choice is rejected.
-The designer must update or release that choice explicitly. New source
+The designer must update or release that choice explicitly. Publication and
+restore are not blocked by **Behold dette**: a version that drops the part or
+changes its values is marked **Må følges opp** in the canvas. Carry the choice
+into the next version, or ask the designer whether to stop keeping it. New source
 publication does not erase unsaved drafts: the preview offers an explicit
 version switch, while stale saves retain the draft and require a fresh review.
 **Foreslå ny tekst** remains feedback with a reversible preview, separate from

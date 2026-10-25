@@ -347,7 +347,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "568a8f389ddd18442b2d1ecc69163a7021004abcfaeb698b562178048f5eaec1",
+      "sha256": "5d80d4d06e5cd013c413ca437980e4e0c4509d86bf40e3a512d6ed263d9c59e2",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -355,7 +355,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "64b589ed355a15d59a0132639b5b1c604b760fd431521e91e41bef2371dc46c3",
+      "sha256": "4d17cf5435e3822dfbb04493eb74df71122a67b452dc8b3ed9eac3993b3e11cf",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/canvas-state.js": {

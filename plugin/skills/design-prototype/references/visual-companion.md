@@ -528,8 +528,8 @@ vanlige visningen.
 
 ### Beholdte valg og ny runde
 
-Aktive beslutninger vises i **Beholdes videre**. De følger økten til de frigis
-og inngår i samlet innsending. Ved neste skisse sammenholdes de med deklarerte
+Aktive beslutninger vises i **Beholdes videre**. De følger økten til brukeren
+velger **Slutt å beholde**, og inngår i samlet innsending. Ved neste skisse sammenholdes de med deklarerte
 deler og startverdier. Manglende deler eller avvik merkes **Må følges opp**.
 Samme nøkkel med samme startverdier er bare en teknisk match; kontroller også
 at utseende, innhold og oppførsel fortsatt oppfyller intensjonen.
