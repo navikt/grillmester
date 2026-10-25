@@ -55,8 +55,8 @@ _Avoid_: plugininnhold, genererte instructions
 ### Design
 
 **Designrom**:
-Samlingen av skisser, innspill og valg som vises under «Arbeid». Et
-prosjektlagret rom kan åpnes igjen med samme lagrede innhold.
+Samlingen av skisser, innspill og valg i ett arbeid. Versjonene vises under
+«Versjoner», og et prosjektlagret rom kan åpnes igjen med samme lagrede innhold.
 _Avoid_: samtale, produktkode
 
 **Skisseversjon**:

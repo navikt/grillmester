@@ -139,6 +139,10 @@ Skaler fidelitet og kontroll etter det som endres:
   lange tekster og tetthet. Kontroller berørte normal-, feil-, tom- og
   bekreftelsestilstander og tastatur/fokus for endrede handlinger. Full
   kontroll av uendret flyt trengs ikke ved hver liten rettelse.
+- Gi tette tabeller og grafer en uttrykt smalskjermstrategi: stablede kort,
+  prioriterte kolonner eller et navngitt rulleområde (`role="region"`,
+  `aria-label`, `tabindex="0"`) med synlig rullehint. Kontroller ved 320 px og
+  200 % zoom at sidens bredde ikke flyter over, og at verdier fortsatt kan leses.
 - Knytt kritikk til konkret element og observert tilstand. Skill målt feil,
   designavveining og hypotese til brukertest. Inspiser utsnitt og tilgjengelig
   scrolling før innhold omtales som manglende. Et panel gir perspektiver,
