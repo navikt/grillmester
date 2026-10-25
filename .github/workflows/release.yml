@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   plan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -126,7 +126,8 @@ jobs:
   validate:
     needs: plan
     if: needs.plan.outputs.release == 'true'
-    runs-on: ubuntu-latest
+    # Match the PR gate's reviewed cplt runtime host.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
       catalog-base64: ${{ steps.publication.outputs.catalog_base64 }}
@@ -404,7 +405,7 @@ jobs:
     needs:
       - plan
       - validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -476,7 +477,7 @@ jobs:
       - validate
       - copilot-compatibility
       - macos-live-compatibility
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     environment: grillmester-release
     permissions:
@@ -776,7 +777,7 @@ jobs:
     needs:
       - plan
       - publish-catalog
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -833,7 +834,8 @@ jobs:
       - plan
       - publish-catalog
       - catalog-smoke
-    runs-on: ubuntu-latest
+    # Recheck the distributable on the same Linux runtime baseline.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
       bundle-artifact-digest: ${{ steps.bundle-upload.outputs.artifact-digest }}
@@ -1088,7 +1090,7 @@ jobs:
 
   verify-release-assets:
     needs: seal-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       actions: read # Authenticate and download this run's exact artifact by ID.
@@ -1946,7 +1948,7 @@ jobs:
       - catalog-smoke
       - seal-release
       - verify-release-assets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: grillmester-release
     permissions:
@@ -2331,7 +2333,7 @@ jobs:
     needs:
       - seal-release
       - release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read

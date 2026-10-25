@@ -29,6 +29,16 @@ runtimefiler.
 
 ## Verifikasjon
 
+Linux-jobbene i PR-validering og release bruker `ubuntu-24.04`, slik at
+testing, bygging og publisering deler samme OS-generasjon. Dette er et
+kontrollert testmiljø, ikke et krav til brukerens operativsystem. Verten
+oppdaterer fortsatt runner-imaget innenfor denne OS-generasjonen.
+Etter at `ubuntu-latest` skiftet til Ubuntu 26.04, observerte vi gjentatt
+agent-discovery-feil gjennom cplt med uendrede klientbinærer, mens direkte
+OpenCode-discovery bestod. Årsaken og støtte for denne kombinasjonen er fortsatt
+uavklart; ikke flytt runtimeportene før den nye verten er verifisert med de
+samme kontrollkravene.
+
 Releasekatalogen genereres fra pluginmanifestene. Det native OpenCode 1-
 targetet genereres fra samme reviewede plugininnhold og den eksplisitte
 policyen i `policy/opencode-v1.json`. De fokuserte lokalmodelltargetene avledes
