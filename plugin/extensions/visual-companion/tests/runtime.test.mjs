@@ -113,6 +113,31 @@ test('a runtime that another account can replace is never executed and is named'
   assert.equal(await readFile(entered, 'utf8'), 'x');
 }));
 
+test('a runtime under a folder that another account can rename is skipped unless the folder is sticky', () => fixture(async ({ root, projectDir }) => {
+  const entered = join(root, 'ancestor-runtime-entered');
+  const shared = join(root, 'shared'), bin = join(shared, 'bin');
+  await executable(join(bin, 'node'), recordingRuntime(entered));
+  await chmod(shared, 0o777);
+  const skipped = await realpath(join(bin, 'node'));
+  await assert.rejects(resolveNodeRuntime({ projectDir, isSea: true, path: bin }),
+    error => error.message.includes(`Skipped ${skipped} because another account can replace it.`));
+  await assert.rejects(readFile(entered), error => error.code === 'ENOENT');
+  // In a sticky folder such as /tmp, only the owner can rename an entry.
+  await chmod(shared, 0o1777);
+  assert.equal(await resolveNodeRuntime({ projectDir, isSea: true, path: bin }), await realpath(process.execPath));
+  assert.equal(await readFile(entered, 'utf8'), 'x');
+  await chmod(shared, 0o755);
+}));
+
+test('a PATH alias into a dependency folder is judged by its target', () => fixture(async ({ root, projectDir }) => {
+  const entered = join(root, 'alias-runtime-entered');
+  const dependency = join(root, 'monorepo', 'node_modules', '.bin'), alias = join(root, 'tool-alias');
+  await executable(join(dependency, 'node'), recordingRuntime(entered));
+  await symlink(dependency, alias);
+  await assert.rejects(resolveNodeRuntime({ projectDir, isSea: true, path: alias }), /Node\.js 18 or newer/);
+  await assert.rejects(readFile(entered), error => error.code === 'ENOENT');
+}));
+
 test('a probe cannot nominate a runtime that another account can replace', () => fixture(async ({ root, projectDir }) => {
   const shared = join(root, 'shared'), nominated = join(shared, 'node'), bin = join(root, 'bin');
   await executable(nominated, 'process.exit(1);');

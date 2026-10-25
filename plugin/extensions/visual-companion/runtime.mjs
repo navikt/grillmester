@@ -16,16 +16,25 @@ const outside = (project, filename) => {
 const dependencyFolder = directory => directory.split(process.platform === 'win32' ? /[\\/]/ : '/')
   .some(part => part.toLowerCase() === 'node_modules');
 
-// Another account must not be able to replace the runtime: the file and its
-// folder belong to this user or root and are not world writable. Group write
-// stays allowed for private user groups and admin-group package prefixes.
-// Windows has no POSIX owners and synthesizes modes, so it only needs a file.
+// Another account must not be able to replace the runtime: the file and every
+// folder above it belong to this user or root and are not world writable,
+// unless a folder is sticky like /tmp. Group write stays allowed for private
+// user groups and admin-group package prefixes. The path is already resolved,
+// so each parent is a real folder. Windows has no POSIX owners and synthesizes
+// modes, so it only needs a file.
 async function runtimeFile(executable) {
   if (process.platform === 'win32') return (await stat(executable)).isFile() ? 'ok' : 'missing';
   const uid = process.getuid();
-  const file = await lstat(executable), folder = await lstat(dirname(executable));
-  if (!file.isFile() || !folder.isDirectory()) return 'missing';
-  return [file, folder].every(entry => (entry.uid === uid || entry.uid === 0) && (entry.mode & 0o002) === 0) ? 'ok' : 'replaceable';
+  const owned = entry => entry.uid === uid || entry.uid === 0;
+  const file = await lstat(executable);
+  if (!file.isFile()) return 'missing';
+  if (!owned(file) || (file.mode & 0o002) !== 0) return 'replaceable';
+  for (let folder = dirname(executable); ; folder = dirname(folder)) {
+    const entry = await lstat(folder);
+    if (!entry.isDirectory()) return 'missing';
+    if (!owned(entry) || ((entry.mode & 0o002) !== 0 && (entry.mode & 0o1000) === 0)) return 'replaceable';
+    if (dirname(folder) === folder) return 'ok';
+  }
 }
 
 export function previewEnvironment(executable) {
@@ -74,6 +83,10 @@ export async function resolveNodeRuntime({ projectDir, path = process.env.PATH |
   const embedded = isSea === undefined ? await bundledRuntime() : isSea;
   const candidates = [];
   if (!embedded && !versions.bun && !versions.electron && versions.node) candidates.push(execPath);
+  // The ordinary Node actually running this code is trusted as it is: a binary
+  // that another account could replace would compromise this process first.
+  const host = await bundledRuntime() || process.versions.bun || process.versions.electron
+    ? null : await realpath(process.execPath).catch(() => null);
   for (const directory of path.split(delimiter)) {
     if (isAbsolute(directory) && outside(project, directory) && !dependencyFolder(directory)) {
       candidates.push(join(directory, process.platform === 'win32' ? 'node.exe' : 'node'));
@@ -85,17 +98,22 @@ export async function resolveNodeRuntime({ projectDir, path = process.env.PATH |
     if (!isAbsolute(candidate) || Date.now() >= deadline || seen.size >= 32) continue;
     let executable;
     try {
+      // An alias such as a symlink to node_modules/.bin is judged by its target.
+      if (candidate !== execPath) {
+        const folder = await realpath(dirname(candidate));
+        if (dependencyFolder(folder) || !outside(project, folder)) continue;
+      }
       executable = await realpath(candidate);
       if (seen.has(executable) || !outside(project, executable)) continue;
       seen.add(executable);
-      const file = await runtimeFile(executable);
+      const file = executable === host ? 'ok' : await runtimeFile(executable);
       if (file !== 'ok') { if (file === 'replaceable') skipped ??= executable; continue; }
       await access(executable, constants.X_OK);
       const reported = await inspect(executable, Math.max(1, Math.min(1000, deadline - Date.now())));
       if (!reported) continue;
       const resolved = await realpath(reported);
       if (!outside(project, resolved)) continue;
-      const nominated = await runtimeFile(resolved);
+      const nominated = resolved === host ? 'ok' : await runtimeFile(resolved);
       if (nominated !== 'ok') { if (nominated === 'replaceable') skipped ??= resolved; continue; }
       await access(resolved, constants.X_OK);
       return resolved;
