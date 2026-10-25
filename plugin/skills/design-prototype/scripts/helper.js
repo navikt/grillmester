@@ -1168,7 +1168,8 @@
           : pending.action === "workspace-history" ? "Historikken kunne ikke hentes. Prøv igjen."
           : pending.action === "workspace-restore" ? "Gjenopprettingen ble ikke bekreftet. Prøv samme handling igjen før du velger en annen versjon."
           : data.conflict === true ? "Listen er endret. Se gjennom innspillene og send på nytt."
-          : data.errorCode === "capacity" ? "Økten har nådd en lagringsgrense. Innspill og utkast er beholdt. Kopier teksten du vil ta vare på før du starter en ny økt."
+          : data.errorCode === "capacity" ? workspaceStored() ? "Arbeidet har nådd en lagringsgrense. Innspill og utkast er beholdt. En ny økt åpner det samme arbeidet, så be i samtalen om å opprette et nytt arbeid."
+            : "Økten har nådd en lagringsgrense. Innspill og utkast er beholdt. Kopier teksten du vil ta vare på før du starter en ny økt."
             : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen.");
         failure.conflict = data.conflict === true;
         failure.capacity = data.errorCode === "capacity";

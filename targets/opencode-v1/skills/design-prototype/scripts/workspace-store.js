@@ -11,10 +11,13 @@ const MAX_WORKSPACE_BYTES = 64 * 1024 * 1024;
 const MAX_REVISIONS = 100;
 const HASH = /^[a-f0-9]{64}$/;
 const FILENAME = /^[a-z0-9][a-z0-9-]{0,95}\.html$/;
+const DESCRIPTOR = /^[a-z0-9][a-z0-9-]{0,95}\.design\.json$/;
 const CLAIM = /^([1-9][0-9]*)-([a-f0-9]{32})\.json$/;
 const MAX_CLAIMS = 128;
 
-function fail(status, message) { throw Object.assign(new Error(message), { status }); }
+// Messages are fixed English text plus at most a validated revision filename,
+// never a path or user content, so a client error can be shown as it is.
+function fail(status, message) { throw Object.assign(new Error(message), { status, expose: status < 500 }); }
 function sameFile(a, b) { return a.dev === b.dev && a.ino === b.ino; }
 function digest(bytes) { return crypto.createHash("sha256").update(bytes).digest("hex"); }
 function owned(stat) { return typeof process.getuid !== "function" || stat.uid === process.getuid(); }
@@ -206,7 +209,8 @@ class WorkspaceStore {
       const inventory = fs.readdirSync(this.directory);
       if (create) {
         if (inventory.includes("revisions")) directory(this.revisionsDir);
-        if (inventory.some(name => name !== "revisions") || inventory.includes("revisions") && fs.readdirSync(this.revisionsDir).length) fail(409, "Create requires an empty design workspace directory.");
+        const visible = names => names.filter(name => !name.startsWith("."));
+        if (visible(inventory).some(name => name !== "revisions") || inventory.includes("revisions") && visible(fs.readdirSync(this.revisionsDir)).length) fail(409, "Create requires an empty design workspace directory.");
       } else if (!inventory.includes("workspace.json")) fail(404, "Design workspace was not found. Choose Create to start a new room.");
       try { directory(this.revisionsDir); }
       catch (error) {
@@ -260,11 +264,13 @@ class WorkspaceStore {
   inventory() {
     this.assertDirectories();
     let bytes = 0, count = 0;
-    const names = fs.readdirSync(this.revisionsDir);
+    // Only names that can be registered are revision files. Finder, editor and
+    // backup files (.DS_Store, ._x, .x.swp, x~) can never be referenced, so they
+    // neither block the room nor count towards its limits.
+    const names = fs.readdirSync(this.revisionsDir).filter(name => FILENAME.test(name) || DESCRIPTOR.test(name));
     if (names.length > MAX_REVISIONS * 2) fail(429, "Design workspace revision limit reached.");
     for (const name of names) {
       const isHtml = FILENAME.test(name);
-      if (!isHtml && !/^[a-z0-9][a-z0-9-]{0,95}\.design\.json$/.test(name)) fail(409, "Unexpected file in design workspace revisions.");
       const fd = fs.openSync(path.join(this.revisionsDir, name), fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
       try {
         const stat = regular(fd);
@@ -346,13 +352,18 @@ class WorkspaceStore {
     if (!meta || !FILENAME.test(meta.filename) || !HASH.test(meta.hash) || !(meta.designHash === null || HASH.test(meta.designHash))
         || !Number.isSafeInteger(meta.bytes) || meta.bytes < 1 || meta.bytes > MAX_HTML_BYTES) fail(400, "Invalid revision reference.");
     const html = readFile(path.join(this.revisionsDir, meta.filename), MAX_HTML_BYTES).bytes;
-    if (html.length !== meta.bytes || digest(html) !== meta.hash) fail(409, "Design revision content no longer matches its saved hash.");
+    if (html.length !== meta.bytes || digest(html) !== meta.hash) fail(409, `Design revision ${meta.filename} no longer matches its saved hash.`);
     let design = null;
     if (meta.designHash !== null) {
-      const bytes = readFile(path.join(this.revisionsDir, meta.filename.slice(0, -5) + ".design.json"), MAX_DESIGN_BYTES).bytes;
-      if (digest(bytes) !== meta.designHash) fail(409, "Design descriptor no longer matches its saved hash.");
-      try { design = JSON.parse(bytes.toString("utf8")); } catch { fail(409, "Design descriptor is not valid JSON."); }
-      if (!validDesign(design)) fail(409, "Design descriptor is invalid.");
+      const descriptor = meta.filename.slice(0, -5) + ".design.json";
+      const bytes = readFile(path.join(this.revisionsDir, descriptor), MAX_DESIGN_BYTES).bytes;
+      try { design = JSON.parse(bytes.toString("utf8")); } catch { fail(409, `Design descriptor ${descriptor} is not valid JSON.`); }
+      // A repository formatter may re-indent JSON. The stored form is
+      // JSON.stringify(value) + "\n", so the same value still has the same hash.
+      if (digest(bytes) !== meta.designHash && digest(Buffer.from(`${JSON.stringify(design)}\n`)) !== meta.designHash) {
+        fail(409, `Design descriptor ${descriptor} no longer matches its saved hash.`);
+      }
+      if (!validDesign(design)) fail(409, `Design descriptor ${descriptor} is invalid.`);
     }
     return { html: html.toString("utf8"), design };
   }

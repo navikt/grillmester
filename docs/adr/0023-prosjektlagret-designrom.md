@@ -22,9 +22,13 @@ fra den aktive prosessen og samtalen.
 
 Et designrom opprettes eller åpnes uttrykkelig under den tilknyttede
 samtalens faktiske prosjektmappe, normalt `designs/<navn>/`. Opprettelse krever
-en tom målmappe. Åpning av et eksisterende rom validerer hele tilstanden og
-alle refererte skissefiler; ugyldige eller ukjente data overskrives ikke med
-en ny, tom økt. Det finnes ingen import av gamle midlertidige previewøkter.
+en tom målmappe; skjulte filer som operativsystemet legger igjen, for eksempel
+`.DS_Store`, teller ikke. Åpning av et eksisterende rom validerer hele
+tilstanden og det gjeldende skisseparet. Eldre par kontrolleres mot sine
+hasher først når de leses eller gjenopprettes, slik at én skadet gammel fil
+bare gjør sin egen versjon utilgjengelig. Ugyldige eller ukjente data
+overskrives ikke med en ny, tom økt, og skadede filer repareres eller
+omskrives ikke. Det finnes ingen import av gamle midlertidige previewøkter.
 
 Rommet består av vanlige prosjektfiler:
 
@@ -33,7 +37,9 @@ Rommet består av vanlige prosjektfiler:
   beslutninger, uforanderlige innsendte runder og deres svar/status.
 - `revisions/<filnavn>.html` og en eventuell tilhørende `.design.json` er
   uforanderlige skisseversjoner. Registeret inneholder filhasher, størrelse,
-  skjermidentitet og et eksplisitt, sekvensielt revisjonsnummer.
+  skjermidentitet og et eksplisitt, sekvensielt revisjonsnummer. Navn som
+  aldri kan registreres, for eksempel `.DS_Store`, `._<navn>` og editorens
+  bytte- og sikkerhetskopier, ignoreres og teller ikke mot grensene.
 - Runtime-token, URL, port, prosess-ID, aktiv samtalebinding og skriverlås
   inngår ikke i prosjektfilene. De forblir midlertidige runtimeopplysninger.
 
@@ -48,6 +54,12 @@ En ny revisjon skrives først som nye, eksklusive filer. HTML og deklarerte
 kontroller valideres, og hasher beregnes fra de eksakte lagrede bytene. Først
 deretter publiseres revisjonen ved én atomisk utskifting av `workspace.json`.
 Den gjeldende skissen følger registeret, aldri nyeste filnavn eller mtime.
+
+HTML-filen må fortsatt ha nøyaktig de registrerte bytene. Deklarasjonen
+lagres som `JSON.stringify(verdi)` pluss ett linjeskift, og `designHash` gjelder
+denne kanoniske formen. En fil som er omformatert, men har samme verdi, godtas
+derfor; endret innhold avvises. `workspace.json` leses som JSON og skrives
+kompakt igjen ved neste lagring.
 
 Et krasj før tilstandslagringen kan etterlate en ureferert revisjonsfil. Den
 blir ikke automatisk gjeldende, gjenbrukt eller slettet. En avvist publisering
@@ -78,6 +90,12 @@ identitet. Låsen ligger privat i en fast, felles OS-mappe og er uavhengig av
 `TMPDIR`, `HOME` og skrivemåten til prosjektstien. Den første implementasjonen
 støtter Unix-verter. En annen plattform skal avvises tydelig til tilsvarende
 låse- og filgarantier er implementert og prøvd.
+
+En avvist åpning sier hva som er galt, uten å endre filer: rommet er åpent i
+en annen økt, en navngitt lagret fil stemmer ikke med registeret, mappen for
+et nytt rom er ikke tom, eller verten støttes ikke. En filfeil skal ikke
+beskrives som en annen økt. Etter oppstart videreformidles lagringsfeil med
+klientstatus til agenten i stedet for en generisk melding.
 
 Hver prosess bruker et unikt claimnavn og en tofaset billettrekkefølge.
 Aktive og ukjente eiere avvises; alder alene kan aldri overføre låsen.
@@ -141,12 +159,23 @@ høyst 32 KiB. Rommet har høyst 100 skisseversjoner og 64 MiB samlet innhold.
 De eksisterende grensene på 200 kommentarer, beslutninger og innsendte runder
 videreføres. Ingen historikk kastes automatisk for å gi plass. Gjenåpning må
 også fungere ved en full, ellers gyldig tilstand; gjenopprettingsmetadata må
-ikke kreve ledig innholdsplass som ikke var reservert ved lagring.
+ikke kreve ledig innholdsplass som ikke var reservert ved lagring. Fordi en ny
+økt åpner det samme fulle rommet, peker grensemeldingene i et lagret rom på et
+nytt rom (og for kommentarer på sletting av eldre), ikke på en ny økt.
 
 Nye filer opprettes med private rettigheter, men vanlige klonede prosjektfiler
 med leseadgang for andre kan åpnes. Eksisterende rettigheter endres ikke.
 Rommet kan følge prosjektets vanlige versjonskontroll, men opprettelse av
 rommet gjør ingen branch, commit, push eller publisering.
+
+Versjonskontroll forutsetter at rommappen holdes utenfor prosjektets
+formatering og linjeskiftkonvertering. Det betyr unntak i formaterer og
+pre-commit-hooks (for eksempel Biome, Prettier og end-of-file-fiksere) og
+`-text` i `.gitattributes`, for eksempel `designs/** -text`. Romfilene leses
+skrivebeskyttet og lagres aldri fra en editor. Disse unntakene er endringer i
+forbrukerrepoet og gjøres bare når brukeren ber om det. En omformatert
+deklarasjon og fremmede filer i `revisions/` tåles, men en endret HTML-fil
+kan bare hentes tilbake fra versjonskontroll.
 
 Design-skillens tidligere absolutte regel om at all previewlagring skjer
 utenfor repoet avgrenses: bestilt prosjektlagring gir mandat til det valgte
@@ -168,7 +197,10 @@ etter endring av prosjektets eksterne stilavhengigheter. Stil- og
 designsystemversjonering er en egen avgrensning dersom det blir nødvendig.
 
 Filtester skal bevise gjenåpning, uforanderlighet, korrupsjonsavvisning,
-grenser, tapt kvittering og feil på begge sider av commitgrensen. Faktiske
+grenser, tapt kvittering og feil på begge sider av commitgrensen. De skal også
+bevise at omformatert JSON og OS- og editorfiler ikke låser rommet, og at en
+skadet eldre versjon avvises ved lesing og gjenoppretting uten å stenge
+rommet eller endre filer. Faktiske
 parallelle prosesser, ulike miljøvariabler, casealiaser og drept skriver skal
 prøve låsen. Samlede backend-/nettleserprøver skal bevise historikk,
 utkastvern, gjenoppretting som ny revisjon og fravær av automatisk resend.

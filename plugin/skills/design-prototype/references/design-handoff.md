@@ -9,9 +9,11 @@ files or authorize a new issue, Git action or product-code change.
 
 ## Read the chosen source without opening canvas
 
-Read the files as ordinary text/JSON in an editor. This needs no canvas session
-or writer claim. Keep the files unchanged during inspection; opening the room
-through the canvas or constructing `WorkspaceStore` acquires its writer claim.
+Read the files read-only as ordinary text/JSON, for example with a viewer or
+`cat`. This needs no canvas session or writer claim. Never save them from an
+editor: format-on-save, an added final newline or whitespace cleanup changes the
+saved bytes and makes that version unusable. Opening the room through the
+canvas or constructing `WorkspaceStore` acquires its writer claim.
 
 1. Locate the room in the intended repository/worktree. If the files are already
    shared through version control, include the existing repository reference in
@@ -28,10 +30,14 @@ through the canvas or constructing `WorkspaceStore` acquires its writer claim.
    has no descriptor. Do not select files by modification time or infer a version
    from its filename: an unregistered file can remain after an interrupted save.
 4. The entry's `hash`, `designHash` and `bytes` identify the saved file contents.
-   Hashes are SHA-256 of the exact file bytes, including the descriptor's trailing
-   newline; `bytes` is the HTML byte count. If a referenced file is missing or
-   fails this check, report the mismatch and retain the chosen reference rather
-   than substituting a different version.
+   `hash` is the SHA-256 of the exact HTML bytes and `bytes` is their count.
+   `designHash` is the SHA-256 of the descriptor as the room writes it:
+   `JSON.stringify(value)` followed by one newline. A repository formatter may
+   have re-indented the file; it still matches when its parsed value in that
+   canonical form has the recorded hash. If a referenced file is missing or fails
+   this check, report the mismatch and retain the chosen reference rather than
+   substituting a different version. The canvas also rejects that version when
+   it is read or restored, while the room's other versions remain usable.
 
 For a version 2 descriptor, `texts[].value` is the canonical text for the matching
 `data-vc-text` binding. A target's `controls[].initial` supplies its declared

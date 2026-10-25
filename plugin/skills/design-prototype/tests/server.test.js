@@ -410,6 +410,52 @@ test("fragment focus rejects ambiguous, hidden, out-of-sketch, disabled, and bus
   assert.equal(focused, 1); assert.equal(scrolled, 1);
 });
 
+test("raw-text elements inside SVG and MathML are sanitized as markup", async () => {
+  const projectDir = makeProject();
+  const running = await startServer(projectDir);
+  try {
+    fs.writeFileSync(
+      path.join(running.info.screen_dir, "foreign.html"),
+      '<svg><style><p></p><textarea id="swallow"></style></svg>' +
+        '<svg><title>Graf<meta http-equiv="refresh" content="0;url=https://example.invalid/"><iframe src="https://example.invalid/"></iframe></title></svg>' +
+        '<math><mi><style><img src="https://example.invalid/x.png"></style></mi></math>' +
+        '<svg role="img"><title id="kept-title">Søknader per måned</title></svg>',
+    );
+    const preview = await (await fetch(endpoint(running.info.url, "/preview"))).text();
+    assert.equal(preview.includes('id="swallow"'), false);
+    assert.equal(/<meta http-equiv/i.test(preview), false);
+    assert.equal(preview.includes("<iframe"), false);
+    assert.equal(preview.includes("https://example.invalid"), false);
+    assert.match(preview, /<title id="kept-title">Søknader per måned<\/title>/);
+  } finally {
+    await stopServer(running);
+  }
+});
+
+test("foreign content stays sanitized after nested, misleading or ignored SVG end markup", async () => {
+  const projectDir = makeProject();
+  const running = await startServer(projectDir);
+  try {
+    // Each case leaves Chrome inside SVG, where a raw-text-looking element is
+    // markup and a breakout textarea/xmp would swallow the trusted helper.
+    fs.writeFileSync(
+      path.join(running.info.screen_dir, "foreign-tricks.html"),
+      '<svg><style><g><textarea><p></p><xmp id="nested"></textarea></g></style></svg>' +
+        '<svg></math><style><p></p><textarea id="math-end"></style></svg>' +
+        '<svg x=/><style><p></p><textarea id="unquoted-slash"></style></svg>' +
+        '<svg><foreignObject><div></svg></div></foreignObject><style><p></p><textarea id="ignored-end"></style></svg>' +
+        '<svg viewBox="0 0 1 1"><path d="M0 0h1v1z"/></svg><style>.chart > rect { fill: currentColor; }</style>' +
+        '<textarea id="kept-text">a > b</textarea>',
+    );
+    const preview = await (await fetch(endpoint(running.info.url, "/preview"))).text();
+    for (const id of ["nested", "math-end", "unquoted-slash", "ignored-end"]) assert.equal(preview.includes(`id="${id}"`), false, id);
+    assert.match(preview, /<style nonce="[^"]+">\.chart > rect \{ fill: currentColor; \}<\/style>/);
+    assert.match(preview, /<textarea id="kept-text">a > b<\/textarea>/);
+  } finally {
+    await stopServer(running);
+  }
+});
+
 test("parser-state markup cannot swallow the trusted preview helper", async () => {
   const projectDir = makeProject();
   const running = await startServer(projectDir);
@@ -1482,7 +1528,8 @@ test("the fixed shell validates feedback messages and defers refresh while a not
     const resultEnd = helper.indexOf('    if (data.command !== "selection-status"', resultStart);
     assert(resultStart >= 0 && resultEnd > resultStart);
     const pending = new Map();
-    const receive = vm.runInNewContext(`(data) => { ${helper.slice(resultStart, resultEnd)} }`, { requests: pending, window: { clearTimeout() {} }, applySnapshot() {}, updateBusy() {} });
+    let stored = false;
+    const receive = vm.runInNewContext(`(data) => { ${helper.slice(resultStart, resultEnd)} }`, { requests: pending, window: { clearTimeout() {} }, applySnapshot() {}, updateBusy() {}, workspaceStored: () => stored });
     for (const errorCode of ["capacity", "unknown", undefined]) {
       let failure;
       pending.set(1, { action: "comment-create", timer: 1, reject: (error) => { failure = error; } });
@@ -1492,6 +1539,14 @@ test("the fixed shell validates feedback messages and defers refresh while a not
       if (errorCode === "capacity") { assert.match(failure.message, /lagringsgrense/); assert.doesNotMatch(failure.message, /prøv samme innspill igjen/i); }
       else assert.match(failure.message, /prøv samme innspill igjen/i);
     }
+    // A saved room reopens with the same full journal, so a new session is no way out.
+    stored = true;
+    let roomFailure;
+    pending.set(1, { action: "comment-create", timer: 1, reject: (error) => { roomFailure = error; } });
+    receive({ command: "comments-result", requestId: 1, ok: false, errorCode: "capacity" });
+    assert.match(roomFailure.message, /lagringsgrense/);
+    assert.match(roomFailure.message, /opprette et nytt arbeid/);
+    assert.doesNotMatch(roomFailure.message, /før du starter en ny økt/);
   } finally { await stopServer(running); }
 });
 
@@ -1944,6 +1999,32 @@ test("decision history has its own fixed count limit", () => {
   }
   assert.equal(store.snapshot().decisions.length, 200);
   assert.throws(() => store.keep(keepFor(screen)), /Decision limit reached/);
+});
+
+test("a saved workspace at its journal limits points to a new workspace, not a new session", () => {
+  const { FeedbackStore, MAX_COMMENTS } = require("../scripts/feedback-store.js");
+  const root = fs.realpathSync(makeProject());
+  fs.chmodSync(root, 0o700);
+  const store = new FeedbackStore(root, { canvas: true, persistence: { load: () => null, persist() {} },
+    initialWorkspace: { id: "d".repeat(24), title: "Lagret rom", version: 0, revisions: [] } });
+  const screen = "c".repeat(32);
+  store.knowScreen(screen, "test.html", sampleDesign());
+  const savedLimit = (pattern) => (error) => error.status === 429 && pattern.test(error.message) &&
+    /saved workspace/.test(error.message) && /new workspace/.test(error.message) && /keeps the same limit/.test(error.message) &&
+    !/start a new (?:preview )?session/.test(error.message);
+  for (let index = 0; index < 200; index += 1) {
+    const snapshot = store.keep(keepFor(screen));
+    store.release(snapshot.decisions.at(-1).id, {});
+    store.submit({});
+    // Only an acknowledged delivery admits the next canvas round.
+    store.change((state) => { state.canvas.rounds.at(-1).delivery = "queued"; });
+  }
+  assert.throws(() => store.keep(keepFor(screen)), savedLimit(/Decision limit reached/));
+  const id = store.create(commentFor(screen)).comments[0].id;
+  assert.throws(() => store.submit({}), savedLimit(/Submission limit reached/));
+  store.delete(id, {});
+  for (let index = 0; index < MAX_COMMENTS; index += 1) store.create(commentFor(screen));
+  assert.throws(() => store.create(commentFor(screen)), savedLimit(/Comment limit reached/));
 });
 
 test("decision revision guards preserve another tab's pending choice on the same or a newer screen", () => {

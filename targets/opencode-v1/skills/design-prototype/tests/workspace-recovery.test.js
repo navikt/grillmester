@@ -126,21 +126,21 @@ for (const phase of ["partial-html", "partial-design", "partial-state", "before-
 }
 
 for (const failure of ["missing older source", "changed older descriptor"]) {
-  test(`recovery rejects ${failure} despite a valid latest revision and permits deliberate repair`, t => {
+  test(`a ${failure} stays unavailable without locking the valid latest revision`, t => {
     const seeded = fixture(t), directory = path.join(seeded.projectDir, "designs/example");
     const name = failure === "missing older source" ? "initial.html" : "initial.design.json";
     const filename = path.join(directory, "revisions", name);
-    const original = fs.readFileSync(filename);
     if (failure === "missing older source") fs.unlinkSync(filename);
     else fs.writeFileSync(filename, JSON.stringify({ ...declaration, texts: [{ ...declaration.texts[0], value: "Endret utenfor rommet" }] }));
     const damaged = readOrNull(filename);
-    assert.throws(() => open(seeded.projectDir), error => error.status === 409 || error.code === "ENOENT");
-    assert.deepEqual(fs.readFileSync(path.join(directory, "workspace.json")), seeded.bytes);
-    assert.deepEqual(readOrNull(filename), damaged);
-    fs.writeFileSync(filename, original);
-    const restored = open(seeded.projectDir);
-    t.after(() => restored.store.close());
-    assert.equal(restored.workspace.summary().version, seeded.state.workspace.version);
-    assert.deepEqual(restored.feedback.state, seeded.state);
+    const room = open(seeded.projectDir);
+    t.after(() => room.store.close());
+    assert.equal(room.workspace.summary().version, seeded.state.workspace.version);
+    assert.deepEqual(room.feedback.state.submissions, seeded.state.submissions);
+    const rejected = error => error.status === 409 || error.code === "ENOENT";
+    assert.throws(() => room.workspace.read({ revisionId: 1, part: "html" }), rejected);
+    assert.throws(() => room.workspace.restore({ revisionId: 1, expectedRevision: room.feedback.state.revision }), rejected);
+    assert.equal(room.workspace.summary().version, seeded.state.workspace.version, "A rejected restore creates no version.");
+    assert.deepEqual(readOrNull(filename), damaged, "Damaged files are never repaired or rewritten.");
   });
 }

@@ -12,6 +12,8 @@ const MAX_SCREENS = 100;
 const MAX_STORE_BYTES = 2 * 1024 * 1024;
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_MUTATION_RECEIPTS = 2048;
+// A saved project workspace keeps its journal when it is reopened.
+const SAVED_LIMIT = "Reopening it in a new session keeps the same limit.";
 const SCREEN = /^[a-f0-9]{32}$/;
 const ID = /^[a-f0-9]{24}$/;
 const ROLES = new Set(["", "button", "link", "textbox", "heading", "img", "navigation", "main", "region", "group", "list", "listitem", "checkbox", "radio", "combobox", "tab", "tabpanel", "table", "row", "cell", "alert", "status", "presentation", "none"]);
@@ -345,7 +347,9 @@ class FeedbackStore {
     if (Object.hasOwn(value, "context")) this.requireTarget(value.screen, value.context);
     if (value.kind === "adjustment") this.requireTarget(value.screen, value.adjustment);
     if (value.kind === "variant" && !this.requireDesign(value.screen).variants.some((variant) => variant.key === value.variant)) throw new FeedbackError(400, "Unknown variant preference.");
-    if (this.state.comments.length >= MAX_COMMENTS) throw new FeedbackError(429, "Comment limit reached. Delete older comments or start a new session.");
+    if (this.state.comments.length >= MAX_COMMENTS) throw new FeedbackError(429, this.state.workspace
+      ? `Comment limit reached in this saved workspace. Delete older comments or create a new workspace. ${SAVED_LIMIT}`
+      : "Comment limit reached. Delete older comments or start a new session.");
     return this.change((state) => {
       const now = new Date().toISOString();
       state.comments.push({ ...value, id: crypto.randomBytes(12).toString("hex"), status: "open", reply: "", createdAt: now, updatedAt: now, submission: 0, lastSubmission: 0 });
@@ -387,7 +391,9 @@ class FeedbackStore {
     const existing = this.state.decisions.find((item) => item.variant === value.variant && item.target === value.target &&
       (item.state === "active" || (item.state === "released" && item.submission === 0)));
     if (Object.hasOwn(value, "expectedRevision") && value.expectedRevision !== (existing?.revision || 0)) throw new FeedbackError(409, "This decision changed. Review its current settings before replacing it.");
-    if (!existing && this.state.decisions.length >= MAX_DECISIONS) throw new FeedbackError(429, "Decision limit reached. Start a new preview session.");
+    if (!existing && this.state.decisions.length >= MAX_DECISIONS) throw new FeedbackError(429, this.state.workspace
+      ? `Decision limit reached in this saved workspace. Create a new workspace to keep more choices. ${SAVED_LIMIT}`
+      : "Decision limit reached. Start a new preview session.");
     const { expectedRevision, ...decision } = value;
     return this.change((state) => {
       const now = new Date().toISOString();
@@ -415,7 +421,9 @@ class FeedbackStore {
     }
     const matches = (item) => (!Object.hasOwn(value, "screen") || item.screen === value.screen) && item.submission === 0;
     if (!this.state.comments.some(matches) && !this.state.decisions.some(matches)) throw new FeedbackError(409, "No unsent feedback to submit.");
-    if (this.state.submissions.length >= MAX_SUBMISSIONS) throw new FeedbackError(429, "Submission limit reached. Start a new preview session.");
+    if (this.state.submissions.length >= MAX_SUBMISSIONS) throw new FeedbackError(429, this.state.workspace
+      ? `Submission limit reached in this saved workspace. Create a new workspace to send more rounds. ${SAVED_LIMIT}`
+      : "Submission limit reached. Start a new preview session.");
     return this.change((state) => {
       state.submission += 1;
       const batch = { submission: state.submission, revision: state.revision + 1, submittedAt: new Date().toISOString(), comments: [], decisions: [] };
