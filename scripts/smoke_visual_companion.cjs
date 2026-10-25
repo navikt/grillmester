@@ -206,7 +206,7 @@ function run(args) {
   await ui.locator('[data-action="panel"]').click();
   await ui.getByRole('button',{name:'Slett',exact:true}).last().click();
   assert.equal((await list()).comments.length,4);
-  assert(await ui.evaluate(host=>{const active=host.shadowRoot.activeElement;return Boolean(active?.closest('.comment')||active?.matches('[data-filter]'));}),'Deleting a focused comment must preserve keyboard focus.');
+  assert(await ui.evaluate(host=>{const active=host.shadowRoot.activeElement;return Boolean(active?.closest('.comment')||active?.matches('[data-filter],[role="tab"]'));}),'Deleting a focused comment must preserve keyboard focus.');
   await screenshot(page,'/visual-companion-narrow.png');
   const panel=await ui.getByRole('region',{name:'Innspill til prototypen'}).boundingBox();
   assert(panel.x>=0&&panel.x+panel.width<=320);

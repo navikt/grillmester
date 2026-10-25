@@ -547,6 +547,8 @@ async function runDeclaredActions({ page, frame, ui, info, list, writeScreen }) 
   await ui.locator(`article[data-id="${edit.id}"]`).getByRole("button", { name: "Forhåndsvis tekst", exact: true }).click();
   assert(await ui.locator(".preview-bar").isVisible());
   await ui.locator('[data-action="panel"]').click();
+  // Waiting feedback opens «Klar til sending»; the earlier round is under «Sendt».
+  await ui.getByRole("tab", { name: /^Sendt/ }).click();
   await card.getByRole("button", { name: "Vis situasjon", exact: true }).click();
   assert.equal(await state(), "review");
   assert(!(await ui.locator(".preview-bar").isVisible()), "Showing another situation must first restore the previous text preview.");

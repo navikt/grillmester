@@ -200,10 +200,16 @@ i sammenheng. **Fortsett å redigere** åpner samme utkast og fokuserer tekstfel
 Dette lagrer eller sender ingenting. Et lagret tekstforslag og et parkert utkast
 på samme element beholder hver sin forhåndsvisning.
 
-**Lagre innspill** bevarer innspillet i den private økten. **Send innspill** gjør
-alle usendte innspill i økten klare til behandling, også fra tidligere versjoner.
-Et nylig lagret eller gjenåpnet innspill og et lagret justeringsvalg vises under
-**Alle**, med fokus på kortet. Vanlig åpning av listen beholder valgt filter.
+**Lagre innspill** bevarer innspillet i den private økten. **Send innspill**
+gjør alle usendte innspill i økten klare til behandling, også fra tidligere
+versjoner. Innspillskurven har to faner. **Klar til sending** viser usendte
+innspill og usendte endringer av beholdte deler; **Sendt** viser sendte innspill
+med svar og status, stående beholdte deler og innsendte runder, med filtrene
+**Alle**, **Åpne** og **Ordnet**. Et nylig lagret eller gjenåpnet innspill vises
+under **Klar til sending**, med fokus på kortet, og etter sending åpnes
+**Sendt**. Når noe venter på sending, åpner kurven på **Klar til sending**;
+ellers beholder vanlig åpning valgt fane og filter. Nålene i skissen viser alle
+innspill på skjermen, og en nål åpner fanen som har innspillet.
 Mens designeren skriver eller har usendte
 innspill, skal en ny skisse ikke avbryte arbeidet. En tilgjengelig ny versjon
 kan åpnes når innspillene er sendt eller avbrutt. Lokale visningsvalg holder

@@ -520,7 +520,7 @@
           return `${control?.label || id}: ${control?.options.find((entry) => entry.value === value)?.label || value}`;
         })].join("\n");
       },
-      appendFeedback(container) { const decisions = snapshot.decisions || []; decisions.forEach((decision) => container.appendChild(decisionCard(decision))); return decisions.length; },
+      appendFeedback(container, include = () => true) { const decisions = (snapshot.decisions || []).filter(include); decisions.forEach((decision) => container.appendChild(decisionCard(decision))); return decisions.length; },
       onPrototypeClick(event) {
         if (pane.hidden || api.isComposing()) return false;
         const target = event.target.closest?.("[data-vc-key]");

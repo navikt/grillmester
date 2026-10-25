@@ -108,7 +108,7 @@
     .toolbar button{white-space:nowrap}.toolbar button[aria-pressed=true],.tools button[aria-pressed=true]{color:#7133a2;background:#f1e8f7}.count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:6px;background:#ece9f0;font-size:11px;margin-left:5px}.tools{display:flex;gap:2px}.tools button{font-size:12px;padding:8px}.toolbar .update{background:#eaf1ff;color:#254c95;font-size:12px}.draft-button{color:#7133a2}
     .hint{position:fixed;top:64px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:9px 14px;border:1px solid #e8d7f1;border-radius:10px;box-shadow:0 3px 15px #25163812;background:#fcf8ff;color:#68368a;font-size:12px;text-align:center}
     .panel{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:86px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #e1dce8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}
-    .panel-head{padding:18px 18px 12px;border-bottom:1px solid #ece8f0}.panel h2,.composer h2{margin:0;font-size:17px;font-weight:700;letter-spacing:-.3px}.close{min-width:34px;min-height:34px;padding:5px;font-size:22px;color:#74707d;font-weight:400}.panel-intro{margin:7px 0 13px;font-size:12px;color:#797381}.filters{display:flex;gap:4px}.filters button{padding:7px 12px;min-height:32px;font-size:12px}.filters button[aria-pressed=true]{background:#f0e8f7;color:#6e3197}.list{overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0;padding:14px}.empty{padding:28px 16px;text-align:center;color:#787180}.empty svg{width:32px;height:32px;color:#a784c0;margin-bottom:9px}.empty strong{display:block;font-size:14px;color:#393040;margin-bottom:6px}.empty p{margin:0;font-size:12px;line-height:1.6}
+    .panel-head{padding:18px 18px 12px;border-bottom:1px solid #ece8f0}.panel h2,.composer h2{margin:0;font-size:17px;font-weight:700;letter-spacing:-.3px}.close{min-width:34px;min-height:34px;padding:5px;font-size:22px;color:#74707d;font-weight:400}.panel-intro{margin:7px 0 13px;font-size:12px;color:#797381}.filters{display:flex;gap:4px}.list .filters{margin-bottom:12px}.basket-tabs{display:flex;gap:4px;margin-top:10px}.basket-tabs button{padding:7px 12px;min-height:34px;font-size:13px}.basket-tabs button[aria-selected=true]{background:#f0e8f7;color:#6e3197}.filters button{padding:7px 12px;min-height:32px;font-size:12px}.filters button[aria-pressed=true]{background:#f0e8f7;color:#6e3197}.list{overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0;padding:14px}.empty{padding:28px 16px;text-align:center;color:#787180}.empty svg{width:32px;height:32px;color:#a784c0;margin-bottom:9px}.empty strong{display:block;font-size:14px;color:#393040;margin-bottom:6px}.empty p{margin:0;font-size:12px;line-height:1.6}
     .comment{border:1px solid #e7e1ec;border-radius:12px;padding:13px;margin-bottom:10px;background:#fff;overflow-wrap:anywhere}.comment:focus{outline:2px solid #b264cc;outline-offset:2px}.comment:last-child{margin-bottom:0}.comment.fixed{background:#fbfdfb}.comment .row{flex-wrap:wrap}.comment .number{width:23px;height:23px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#aa267e;color:white;font-size:11px;font-weight:700;flex-shrink:0}.comment.fixed .number{background:#34845a}.badge{font-size:10px;font-weight:600;color:#78607f;background:#f3edf6;padding:3px 6px;border-radius:5px}.badge.old{background:#f0eff1;color:#6e6b73}.comment p{white-space:pre-wrap;margin:11px 0;font-size:13px;line-height:1.55}.comment .reply{border-left:2px solid #d1badf;padding-left:10px;font-size:12px;color:#65556f}.reply strong{display:block;font-size:10px;letter-spacing:.03em;text-transform:uppercase;margin-bottom:4px}.comment-actions{display:flex;flex-wrap:wrap;gap:2px;margin:8px -5px -5px}.comment-actions button{font-size:11px;padding:7px 6px;min-height:30px}.danger{color:#9c3c53}.proposal{white-space:pre-wrap;padding:9px;background:#f5f0fa;border-radius:7px;font-size:12px;margin-top:7px}.proposal-label{font-size:10px;display:block;color:#79598c;margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
     .panel-foot{padding:13px 16px;border-top:1px solid #ece8f0;background:#fcfbfd}.panel-foot .primary{width:100%;margin-top:10px}.connection{display:flex;align-items:center;gap:6px;font-size:11px;color:#787180}.connection::before{content:"";width:6px;height:6px;border-radius:50%;background:#aaa3af}.connection.live::before{background:#3b9166}.foot-status{font-size:11px;color:#685c74;margin:8px 0 0;line-height:1.4}.error{color:#ad2849;font-size:12px;line-height:1.5;margin:8px 0 0}.composer{pointer-events:auto;position:fixed;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - 105px);overflow-y:auto;overscroll-behavior:contain;padding:18px;background:#fff;border:1px solid #d8c2e5;border-radius:15px;box-shadow:0 12px 48px #32143f30}.composer .anchor-label{font-size:11px;color:#706578;margin-top:3px}.composer label{display:block;font-size:12px;font-weight:600;margin:15px 0 7px}.composer textarea{display:block;width:100%;min-height:88px;max-height:200px;resize:vertical;padding:10px;border:1px solid #8b7a9a;border-radius:8px;background:#fff;color:#282230;line-height:1.5;font-size:13px}.composer textarea::placeholder{color:#706578}.composer .compose-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:15px}.composer .proposal-toggle{font-size:12px;padding:7px 0;color:#7133a2;text-align:left;margin-top:8px}.composer .proposal-toggle:hover{background:transparent;text-decoration:underline}.composer .preview-button{font-size:11px;background:#f3edf7;margin-top:8px}.composer .help{font-size:10px;color:#706578;margin-top:9px}.composer .save{min-width:82px}.outline{position:fixed;pointer-events:none;border:2px solid #b52e8c;background:#b52e8c0d;border-radius:4px}.pins{position:fixed;inset:0;pointer-events:none}.pin{position:absolute;pointer-events:auto;min-height:26px;width:26px;height:26px;padding:0;border-radius:50%;background:#aa267e;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px #421b393d;font-size:11px;transform:translate(-50%,-50%)}.pin:hover,.pin:focus{background:#7c145d}.pin.fixed{background:#34845a}.pin.fixed:hover{background:#1e6740}.preview-bar{pointer-events:auto;position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#fff7e7;border:1px solid #e8d4a8;border-radius:11px;padding:8px 12px;box-shadow:0 4px 20px #39250018;font-size:12px;max-width:calc(100vw - 24px);display:flex;align-items:center;gap:12px}.preview-bar button{font-size:12px;background:#f4e4c3;white-space:nowrap}
     @media(max-width:600px){.toolbar{bottom:max(10px,env(safe-area-inset-bottom));gap:2px;padding:5px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:calc(100vw - 16px)}.toolbar button{font-size:12px;padding:8px}.toolbar .tools{border-left:1px solid #e7e3eb;padding-left:3px}.toolbar .divider{display:none}.panel{top:64px;right:10px;bottom:106px;width:calc(100vw - 20px)}.hint{font-size:11px}.composer{max-height:calc(100dvh - 120px)}.toolbar svg{width:15px;height:15px}}
@@ -132,8 +132,8 @@
     <section class="panel" aria-label="Innspill til prototypen" hidden>
       <div class="panel-head"><div class="row between"><h2>Innspill <span class="count total">0</span></h2><button type="button" class="close" data-action="close-panel" aria-label="Lukk innspill">×</button></div>
         <p class="panel-intro">Pek på det du vil forbedre. Send samlet når du er klar. Innspillene lagres bare i denne økten.</p>
-        <div class="filters" role="group" aria-label="Filtrer innspill"><button type="button" data-filter="all" aria-pressed="true">Alle</button><button type="button" data-filter="open" aria-pressed="false">Åpne</button><button type="button" data-filter="fixed" aria-pressed="false">Ordnet</button></div>
-      </div><div class="list"><section class="canvas-rounds" aria-label="Sendte runder" hidden><h3>Sendte runder</h3><div class="canvas-recent"></div><details class="canvas-history" hidden><summary></summary><div class="canvas-older"></div></details></section><div class="comment-list"></div></div>
+        <div class="basket-tabs" role="tablist" aria-label="Innspill"><button type="button" role="tab" id="basket-ready" data-tab="ready" aria-selected="true" aria-controls="basket-list">Klar til sending <span class="count ready-count">0</span></button><button type="button" role="tab" id="basket-sent" data-tab="sent" aria-selected="false" aria-controls="basket-list" tabindex="-1">Sendt <span class="count sent-count">0</span></button></div>
+      </div><div class="list" id="basket-list" role="tabpanel" aria-labelledby="basket-ready"><div class="filters" role="group" aria-label="Filtrer sendte innspill" hidden><button type="button" data-filter="all" aria-pressed="true">Alle</button><button type="button" data-filter="open" aria-pressed="false">Åpne</button><button type="button" data-filter="fixed" aria-pressed="false">Ordnet</button></div><section class="canvas-rounds" aria-label="Sendte runder" hidden><h3>Sendte runder</h3><div class="canvas-recent"></div><details class="canvas-history" hidden><summary></summary><div class="canvas-older"></div></details></section><div class="comment-list"></div></div>
       <div class="panel-foot"><div class="row between"><span class="pending muted">Ingen nye innspill</span><span class="connection">Lagres lokalt</span></div><button type="button" class="primary send" data-action="send" disabled>Send innspill</button><p class="foot-status" role="status"></p><p class="error panel-error" role="alert" hidden></p></div>
     </section>
     <section class="workspace-panel" aria-label="Versjoner og lagring" hidden><div class="workspace-head"><div class="row between"><h2>Versjoner</h2><button type="button" class="close" data-action="workspace-close" aria-label="Lukk versjoner">×</button></div></div><div class="workspace-body"><h3 class="workspace-title"></h3><p class="workspace-storage"></p><code class="workspace-path"></code><p class="workspace-unsaved" hidden>Lagre utkast før du lukker skissen eller samtalen.</p><details class="workspace-storage-details"><summary>Om lagring og gjenåpning</summary><p class="workspace-help"></p></details><p class="workspace-temporary-help" hidden></p><p class="workspace-recovered" hidden>Arbeidet er åpnet fra prosjektet. Tidligere runder sendes ikke på nytt.</p><p class="workspace-dirty" hidden></p><div class="workspace-confirm" tabindex="-1" hidden><h3 class="workspace-confirm-title"></h3><p>Dette lager en ny skisseversjon. Innspill, svar og innsendte runder beholdes.</p><p class="workspace-restore-warning"></p><div class="workspace-actions"><button type="button" class="primary" data-action="workspace-restore">Bruk som ny versjon</button><button type="button" class="primary" data-action="workspace-release-restore" hidden>Tillat endring og bruk versjonen</button><button type="button" data-action="workspace-cancel">Avbryt</button></div></div><p class="error workspace-error" role="alert" hidden></p><p class="workspace-status" role="status"></p><div class="workspace-history" hidden><div class="workspace-history-tools"><h3>Versjonshistorikk</h3><button type="button" data-action="workspace-reload">Oppdater</button></div><div class="workspace-history-list"></div><button type="button" data-action="workspace-more" hidden>Vis flere versjoner</button></div></div></section>
@@ -160,6 +160,8 @@
   let mode = "browse";
   let marker = "point";
   let filter = "all";
+  // «Klar til sending» holds what the next round sends; «Sendt» holds rounds and sent feedback.
+  let tab = "ready";
   let draft = null;
   let savingDraft = null;
   let workshop = null;
@@ -327,13 +329,28 @@
     if (!open && focus) el('[data-action="panel"]').focus();
     updateHint();
   }
-  function revealFeedback({ comment, commentId, decisionId } = {}) {
-    filter = "all";
+  // Unsent comments and kept-part changes wait in «Klar til sending»; sent
+  // feedback, standing kept parts and rounds are under «Sendt».
+  function tabHasItems(name) {
+    return name === "ready" ? pendingComments().length > 0
+      : [...snapshot.comments, ...(snapshot.decisions || [])].some((item) => item.submission > 0) || Boolean(canvasRounds()?.length);
+  }
+  function setTab(next, focus = false) {
+    tab = next;
+    all("[data-tab]").forEach((entry) => { const selected = entry.dataset.tab === tab; entry.setAttribute("aria-selected", String(selected)); entry.tabIndex = selected ? 0 : -1; });
+    el(".list").setAttribute("aria-labelledby", `basket-${tab}`);
+    el(".filters").hidden = tab !== "sent";
+    if (tab === "ready") filter = "all";
     all("[data-filter]").forEach((entry) => entry.setAttribute("aria-pressed", String(entry.dataset.filter === filter)));
     renderComments();
-    setPanel(true);
+    if (focus) el(`[data-tab="${tab}"]`).focus();
+  }
+  function revealFeedback({ comment, commentId, decisionId } = {}) {
     const id = commentId || (comment && snapshot.comments.slice().reverse().find((item) =>
       Object.entries(comment).every(([key, value]) => JSON.stringify(item[key]) === JSON.stringify(value)))?.id);
+    filter = "all";
+    setTab(snapshot.comments.find((item) => item.id === id)?.submission > 0 ? "sent" : "ready");
+    setPanel(true);
     const card = Array.from(el(".comment-list").children).find((entry) => decisionId ? entry.dataset.decision === decisionId : id && entry.dataset.id === id);
     if (card) { card.scrollIntoView({ block: "nearest" }); card.focus({ preventScroll: true }); }
     else el('[data-action="close-panel"]').focus();
@@ -636,12 +653,14 @@
     snapshot.comments.forEach((item, index) => {
       const previous = item.screen !== screen;
       if (filter !== "all" && item.status !== filter) return;
+      // Pins keep showing where all feedback on this screen points; cards follow the tab.
       if (!previous) {
         const pin = button(String(index + 1), "pin", item.id, `pin${item.status === "fixed" ? " fixed" : ""}`);
         pin.setAttribute("aria-label", `Innspill ${index + 1}, ${item.status === "fixed" ? "ordnet" : "åpent"}`);
         pin.hidden = true;
         pinLayer.appendChild(pin);
       }
+      if (tab === "ready" ? item.submission > 0 : item.submission === 0) return;
       shown += 1;
       const card = document.createElement("article");
       card.className = `comment${item.status === "fixed" ? " fixed" : ""}`;
@@ -701,22 +720,26 @@
       card.appendChild(actions);
       list.appendChild(card);
     });
-    if (filter === "all") shown += workshop?.appendFeedback(list) || 0;
-    if (!shown) {
+    if (tab === "ready") shown += workshop?.appendFeedback(list, (decision) => decision.submission === 0) || 0;
+    else if (filter === "all") shown += workshop?.appendFeedback(list, (decision) => decision.submission > 0) || 0;
+    if (!shown && !(tab === "sent" && filter === "all" && canvasRounds()?.length)) {
       const empty = document.createElement("div");
       empty.className = "empty";
       const title = document.createElement("strong");
-      title.textContent = filter === "all" ? "Hva kan bli bedre?" : "Ingen innspill her ennå";
+      title.textContent = tab === "ready" ? "Hva kan bli bedre?" : filter === "all" ? "Ingen sendte innspill ennå" : "Ingen innspill her ennå";
       const text = document.createElement("p");
-      text.textContent = filter === "all" ? "Velg Kommenter, og pek på et element eller marker et område. Innspillene samles her." : "Velg et annet filter for å se resten.";
+      text.textContent = tab === "ready" ? "Velg Kommenter, og pek på et element eller marker et område. Innspillene samles her til du sender dem."
+        : filter === "all" ? "Sendte innspill og svar vises her." : "Velg et annet filter for å se resten.";
       empty.append(title, text);
       list.appendChild(empty);
     }
     all(".total").forEach((target) => { target.textContent = String(snapshot.comments.length + (snapshot.decisions?.length || 0)); });
+    el(".ready-count").textContent = String(pendingComments().length);
+    el(".sent-count").textContent = String([...snapshot.comments, ...(snapshot.decisions || [])].filter((item) => item.submission > 0).length);
     if (restoreCommentFocus) {
       const previousButton = activeAction && Array.from(list.querySelectorAll("button")).find((target) => !target.disabled && target.dataset.action === activeAction && (activeDecision ? target.dataset.decision === activeDecision : target.dataset.id === activeId));
       const cards = Array.from(list.querySelectorAll(".comment,.workshop-decision"));
-      const target = previousButton || cards.find((card) => activeDecision ? card.dataset.decision === activeDecision : card.dataset.id === activeId) || cards[Math.min(focusIndex, cards.length - 1)] || el(`[data-filter="${filter}"]`);
+      const target = previousButton || cards.find((card) => activeDecision ? card.dataset.decision === activeDecision : card.dataset.id === activeId) || cards[Math.min(focusIndex, cards.length - 1)] || (tab === "sent" ? el(`[data-filter="${filter}"]`) : el(`[data-tab="${tab}"]`));
       target.focus({ preventScroll: true });
     }
     renderFooter();
@@ -880,7 +903,7 @@
   function renderCanvasRounds() {
     const rounds = canvasRounds();
     el(".composer .canvas-close-hint").hidden = rounds === null;
-    el(".canvas-rounds").hidden = !rounds?.length;
+    el(".canvas-rounds").hidden = !rounds?.length || tab !== "sent";
     const signature = JSON.stringify(rounds);
     if (signature === canvasSignature) return;
     canvasSignature = signature;
@@ -1014,13 +1037,21 @@
     if (!target || target.disabled || saving()) return;
     const action = target.dataset.action;
     const item = snapshot.comments.find((entry) => entry.id === target.dataset.id);
-    if (target.dataset.filter) {
+    if (target.dataset.tab) setTab(target.dataset.tab);
+    else if (target.dataset.filter) {
       filter = target.dataset.filter;
       all("[data-filter]").forEach((entry) => entry.setAttribute("aria-pressed", String(entry.dataset.filter === filter)));
       renderComments();
     } else if (action === "browse" || action === "comment") setMode(action);
     else if (action === "point" || action === "area") setMode("comment", action);
-    else if (action === "panel") setPanel(panel.hidden, true);
+    else if (action === "panel") {
+      // Waiting feedback opens «Klar til sending»; otherwise the chosen tab stays
+      // unless it is empty and the other is not.
+      const other = tab === "ready" ? "sent" : "ready";
+      if (panel.hidden && pendingComments().length) setTab("ready");
+      else if (panel.hidden && !tabHasItems(tab) && tabHasItems(other)) setTab(other);
+      setPanel(panel.hidden, true);
+    }
     else if (action === "close-panel") setPanel(false, true);
     else if (action === "workspace-open") void openWorkspace();
     else if (action === "workspace-close") { closeWorkspace(true); updateBusy(); updateHint(); }
@@ -1076,11 +1107,8 @@
       el('[data-action="undo"]').focus();
     } else if ((action === "status" || action === "delete") && item) void mutateComment(action, item);
     else if (action === "pin" && item) {
-      if (filter !== "all" && filter !== item.status) {
-        filter = "all";
-        all("[data-filter]").forEach((entry) => entry.setAttribute("aria-pressed", String(entry.dataset.filter === filter)));
-        renderComments();
-      }
+      const wanted = item.submission > 0 ? "sent" : "ready";
+      if (tab !== wanted || (filter !== "all" && filter !== item.status)) { filter = "all"; setTab(wanted); }
       locate(item, true);
     } else if (action === "locate" && item) { setPanel(false); locate(item); }
     else if (action === "refresh" && !blocksRefresh()) refreshNow();
@@ -1092,6 +1120,7 @@
       request("comments-submit", { revision: snapshot.revision }, submissionRetry).then(() => {
         submissionRetry = {};
         sentCount = count;
+        setTab("sent");
         if (canvasRounds() === null) announce("Innspillene er sendt. Skriv «se innspillene» i samtalen hvis ingen følger med.");
       }).catch((error) => errorAt(".panel-error", error.message)).finally(() => { submitting = false; renderFooter(); });
     }
@@ -1101,6 +1130,11 @@
   });
   root.addEventListener("keydown", (event) => {
     if (saving()) return;
+    if (event.target.closest(".basket-tabs") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      event.preventDefault();
+      setTab(event.key === "Home" ? "ready" : event.key === "End" ? "sent" : tab === "ready" ? "sent" : "ready", true);
+      return;
+    }
     if (event.target.closest(".toolbar") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
       const buttons = all(".toolbar button").filter((target) => !target.disabled && target.getClientRects().length);
       const index = buttons.indexOf(event.target.closest("button"));

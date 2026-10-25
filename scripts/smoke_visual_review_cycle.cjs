@@ -244,9 +244,9 @@ cases.push(
       await view.openFeedback();
       await view.ui.getByText("Hva kan bli bedre?", { exact: true }).waitFor();
       assert(await view.ui.getByRole("button", { name: "Send innspill", exact: true }).isDisabled());
-      await view.ui.getByRole("button", { name: "Ordnet", exact: true }).click();
+      await view.ui.getByRole("tab", { name: /^Sendt/ }).click(); await view.ui.getByRole("button", { name: "Ordnet", exact: true }).click();
       await view.closeFeedback(); await view.openFeedback();
-      assert.equal(await view.ui.getByRole("button", { name: "Ordnet", exact: true }).getAttribute("aria-pressed"), "true", "Merely reopening feedback must retain the chosen filter.");
+      assert.equal(await view.ui.getByRole("button", { name: "Ordnet", exact: true }).getAttribute("aria-pressed"), "true", "Merely reopening feedback must retain the chosen tab and filter.");
       await view.note("Forklar hvorfor jeg er invitert, før tidspunkt og sted."); await view.save();
       const state = await view.list(); assert.equal(state.comments.length, 1); assert.equal(state.submission, 0);
       await view.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
@@ -254,7 +254,7 @@ cases.push(
       assert(await view.ui.locator(`article[data-id="${state.comments[0].id}"]`).isVisible(), "The newly saved note must be visible for review before sending, even after selecting Ordnet.");
       const card = view.ui.locator(`article[data-id="${state.comments[0].id}"]`);
       await until(() => card.evaluate(node => node === node.getRootNode().activeElement), "focus reaches the newly saved card");
-      assert.equal(await view.ui.getByRole("button", { name: "Alle", exact: true }).getAttribute("aria-pressed"), "true");
+      assert.equal(await view.ui.getByRole("tab", { name: /^Klar til sending/ }).getAttribute("aria-selected"), "true", "A new note is shown where it waits to be sent.");
       return { measurements: { emptyStateExplained: true, ordinaryOpeningRetainedFilter: true, savedCommentVisible: true, savedCardFocused: true, submission: state.submission } };
     } },
   { name: "first-reopen-after-filter", role: "First-time designer reopening an unsent item", viewport: { width: 390, height: 844 },
@@ -263,7 +263,6 @@ cases.push(
       const first = await view.list(), id=first.comments[0].id;
       await view.ui.locator(`article[data-id="${id}"]`).getByRole("button", { name: "Marker ordnet", exact: true }).click();
       await until(async () => (await view.list()).comments[0].status === "fixed", "local item marked fixed");
-      await view.ui.getByRole("button", { name: "Ordnet", exact: true }).click();
       await view.ui.locator(`article[data-id="${id}"]`).getByRole("button", { name: "Åpne igjen", exact: true }).click();
       await until(async () => (await view.list()).comments[0].status === "open", "local item reopened");
       await view.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
@@ -277,7 +276,7 @@ cases.push(
     } },
   { name: "first-kept-choice-after-filter", role: "Participant preserving useful wording after browsing open feedback", viewport: { width: 390, height: 844 },
     async run(view) {
-      await view.openFeedback(); await view.ui.getByRole("button", { name: "Åpne", exact: true }).click();
+      await view.openFeedback(); await view.ui.getByRole("tab", { name: /^Sendt/ }).click(); await view.ui.getByRole("button", { name: "Åpne", exact: true }).click();
       await view.adjust(); await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
       await view.workshop.getByLabel("Merknad", { exact: true }).fill("Behold forklaringen om at den nåværende timen fortsatt gjelder.");
       await view.workshop.getByRole("button", { name: "Behold dette", exact: true }).press("Enter");
@@ -328,7 +327,7 @@ cases.push({ name: "first-draft-preview-recovery", role: "Content designer tryin
 
 cases.push({ name: "first-adjustment-after-filter", role: "First-time designer recording a changed local setting", viewport: { width: 390, height: 844 },
   async run(view) {
-    await view.openFeedback(); await view.ui.getByRole("button", { name: "Ordnet", exact: true }).click();
+    await view.openFeedback(); await view.ui.getByRole("tab", { name: /^Sendt/ }).click(); await view.ui.getByRole("button", { name: "Ordnet", exact: true }).click();
     await view.adjust(); await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
     await view.workshop.getByLabel("Merknad", { exact: true }).fill("Vis hva som skjer med den opprinnelige timen når jeg endrer den.");
     await view.workshop.getByRole("button", { name: "Legg til innspill", exact: true }).press("Enter");
