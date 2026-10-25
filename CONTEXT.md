@@ -59,6 +59,11 @@ Samlingen av skisser, innspill og valg i ett arbeid. Versjonene vises under
 «Versjoner», og et prosjektlagret rom kan åpnes igjen med samme lagrede innhold.
 _Avoid_: samtale, produktkode
 
+**Prøv og Endre**:
+De to modusene i designverkstedet. «Prøv» bruker skissen som prototype; «Endre»
+samler «Be om endring», «Juster» og «Rediger».
+_Avoid_: Utforsk, Kommenter
+
 **Skisseversjon**:
 En lagret, uforanderlig revisjon av skissen og dens eventuelle deklarerte
 kontroller. «Vis» viser den uten å endre noe; gjenoppretting lager en ny

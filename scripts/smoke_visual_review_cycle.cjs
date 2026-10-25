@@ -8,6 +8,12 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { createRequire } = require("node:module");
+// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+async function openAdjust(ui) {
+  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  await adjust.click();
+}
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -78,10 +84,10 @@ function viewFor(page) {
   const closeFeedback = async () => { const control = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await control.isVisible()) await control.click(); };
   const closeWorkshop = async () => { const control = workshop.getByRole("button", { name: "Lukk justeringer", exact: true }); if (await control.isVisible()) await control.click(); };
   const openFeedback = async () => { await closeWorkshop(); if (!(await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).isVisible())) await ui.locator('[data-action="panel"]').click(); };
-  const adjust = async () => { await closeFeedback(); if (!(await workshop.isVisible())) await ui.getByRole("button", { name: "Juster", exact: true }).click(); };
+  const adjust = async () => { await closeFeedback(); if (!(await workshop.isVisible())) await openAdjust(ui); };
   return { page, frame, ui, workshop, closeFeedback, closeWorkshop, openFeedback, adjust,
     async browse() { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="browse"]').getAttribute("aria-pressed") !== "true") await ui.locator('[data-action="browse"]').click(); },
-    async note(value, selector = "h1") { await closeFeedback(); await closeWorkshop(); if (await ui.getByRole("button", { name: "Kommenter", exact: true }).getAttribute("aria-pressed") !== "true") await ui.getByRole("button", { name: "Kommenter", exact: true }).click(); await frame.locator(selector).click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(value); },
+    async note(value, selector = "h1") { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await ui.getByRole("button", { name: "Endre", exact: true }).click(); await frame.locator(selector).click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(value); },
     async save() { await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" }); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); },
     async keep(detail, value) { await adjust(); await workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption(detail); await workshop.getByLabel("Merknad", { exact: true }).fill(value); await workshop.getByRole("button", { name: "Behold dette", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); },
     async shown(title) { await frame.getByRole("heading", { name: title, exact: true }).waitFor(); },
@@ -104,7 +110,7 @@ async function runCase(browser, testcase) {
     const info = await start(child); context = await browser.newContext({ viewport: testcase.viewport, reducedMotion: "reduce" });
     let sequence = 0;
     const write = (title, detail = "short", state = "invitation") => { const stem = `${String(++sequence).padStart(2, "0")}-invitation`, value = sketch(title, detail, state); fs.writeFileSync(path.join(info.screen_dir, `${stem}.design.json`), JSON.stringify(value.design)); fs.writeFileSync(path.join(info.screen_dir, `${stem}.html`), value.html); };
-    const newTab = async (viewport = testcase.viewport) => { const page = await context.newPage(); await page.setViewportSize(viewport); page.setDefaultTimeout(12000); page.on("pageerror", error => exceptions.push(error.message)); page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) externalResources.push(new URL(request.url()).origin); }); await page.goto(info.url); const view = viewFor(page); await view.ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); return view; };
+    const newTab = async (viewport = testcase.viewport) => { const page = await context.newPage(); await page.setViewportSize(viewport); page.setDefaultTimeout(12000); page.on("pageerror", error => exceptions.push(error.message)); page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) externalResources.push(new URL(request.url()).origin); }); await page.goto(info.url); const view = viewFor(page); await view.ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); return view; };
     const list = () => command(info, "list"), read = (after = 0) => command(info, "wait", ["--after", String(after), "--timeout", "0"]);
     const send = async (view, count) => { const before = (await list()).submission; await view.openFeedback(); await view.ui.getByRole("button", { name: `Send ${count} innspill`, exact: true }).click(); return until(async () => { const data = await list(); return data.submission > before && data; }, "explicit batch received"); };
     const screenshot = async (name, view = current) => { if (!evidence) return; await view.page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor(); await view.page.screenshot({ path: path.join(evidence, `${testcase.name}-${name}.png`), animations: "disabled" }); };

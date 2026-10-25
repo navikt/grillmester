@@ -184,12 +184,17 @@ sikkerhetsgrenser for å omgå den.
 
 ## Innspill i skissen
 
-Verktøylinjen skiller mellom å prøve skissen og å kommentere den. **Kommenter**
-lar designeren velge et element eller dra ut et område. Tastaturbrukere kan
-fokusere et element og bruke kommentarkontrollene; områdealternativet bruker
-da hele elementets ramme. Kommentarlisten viser åpne og fiksete innspill,
-svar og hvilke som tilhører en tidligere versjon. Eldre nåler flyttes aldri
-automatisk over på en ny skisse.
+Verktøylinjen har to moduser. **Prøv** lar designeren bruke skissen som
+prototype. **Endre** samler tre verktøy i en stripe over verktøylinjen: **Be om
+endring**, **Juster** og **Rediger**. **Be om endring** lar designeren peke på
+et element med **Punkt**, dra ut et område med **Område**, eller velge **Hele
+skissen** eller en deklarert del i **Eller velg en del**. **Juster** prøver
+deklarerte valg lokalt, og **Rediger** lagrer tekst og valg som en ny versjon i
+et prosjektlagret rom. Når **Juster** eller **Rediger** er åpent, står fanene i
+panelets tittelrad. Tastaturbrukere kan fokusere et element og bruke
+kommentarkontrollene; områdealternativet bruker da hele elementets ramme.
+Kommentarlisten viser åpne og fiksete innspill, svar og hvilke som tilhører en
+tidligere versjon. Eldre nåler flyttes aldri automatisk over på en ny skisse.
 
 Designeren kan også skrive et **tekstforslag**, prøve det lokalt og angre.
 Dette er en forhåndsvisning av en ønsket endring, ikke en lagring i kildefilen.
@@ -440,9 +445,9 @@ CSS kan vise riktig innhold ut fra `data-vc-setting-stage`. Alle situasjonene
 må finnes i skissen; handlingen kjører ikke eget JavaScript, leser ikke
 feltverdier og utfører ingen validering, bestilling eller innsending. Merk
 simulerte resultater tydelig, og bruk `prototype` når faktisk oppførsel er
-designspørsmålet. Knappen virker bare i **Utforsk** med justeringspanelet
+designspørsmålet. Knappen virker bare i **Prøv** med justeringspanelet
 lukket og uten et påbegynt kommentarutkast eller tekstforhåndsvisning.
-I **Kommenter** kommenterer man knappen. Ugyldige mål og valg aktiveres ikke.
+I **Be om endring** kommenterer man knappen. Ugyldige mål og valg aktiveres ikke.
 En lokal lenke som `href="#ticket-price"` kan rulle til og fokusere et
 entydig, synlig element i skissen, for eksempel fra Aksel ErrorSummary.
 Bruk en ID som starter med en bokstav og deretter bare bokstaver, tall,

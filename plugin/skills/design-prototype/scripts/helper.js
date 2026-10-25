@@ -104,6 +104,7 @@
     button,input,textarea{font:inherit} button{appearance:none;border:0;cursor:pointer;color:inherit;background:transparent;border-radius:8px;line-height:1.35;min-height:36px;padding:8px 11px;font-weight:600}button:hover{background:#f0edf4}button:disabled{cursor:default;opacity:.45}button:focus-visible,textarea:focus-visible{outline:3px solid #6852ce;outline-offset:3px}button:disabled:hover{background:transparent}button.primary{background:#7133a2;color:white}button.primary:hover{background:#5e2889}button.primary:disabled{background:#7133a2}
     svg{width:17px;height:17px;flex-shrink:0;vertical-align:-3px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.row{display:flex;align-items:center;gap:8px}.between{justify-content:space-between}.muted{color:#71717e;font-size:12px}.small{font-size:12px}.divider{width:1px;height:24px;background:#e7e3eb;flex-shrink:0}.sr{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
     .toolbar.viewing{flex-wrap:wrap;justify-content:center;width:max-content}.view-banner{display:contents}.view-text{flex:1 1 100%;text-align:center;font-weight:600;padding:4px 8px;color:#23262a}
+    .endre-bar{pointer-events:auto;position:fixed;left:50%;transform:translateX(-50%);bottom:76px;width:max-content;max-width:calc(100vw - 24px);display:flex;flex-direction:column;gap:6px;padding:6px;background:#fff;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824}.row.with-endre-tabs>h2,.workshop-head:has(.with-endre-tabs) .source-editor-entry{display:none}.row.with-endre-tabs .endre-tabs{flex:1;min-width:0}.endre-tabs,.endre-ask{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.endre-tabs button[aria-pressed=true],.endre-tabs button[aria-expanded=true]{background:#f0e8f7;color:#6e3197}.endre-ask select{flex:1 1 140px;min-width:0;min-height:34px;font:inherit;font-size:13px;border:1px solid #d9d2e2;border-radius:9px;padding:0 8px;background:#fff}
     .toolbar{pointer-events:auto;position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:7px;background:#fff;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824;max-width:calc(100vw - 24px)}
     .toolbar button{white-space:nowrap}.toolbar button[aria-pressed=true],.tools button[aria-pressed=true]{color:#7133a2;background:#f1e8f7}.count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:6px;background:#ece9f0;font-size:11px;margin-left:5px}.tools{display:flex;gap:2px}.tools button{font-size:12px;padding:8px}.toolbar .update{background:#eaf1ff;color:#254c95;font-size:12px}.draft-button{color:#7133a2}
     .hint{position:fixed;top:64px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:9px 14px;border:1px solid #e8d7f1;border-radius:10px;box-shadow:0 3px 15px #25163812;background:#fcf8ff;color:#68368a;font-size:12px;text-align:center}
@@ -137,6 +138,7 @@
       <div class="panel-foot"><div class="row between"><span class="pending muted">Ingen nye innspill</span><span class="connection">Lagres lokalt</span></div><button type="button" class="primary send" data-action="send" disabled>Send innspill</button><p class="foot-status" role="status"></p><p class="error panel-error" role="alert" hidden></p></div>
     </section>
     <section class="workspace-panel" aria-label="Versjoner og lagring" hidden><div class="workspace-head"><div class="row between"><h2>Versjoner</h2><button type="button" class="close" data-action="workspace-close" aria-label="Lukk versjoner">×</button></div></div><div class="workspace-body"><h3 class="workspace-title"></h3><p class="workspace-storage"></p><code class="workspace-path"></code><p class="workspace-unsaved" hidden>Lagre utkast før du lukker skissen eller samtalen.</p><details class="workspace-storage-details"><summary>Om lagring og gjenåpning</summary><p class="workspace-help"></p></details><p class="workspace-temporary-help" hidden></p><p class="workspace-recovered" hidden>Arbeidet er åpnet fra prosjektet. Tidligere runder sendes ikke på nytt.</p><p class="workspace-dirty" hidden></p><div class="workspace-confirm" tabindex="-1" hidden><h3 class="workspace-confirm-title"></h3><p>Dette lager en ny skisseversjon. Innspill, svar og innsendte runder beholdes.</p><p class="workspace-restore-warning"></p><div class="workspace-actions"><button type="button" class="primary" data-action="workspace-restore">Bruk som ny versjon</button><button type="button" class="primary" data-action="workspace-release-restore" hidden>Tillat endring og bruk versjonen</button><button type="button" data-action="workspace-cancel">Avbryt</button></div></div><p class="error workspace-error" role="alert" hidden></p><p class="workspace-status" role="status"></p><div class="workspace-history" hidden><div class="workspace-history-tools"><h3>Versjonshistorikk</h3><button type="button" data-action="workspace-reload">Oppdater</button></div><div class="workspace-history-list"></div><button type="button" data-action="workspace-more" hidden>Vis flere versjoner</button></div></div></section>
+    <div class="endre-bar" role="group" aria-label="Endre skissen" hidden><div class="endre-tabs"><button type="button" data-action="change-ask" aria-pressed="false">Be om endring</button></div><div class="endre-ask" hidden><div class="tools" role="group" aria-label="Type markering"><button type="button" data-action="point" aria-pressed="true">Punkt</button><button type="button" data-action="area" aria-pressed="false">Område</button></div><select id="change-part" aria-label="Velg en del"><option value="">Eller velg en del …</option></select></div></div>
     <section class="composer" role="dialog" aria-modal="false" aria-labelledby="compose-title" hidden>
       <div class="row between"><h2 id="compose-title">Nytt innspill</h2><button type="button" class="close" data-action="hide-draft" aria-label="Legg utkast til side">×</button></div><div class="anchor-label"></div>
       <label for="feedback-note">Hva vil du endre?</label><textarea id="feedback-note" maxlength="2000" placeholder="For eksempel: Gi overskriften mer luft …"></textarea>
@@ -144,7 +146,7 @@
       <div class="proposal-fields" hidden><label for="feedback-proposal">Ny tekst</label><textarea id="feedback-proposal" maxlength="2000" placeholder="Skriv inn teksten du foreslår"></textarea><button type="button" class="preview-button" data-action="preview-draft">Forhåndsvis teksten</button><button type="button" class="preview-button" data-action="inspect-preview" hidden>Se i skissen</button><p class="help">Kun en lokal forhåndsvisning. Forslaget sendes som et innspill.</p></div>
       <p class="error compose-error" role="alert" hidden></p><div class="compose-actions"><button type="button" data-action="discard">Forkast</button><button type="button" class="primary save" data-action="save">Lagre innspill</button></div><div class="help">⌘/Ctrl + Enter lagrer · Esc legger utkastet til side</div><p class="canvas-close-hint" hidden>Lukker du skissen i appen, går ulagrede utkast og merknader tapt. Lagre dem som innspill først.</p>
     </section>
-    <div class="toolbar" role="toolbar" aria-label="Verktøy for prototype"><button type="button" data-action="browse" aria-pressed="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3l10 7-5 1-2 5z"/></svg> Utforsk</button><button type="button" data-action="comment" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4h12v9H9l-5 3z"/></svg> Kommenter</button><div class="tools" role="group" aria-label="Type markering" hidden><button type="button" data-action="point" aria-pressed="true">Punkt</button><button type="button" data-action="area" aria-pressed="false">Område</button></div><span class="divider"></span><button type="button" data-action="panel" aria-expanded="false">Innspill<span class="count total">0</span></button><button type="button" class="draft-button" data-action="resume" hidden>Fortsett utkast</button><button type="button" class="update" data-action="refresh" hidden>Vis ny versjon</button></div>
+    <div class="toolbar" role="toolbar" aria-label="Verktøy for prototype"><button type="button" data-action="browse" aria-pressed="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3l10 7-5 1-2 5z"/></svg> Prøv</button><button type="button" data-action="comment" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4h12v9H9l-5 3z"/></svg> Endre</button><span class="divider"></span><button type="button" data-action="panel" aria-expanded="false">Innspill<span class="count total">0</span></button><button type="button" class="draft-button" data-action="resume" hidden>Fortsett utkast</button><button type="button" class="update" data-action="refresh" hidden>Vis ny versjon</button></div>
     <div class="sr" role="status" aria-live="polite" aria-atomic="true"></div>
   `;
   root.appendChild(ui);
@@ -197,7 +199,30 @@
   const workspaceButton = button("Versjoner", "workspace-open");
   workspaceButton.hidden = true;
   workspaceButton.setAttribute("aria-expanded", "false");
-  el(".toolbar").insertBefore(workspaceButton, el(".tools"));
+  el(".toolbar").insertBefore(workspaceButton, el('[data-action="panel"]'));
+  const endreBar = el(".endre-bar");
+  // Endre stays open across its tools until the designer chooses Prøv.
+  let endreSticky = false;
+  // Declared parts can be chosen directly instead of pointing in the sketch.
+  const declared = window.__grillmesterVisualCompanionDesign;
+  const content = () => document.body.querySelector(":scope > .vc-content");
+  const partOptions = [["whole", "Hele skissen"]];
+  for (const target of Array.isArray(declared?.targets) ? declared.targets : []) {
+    if (typeof target?.key === "string" && typeof target.label === "string") partOptions.push([`target:${target.variant || ""}/${target.key}`, target.label]);
+  }
+  for (const text of declared?.version === 2 && Array.isArray(declared.texts) ? declared.texts : []) {
+    if (typeof text?.id === "string" && typeof text.label === "string") partOptions.push([`text:${text.id}`, text.label]);
+  }
+  for (const [value, label] of partOptions) { const option = document.createElement("option"); option.value = value; option.textContent = label; el("#change-part").appendChild(option); }
+  function partElement(value) {
+    if (value === "whole") return content();
+    const exact = (name, key, within = document) => Array.from(within.querySelectorAll(`[${name}]`)).filter((node) => node.getAttribute(name) === key);
+    if (value.startsWith("text:")) { const found = exact("data-vc-text", value.slice(5)); return found.length === 1 ? found[0] : null; }
+    const [variant, key] = value.slice(7).split("/");
+    const wrappers = variant ? exact("data-vc-variant", variant) : [document];
+    const found = wrappers.length === 1 ? exact("data-vc-key", key, wrappers[0]).filter((node) => variant ? node.closest("[data-vc-variant]") === wrappers[0] : !node.closest("[data-vc-variant]")) : [];
+    return found.length === 1 ? found[0] : null;
+  }
   // Feedback, adjustments and editing belong to the current version, so a
   // stored version only offers going back or using it as a new version.
   if (view) {
@@ -267,7 +292,38 @@
     updateBusy(); editor?.refreshControls();
   }
   function refreshNow() { savedVersionWaiting = false; setRefreshing(true); post({ action: "refresh-now", screen }); }
-  function topInset() { return Math.max(64, Math.ceil((document.body.querySelector(":scope > .vc-header")?.getBoundingClientRect().bottom || 0) + 10)); }
+  function headerInset() { return Math.max(64, Math.ceil((document.body.querySelector(":scope > .vc-header")?.getBoundingClientRect().bottom || 0) + 10)); }
+  function topInset() { return headerInset(); }
+  // The Endre bar sits just above the toolbar; layout keeps content clear of both.
+  function controlsTop() {
+    const toolbarTop = el(".toolbar").getBoundingClientRect().top;
+    return endreBar.hidden ? toolbarTop : Math.min(toolbarTop, endreBar.getBoundingClientRect().top);
+  }
+  function syncEndre() {
+    const tool = Boolean(editor?.isOpen() || workshop?.isOpen());
+    if (tool) endreSticky = true;
+    const active = !view && (endreSticky || mode === "comment" || tool);
+    const visible = active && panel.hidden && el(".workspace-panel").hidden;
+    // An open tool panel shows the Endre tabs in its title row instead of the bar.
+    const head = workshop?.isOpen() ? root.querySelector(".workshop-head .row") : editor?.isOpen() ? root.querySelector(".source-editor-head .row") : null;
+    const tabs = el(".endre-tabs"), home = head || endreBar;
+    if (tabs.parentElement !== home) home.prepend(tabs);
+    for (const row of root.querySelectorAll(".with-endre-tabs")) if (row !== head) row.classList.remove("with-endre-tabs");
+    head?.classList.add("with-endre-tabs");
+    // A tool panel locks every button inside it, the tabs included while they sit
+    // there; in the bar they follow the shared saving and refresh state instead.
+    if (!head) for (const button of tabs.querySelectorAll("button")) {
+      button.disabled = saving() || frameRefreshing || savedVersionWaiting || (button.dataset.action === "workshop-open" && Boolean(workshop?.isSaving()));
+    }
+    const changed = endreBar.hidden === (visible && !head);
+    endreBar.hidden = !(visible && !head);
+    host.toggleAttribute("data-endre", visible);
+    el(".endre-ask").hidden = mode !== "comment";
+    el('[data-action="change-ask"]').setAttribute("aria-pressed", String(mode === "comment"));
+    el('[data-action="comment"]').setAttribute("aria-pressed", String(active));
+    el('[data-action="browse"]').setAttribute("aria-pressed", String(!active));
+    if (changed) scheduleLayout();
+  }
   function updateBusy() {
     const value = busy();
     if (value !== lastBusy) { lastBusy = value; post({ action: "feedback-busy", screen, busy: value }); }
@@ -281,6 +337,7 @@
     refresh.title = blocked ? "Fullfør utkast, send innspill og avslutt forhåndsvisningen først" : discardView ? "Lokale visningsvalg nullstilles. Lagrede innspill beholdes." : "Åpne den nye versjonen";
     renderWorkspaceSummary();
     lockRefreshControls();
+    syncEndre();
     scheduleLayout();
   }
   function request(action, payload, retry = {}) {
@@ -327,6 +384,7 @@
     if (open && draft && !composer.hidden) hideDraft();
     if (open && focus) el('[data-action="close-panel"]').focus();
     if (!open && focus) el('[data-action="panel"]').focus();
+    syncEndre();
     updateHint();
   }
   // Unsent comments and kept-part changes wait in «Klar til sending»; sent
@@ -532,7 +590,7 @@
   }
   function positionComposer() {
     if (!draft || composer.hidden) return;
-    const bottomSpace = Math.max(80, window.innerHeight - el(".toolbar").getBoundingClientRect().top + 12);
+    const bottomSpace = Math.max(80, window.innerHeight - controlsTop() + 12);
     const topSpace = topInset();
     composer.style.maxHeight = `calc(100dvh - ${bottomSpace + topSpace}px)`;
     const bounds = composer.getBoundingClientRect();
@@ -594,7 +652,8 @@
     layoutPending = true;
     requestAnimationFrame(() => {
       layoutPending = false;
-      const toolbarTop = el(".toolbar").getBoundingClientRect().top;
+      endreBar.style.bottom = `${Math.max(0, innerHeight - el(".toolbar").getBoundingClientRect().top) + 8}px`;
+      const toolbarTop = controlsTop();
       const toolbarSpace = Math.max(80, innerHeight - toolbarTop + 12);
       document.documentElement.style.scrollPaddingBottom = `${toolbarSpace}px`;
       document.body.style.paddingBottom = `${toolbarSpace}px`;
@@ -798,11 +857,12 @@
     el(".workspace-panel").hidden = true;
     workspaceButton.setAttribute("aria-expanded", "false");
     if (wasOpen && focus) workspaceButton.focus();
+    syncEndre();
   }
   async function openWorkspace() {
     if (saving()) return;
     if (draft && !composer.hidden) hideDraft();
-    workshop?.close(); setPanel(false); setMode("browse");
+    workshop?.close(); setPanel(false); endreSticky = false; setMode("browse");
     el(".workspace-panel").hidden = false;
     workspaceButton.setAttribute("aria-expanded", "true");
     el('[data-action="workspace-close"]').focus();
@@ -1042,7 +1102,8 @@
       filter = target.dataset.filter;
       all("[data-filter]").forEach((entry) => entry.setAttribute("aria-pressed", String(entry.dataset.filter === filter)));
       renderComments();
-    } else if (action === "browse" || action === "comment") setMode(action);
+    } else if (action === "browse") { endreSticky = false; workshop?.close(); setMode("browse"); }
+    else if (action === "comment" || action === "change-ask") { endreSticky = true; setMode("comment"); }
     else if (action === "point" || action === "area") setMode("comment", action);
     else if (action === "panel") {
       // Waiting feedback opens «Klar til sending»; otherwise the chosen tab stays
@@ -1125,6 +1186,12 @@
       }).catch((error) => errorAt(".panel-error", error.message)).finally(() => { submitting = false; renderFooter(); });
     }
   });
+  el("#change-part").addEventListener("change", (event) => {
+    const value = event.target.value, element = value ? partElement(value) : null;
+    event.target.value = "";
+    if (element) beginDraft(element, "point", null);
+    else if (value) announce("Delen finnes ikke i denne versjonen.");
+  });
   proposalInput.addEventListener("input", () => {
     if (preview?.owner === draft && draft?.proposal) showPreview(draft.target, proposalInput.value, draft);
   });
@@ -1150,7 +1217,7 @@
     else if (!panel.hidden) setPanel(false, true);
     else if (!el(".workspace-panel").hidden) { closeWorkspace(true); updateBusy(); updateHint(); }
     else if (preview) { const original = preview.target; resetPreview(); if (draft) el('[data-action="resume"]').focus(); else focusPrototype(original); }
-    else { setMode("browse"); el('[data-action="browse"]').focus(); }
+    else { endreSticky = false; setMode("browse"); el('[data-action="browse"]').focus(); }
   });
 
   document.addEventListener("click", (event) => {
@@ -1216,7 +1283,7 @@
       else if (preview) resetPreview();
       else if (!panel.hidden) setPanel(false, true);
       else if (!el(".workspace-panel").hidden) { closeWorkspace(true); updateBusy(); updateHint(); }
-      else setMode("browse");
+      else { endreSticky = false; setMode("browse"); }
       return;
     }
     if (mode === "comment" && (event.key === "Enter" || event.key === " ") && usableTarget(event.target)) {
@@ -1304,6 +1371,7 @@
   if (!view && typeof window.__grillmesterInitializeWorkshop === "function") {
     workshop = window.__grillmesterInitializeWorkshop({
       root, screen, nonce, request, anchorFor, announce, topInset,
+      onPanelChange: syncEndre,
       getSnapshot: () => snapshot,
       onBusyChange: updateBusy,
       onPresentationChange: () => { updateHint(); renderComments(); },
@@ -1326,6 +1394,7 @@
   if (!view && typeof window.__grillmesterInitializeEditor === "function") {
     editor = window.__grillmesterInitializeEditor({
       root, screen, nonce, request, announce, topInset,
+      onPanelChange: syncEndre,
       onBusyChange: updateBusy,
       isRefreshing: () => frameRefreshing || savedVersionWaiting,
       focusOpener: () => (el('[data-action="editor-open"]:not([hidden])') || el('[data-action="workshop-open"]'))?.focus(),

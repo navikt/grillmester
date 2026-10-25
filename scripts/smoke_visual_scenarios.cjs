@@ -9,6 +9,12 @@ const os = require("node:os");
 const path = require("node:path");
 const { createRequire } = require("node:module");
 const { spawn } = require("node:child_process");
+// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+async function openAdjust(ui) {
+  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  await adjust.click();
+}
 
 const options = new Map();
 const args = process.argv.slice(2);
@@ -112,13 +118,13 @@ async function session(browser, testcase) {
     await show(testcase.viewport || { width: 1440, height: 1000 });
     let sequence = 0;
     const write = (name, html, descriptor) => { const stem = `${String(++sequence).padStart(2, "0")}-${name}`; if (descriptor) fs.writeFileSync(path.join(info.screen_dir, `${stem}.design.json`), JSON.stringify(descriptor)); fs.writeFileSync(path.join(info.screen_dir, `${stem}.html`), html); };
-    const reopen = async viewport => { await show(viewport); await page.goto(info.url); await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); return { page, frame, ui, workshop }; };
+    const reopen = async viewport => { await show(viewport); await page.goto(info.url); await ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); return { page, frame, ui, workshop }; };
     const screenshot = async name => { if (evidence) { await page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor(); await settle(page); await page.screenshot({ path: path.join(evidence, `${testcase.name}-${name}.png`), animations: "disabled" }); } };
-    const open = async (html, descriptor) => { write(testcase.name, html, descriptor); await page.goto(info.url); await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); };
+    const open = async (html, descriptor) => { write(testcase.name, html, descriptor); await page.goto(info.url); await ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); };
     const list = () => cli(info, "list");
     const send = async count => { const previous = await list(); const waiting = cli(info, "wait", ["--after", String(previous.submission), "--timeout", "10"]); await ui.getByRole("button", { name: `Send ${count} innspill`, exact: true }).click(); const result = await waiting; assert.equal(result.type, "feedback-submission"); return result; };
     const closePanel = async () => { const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click(); };
-    const adjust = async () => { if (!(await workshop.isVisible())) await ui.getByRole("button", { name: "Juster", exact: true }).click(); await workshop.waitFor(); };
+    const adjust = async () => { if (!(await workshop.isVisible())) await openAdjust(ui); await workshop.waitFor(); };
     await testcase.run({ page, frame, ui, open, write, list, send, closePanel, workshop, adjust, screenshot, info, reopen });
     assert.deepEqual(errors, [], "No browser exceptions are allowed."); assert.deepEqual(remoteRequests, [], "No remote resource may finish loading.");
     return { name: testcase.name, role: testcase.role, status: "passed", outcomes: testcase.outcomes };
@@ -236,7 +242,7 @@ const cases = [
     async run({ page, frame, ui, open, list, send, screenshot }) {
       await open(form());
       const original = await frame.locator("#editable-copy").innerText();
-      await ui.getByRole("button", { name: "Kommenter", exact: true }).click(); await frame.locator("#editable-copy").click();
+      await ui.getByRole("button", { name: "Endre", exact: true }).click(); await frame.locator("#editable-copy").click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Forklar valget med roligere språk, og bruk æ, ø og å riktig.");
       await ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
       const proposal = "Velg et tidspunkt som passer for deg. Vi snakker om ønskene dine, spørsmål du har og veien videre. Du trenger ikke å ha alle svarene klare. <strong>Dette er vanlig tekst.</strong>";
@@ -257,7 +263,7 @@ const cases = [
     outcomes: ["The participant can recover an abandoned draft", "A failed batch leaves every saved item intact", "Retry sends exactly the saved items", "Reload preserves feedback and reply filters", "Typed prototype fields are never collected"],
     async run({ page, frame, ui, open, list, send, closePanel, screenshot, info }) {
       await open(form("Finn et tidspunkt som passer")); await frame.getByLabel("Eget prøvenotat", { exact: true }).fill("PRIVAT_PROEVE_SKAL_IKKE_LAGRES");
-      await ui.getByRole("button", { name: "Kommenter", exact: true }).click(); await frame.getByRole("heading", { name: "Finn et tidspunkt som passer", exact: true }).click();
+      await ui.getByRole("button", { name: "Endre", exact: true }).click(); await frame.getByRole("heading", { name: "Finn et tidspunkt som passer", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Fortell hvor lenge samtalen varer."); await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
       await ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click(); assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Fortell hvor lenge samtalen varer.");
       await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor(); await closePanel();
@@ -266,7 +272,7 @@ const cases = [
       await ui.getByRole("button", { name: "Send 2 innspill", exact: true }).click(); await ui.locator(".panel-error").waitFor({ state: "visible" });
       const saved = await list(); assert.equal(saved.comments.length, 2); assert(saved.comments.every(item => item.submission === 0)); await screenshot("retry");
       await page.unroute("**/comments/submit?*"); const batch = await send(2); assert.equal(batch.comments.length, 2);
-      await page.reload(); await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); await ui.locator('[data-action="panel"]').click();
+      await page.reload(); await ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); await ui.locator('[data-action="panel"]').click();
       assert.equal(await ui.locator(".comment").count(), 2);
       await cli(info, "resolve", ["--id", batch.comments[0].id, "--reply", "Samtalen varer i 30 minutter."]);
       await ui.getByText("Samtalen varer i 30 minutter.", { exact: false }).waitFor(); await ui.getByRole("button", { name: "Ordnet", exact: true }).click();
@@ -307,7 +313,7 @@ const cases = [
         assert(!horizontalOverflow, "The header and selected concept must not create horizontal scrolling.");
         await screenshot(width === 320 ? "narrow-selection" : "form-interactions");
       }
-      assert.equal(await ui.getByRole("button", { name: "Kommenter", exact: true }).getAttribute("aria-pressed"), "false");
+      assert.equal(await ui.getByRole("button", { name: "Endre", exact: true }).getAttribute("aria-pressed"), "false");
     },
   },
   {
@@ -317,7 +323,7 @@ const cases = [
       await open(form("Tastaturgjennomgang av avtalen"));
       const active = locator => locator.evaluate(node => node.getRootNode().activeElement === node);
       const tabTo = async locator => { for (let count = 0; count < 100; count += 1) { if (await active(locator)) return; await page.keyboard.press("Tab"); } throw new Error("The requested control was not reachable by Tab."); };
-      const comment = ui.getByRole("button", { name: "Kommenter", exact: true }); await tabTo(comment); await page.keyboard.press("Enter");
+      const comment = ui.getByRole("button", { name: "Endre", exact: true }); await tabTo(comment); await page.keyboard.press("Enter");
       const title = frame.getByRole("heading", { name: "Tastaturgjennomgang av avtalen", exact: true }); await tabTo(title); await page.keyboard.press("Enter");
       assert(await active(ui.getByLabel("Hva vil du endre?", { exact: true }))); await page.keyboard.type("Vis tydelig hva neste steg er."); await page.keyboard.press("Escape"); assert(await active(title));
       await tabTo(ui.getByRole("button", { name: "Fortsett utkast", exact: true })); await page.keyboard.press("Enter");
@@ -350,7 +356,7 @@ const cases = [
       const reopened = await workshop.boundingBox();
       assert(pickerBounds.y >= reopened.y && pickerBounds.y + pickerBounds.height <= reopened.y + reopened.height, "The focused part picker must be visible when reopening a scrolled panel.");
       await page.keyboard.press("Escape");
-      await ui.getByRole("button", { name: "Kommenter", exact: true }).click(); const title = frame.getByRole("heading", { name: "Velg en retning på liten skjerm", exact: true }); await title.scrollIntoViewIfNeeded(); await title.click();
+      await ui.getByRole("button", { name: "Endre", exact: true }).click(); const title = frame.getByRole("heading", { name: "Velg en retning på liten skjerm", exact: true }); await title.scrollIntoViewIfNeeded(); await title.click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Sammenligningen må fungere når jeg roterer skjermen."); await page.setViewportSize({ width: 375, height: 667 });
       assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Sammenligningen må fungere når jeg roterer skjermen.");
       // Keyboard activation still reaches the rotated preview, so it saves the draft; pointer input continues on a fresh page.

@@ -8,6 +8,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
+// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+async function openAdjust(ui) {
+  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  await adjust.click();
+}
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -75,7 +81,7 @@ async function session(browser, name, run, lostResponsePath = "/comments", lostR
       peer.on("requestfinished", request => { if (!request.url().startsWith(new URL(running.info.url).origin) && !/^(data|blob):/.test(request.url())) external.push(new URL(request.url()).origin); });
       await peer.goto(running.info.url);
       const peerFrame = peer.frameLocator("#vc-preview"), peerUi = peerFrame.locator("[data-visual-feedback]");
-      await peerUi.getByRole("button", { name: "Kommenter", exact: true }).waitFor();
+      await peerUi.getByRole("button", { name: "Endre", exact: true }).waitFor();
       return { page: peer, frame: peerFrame, ui: peerUi };
     };
     const url = new URL(running.info.url); url.pathname = "/comments";
@@ -109,10 +115,10 @@ async function session(browser, name, run, lostResponsePath = "/comments", lostR
       await route.abort("failed");
     });
     await page.goto(running.info.url);
-    await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor();
+    await ui.getByRole("button", { name: "Endre", exact: true }).waitFor();
     await frame.getByLabel("Prøvefelt", { exact: true }).fill("PRIVATE_PRACTICE_VALUE");
     const begin = async text => {
-      await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+      await ui.getByRole("button", { name: "Endre", exact: true }).click();
       await frame.getByRole("heading", { name: "Forbered møtet", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text);
     };
@@ -184,7 +190,7 @@ const cases = [
     assert.deepEqual((await snapshot()).comments.map(item => item.text), ["Vis hvor lang tid møtet tar.", "Forklar hvordan jeg kan flytte møtet."]);
   } },
   { name: "adjustment-after-lost-receipt", async run({ ui, snapshot, mutations }) {
-    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(ui);
     await ui.getByLabel("Tetthet", { exact: true }).selectOption("compact");
     await ui.locator("#workshop-remark").fill("Samle oversikten tettere.");
     await ui.locator('[data-action="workshop-add"]').click();
@@ -199,7 +205,7 @@ const cases = [
     assert.equal(result.comments[0].text, "Samle oversikten tettere.");
   } },
   { name: "keep-after-lost-receipt", lostResponsePath: "/decisions", async run({ ui, snapshot, mutate, mutations, mutationPayloads }) {
-    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(ui);
     await ui.getByLabel("Tetthet", { exact: true }).selectOption("compact");
     await ui.locator("#workshop-remark").fill("Behold den tettere oversikten.");
     await ui.locator('[data-action="workshop-keep"]').click();
@@ -222,11 +228,11 @@ const cases = [
     assert.deepEqual(recovered.decisions, newer.decisions, "Recovering an older receipt must not overwrite the newer choice.");
   } },
   { name: "release-after-lost-receipt", lostResponsePath: /^\/decisions\/[a-f0-9]{24}$/, lostResponseMethod: "PATCH", async run({ ui, snapshot, mutate, mutations, mutationPayloads, releaseRead }) {
-    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(ui);
     await ui.locator('[data-action="workshop-keep"]').click();
     await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
     const original = (await snapshot()).decisions[0];
-    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(ui);
     await ui.locator(".workshop-keep-list").getByRole("button", { name: "Slutt å beholde", exact: true }).click();
     await ui.locator(".workshop-error").waitFor({ state: "visible" });
     const released = (await snapshot()).decisions[0];
@@ -244,14 +250,14 @@ const cases = [
     releaseRead();
   } },
   { name: "release-conflict-with-late-snapshot", lostResponsePath: null, async run({ page, ui, snapshot, openPeer }) {
-    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(ui);
     await ui.locator('[data-action="workshop-keep"]').click();
     await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
     const original = (await snapshot()).decisions[0];
-    await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(ui);
     await ui.locator("#workshop-remark").fill("Min merknad skal overleve en konflikt.");
     const peer = await openPeer();
-    await peer.ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(peer.ui);
     await peer.ui.getByLabel("Tetthet", { exact: true }).selectOption("compact");
     await peer.ui.locator("#workshop-remark").fill("Det nyere valget fra den andre fanen.");
     let releaseOldRead, releaseWrite, readHeld = false, writeHeld = false;
@@ -292,7 +298,7 @@ const cases = [
       assert.equal(attempts[0].body.expectedRevision, original.revision);
       assert.equal(attempts[1].body.expectedRevision, newer.decisions[0].revision);
       assert.notEqual(attempts[0].mutationId, attempts[1].mutationId);
-      await ui.getByRole("button", { name: "Juster", exact: true }).click();
+      await openAdjust(ui);
       assert.equal(await ui.locator("#workshop-remark").inputValue(), "Min merknad skal overleve en konflikt.");
       return { writesAttempted: attempts.length, checks: ["stale release refused", "typed remark retained", "late snapshot ignored", "explicit retry uses reviewed revision"] };
     } finally { releaseOldRead(); releaseWrite(); }
@@ -305,7 +311,7 @@ const cases = [
     assert.equal(before.comments.length, 200);
     const attempted = [];
     page.on("request", request => { if (request.method() === "POST" && new URL(request.url()).pathname === "/comments") attempted.push(request.postDataJSON()); });
-    await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+    await ui.getByRole("button", { name: "Endre", exact: true }).click();
     await frame.getByRole("heading", { name: "Forbered møtet", exact: true }).focus();
     await page.keyboard.press("Enter");
     await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Behold dette utkastet når køen er full.");
@@ -426,7 +432,7 @@ const cases = [
       await until(async () => await nextHeading.count() > 0 || (await refresh.isVisible() && await refresh.isEnabled()), "The next sketch version was not announced.");
       if (await nextHeading.count() === 0) await refresh.click();
       await nextHeading.waitFor();
-      await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+      await ui.getByRole("button", { name: "Endre", exact: true }).click();
       await frame.getByRole("heading", { name: "Neste versjon", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Nytt utkast som ikke er lagret.");
       await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();

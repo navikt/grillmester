@@ -89,7 +89,8 @@
     toolbarButton.textContent = "Juster";
     toolbarButton.setAttribute("aria-expanded", "false");
     toolbarButton.hidden = !descriptor;
-    root.querySelector(".toolbar").appendChild(toolbarButton);
+    // The adjust entry lives in the shared Endre bar when the helper provides one.
+    (root.querySelector(".endre-tabs") || root.querySelector(".toolbar")).appendChild(toolbarButton);
     const documentStyle = document.createElement("style");
     documentStyle.nonce = nonce;
     documentStyle.textContent = `[data-vc-workshop-comparing] > [data-vc-variant]::before{content:attr(data-vc-workshop-label);display:block;font:600 13px/1.4 system-ui,sans-serif;color:#5e3b76;background:#f3edf7;border:1px solid #e5d9ef;border-radius:7px;padding:9px 12px;margin:0 0 14px;box-sizing:border-box}`;
@@ -129,12 +130,14 @@
       el(".compare-bar").hidden = !comparing;
       if (comparing) reserveComparisonSpace();
       toolbarButton.setAttribute("aria-expanded", "false");
+      api.onPanelChange?.();
       if (restore) focus(toolbarButton);
     }
     function open() {
       if (locking || !api.prepareOpen()) return;
       pane.hidden = false;
       toolbarButton.setAttribute("aria-expanded", "true");
+      api.onPanelChange?.();
       pane.scrollTop = 0;
       el(".workshop-body").scrollTop = 0;
       updateLayout();
@@ -488,6 +491,7 @@
     }
     return {
       close,
+      isOpen: () => !pane.hidden,
       isSaving: () => locking,
       isBusy: () => locking || pending(),
       hasRemarks: () => Array.from(bindings.values()).some((binding) => Boolean(binding.remark.trim() || binding.conflict)),

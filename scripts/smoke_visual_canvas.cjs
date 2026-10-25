@@ -8,6 +8,12 @@ const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { createRequire } = require("node:module");
+// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+async function openAdjust(ui) {
+  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  await adjust.click();
+}
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -59,7 +65,7 @@ function viewFor(page) {
   const closeWorkshop = async () => { const close = workshop.getByRole("button", { name: "Lukk justeringer", exact: true }); if (await close.isVisible()) await close.click(); };
   return { page, frame, ui, workshop, closeFeedback, closeWorkshop,
     async openFeedback() { await closeWorkshop(); if (!(await ui.locator(".panel").isVisible())) await ui.locator('[data-action="panel"]').click(); },
-    async note(value) { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="comment"]').getAttribute("aria-pressed") !== "true") await ui.locator('[data-action="comment"]').click(); await frame.locator("h1").click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(value); },
+    async note(value) { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await ui.locator('[data-action="comment"]').click(); await frame.locator("h1").click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(value); },
     async save() { await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.locator(".composer").waitFor({ state: "hidden" }); await ui.locator(".panel").waitFor(); },
     async round(number, status) { const card = ui.locator(`[data-canvas-submission="${number}"]`); await until(async () => await card.getAttribute("data-status") === status, `round ${number} is ${status}`); return card; },
   };
@@ -127,8 +133,16 @@ async function runCase(browser, createCanvasAdapter, testcase) {
 async function screenshotFailure(view, name) { try { await view.page.screenshot({ path: path.join(evidence, `${name}.png`), animations: "disabled" }); } catch { /* Preserve the assertion if the page closed. */ } }
 async function openEditor(view) {
   await view.closeFeedback();
-  if (!(await view.workshop.isVisible())) await view.ui.getByRole("button", { name: "Juster", exact: true }).click();
-  await view.workshop.getByRole("button", { name: "Rediger skissen", exact: true }).click();
+  // Rediger is one of the Endre tools, next to Be om endring and Juster. After a
+  // save the preview reloads, so wait until the current document offers it.
+  const edit = view.ui.getByRole("button", { name: "Rediger", exact: true });
+  await until(async () => {
+    if (await edit.isVisible() && await edit.isEnabled()) return true;
+    const endre = view.ui.getByRole("button", { name: "Endre", exact: true });
+    if (!(await edit.isVisible()) && await endre.isVisible() && await endre.isEnabled()) await endre.click().catch(() => {});
+    return false;
+  }, "Rediger is available in the Endre bar");
+  await edit.click();
   const editor = view.ui.getByRole("region", { name: "Rediger skissen", exact: true });
   await editor.getByLabel("Overskrift", { exact: true }).waitFor();
   await until(async () => await editor.getByLabel("Overskrift", { exact: true }).isEnabled(), "source editor ready");
@@ -143,7 +157,7 @@ const cases = [
       return value;
     };
     const bound = host(), view = await instance(bound, "keyboard-source", "Din avtale", { fixture, openInput: { workspacePath: "design/keyboard", create: true, title: "Tekst og innspill" } });
-    await view.ui.getByRole("button", { name: "Kommenter", exact: true }).click(); await view.frame.locator("[data-vc-text=heading]").click();
+    await view.ui.getByRole("button", { name: "Endre", exact: true }).click(); await view.frame.locator("[data-vc-text=heading]").click();
     await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Foreslår en annen tittel til vurdering.");
     await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click(); await view.ui.getByLabel("Ny tekst", { exact: true }).fill("Forslag som fortsatt er et innspill"); await view.save();
     const originalComment = (await view.snapshot()).comments[0];
@@ -245,7 +259,7 @@ const cases = [
   } },
   { name: "editor-manual-hold-and-keep-conflict", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "constraints", "Avtalens overskrift", { fixture: editableSketch, openInput: { workspacePath: "design/constraints", create: true, title: "Bevarte valg" } });
-    await view.ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(view.ui);
     await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
     await view.workshop.getByRole("button", { name: "Behold dette", exact: true }).click(); await view.ui.locator(".panel").waitFor();
     let editor = await openEditor(view); await editor.getByLabel("Overskrift", { exact: true }).fill("Min beholdte overskrift");
@@ -285,6 +299,39 @@ const cases = [
     await editor.getByRole("button", { name: "Lukk redigering", exact: true }).click(); await view.publish("Neste avtaleforslag");
     const final = await view.snapshot(); assert.equal(final.workspace.version, 4); assert.equal(final.submission, 0); assert.equal(bound.calls.length, 0);
     return { manualPublishAndRestoreConflicts: 2, keepConflictRetainsDraft: true, explicitSameSourceRebase: true, manualReleases: 2, releaseCreatesNoRevision: true, publicationAfterRelease: true, automaticSubmissions: 0 };
+  } },
+  { name: "endre-parts-and-whole-sketch", viewport: { width: 390, height: 844 }, async run({ host, instance, screenshot }) {
+    const bound = host(), view = await instance(bound, "parts", "Timeavtale · deler", { fixture: editableSketch, openInput: { workspacePath: "design/deler", create: true, title: "Deler" } });
+    await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    await view.ui.getByRole("group", { name: "Endre skissen", exact: true }).waitFor();
+    assert.equal(await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed"), "true", "Endre starts with Be om endring.");
+    const parts = view.ui.getByLabel("Velg en del", { exact: true });
+    assert.deepEqual(await parts.locator("option").allTextContents(), ["Eller velg en del …", "Hele skissen", "Møteavtale", "Overskrift"]);
+    await screenshot(view, "endre-bar");
+    const pointed = async () => {
+      const item = (await view.snapshot()).comments.at(-1);
+      return { item, element: await view.frame.locator("body").evaluate((_, path) => {
+        const node = document.querySelector(path);
+        return node && { tag: node.localName, key: node.getAttribute("data-vc-key"), text: node.getAttribute("data-vc-text"), content: node.classList.contains("vc-content") };
+      }, item.anchor.path) };
+    };
+    await parts.selectOption("whole");
+    await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Hele flyten bør bli kortere.");
+    await view.save();
+    const whole = await pointed();
+    assert.equal(whole.element.content, true, "Hele skissen points at the sketch content.");
+    await view.closeFeedback();
+    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    await parts.selectOption({ label: "Møteavtale" });
+    await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Vis hva som skjer med den opprinnelige timen.");
+    await view.save();
+    const part = await pointed();
+    assert.equal(part.element.key, "meeting", "A declared part points at its own element.");
+    assert.equal(part.item.kind, "point"); assert.equal((await view.snapshot()).submission, 0); assert.equal(bound.calls.length, 0);
+    await view.closeFeedback();
+    await view.ui.getByRole("button", { name: "Prøv", exact: true }).click();
+    assert(await view.ui.getByRole("group", { name: "Endre skissen", exact: true }).isHidden(), "Prøv leaves Endre.");
+    return { wholeSketchAnchor: true, declaredPartAnchor: "meeting", automaticSubmissions: 0 };
   } },
   { name: "workspace-view-stored-version-read-only", viewport: { width: 390, height: 844 }, async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "view-stored", "Timeavtale · første", { openInput: { workspacePath: "design/visning", create: true, title: "Visning" } });
@@ -331,7 +378,7 @@ const cases = [
   { name: "workspace-recover-in-new-session", async run({ host, instance, screenshot }) {
     const first = host(async () => { throw new Error("No receipt"); });
     const original = await instance(first, "first-opening", "Timeavtale · første versjon", { openInput: { workspacePath: "design/timeavtale", create: true, title: "Timeavtale" } });
-    await original.ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(original.ui);
     await original.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
     await original.workshop.getByLabel("Merknad", { exact: true }).fill("Behold forklaringen om den opprinnelige avtalen.");
     await original.workshop.getByRole("button", { name: "Behold dette", exact: true }).click(); await original.ui.locator(".panel").waitFor();
@@ -429,7 +476,7 @@ const cases = [
     let acknowledge;
     const bound = host(() => new Promise(resolve => { acknowledge = resolve; }));
     const view = await instance(bound, "meeting", "Møteavtale · første versjon");
-    await view.ui.getByRole("button", { name: "Juster", exact: true }).click();
+    await openAdjust(view.ui);
     assert(await view.workshop.locator(".source-editor-entry").isHidden(), "Legacy sketches must not gain an empty source-editor entry.");
     await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
     await view.workshop.getByLabel("Merknad", { exact: true }).fill("Behold forklaringen om gjeldende avtale.");

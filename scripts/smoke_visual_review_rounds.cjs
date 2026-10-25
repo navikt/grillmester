@@ -8,6 +8,12 @@ const os = require("node:os");
 const path = require("node:path");
 const { createRequire } = require("node:module");
 const { spawn } = require("node:child_process");
+// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+async function openAdjust(ui) {
+  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  await adjust.click();
+}
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -81,10 +87,10 @@ function controls(page) {
     page, frame, ui, workshop,
     closeFeedback: async () => { const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click(); },
     openFeedback: async () => { if (!(await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).isVisible())) await ui.locator('[data-action="panel"]').click(); },
-    adjust: async () => { if (!(await workshop.isVisible())) await ui.getByRole("button", { name: "Juster", exact: true }).click(); },
+    adjust: async () => { if (!(await workshop.isVisible())) await openAdjust(ui); },
     note: async (text, selector = "h1") => {
       const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click();
-      const comment = ui.getByRole("button", { name: "Kommenter", exact: true }); if (await comment.getAttribute("aria-pressed") !== "true") await comment.click();
+      const comment = ui.getByRole("button", { name: "Endre", exact: true }); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await comment.click();
       await frame.locator(selector).first().click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text);
     },
     save: async () => { await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" }); },
@@ -104,7 +110,7 @@ async function runCase(context, testcase) {
       if (!testcase.zoom) await page.setViewportSize({ width: 1440, height: 1000 });
       page.on("pageerror", error => browserErrors.push(error.message));
       page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) remoteResources.push(new URL(request.url()).origin); });
-      await page.goto(info.url); const item = controls(page); await item.ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); return item;
+      await page.goto(info.url); const item = controls(page); await item.ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); return item;
     };
     let sequence = 0;
     const write = (title, initial = "clear") => { const stem = `${String(++sequence).padStart(2, "0")}-review`; fs.writeFileSync(path.join(info.screen_dir, `${stem}.design.json`), JSON.stringify(descriptor(initial))); fs.writeFileSync(path.join(info.screen_dir, `${stem}.html`), sketch(title, initial)); };

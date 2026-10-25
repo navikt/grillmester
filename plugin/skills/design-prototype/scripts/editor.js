@@ -41,7 +41,7 @@
     const toolbarButton = document.createElement("button");
     toolbarButton.type = "button"; toolbarButton.dataset.action = "editor-open"; toolbarButton.textContent = "Rediger"; toolbarButton.hidden = true;
     toolbarButton.addEventListener("click", () => { if (!toolbarButton.disabled) void open(); });
-    root.querySelector(".toolbar").appendChild(toolbarButton);
+    (root.querySelector(".endre-tabs") || root.querySelector(".toolbar")).appendChild(toolbarButton);
     let baseline = null, fields = [], holds = [], values = new Map(), loading = false, writing = false, stale = false, needsRebase = false, capacity = false, saved = false;
     let saveRetry = {}, releaseRetries = new Map();
     const preview = new Map();
@@ -136,7 +136,7 @@
     }
     async function open() {
       if (!descriptor || !api.prepareOpen()) return;
-      pane.hidden = false; layout(); el('[data-editor-action="close"]').focus();
+      pane.hidden = false; api.onPanelChange?.(); layout(); el('[data-editor-action="close"]').focus();
       if (!valid) { error("Skissens tekstfelt er ikke entydige. Be om å rette skissekilden før du redigerer."); update(); return; }
       if (!baseline) await read(); else { showPreview(); update(); }
     }

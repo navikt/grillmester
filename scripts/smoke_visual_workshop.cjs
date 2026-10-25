@@ -8,6 +8,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
+// Juster is one of the Endre tools; open Endre first when its bar is hidden.
+async function openAdjust(ui) {
+  const adjust = ui.getByRole("button", { name: "Juster", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  await adjust.click();
+}
 
 const options = new Map();
 const args = process.argv.slice(2);
@@ -213,7 +219,7 @@ async function runWorkshop(context) {
     padding: getComputedStyle(node).paddingTop,
   }));
   const openWorkshop = async () => {
-    if (!(await adjustment.isVisible())) await ui.getByRole("button", { name: "Juster", exact: true }).click();
+    if (!(await adjustment.isVisible())) await openAdjust(ui);
     await adjustment.waitFor();
   };
   const closeWorkshop = async () => {
@@ -232,6 +238,9 @@ async function runWorkshop(context) {
     if (await close.isVisible()) await close.click();
   };
 
+  // Keyboard: Endre opens its bar, then Juster opens the adjustment panel.
+  await ui.getByRole("button", { name: "Endre", exact: true }).focus();
+  await page.keyboard.press("Enter");
   await ui.getByRole("button", { name: "Juster", exact: true }).focus();
   await page.keyboard.press("Enter");
   await adjustment.waitFor();
@@ -299,7 +308,7 @@ async function runWorkshop(context) {
   // A narrow page compares on its own; the desktop page keeps its comparison.
   const desktop = page;
   show(await openPage({ width: 390, height: 844 }));
-  await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor();
+  await ui.getByRole("button", { name: "Endre", exact: true }).waitFor();
   await openWorkshop();
   await adjustment.getByRole("button", { name: "Sammenlign varianter", exact: true }).click();
   await ui.locator(`.pin[data-id="${proposed.id}"]`).waitFor(); // Shown until the variant switch hides it.
@@ -334,7 +343,7 @@ async function runWorkshop(context) {
   console.log("PASS: equal desktop panes, narrow variant switch and explicit preference without selection events.");
 
   await closeFeedback();
-  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await ui.getByRole("button", { name: "Endre", exact: true }).click();
   await ui.getByRole("button", { name: "Område", exact: true }).click();
   await frame.getByRole("heading", { name: "Velg arbeidsoversikt", exact: true }).focus();
   await page.keyboard.press("Enter");
@@ -353,7 +362,7 @@ async function runWorkshop(context) {
   assert.equal(await ui.getByLabel("Hva vil du endre?").inputValue(), "Områdeutkastet skal ha samme forankring etter sammenligning.");
   await ui.getByRole("button", { name: "Forkast", exact: true }).click();
   await closeWorkshop();
-  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await ui.getByRole("button", { name: "Endre", exact: true }).click();
   await ui.getByRole("button", { name: "Punkt", exact: true }).click();
   await frame.getByRole("heading", { name: "Velg arbeidsoversikt", exact: true }).focus();
   await page.keyboard.press("Enter");
@@ -443,7 +452,7 @@ async function checkInvalidManifest({ page, frame, ui, info, list, writeScreen }
   assert.equal(await frame.locator("body").evaluate(() => window.__grillmesterVisualCompanionDesign), null);
   assert.equal(await frame.locator("[data-vc-setting-density]").count(), 0, "Invalid metadata must never activate a declared setting.");
   const before = await list();
-  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await ui.getByRole("button", { name: "Endre", exact: true }).click();
   await frame.getByRole("heading", { name: "Oppsettet må rettes" }).click();
   await ui.getByLabel("Hva vil du endre?").fill("Vanlige innspill skal fortsatt fungere når justeringsoppsettet er ugyldig.");
   await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
@@ -487,13 +496,13 @@ async function runDeclaredActions({ page, frame, ui, info, list, writeScreen }) 
   await left.getByRole("button", { name: "Ikke tilgjengelig", exact: true }).focus();
   await page.keyboard.press("Enter");
   assert.equal(await state(), "start");
-  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await ui.getByRole("button", { name: "Endre", exact: true }).click();
   await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
   assert.equal(await state(), "start", "Comment mode must annotate a control without activating it.");
   await ui.getByRole("button", { name: "Forkast", exact: true }).click();
   await ui.locator('[data-action="browse"]').click();
   await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
-  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await ui.getByRole("button", { name: "Endre", exact: true }).click();
   await left.getByText("Bekreft tidspunktet før du går videre.", { exact: true }).click();
   await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Forklar hva bekreftelsen betyr.");
   await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
@@ -518,7 +527,7 @@ async function runDeclaredActions({ page, frame, ui, info, list, writeScreen }) 
   assert(!JSON.stringify(batch).includes("SYNTETISK_FELT_SOM_IKKE_SKAL_SAMLES"));
   await close.click(); await ui.locator('[data-action="browse"]').click();
   await left.getByRole("button", { name: "Tilbake", exact: true }).click();
-  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await ui.getByRole("button", { name: "Endre", exact: true }).click();
   await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
   await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Behold utkastet på startsteget.");
   await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
@@ -530,14 +539,14 @@ async function runDeclaredActions({ page, frame, ui, info, list, writeScreen }) 
   assert(await left.getByRole("button", { name: "Se gjennom", exact: true }).isVisible());
   assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Behold utkastet på startsteget.");
   await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
-  await ui.getByRole("button", { name: "Juster", exact: true }).click();
+  await openAdjust(ui);
   await ui.getByRole("region", { name: "Juster skissen", exact: true }).getByLabel("Steg", { exact: true }).selectOption("review");
   await ui.getByRole("button", { name: "Lukk justeringer", exact: true }).click();
   await ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
   assert.equal(await state(), "start");
   await ui.getByRole("button", { name: "Forkast", exact: true }).click();
   assert.equal((await list()).comments.length, baseline.comments.length + 1);
-  await ui.getByRole("button", { name: "Kommenter", exact: true }).click();
+  await ui.getByRole("button", { name: "Endre", exact: true }).click();
   await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
   await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Prøv en kortere knappetekst.");
   await ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
@@ -606,7 +615,7 @@ async function runKeyboardErrors({ page, frame, ui, list, writeScreen, openPage 
     return { field: await visibleBounds(field, "Focused field"), error: await visibleBounds(error, "Error message") };
   }
   const measurements = {};
-  await activate(ui.getByRole("button", { name: "Kommenter", exact: true }));
+  await activate(ui.getByRole("button", { name: "Endre", exact: true }));
   await activate(frame.getByRole("heading", { name: title, exact: true }));
   const note = ui.getByLabel("Hva vil du endre?", { exact: true });
   const composeError = ui.locator(".compose-error");
@@ -658,6 +667,7 @@ async function runKeyboardErrors({ page, frame, ui, list, writeScreen, openPage 
 
   await page.close();
   await show({ width: 568, height: 320 });
+  await activate(ui.getByRole("button", { name: "Endre", exact: true }));
   await activate(ui.getByRole("button", { name: "Juster", exact: true }));
   const workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
   const remark = workshop.getByLabel("Merknad", { exact: true });
@@ -667,7 +677,7 @@ async function runKeyboardErrors({ page, frame, ui, list, writeScreen, openPage 
   assert.equal((await list()).decisions.length, baseline.decisions.length);
   await screenshot(page, "visual-workshop-remark-error-landscape.png");
   await page.keyboard.press("Escape");
-  assert(await isFocused(ui.getByRole("button", { name: "Juster", exact: true })), "Closing adjustments must restore toolbar focus.");
+  assert(await isFocused(ui.getByRole("button", { name: "Juster", exact: true })), "Closing adjustments must restore focus to the Juster entry in the Endre bar.");
   await activate(ui.getByRole("button", { name: "Juster", exact: true }));
   assert.equal(await remark.inputValue(), oversizedNote, "Closing and reopening must preserve the rejected draft.");
   const keepText = "Behold forklaringen om hvem som tar kontakt etter møtet.";
