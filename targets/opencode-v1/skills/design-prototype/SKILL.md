@@ -24,9 +24,12 @@ avhenger av et lagret par; stopp og rapporter ved avvik. Dette krever ikke
 canvas, Node, Figma eller eierskap til rommet. Ikke åpne rommet, start en
 previewserver eller endre designfilene for å lese underlaget.
 
-Ved en chatbestilling om å endre et felt designeren har lagret i editoren, kan
-ikke agenten tillate endringen. Be designeren endre feltet i editoren eller velge
-**Tillat senere endring**, og fortsett med resten av bestillingen.
+Ved en chatbestilling om å endre et felt designeren har lagret i editoren, i en
+ny skisseversjon eller en gjenoppretting i rommet, kan ikke agenten tillate
+endringen. Be designeren endre feltet i editoren eller velge **Tillat senere
+endring**, og fortsett med resten av bestillingen. Ved implementering eller
+brief er en ønsket verdi i produktet et krav i bestillingen, ikke en endring av
+rommet, og den krever ingen slik tillatelse.
 
 - **Behold dette** → *kept choice*: ber agenten beholde en del av skissen.
 - **Lagret felt** → *preserved field*: editorverdi som sperrer overskriving til
