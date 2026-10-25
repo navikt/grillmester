@@ -1,9 +1,12 @@
-(() => {
+// Loaded in <head>: keep this script's nonce now and start once the sketch is parsed.
+((scriptNonce, start) => (document.readyState === "loading"
+  ? document.addEventListener("DOMContentLoaded", () => start(scriptNonce), { once: true })
+  : start(scriptNonce)))(document.currentScript?.nonce || "", (scriptNonce) => {
   "use strict";
 
   const channel = "grillmester-visual-companion";
   const screen = window.__grillmesterVisualCompanionScreen;
-  const nonce = document.currentScript?.nonce || "";
+  const nonce = scriptNonce;
   const selected = new Map();
   const indicator = document.getElementById("indicator");
   const indicatorText = document.getElementById("indicator-text");
@@ -1226,4 +1229,4 @@
   renderComments();
   request("comments-list", {}).catch((error) => errorAt(".panel-error", error.message));
   window.setInterval(renderFooter, 1000);
-})();
+});

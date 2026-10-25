@@ -1,4 +1,7 @@
-(() => {
+// Loaded in <head>: read declared bindings once the sketch is parsed.
+((start) => (document.readyState === "loading"
+  ? document.addEventListener("DOMContentLoaded", start, { once: true })
+  : start()))(() => {
   "use strict";
   const design = window.__grillmesterVisualCompanionDesign;
   const descriptor = design?.version === 2 ? design : null;
@@ -188,4 +191,4 @@
       onSnapshot(snapshot) { if (baseline && snapshot.workspace?.version !== baseline.workspaceVersion && dirty() && !writing && !saveRetry.intent) { stale = true; needsRebase = true; } if (!pane.hidden) update(); },
     };
   };
-})();
+});

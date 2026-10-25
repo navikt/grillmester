@@ -561,8 +561,8 @@ const FORBIDDEN_PREVIEW_ELEMENTS = new Set([
 // These elements switch the HTML tokenizer into a raw-text/RCDATA state. Keep
 // well-formed elements (textarea and SVG title are useful in prototypes), but
 // discard an opening tag that has no explicit close inside the agent fragment.
-// Otherwise it could consume the fixed wrapper and trusted helper scripts that
-// follow {{CONTENT}} in frame-template.tmpl.
+// Otherwise it could consume the fixed wrapper that follows {{CONTENT}} in
+// frame-template.tmpl. The trusted helper scripts load before the fragment.
 const RAW_TEXT_PREVIEW_ELEMENTS = new Set([
   "noscript",
   "style",
@@ -586,6 +586,10 @@ const NETWORK_CAPABLE_ATTRIBUTES = new Set([
 ]);
 const SAFE_RASTER_DATA_URL = /^data:image\/(?:gif|jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
 
+// The scanner follows the HTML tokenizer where it decides how markup starts and
+// ends: no whitespace after "<" or "</", quotes only around attribute values,
+// every comment ending, and raw text that ends at the first matching end tag.
+// Tags are written back canonically, so the browser reads the same structure.
 function isHtmlSpace(character) {
   return (
     character === " " ||
@@ -596,67 +600,91 @@ function isHtmlSpace(character) {
   );
 }
 
-function isTagNameCharacter(character) {
-  if (!character) return false;
-  const code = character.charCodeAt(0);
-  return (
-    (code >= 48 && code <= 57) ||
-    (code >= 65 && code <= 90) ||
-    (code >= 97 && code <= 122) ||
-    character === ":" ||
-    character === "-"
-  );
+function isAsciiAlpha(character) {
+  return typeof character === "string" && /^[A-Za-z]$/.test(character);
+}
+
+function markupDeclarationEnd(source, start) {
+  if (source.startsWith("<!--", start)) {
+    // "<!-->" and "<!--->" are complete empty comments; otherwise the first
+    // "-->" or "--!>" ends the comment.
+    if (source[start + 4] === ">") return { end: start + 5, closed: true };
+    if (source.startsWith("->", start + 4)) return { end: start + 6, closed: true };
+    const ends = [source.indexOf("-->", start + 4), source.indexOf("--!>", start + 4)].filter((index) => index !== -1);
+    if (!ends.length) return { end: source.length, closed: false };
+    const first = Math.min(...ends);
+    return { end: first + (source.startsWith("--!>", first) ? 4 : 3), closed: true };
+  }
+  // Doctypes, CDATA, processing instructions and other bogus comments end at ">".
+  const close = source.indexOf(">", start + 1);
+  return close === -1 ? { end: source.length, closed: false } : { end: close + 1, closed: true };
 }
 
 function scanHtmlTag(source, start) {
   if (source[start] !== "<") return null;
-  if (source.startsWith("<!--", start)) {
-    const commentEnd = source.indexOf("-->", start + 4);
-    return {
-      end: commentEnd === -1 ? source.length : commentEnd + 3,
-      name: null,
-      closing: false,
-      comment: true,
-      closed: commentEnd !== -1,
-    };
-  }
+  const next = source[start + 1];
+  if (next === "!" || next === "?") return { ...markupDeclarationEnd(source, start), name: null, comment: true };
   let cursor = start + 1;
   let closing = false;
-  if (source[cursor] === "/") {
+  if (next === "/") {
     closing = true;
     cursor += 1;
+    if (source[cursor] === ">") return { end: cursor + 1, closed: true, name: null, comment: true };
+    if (!isAsciiAlpha(source[cursor])) return { ...markupDeclarationEnd(source, start), name: null, comment: true };
+  } else if (!isAsciiAlpha(next)) {
+    return null;
   }
-  while (isHtmlSpace(source[cursor])) cursor += 1;
   const nameStart = cursor;
-  while (isTagNameCharacter(source[cursor])) cursor += 1;
-  if (cursor === nameStart) return null;
-  const name = source.slice(nameStart, cursor).toLowerCase();
-  let quote = null;
-  for (; cursor < source.length; cursor += 1) {
+  while (cursor < source.length && !isHtmlSpace(source[cursor]) && source[cursor] !== "/" && source[cursor] !== ">") cursor += 1;
+  const tag = { name: source.slice(nameStart, cursor).toLowerCase(), closing, selfClosing: false, attributes: [], comment: false };
+  while (cursor < source.length) {
     const character = source[cursor];
-    if (quote !== null) {
-      if (character === quote) quote = null;
-    } else if (character === '"' || character === "'") {
-      quote = character;
-    } else if (character === ">") {
-      return { end: cursor + 1, name, closing, comment: false };
+    if (isHtmlSpace(character)) { cursor += 1; continue; }
+    if (character === ">") return { ...tag, end: cursor + 1, closed: true };
+    if (character === "/") {
+      cursor += 1;
+      if (source[cursor] === ">") return { ...tag, selfClosing: true, end: cursor + 1, closed: true };
+      continue;
     }
+    // An attribute name runs to whitespace, "/", ">" or "="; its first character
+    // always belongs to it, even "=".
+    const attributeStart = cursor;
+    cursor += 1;
+    while (cursor < source.length && !isHtmlSpace(source[cursor]) && !"/>=".includes(source[cursor])) cursor += 1;
+    const name = source.slice(attributeStart, cursor).toLowerCase();
+    while (cursor < source.length && isHtmlSpace(source[cursor])) cursor += 1;
+    let value = null;
+    if (source[cursor] === "=") {
+      cursor += 1;
+      while (cursor < source.length && isHtmlSpace(source[cursor])) cursor += 1;
+      const quote = source[cursor] === '"' || source[cursor] === "'" ? source[cursor] : null;
+      if (quote) {
+        const close = source.indexOf(quote, cursor + 1);
+        if (close === -1) return { ...tag, end: source.length, closed: false };
+        value = source.slice(cursor + 1, close);
+        cursor = close + 1;
+      } else if (source[cursor] === ">") {
+        value = "";
+      } else {
+        const valueStart = cursor;
+        while (cursor < source.length && !isHtmlSpace(source[cursor]) && source[cursor] !== ">") cursor += 1;
+        value = source.slice(valueStart, cursor);
+      }
+    }
+    tag.attributes.push({ name, value });
   }
-  return { end: source.length, name, closing, comment: false };
+  return { ...tag, end: source.length, closed: false };
 }
 
+// Raw text and RCDATA end at the first "</name" followed by whitespace, "/" or
+// ">". Markup in between is not interpreted, exactly as in the browser.
 function findClosingTag(source, start, name) {
-  let cursor = start;
-  while (cursor < source.length) {
-    const candidateStart = source.indexOf("<", cursor);
-    if (candidateStart === -1) return null;
-    const candidate = scanHtmlTag(source, candidateStart);
-    if (candidate && candidate.closing && candidate.name === name) {
-      return { start: candidateStart, end: candidate.end };
-    }
-    cursor = candidate ? candidate.end : candidateStart + 1;
-  }
-  return null;
+  const candidate = new RegExp(`</${name}(?=[\\t\\n\\f\\r />])`, "gi");
+  candidate.lastIndex = start;
+  const match = candidate.exec(source);
+  if (!match) return null;
+  const tag = scanHtmlTag(source, match.index);
+  return tag && tag.closed ? { start: match.index, end: tag.end } : null;
 }
 
 function isSafeRasterDataUrl(value) {
@@ -695,82 +723,23 @@ function mayKeepNetworkAttribute(elementName, attributeName, attributeValue) {
   return false;
 }
 
-function withoutNetworkAttributes(tag, styleNonce = null) {
-  let cursor = 1;
-  let result = "<";
-  if (tag[cursor] === "/") {
-    return tag;
+const SAFE_TAG_NAME = /^[a-z][a-z0-9:-]*$/;
+const SAFE_ATTRIBUTE_NAME = /^[a-z_:][a-z0-9_.:-]*$/;
+
+// Write a start tag from its parsed attributes. The browser keeps the first of
+// duplicate attributes, so later duplicates are never written.
+function serializeStartTag(tag, styleNonce = null) {
+  let result = `<${tag.name}`;
+  if (tag.name === "style" && styleNonce) result += ` nonce="${styleNonce}"`;
+  const seen = new Set();
+  for (const { name, value } of tag.attributes) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    if (!SAFE_ATTRIBUTE_NAME.test(name) || name.startsWith("on") || name === "nonce") continue;
+    if (NETWORK_CAPABLE_ATTRIBUTES.has(name) && !mayKeepNetworkAttribute(tag.name, name, value)) continue;
+    result += value === null ? ` ${name}` : ` ${name}="${value.replace(/"/g, "&quot;")}"`;
   }
-  while (isHtmlSpace(tag[cursor])) {
-    result += tag[cursor];
-    cursor += 1;
-  }
-  const elementNameStart = cursor;
-  while (isTagNameCharacter(tag[cursor])) {
-    result += tag[cursor];
-    cursor += 1;
-  }
-  const elementName = tag.slice(elementNameStart, cursor).toLowerCase();
-  if (elementName === "style" && styleNonce) result += ` nonce="${styleNonce}"`;
-  while (cursor < tag.length - 1) {
-    const attributeStart = cursor;
-    while (isHtmlSpace(tag[cursor])) cursor += 1;
-    if (tag[cursor] === "/" || tag[cursor] === ">") {
-      result += tag.slice(attributeStart, cursor);
-      if (tag[cursor] === "/") {
-        result += "/";
-        cursor += 1;
-      }
-      break;
-    }
-    const nameStart = cursor;
-    while (
-      cursor < tag.length - 1 &&
-      !isHtmlSpace(tag[cursor]) &&
-      tag[cursor] !== "=" &&
-      tag[cursor] !== ">" &&
-      tag[cursor] !== "/"
-    ) {
-      cursor += 1;
-    }
-    if (cursor === nameStart) {
-      cursor += 1;
-      continue;
-    }
-    const attributeName = tag.slice(nameStart, cursor).toLowerCase();
-    while (isHtmlSpace(tag[cursor])) cursor += 1;
-    let attributeValue = null;
-    if (tag[cursor] === "=") {
-      cursor += 1;
-      while (isHtmlSpace(tag[cursor])) cursor += 1;
-      const quote = tag[cursor] === '"' || tag[cursor] === "'" ? tag[cursor] : null;
-      if (quote !== null) {
-        cursor += 1;
-        const valueStart = cursor;
-        while (cursor < tag.length - 1 && tag[cursor] !== quote) cursor += 1;
-        attributeValue = tag.slice(valueStart, cursor);
-        if (tag[cursor] === quote) cursor += 1;
-      } else {
-        const valueStart = cursor;
-        while (
-          cursor < tag.length - 1 &&
-          !isHtmlSpace(tag[cursor]) &&
-          tag[cursor] !== ">"
-        ) {
-          cursor += 1;
-        }
-        attributeValue = tag.slice(valueStart, cursor);
-      }
-    }
-    if (
-      (!NETWORK_CAPABLE_ATTRIBUTES.has(attributeName) ||
-        mayKeepNetworkAttribute(elementName, attributeName, attributeValue)) &&
-      !attributeName.startsWith("on") && attributeName !== "nonce"
-    ) {
-      result += tag.slice(attributeStart, cursor);
-    }
-  }
-  return `${result}>`;
+  return `${result}${tag.selfClosing ? " /" : ""}>`;
 }
 
 function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
@@ -786,64 +755,62 @@ function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
     }
     result += source.slice(cursor, tagStart);
     const tag = scanHtmlTag(source, tagStart);
-    if (tag === null) {
+    if (tag === null || (tag.comment && !tag.closed)) {
+      // Plain text, or an unterminated comment that would otherwise swallow the
+      // wrapper after the fragment: escape only the opener and keep sanitizing.
       result += "&lt;";
       cursor = tagStart + 1;
       continue;
     }
     if (tag.comment) {
-      if (tag.closed) {
-        result += source.slice(tagStart, tag.end);
-        cursor = tag.end;
-      } else {
-        // An unterminated comment would keep the browser in comment state and
-        // swallow the fixed wrapper/helper appended after this fragment. Escape
-        // only its opener, then sanitize the remaining fragment normally.
-        result += "&lt;!--";
-        cursor = tagStart + 4;
-      }
+      // Comments, doctypes and bogus comments do not render. Dropping them means
+      // the browser never has to agree with this scanner on where they end.
+      cursor = tag.end;
       continue;
     }
-    if (tag.name === "script" && !tag.closing) {
+    if (!tag.closed) {
+      // A tag cut off by the end of the fragment would continue into the fixed
+      // wrapper. Its remaining text belongs to the tag, so nothing is written.
+      cursor = source.length;
+      break;
+    }
+    if (!SAFE_TAG_NAME.test(tag.name)) {
       cursor = tag.end;
-      while (cursor < source.length) {
-        const candidateStart = source.indexOf("<", cursor);
-        if (candidateStart === -1) {
-          cursor = source.length;
-          break;
-        }
-        const candidate = scanHtmlTag(source, candidateStart);
-        if (candidate && candidate.closing && candidate.name === "script") {
-          cursor = candidate.end;
-          break;
-        }
-        cursor = candidate ? candidate.end : candidateStart + 1;
-      }
+      continue;
+    }
+    if (tag.closing) {
+      result += `</${tag.name}>`;
+      cursor = tag.end;
       continue;
     }
     // In SVG/MathML content the browser parses raw-text elements as markup.
     // The tree builder can stay there after a self-closing-looking tag or an
     // ignored end tag, so after any opener every later raw-text element is
     // treated as possibly foreign.
-    if ((tag.name === "svg" || tag.name === "math") && !tag.closing) foreign = true;
-    if (RAW_TEXT_PREVIEW_ELEMENTS.has(tag.name) && !tag.closing) {
+    if (tag.name === "svg" || tag.name === "math") foreign = true;
+    if (tag.name === "script") {
+      const closing = findClosingTag(source, tag.end, "script");
+      cursor = closing ? closing.end : source.length;
+      continue;
+    }
+    if (RAW_TEXT_PREVIEW_ELEMENTS.has(tag.name)) {
       const closing = knownUnclosedRawTextElements.has(tag.name)
         ? null
         : findClosingTag(source, tag.end, tag.name);
       if (closing === null) {
         // Flatten malformed raw-text markup into the surrounding fragment. Its
-        // contents will continue through the normal sanitizer instead of
-        // swallowing the wrapper that follows the fragment.
+        // contents continue through the normal sanitizer instead of swallowing
+        // the wrapper that follows the fragment.
         knownUnclosedRawTextElements.add(tag.name);
         cursor = tag.end;
         continue;
       }
-      result += withoutNetworkAttributes(source.slice(tagStart, tag.end), styleNonce);
       // Text without a possible tag, comment or end tag opener reads the same
       // as raw text and as markup. Otherwise sanitize foreign contents as markup.
       const content = source.slice(tag.end, closing.start);
+      result += serializeStartTag(tag, styleNonce);
       result += foreign && /<[A-Za-z!\/?]/.test(content) ? stripActivePreviewMarkup(content, styleNonce, true) : content;
-      result += source.slice(closing.start, closing.end);
+      result += `</${tag.name}>`;
       cursor = closing.end;
       continue;
     }
@@ -851,7 +818,7 @@ function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
       cursor = tag.end;
       continue;
     }
-    result += withoutNetworkAttributes(source.slice(tagStart, tag.end));
+    result += serializeStartTag(tag, styleNonce);
     cursor = tag.end;
   }
   return result;
@@ -941,19 +908,20 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
   const designWarning = designError
     ? `<div role="alert" style="background:#fff5df;border:2px solid #a86d00;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif"><strong>Justeringspanelet er utilgjengelig.</strong> Skisseoppsettet må rettes.</div>`
     : "";
-  return frameTemplate
-    .replace(/\{\{FILENAME\}\}/g, safeFilename)
-    .replace(/\{\{NONCE\}\}/g, nonce)
-    .replace(/\{\{AKSEL_STYLE\}\}/g, () => akselStyle)
-    .replace(
-      /\{\{HELPER_SCRIPT\}\}/g,
-      () =>
-        `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};</script>` +
-        `<script nonce="${nonce}">\n${workshopJs}\n</script>` +
-        `<script nonce="${nonce}">\n${editorJs}\n</script>` +
-        `<script nonce="${nonce}">\n${helperJs}\n</script>`,
-    )
-    .replace(/\{\{CONTENT\}\}/g, () => cssWarning + designWarning + safeContent);
+  // One pass: inserted CSS, scripts and sketch markup are never scanned again
+  // for placeholders.
+  const values = {
+    FILENAME: safeFilename,
+    NONCE: nonce,
+    AKSEL_STYLE: akselStyle,
+    HELPER_SCRIPT:
+      `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};</script>` +
+      `<script nonce="${nonce}">\n${workshopJs}\n</script>` +
+      `<script nonce="${nonce}">\n${editorJs}\n</script>` +
+      `<script nonce="${nonce}">\n${helperJs}\n</script>`,
+    CONTENT: cssWarning + designWarning + safeContent,
+  };
+  return frameTemplate.replace(/\{\{(FILENAME|NONCE|AKSEL_STYLE|HELPER_SCRIPT|CONTENT)\}\}/g, (_, key) => values[key]);
 }
 
 function renderShellPage(nonce, accessToken, title, screen) {
