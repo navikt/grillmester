@@ -379,7 +379,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/editor.js": {
-      "sha256": "62c108b9b37025e799fd07efa5837b49839d0c7a795424fac6c437609bd8b392",
+      "sha256": "14f55d19086d93321c86c5981daf486410e3332c8512821937844224cbbefd8c",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/feedback-store.js": {
@@ -391,11 +391,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "1e46681a431ae6fdd6bb4b48d2fd3b6f1a9b44f27673f544fa934a6ba2b17f09",
+      "sha256": "54dc94bb223ef921eced029e0ef588d2aeb19020bad23531fe14c61e9c5905d2",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "bc02bceef3d4dd1451265f079d1c70c4b4140390e78916ebcb663c1c76c6aceb",
+      "sha256": "81d947d83a0e6a61dadff0f57b55bd5243c9f0b7b207428a59158820fb5fa108",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {

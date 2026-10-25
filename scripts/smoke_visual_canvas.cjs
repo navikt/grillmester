@@ -220,7 +220,7 @@ const cases = [
     assert.equal(await reopened.frame.locator("[data-vc-key=meeting]").getAttribute("data-vc-setting-detail"), "full");
     editor = await openEditor(reopened);
     assert.equal(await editor.getByLabel("Overskrift", { exact: true }).inputValue(), literal);
-    assert.equal(await editor.getByRole("button", { name: /^Frigi føringen for/ }).count(), 2);
+    assert.equal(await editor.getByRole("button", { name: /^Tillat senere endring for/ }).count(), 2);
     await screenshot(reopened, "saved-fields-after-backend-restart");
     return { unicodeBytesRejected: 2002, validationWrites: 0, literalMarkupIsText: true, localPreviewAndPaneDraftPreserved: true, readWithoutMutation: readCount, saveAttempts: attempts.length, identicalRetryIntent: true, acceptedBeforePollLock: receiptLock, newVersions: 1, reopenedCanonicalFields: 2, geometry, automaticSubmissions: 0 };
   } },
@@ -263,7 +263,7 @@ const cases = [
     await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).click(); await editor.locator(".source-editor-error").waitFor();
     assert.match(await editor.locator(".source-editor-error").textContent(), /Behold dette/); assert.equal((await view.snapshot()).workspace.version, 2);
     await editor.getByRole("button", { name: "Lukk redigering", exact: true }).click();
-    await view.openFeedback(); await view.ui.getByRole("button", { name: "Frigi", exact: true }).click();
+    await view.openFeedback(); await view.ui.getByRole("button", { name: "Slutt å beholde", exact: true }).click();
     editor = await openEditor(view); assert.equal(await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).inputValue(), "short");
     await editor.getByRole("button", { name: "Oppdater grunnlaget", exact: true }).click();
     await until(async () => await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).isEnabled(), "explicit same-source rebase after keep release");
@@ -273,11 +273,11 @@ const cases = [
     await until(async () => (await view.snapshot()).workspace.version === 3, "changed finite source saved after release");
     await until(async () => await view.ui.locator(".source-editor").isHidden(), "third version opened");
     editor = await openEditor(view);
-    await editor.getByRole("button", { name: "Frigi føringen for Overskrift", exact: true }).click();
-    await until(async () => await editor.getByRole("button", { name: "Frigi føringen for Overskrift", exact: true }).count() === 0, "manual heading hold released");
+    await editor.getByRole("button", { name: "Tillat senere endring for Overskrift", exact: true }).click();
+    await until(async () => await editor.getByRole("button", { name: "Tillat senere endring for Overskrift", exact: true }).count() === 0, "manual heading hold released");
     assert(await editor.getByLabel("Overskrift", { exact: true }).evaluate(node => node.getRootNode().activeElement === node));
-    await editor.getByRole("button", { name: "Frigi føringen for Mengde forklaring · Møteavtale", exact: true }).click();
-    await until(async () => await editor.getByRole("button", { name: /^Frigi føringen for/ }).count() === 0, "manual finite hold released");
+    await editor.getByRole("button", { name: "Tillat senere endring for Mengde forklaring · Møteavtale", exact: true }).click();
+    await until(async () => await editor.getByRole("button", { name: /^Tillat senere endring for/ }).count() === 0, "manual finite hold released");
     assert(await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).evaluate(node => node.getRootNode().activeElement === node));
     assert.equal(await editor.getByLabel("Overskrift", { exact: true }).inputValue(), "Min beholdte overskrift");
     assert.equal((await view.snapshot()).workspace.version, 3, "Releasing constraints must not create a source revision.");
@@ -292,7 +292,7 @@ const cases = [
     const before = await view.snapshot(); let attempts = 0;
     // The backend capacity limit has its own tests; exercise the browser's permanent-error guidance without creating 100 revisions here.
     await view.page.route(/\/workspace\/restore(?:\?|$)/, async route => { attempts += 1; await route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: "Workspace capacity reached." }) }); });
-    await view.ui.getByRole("button", { name: "Arbeid", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="1"] button').click(); await view.ui.locator('[data-action="workspace-restore"]').click();
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="1"] button').click(); await view.ui.locator('[data-action="workspace-restore"]').click();
     await view.ui.locator(".workspace-error").waitFor(); assert.match(await view.ui.locator(".workspace-error").textContent(), /lagringsgrense/);
     assert(await view.ui.getByRole("button", { name: "Lagringsgrensen er nådd", exact: true }).isDisabled());
     assert.equal(await view.ui.getByRole("button", { name: "Prøv samme gjenoppretting igjen", exact: true }).count(), 0);
@@ -322,13 +322,13 @@ const cases = [
     assert.match(await old.locator(".workspace-previous").textContent(), /uavklart/);
     assert(await reopened.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).isEnabled(), "A previous session's uncertainty must not permanently block new feedback.");
     await screenshot(reopened, "previous-round-and-new-feedback");
-    await reopened.closeFeedback(); await reopened.ui.getByRole("button", { name: "Arbeid", exact: true }).click();
+    await reopened.closeFeedback(); await reopened.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await reopened.ui.locator(".workspace-history-list article").first().waitFor();
     assert.equal(await reopened.ui.locator(".workspace-title").textContent(), "Timeavtale");
     assert.match(await reopened.ui.locator(".workspace-path").textContent(), /design\/timeavtale/);
     assert(await reopened.ui.locator(".workspace-recovered").isVisible());
     await screenshot(reopened, "project-workspace-reopened");
-    await reopened.ui.getByRole("button", { name: "Lukk arbeid", exact: true }).click();
+    await reopened.ui.getByRole("button", { name: "Lukk versjoner", exact: true }).click();
     await reopened.send(1); await reopened.round(2, "queued");
     assert.equal(next.calls.length, 1); assert.equal(next.calls[0].identity.submission, 2);
     assert.equal(first.calls.length, 1);
@@ -342,21 +342,21 @@ const cases = [
     await view.note("Ulagret begrunnelse som må beholdes."); await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click(); await view.ui.getByLabel("Ny tekst", { exact: true }).fill("Din neste avtale");
     let restoreRequests = 0;
     view.page.on("request", request => { if (new URL(request.url()).pathname === "/workspace/restore") restoreRequests += 1; });
-    await view.ui.getByRole("button", { name: "Arbeid", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await view.ui.locator('.workspace-revision[data-revision-id="1"] button').click();
     assert(await view.ui.locator('[data-action="workspace-restore"]').isDisabled()); assert.equal(restoreRequests, 0);
     assert.match(await view.ui.locator(".workspace-restore-warning").textContent(), /Utkastet ditt er beholdt/);
     await screenshot(view, "draft-blocks-restore");
-    await view.ui.getByRole("button", { name: "Lukk arbeid", exact: true }).click(); await view.ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Lukk versjoner", exact: true }).click(); await view.ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
     assert.equal(await view.ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Ulagret begrunnelse som må beholdes."); assert.equal(await view.ui.getByLabel("Ny tekst", { exact: true }).inputValue(), "Din neste avtale");
     await view.ui.getByRole("button", { name: "Forkast", exact: true }).click();
-    await view.ui.getByRole("button", { name: "Arbeid", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await view.ui.locator('.workspace-revision[data-revision-id="1"] button').click();
     await view.ui.locator('[data-action="workspace-restore"]').click();
     await view.frame.getByRole("heading", { name: "Timeavtale · opprinnelig", exact: true }).waitFor();
     const restored = await view.snapshot();
     assert.equal(restored.workspace.version, 3); assert.deepEqual(restored.comments, saved.comments); assert.equal(restored.submission, 0); assert.equal(bound.calls.length, 0); assert.equal(restoreRequests, 1);
-    await view.ui.getByRole("button", { name: "Arbeid", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     const revision = view.ui.locator('.workspace-revision[data-revision-id="3"]'); await revision.waitFor();
     assert.match(await revision.textContent(), /Fra versjon 1/); assert(await revision.getByRole("button", { name: "Gjeldende versjon", exact: true }).isDisabled());
     await screenshot(view, "restored-as-new-version");
@@ -367,7 +367,7 @@ const cases = [
     for (let version = 2; version <= 22; version += 1) await view.publish(`Timeavtale · versjon ${version}`);
     await view.frame.getByRole("heading", { name: "Timeavtale · versjon 22", exact: true }).waitFor();
     await view.note("Lagret innspill skal overleve gjenoppretting."); await view.save(); const saved = await view.snapshot();
-    await view.ui.getByRole("button", { name: "Arbeid", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await until(async () => await view.ui.locator(".workspace-revision").count() === 20, "first bounded history page");
     const initialOrder = await view.ui.locator(".workspace-revision").evaluateAll(nodes => nodes.map(node => Number(node.dataset.revisionId)));
     assert.deepEqual(initialOrder, Array.from({ length: 20 }, (_, index) => 22 - index));
@@ -389,7 +389,7 @@ const cases = [
     await view.frame.getByRole("heading", { name: "Timeavtale · versjon 1", exact: true }).waitFor();
     const recovered = await view.snapshot(); assert.equal(recovered.workspace.version, 23); assert.deepEqual(recovered.comments, saved.comments);
     assert.equal(attempts.length, 2); assert.match(attempts[0].key, /^[a-f0-9]{32}$/); assert.equal(attempts[0].key, attempts[1].key); assert.deepEqual(attempts[0].payload, attempts[1].payload); assert.equal(bound.calls.length, 0);
-    await view.ui.getByRole("button", { name: "Arbeid", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="23"]').waitFor();
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="23"]').waitFor();
     const bounds = await view.ui.locator(".workspace-panel").evaluate(node => { const rect = node.getBoundingClientRect(), body = node.querySelector(".workspace-body"); return { left: rect.left, right: rect.right, viewport: innerWidth, readingHeight: body.clientHeight, horizontalOverflow: body.scrollWidth > body.clientWidth + 1 }; });
     assert(bounds.left >= 0 && bounds.right <= bounds.viewport + 1); assert(bounds.readingHeight >= 150); assert.equal(bounds.horizontalOverflow, false);
     const firstVersionVisible = await view.ui.locator('.workspace-revision[data-revision-id="23"] h3').evaluate(node => { const rect = node.getBoundingClientRect(), clip = node.closest(".workspace-body").getBoundingClientRect(); return rect.top >= clip.top && rect.bottom <= clip.bottom; });

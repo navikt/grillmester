@@ -903,7 +903,7 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
   const cssWarning = akselCss
     ? ""
     : `<div role="status" style="background:#fef0f0;border:2px solid #c30000;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif">
-        <strong>⚠️ Aksel CSS mangler</strong><br>Forhåndsvisningen bruker fallback-stiler. Installer aldri avhengigheter uten eksplisitt godkjenning.
+        <strong>⚠️ Aksel CSS mangler</strong><br>Skissen vises med reservestiler fordi prosjektets Aksel-stiler ikke ble funnet.
       </div>`;
   const designWarning = designError
     ? `<div role="alert" style="background:#fff5df;border:2px solid #a86d00;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif"><strong>Justeringspanelet er utilgjengelig.</strong> Skisseoppsettet må rettes.</div>`
