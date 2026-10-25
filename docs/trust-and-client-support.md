@@ -82,6 +82,12 @@ Grillmester-paritet; kontroller faktisk pluginversjon, canvas og lagret rom før
 en klientovergang regnes som prøvd.
 Kilde kontrollert 2026-10-24: [VS Code: canvases with the Copilot harness](https://code.visualstudio.com/docs/agents/run/agent-harnesses#use-canvases-with-the-copilot-harness).
 
+[Oppsettprøven 2026-10-25](testing/copilot-workflow-validation.md#setup-observation-25-october-2026)
+stoppet før modellkjøring: Agents-profilen viste gammel plugin som deaktivert,
+men rollevelgeren beholdt to identiske Designer-valg også etter at vinduet ble
+åpnet på nytt. Kilden kunne dermed ikke velges entydig. Canvasflyten i VS Code
+er fortsatt uverifisert; prøven fastslår ikke årsaken til katalogavviket.
+
 CLI-utvidelser er eksperimentelle. At utvidelsen lastes, beviser ikke at
 klienten tilbyr en canvasflate. Uten native canvas bruker `design-prototype`
 den portable nettleserflyten når Node og loopback er tilgjengelig; den gir

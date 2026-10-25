@@ -590,8 +590,7 @@ class DocumentationAnchorIntegrityTest(unittest.TestCase):
     def test_internal_documentation_anchors_resolve(self) -> None:
         documents = [
             ROOT / "README.md",
-            *sorted((ROOT / "docs").glob("*.md")),
-            *sorted((ROOT / "docs/adr").glob("*.md")),
+            *sorted((ROOT / "docs").rglob("*.md")),
         ]
         anchors: dict[Path, set[str]] = {}
         for document in documents:
@@ -611,6 +610,19 @@ class DocumentationAnchorIntegrityTest(unittest.TestCase):
                     if target_name
                     else document
                 )
+                if (
+                    target not in anchors
+                    and target.is_relative_to(ROOT)
+                    and target.is_file()
+                ):
+                    headings = re.findall(
+                        r"^#{1,6}\s+(.*)$",
+                        target.read_text(encoding="utf-8"),
+                        flags=re.MULTILINE,
+                    )
+                    anchors[target] = {
+                        self._slugify(heading) for heading in headings
+                    }
                 with self.subTest(source=document.name, link=f"{target_name}#{fragment}"):
                     self.assertIn(
                         target,

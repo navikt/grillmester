@@ -151,7 +151,8 @@ active/released decisions. Neither brief trial supplies visual or human evidence
 
 ## VS Code canvas trial
 
-**Prepared, not executed.** Platform support does not establish plugin parity.
+**Setup attempted; blocked before model execution on 25 October 2026.**
+Platform support does not establish plugin parity.
 Use a disposable project and the full plugin, record the installed versions and
 resolved plugin source, and preserve the normal client configuration.
 
@@ -160,6 +161,9 @@ resolved plugin source, and preserve the normal client configuration.
    temporarily changing it for an authorized trial, restore its original value
    or absence afterward. A separate user-data directory also separates login
    and plugin discovery, so record that difference rather than assuming parity.
+   Local source registration uses `chat.pluginLocations` in this client version.
+   Record plugin inclusion in the actual host profile: the Agents window has
+   its own profile, so changing inclusion in the editor profile is insufficient.
 2. Start a new local **Copilot Agent Host** session with canvas enabled. Select
    Designer and verify the actual session model after role selection. Do not
    substitute an extension-host **Local** session or CLI terminal.
@@ -175,6 +179,35 @@ resolved plugin source, and preserve the normal client configuration.
 5. End the test owner, verify that its preview process is stopped and restore
    temporary settings/plugin registrations. Retain the disposable room and
    redacted evidence. Report unavailable capabilities as blocked, not passed.
+
+### Setup observation, 25 October 2026
+
+VS Code 1.142.0 with bundled Copilot Chat 0.70.0 was opened on an empty synthetic
+repository. The full plugin was frozen from `a320c07`; an independent audit
+matched all 171 files against the commit and package manifests. Canvas was
+temporarily enabled at application scope and the frozen plugin registered as a
+local source.
+
+The editor and Agents window discovered both the published installation and
+the test source. In the Agents profile, the published installation was then
+excluded: Customizations showed it as disabled and the test source as enabled.
+Nevertheless, the mode picker still displayed two indistinguishable Designer
+entries. This persisted after closing and reopening the Agents window. A blank
+new chat did not establish a fresh or unambiguous role catalog. The exact cause
+of the disagreement between the picker and plugin inclusion was not established.
+
+Captured editor screenshots and accessibility snapshots disagreed, and
+reloading the Agents window left it blank until it was closed and reopened.
+These observations limit the trial; they do not identify a Designverksted defect.
+No model request was sent, no Designer source was selected, and no canvas was
+opened. Rendering, editing, feedback delivery and reopening therefore remain
+**UNVERIFIED in VS Code**. Do not choose between duplicate names by list order
+or infer runtime source from the Customizations count alone.
+
+The published plugin was re-enabled in the Agents profile, the temporary source
+removed, the application settings restored byte-for-byte and the exact test
+folder's trust withdrawn. Both test windows were closed. A new attempt needs
+an unambiguous role source before the interaction cases above can begin.
 
 The [client-support page](../trust-and-client-support.md#designverksted-og-overlevering-mellom-klienter)
 links the current platform documentation and states the remaining boundaries.
