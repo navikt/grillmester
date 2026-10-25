@@ -122,6 +122,27 @@ def copilot_provider_state(context: str) -> SMOKE.ProviderState:
     return state
 
 
+def failed_bash_provider_state(content: object = "permission denied") -> SMOKE.ProviderState:
+    state = SMOKE.ProviderState(SMOKE.Scenario("opencode", "focused"))
+    state.model_requests.append({})
+    state.completions.extend(
+        SMOKE.CompletionRecord(
+            path="/v1/chat/completions", headers={"Authorization": "HEADER_MUST_NOT_APPEAR"},
+            payload={"model": SMOKE.MODEL_ID, "stream": True, **payload},
+        )
+        for payload in (
+            {"messages": [{"role": "system", "content": "SYSTEM_PROMPT_MUST_NOT_APPEAR"}],
+             "tools": [{"type": "function", "function": {"name": "bash", "parameters": {
+                 "required": ["command", "description"],
+                 "properties": {"command": {"type": "string"}, "description": {
+                     "type": "string", "description": "SCHEMA_PROSE_MUST_NOT_APPEAR"}},
+             }}}]},
+            {"messages": [{"role": "tool", "tool_call_id": "call_local_tool_probe", "content": content}]},
+        )
+    )
+    return state
+
+
 class LoopbackProviderTests(unittest.TestCase):
     def test_models_and_chat_completions_stream_have_exact_contract(self) -> None:
         scenario = SMOKE.Scenario("opencode", "focused")
@@ -749,6 +770,100 @@ class MatrixTests(unittest.TestCase):
             "required 'bash' tool; advertised function tools: shell, read",
         ):
             SMOKE.validate_provider_state(state)
+
+    def test_failed_bash_diagnostic_reports_schema_and_result_without_private_context(self) -> None:
+        secret = "synthetic-sensitive-value"
+        escaped_secret = 'synthetic-"quoted"\ncredential'
+        state = failed_bash_provider_state([
+            {"type": "text", "text": f"Invalid input: description required; /isolated/probe/consumer; {secret}"},
+        ])
+        state.completions[1].payload["messages"].insert(0, {
+            "role": "user", "content": "USER_PROMPT_MUST_NOT_APPEAR",
+        })
+        state.completions[0].payload["messages"].append({
+            "role": "developer", "content": [{"type": "text", "text": "MULTIPART_PROMPT_MUST_NOT_APPEAR"}],
+        })
+        secret_prompt = f"PROMPT_PREFIX {secret} PROMPT_SUFFIX"
+        state.completions[0].payload["messages"].append({
+            "role": "system", "content": secret_prompt,
+        })
+        output = (
+            f"{secret} {SMOKE.CREDENTIAL_CANARY_PREFIX}OPENAI_API_KEY "
+            'Bearer synthetic-auth-value password="synthetic password with spaces" '
+            f"{json.dumps(escaped_secret)[1:-1]} "
+            f"{secret_prompt} "
+            "SYSTEM_PROMPT_MUST_NOT_APPEAR USER_PROMPT_MUST_NOT_APPEAR MULTIPART_PROMPT_MUST_NOT_APPEAR "
+            "/isolated/probe/consumer client reported invalid input"
+        )
+        with self.assertRaises(SMOKE.LocalSmokeError) as raised:
+            SMOKE.validate_provider_state(
+                state, runtime_output=output, redact_values=(secret, escaped_secret),
+                path_aliases={"/isolated/probe/consumer": "<consumer>"},
+            )
+        message = str(raised.exception)
+        diagnostic = json.loads(message.split("diagnostic=", 1)[1])
+        self.assertEqual(["command", "description"], diagnostic["bashSchema"]["required"])
+        self.assertEqual({"command": "string", "description": "string"}, diagnostic["bashSchema"]["properties"])
+        self.assertEqual(["user", "tool"], diagnostic["request2"]["roles"])
+        result = diagnostic["request2"]["toolResults"][0]
+        self.assertEqual("list", result["contentType"])
+        self.assertEqual("call_local_tool_probe", result["callId"])
+        self.assertIn("description required", result["contentTail"])
+        self.assertIn("<consumer>", message)
+        self.assertIn("client reported invalid input", diagnostic["clientOutputTail"])
+        for excluded in (secret, "synthetic-auth-value", "synthetic password with spaces",
+                         escaped_secret, json.dumps(escaped_secret)[1:-1], "HEADER_MUST_NOT_APPEAR",
+                         "SCHEMA_PROSE_MUST_NOT_APPEAR", "SYSTEM_PROMPT_MUST_NOT_APPEAR",
+                         "USER_PROMPT_MUST_NOT_APPEAR", "MULTIPART_PROMPT_MUST_NOT_APPEAR",
+                         "PROMPT_PREFIX", "PROMPT_SUFFIX",
+                         "/isolated/probe", SMOKE.CREDENTIAL_CANARY_PREFIX):
+            self.assertNotIn(excluded, message)
+
+    def test_failed_bash_diagnostic_is_bounded_and_redacts_before_clipping(self) -> None:
+        secret = "SYNTHETIC_SECRET_" + "x" * 2000
+        state = failed_bash_provider_state("a" * 20000 + secret + " tool error")
+        with self.assertRaises(SMOKE.LocalSmokeError) as raised:
+            SMOKE.validate_provider_state(
+                state, runtime_output="b" * 20000 + secret + " client error",
+                redact_values=(secret,),
+            )
+        message = str(raised.exception)
+        self.assertLess(len(message), 2500)
+        self.assertNotIn("xxxx", message)
+        self.assertIn("<truncated>", message)
+        self.assertIn("<redacted> tool error", message)
+        self.assertIn("<redacted> client error", message)
+
+    def test_matrix_passes_output_secrets_and_fixture_aliases_to_failure_diagnostic(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binaries = root / "bin"
+            home = root / "home"
+            binaries.mkdir()
+            home.mkdir()
+            clients = {name: executable(binaries / name) for name in ("cplt", "opencode", "copilot", "rg")}
+            provider = mock.MagicMock()
+            provider.__enter__.return_value = provider
+            provider.base_url = "http://127.0.0.1:12345/v1"
+            provider.state = failed_bash_provider_state()
+
+            def run_command(command, cwd, environment, timeout):
+                provider.state.completions[1].payload["messages"][0]["content"] = f"permission denied in {cwd}"
+                return SMOKE.CommandResult(0, f"{SMOKE.sentinel_for(provider.state.scenario)} source-secret {cwd}")
+
+            with mock.patch.object(SMOKE, "LoopbackProvider", return_value=provider):
+                with self.assertRaises(SMOKE.LocalSmokeError) as raised:
+                    SMOKE.run_matrix(
+                        distribution_root=ROOT, cplt=clients["cplt"], opencode=clients["opencode"],
+                        copilot=clients["copilot"], ripgrep=clients["rg"],
+                        environment={"HOME": str(home), "OPENAI_API_KEY": "source-secret"},
+                        run_command=run_command, platform="darwin",
+                    )
+            message = str(raised.exception)
+            self.assertIn("permission denied in <consumer>", message)
+            self.assertIn("<redacted>", message)
+            self.assertNotIn("source-secret", message)
+            self.assertNotIn(str(root), message)
 
     def test_provider_validation_requires_the_runtime_sandbox_contract(self) -> None:
         scenario = SMOKE.Scenario("opencode", "full")

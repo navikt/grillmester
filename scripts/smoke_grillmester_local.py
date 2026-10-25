@@ -15,6 +15,7 @@ import importlib.util
 import json
 import math
 import os
+import re
 import selectors
 import shlex
 import shutil
@@ -717,6 +718,126 @@ def _tool_result_text(payload: Mapping[str, Any]) -> str:
     return _request_text({"messages": contents})
 
 
+def _bash_probe_diagnostic(
+    state: ProviderState,
+    *,
+    runtime_output: str,
+    redact_values: Sequence[str],
+    path_aliases: Mapping[str, str],
+) -> str:
+    """Describe the failed synthetic probe without dumping prompts or requests."""
+
+    omitted = [PROMPT, LOCAL._bound_run_prompt(PROMPT)]
+
+    def omit_content(value: Any) -> None:
+        if isinstance(value, str):
+            omitted.append(value)
+        elif isinstance(value, list):
+            for item in value:
+                omit_content(item)
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                if key != "type":
+                    omit_content(item)
+
+    for completion in state.completions:
+        messages = completion.payload.get("messages", [])
+        if isinstance(messages, list):
+            for message in messages:
+                if isinstance(message, dict) and message.get("role") in {
+                    "system", "developer", "user"
+                }:
+                    omit_content(message.get("content"))
+
+    def without_secrets(value: str) -> str:
+        for secret in sorted(set(redact_values), key=len, reverse=True):
+            if secret:
+                value = value.replace(secret, "<redacted>")
+                value = value.replace(json.dumps(secret)[1:-1], "<redacted>")
+        return value
+
+    def clean(value: str, limit: int = 600) -> str:
+        # Redact before clipping: a boundary must not expose part of a secret.
+        value = without_secrets(value)
+        for prompt in sorted(set(omitted), key=len, reverse=True):
+            if prompt:
+                # Match the same normalized prompt if it contained a secret.
+                prompt = without_secrets(prompt)
+                value = value.replace(prompt, "<prompt omitted>")
+                value = value.replace(json.dumps(prompt)[1:-1], "<prompt omitted>")
+        value = re.sub(
+            r"GRILLMESTER_LOCAL_SMOKE_(?:CREDENTIAL_\w+|AMBIENT_GITHUB_TOKEN|EXPLICIT_TOKEN)",
+            "<redacted>", value,
+        )
+        value = re.sub(
+            r"(?i)\b(?:Bearer|Basic)\s+[^\s\"'<>]+", "<authorization redacted>", value,
+        )
+        value = re.sub(
+            r"(?i)(\b[\w.-]*(?:token|secret|password|api_key)\b[\"']?\s*[:=]\s*)"
+            r"(?:\"[^\"]*\"|'[^']*'|[^\s,\"'<>]+)",
+            r"\1<redacted>", value,
+        )
+        for path, alias in sorted(
+            path_aliases.items(), key=lambda item: len(item[0]), reverse=True
+        ):
+            if path:
+                value = value.replace(path, alias)
+        value = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", value)
+        return value if len(value) <= limit else "<truncated>" + value[-limit:]
+
+    tools = state.completions[0].payload.get("tools", [])
+    function = next(
+        (tool["function"] for tool in tools if isinstance(tool, dict)
+         and isinstance(tool.get("function"), dict) and tool["function"].get("name") == "bash"),
+        {},
+    )
+    parameters = function.get("parameters", {})
+    parameters = parameters if isinstance(parameters, dict) else {}
+    properties = parameters.get("properties", {})
+    required = parameters.get("required", [])
+    schema = {
+        "required": (
+            [clean(str(name), 48) for name in required[:12]]
+            if isinstance(required, list) else type(required).__name__
+        ),
+        "properties": {
+            clean(str(name), 48): (
+                clean(str(spec.get("type")), 32) if isinstance(spec, dict) else type(spec).__name__
+            )
+            for name, spec in list(properties.items())[:12]
+        } if isinstance(properties, dict) else type(properties).__name__,
+    }
+    messages = state.completions[1].payload.get("messages")
+    records = messages if isinstance(messages, list) else []
+    results = [
+        message for message in records
+        if isinstance(message, dict) and message.get("role") == "tool"
+    ]
+    diagnostic = {
+        "bashSchema": schema,
+        "request2": {
+            "messagesType": type(messages).__name__,
+            "messageCount": len(records),
+            "roles": [
+                clean(str(message.get("role")), 24)
+                if isinstance(message, dict) else type(message).__name__
+                for message in records[-12:]
+            ],
+            "toolResultCount": len(results),
+            "toolResults": [
+                {
+                    "callId": clean(str(message.get("tool_call_id")), 64),
+                    "contentType": type(message.get("content")).__name__,
+                    "contentTail": clean(_request_text({"messages": [message.get("content")]})),
+                }
+                for message in results[:2]
+            ],
+        },
+        "clientOutputTail": clean(runtime_output, 1200),
+    }
+    return json.dumps(diagnostic, ensure_ascii=True, separators=(",", ":"))
+
+
 def _validate_native_skill_load(state: ProviderState) -> None:
     expected_arguments = _native_skill_arguments(state)
     skill_id = expected_arguments["skill"]
@@ -780,7 +901,13 @@ def _validate_native_skill_load(state: ProviderState) -> None:
         )
 
 
-def validate_provider_state(state: ProviderState) -> None:
+def validate_provider_state(
+    state: ProviderState,
+    *,
+    runtime_output: str = "",
+    redact_values: Sequence[str] = (),
+    path_aliases: Mapping[str, str] | None = None,
+) -> None:
     if state.violations:
         raise LocalSmokeError(
             f"{state.scenario.name} provider protocol violation: "
@@ -840,8 +967,13 @@ def validate_provider_state(state: ProviderState) -> None:
     elif state.scenario.context == "focused":
         tool_text = _tool_result_text(state.completions[1].payload)
         if TOOL_SENTINEL not in tool_text:
+            diagnostic = _bash_probe_diagnostic(
+                state, runtime_output=runtime_output,
+                redact_values=redact_values, path_aliases=path_aliases or {},
+            )
             raise LocalSmokeError(
-                f"{state.scenario.name} did not execute its auto-approved bash probe"
+                f"{state.scenario.name} did not execute its auto-approved bash probe; "
+                f"diagnostic={diagnostic}"
             )
     text = _request_text(record.payload)
     if "# Barista" not in text:
@@ -1250,7 +1382,17 @@ def _run_scenario(
             f"{scenario.name} output did not contain its provider sentinel: "
             f"{result.output[-2000:]}"
         )
-    validate_provider_state(provider.state)
+    validate_provider_state(
+        provider.state,
+        runtime_output=result.output,
+        redact_values=(*canaries, *_credential_values(environment)),
+        path_aliases={
+            str(consumer): "<consumer>",
+            str(scenario_root): "<scenario>",
+            str(scenario_root.parent): "<smoke-root>",
+            str(distribution_root): "<distribution>",
+        },
+    )
     after = _tree_snapshot(consumer)
     if after != before:
         raise LocalSmokeError(
