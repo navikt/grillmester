@@ -8,6 +8,27 @@ Grillmester er Navs agentteam for GitHub Copilot: fire agenter, fire interne rol
 
 ## Kom i gang
 
+### Copilot app
+
+Copilot app bruker sin native pluginflyt:
+
+1. [Legg til Grillmester-markedsplassen](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Fmarketplace%2Fadd%3Fsource%3Dnavikt%252Fgrillmester)
+2. [Installer Grillmester](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester%2540grillmester)
+
+Lenkene åpner **Customize → Plugins** med ferdig utfylt verdi; ingenting
+installeres før du bekrefter. Oppdater pluginen med **Update** under
+**Customize → Plugins**; automatisk oppdatering nedenfor gjelder CLI. Se
+[appdetaljer](docs/installation.md#copilot-app). App-lenken følger repoets
+default branch; bruk Copilot CLI med en reviewet versjonstagg når pinning er
+påkrevd.
+
+Bruk `/app-sandbox-setup` for manuelt sandbox-oppsett i Copilot app på macOS med plan, bekreftelse, verify og rollback.
+
+Designverksted krever vanlig Node.js på appens `PATH`; utvidelsen støtter
+Node.js 18 eller nyere, og gjeldende LTS anbefales. Prosjektlagrede designrom
+støttes bare på Unix-verter som macOS og Linux. Forhåndsvisningen bruker en
+privat lokal loopback-server. Se [forutsetninger](docs/installation.md#før-du-begynner).
+
 ### Copilot CLI
 
 Installer Grillmester fra Copilot CLI sin pluginmarkedsplass:
@@ -47,29 +68,13 @@ plugininnhold. Automatisk oppdatering må være tillatt globalt; CI,
 Se [oppsett og detaljer](docs/installation.md#valgfritt-automatisk-oppdatering-i-copilot-cli)
 eller [manuell oppdatering, pinning og rollback](docs/installation.md#oppdatere-og-rulle-tilbake).
 
-### Copilot app
-
-Copilot app bruker sin native pluginflyt:
-
-1. [Legg til Grillmester-markedsplassen](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Fmarketplace%2Fadd%3Fsource%3Dnavikt%252Fgrillmester)
-2. [Installer Grillmester](https://github.com/copilot/app/launch?open=ghapp%3A%2F%2Fplugins%2Finstall%3Fsource%3Dgrillmester%2540grillmester)
-
-Lenkene åpner **Settings → Plugins** med ferdig utfylt verdi; ingenting
-installeres før du bekrefter. Oppdater pluginen med **Update** under
-**Settings → Plugins**; automatisk oppdatering over gjelder CLI. Se
-[appdetaljer](docs/installation.md#copilot-app). App-lenken følger repoets
-default branch; bruk Copilot CLI med en reviewet versjonstagg når pinning er
-påkrevd.
-
-Bruk `/app-sandbox-setup` for manuelt sandbox-oppsett i Copilot app på macOS med plan, bekreftelse, verify og rollback.
-
 ## Velg agent
 
 | Agent | Bruk når |
 | --- | --- |
-| **Grillmester** 🔥 | Oppgaven er uklar, viktig eller tverrgående. Grillmester avklarer valg og risiko før en avgrenset løsning implementeres og vurderes. |
-| **Barista** ☕ | Målet er tydelig og oppgaven kan løses som vanlig repoarbeid. Barista forstår, implementerer og verifiserer i en lett flyt. |
-| **Designer** 🎨 | Du vil utforske brukerflyt, konsepter, Aksel, Visual Companion eller Figma. Designer lager en designleveranse, kan hente inn parallelle spesialistperspektiver og kan implementere når du ber om det. |
+| **Grillmester** 🔥 | Anbefalt for utviklingsoppgaver. Går rett videre når retningen er avklart, og avklarer valg og risiko når det trengs. Leverer en verifisert endring. |
+| **Barista** ☕ | Målet er tydelig og du ønsker eksplisitt soloarbeid. Forstår, implementerer og verifiserer i samme samtale, også når oppgaven er større. |
+| **Designer** 🎨 | Du vil utforske eller forbedre skisser, brukerflyt og konsepter. Bruker tilgjengelig canvas, nettleser eller Figma, og kan implementere når du ber om det. |
 | **Doctor Who** 🕰️ | Du trenger støtte til discovery, mål, prioritering, workshops, teamhelse, produktfag eller Nav-arkitektur. |
 
 Beskriv ønsket resultat, kontekst og avgrensninger. Agenten laster normalt

@@ -52,6 +52,45 @@ _Avoid_: managed repo, installasjonstarget
 Varig repo-eid kontekst som gjelder uavhengig av valgt agent eller klient.
 _Avoid_: plugininnhold, genererte instructions
 
+### Design
+
+**Designrom**:
+Samlingen av skisser, innspill og valg i ett arbeid. Versjonene vises under
+«Versjoner», og et prosjektlagret rom kan åpnes igjen med samme lagrede innhold.
+_Avoid_: samtale, produktkode
+
+**Skisseversjon**:
+En lagret, uforanderlig revisjon av skissen og dens eventuelle deklarerte
+kontroller. Gjenoppretting lager en ny versjon og bevarer historikken.
+_Avoid_: runde, gjeldende utkast
+
+**Runde**:
+Ett uforanderlig sett med innspill og valg fra en eksplisitt innsending.
+En ny skisseversjon er ikke en ny runde.
+_Avoid_: versjon, samtaletur
+
+**Innspill**:
+Kommentarer, tekstforslag og deklarerte valg til skissen. Lagrede, usendte
+innspill er ikke en bestilling om behandling.
+_Avoid_: automatisk kildeendring, ny fullmakt
+
+**Beholdt valg**:
+«Behold dette» ber agenten ta med en valgt del og eventuelle innstillinger
+videre. Det er en bestilling til agenten, ikke bevis på at neste skisse er
+visuelt lik. «Slutt å beholde» trekker den tilbake.
+_Avoid_: lagret felt, føring, automatisk låsing
+
+**Lagret felt**:
+En editorverdi som blokkerer motstridende overskriving til designeren velger
+«Tillat senere endring». Verdien beholdes da, men senere versjoner kan endre den.
+_Avoid_: beholdt valg, føring, usendt tekstforslag
+
+**Leveringsstatus**:
+Status for sending til samtalen. `queued` bekrefter mottak i køen; `unknown`
+betyr at mottaket er uavklart. Ingen av dem beviser behandling eller resultat,
+og ukjent mottak gir ikke automatisk ny innsending.
+_Avoid_: behandlingsstatus, ferdig
+
 ### Runtime
 
 **Native cplt-flyt**:

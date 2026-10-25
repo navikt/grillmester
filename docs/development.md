@@ -39,6 +39,10 @@ OpenCode-discovery bestod. Årsaken og støtte for denne kombinasjonen er fortsa
 uavklart; ikke flytt runtimeportene før den nye verten er verifisert med de
 samme kontrollkravene.
 
+På macOS har focused OpenCode-smoken sporadisk manglet resultater fra
+shellverktøyet. Årsaken er fortsatt uavklart; en vellykket omkjøring forklarer
+ikke feilen eller erstatter resultatet fra den opprinnelige kjøringen.
+
 Releasekatalogen genereres fra pluginmanifestene. Det native OpenCode 1-
 targetet genereres fra samme reviewede plugininnhold og den eksplisitte
 policyen i `policy/opencode-v1.json`. De fokuserte lokalmodelltargetene avledes
@@ -100,7 +104,20 @@ node --check plugin/skills/design-prototype/scripts/workshop.js
 node --check plugin/skills/design-prototype/scripts/design-contract.js
 node --check plugin/skills/design-prototype/scripts/comments.js
 node --check plugin/skills/design-prototype/scripts/feedback-store.js
-node --test plugin/skills/design-prototype/tests/server.test.js
+node --check plugin/skills/design-prototype/scripts/canvas-state.js
+node --check plugin/skills/design-prototype/scripts/workspace-store.js
+node --check plugin/skills/design-prototype/scripts/workspace-state.js
+node --check plugin/skills/design-prototype/scripts/editor-contract.js
+node --check plugin/skills/design-prototype/scripts/editor-bindings.js
+node --check plugin/skills/design-prototype/scripts/editor.js
+node --test plugin/skills/design-prototype/tests/*.test.js
+node --check plugin/extensions/visual-companion/extension.mjs
+node --check plugin/extensions/visual-companion/adapter.mjs
+node --check plugin/extensions/visual-companion/backend.mjs
+node --check plugin/extensions/visual-companion/runtime.mjs
+node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
+node --check scripts/smoke_visual_canvas.cjs
+node --test plugin/extensions/visual-companion/tests/*.test.mjs
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py
 python3 scripts/smoke_opencode_runtime.py --cplt cplt
@@ -149,7 +166,9 @@ installasjon til faktisk komponentrendering uten å endre kildeprosjektet.
 
 `scripts/smoke_visual_review_rounds.cjs` følger fem nye oppgaver over flere
 gjennomganger: to faner, endret retning, gjenåpnet forbehold, faktisk 200 %
-nettleserzoom og frakobling med et utkast. Se
+nettleserzoom og frakobling med et utkast. Zoomcaset velger 200 % i Chromes
+innstillinger og måler CSS-viewport og enhetsskala. En emulert mindre viewport
+med høyere enhetsskala er ikke nettleserzoom. Se
 [flere runder med innspill](testing/visual-companion-review-rounds.md).
 Klientforutsetninger og egne akseptprøver for Copilot app, CLI og andre flater
 står i [klientmatrisen](testing/visual-companion-client-capabilities.md).

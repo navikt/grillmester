@@ -5,6 +5,10 @@ date: 2026-10-23
 
 # Innspill i Visual Companion
 
+Delvis erstattet av [ADR 0023](0023-prosjektlagret-designrom.md) for
+prosjektlagrede rom: innspill lagres varig i prosjektet og beholdes ved stopp.
+Midlertidige økter følger fortsatt lagrings- og oppryddingskontrakten nedenfor.
+
 ## Kontekst
 
 Nettleserskisser støtter valg av alternativer, men mangler kommentarer,

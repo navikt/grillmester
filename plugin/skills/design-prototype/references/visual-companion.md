@@ -89,6 +89,9 @@ Avgjør **per spørsmål**, ikke per økt.
 
 ## Starte serveren
 
+Den midlertidige flyten krever lokal Node.js ≥ 18 og at designeren kan åpne
+serverens loopback-URL. Bruk denne oppstarten bare når canvas ikke tilbys;
+en feil i et tilgjengelig canvas skal ikke starte en ekstra server.
 Visual Companion er for lokal Copilot CLI/app-kjøring der designeren kan åpne
 en loopback-URL. I cloud/remote-kjøring uten klienteksponert loopback skal du
 ikke starte serveren; bruk chat + Figma.
@@ -134,14 +137,11 @@ og avstem allerede besvarte innspill før videre arbeid. Ikke velg en annen
 
 Gi designeren URL raskt etter oppstart; for eksisterende flater først etter verifisert før/etter.
 
-When an available browser canvas can read the owning shell but cannot inspect
-its isolated iframe, open the iframe's observed, exact preview `src` in that
-same browser canvas. Use this only for rendered inspection and clicks on
-declared local prototype states. Keep feedback, source edits and revision
-actions in the owning Designverksted shell and its bound actions; this
-preview-only check does not prove saving or integrated delivery. Do not
-construct URLs, create a separate harness, inject DOM or install tools for
-this fallback.
+Bruk klientens tilgjengelige nettleserkapabilitet for rendret inspeksjon;
+Playwright er ett alternativ, ikke et krav. For den isolerte canvas-rammen,
+følg [canvasens inspeksjonsoppskrift](design-workspace.md#inspect-the-rendered-sketch).
+Manglende tilgang skal beskrives konkret; ikke installer verktøy eller endre
+sikkerhetsgrenser for å omgå den.
 
 ## Løkken
 
@@ -566,8 +566,10 @@ Skriv bare innholdet — serveren wrapper det i Aksel-temat automatisk.
 
 ### Valgalternativer (A/B/C)
 
-Start med tre retninger som er strukturelt forskjellige i layout,
-informasjonshierarki eller primærhandling. Ulik farge eller ordlyd alene teller
+Ved åpent retningsvalg, bruk antallet alternativer spørsmålet trenger,
+vanligvis to eller tre. Retningene skal være strukturelt forskjellige i layout,
+informasjonshierarki eller primærhandling. En detaljjustering trenger ingen nye
+varianter. Ulik farge eller ordlyd alene teller
 ikke som en egen retning. Hold datasett, viewport og innholdstetthet
 representativt og sammenliknbart på tvers. Bruk syntetiske data. Vis det
 navngitte designspørsmålet på skjermen.

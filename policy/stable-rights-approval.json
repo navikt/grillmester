@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-10-25",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#86",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#87",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-10-25",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#86",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#87",
       "status": "approved"
     }
   },
@@ -23,14 +23,14 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "83d168e95e48d38336d5d338bacb8e68eb5441addbbcb93bd0693dc6c2fb7a8a",
+        "designer": "f1e16ba070c092596e1236fca79038eaebaa764386f5929b6d8e09de8d8a1c61",
         "doctor-who": "70f249d6c300f54128c55676182115de3ac3c5f6f3aeb1da9774853cdc4c86c4"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
-        "aksel-design": "a8f0d961b93ba276b06151770a8b826af2d2b6999454bc993e33a558ed598f7e",
-        "architecture-review": "8bface79bd152ee4ebe7738fec8c60a49be10b94ca7fb7e3661772072f77d474",
-        "design-prototype": "b3bcc464e92238bc08ef0f124186979dc861301ff55bf85a7b4a04f33094f26e",
+        "aksel-design": "f0bad3142d9f93fd5dd9ffbc8498d4b649e65aaff871d5feda7924f178473620",
+        "architecture-review": "16ce3bf5e7a22372c70909393af078581ae6e3344be0f93a64141299d38933ec",
+        "design-prototype": "d7cacda2a78414f7a1b548e3db51a8f7d98f23084c258cf1cb337e7425a2cc50",
         "doctor": "536a4f1f117939f1149d2b67aeeb16fba174948f9fa54575de988992b44988f0",
         "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
         "figma-workflow": "bc9c94cc0b06ceeee7996ccc478461d0e84d7c85ca76ba7afb09defa4c6163a2",

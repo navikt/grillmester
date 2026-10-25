@@ -88,11 +88,11 @@
       "mode": "0644"
     },
     "agents/barista.md": {
-      "sha256": "9f76f9bb9bc087aa1ece869b9e4397a3ae3162993a1f3092ce15763a04765b02",
+      "sha256": "cc26d4d5d1586276b8b84b81717714daf5ede4782746190e062a9f07eee4ebdc",
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "657096bc47408dfd29bceae6babfbe078ddde22a11e01ccf697ac9bb04d6b664",
+      "sha256": "3e368381e3cc5af19e61dede4df6aaf042618913451177d61f14f08e76f991ad",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -104,11 +104,11 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "7831e317cae0d9d3f2e47bc1bb9102b189084866bb8669d6fe33bd08f551681f",
+      "sha256": "9c9705feaf09af24a4c37eb0a1c81a1335a121b8de451dbcab51fac428d9380a",
       "mode": "0644"
     },
     "agents/kokk.md": {
-      "sha256": "a13ed7a0dd34c8bdccf3d7587504bfc9a73d9c4c8c0fe7c877238888b8cfff0a",
+      "sha256": "fb36a5a0b19decca5001c89c7a62441498a4b77422f2a3f1a872b43630b20a15",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
@@ -148,7 +148,7 @@
       "mode": "0644"
     },
     "commands/design-prototype.md": {
-      "sha256": "ccb53f8dc4492b9f079c3a2c38ee25d1d3916e75f657b63292a57f0734e77eee",
+      "sha256": "24f4fab8d3168b046ebbefc08fb173d5962387b3b9a7576820ab475e9df4d49f",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
@@ -304,7 +304,7 @@
       "mode": "0644"
     },
     "skills/aksel-design/SKILL.md": {
-      "sha256": "08dfcca67ec99ff4736cc46dc9708ff017b4ba907dba4cbb33b650a24aa2e0dc",
+      "sha256": "4335bd25f1d7cfc9c9f3e68dff88e55df669047e2190e2f4e6c818a569ba2d57",
       "mode": "0644"
     },
     "skills/aksel-design/references/components.md": {
@@ -432,7 +432,7 @@
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {
-      "sha256": "00e85f64ed91ae3b73bb024d2b8a5837b50e7e0b6e553d2ce21e3491aec126f3",
+      "sha256": "18d22bba1e09a94482baddeab9a0b859d377e2188c1f923b058c4ae18a9b85b1",
       "mode": "0644"
     },
     "skills/architecture-review/references/nav-context.md": {
@@ -472,7 +472,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "de28a9cf85b0ac7397e727badc85b17e410f2d2080de8c3c9ec31948d6562334",
+      "sha256": "a3fbcdae958c8b7fdffcd442bc573ac7d28e15c766f0c94181e4a6f039f87c4a",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -492,19 +492,19 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-handoff.md": {
-      "sha256": "af7a055d6598270b4a817a4d40612c04ef2f99400b38aa24776ffd1d93a664b3",
+      "sha256": "4c28b039464fdd5c4af7569401fcd8bc65184d70fec8e9a0cd5bf9fcbb909cf1",
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "4a142c0421e2f1cd1d1b63d6e949e6708f4e6028902eac2989c15be52286551c",
+      "sha256": "affe59f9f8ada430fe9b9b4f103542034d391b976ed75f9c8c5ef1b10c4bc668",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
-      "sha256": "8c2790ce47d4b0345bb88e3d192c8eb5f7032ed97be75ff6333deb61bc7bd61f",
+      "sha256": "f542370a5c7b14ad239010ac4501c61444ba8b7dd042106b1b83f2885aa33ef2",
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "d5aed2e0dc791fa495bdaa37d8efb93052a2fe25dada93cb3a930e965d61e1a7",
+      "sha256": "8a6638044cb7fc80d03ddb6003fcc66a96a8b824aa1a6a73c4d3a162a70d781d",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/canvas-state.js": {
@@ -640,7 +640,7 @@
       "mode": "0644"
     },
     "skills/grill-with-docs/SKILL.md": {
-      "sha256": "0f99191266be96f306b33214b72e024bce32089c8f8780a63a2c384649289b5d",
+      "sha256": "6072a8b61b690b69411c3d1dba3d8c96d65d62ad9c473d7c486c76c12088d20b",
       "mode": "0644"
     },
     "skills/grilling/SKILL.md": {
@@ -680,7 +680,7 @@
       "mode": "0644"
     },
     "skills/klarsprak/SKILL.md": {
-      "sha256": "45a37aaf1f948db8112d6298d8a0d8c2309636c1278c61e9fcbefab6c6b83bb5",
+      "sha256": "7092a67ab02049adfd7235fe2291a27b90be81943c6b63eb87d0fe9e8953d164",
       "mode": "0644"
     },
     "skills/klarsprak/references/ai-markorer.md": {
@@ -820,7 +820,7 @@
       "mode": "0644"
     },
     "skills/readme-update/SKILL.md": {
-      "sha256": "b8d03357061c16a49d68d70aa24eb1ec9004cb35abd85f0698da2ee2e593a61b",
+      "sha256": "5baf331b1ed517c113c75b095f446e0bc9852f0c80c1a77fd1fd5c1d155d7cbb",
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
@@ -880,7 +880,7 @@
       "mode": "0644"
     },
     "skills/triage/SKILL.md": {
-      "sha256": "27c26929dec443511e8260401addf1df54d14130d7d06e42a447f4e213e84f67",
+      "sha256": "ae1affb3b78a511b388ba1a8bb751dfa8a97a564c92ce9aa0ccba6771c5e73af",
       "mode": "0644"
     },
     "skills/wayfinder/SKILL.md": {

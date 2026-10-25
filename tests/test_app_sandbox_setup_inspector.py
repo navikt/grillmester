@@ -33,7 +33,7 @@ class InspectorTest(unittest.TestCase):
         self.assertEqual(0, code, output)
         preview = json.loads(output)
         self.assertIn("mise exec -- ./gradlew", output)
-        self.assertNotIn("edited after apply", output)
+        self.assertNotIn("edited after apply", output + self.cli_stderr)
         with sqlite3.connect(str(self.db)) as db:
             db.execute("UPDATE projects SET instructions = ?", ("another edit\n" + current,))
         code, output = self.run_cli("rollback", "--from", str(backup), "--confirm", preview["digest"])

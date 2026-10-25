@@ -74,8 +74,12 @@ Identify the people or teams whose knowledge is needed, while keeping decision
 ownership explicit. Do not claim consultation occurred without evidence. Do
 not include personal data, secrets, or protected details in review or decision
 material. Before contacting anyone or sharing material, show the recipient,
-channel, and draft and get explicit approval. Ask before any other external or
-durable change.
+channel, and draft if that communication has not already been authorized.
+Reuse explicit authority for the same recipient, channel and bounded content;
+otherwise ask for the missing authority. A review request alone does not
+authorize contacting others, publishing or other external or durable changes.
+Carry out separately requested changes within their authorized scope without
+adding a second approval gate.
 
 ## Return a review, not an ADR
 

@@ -35,7 +35,7 @@ class ToolchainTest(unittest.TestCase):
         (repo / ".java-version").write_text("21")
         code, output = self.run_cli("plan", "--json")
         self.assertEqual(0, code, output)
-        self.assertNotIn("Gradle project without", output)
+        self.assertNotIn("Gradle project without", output + self.cli_stderr)
 
     def test_mise_java_pin_writes_only_a_managed_block_and_is_idempotent(self):
         from app_sandbox import toolchain_discovery
@@ -50,7 +50,7 @@ class ToolchainTest(unittest.TestCase):
             added = plan["projects"][0]["diff"]["instructions"]["added"]
             self.assertIn("mise exec -- ./gradlew", added)
             self.assertIn("macOS /usr/bin/java stub", added)
-            self.assertNotIn("User-owned", output)
+            self.assertNotIn("User-owned", output + self.cli_stderr)
             code, output = self.run_cli("apply", "--confirm", plan["digest"])
             self.assertEqual(0, code, output)
             with sqlite3.connect(str(self.db)) as db:
@@ -190,7 +190,7 @@ class ToolchainTest(unittest.TestCase):
         self.assertEqual(0, code, output)
         preview = json.loads(output)
         self.assertIn("mise exec -- ./gradlew", preview["projects"][0]["diff"]["instructions"]["removed"])
-        self.assertNotIn("changed user text", output)
+        self.assertNotIn("changed user text", output + self.cli_stderr)
         code, output = self.run_cli("rollback", "--from", str(backup), "--confirm", preview["digest"])
         self.assertEqual(0, code, output)
         with sqlite3.connect(str(self.db)) as db:
@@ -217,8 +217,8 @@ class ToolchainTest(unittest.TestCase):
                     self.assertIn("mise exec -- ./gradlew", output)
                     self.assertIn("precedence unverified", output)
                     self.assertIn("trusted config: " + ("yes" if trusted else "no"), output)
-                    self.assertNotIn("fixture-hash", output)
-                    self.assertNotIn("user config", output)
+                    self.assertNotIn("fixture-hash", output + self.cli_stderr)
+                    self.assertNotIn("user config", output + self.cli_stderr)
                     code, output = self.run_cli("apply", "--confirm", plan["digest"])
                     self.assertEqual(0, code, output)
                     with sqlite3.connect(str(self.db)) as db:
@@ -227,12 +227,12 @@ class ToolchainTest(unittest.TestCase):
     def test_plan_is_changed_only_and_apply_is_summary_only(self):
         code, output = self.run_cli("apply", "--confirm", self.digest())
         self.assertEqual(0, code, output)
-        self.assertNotIn("Project:", output)
-        self.assertNotIn("+ readwritePaths", output)
+        self.assertNotIn("Project:", output + self.cli_stderr)
+        self.assertNotIn("+ readwritePaths", output + self.cli_stderr)
         self.assertIn("Updated 1 projects.", output)
         code, output = self.run_cli("plan")
         self.assertEqual(0, code, output)
-        self.assertNotIn("Project:", output)
+        self.assertNotIn("Project:", output + self.cli_stderr)
         self.assertIn("1 projects unchanged", output)
         code, output = self.run_cli("plan", "--json")
         plan = json.loads(output)

@@ -95,8 +95,8 @@ class ContractTest(unittest.TestCase):
         code, output = self.run_cli("rollback", "--from", str(backup))
         self.assertEqual(0, code, output)
         self.assertIn('policy JSON rewritten: "unknownA"', output)
-        self.assertNotIn("unknownB", output)
-        self.assertNotIn("private-value", output)
+        self.assertNotIn("unknownB", output + self.cli_stderr)
+        self.assertNotIn("private-value", output + self.cli_stderr)
         with sqlite3.connect(str(self.db)) as db:
             db.execute("UPDATE project_sandbox_policies SET policy_json = ?", (json.dumps(json.loads(raw), indent=2),))
         code, output = self.run_cli("rollback", "--from", str(backup))
@@ -114,7 +114,7 @@ class ContractTest(unittest.TestCase):
         self.assertTrue(self.policies())
         self.assertTrue(source.exists())
         self.assertIn("backup move failed", output)
-        self.assertNotIn("fixture-private-value", output)
+        self.assertNotIn("fixture-private-value", output + self.cli_stderr)
         original_write = self.app.write_changes
         destination = self.db.parent / "app-sandbox-setup-backups" / source.name
 
@@ -148,7 +148,7 @@ class ContractTest(unittest.TestCase):
         for flags in ((), ("--json",)):
             code, output = self.run_cli("plan", *flags)
             self.assertEqual(0, code, output)
-            self.assertNotIn("fixture-private-value", output)
+            self.assertNotIn("fixture-private-value", output + self.cli_stderr)
             self.assertIn("contents not displayed", output)
 
 

@@ -60,6 +60,14 @@ brief is not actionable.
    that the brief does not explicitly include in the slice.
 3. Read the scoped files and only the named relevant context. Search adjacent
    code for established patterns before adding a new one.
+   If the brief names a saved design room, use the developer handoff route in
+   `design-prototype` to read its chosen registered HTML/descriptor pair and
+   relevant decisions. Do not open canvas, start its server, acquire its writer
+   claim or change the room. Before any write that depends on the pair, verify
+   its registered SHA-256 values and byte count through
+   `references/design-handoff.md`; on mismatch, report it and return
+   `NEEDS_CONTEXT` before dependent work. Missing source or an ambiguous chosen
+   version is `NEEDS_CONTEXT`; the sketch does not establish production correctness.
 4. Use only the relevant skills named in the brief or clearly required by the
    scoped technology. A skill cannot add requirements or unrelated ceremony.
    When the `security-review` description matches, it is clearly required.

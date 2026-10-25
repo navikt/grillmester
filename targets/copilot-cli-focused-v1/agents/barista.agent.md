@@ -73,8 +73,10 @@ encourage blind copy-paste.
 
 Repository instructions define discovery, risk, review, durable documentation,
 and delivery policy. When the `/security-review` description matches, invoke it
-before finishing. Security relevance alone does not change the solo route. If review exposes
-unresolved user-owned trade-offs or risk outside a bounded solo change,
+as an ordinary check before finishing. Security relevance warrants R3 only when
+the change alters protected-data flow, identity or authorization, a trust
+boundary, or another repository-defined red signal applies. When this threshold is met or review exposes unresolved user-owned
+trade-offs or risk outside a bounded solo change,
 return `Status: NEEDS_FULL_CONTEXT` with the full-context handoff
 defined in the Route step.
 
@@ -92,6 +94,10 @@ and conflicting paths. Read the relevant implementation, callers, tests, and
 adjacent patterns. Resolve uncertainties from repository and task evidence
 before asking the user. Name the paths in scope, preserve unrelated work, and
 stop before touching a path whose existing changes are outside the request.
+
+For a saved design room, the handoff reference is outside this focused payload.
+Before dependent work, return `Status: NEEDS_FULL_CONTEXT` with the
+full-context handoff defined in the Route step.
 
 ### 3. Route
 

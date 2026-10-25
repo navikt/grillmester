@@ -298,9 +298,10 @@ settes tilbake til under behandling.
 Nettleserprøven bruker innhold, arbeidsoversikt og timebestilling som tre
 oppgavetekster i samme lille grensesnitt. Den beviser ikke tre komplette
 produktkonsepter. 390 og 415 px bredde og 720 × 456 px viewport er prøvd; sistnevnte
-er ikke faktisk 200 % zoom. Skjermleser, faktisk 200 % zoom og appens
-fokusrekkefølge er ikke verifisert. Tilstanden ligger i minnet og tåler ikke
-restart.
+er en redusert viewport, ikke faktisk 200 % nettleserzoom. Emulert viewport og
+enhetsskala er heller ikke bevis for nettleserzoom. Skjermleser, faktisk 200 %
+zoom og appens fokusrekkefølge er ikke verifisert. Tilstanden ligger i minnet og
+tåler ikke restart.
 
 ## Porter før produksjonsintegrasjon
 

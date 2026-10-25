@@ -9,8 +9,21 @@ Bruk denne skillen når du jobber i Nav-frontend med `@navikt/ds-react`, layout 
 
 Skillen gir råd og kan brukes read-only. Installer avhengigheter eller endre
 consumer-repoet bare innenfor en eksplisitt godkjent implementasjonsslice.
-Opprett aldri branch eller commit, og push, pull request, publisering og andre
-eksterne writes krever separat eksplisitt godkjenning.
+Opprett ikke branch, commit, push, pull request eller publisering automatisk.
+Eksterne writes krever eksplisitt mandat for mål, handling og omfang; gjenbruk
+det som allerede er gitt, og spør bare om manglende mandat eller materielle valg.
+
+## Produktkode og HTML-skisser
+
+I produktkode brukes ekte `@navikt/ds-react`-komponenter og responsive props.
+En HTML-skisse gjennom `design-prototype` har et avgrenset unntak: bruk
+verifisert, rendret Aksel-markup fra consumerens installerte versjon eller et
+kompatibelt markup-snapshot, med den matchende `@navikt/ds-css`. Bevar struktur,
+semantikk og klasser; ikke etterlign standardkomponenter med egen CSS eller
+overstyr deres `.aksel-*`-regler. Egne layoutregler rundt komponentene bruker
+Aksel-tokens. Følg prototype-skillens grenser for deklarerte interaksjoner.
+Dette er en skisse, ikke React-komponentkode eller bevis på full oppførsel/UU.
+Uten kompatible stiler skal begrensningen vises som fallback eller wireframe.
 
 ## Kort intro
 
@@ -128,7 +141,7 @@ For layout-mønstre (sidebar, kort-grid, skjema), se `references/patterns.md`.
 - Sjekk eksisterende UI-mønstre i repoet først
 - Hent Aksel-docs fra aksel.nav.no/llm.md — aldri stol på treningsdata for komponent-API
 
-### ⚠️ Spør først
+### ⚠️ Avklar ved manglende mandat eller et vesentlig designvalg
 - Nye UI-avhengigheter utenfor Aksel
 - Store avvik fra etablerte layout-mønstre
 - Tailwind utilities som overlapper tydelig med Aksel primitives
@@ -136,7 +149,7 @@ For layout-mønstre (sidebar, kort-grid, skjema), se `references/patterns.md`.
 
 ### 🚫 Aldri
 - Hardkod spacing, radius, farger eller typografi når Aksel-tokens finnes
-- Bygg standardfelter, knapper eller varsler med rå HTML hvis Aksel tilbyr komponenten
+- Bygg standardfelter, knapper eller varsler med rå HTML i produktkode hvis Aksel tilbyr komponenten; HTML-skisser følger det avgrensede unntaket over
 - Bruk responsive hacks når responsive props dekker behovet
 
 For installasjon, CSS-oppsett og v8-codemods, se `references/setup.md`.

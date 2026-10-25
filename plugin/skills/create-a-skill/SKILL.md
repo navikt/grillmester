@@ -1,13 +1,13 @@
 ---
 name: create-a-skill
-description: "Create, improve or diagnose a GitHub Copilot CLI skill and validate its discovery and behavior. Use when authoring instructions, correcting triggers or testing skill selection; explicit repository setup audits belong to `doctor`."
+description: "Create, improve or diagnose a GitHub Copilot skill and validate its discovery and behavior in the intended app or CLI. Use when authoring instructions, correcting triggers or testing skill selection; explicit repository setup audits belong to `doctor`."
 ---
 
 # Create a Skill
 
-Create, revise, or diagnose one GitHub Copilot CLI skill. The target
-repository's instructions and supported Copilot contract govern the artifact
-this skill produces.
+Create, revise, or diagnose one GitHub Copilot skill for the intended app or
+CLI. The target repository's instructions and supported client contracts
+govern the artifact this skill produces.
 
 ## Choose the mode
 
@@ -38,6 +38,7 @@ Complete this step when you can state:
 - the skill's one job;
 - its boundary against neighboring skills;
 - the target repository's Copilot and language policies;
+- the intended client or clients and available validation surfaces;
 - the current callers or intended usage.
 
 ## 2. Design the invocation boundary
@@ -80,6 +81,8 @@ narrowed by the target repository's policy:
 Check the
 [GitHub Copilot CLI skills reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#skills-reference)
 before introducing any other key. Repository policy may narrow these choices.
+For an app target, also verify support in that app's installed contract;
+CLI documentation alone does not establish app support.
 
 Complete this step when the invocation mode, its reachable surfaces, the
 relevant prompts or explicit commands, and the human- or model-facing
@@ -120,9 +123,10 @@ edits and report these conditions as findings instead.
 ## 5. Validate and forward-test
 
 Immediately before validation, read
-[the Copilot CLI validation checklist](references/copilot-cli-validation.md),
-then run its structural, link, discovery, and invocation checks that are safe
-in the target repository. In create or revise mode, execute bundled scripts on
+[the Copilot client validation checklist](references/copilot-cli-validation.md)
+and use the branch for the intended client. Run the structural, link,
+discovery, and invocation checks that are safe in the target repository.
+In create or revise mode, execute bundled scripts on
 representative fixtures and inspect the final diff for scope, relevance,
 no-ops, duplication, and stale repository assumptions. In diagnose or review
 mode, run only non-mutating checks and include successes and failures as
@@ -132,7 +136,8 @@ In create or revise mode, revise against observed behavior. Check that the
 skill selects the right task, takes a useful next action and completes the
 requested outcome without unnecessary questions or scope expansion. Structural
 validation or a forced skill load alone does not prove autonomous selection.
-Report behavior not exercised as unverified. Keep the final diff intentional.
+CLI results do not prove app behavior, or vice versa. Report behavior not
+exercised in the intended client as unverified. Keep the final diff intentional.
 
 In diagnose or review mode, the work is complete when an evidence-based report
 covers the observed invocation behavior, structural or behavioral failures,
