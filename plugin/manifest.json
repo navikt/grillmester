@@ -123,7 +123,7 @@
       "mode": "0644"
     },
     "extensions/visual-companion/runtime.mjs": {
-      "sha256": "dfa5318ec73802f2d477b35e0039b5cba53b4bb65a403eff9b12dedf10dbb808",
+      "sha256": "03f50fc5accf871dc7515d62aea89fd5149115b06c6766cd306d2917818bc918",
       "mode": "0644"
     },
     "extensions/visual-companion/tests/adapter.test.mjs": {
@@ -135,7 +135,7 @@
       "mode": "0644"
     },
     "extensions/visual-companion/tests/runtime.test.mjs": {
-      "sha256": "15617e261924166d2df03c99f62c458147d2c9dd5bc994a5d5b53fd70dc49f31",
+      "sha256": "d8a951b6aeb0cb1b54914fe2775819fa9a12ebd386b81ec21729b347fd993c83",
       "mode": "0644"
     },
     "extensions/visual-companion/tests/sdk-smoke.mjs": {
@@ -347,7 +347,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "a8d169576116d642adee2efc04a28b5406af18a6d29b8536ae727f73fa72620f",
+      "sha256": "6c5c69a697ac49497ce47e1975398996b042977ece97093bf67325d2fb68c98f",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {

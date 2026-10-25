@@ -77,13 +77,22 @@ function run(args) {
   const list=()=>run(['list','--state-dir',info.state_dir]);
   write('alternatives',concepts.alternatives);
   browser=await chromium.launch({headless:!options.has("--headed"),...(browserChannel ? {channel:browserChannel} : {})});
-  page=await browser.newPage({viewport:{width:1440,height:1000}});
-  const failures=[];page.on('pageerror',error=>failures.push(error.message));
-  const completedRequests=[];page.on('requestfinished',r=>completedRequests.push(r.url()));
-  await page.goto(info.url);
-  const frame=page.frameLocator('iframe');
-  const ui=frame.locator('[data-visual-feedback]');
-  await ui.getByRole('button',{name:'Kommenter',exact:true}).waitFor();
+  const failures=[],completedRequests=[];
+  let frame,ui;
+  // Headless Chrome stops routing pointer input to the lower part of the sandboxed
+  // preview after a live viewport change, even after a reload. Each viewport
+  // therefore gets a fresh page.
+  const openPage=async viewport=>{
+    await page?.close();
+    page=await browser.newPage({viewport});
+    page.on('pageerror',error=>failures.push(error.message));
+    page.on('requestfinished',r=>completedRequests.push(r.url()));
+    await page.goto(info.url);
+    frame=page.frameLocator('iframe');
+    ui=frame.locator('[data-visual-feedback]');
+    await ui.getByRole('button',{name:'Kommenter',exact:true}).waitFor();
+  };
+  await openPage({width:1440,height:1000});
   await frame.getByText('En prioritert liste',{exact:true}).click();
   assert.match(await frame.locator('#indicator-text').innerText(),/Valgt/);
   await ui.getByRole('button',{name:'Kommenter',exact:true}).click();
@@ -175,8 +184,7 @@ function run(args) {
   await frame.getByRole('heading',{name:'Arbeidsoversikt'}).waitFor();
   console.log('PASS: keyboard comments, Escape draft recovery, refresh deferral until batch submit.');
 
-  await page.setViewportSize({width:390,height:844});
-  await ui.getByRole("button",{name:"Kommenter",exact:true}).waitFor();
+  await openPage({width:390,height:844});
   await ui.getByRole('button',{name:'Kommenter',exact:true}).click();
   await ui.getByRole('button',{name:'Område',exact:true}).click();
   await frame.getByRole('heading',{name:'Arbeidsoversikt'}).focus();await page.keyboard.press('Enter');
@@ -184,18 +192,21 @@ function run(args) {
   const composer=await ui.getByRole('dialog').boundingBox();
   assert(composer.x>=0&&composer.y>=0&&composer.x+composer.width<=390&&composer.y+composer.height<=844);
   await screenshot(page,'/visual-companion-mobile.png');
+  // The draft must survive a live resize. Keyboard activation still reaches the
+  // resized preview, so it saves the draft; pointer input continues on a fresh page.
   await page.setViewportSize({width:320,height:800});
   await ui.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   assert.equal(await ui.getByLabel('Hva vil du endre?').inputValue(),'På mobil bør oppgavene ligge i én kolonne.');
   const resizedComposer=await ui.getByRole('dialog').boundingBox();
   assert(resizedComposer.x>=0&&resizedComposer.x+resizedComposer.width<=320);
-  await ui.getByRole('button',{name:'Lagre innspill',exact:true}).click();
+  await ui.getByRole('button',{name:'Lagre innspill',exact:true}).focus();await page.keyboard.press('Enter');
   await ui.getByRole('button',{name:'Send 1 innspill'}).waitFor();
   const mobile=await list();assert.equal(mobile.comments.at(-1).kind,'area');
+  await openPage({width:320,height:800});
+  await ui.locator('[data-action="panel"]').click();
   await ui.getByRole('button',{name:'Slett',exact:true}).last().click();
   assert.equal((await list()).comments.length,4);
   assert(await ui.evaluate(host=>{const active=host.shadowRoot.activeElement;return Boolean(active?.closest('.comment')||active?.matches('[data-filter]'));}),'Deleting a focused comment must preserve keyboard focus.');
-  await page.setViewportSize({width:320,height:800});
   await screenshot(page,'/visual-companion-narrow.png');
   const panel=await ui.getByRole('region',{name:'Innspill til prototypen'}).boundingBox();
   assert(panel.x>=0&&panel.x+panel.width<=320);

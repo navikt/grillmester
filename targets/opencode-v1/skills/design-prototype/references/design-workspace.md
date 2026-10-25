@@ -254,6 +254,9 @@ deleting that one file releases the room. An open canvas keeps its preview
 alive; a closed canvas stops after four hours without activity.
 The preview needs an existing ordinary Node.js runtime, version 18 or newer.
 If the client uses a bundled executable, the adapter looks for Node in the
-host's absolute `PATH` entries. Missing Node stops opening before a room is
+host's absolute `PATH` entries. It skips entries inside the project or a
+`node_modules` folder, and a runtime that another account can replace: one not
+owned by the user or root, or in a world-writable file or folder. The error
+names such a skipped runtime. Missing Node stops opening before a room is
 created; it does not trigger an installation. A client that runs extensions
 successfully is not by itself proof that a preview runtime is available.
