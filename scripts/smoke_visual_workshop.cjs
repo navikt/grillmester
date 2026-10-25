@@ -356,7 +356,8 @@ async function runWorkshop(context) {
   assert(!(await ui.getByRole("dialog").isVisible()), "New area comments must not capture comparison geometry.");
   assert.match(await ui.locator(".hint").innerText(), /Avslutt sammenligning for å markere et område/);
   const stopComparison = ui.getByRole("button", { name: "Avslutt sammenligning", exact: true });
-  if (await stopComparison.isVisible()) await stopComparison.click();
+  await stopComparison.click();
+  assert(await ui.evaluate(host => { const active = host.shadowRoot.activeElement; return Boolean(active?.getClientRects().length); }), "Ending a comparison from Endre must return focus to a visible control.");
   await frame.getByRole("heading", { name: "Velg arbeidsoversikt", exact: true }).focus();
   await page.keyboard.press("Enter");
   await ui.getByLabel("Hva vil du endre?").fill("Områdeutkastet skal ha samme forankring etter sammenligning.");

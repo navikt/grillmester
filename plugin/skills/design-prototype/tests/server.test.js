@@ -1716,15 +1716,19 @@ test("a restore blocked by named preserved fields offers one release-and-restore
   assert.equal(action.textContent, "Tillat endring og bruk versjon 1");
   assert.equal(el('[data-action="workspace-restore"]').disabled, true, "The plain restore stays blocked.");
   const releasing = browser.release();
-  assert.deepEqual(calls[1], { action: "workspace-editor-release", payload: { screen: "c".repeat(32), expectedRevision: 7, ids: ["text:heading", "control:/card/density"] }, retry: calls[1].retry });
-  snapshot.revision = 8;
-  browser.receive({ command: "workspace-result", requestId: 2, ok: true, snapshot: { ...snapshot } });
+  // The release names the current version, even when a stored version is on screen.
+  assert.equal(calls[1].action, "workspace-editor-read");
+  browser.receive({ command: "workspace-result", requestId: 2, ok: true, result: { screen: "d".repeat(32), revision: 7 } });
   await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(calls[2].payload, { revisionId: 1, expectedRevision: 8 });
+  assert.deepEqual(calls[2], { action: "workspace-editor-release", payload: { screen: "d".repeat(32), expectedRevision: 7, ids: ["text:heading", "control:/card/density"] }, retry: calls[2].retry });
+  snapshot.revision = 8;
   browser.receive({ command: "workspace-result", requestId: 3, ok: true, snapshot: { ...snapshot } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(calls[3].payload, { revisionId: 1, expectedRevision: 8 });
+  browser.receive({ command: "workspace-result", requestId: 4, ok: true, snapshot: { ...snapshot } });
   await releasing;
   assert.equal(browser.confirmation(), null);
-  assert.equal(calls.length, 3, "Exactly one release and one restore are written.");
+  assert.equal(calls.length, 4, "One read, then exactly one release and one restore are written.");
 });
 
 test("release-and-restore retries resend each step's exact payload after a lost response", async () => {
@@ -1735,28 +1739,32 @@ test("release-and-restore retries resend each step's exact payload after a lost 
     const { browser, calls, mutations, snapshot } = restoreHarness();
     const running = browser.restore(); browser.receive(blocked); await running;
     const first = browser.release();
-    snapshot.revision = 8;
+    browser.receive({ command: "workspace-result", requestId: 2, ok: true, result: { screen: "c".repeat(32), revision: 7 } });
     await new Promise(resolve => setImmediate(resolve));
+    snapshot.revision = 8;
     browser.rejectLatest(lost()); await first;
     const second = browser.release();
-    assert.deepEqual(calls[2].payload, calls[1].payload, "The release retry repeats the original payload.");
-    assert.equal(mutations[2], mutations[1], "The release retry keeps its receipt identity.");
-    browser.receive({ command: "workspace-result", requestId: 3, ok: true, snapshot: { ...snapshot } });
-    await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual(calls[3].payload, { revisionId: 1, expectedRevision: 8 });
+    assert.equal(calls[3].action, "workspace-editor-release", "A retry reuses the release instead of reading again.");
+    assert.deepEqual(calls[3].payload, calls[2].payload, "The release retry repeats the original payload.");
+    assert.equal(mutations[3], mutations[2], "The release retry keeps its receipt identity.");
     browser.receive({ command: "workspace-result", requestId: 4, ok: true, snapshot: { ...snapshot } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(calls[4].payload, { revisionId: 1, expectedRevision: 8 });
+    browser.receive({ command: "workspace-result", requestId: 5, ok: true, snapshot: { ...snapshot } });
     await second;
-    assert.equal(calls.length, 4);
+    assert.equal(calls.length, 5);
   }
   // A lost restore response after a confirmed release.
   {
     const { browser, calls, mutations, el, snapshot } = restoreHarness();
     const running = browser.restore(); browser.receive(blocked); await running;
     const releasing = browser.release();
-    snapshot.revision = 8;
-    browser.receive({ command: "workspace-result", requestId: 2, ok: true, snapshot: { ...snapshot } });
+    browser.receive({ command: "workspace-result", requestId: 2, ok: true, result: { screen: "c".repeat(32), revision: 7 } });
     await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual(calls[2].payload, { revisionId: 1, expectedRevision: 8 });
+    snapshot.revision = 8;
+    browser.receive({ command: "workspace-result", requestId: 3, ok: true, snapshot: { ...snapshot } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(calls[3].payload, { revisionId: 1, expectedRevision: 8 });
     snapshot.revision = 9;
     browser.rejectLatest(lost()); await releasing;
     const retry = el('[data-action="workspace-restore"]');
@@ -1764,12 +1772,25 @@ test("release-and-restore retries resend each step's exact payload after a lost 
     assert.equal(retry.disabled, false);
     assert.equal(retry.textContent, "Prøv samme gjenoppretting igjen");
     const again = browser.restore();
-    assert.deepEqual(calls[3].payload, calls[2].payload, "The restore retry repeats the restore that may have committed.");
-    assert.equal(mutations[3], mutations[2], "The restore retry keeps its receipt identity.");
-    browser.receive({ command: "workspace-result", requestId: 4, ok: true, snapshot: { ...snapshot } });
+    assert.deepEqual(calls[4].payload, calls[3].payload, "The restore retry repeats the restore that may have committed.");
+    assert.equal(mutations[4], mutations[3], "The restore retry keeps its receipt identity.");
+    browser.receive({ command: "workspace-result", requestId: 5, ok: true, snapshot: { ...snapshot } });
     await again;
     assert.equal(browser.confirmation(), null);
   }
+});
+
+test("revealed feedback opens the tab that holds it, for comments and kept parts alike", () => {
+  const source = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
+  const from = source.indexOf("  function feedbackTab("), to = source.indexOf("  function setTab(", from);
+  assert(from >= 0 && to > from);
+  const snapshot = { comments: [{ id: "c1", submission: 0 }, { id: "c2", submission: 2 }], decisions: [{ id: "d1", submission: 3 }, { id: "d2", submission: 0 }] };
+  const feedbackTab = require("node:vm").runInNewContext(`${source.slice(from, to)}; feedbackTab`, { snapshot });
+  assert.equal(feedbackTab({ commentId: "c1" }), "ready");
+  assert.equal(feedbackTab({ commentId: "c2" }), "sent");
+  assert.equal(feedbackTab({ decisionId: "d1" }), "sent", "A submitted kept part is under Sendt, also when a receipt returns it.");
+  assert.equal(feedbackTab({ decisionId: "d2" }), "ready");
+  assert.equal(feedbackTab({}), "ready");
 });
 
 test("feedback results and conflict refreshes stay with their originating preview document", async () => {

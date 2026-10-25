@@ -215,6 +215,16 @@
     if (typeof text?.id === "string" && typeof text.label === "string") partOptions.push([`text:${text.id}`, text.label]);
   }
   for (const [value, label] of partOptions) { const option = document.createElement("option"); option.value = value; option.textContent = label; el("#change-part").appendChild(option); }
+  // A stored version starts from its declared values, as the current preview
+  // does through Juster.
+  function applyDeclaredStart() {
+    for (const target of Array.isArray(declared?.targets) ? declared.targets : []) {
+      const element = typeof target?.key === "string" ? partElement(`target:${target.variant || ""}/${target.key}`) : null;
+      for (const control of element && Array.isArray(target.controls) ? target.controls : []) {
+        if (/^[a-z][a-z0-9-]{0,47}$/.test(control?.id || "") && typeof control.initial === "string") element.setAttribute(`data-vc-setting-${control.id}`, control.initial);
+      }
+    }
+  }
   function partElement(value) {
     if (value === "whole") return content();
     const exact = (name, key, within = document) => Array.from(within.querySelectorAll(`[${name}]`)).filter((node) => node.getAttribute(name) === key);
@@ -405,6 +415,10 @@
     return name === "ready" ? pendingComments().length > 0
       : [...snapshot.comments, ...(snapshot.decisions || [])].some((item) => item.submission > 0) || Boolean(canvasRounds()?.length);
   }
+  function feedbackTab({ commentId, decisionId }) {
+    const item = decisionId ? snapshot.decisions?.find((entry) => entry.id === decisionId) : snapshot.comments.find((entry) => entry.id === commentId);
+    return item?.submission > 0 ? "sent" : "ready";
+  }
   function setTab(next, focus = false) {
     tab = next;
     all("[data-tab]").forEach((entry) => { const selected = entry.dataset.tab === tab; entry.setAttribute("aria-selected", String(selected)); entry.tabIndex = selected ? 0 : -1; });
@@ -419,7 +433,7 @@
     const id = commentId || (comment && snapshot.comments.slice().reverse().find((item) =>
       Object.entries(comment).every(([key, value]) => JSON.stringify(item[key]) === JSON.stringify(value)))?.id);
     filter = "all";
-    setTab(snapshot.comments.find((item) => item.id === id)?.submission > 0 ? "sent" : "ready");
+    setTab(feedbackTab({ commentId: id, decisionId }));
     setPanel(true);
     const card = Array.from(el(".comment-list").children).find((entry) => decisionId ? entry.dataset.decision === decisionId : id && entry.dataset.id === id);
     if (card) { card.scrollIntoView({ block: "nearest" }); card.focus({ preventScroll: true }); }
@@ -799,7 +813,7 @@
       const title = document.createElement("strong");
       title.textContent = tab === "ready" ? "Hva kan bli bedre?" : filter === "all" ? "Ingen sendte innspill ennå" : "Ingen innspill her ennå";
       const text = document.createElement("p");
-      text.textContent = tab === "ready" ? "Velg Kommenter, og pek på et element eller marker et område. Innspillene samles her til du sender dem."
+      text.textContent = tab === "ready" ? "Velg Endre, og pek på et element, marker et område eller velg en del. Innspillene samles her til du sender dem."
         : filter === "all" ? "Sendte innspill og svar vises her." : "Velg et annet filter for å se resten.";
       empty.append(title, text);
       list.appendChild(empty);
@@ -819,6 +833,11 @@
   function workspaceStored() { return snapshot.workspace?.storage === "project"; }
   function workspaceDrafts() { return Boolean(draft || drag || preview || workshop?.hasRemarks() || editor?.isDirty()); }
   function workspaceText(selector, text) { const node = el(selector); if (node.textContent !== text) node.textContent = text; }
+  function displayedRevision() {
+    if (view) return view.revisionId;
+    const filename = snapshot.screens?.find((item) => item.screen === screen)?.filename;
+    return workspaceEntries.find((entry) => entry.filename === filename)?.revisionId;
+  }
   function renderWorkspaceSummary() {
     const stored = workspaceStored();
     workspaceButton.hidden = !stored && canvasRounds() === null;
@@ -850,7 +869,7 @@
       if (node.dataset.action === "workspace-choose") node.textContent = current ? "Gjeldende versjon" : "Bruk som ny versjon";
       if (node !== restore && node.dataset.action !== "workspace-release-restore") node.disabled = workspaceRestoring || (workspaceLoading && node.dataset.action !== "workspace-close") || current;
       if (node.dataset.revisionId && ["workspace-view", "view-current"].includes(node.dataset.action)) {
-        const shown = Number(node.dataset.revisionId) === (view ? view.revisionId : snapshot.workspace?.version);
+        const shown = Number(node.dataset.revisionId) === displayedRevision();
         node.textContent = shown ? "Vises nå" : "Vis";
         node.disabled ||= shown || dirty || connectionLost;
       }
@@ -955,7 +974,11 @@
     workspaceRestoring = true;
     errorAt(".workspace-error", ""); updateBusy();
     try {
-      chosen.release ||= { payload: { screen, expectedRevision: snapshot.revision, ids: chosen.conflicts.map(item => item.id) }, retry: {} };
+      if (!chosen.release) {
+        // The release names the current version, which a stored version on screen is not.
+        const current = await request("workspace-editor-read", {});
+        chosen.release = { payload: { screen: current.screen, expectedRevision: current.revision, ids: chosen.conflicts.map(item => item.id) }, retry: {} };
+      }
       await request("workspace-editor-release", chosen.release.payload, chosen.release.retry);
       chosen.conflicts = []; chosen.conflict = false; chosen.release = null;
       // A retry through «Prøv samme gjenoppretting igjen» sends this same restore.
@@ -1114,7 +1137,7 @@
       filter = target.dataset.filter;
       all("[data-filter]").forEach((entry) => entry.setAttribute("aria-pressed", String(entry.dataset.filter === filter)));
       renderComments();
-    } else if (action === "browse") { endreSticky = false; workshop?.close(); setMode("browse"); }
+    } else if (action === "browse") { workshop?.close(); editor?.close(); endreSticky = false; setMode("browse"); }
     else if (action === "comment" || action === "change-ask") { endreSticky = true; setMode("comment"); }
     else if (action === "vis-compare") { workshop?.toggleComparison(); updateBusy(); }
     else if (action === "point" || action === "area") setMode("comment", action);
@@ -1381,12 +1404,13 @@
     pendingEvent = null;
     updateIndicator();
   });
+  if (view) applyDeclaredStart();
   if (!view && typeof window.__grillmesterInitializeWorkshop === "function") {
     workshop = window.__grillmesterInitializeWorkshop({
       root, screen, nonce, request, anchorFor, announce, topInset,
       onPanelChange: syncEndre,
       panelTop: sheetTop,
-      compareOpener: () => el('[data-action="vis-compare"]'),
+      compareOpener: () => [el('[data-action="vis-compare"]'), el('[data-action="workshop-open"]'), el('[data-action="comment"]')].find((node) => node?.getClientRects().length) || el('[data-action="browse"]'),
       getSnapshot: () => snapshot,
       onBusyChange: updateBusy,
       onPresentationChange: () => { updateHint(); renderComments(); },

@@ -342,6 +342,7 @@ const cases = [
     await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Vis versjon 1", exact: true }).click();
     await view.frame.getByRole("heading", { name: "Timeavtale · første", exact: true }).waitFor(); await banner.waitFor();
+    assert.equal(await view.frame.locator('[data-vc-key="meeting"]').getAttribute("data-vc-setting-detail"), "short", "A stored version starts from its declared values.");
     for (const name of ["Kommenter", "Juster", "Innspill"]) assert.equal(await view.ui.getByRole("button", { name, exact: true }).count(), 0, `${name} is not offered on a stored version.`);
     assert.deepEqual(await view.snapshot(), before, "Viewing changes nothing in the room."); assert.equal(restoreRequests, 0);
     await screenshot(view, "stored-version-read-only");
@@ -360,6 +361,41 @@ const cases = [
     assert.equal(restoreRequests, 1); assert.equal(bound.calls.length, 0);
     await screenshot(view, "stored-version-used-as-new");
     return { viewedRevision: 1, viewingWritesNothing: true, newerVersionWaited: true, returnedToCurrent: true, restoredFromView: 4, automaticSubmissions: 0 };
+  } },
+  { name: "view-restore-preserved-field-and-leave-editor", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
+    const bound = host(), view = await instance(bound, "view-hold", "Avtale · første", { fixture: editableSketch, openInput: { workspacePath: "design/visning-hold", create: true, title: "Visning og bevarte felt" } });
+    let editor = await openEditor(view);
+    await editor.getByLabel("Overskrift", { exact: true }).fill("Min lagrede overskrift");
+    await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).click();
+    await view.frame.getByRole("heading", { name: "Min lagrede overskrift", exact: true }).waitFor();
+    // Prøv leaves Endre even while Rediger is open.
+    editor = await openEditor(view);
+    await view.ui.getByRole("button", { name: "Prøv", exact: true }).click();
+    assert.equal(await view.ui.locator('[data-action="comment"]').getAttribute("aria-pressed"), "false", "Prøv leaves Endre.");
+    assert(await editor.isHidden(), "Prøv closes Rediger.");
+    // Using a stored version can release the preserved field it changes.
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Vis versjon 1", exact: true }).click();
+    await view.ui.getByText("Viser lagret versjon 1. Ingen ny versjon er laget.", { exact: true }).waitFor();
+    await view.ui.getByRole("button", { name: "Bruk som ny versjon", exact: true }).first().click();
+    await view.ui.locator('[data-action="workspace-restore"]').click();
+    const release = view.ui.getByRole("button", { name: "Tillat endring og bruk versjon 1", exact: true });
+    await release.waitFor(); await release.click();
+    await until(async () => (await view.snapshot()).workspace.version === 3, "stored version used after releasing its preserved field");
+    await view.ui.locator('[data-action="comment"]').waitFor();
+    await view.frame.getByRole("heading", { name: "Avtale · første", exact: true }).waitFor();
+    // «Vises nå» follows the version on screen while a newer one waits.
+    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await view.ui.locator('.workspace-revision[data-revision-id="3"]').waitFor();
+    await view.publish("Avtale · fjerde");
+    await view.ui.locator('[data-action="workspace-reload"]').click();
+    const latest = view.ui.locator('.workspace-revision[data-revision-id="4"]'), shown = view.ui.locator('.workspace-revision[data-revision-id="3"]');
+    await latest.waitFor();
+    assert.equal(await latest.getByRole("button", { name: "Vis versjon 4", exact: true }).textContent(), "Vis");
+    assert.equal(await shown.getByRole("button", { name: "Vis versjon 3", exact: true }).textContent(), "Vises nå");
+    await screenshot(view, "displayed-version-marked");
+    assert.equal(bound.calls.length, 0);
+    return { leftEditorWithProv: true, restoredThroughPreservedField: 3, displayedVersionMarked: 3, automaticSubmissions: 0 };
   } },
   { name: "workspace-limit-preserves-history", async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "capacity", "Timeavtale · første", { openInput: { workspacePath: "design/capacity", create: true, title: "Bevart historikk" } });

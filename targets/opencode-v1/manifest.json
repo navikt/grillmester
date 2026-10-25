@@ -540,7 +540,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "0e5c2441e795f8b3e72d7b94b83160a0a9d4bf09909585c568c48101317af11a",
+      "sha256": "64df162205add5b769b70c54ec91e2a894b20306e6060a8ef988807598b3c0ec",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
@@ -568,7 +568,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "bb74b2e325deff3ad19c9f7dda9503654952cd2a13a73f5899b628efefb36051",
+      "sha256": "aa81c03059c0d17a36f8a9f93ab22ea5b19365866e6aa35c16892d24f4f836ee",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-lifecycle.test.js": {
