@@ -154,9 +154,13 @@ test("state and revision limits reject whole writes without changing the saved r
   // the registered version count is enforced by the workspace state.
   for (let i = 0; i < MAX_REVISIONS; i++) fs.writeFileSync(path.join(store.revisionsDir, `revision-${i}.html`), "<p>x</p>");
   store.writeRevision({ filename: "after-orphans.html", html: "<p>x</p>" });
-  for (let i = MAX_REVISIONS; i < MAX_REVISIONS * 4; i++) fs.writeFileSync(path.join(store.revisionsDir, `revision-${i}.html`), "<p>x</p>");
-  assert.throws(() => store.writeRevision({ filename: "too-many.html", html: "<p>x</p>" }), rejectsStatus(429));
-  assert.equal(fs.readdirSync(store.revisionsDir).length, MAX_REVISIONS * 4 + 1);
+  store.persist({ ...initial(), text: "after orphans" });
+  store.close();
+  const reopened = open();
+  assert.equal(reopened.load().text, "after orphans", "Saving and reopening rescan the files without counting orphans as versions.");
+  for (let i = MAX_REVISIONS; i < MAX_REVISIONS * 4; i++) fs.writeFileSync(path.join(reopened.revisionsDir, `revision-${i}.html`), "<p>x</p>");
+  assert.throws(() => reopened.writeRevision({ filename: "too-many.html", html: "<p>x</p>" }), rejectsStatus(429));
+  assert.equal(fs.readdirSync(reopened.revisionsDir).length, MAX_REVISIONS * 4 + 1);
 });
 
 test("reopening applies the combined state and revision storage limit without changing files", t => {

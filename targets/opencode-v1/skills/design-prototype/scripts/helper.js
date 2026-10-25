@@ -279,7 +279,8 @@
       const timer = window.setTimeout(() => {
         requests.delete(requestId);
         updateBusy();
-        reject(new Error(action === "workspace-history" ? "Historikken kunne ikke hentes. Prøv igjen." : action === "workspace-restore" ? "Gjenopprettingen ble ikke bekreftet. Prøv samme handling igjen før du velger en annen versjon." : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen."));
+        reject(new Error(action === "workspace-history" ? "Historikken kunne ikke hentes. Prøv igjen." : action === "workspace-restore" ? "Gjenopprettingen ble ikke bekreftet. Prøv samme handling igjen før du velger en annen versjon."
+          : action.startsWith("workspace-editor-") ? "Handlingen ble ikke bekreftet. Utkastet ditt er beholdt. Prøv samme handling igjen." : "Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen."));
       }, 12000);
       requests.set(requestId, { resolve, reject, timer, action });
       updateBusy();
@@ -823,23 +824,27 @@
     } finally { workspaceRestoring = false; updateBusy(); }
   }
   // Release exactly the preserved fields that blocked this restore, then restore.
+  // Each step keeps its exact payload, so retrying after a lost response reuses
+  // that step's receipt instead of starting a different change.
   async function releaseAndRestore() {
     const chosen = workspaceConfirmation;
     if (!chosen?.conflicts?.length || el('[data-action="workspace-release-restore"]').disabled) return;
     workspaceRestoring = true;
     errorAt(".workspace-error", ""); updateBusy();
     try {
-      chosen.releaseRetry ||= {};
-      await request("workspace-editor-release", { screen, expectedRevision: snapshot.revision, ids: chosen.conflicts.map(item => item.id) }, chosen.releaseRetry);
-      chosen.conflicts = []; chosen.conflict = false; chosen.retry = {};
-      await request("workspace-restore", { revisionId: chosen.entry.revisionId, expectedRevision: snapshot.revision }, chosen.retry);
+      chosen.release ||= { payload: { screen, expectedRevision: snapshot.revision, ids: chosen.conflicts.map(item => item.id) }, retry: {} };
+      await request("workspace-editor-release", chosen.release.payload, chosen.release.retry);
+      chosen.conflicts = []; chosen.conflict = false; chosen.release = null;
+      // A retry through «Prøv samme gjenoppretting igjen» sends this same restore.
+      chosen.expectedRevision = snapshot.revision; chosen.retry = {};
+      await request("workspace-restore", { revisionId: chosen.entry.revisionId, expectedRevision: chosen.expectedRevision }, chosen.retry);
       workspaceConfirmation = null;
       workspaceRestoreOpen = true;
       workspaceText(".workspace-status", "Senere endring er tillatt, og en ny skisseversjon er lagret. Innspill og svar er beholdt.");
       announce("En ny skisseversjon er lagret. Ingen innspill er sendt.");
       if (updateAvailable) refreshNow();
     } catch (error) {
-      if (error.conflict) chosen.conflict = true;
+      if (error.conflict) { chosen.conflict = true; chosen.release = null; }
       errorAt(".workspace-error", error.conflict ? "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt." : error.message);
     } finally { workspaceRestoring = false; updateBusy(); }
   }

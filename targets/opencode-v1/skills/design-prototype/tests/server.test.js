@@ -485,6 +485,14 @@ test("tag scanning follows the browser tokenizer for quotes, end tags and commen
     ['<style>@media (width < 600px) { .a { content: "it\'s"; } }</style>', '<style nonce="N">@media (width < 600px) { .a { content: "it\'s"; } }</style>'],
     ["<textarea>if a < b then 1 / 2</textarea>", "<textarea>if a < b then 1 / 2</textarea>"],
     ['<img src="https://example.invalid/a.png" src="data:image/png;base64,iVBORw0KGgo=">', "<img>"],
+    // Parsers without the relaxed select rules ignore raw-text openers in <select>,
+    // so their contents are sanitized as markup until the select closes.
+    ['<select><style></select><img src=x onerror=alert(1) title="</style>">', '<select><style nonce="N"></select></style>">'],
+    ['<select><option>A</option></select><style>@media (400px<width<600px) { div > p { margin: 0 } }</style>',
+      '<select><option>A</option></select><style nonce="N">@media (400px<width<600px) { div > p { margin: 0 } }</style>'],
+    // noscript is markup without scripting, and a select written from it keeps later raw text suspect.
+    ['<noscript><select></noscript><style></select><img src=x onerror=alert(1) title="</style>">', '<noscript><select></noscript><style nonce="N"></select></style>">'],
+    ["<noscript><p>Slå på JavaScript</p></noscript>", "<noscript><p>Slå på JavaScript</p></noscript>"],
   ]) assert.equal(strip(input, "N"), expected, JSON.stringify(input));
 });
 
@@ -1649,7 +1657,7 @@ test("restore distinguishes preserved-field conflicts from stale history without
 });
 
 
-test("a restore blocked by named preserved fields offers one release-and-restore action", async () => {
+function restoreHarness() {
   const source = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
   const excerpt = (start, end) => {
     const from = source.indexOf(start), to = source.indexOf(end, from);
@@ -1659,7 +1667,8 @@ test("a restore blocked by named preserved fields offers one release-and-restore
   const summary = excerpt("  function workspaceStored()", "  function closeWorkspace(");
   const restore = excerpt("  async function restoreWorkspace()", "  function renderCanvasRounds()");
   const result = excerpt('    if (data.command === "comments-result" || data.command === "workspace-result") {', '    if (data.command !== "selection-status"');
-  const nodes = new Map(), requests = new Map(), calls = [];
+  const nodes = new Map(), requests = new Map(), calls = [], mutations = [];
+  let mutationCount = 0;
   const el = selector => {
     if (!nodes.has(selector)) nodes.set(selector, { textContent: "", hidden: false, disabled: false, dataset: {}, setAttribute() {} });
     return nodes.get(selector);
@@ -1676,13 +1685,22 @@ test("a restore blocked by named preserved fields offers one release-and-restore
     canvasRounds: () => [], window: { clearTimeout() {} },
     errorAt: (selector, text) => { el(selector).textContent = text; },
     announce() {}, refreshNow() {}, applySnapshot() {},
-    request: (action, payload, retry) => {
+    request: (action, payload, retry = {}) => {
+      // Mirrors helper.js: one mutation ID per exact intent and retry record.
+      const intent = JSON.stringify([action, payload]);
+      if (retry.intent !== intent) Object.assign(retry, { intent, mutationId: `mutation-${++mutationCount}` });
+      mutations.push(retry.mutationId);
       calls.push({ action, payload: JSON.parse(JSON.stringify(payload)), retry });
       const id = ++sequence;
       return new Promise((resolve, reject) => requests.set(id, { action, resolve, reject, timer: 1 }));
     },
   };
-  const browser = require("node:vm").runInNewContext(`${summary}\n${restore}\nfunction updateBusy() { renderWorkspaceSummary(); }\nrenderWorkspaceSummary();\n({ restore: restoreWorkspace, release: releaseAndRestore, receive: (data) => { ${result} }, confirmation: () => workspaceConfirmation })`, context);
+  const browser = require("node:vm").runInNewContext(`${summary}\n${restore}\nfunction updateBusy() { renderWorkspaceSummary(); }\nrenderWorkspaceSummary();\n({ restore: restoreWorkspace, release: releaseAndRestore, receive: (data) => { ${result} }, rejectLatest: (error) => { const id = Math.max(...requests.keys()); const pending = requests.get(id); requests.delete(id); pending.reject(error); }, confirmation: () => workspaceConfirmation })`, context);
+  return { browser, calls, mutations, el, snapshot };
+}
+
+test("a restore blocked by named preserved fields offers one release-and-restore action", async () => {
+  const { browser, calls, el, snapshot } = restoreHarness();
   const running = browser.restore();
   browser.receive({ command: "workspace-result", requestId: 1, ok: false, conflict: true, errorCode: "editor-conflict",
     conflicts: [{ id: "text:heading", label: "Overskrift" }, { id: "control:/card/density", label: "Luft · Oppsummering" }] });
@@ -1703,6 +1721,51 @@ test("a restore blocked by named preserved fields offers one release-and-restore
   await releasing;
   assert.equal(browser.confirmation(), null);
   assert.equal(calls.length, 3, "Exactly one release and one restore are written.");
+});
+
+test("release-and-restore retries resend each step's exact payload after a lost response", async () => {
+  const blocked = { command: "workspace-result", requestId: 1, ok: false, conflict: true, errorCode: "editor-conflict", conflicts: [{ id: "text:heading", label: "Overskrift" }] };
+  const lost = () => new Error("Handlingen ble ikke bekreftet. Utkastet ditt er beholdt. Prøv samme handling igjen.");
+  // A lost release response: polling has meanwhile seen the committed release.
+  {
+    const { browser, calls, mutations, snapshot } = restoreHarness();
+    const running = browser.restore(); browser.receive(blocked); await running;
+    const first = browser.release();
+    snapshot.revision = 8;
+    await new Promise(resolve => setImmediate(resolve));
+    browser.rejectLatest(lost()); await first;
+    const second = browser.release();
+    assert.deepEqual(calls[2].payload, calls[1].payload, "The release retry repeats the original payload.");
+    assert.equal(mutations[2], mutations[1], "The release retry keeps its receipt identity.");
+    browser.receive({ command: "workspace-result", requestId: 3, ok: true, snapshot: { ...snapshot } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(calls[3].payload, { revisionId: 1, expectedRevision: 8 });
+    browser.receive({ command: "workspace-result", requestId: 4, ok: true, snapshot: { ...snapshot } });
+    await second;
+    assert.equal(calls.length, 4);
+  }
+  // A lost restore response after a confirmed release.
+  {
+    const { browser, calls, mutations, el, snapshot } = restoreHarness();
+    const running = browser.restore(); browser.receive(blocked); await running;
+    const releasing = browser.release();
+    snapshot.revision = 8;
+    browser.receive({ command: "workspace-result", requestId: 2, ok: true, snapshot: { ...snapshot } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(calls[2].payload, { revisionId: 1, expectedRevision: 8 });
+    snapshot.revision = 9;
+    browser.rejectLatest(lost()); await releasing;
+    const retry = el('[data-action="workspace-restore"]');
+    assert.equal(el('[data-action="workspace-release-restore"]').hidden, true, "The fields are already released.");
+    assert.equal(retry.disabled, false);
+    assert.equal(retry.textContent, "Prøv samme gjenoppretting igjen");
+    const again = browser.restore();
+    assert.deepEqual(calls[3].payload, calls[2].payload, "The restore retry repeats the restore that may have committed.");
+    assert.equal(mutations[3], mutations[2], "The restore retry keeps its receipt identity.");
+    browser.receive({ command: "workspace-result", requestId: 4, ok: true, snapshot: { ...snapshot } });
+    await again;
+    assert.equal(browser.confirmation(), null);
+  }
 });
 
 test("feedback results and conflict refreshes stay with their originating preview document", async () => {

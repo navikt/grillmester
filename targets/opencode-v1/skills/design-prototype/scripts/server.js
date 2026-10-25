@@ -742,11 +742,15 @@ function serializeStartTag(tag, styleNonce = null) {
   return `${result}${tag.selfClosing ? " /" : ""}>`;
 }
 
-function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
+function stripActivePreviewMarkup(value, styleNonce, markupContext = false) {
   const source = String(value);
   let result = "";
   let cursor = 0;
   const knownUnclosedRawTextElements = new Set();
+  // Parsers without the relaxed select rules ignore raw-text openers inside
+  // <select> until "</select>" (or an opener that closes it, which only makes
+  // this flag stay set longer than needed).
+  let selectOpen = false;
   while (cursor < source.length) {
     const tagStart = source.indexOf("<", cursor);
     if (tagStart === -1) {
@@ -779,6 +783,7 @@ function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
       continue;
     }
     if (tag.closing) {
+      if (tag.name === "select") selectOpen = false;
       result += `</${tag.name}>`;
       cursor = tag.end;
       continue;
@@ -787,7 +792,8 @@ function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
     // The tree builder can stay there after a self-closing-looking tag or an
     // ignored end tag, so after any opener every later raw-text element is
     // treated as possibly foreign.
-    if (tag.name === "svg" || tag.name === "math") foreign = true;
+    if (tag.name === "svg" || tag.name === "math") markupContext = true;
+    if (tag.name === "select") selectOpen = true;
     if (tag.name === "script") {
       const closing = findClosingTag(source, tag.end, "script");
       cursor = closing ? closing.end : source.length;
@@ -806,11 +812,15 @@ function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
         continue;
       }
       // Text without a possible tag, comment or end tag opener reads the same
-      // as raw text and as markup. Otherwise sanitize foreign contents as markup.
+      // as raw text and as markup. Otherwise sanitize contents that may be
+      // parsed as markup; noscript is markup wherever scripting is disabled.
       const content = source.slice(tag.end, closing.start);
-      result += serializeStartTag(tag, styleNonce);
-      result += foreign && /<[A-Za-z!\/?]/.test(content) ? stripActivePreviewMarkup(content, styleNonce, true) : content;
-      result += `</${tag.name}>`;
+      const asMarkup = (markupContext || selectOpen || tag.name === "noscript") && /<[A-Za-z!\/?]/.test(content);
+      const inner = asMarkup ? stripActivePreviewMarkup(content, styleNonce, true) : content;
+      // An opener written from contents parsed as markup keeps later raw text suspect.
+      if (asMarkup && /<(?:svg|math)[\s/>]/.test(inner)) markupContext = true;
+      if (asMarkup && /<select[\s/>]/.test(inner)) selectOpen = true;
+      result += `${serializeStartTag(tag, styleNonce)}${inner}</${tag.name}>`;
       cursor = closing.end;
       continue;
     }
