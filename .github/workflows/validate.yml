@@ -15,7 +15,8 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    # Keep the cplt runtime gate on its reviewed Linux host baseline.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Check out repository
@@ -185,7 +186,7 @@ jobs:
             --require-binary --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"
 
   copilot-compatibility:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
