@@ -22,9 +22,11 @@ distinguish that conflict from the already chosen source.
 
 ## Read the chosen source without opening canvas
 
-Read the files as ordinary text/JSON in an editor. This needs no canvas session
-or writer claim. Keep the files unchanged during inspection; opening the room
-through the canvas or constructing `WorkspaceStore` acquires its writer claim.
+Read the files read-only as ordinary text/JSON, for example with a viewer or
+`cat`. This needs no canvas session or writer claim. Never save them from an
+editor: format-on-save, an added final newline or whitespace cleanup changes the
+saved bytes and makes that version unusable. Opening the room through the
+canvas or constructing `WorkspaceStore` acquires its writer claim.
 
 1. Locate the room in the intended repository/worktree. If the files are already
    shared through version control, include the existing repository reference in
@@ -40,15 +42,18 @@ through the canvas or constructing `WorkspaceStore` acquires its writer claim.
    These two files form the chosen source. If `designHash` is `null`, that version
    has no descriptor. Do not select files by modification time or infer a version
    from its filename: an unregistered file can remain after an interrupted save.
-4. Before using the chosen source for implementation or a brief, calculate
-   SHA-256 from the actual bytes of each referenced file. Compare the HTML hash
-   with the entry's `hash` and, when present, the descriptor hash with
-   `designHash`; also compare the HTML byte count with `bytes`. Include the
-   descriptor's trailing newline. Reading the recorded hashes or checking file
-   size alone is not verification. If a referenced file is missing or a value
-   differs, report the mismatch and stop dependent work. Retain the chosen
+4. Before any product, test, brief or documentation write that depends on the
+   chosen source, verify each referenced file from its actual bytes. `hash` is the
+   SHA-256 of the exact HTML bytes and `bytes` is their count; compare both.
+   `designHash` is the SHA-256 of the descriptor as the room writes it:
+   `JSON.stringify(value)` followed by one newline. A repository formatter may
+   have re-indented the file; it still matches when its parsed value in that
+   canonical form has the recorded hash. Reading the recorded hashes or checking
+   file size alone is not verification. If a referenced file is missing or fails
+   this check, report the mismatch and stop dependent work. Retain the chosen
    reference; do not repair the files, rewrite their hashes or substitute another
-   version.
+   version. The canvas also rejects that version when it is read or restored,
+   while the room's other versions remain usable.
 
 For a version 2 descriptor, `texts[].value` is the canonical text for the matching
 `data-vc-text` binding. A target's `controls[].initial` supplies its declared

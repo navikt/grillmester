@@ -57,6 +57,15 @@ these files like other project content before committing or sharing. Session
 tokens, process identity and delivery transport remain temporary. No Git
 action, external publication or product-code change follows from saving a room.
 
+Before a room is committed, the repository must keep its directory out of
+formatting and line-ending conversion: exclude it in the formatter and
+pre-commit hooks (for example Biome `"includes": ["**", "!designs/**"]` under
+`files`, `.prettierignore` or an end-of-file fixer's exclude) and mark it
+`-text` in `.gitattributes`, for example `designs/** -text`. A changed HTML byte
+makes that version unusable until the file is restored from version control.
+These are consumer-repository changes: propose them, and make them only when
+the user asks. Read room files read-only and never save them from an editor.
+
 Unsent **saved** feedback survives reopening. Text still being typed, local
 preview choices and unsaved editor drafts do not survive closing the sketch or
 the conversation. Closing a small in-sketch panel retains its drafts. Explain
@@ -232,15 +241,24 @@ sources. Agree which version is authoritative for the task.
 
 One writer owns a physical room on the local host. Git branches/worktrees can
 have separate copies; this is not real-time multi-user editing or automatic
-merge resolution. Unexpected external file changes, damaged state and hash
-mismatches stop writes and preserve existing files for review.
+merge resolution. Unexpected external changes to the state, damaged state and a
+current pair that no longer matches its hashes stop opening or writes and
+preserve existing files for review. The opening error says whether the room
+is open in another session, names a file that no longer matches the register,
+or reports a non-empty directory for a new room. Report a named file and
+restore it from version control; never edit hashes or `workspace.json` to make
+a room open. A damaged older pair makes only that version unavailable:
+`read_revision` and `restore_revision` reject it by name while the room stays
+usable. A descriptor re-indented with the same value and files that can never
+be revisions, such as `.DS_Store` or editor backups, are tolerated.
 
 A room retains at most 100 sketch versions, 200 submitted rounds, a 2 MiB
 state document and 64 MiB total saved content. Each HTML revision is at most
 2 MiB; descriptors are at most 32 KiB for v1 or 24 KiB for v2. Limits reject whole changes;
-history is not evicted. At capacity, preserve the original room and arrange a
-new room explicitly. The adapter has a Node runtime and a private loopback
-preview transport; a native canvas panel does not remove these requirements.
+history is not evicted. A new session reopens the same full room. At capacity,
+preserve the original room and arrange a new room explicitly. The adapter has a
+Node runtime and a private loopback preview transport; a native canvas panel
+does not remove these requirements.
 Project workspace locking currently requires a Unix host. Other hosts must
 report that project storage is unsupported, without resetting an existing room.
 The preview needs an existing ordinary Node.js runtime, version 18 or newer.

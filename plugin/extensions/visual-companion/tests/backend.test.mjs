@@ -143,12 +143,67 @@ test('another process cannot write an owned workspace, and a stopped startup can
   try {
     owner = await createServerBackend({ ...options, create: true, title: 'Arbeidsrom' });
     const original = await owner.readState({});
-    await assert.rejects(createServerBackend(options), error => error.status === 409 && error.backendStopped === true && error.backendWasReady === false);
+    await assert.rejects(createServerBackend(options), error => error.status === 409 && error.backendStopped === true && error.backendWasReady === false
+      && /åpent i en annen økt/.test(error.message));
     assert.equal((await owner.readState({})).workspace.id, original.workspace.id);
     await owner.retire({}); owner = undefined;
     next = await createServerBackend(options);
     assert.equal((await next.readState({})).workspace.id, original.workspace.id);
   } finally { await owner?.retire({}); await next?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
+});
+
+test('a room survives repository formatting and Finder files, and one damaged older file stays local to its version', async () => {
+  const projectDir = await mkdtemp(join(tmpdir(), 'visual-canvas-format-'));
+  const options = { projectDir, workspacePath: 'designs/format' };
+  const room = join(projectDir, 'designs/format'), revisions = join(room, 'revisions');
+  const design = { version: 2, variants: [], targets: [], texts: [{ id: 'heading', label: 'Overskrift', value: 'Velg tidspunkt' }] };
+  const html = '<h1><span data-vc-text="heading">Velg tidspunkt</span></h1>';
+  let backend;
+  try {
+    backend = await createServerBackend({ ...options, create: true, title: 'Formatering' });
+    const first = await backend.publishRevision({ expectedScreen: '', filename: 'first.html', html, design });
+    await backend.publishRevision({ expectedScreen: first.screen, filename: 'second.html', html,
+      design: { ...design, texts: [{ ...design.texts[0], value: 'Finn en tid' }] } });
+    await backend.retire({}); backend = undefined;
+    // What a staged-file formatter, an editor saving an old version and Finder leave behind.
+    for (const filename of [join(room, 'workspace.json'), join(revisions, 'first.design.json'), join(revisions, 'second.design.json')]) {
+      fs.writeFileSync(filename, `${JSON.stringify(JSON.parse(fs.readFileSync(filename, 'utf8')), null, 2)}\n`);
+    }
+    fs.appendFileSync(join(revisions, 'first.html'), '\n');
+    for (const name of ['.DS_Store', '._first.html', 'first.html~']) fs.writeFileSync(join(revisions, name), 'x');
+    backend = await createServerBackend(options);
+    const state = await backend.readState({});
+    assert.equal(state.workspace.version, 2);
+    assert.equal(JSON.parse((await backend.readRevision({ revisionId: 2, part: 'design' })).content).texts[0].value, 'Finn en tid');
+    const named = error => error.status === 409 && /first\.html no longer matches its saved hash/.test(error.message);
+    await assert.rejects(backend.readRevision({ revisionId: 1, part: 'html' }), named);
+    await assert.rejects(backend.restoreRevision({ revisionId: 1, expectedRevision: state.revision }), named);
+    const view = await backend.openView({});
+    const restore = await request(view, '/workspace/restore', 'POST', { revisionId: 1, expectedRevision: state.revision });
+    assert.equal(restore.status, 409); assert.match(restore.value.error, /first\.html no longer matches its saved hash/);
+    const third = await backend.publishRevision({ expectedScreen: state.screen, filename: 'third.html', html, design });
+    assert.equal(third.workspace.version, 3);
+  } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
+});
+
+test('startup names a damaged current file and a used directory without blaming another session', async () => {
+  const projectDir = await mkdtemp(join(tmpdir(), 'visual-canvas-startup-'));
+  const options = { projectDir, workspacePath: 'designs/startup' };
+  let backend;
+  try {
+    backend = await createServerBackend({ ...options, create: true, title: 'Oppstart' });
+    await backend.publishRevision({ expectedScreen: '', filename: 'current.html', html: '<h1>Gjeldende</h1>' });
+    await backend.retire({}); backend = undefined;
+    const current = join(projectDir, 'designs/startup/revisions/current.html');
+    fs.appendFileSync(current, '\n');
+    await assert.rejects(createServerBackend(options), error => error.status === 409 && /lagrede filen current\.html ikke stemmer med registeret/.test(error.message)
+      && !/annen økt/.test(error.message));
+    await assert.rejects(createServerBackend({ ...options, create: true, title: 'Ny' }), error => error.status === 409 && /ikke tom/.test(error.message)
+      && !/annen økt/.test(error.message));
+    fs.mkdirSync(join(projectDir, 'designs/empty'));
+    await assert.rejects(createServerBackend({ projectDir, workspacePath: 'designs/empty' }), error => error.status === 404 && /finnes ikke/.test(error.message));
+    assert.equal(fs.readFileSync(current, 'utf8'), '<h1>Gjeldende</h1>\n', 'A failed startup changes no project file.');
+  } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
 });
 
 test('a post-commit directory sync failure still emits one round, and receipt retry cannot emit it twice', async t => {

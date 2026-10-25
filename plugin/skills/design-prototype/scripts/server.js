@@ -773,7 +773,7 @@ function withoutNetworkAttributes(tag, styleNonce = null) {
   return `${result}>`;
 }
 
-function stripActivePreviewMarkup(value, styleNonce) {
+function stripActivePreviewMarkup(value, styleNonce, foreign = false) {
   const source = String(value);
   let result = "";
   let cursor = 0;
@@ -821,6 +821,11 @@ function stripActivePreviewMarkup(value, styleNonce) {
       }
       continue;
     }
+    // In SVG/MathML content the browser parses raw-text elements as markup.
+    // The tree builder can stay there after a self-closing-looking tag or an
+    // ignored end tag, so after any opener every later raw-text element is
+    // treated as possibly foreign.
+    if ((tag.name === "svg" || tag.name === "math") && !tag.closing) foreign = true;
     if (RAW_TEXT_PREVIEW_ELEMENTS.has(tag.name) && !tag.closing) {
       const closing = knownUnclosedRawTextElements.has(tag.name)
         ? null
@@ -834,7 +839,10 @@ function stripActivePreviewMarkup(value, styleNonce) {
         continue;
       }
       result += withoutNetworkAttributes(source.slice(tagStart, tag.end), styleNonce);
-      result += source.slice(tag.end, closing.start);
+      // Text without a possible tag, comment or end tag opener reads the same
+      // as raw text and as markup. Otherwise sanitize foreign contents as markup.
+      const content = source.slice(tag.end, closing.start);
+      result += foreign && /<[A-Za-z!\/?]/.test(content) ? stripActivePreviewMarkup(content, styleNonce, true) : content;
       result += source.slice(closing.start, closing.end);
       cursor = closing.end;
       continue;
@@ -1520,7 +1528,7 @@ function readFeedbackBody(req, res, operation, pathname, maximumBytes = MAX_BODY
       sendJson(res, 200, snapshot);
     } catch (error) {
       sendJson(res, requestErrorStatus(error), {
-        error: error instanceof FeedbackError ? error.message : "Feedback storage is unavailable.",
+        error: error instanceof FeedbackError || error?.expose === true ? error.message : "Feedback storage is unavailable.",
         ...(error.errorCode === "editor-conflict" ? { errorCode: "editor-conflict" } : {}),
       });
     } finally {
@@ -1890,7 +1898,7 @@ if (canvasMode) {
         else canvasEvent({ id: message.id, ok: true, result });
       } catch (error) {
         canvasEvent({ id: message.id, ok: false, status: requestErrorStatus(error),
-          error: error instanceof FeedbackError ? error.message : error.errorCode === "invalid-editor-bindings"
+          error: error instanceof FeedbackError || error?.expose === true ? error.message : error.errorCode === "invalid-editor-bindings"
             ? editorBindingErrorMessage(error) : "Canvas state is unavailable." });
       }
     });
@@ -1909,8 +1917,15 @@ void runPreview().catch(error => {
   try { workspaceStore?.close(); } catch { /* Only release this process's claim. */ }
   try { removeOwnedSession(sessionId); } catch { /* Never touch project artifacts on failed startup. */ }
   const status = Number.isInteger(error.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
-  const message = status === 409 ? "Arbeidsrommet er opptatt eller endret. Lukk den andre økten, eller kontroller prosjektfilene før du prøver igjen."
+  const detail = String(error?.message || "");
+  const file = /[a-z0-9][a-z0-9-]{0,95}\.(?:design\.json|html)/.exec(detail)?.[0];
+  const message = status === 409 && /already open|still acquiring|simultaneous workspace open/.test(detail)
+    ? "Arbeidsrommet er åpent i en annen økt. Lukk den andre økten før du prøver igjen."
+    : status === 409 && /requires an empty/.test(detail) ? "Mappen for det nye arbeidsrommet er ikke tom. Ingen filer er endret. Velg en annen mappe, eller åpne det eksisterende arbeidet."
+    : status === 409 && file ? `Arbeidsrommet kan ikke åpnes fordi den lagrede filen ${file} ikke stemmer med registeret. Ingen filer er endret. Hent filen tilbake fra versjonskontroll, og hold rommappen utenfor formatering.`
+    : status === 409 ? "Arbeidsrommet ble endret utenfra eller har filer som ikke stemmer med registeret. Ingen filer er endret. Kontroller prosjektfilene før du prøver igjen."
     : status === 404 ? "Arbeidsrommet finnes ikke. Opprett det uttrykkelig eller velg et eksisterende arbeid."
+    : status === 501 ? "Prosjektlagrede designrom støttes foreløpig bare på Unix-verter som macOS og Linux."
       : "Arbeidsrommet kunne ikke åpnes. Kontroller stien og de lagrede filene.";
   if (canvasMode && process.connected) {
     const timeout = setTimeout(() => process.exit(2), 1000);

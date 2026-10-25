@@ -49,7 +49,9 @@ class WorkspaceState {
     this.store = store;
     this.path = path;
     this.recovered = recovered;
-    for (const revision of feedback.state.workspace.revisions) {
+    // Verify the current pair before use. Older pairs are verified by their
+    // hashes when read or restored, so one damaged old file cannot lock the room.
+    for (const revision of feedback.state.workspace.revisions.slice(-1)) {
       const content = store.readRevision(revision);
       if (content.design?.version === 2) validateEditorBindings(content.html, content.design);
       requireValue(screenIdentity(revision.filename, content.html, content.design) === revision.screen, 409, "A saved sketch no longer matches its recorded version.");
