@@ -121,7 +121,8 @@
     }
     function updateLayout() {
       pane.style.bottom = `${Math.max(85, innerHeight - root.querySelector(".toolbar").getBoundingClientRect().top + 12)}px`;
-      for (const target of [pane, el(".compare-bar")]) target.style.top = `${api.topInset()}px`;
+      pane.style.top = `${api.panelTop?.() ?? api.topInset()}px`;
+      el(".compare-bar").style.top = `${api.topInset()}px`;
       applyComparison();
     }
     function close(restore = false) {

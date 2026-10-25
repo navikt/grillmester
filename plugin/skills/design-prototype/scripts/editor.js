@@ -74,7 +74,7 @@
       }
     }
     function layout() {
-      pane.style.top = `${api.topInset()}px`;
+      pane.style.top = `${api.panelTop?.() ?? api.topInset()}px`;
       pane.style.bottom = `${Math.max(80, innerHeight - root.querySelector(".toolbar").getBoundingClientRect().top + 12)}px`;
     }
     function update() {

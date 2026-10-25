@@ -295,6 +295,13 @@
   function refreshNow() { savedVersionWaiting = false; setRefreshing(true); post({ action: "refresh-now", screen }); }
   function headerInset() { return Math.max(64, Math.ceil((document.body.querySelector(":scope > .vc-header")?.getBoundingClientRect().bottom || 0) + 10)); }
   function topInset() { return headerInset(); }
+  // On narrow portrait screens, Juster and Rediger open as a bottom sheet so the
+  // top of the sketch stays visible while values change.
+  function sheetTop() {
+    if (innerWidth >= 760 || innerHeight < 700) return topInset();
+    const below = innerHeight - controlsTop() + 12;
+    return Math.max(topInset(), Math.round(innerHeight - below - Math.max(440, innerHeight * 0.55)));
+  }
   // The Endre bar sits just above the toolbar; layout keeps content clear of both.
   function controlsTop() {
     return Math.min(el(".toolbar").getBoundingClientRect().top, ...[endreBar, visBar].filter((bar) => !bar.hidden).map((bar) => bar.getBoundingClientRect().top));
@@ -1378,6 +1385,7 @@
     workshop = window.__grillmesterInitializeWorkshop({
       root, screen, nonce, request, anchorFor, announce, topInset,
       onPanelChange: syncEndre,
+      panelTop: sheetTop,
       compareOpener: () => el('[data-action="vis-compare"]'),
       getSnapshot: () => snapshot,
       onBusyChange: updateBusy,
@@ -1402,6 +1410,7 @@
     editor = window.__grillmesterInitializeEditor({
       root, screen, nonce, request, announce, topInset,
       onPanelChange: syncEndre,
+      panelTop: sheetTop,
       onBusyChange: updateBusy,
       isRefreshing: () => frameRefreshing || savedVersionWaiting,
       focusOpener: () => (el('[data-action="editor-open"]:not([hidden])') || el('[data-action="workshop-open"]'))?.focus(),

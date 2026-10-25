@@ -191,10 +191,12 @@ et element med **Punkt**, dra ut et område med **Område**, eller velge **Hele
 skissen** eller en deklarert del i **Eller velg en del**. **Juster** prøver
 deklarerte valg lokalt, og **Rediger** lagrer tekst og valg som en ny versjon i
 et prosjektlagret rom. Når **Juster** eller **Rediger** er åpent, står fanene i
-panelets tittelrad. Tastaturbrukere kan fokusere et element og bruke
-kommentarkontrollene; områdealternativet bruker da hele elementets ramme.
-Kommentarlisten viser åpne og fiksete innspill, svar og hvilke som tilhører en
-tidligere versjon. Eldre nåler flyttes aldri automatisk over på en ny skisse.
+panelets tittelrad. På smale, høye skjermer åpnes de som et ark fra bunnen, slik
+at toppen av skissen er synlig mens verdiene endres. Tastaturbrukere kan
+fokusere et element og bruke kommentarkontrollene; områdealternativet bruker da
+hele elementets ramme. Kommentarlisten viser åpne og fiksete innspill, svar og
+hvilke som tilhører en tidligere versjon. Eldre nåler flyttes aldri automatisk
+over på en ny skisse.
 
 Designeren kan også skrive et **tekstforslag**, prøve det lokalt og angre.
 Dette er en forhåndsvisning av en ønsket endring, ikke en lagring i kildefilen.
