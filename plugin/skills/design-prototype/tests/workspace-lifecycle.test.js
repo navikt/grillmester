@@ -13,6 +13,12 @@ const declaration = { version: 2, variants: [], targets: [], texts: [{ id: "head
 const html = '<h1><span data-vc-text="heading">Velg tidspunkt</span></h1>';
 const note = screen => ({ screen, kind: "point", text: "Mer luft.", anchor: { path: "h1:nth-of-type(1)", role: "heading",
   rect: { x: 0, y: 0, width: 100, height: 30 }, viewport: { width: 390, height: 844 } } });
+// Bytes and inode come from one file handle, so both describe the same file.
+function snapshot(filename) {
+  const fd = fs.openSync(filename, "r");
+  try { return { bytes: fs.readFileSync(fd), inode: fs.fstatSync(fd).ino }; }
+  finally { fs.closeSync(fd); }
+}
 
 function fixture(t) {
   const projectDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "workspace-lifecycle-")));
@@ -43,16 +49,17 @@ test("opening a room with earlier rounds writes nothing until the next real chan
   room.feedback.submit({});
   room.store.close();
   const filename = path.join(projectDir, "designs/example/workspace.json");
-  const bytes = fs.readFileSync(filename), inode = fs.statSync(filename).ino;
+  const before = snapshot(filename);
   const directory = path.join(projectDir, "designs/example");
   fs.chmodSync(directory, 0o500);
   const reopened = open();
   assert.equal(reopened.feedback.state.canvas.rounds[0].previousSession, true);
-  assert.deepEqual(fs.readFileSync(filename), bytes, "Opening never rewrites the room.");
-  assert.equal(fs.statSync(filename).ino, inode);
+  const after = snapshot(filename);
+  assert.deepEqual(after.bytes, before.bytes, "Opening never rewrites the room.");
+  assert.equal(after.inode, before.inode);
   fs.chmodSync(directory, 0o700);
   reopened.feedback.create(note(reopened.workspace.current().screen));
-  const saved = JSON.parse(fs.readFileSync(filename, "utf8"));
+  const saved = JSON.parse(snapshot(filename).bytes.toString("utf8"));
   assert.equal(saved.canvas.rounds[0].previousSession, true, "The next real write saves the earlier-session marker.");
 });
 
