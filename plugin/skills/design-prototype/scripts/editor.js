@@ -1,4 +1,7 @@
-(() => {
+// Loaded in <head>: read declared bindings once the sketch is parsed.
+((start) => (document.readyState === "loading"
+  ? document.addEventListener("DOMContentLoaded", start, { once: true })
+  : start()))(() => {
   "use strict";
   const design = window.__grillmesterVisualCompanionDesign;
   const descriptor = design?.version === 2 ? design : null;
@@ -28,10 +31,10 @@
   window.__grillmesterInitializeEditor = api => {
     const { root, nonce, request, announce } = api;
     const style = document.createElement("style"); style.nonce = nonce;
-    style.textContent = `.source-editor{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:90px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.source-editor h2{font-size:17px;margin:0}.source-editor h3{font-size:13px;margin:0}.source-editor-head{padding:14px 16px;border-bottom:1px solid #ece8f0;flex-shrink:0}.source-editor-head p,.source-editor-foot p{font-size:12px;margin:8px 0;line-height:1.5}.source-editor-body{padding:16px;overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:12px}.source-editor-foot{padding:12px 16px;border-top:1px solid #ece8f0;flex-shrink:0}.source-editor-field{margin-bottom:18px}.source-editor-field label{display:block;font-size:12px;font-weight:600;margin-bottom:7px}.source-editor-field textarea,.source-editor-field select{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #8b7a9a;border-radius:8px;padding:9px}.source-editor-field textarea{min-height:76px;resize:vertical}.source-editor-field select:focus-visible{outline:3px solid #6852ce;outline-offset:2px}.source-editor-field p{font-size:11px;margin:6px 0;line-height:1.5}.source-editor-field button{font-size:11px;padding:6px}.source-editor-hold{color:#65506f}.source-editor-actions{display:flex;flex-wrap:wrap;gap:6px}.source-editor-error{margin:0 0 12px}.source-editor-conflict{font-size:12px;color:#80591d;margin:0 0 12px}.source-editor-change-count{font-size:12px;color:#685c74}.source-editor-status:empty{display:none}@media(max-width:600px){.source-editor{right:10px;width:calc(100vw - 20px)}}@media(max-height:540px){.source-editor{overflow-y:auto}.source-editor-body{overflow:visible;flex-shrink:0}}`;
+    style.textContent = `.source-editor{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:90px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.source-editor h2{font-size:17px;margin:0}.source-editor h3{font-size:13px;margin:0}.source-editor-head{padding:14px 16px;border-bottom:1px solid #ece8f0;flex-shrink:0}.source-editor-head p,.source-editor-foot p{font-size:12px;margin:8px 0;line-height:1.5}.source-editor-body{padding:16px;overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:12px}.source-editor-foot{padding:12px 16px;border-top:1px solid #ece8f0;flex-shrink:0}.source-editor-field{margin-bottom:18px}.source-editor-field label{display:block;font-size:12px;font-weight:600;margin-bottom:7px}.source-editor-field textarea,.source-editor-field select{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #8b7a9a;border-radius:8px;padding:9px}.source-editor-field textarea{min-height:76px;resize:vertical}.source-editor-field select:focus-visible{outline:3px solid #6852ce;outline-offset:2px}.source-editor-field p{font-size:11px;margin:6px 0;line-height:1.5}.source-editor-field button{font-size:11px;padding:6px}.source-editor-hold{color:#65506f}.source-editor-actions{display:flex;flex-wrap:wrap;gap:6px}.source-editor-error{margin:0 0 12px}.source-editor-conflict{font-size:12px;color:#80591d;margin:0 0 12px}.source-editor-change-count{font-size:12px;color:#685c74}.source-editor-status:empty{display:none}@media(max-width:600px){.source-editor{right:10px;width:calc(100vw - 20px)}}@media(max-height:540px){.source-editor{overflow-y:auto}.source-editor-body{overflow:visible;flex-shrink:0}.source-editor-foot{position:sticky;bottom:0;background:#fff;z-index:1}}`;
     root.appendChild(style);
     const markup = document.createElement("div");
-    markup.innerHTML = `<section class="source-editor" aria-label="Rediger skissen" hidden><div class="source-editor-head"><div class="row between"><h2>Rediger skissen</h2><button type="button" class="close" data-editor-action="close" aria-label="Lukk redigering">×</button></div><p>Lagre tekst og valg som en ny versjon. Ingen innspill sendes.</p></div><div class="source-editor-body"><p id="source-editor-error" class="source-editor-error error" role="alert" hidden></p><p class="source-editor-conflict" hidden>En nyere versjon eller føring er tilgjengelig. Utkastet ditt er beholdt. Kopier det du vil ta videre, eller forkast endringene før du åpner den nye versjonen.</p><div class="source-editor-fields"></div></div><div class="source-editor-foot"><p class="source-editor-change-count"></p><div class="source-editor-actions"><button type="button" class="primary" data-editor-action="save">Lagre som ny versjon</button><button type="button" data-editor-action="discard">Forkast endringer</button><button type="button" data-editor-action="read" hidden>Hent feltene igjen</button></div><p class="source-editor-status" role="status"></p></div></section>`;
+    markup.innerHTML = `<section class="source-editor" aria-label="Rediger skissen" hidden><div class="source-editor-head"><div class="row between"><h2>Rediger skissen</h2><button type="button" class="close" data-editor-action="close" aria-label="Lukk redigering">×</button></div><p>Lagre tekst og valg som en ny versjon. Ingen innspill sendes.</p></div><div class="source-editor-body"><p id="source-editor-error" class="source-editor-error error" role="alert" hidden></p><p class="source-editor-conflict" hidden>En nyere versjon eller et nylig lagret felt er tilgjengelig. Utkastet ditt er beholdt. Kopier det du vil ta videre, eller forkast endringene før du åpner den nye versjonen.</p><div class="source-editor-fields"></div></div><div class="source-editor-foot"><p class="source-editor-change-count"></p><div class="source-editor-actions"><button type="button" class="primary" data-editor-action="save">Lagre som ny versjon</button><button type="button" data-editor-action="discard">Forkast endringer</button><button type="button" data-editor-action="read" hidden>Hent feltene igjen</button></div><p class="source-editor-status" role="status"></p></div></section>`;
     root.appendChild(markup);
     const el = selector => markup.querySelector(selector), pane = el(".source-editor");
     let baseline = null, fields = [], holds = [], values = new Map(), loading = false, writing = false, stale = false, needsRebase = false, capacity = false, saved = false;
@@ -102,8 +105,8 @@
         group.append(label, input);
         if (field.locked || holds.some(hold => hold.id === field.id)) {
           const kept = document.createElement("p"); kept.className = "source-editor-hold"; kept.textContent = "Din lagrede verdi beholdes ved nye versjoner. Du kan endre den her.";
-          const release = document.createElement("button"); release.type = "button"; release.dataset.editorAction = "release"; release.dataset.fieldId = field.id; release.textContent = "Frigi føringen"; release.setAttribute("aria-label", `Frigi føringen for ${field.label}`);
-          const explain = document.createElement("p"); explain.textContent = "Frigivelse beholder verdien nå, men lar senere versjoner endre den.";
+          const release = document.createElement("button"); release.type = "button"; release.dataset.editorAction = "release"; release.dataset.fieldId = field.id; release.textContent = "Tillat senere endring"; release.setAttribute("aria-label", `Tillat senere endring for ${field.label}`);
+          const explain = document.createElement("p"); explain.textContent = "Verdien beholdes nå, men senere versjoner kan endre den.";
           group.append(kept, release, explain);
         }
         container.appendChild(group);
@@ -159,7 +162,7 @@
       } catch (failure) {
         if (failure.conflict || failure.editorConflict) { needsRebase = true; if (!failure.editorConflict) stale = true; }
         if (failure.capacity) capacity = true;
-        error(failure.editorConflict ? "Endringen strider mot en beholdt føring. Utkastet ditt er beholdt. Lukk redigeringen og frigi eller oppdater «Behold dette» før du fortsetter." : failure.message);
+        error(failure.editorConflict ? "Endringen strider mot en del du har valgt å beholde. Utkastet ditt er beholdt. Lukk redigeringen og velg «Slutt å beholde» eller oppdater «Behold dette» før du fortsetter." : failure.message);
         status("");
       } finally { writing = false; update(); }
     }
@@ -167,11 +170,11 @@
       if (!baseline || writing || loading || api.isRefreshing()) return;
       let released = false;
       if (!releaseRetries.has(id)) releaseRetries.set(id, {});
-      writing = true; error(""); status("Frigir føringen …"); update();
+      writing = true; error(""); status("Tillater senere endring …"); update();
       try {
         const result = await request("workspace-editor-release", { screen: baseline.screen, expectedRevision: baseline.revision, ids: [id] }, releaseRetries.get(id));
         baseline.revision = result.revision; holds = holds.filter(hold => hold.id !== id); fields = fields.map(field => field.id === id ? { ...field, locked: false } : field);
-        releaseRetries.delete(id); renderFields(); status("Føringen er frigitt. Verdien er beholdt, og ingen innspill er sendt."); released = true;
+        releaseRetries.delete(id); renderFields(); status("Senere endring er tillatt. Verdien er beholdt, og ingen innspill er sendt."); released = true;
       } catch (failure) { if (failure.conflict) { stale = true; needsRebase = true; } error(failure.message); status(""); }
       finally { writing = false; update(); if (released) Array.from(el(".source-editor-fields").children).find(node => node.dataset.fieldId === id)?.querySelector("textarea,select")?.focus(); }
     }
@@ -188,4 +191,4 @@
       onSnapshot(snapshot) { if (baseline && snapshot.workspace?.version !== baseline.workspaceVersion && dirty() && !writing && !saveRetry.intent) { stale = true; needsRebase = true; } if (!pane.hidden) update(); },
     };
   };
-})();
+});

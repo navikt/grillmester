@@ -73,7 +73,7 @@
           </div>
           <div class="workshop-section workshop-comparison"><h3>Se variantene sammen</h3><button type="button" class="workshop-compare-button" data-action="workshop-compare" aria-pressed="false">Sammenlign varianter</button><p class="workshop-warning compare-warning" hidden></p></div>
           <section aria-label="Beholdes videre"><h3>Beholdes videre</h3><div class="workshop-keep-list"></div></section>
-        </div><div class="workshop-foot">Visningen endrer ikke kildefilene. «Behold dette» legger en føring for neste versjon.<p class="workshop-drafts" hidden></p><p class="workshop-status" role="status"></p><p class="error workshop-error" role="alert" hidden></p></div>
+        </div><div class="workshop-foot">Visningen endrer ikke kildefilene. «Behold dette» ber om at delen beholdes i neste versjon.<p class="workshop-drafts" hidden></p><p class="workshop-status" role="status"></p><p class="error workshop-error" role="alert" hidden></p></div>
       </section>
       <div class="compare-bar" role="group" aria-label="Sammenligning" hidden><div class="pair-select"><label for="compare-left">Venstre</label><select id="compare-left" aria-label="Venstre variant"></select></div><div class="pair-select"><label for="compare-right">Høyre</label><select id="compare-right" aria-label="Høyre variant"></select></div><div class="compare-tabs" role="group" aria-label="Velg variant"></div><label for="compare-preferred" class="sr">Foretrukket variant</label><select id="compare-preferred" aria-label="Foretrukket variant"></select><button type="button" class="prefer" data-action="workshop-prefer">Foretrekk denne varianten</button><button type="button" data-action="workshop-stop-compare" aria-label="Avslutt sammenligning">×</button></div>
     `;
@@ -315,7 +315,7 @@
       const needsWork = decision.state === "active" && followup(decision);
       const card = document.createElement("article"); card.className = `workshop-decision${needsWork ? " followup" : ""}${decision.state === "released" ? " released" : ""}`; card.dataset.decision = decision.id; card.tabIndex = -1;
       const title = document.createElement("h4"); title.textContent = target ? targetLabel(target, original ? sourceDesign(decision) : descriptor) : decision.target; card.appendChild(title);
-      const state = document.createElement("span"); state.className = "decision-state"; state.textContent = decision.state === "released" ? "Frigitt" : needsWork ? decision.screen === screen ? "Venter på neste versjon" : "Må følges opp" : "Beholdes videre"; card.appendChild(state);
+      const state = document.createElement("span"); state.className = "decision-state"; state.textContent = decision.state === "released" ? "Beholdes ikke lenger" : needsWork ? decision.screen === screen ? "Venter på neste versjon" : "Må følges opp" : "Beholdes videre"; card.appendChild(state);
       if (decision.submission === 0) { const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "Ikke sendt"; card.appendChild(badge); }
       if (decision.screen !== screen) { const old = document.createElement("p"); old.className = "muted"; old.textContent = "Fra en tidligere versjon"; card.appendChild(old); }
       if (decision.text) { const text = document.createElement("p"); text.textContent = decision.text; card.appendChild(text); }
@@ -326,7 +326,7 @@
         card.appendChild(list);
       }
       if (decision.state === "active") {
-        const release = document.createElement("button"); release.type = "button"; release.textContent = "Frigi"; release.dataset.action = "workshop-release"; release.dataset.decision = decision.id; release.disabled = locking; card.appendChild(release);
+        const release = document.createElement("button"); release.type = "button"; release.textContent = "Slutt å beholde"; release.dataset.action = "workshop-release"; release.dataset.decision = decision.id; release.disabled = locking; card.appendChild(release);
       }
       return card;
     }
@@ -339,7 +339,7 @@
       list.replaceChildren();
       const decisions = (snapshot.decisions || []).filter((entry) => entry.state === "active" || entry.submission === 0);
       for (const decision of decisions) list.appendChild(decisionCard(decision));
-      if (!decisions.length) { const text = document.createElement("p"); text.className = "workshop-empty"; text.textContent = "Ingen føringer ennå. Velg en del og trykk «Behold dette» når noe bør tas med videre."; list.appendChild(text); }
+      if (!decisions.length) { const text = document.createElement("p"); text.className = "workshop-empty"; text.textContent = "Ingen beholdte deler ennå. Velg en del og trykk «Behold dette» når noe bør tas med videre."; list.appendChild(text); }
       if (restore) focus(Array.from(list.children).find((card) => card.dataset.decision === focusedId)?.querySelector("button") || list.querySelector("[data-decision]") || toolbarButton);
       toolbarButton.hidden = !descriptor && !decisions.length;
     }
@@ -402,7 +402,7 @@
             const control = controls.find((entry) => entry.id === id);
             return `${control?.label || id}: ${control?.options.find((option) => option.value === value)?.label || value}`;
           }).join(" · ") : "";
-          binding.conflict = { revision: current?.revision || 0, text: current ? `Lagret valg: ${values}${values ? ". " : ""}${current.text}` : "Det tidligere valget er frigitt. Ingen aktiv føring er lagret for denne delen." };
+          binding.conflict = { revision: current?.revision || 0, text: current ? `Lagret valg: ${values}${values ? ". " : ""}${current.text}` : "Delen beholdes ikke lenger. Ingen aktiv «Behold dette» er lagret for den." };
           error("Se gjennom det lagrede valget før du eventuelt erstatter det.");
           announce("Delen er endret et annet sted. Ditt valg og merknaden er beholdt.");
         } else {

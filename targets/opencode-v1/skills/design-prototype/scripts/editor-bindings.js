@@ -125,7 +125,7 @@ function validateNesting(name, stack, foreign, offset) {
 // This deliberately validates a conservative, explicitly closed HTML subset.
 // It is not a browser parser or an HTML rewriter. Older preview descriptors are
 // unaffected; v2 source must have one unambiguous target for every editor field.
-function validateEditorBindings(html, design) {
+function validateEditorBindings(html, design, locations = null) {
   if (design === null || design?.version === 1) return true;
   if (!validDesign(design) || design.version !== 2 || typeof html !== "string" ||
       Buffer.byteLength(html) > 2 * 1024 * 1024 || /\u0000/.test(html)) invalid();
@@ -162,7 +162,8 @@ function validateEditorBindings(html, design) {
     if (html.startsWith("</", pos)) {
       const match = /^<\/([A-Za-z][A-Za-z0-9-]*)[\t\n\f\r ]*>/.exec(html.slice(pos));
       if (!match || !stack.length || stack.at(-1).name !== match[1].toLowerCase()) invalid("html-syntax", { offset: pos });
-      stack.pop();
+      const closed = stack.pop();
+      if (locations && closed.textMarker !== undefined) locations.texts.set(closed.textMarker, { start: closed.contentStart, end: pos });
       pos += match[0].length;
       continue;
     }
@@ -196,6 +197,7 @@ function validateEditorBindings(html, design) {
         offset: pos, targetIndex: design.targets.findIndex(target => target.variant === variant && target.key === targetMarker),
       });
       targetCounts.set(key, (targetCounts.get(key) || 0) + 1);
+      if (locations) locations.targets.set(key, { start: pos, end: tag.end });
     }
     if (textMarker !== undefined) {
       if (tag.name !== "span" || !declaredTexts.has(textMarker)) invalid(declaredTexts.has(textMarker) ? "text-element" : "marker-invalid", { offset: pos, textIndex: textIndices.get(textMarker) });
@@ -213,7 +215,7 @@ function validateEditorBindings(html, design) {
       pos = match.index + canonicalClose[0].length;
     } else if (!VOID.has(tag.name) && !tag.selfClosing) {
       if (stack.length >= 256) invalid();
-      stack.push({ name: tag.name, variantMarker, textMarker });
+      stack.push({ name: tag.name, variantMarker, textMarker, contentStart: tag.end });
     }
   }
   if (stack.length) invalid("html-syntax", { offset: html.length });
@@ -227,4 +229,35 @@ function validateEditorBindings(html, design) {
   return true;
 }
 
-module.exports = { validateEditorBindings, editorBindingErrorMessage };
+const escapeText = value => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const escapeAttribute = value => value.replace(/"/g, "&quot;");
+
+// Write a version 2 descriptor's text values and editable settings into its
+// validated HTML, so the saved HTML alone shows the saved values. Only the
+// declared text spans and the start tags of editable targets are rewritten.
+function materializeEditorValues(html, design) {
+  if (design?.version !== 2) return html;
+  const locations = { texts: new Map(), targets: new Map() };
+  validateEditorBindings(html, design, locations);
+  const edits = [];
+  for (const text of design.texts) {
+    const at = locations.texts.get(text.id);
+    if (at) edits.push({ ...at, value: escapeText(text.value) });
+  }
+  for (const target of design.targets) {
+    const editable = target.controls.filter(control => control.editable === true);
+    const at = locations.targets.get(`${target.variant}\0${target.key}`);
+    if (!editable.length || !at) continue;
+    const tag = startTag(html, at.start);
+    const settings = new Set(editable.map(control => `data-vc-setting-${control.id}`));
+    let value = `<${html.slice(at.start + 1, at.start + 1 + tag.name.length)}`;
+    for (const [name, attribute] of tag.attrs) if (!settings.has(name)) value += ` ${name}="${escapeAttribute(attribute)}"`;
+    for (const control of editable) value += ` data-vc-setting-${control.id}="${control.initial}"`;
+    edits.push({ start: at.start, end: tag.end, value: `${value}${tag.selfClosing ? " />" : ">"}` });
+  }
+  let result = html;
+  for (const edit of edits.sort((left, right) => right.start - left.start)) result = result.slice(0, edit.start) + edit.value + result.slice(edit.end);
+  return result;
+}
+
+module.exports = { validateEditorBindings, editorBindingErrorMessage, materializeEditorValues };

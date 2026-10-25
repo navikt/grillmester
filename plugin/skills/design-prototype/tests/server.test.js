@@ -317,7 +317,9 @@ test("agent HTML is isolated in a sandbox with a no-external-network CSP", async
     assert.match(csp, /script-src[^;]*'nonce-[^']+'/);
     assert.doesNotMatch(csp, /https?:/);
     const forbiddenExternalHost = ["example", "com"].join(".");
-    assert.equal(preview.includes(forbiddenExternalHost), false);
+    // A malformed "<script<script" is an unknown element in the browser, so its
+    // body is inert text. No tag or attribute may reference the external host.
+    assert.equal(new RegExp(`<[^>]*${forbiddenExternalHost.replace(".", "\\.")}`).test(preview), false);
     assert.equal(preview.toLowerCase().includes("script<script"), false);
     assert.equal(preview.toLowerCase().includes("iframe<iframe"), false);
     assert.equal(preview.toLowerCase().includes("onclick="), false);
@@ -456,6 +458,36 @@ test("foreign content stays sanitized after nested, misleading or ignored SVG en
   }
 });
 
+test("tag scanning follows the browser tokenizer for quotes, end tags and comments", () => {
+  const source = fs.readFileSync(path.resolve(__dirname, "../scripts/server.js"), "utf8");
+  const start = source.indexOf("const FORBIDDEN_PREVIEW_ELEMENTS"), end = source.indexOf("function readDesign(", start);
+  assert(start >= 0 && end > start, "The sanitizer must stay in one contiguous, isolated block.");
+  const strip = require("node:vm").runInNewContext(`${source.slice(start, end)}; stripActivePreviewMarkup`, { Buffer, MAX_INLINE_IMAGE_URL_BYTES: 64 * 1024 });
+  for (const [input, expected] of [
+    // Only tab, newline, form feed, carriage return, space, "/" or ">" end raw text.
+    ["<style>.a{}</style\u000b><p>x</p>", ".a{}<p>x</p>"],
+    ["<style>.a{}</ style><p>x</p>", ".a{}<p>x</p>"],
+    ["<title>x</ title><p>y</p>", "x<p>y</p>"],
+    // Raw text ends at the first matching end tag, even inside apparent quotes.
+    ['<style>a<b title="</style><textarea>">c</style><p>x</p>', '<style nonce="N">a<b title="</style>">c</style><p>x</p>'],
+    // Quotes delimit attribute values only; end tags are written without attributes.
+    ["<style>x</style a'b><textarea><p>y</p>", '<style nonce="N">x</style><p>y</p>'],
+    ["<p>z</p a'b><textarea><p>y</p>", "<p>z</p><p>y</p>"],
+    ["<p a'b class=ok>t</p>", '<p class="ok">t</p>'],
+    // Every comment ending is recognized, and comments are dropped.
+    ["<!--><textarea>-->", "-->"],
+    ["<!-- x --!><textarea> -->", " -->"],
+    // A tag cut off by the end of the fragment is not closed here.
+    ['<p title="abc', ""],
+    // A slash in an unquoted value does not self-close a foreign element.
+    ["<svg x=/><style><p></p><textarea></style></svg>", '<svg x="/"><style nonce="N"><p></p></style></svg>'],
+    // Legitimate CSS and text survive unchanged.
+    ['<style>@media (width < 600px) { .a { content: "it\'s"; } }</style>', '<style nonce="N">@media (width < 600px) { .a { content: "it\'s"; } }</style>'],
+    ["<textarea>if a < b then 1 / 2</textarea>", "<textarea>if a < b then 1 / 2</textarea>"],
+    ['<img src="https://example.invalid/a.png" src="data:image/png;base64,iVBORw0KGgo=">', "<img>"],
+  ]) assert.equal(strip(input, "N"), expected, JSON.stringify(input));
+});
+
 test("parser-state markup cannot swallow the trusted preview helper", async () => {
   const projectDir = makeProject();
   const running = await startServer(projectDir);
@@ -488,7 +520,7 @@ test("parser-state markup cannot swallow the trusted preview helper", async () =
     assert(preview.includes(`<style nonce="${styleNonce}" id="balanced-style">`));
     assert.equal(preview.includes('nonce="untrusted"'), false);
     assert.equal(preview.includes('NONCE="duplicate"'), false);
-    assert.match(preview, /<!--balanced-comment-->/);
+    assert.equal(preview.includes("balanced-comment"), false, "Comments are dropped instead of copied.");
     assert.equal(preview.includes("<!--unclosed-comment-marker"), false);
     assert.match(preview, /&lt;!--unclosed-comment-marker/);
     for (const element of [
@@ -525,8 +557,11 @@ test("parser-state markup cannot swallow the trusted preview helper", async () =
     const helperStart = preview.indexOf(
       "window.__grillmesterVisualCompanionScreen=",
     );
-    assert.ok(helperStart > preview.indexOf("noframes-marker"));
-    assert.match(preview.slice(helperStart), /parent\.postMessage/);
+    // The trusted helpers load in <head>, before the sketch, so no sketch markup
+    // can consume them; they start once the document is parsed.
+    assert.ok(helperStart >= 0 && helperStart < preview.indexOf('<main class="vc-content'));
+    assert.ok(preview.indexOf("noframes-marker") > preview.indexOf('<main class="vc-content'));
+    assert.match(preview.slice(helperStart, preview.indexOf("</head>")), /parent\.postMessage/);
   } finally {
     await stopServer(running);
   }
@@ -1594,8 +1629,8 @@ test("restore distinguishes preserved-field conflicts from stale history without
     await running;
     const message = el(".workspace-error").textContent;
     if (errorCode === "editor-conflict") {
-      assert.match(message, /manuelt bevarte felt/);
-      assert.match(message, /«Rediger skissen» og frigi føringene/);
+      assert.match(message, /^Versjon 1 endrer felt du har lagret\./);
+      assert.match(message, /Tillat senere endring av feltene i «Rediger skissen»/);
       assert.doesNotMatch(message, /^Arbeidet er endret/);
     } else assert.equal(message, "Arbeidet er endret. Oppdater historikken og velg versjonen på nytt.");
     assert.doesNotMatch(message, /PRIVATE_SERVER_DETAIL/);
@@ -1611,6 +1646,63 @@ test("restore distinguishes preserved-field conflicts from stale history without
     await browser.restore();
     assert.equal(calls.length, 1, "A blocked restore cannot silently retry the rejected write.");
   }
+});
+
+
+test("a restore blocked by named preserved fields offers one release-and-restore action", async () => {
+  const source = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
+  const excerpt = (start, end) => {
+    const from = source.indexOf(start), to = source.indexOf(end, from);
+    assert(from >= 0 && to > from);
+    return source.slice(from, to);
+  };
+  const summary = excerpt("  function workspaceStored()", "  function closeWorkspace(");
+  const restore = excerpt("  async function restoreWorkspace()", "  function renderCanvasRounds()");
+  const result = excerpt('    if (data.command === "comments-result" || data.command === "workspace-result") {', '    if (data.command !== "selection-status"');
+  const nodes = new Map(), requests = new Map(), calls = [];
+  const el = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { textContent: "", hidden: false, disabled: false, dataset: {}, setAttribute() {} });
+    return nodes.get(selector);
+  };
+  const snapshot = { revision: 7, workspace: { storage: "project", title: "Test", path: "designs/test", version: 3 } };
+  const confirmation = { entry: { revisionId: 1 }, expectedRevision: snapshot.revision, retry: {} };
+  let sequence = 0;
+  const context = {
+    el, all: () => [el('[data-action="workspace-restore"]'), el('[data-action="workspace-release-restore"]')], snapshot, requests,
+    workspaceButton: {}, workspaceConfirmation: confirmation, workspaceRestoring: false,
+    workspaceLoading: false, workspaceNextAfter: null, workspaceRestoreOpen: false,
+    draft: null, drag: null, preview: null, workshop: null, editor: null, screen: "c".repeat(32),
+    connectionLost: false, savingDraft: false, updateAvailable: false,
+    canvasRounds: () => [], window: { clearTimeout() {} },
+    errorAt: (selector, text) => { el(selector).textContent = text; },
+    announce() {}, refreshNow() {}, applySnapshot() {},
+    request: (action, payload, retry) => {
+      calls.push({ action, payload: JSON.parse(JSON.stringify(payload)), retry });
+      const id = ++sequence;
+      return new Promise((resolve, reject) => requests.set(id, { action, resolve, reject, timer: 1 }));
+    },
+  };
+  const browser = require("node:vm").runInNewContext(`${summary}\n${restore}\nfunction updateBusy() { renderWorkspaceSummary(); }\nrenderWorkspaceSummary();\n({ restore: restoreWorkspace, release: releaseAndRestore, receive: (data) => { ${result} }, confirmation: () => workspaceConfirmation })`, context);
+  const running = browser.restore();
+  browser.receive({ command: "workspace-result", requestId: 1, ok: false, conflict: true, errorCode: "editor-conflict",
+    conflicts: [{ id: "text:heading", label: "Overskrift" }, { id: "control:/card/density", label: "Luft · Oppsummering" }] });
+  await running;
+  assert.match(el(".workspace-error").textContent, /Versjon 1 endrer felt du har lagret: «Overskrift», «Luft · Oppsummering»\./);
+  const action = el('[data-action="workspace-release-restore"]');
+  assert.equal(action.hidden, false);
+  assert.equal(action.disabled, false);
+  assert.equal(action.textContent, "Tillat endring og bruk versjon 1");
+  assert.equal(el('[data-action="workspace-restore"]').disabled, true, "The plain restore stays blocked.");
+  const releasing = browser.release();
+  assert.deepEqual(calls[1], { action: "workspace-editor-release", payload: { screen: "c".repeat(32), expectedRevision: 7, ids: ["text:heading", "control:/card/density"] }, retry: calls[1].retry });
+  snapshot.revision = 8;
+  browser.receive({ command: "workspace-result", requestId: 2, ok: true, snapshot: { ...snapshot } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(calls[2].payload, { revisionId: 1, expectedRevision: 8 });
+  browser.receive({ command: "workspace-result", requestId: 3, ok: true, snapshot: { ...snapshot } });
+  await releasing;
+  assert.equal(browser.confirmation(), null);
+  assert.equal(calls.length, 3, "Exactly one release and one restore are written.");
 });
 
 test("feedback results and conflict refreshes stay with their originating preview document", async () => {

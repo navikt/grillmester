@@ -62,7 +62,8 @@ derfor; endret innhold avvises. `workspace.json` leses som JSON og skrives
 kompakt igjen ved neste lagring.
 
 Et krasj før tilstandslagringen kan etterlate en ureferert revisjonsfil. Den
-blir ikke automatisk gjeldende, gjenbrukt eller slettet. En avvist publisering
+blir ikke automatisk gjeldende, gjenbrukt eller slettet, og den teller bare mot
+bytegrensen, ikke mot antallet versjoner. En avvist publisering
 kan rydde akkurat sine egne upubliserte filer dersom identitet og innhold
 fortsatt stemmer. Refererte eller eksternt endrede filer skal beholdes.
 
@@ -100,7 +101,9 @@ klientstatus til agenten i stedet for en generisk melding.
 Hver prosess bruker et unikt claimnavn og en tofaset billettrekkefølge.
 Aktive og ukjente eiere avvises; alder alene kan aldri overføre låsen.
 Et claim fra en påvist død prosess kan fjernes uten at filnavnet gjenbrukes
-av en ny eier. PID-gjenbruk eller uavklart eierskap gir konservativ avvisning.
+av en ny eier. PID-gjenbruk eller uavklart eierskap gir konservativ avvisning;
+meldingen navngir da prosessen og låsfilen, som brukeren kan slette når ingen
+slik økt kjører. Den siste eieren fjerner romets tomme låsmappe ved lukking.
 Ingen separat låseserver eller installert hjelpepakke er nødvendig.
 
 Før lagring kontrolleres katalogidentitet og de sist leste tilstandsbytene
@@ -115,6 +118,9 @@ kan ikke overta den opprinnelige runtimebindingen.
 
 Gjenåpning oppretter ny transport og samtalebinding. Den gjenoppretter
 lagrede innspill, valg, historikk og svar, men sender ingen av dem på nytt.
+Merkingen av runder fra tidligere økt skjer bare i minnet: å åpne et rom skriver
+ingen prosjektfil, så en skrivebeskyttet utsjekk kan åpnes og versjonskontrollen
+viser ingen endring før neste faktiske lagring.
 Et avbrutt leveringsforsøk har ukjent utfall. En tidligere køkvittering eller
 status «under behandling» er historikk fra forrige økt, ikke bevis på at den
 nye samtalen arbeider. Grensesnittet må vise dette skillet og beholde svar.
@@ -139,8 +145,11 @@ felt og beholdte verdier kan leses innenfor transportgrensen. Ingen vilkårlig
 CSS, selektorer, skript, attributter eller frie HTML-fragmenter inngår.
 
 En lagret manuell endring lager en ny skisseversjon og en varig føring i samme
-tilstandsovergang. Det sender ingen melding. HTML og sidecar er den parede
-kanoniske kilden; rå HTML alene er ikke en full eksport av endringene.
+tilstandsovergang. Det sender ingen melding. Lagringen skriver tekstverdiene
+og de redigerbare innstillingene inn i de deklarerte bindingene i den nye
+HTML-filen, og en gjenoppretting gjør det samme for sin versjon. HTML og
+sidecar er fortsatt den parede kanoniske kilden, og deklarasjonen vinner ved
+avvik; rom lagret før denne endringen kan ha eldre tekst i redigert HTML.
 Forhåndsvisningen bruker de deklarerte verdiene gjennom støttede bindinger.
 Et manglende, duplisert eller ustøttet felt skal ikke fremstå som vellykket
 redigert. Verdien og føringen må bevares mens avviket synliggjøres.
@@ -154,7 +163,7 @@ overskriver en nyere manuell endring.
 
 ### Grenser og brukerens mandat
 
-Tilstandsfilen er høyst 2 MiB; hver HTML-fil høyst 2 MiB og hver deklarasjon
+Tilstandsfilen er høyst 4 MiB, slik at 100 versjoner med største deklarasjon får plass; hver HTML-fil høyst 2 MiB og hver deklarasjon
 høyst 32 KiB. Rommet har høyst 100 skisseversjoner og 64 MiB samlet innhold.
 De eksisterende grensene på 200 kommentarer, beslutninger og innsendte runder
 videreføres. Ingen historikk kastes automatisk for å gi plass. Gjenåpning må
