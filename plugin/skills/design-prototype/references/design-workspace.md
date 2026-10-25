@@ -193,11 +193,11 @@ A source edit conflicting with an active **Behold dette** choice is rejected.
 The designer must update or release that choice explicitly. Publication and
 restore are not blocked by **Behold dette**: a version that drops the part or
 changes its values is marked **Må følges opp** in the canvas. Carry the choice
-into the next version, or ask the designer whether to stop keeping it. New source
-publication does not erase unsaved drafts: the preview offers an explicit
-version switch, while stale saves retain the draft and require a fresh review.
-**Foreslå ny tekst** remains feedback with a reversible preview, separate from
-source editing.
+into the next version, or ask the designer whether to stop keeping it. New
+source publication does not erase unsaved drafts: the preview offers an
+explicit version switch, while stale saves retain the draft and require a
+fresh review. **Foreslå ny tekst** remains feedback with a reversible preview,
+separate from source editing.
 
 ## Deliver the chosen version
 
@@ -225,25 +225,27 @@ sources. Agree which version is authoritative for the task.
 
 One writer owns a physical room on the local host. Git branches/worktrees can
 have separate copies; this is not real-time multi-user editing or automatic
-merge resolution. Unexpected external changes to the state, damaged state and a
-current pair that no longer matches its hashes stop opening or writes and
-preserve existing files for review. The opening error says whether the room
-is open in another session, names a file that no longer matches the register,
-or reports a non-empty directory for a new room. Report a named file and
-restore it from version control; never edit hashes or `workspace.json` to make
-a room open. A damaged older pair makes only that version unavailable:
-`read_revision` and `restore_revision` reject it by name while the room stays
-usable. A descriptor re-indented with the same value and files that can never
-be revisions, such as `.DS_Store` or editor backups, are tolerated.
+merge resolution. Unexpected external changes to the state, damaged state and
+a current pair that no longer matches its hashes stop opening or writes and
+preserve existing files for review. The opening error says whether the room is
+open in another session, names a file that no longer matches the register,
+reports sketch revisions without `workspace.json`, or reports a non-empty
+directory for a new room. Report a named file and restore it from version
+control; never edit hashes or `workspace.json` to make a room open. A damaged
+older pair makes only that version unavailable: `read_revision` and
+`restore_revision` reject it by name while the room stays usable. A descriptor
+re-indented with the same value and files that can never be revisions, such as
+`.DS_Store` or editor backups, are tolerated.
 
 A room retains at most 100 sketch versions, 200 submitted rounds, a 4 MiB
-state document and 64 MiB total saved content. Files left by an interrupted
-save count towards the byte limit only, never towards the version count. Each HTML revision is at most
-2 MiB; descriptors are at most 32 KiB for v1 or 24 KiB for v2. Limits reject whole changes;
-history is not evicted. A new session reopens the same full room. At capacity,
-preserve the original room and arrange a new room explicitly. The adapter has a
-Node runtime and a private loopback preview transport; a native canvas panel
-does not remove these requirements.
+state document and 64 MiB total saved content. Every editor save stores a full
+version. Files left by an interrupted save count towards the byte limit only,
+never towards the version count. Each HTML revision is at most 2 MiB;
+descriptors are at most 32 KiB for v1 or 24 KiB for v2. Limits reject whole
+changes; history is not evicted. A new session reopens the same full room. At
+capacity, preserve the original room and arrange a new room explicitly. The
+adapter has a Node runtime and a private loopback preview transport; a native
+canvas panel does not remove these requirements.
 Project workspace locking currently requires a Unix host. Other hosts must
 report that project storage is unsupported, without resetting an existing room.
 A room held by another session names that process and its lock file. If no such

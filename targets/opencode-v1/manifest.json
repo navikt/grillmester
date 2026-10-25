@@ -496,7 +496,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "5d80d4d06e5cd013c413ca437980e4e0c4509d86bf40e3a512d6ed263d9c59e2",
+      "sha256": "a8d169576116d642adee2efc04a28b5406af18a6d29b8536ae727f73fa72620f",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -544,7 +544,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "81d947d83a0e6a61dadff0f57b55bd5243c9f0b7b207428a59158820fb5fa108",
+      "sha256": "2c02972df790384ce761e0cc99fb5583a879ed1eae3725f45b731375247107ca",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
@@ -556,7 +556,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workspace-store.js": {
-      "sha256": "1042bc264ce9e07ed48367e741850d2cb5697d3311affb05f0fb6ee0ab82d141",
+      "sha256": "d3029bef5550816299c51ba9d2f40b7a4fd30240a7d2d305283244190b6fba3d",
       "mode": "0644"
     },
     "skills/design-prototype/tests/canvas.test.js": {
@@ -572,7 +572,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-lifecycle.test.js": {
-      "sha256": "93ed5bea4bee70cc2b4535506911301cde75ffe6c40d9b08f77bcfde50636e08",
+      "sha256": "e02e55f879bb9e8286d2d328bbe9bb69efb67dde5a5d92ed120a043ea920378c",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-recovery.test.js": {

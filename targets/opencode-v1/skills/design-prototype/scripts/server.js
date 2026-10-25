@@ -1899,6 +1899,7 @@ void runPreview().catch(error => {
     ? `Arbeidsrommet er åpent i en annen økt (prosess ${holder}). Lukk den andre økten før du prøver igjen. Kjører ingen slik økt, kan låsfilen slettes: ${lockFile}`
     : status === 409 && /already open|still acquiring|simultaneous workspace open/.test(detail)
     ? "Arbeidsrommet er åpent i en annen økt. Lukk den andre økten før du prøver igjen."
+    : status === 409 && /revisions but no workspace\.json/.test(detail) ? "Mappen har skisseversjoner, men mangler workspace.json. Ingen filer er endret. Hent workspace.json tilbake fra versjonskontroll, eller flytt revisions-mappen til side for å starte på nytt."
     : status === 409 && /requires an empty/.test(detail) ? "Mappen for det nye arbeidsrommet er ikke tom. Ingen filer er endret. Velg en annen mappe, eller åpne det eksisterende arbeidet."
     : status === 409 && file ? `Arbeidsrommet kan ikke åpnes fordi den lagrede filen ${file} ikke stemmer med registeret. Ingen filer er endret. Hent filen tilbake fra versjonskontroll, og hold rommappen utenfor formatering.`
     : status === 409 ? "Arbeidsrommet ble endret utenfra eller har filer som ikke stemmer med registeret. Ingen filer er endret. Kontroller prosjektfilene før du prøver igjen."

@@ -219,9 +219,12 @@ class WorkspaceStore {
       this.claim = new WorkspaceClaim(this.directory);
       this.assertDirectories();
       const inventory = fs.readdirSync(this.directory);
+      const visible = names => names.filter(name => !name.startsWith("."));
+      if (inventory.includes("revisions") && (create || !inventory.includes("workspace.json"))) directory(this.revisionsDir);
+      // Sketch files without their register are never adopted by open or create.
+      if (!inventory.includes("workspace.json") && inventory.includes("revisions") && !visible(inventory).some(name => name !== "revisions")
+        && fs.readdirSync(this.revisionsDir).some(name => FILENAME.test(name) || DESCRIPTOR.test(name))) fail(409, "Design workspace has sketch revisions but no workspace.json. Restore workspace.json from version control, or move the revisions directory aside to start over.");
       if (create) {
-        if (inventory.includes("revisions")) directory(this.revisionsDir);
-        const visible = names => names.filter(name => !name.startsWith("."));
         if (visible(inventory).some(name => name !== "revisions") || inventory.includes("revisions") && visible(fs.readdirSync(this.revisionsDir)).length) fail(409, "Create requires an empty design workspace directory.");
       } else if (!inventory.includes("workspace.json")) fail(404, "Design workspace was not found. Choose Create to start a new room.");
       try { directory(this.revisionsDir); }
