@@ -200,10 +200,13 @@ jobs:
           owner="$(jq -er '.marketplace.owner' "${package_manifest}")"
           jq -e --arg owner "${owner}" '
             type == "object" and
-            (keys | sort) == [
+            ((keys | sort) == [
               "agents", "author", "description", "license", "name",
               "repository", "skills", "version"
-            ] and
+            ] or ((keys | sort) == [
+              "agents", "author", "description", "extensions", "license",
+              "name", "repository", "skills", "version"
+            ] and .extensions == "extensions/")) and
             .name == "grillmester" and
             (.version | type == "string") and
             (.description | type == "string" and length > 0) and
@@ -321,7 +324,26 @@ jobs:
           node --check "${source_root}/plugin/skills/design-prototype/scripts/design-contract.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/comments.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/feedback-store.js"
-          node --test "${source_root}/plugin/skills/design-prototype/tests/server.test.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/canvas-state.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/workspace-store.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/workspace-state.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/editor-contract.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/editor-bindings.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/editor.js"
+          node --test "${source_root}"/plugin/skills/design-prototype/tests/*.test.js
+
+      - name: Test app canvas adapter from exact source without a model
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+        run: |
+          source_root="${SOURCE_ROOT}"
+          node --check "${source_root}/plugin/extensions/visual-companion/extension.mjs"
+          node --check "${source_root}/plugin/extensions/visual-companion/adapter.mjs"
+          node --check "${source_root}/plugin/extensions/visual-companion/backend.mjs"
+          node --check "${source_root}/plugin/extensions/visual-companion/runtime.mjs"
+          node --check "${source_root}/plugin/extensions/visual-companion/tests/sdk-smoke.mjs"
+          node --check "${source_root}/scripts/smoke_visual_canvas.cjs"
+          node --test "${source_root}"/plugin/extensions/visual-companion/tests/*.test.mjs
 
       - name: Install exact OpenCode release-test baseline
         shell: bash
@@ -643,10 +665,13 @@ jobs:
           source_owner="$(jq -er '.marketplace.owner' "${source_package_manifest}")"
           jq -e --arg owner "${source_owner}" '
             type == "object" and
-            (keys | sort) == [
+            ((keys | sort) == [
               "agents", "author", "description", "license", "name",
               "repository", "skills", "version"
-            ] and
+            ] or ((keys | sort) == [
+              "agents", "author", "description", "extensions", "license",
+              "name", "repository", "skills", "version"
+            ] and .extensions == "extensions/")) and
             .name == "grillmester" and
             (.version | type == "string") and
             (.description | type == "string" and length > 0) and
@@ -2115,10 +2140,13 @@ jobs:
             --arg version "${version}" \
             --arg owner "$(jq -er '.marketplace.owner' "${package_manifest_file}")" \
             '
-              (keys | sort) == [
+              ((keys | sort) == [
                 "agents", "author", "description", "license", "name",
                 "repository", "skills", "version"
-              ] and
+              ] or ((keys | sort) == [
+                "agents", "author", "description", "extensions", "license",
+                "name", "repository", "skills", "version"
+              ] and .extensions == "extensions/")) and
               (.author | keys) == ["name"] and
               .name == "grillmester" and
               .version == $version and

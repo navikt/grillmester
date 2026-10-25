@@ -1569,6 +1569,87 @@ class PublishWorkflowContractTest(unittest.TestCase):
             '--remote-marketplace-ref "navikt/grillmester#${TAG}"', text
         )
 
+    def test_release_plugin_manifest_gates_accept_the_source_manifest(self) -> None:
+        """Execute every release jq gate for plugin.json instead of matching text."""
+
+        text = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        marker = '"agents", "author", "description", "license", "name",'
+        programs = []
+        index = text.find(marker)
+        while index != -1:
+            # The jq programs are single-quoted shell words without inner quotes.
+            programs.append(text[text.rindex("'", 0, index) + 1 : text.index("'", index)])
+            index = text.find(marker, index + len(marker))
+        self.assertEqual(3, len(programs))
+        manifest = json.loads((ROOT / "plugin/plugin.json").read_text(encoding="utf-8"))
+        owner = json.loads((ROOT / "package-manifest.json").read_text(encoding="utf-8"))[
+            "marketplace"
+        ]["owner"]
+        legacy = {key: value for key, value in manifest.items() if key != "extensions"}
+        cases = (
+            ("source manifest", manifest, 0),
+            ("manifest without extensions", legacy, 0),
+            ("other extensions directory", {**manifest, "extensions": "other/"}, 1),
+            ("unknown component key", {**manifest, "hooks": "hooks/"}, 1),
+        )
+        jq = shutil.which("jq")
+        self.assertIsNotNone(jq, "jq is required to execute the release manifest gates")
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "plugin.json"
+            for gate, program in enumerate(programs, start=1):
+                for label, value, expected in cases:
+                    candidate.write_text(json.dumps(value), encoding="utf-8")
+                    result = subprocess.run(
+                        [
+                            jq, "-e",
+                            "--arg", "owner", owner,
+                            "--arg", "version", manifest["version"],
+                            program, str(candidate),
+                        ],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        check=False,
+                    )
+                    self.assertEqual(
+                        expected, result.returncode, f"gate {gate}, {label}: {result.stderr}"
+                    )
+
+    def test_release_runs_every_visual_companion_check_from_validation(self) -> None:
+        """A release must not test the shipped canvas less than pull requests do."""
+
+        def node_commands(workflow: Path, step_names: tuple[str, ...]) -> set[str]:
+            lines = workflow.read_text(encoding="utf-8").splitlines()
+            commands = set()
+            for name in step_names:
+                self.assertIn(f"      - name: {name}", lines, f"{workflow.name} lacks step {name}")
+                start = lines.index(f"      - name: {name}")
+                for line in lines[start + 1 :]:
+                    if line.startswith("      - name: "):
+                        break
+                    command = line.strip()
+                    if command.startswith(("node --check ", "node --test ")):
+                        commands.add(
+                            command.replace('"${source_root}"/', "")
+                            .replace('"${source_root}/', "")
+                            .replace('"', "")
+                        )
+            return commands
+
+        validation = node_commands(
+            VALIDATE_WORKFLOW,
+            ("Validate Visual Companion scripts", "Test app canvas adapter without a model"),
+        )
+        release = node_commands(
+            RELEASE_WORKFLOW,
+            (
+                "Validate Visual Companion scripts from exact source",
+                "Test app canvas adapter from exact source without a model",
+            ),
+        )
+        self.assertGreaterEqual(len(validation), 19)
+        self.assertEqual(set(), validation - release)
+
 
 if __name__ == "__main__":
     unittest.main()
