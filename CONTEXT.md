@@ -60,8 +60,9 @@ Samlingen av skisser, innspill og valg i ett arbeid. Versjonene vises under
 _Avoid_: samtale, produktkode
 
 **Prøv og Endre**:
-De to modusene i designverkstedet. «Prøv» bruker skissen som prototype; «Endre»
-samler «Be om endring», «Juster» og «Rediger».
+De to modusene i designverkstedet. «Prøv» bruker skissen som prototype og kan
+sammenligne varianter under «Vis»; «Endre» samler «Be om endring», «Juster» og
+«Rediger».
 _Avoid_: Utforsk, Kommenter
 
 **Skisseversjon**:

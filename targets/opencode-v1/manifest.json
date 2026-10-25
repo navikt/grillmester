@@ -504,7 +504,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "e39ea4df31b5e6dedf2521d28b0efde26f6eb3e9d00b3658c45003be224ac800",
+      "sha256": "c2917d3dd6f552e567bf6fa264c63cdf3a16f0d9ba0b23a51b41fb10f2c27e45",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/canvas-state.js": {
@@ -540,7 +540,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "1169edcfc79bee1bff801288aa3eb149177eeb90c4c272ee4117e2d5369b7e0e",
+      "sha256": "35138b71320be3a930ab29342e2ce6d485995f0a3e558833418fba80ab6f293a",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
@@ -548,7 +548,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
-      "sha256": "12c9b5e7c2fda4e3661b038ba0b613655f3d02a1c3e65ea7187e2fc544f99c12",
+      "sha256": "69115d2a194699bd807087fa048f78db47a6fee212f807e952b9d9e85362af82",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workspace-state.js": {

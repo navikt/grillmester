@@ -523,8 +523,9 @@ nøkkel. HTML-en må ha nøyaktig én beholder med variantene som direkte barn:
 </div>
 ```
 
-Sammenligningsvisningen bruker like brede flater på desktop og bytte mellom
-variantene i smale vinduer. Det eksplisitte variantvalget blir et innspill;
+**Sammenlign varianter** ligger under **Vis** i **Prøv**, fordi det er en måte
+å prøve skissen på. Sammenligningsvisningen bruker like brede flater på desktop
+og bytte mellom variantene i smale vinduer. Det eksplisitte variantvalget blir et innspill;
 å åpne eller vise en variant velger den ikke. **Behold dette** kan brukes på
 deler fra flere varianter, slik at neste runde kan kombinere det som fungerer.
 Det er ingen automatisk sammenslåing av HTML.

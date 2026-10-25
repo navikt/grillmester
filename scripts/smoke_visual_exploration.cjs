@@ -8,6 +8,12 @@ const os = require("node:os");
 const path = require("node:path");
 const { createRequire } = require("node:module");
 const { spawn } = require("node:child_process");
+// Comparing variants belongs to Prøv; leave Endre first when needed.
+async function startComparison(ui) {
+  const compare = ui.getByRole("button", { name: "Sammenlign varianter", exact: true });
+  if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
+  await compare.click();
+}
 // Juster is one of the Endre tools; open Endre first when its bar is hidden.
 async function openAdjust(ui) {
   const adjust = ui.getByRole("button", { name: "Juster", exact: true });
@@ -191,7 +197,7 @@ async function layoutMetrics(view) {
   });
 }
 async function comparison(view) {
-  await view.adjust(); await view.workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).click();
+  await startComparison(view.ui);
   const boxes = await view.frame.locator("[data-vc-variant]").evaluateAll(nodes => nodes.map(node => ({ width: node.getBoundingClientRect().width, visible: Boolean(node.getClientRects().length) && getComputedStyle(node).display !== "none" })));
   await view.screenshot("comparison");
   if (view.viewport.width > 900) assert(Math.abs(boxes[0].width - boxes[1].width) < 1, "Compared concepts must get equal space.");

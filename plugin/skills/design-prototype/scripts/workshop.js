@@ -305,6 +305,15 @@
       const binding = bindings.get(`${decision.variant || ""}/${decision.target}`);
       return !binding?.element || Object.entries(decision.values || {}).some(([id, value]) => binding.descriptor.controls.find((control) => control.id === id)?.initial !== value);
     }
+    // Comparing variants is part of trying the sketch, so Prøv can start it too.
+    function toggleComparison() {
+      if (!comparisonAvailable || locking) return comparing;
+      comparing = !comparing;
+      el('[data-action="workshop-compare"]').setAttribute("aria-pressed", String(comparing));
+      updateCompareSelects(); applyComparison();
+      if (comparing) { close(); focus(innerWidth < 760 ? el(".compare-tabs button") : el("#compare-left")); }
+      return comparing;
+    }
     function endComparison() {
       if (!comparing || locking) return;
       comparing = false;
@@ -454,8 +463,8 @@
       else if (action === "workshop-close") close(true);
       else if (action === "workshop-editor" && !locking) api.openEditor?.();
       else if (action === "workshop-reset" && !locking) { const binding = selected(); if (binding) { binding.values = initialValues(binding.descriptor); binding.accepted = signature(binding.values); writeValues(binding); renderControls(); status("Visningen er tilbakestilt. Merknaden og lagrede innspill er beholdt."); updateDrafts(); } }
-      else if (action === "workshop-compare" && comparisonAvailable && !locking) { comparing = !comparing; button.setAttribute("aria-pressed", String(comparing)); updateCompareSelects(); applyComparison(); if (comparing) { close(); focus(innerWidth < 760 ? el(".compare-tabs button") : el("#compare-left")); } }
-      else if (action === "workshop-stop-compare" && !locking) { endComparison(); focus(toolbarButton); }
+      else if (action === "workshop-compare" && comparisonAvailable && !locking) toggleComparison();
+      else if (action === "workshop-stop-compare" && !locking) { endComparison(); focus(api.compareOpener?.() || toolbarButton); }
       else if (["workshop-add", "workshop-keep", "workshop-prefer", "workshop-release"].includes(action)) void save(action, button.dataset.decision);
       else if (action === "workshop-replace" && selected()?.conflict) void save("workshop-keep", undefined, true);
       else if (action === "workshop-discard-conflict" && !locking) {
@@ -473,11 +482,12 @@
       if (event.key === "Escape") {
         event.preventDefault(); event.stopPropagation();
         if (locking) return;
-        if (event.target.closest(".compare-bar")) { endComparison(); focus(toolbarButton); }
+        if (event.target.closest(".compare-bar")) { endComparison(); focus(api.compareOpener?.() || toolbarButton); }
         else close(true);
       }
     });
-    el(".workshop-comparison").hidden = variants.length < 2;
+    // With a Prøv entry for comparison, Juster keeps to the declared parts.
+    el(".workshop-comparison").hidden = variants.length < 2 || Boolean(api.compareOpener);
     el(".compare-warning").hidden = comparisonAvailable || variants.length < 2;
     el(".compare-warning").textContent = "Sammenligning er utilgjengelig: variantene må finnes én gang hver, i samme beholder.";
     renderControls(); updateCompareSelects(); renderDecisions(); updateDrafts();
@@ -496,6 +506,8 @@
       isBusy: () => locking || pending(),
       hasRemarks: () => Array.from(bindings.values()).some((binding) => Boolean(binding.remark.trim() || binding.conflict)),
       isComparing: () => comparing,
+      canCompare: () => comparisonAvailable,
+      toggleComparison,
       endComparison,
       contextFor(target) {
         const binding = bindingAt(target);

@@ -9,6 +9,12 @@ const os = require("node:os");
 const path = require("node:path");
 const { createRequire } = require("node:module");
 const { spawn } = require("node:child_process");
+// Comparing variants belongs to Prøv; leave Endre first when needed.
+async function startComparison(ui) {
+  const compare = ui.getByRole("button", { name: "Sammenlign varianter", exact: true });
+  if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
+  await compare.click();
+}
 // Juster is one of the Endre tools; open Endre first when its bar is hidden.
 async function openAdjust(ui) {
   const adjust = ui.getByRole("button", { name: "Juster", exact: true });
@@ -139,8 +145,8 @@ const cases = [
     name: "four-directions", role: "Designer comparing and combining concepts",
     outcomes: ["Four variants can be compared in changing pairs", "A preferred variant belongs to the visible pair", "Kept parts remain distinguishable across variants", "The full mixed brief reaches the CLI in one batch", "Historical decisions retain their original labels"],
     async run({ frame, ui, open, write, list, send, closePanel, workshop, adjust, screenshot }) {
-      await open(overview(), design()); await adjust();
-      await workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).click();
+      await open(overview(), design());
+      await startComparison(ui);
       await ui.getByLabel("Venstre variant", { exact: true }).selectOption("timeline");
       await ui.getByLabel("Høyre variant", { exact: true }).selectOption("calendar");
       assert(["timeline", "calendar"].includes(await ui.getByLabel("Foretrukket variant", { exact: true }).inputValue()), "Changing both compared variants must not leave an invisible preferred variant selected.");
@@ -350,7 +356,7 @@ const cases = [
       assert(noteBounds.y >= panelBounds.y && noteBounds.y + noteBounds.height <= panelBounds.y + panelBounds.height, "The entire note field must fit in the visible part of the short panel.");
       await screenshot("controls");
       await workshop.getByRole("button", { name: "Legg til innspill", exact: true }).click(); await waitFor(async () => (await list()).comments.length === 1, "landscape adjustment saved"); await send(1); await closePanel();
-      await adjust(); await workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).scrollIntoViewIfNeeded();
+      await adjust(); await workshop.getByRole("button", { name: "Behold dette", exact: true }).scrollIntoViewIfNeeded();
       await page.keyboard.press("Escape"); await adjust();
       const pickerBounds = await workshop.getByLabel("Velg del", { exact: true }).boundingBox();
       const reopened = await workshop.boundingBox();
@@ -364,7 +370,7 @@ const cases = [
       await waitFor(async () => (await list()).comments.length === 2, "rotated draft saved");
       ({ page, frame, ui, workshop } = await reopen({ width: 375, height: 667 }));
       await ui.locator('[data-action="panel"]').click(); await send(1); await closePanel();
-      await adjust(); await workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).click(); await ui.getByRole("button", { name: "Arbeidsbrett", exact: true }).click();
+      await startComparison(ui); await ui.getByRole("button", { name: "Arbeidsbrett", exact: true }).click();
       assert(await frame.locator('[data-vc-variant="board"]').isVisible()); assert(!(await frame.locator('[data-vc-variant="list"]').isVisible())); await ui.getByLabel("Venstre variant", { exact: true }).selectOption("timeline");
       await ui.getByLabel("Høyre variant", { exact: true }).selectOption("calendar");
       assert.equal(await ui.getByLabel("Venstre variant", { exact: true }).inputValue(), "timeline");

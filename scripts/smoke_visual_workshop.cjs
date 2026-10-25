@@ -8,6 +8,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
+// Comparing variants belongs to Prøv; leave Endre first when needed.
+async function startComparison(ui) {
+  const compare = ui.getByRole("button", { name: "Sammenlign varianter", exact: true });
+  if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
+  await compare.click();
+}
 // Juster is one of the Endre tools; open Endre first when its bar is hidden.
 async function openAdjust(ui) {
   const adjust = ui.getByRole("button", { name: "Juster", exact: true });
@@ -297,7 +303,7 @@ async function runWorkshop(context) {
   await closeFeedback();
   await openWorkshop();
   const beforeCompare = await list();
-  await adjustment.getByRole("button", { name: "Sammenlign varianter", exact: true }).click();
+  await startComparison(ui);
   const panes = frame.locator("[data-vc-variant]");
   const left = await panes.nth(0).boundingBox(), right = await panes.nth(1).boundingBox();
   assert(left && right && Math.abs(left.width - right.width) <= 1, "Comparison panes must have equal widths.");
@@ -310,7 +316,7 @@ async function runWorkshop(context) {
   show(await openPage({ width: 390, height: 844 }));
   await ui.getByRole("button", { name: "Endre", exact: true }).waitFor();
   await openWorkshop();
-  await adjustment.getByRole("button", { name: "Sammenlign varianter", exact: true }).click();
+  await startComparison(ui);
   await ui.locator(`.pin[data-id="${proposed.id}"]`).waitFor(); // Shown until the variant switch hides it.
   await ui.getByRole("button", { name: "Arbeidsbrett", exact: true }).focus();
   await page.keyboard.press("Space");
@@ -355,7 +361,7 @@ async function runWorkshop(context) {
   await page.keyboard.press("Enter");
   await ui.getByLabel("Hva vil du endre?").fill("Områdeutkastet skal ha samme forankring etter sammenligning.");
   await openWorkshop();
-  await adjustment.getByRole("button", { name: "Sammenlign varianter", exact: true }).click();
+  await startComparison(ui);
   await ui.locator(".compare-bar").waitFor({ state: "visible" });
   await ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
   assert(!(await ui.locator(".compare-bar").isVisible()), "Resuming an area draft must restore its original layout first.");

@@ -104,7 +104,7 @@
     button,input,textarea{font:inherit} button{appearance:none;border:0;cursor:pointer;color:inherit;background:transparent;border-radius:8px;line-height:1.35;min-height:36px;padding:8px 11px;font-weight:600}button:hover{background:#f0edf4}button:disabled{cursor:default;opacity:.45}button:focus-visible,textarea:focus-visible{outline:3px solid #6852ce;outline-offset:3px}button:disabled:hover{background:transparent}button.primary{background:#7133a2;color:white}button.primary:hover{background:#5e2889}button.primary:disabled{background:#7133a2}
     svg{width:17px;height:17px;flex-shrink:0;vertical-align:-3px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.row{display:flex;align-items:center;gap:8px}.between{justify-content:space-between}.muted{color:#71717e;font-size:12px}.small{font-size:12px}.divider{width:1px;height:24px;background:#e7e3eb;flex-shrink:0}.sr{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
     .toolbar.viewing{flex-wrap:wrap;justify-content:center;width:max-content}.view-banner{display:contents}.view-text{flex:1 1 100%;text-align:center;font-weight:600;padding:4px 8px;color:#23262a}
-    .endre-bar{pointer-events:auto;position:fixed;left:50%;transform:translateX(-50%);bottom:76px;width:max-content;max-width:calc(100vw - 24px);display:flex;flex-direction:column;gap:6px;padding:6px;background:#fff;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824}.row.with-endre-tabs>h2,.workshop-head:has(.with-endre-tabs) .source-editor-entry{display:none}.row.with-endre-tabs .endre-tabs{flex:1;min-width:0}.endre-tabs,.endre-ask{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.endre-tabs button[aria-pressed=true],.endre-tabs button[aria-expanded=true]{background:#f0e8f7;color:#6e3197}.endre-ask select{flex:1 1 140px;min-width:0;min-height:34px;font:inherit;font-size:13px;border:1px solid #d9d2e2;border-radius:9px;padding:0 8px;background:#fff}
+    .endre-bar,.vis-bar{pointer-events:auto;position:fixed;left:50%;transform:translateX(-50%);bottom:76px;width:max-content;max-width:calc(100vw - 24px);display:flex;flex-direction:column;gap:6px;padding:6px;background:#fff;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824}.row.with-endre-tabs>h2,.workshop-head:has(.with-endre-tabs) .source-editor-entry{display:none}.row.with-endre-tabs .endre-tabs{flex:1;min-width:0}.endre-tabs,.endre-ask{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.endre-tabs button[aria-pressed=true],.endre-tabs button[aria-expanded=true],.vis-bar button[aria-pressed=true]{background:#f0e8f7;color:#6e3197}.endre-ask select{flex:1 1 140px;min-width:0;min-height:34px;font:inherit;font-size:13px;border:1px solid #d9d2e2;border-radius:9px;padding:0 8px;background:#fff}
     .toolbar{pointer-events:auto;position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:7px;background:#fff;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824;max-width:calc(100vw - 24px)}
     .toolbar button{white-space:nowrap}.toolbar button[aria-pressed=true],.tools button[aria-pressed=true]{color:#7133a2;background:#f1e8f7}.count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:6px;background:#ece9f0;font-size:11px;margin-left:5px}.tools{display:flex;gap:2px}.tools button{font-size:12px;padding:8px}.toolbar .update{background:#eaf1ff;color:#254c95;font-size:12px}.draft-button{color:#7133a2}
     .hint{position:fixed;top:64px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:9px 14px;border:1px solid #e8d7f1;border-radius:10px;box-shadow:0 3px 15px #25163812;background:#fcf8ff;color:#68368a;font-size:12px;text-align:center}
@@ -139,6 +139,7 @@
     </section>
     <section class="workspace-panel" aria-label="Versjoner og lagring" hidden><div class="workspace-head"><div class="row between"><h2>Versjoner</h2><button type="button" class="close" data-action="workspace-close" aria-label="Lukk versjoner">×</button></div></div><div class="workspace-body"><h3 class="workspace-title"></h3><p class="workspace-storage"></p><code class="workspace-path"></code><p class="workspace-unsaved" hidden>Lagre utkast før du lukker skissen eller samtalen.</p><details class="workspace-storage-details"><summary>Om lagring og gjenåpning</summary><p class="workspace-help"></p></details><p class="workspace-temporary-help" hidden></p><p class="workspace-recovered" hidden>Arbeidet er åpnet fra prosjektet. Tidligere runder sendes ikke på nytt.</p><p class="workspace-dirty" hidden></p><div class="workspace-confirm" tabindex="-1" hidden><h3 class="workspace-confirm-title"></h3><p>Dette lager en ny skisseversjon. Innspill, svar og innsendte runder beholdes.</p><p class="workspace-restore-warning"></p><div class="workspace-actions"><button type="button" class="primary" data-action="workspace-restore">Bruk som ny versjon</button><button type="button" class="primary" data-action="workspace-release-restore" hidden>Tillat endring og bruk versjonen</button><button type="button" data-action="workspace-cancel">Avbryt</button></div></div><p class="error workspace-error" role="alert" hidden></p><p class="workspace-status" role="status"></p><div class="workspace-history" hidden><div class="workspace-history-tools"><h3>Versjonshistorikk</h3><button type="button" data-action="workspace-reload">Oppdater</button></div><div class="workspace-history-list"></div><button type="button" data-action="workspace-more" hidden>Vis flere versjoner</button></div></div></section>
     <div class="endre-bar" role="group" aria-label="Endre skissen" hidden><div class="endre-tabs"><button type="button" data-action="change-ask" aria-pressed="false">Be om endring</button></div><div class="endre-ask" hidden><div class="tools" role="group" aria-label="Type markering"><button type="button" data-action="point" aria-pressed="true">Punkt</button><button type="button" data-action="area" aria-pressed="false">Område</button></div><select id="change-part" aria-label="Velg en del"><option value="">Eller velg en del …</option></select></div></div>
+    <div class="vis-bar" role="group" aria-label="Vis" hidden><button type="button" data-action="vis-compare" aria-pressed="false">Sammenlign varianter</button></div>
     <section class="composer" role="dialog" aria-modal="false" aria-labelledby="compose-title" hidden>
       <div class="row between"><h2 id="compose-title">Nytt innspill</h2><button type="button" class="close" data-action="hide-draft" aria-label="Legg utkast til side">×</button></div><div class="anchor-label"></div>
       <label for="feedback-note">Hva vil du endre?</label><textarea id="feedback-note" maxlength="2000" placeholder="For eksempel: Gi overskriften mer luft …"></textarea>
@@ -200,7 +201,7 @@
   workspaceButton.hidden = true;
   workspaceButton.setAttribute("aria-expanded", "false");
   el(".toolbar").insertBefore(workspaceButton, el('[data-action="panel"]'));
-  const endreBar = el(".endre-bar");
+  const endreBar = el(".endre-bar"), visBar = el(".vis-bar");
   // Endre stays open across its tools until the designer chooses Prøv.
   let endreSticky = false;
   // Declared parts can be chosen directly instead of pointing in the sketch.
@@ -296,8 +297,7 @@
   function topInset() { return headerInset(); }
   // The Endre bar sits just above the toolbar; layout keeps content clear of both.
   function controlsTop() {
-    const toolbarTop = el(".toolbar").getBoundingClientRect().top;
-    return endreBar.hidden ? toolbarTop : Math.min(toolbarTop, endreBar.getBoundingClientRect().top);
+    return Math.min(el(".toolbar").getBoundingClientRect().top, ...[endreBar, visBar].filter((bar) => !bar.hidden).map((bar) => bar.getBoundingClientRect().top));
   }
   function syncEndre() {
     const tool = Boolean(editor?.isOpen() || workshop?.isOpen());
@@ -315,8 +315,13 @@
     if (!head) for (const button of tabs.querySelectorAll("button")) {
       button.disabled = saving() || frameRefreshing || savedVersionWaiting || (button.dataset.action === "workshop-open" && Boolean(workshop?.isSaving()));
     }
-    const changed = endreBar.hidden === (visible && !head);
+    // In Prøv, Vis offers comparison when the sketch declares comparable variants.
+    const comparing = Boolean(workshop?.isComparing());
+    const vis = !view && !active && Boolean(workshop?.canCompare()) && panel.hidden && el(".workspace-panel").hidden;
+    const changed = endreBar.hidden === (visible && !head) || visBar.hidden === vis;
     endreBar.hidden = !(visible && !head);
+    visBar.hidden = !vis;
+    el('[data-action="vis-compare"]').setAttribute("aria-pressed", String(comparing));
     host.toggleAttribute("data-endre", visible);
     el(".endre-ask").hidden = mode !== "comment";
     el('[data-action="change-ask"]').setAttribute("aria-pressed", String(mode === "comment"));
@@ -652,7 +657,7 @@
     layoutPending = true;
     requestAnimationFrame(() => {
       layoutPending = false;
-      endreBar.style.bottom = `${Math.max(0, innerHeight - el(".toolbar").getBoundingClientRect().top) + 8}px`;
+      for (const bar of [endreBar, visBar]) bar.style.bottom = `${Math.max(0, innerHeight - el(".toolbar").getBoundingClientRect().top) + 8}px`;
       const toolbarTop = controlsTop();
       const toolbarSpace = Math.max(80, innerHeight - toolbarTop + 12);
       document.documentElement.style.scrollPaddingBottom = `${toolbarSpace}px`;
@@ -1104,6 +1109,7 @@
       renderComments();
     } else if (action === "browse") { endreSticky = false; workshop?.close(); setMode("browse"); }
     else if (action === "comment" || action === "change-ask") { endreSticky = true; setMode("comment"); }
+    else if (action === "vis-compare") { workshop?.toggleComparison(); updateBusy(); }
     else if (action === "point" || action === "area") setMode("comment", action);
     else if (action === "panel") {
       // Waiting feedback opens «Klar til sending»; otherwise the chosen tab stays
@@ -1372,6 +1378,7 @@
     workshop = window.__grillmesterInitializeWorkshop({
       root, screen, nonce, request, anchorFor, announce, topInset,
       onPanelChange: syncEndre,
+      compareOpener: () => el('[data-action="vis-compare"]'),
       getSnapshot: () => snapshot,
       onBusyChange: updateBusy,
       onPresentationChange: () => { updateHint(); renderComments(); },

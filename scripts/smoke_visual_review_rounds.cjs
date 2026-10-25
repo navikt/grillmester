@@ -8,6 +8,12 @@ const os = require("node:os");
 const path = require("node:path");
 const { createRequire } = require("node:module");
 const { spawn } = require("node:child_process");
+// Comparing variants belongs to Prøv; leave Endre first when needed.
+async function startComparison(ui) {
+  const compare = ui.getByRole("button", { name: "Sammenlign varianter", exact: true });
+  if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
+  await compare.click();
+}
 // Juster is one of the Endre tools; open Endre first when its bar is hidden.
 async function openAdjust(ui) {
   const adjust = ui.getByRole("button", { name: "Juster", exact: true });
@@ -210,7 +216,7 @@ const cases = [
         await workshop.getByLabel("Velg del", { exact: true }).selectOption("conversation/next-step"); await workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full"); await workshop.getByLabel("Merknad", { exact: true }).fill("Jeg trenger hele forklaringen når jeg leser med forstørrelse.");
         await workshop.getByLabel("Merknad", { exact: true }).scrollIntoViewIfNeeded(); await screenshot("note-at-200-percent");
         await workshop.getByRole("button", { name: "Legg til innspill", exact: true }).click(); const batch = await send(view, 1); assert.equal(batch.comments[0].adjustment.values.detail, "full"); await closeFeedback();
-        await adjust(); await workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).click(); await ui.getByLabel("Høyre variant", { exact: true }).selectOption("conversation");
+        await startComparison(ui); await ui.getByLabel("Høyre variant", { exact: true }).selectOption("conversation");
         const comparisonBounds = await ui.locator(".compare-bar").boundingBox(); assert(comparisonBounds && comparisonBounds.x >= 0 && comparisonBounds.x + comparisonBounds.width <= zoomed.width + 1, "The comparison controls must fit without horizontal scrolling at 200 percent.");
         assert(!(await frame.locator("html").evaluate(node => node.scrollWidth > node.clientWidth + 1)), "The zoomed sketch must not require horizontal scrolling.");
         await screenshot("comparison-at-200-percent"); await ui.getByRole("button", { name: "Avslutt sammenligning", exact: true }).click();
