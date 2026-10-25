@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   plan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -126,7 +126,8 @@ jobs:
   validate:
     needs: plan
     if: needs.plan.outputs.release == 'true'
-    runs-on: ubuntu-latest
+    # Match the PR gate's reviewed cplt runtime host.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
       catalog-base64: ${{ steps.publication.outputs.catalog_base64 }}
@@ -200,10 +201,13 @@ jobs:
           owner="$(jq -er '.marketplace.owner' "${package_manifest}")"
           jq -e --arg owner "${owner}" '
             type == "object" and
-            (keys | sort) == [
+            ((keys | sort) == [
               "agents", "author", "description", "license", "name",
               "repository", "skills", "version"
-            ] and
+            ] or ((keys | sort) == [
+              "agents", "author", "description", "extensions", "license",
+              "name", "repository", "skills", "version"
+            ] and .extensions == "extensions/")) and
             .name == "grillmester" and
             (.version | type == "string") and
             (.description | type == "string" and length > 0) and
@@ -317,7 +321,30 @@ jobs:
           source_root="${SOURCE_ROOT}"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/server.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/helper.js"
-          node --test "${source_root}/plugin/skills/design-prototype/tests/server.test.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/workshop.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/design-contract.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/comments.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/feedback-store.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/canvas-state.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/workspace-store.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/workspace-state.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/editor-contract.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/editor-bindings.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/editor.js"
+          node --test "${source_root}"/plugin/skills/design-prototype/tests/*.test.js
+
+      - name: Test app canvas adapter from exact source without a model
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
+        run: |
+          source_root="${SOURCE_ROOT}"
+          node --check "${source_root}/plugin/extensions/visual-companion/extension.mjs"
+          node --check "${source_root}/plugin/extensions/visual-companion/adapter.mjs"
+          node --check "${source_root}/plugin/extensions/visual-companion/backend.mjs"
+          node --check "${source_root}/plugin/extensions/visual-companion/runtime.mjs"
+          node --check "${source_root}/plugin/extensions/visual-companion/tests/sdk-smoke.mjs"
+          node --check "${source_root}/scripts/smoke_visual_canvas.cjs"
+          node --test "${source_root}"/plugin/extensions/visual-companion/tests/*.test.mjs
 
       - name: Install exact OpenCode release-test baseline
         shell: bash
@@ -378,7 +405,7 @@ jobs:
     needs:
       - plan
       - validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -450,7 +477,7 @@ jobs:
       - validate
       - copilot-compatibility
       - macos-live-compatibility
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     environment: grillmester-release
     permissions:
@@ -639,10 +666,13 @@ jobs:
           source_owner="$(jq -er '.marketplace.owner' "${source_package_manifest}")"
           jq -e --arg owner "${source_owner}" '
             type == "object" and
-            (keys | sort) == [
+            ((keys | sort) == [
               "agents", "author", "description", "license", "name",
               "repository", "skills", "version"
-            ] and
+            ] or ((keys | sort) == [
+              "agents", "author", "description", "extensions", "license",
+              "name", "repository", "skills", "version"
+            ] and .extensions == "extensions/")) and
             .name == "grillmester" and
             (.version | type == "string") and
             (.description | type == "string" and length > 0) and
@@ -747,7 +777,7 @@ jobs:
     needs:
       - plan
       - publish-catalog
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -804,7 +834,8 @@ jobs:
       - plan
       - publish-catalog
       - catalog-smoke
-    runs-on: ubuntu-latest
+    # Recheck the distributable on the same Linux runtime baseline.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
       bundle-artifact-digest: ${{ steps.bundle-upload.outputs.artifact-digest }}
@@ -1059,7 +1090,7 @@ jobs:
 
   verify-release-assets:
     needs: seal-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       actions: read # Authenticate and download this run's exact artifact by ID.
@@ -1917,7 +1948,7 @@ jobs:
       - catalog-smoke
       - seal-release
       - verify-release-assets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: grillmester-release
     permissions:
@@ -2111,10 +2142,13 @@ jobs:
             --arg version "${version}" \
             --arg owner "$(jq -er '.marketplace.owner' "${package_manifest_file}")" \
             '
-              (keys | sort) == [
+              ((keys | sort) == [
                 "agents", "author", "description", "license", "name",
                 "repository", "skills", "version"
-              ] and
+              ] or ((keys | sort) == [
+                "agents", "author", "description", "extensions", "license",
+                "name", "repository", "skills", "version"
+              ] and .extensions == "extensions/")) and
               (.author | keys) == ["name"] and
               .name == "grillmester" and
               .version == $version and
@@ -2299,7 +2333,7 @@ jobs:
     needs:
       - seal-release
       - release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read

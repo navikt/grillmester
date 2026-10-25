@@ -8,9 +8,9 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "fc6297ee32763481cde2b1c0cb82eba823f00d009b111091d40da6b9905ada66",
+    "targetManifestSha256": "5f66d361df719588b26023c4994baed9fcfc52b983daf86df1ff08a9accc1682",
     "policy": "policy/focused-context-v1.json",
-    "policySha256": "b9ee082d0d59f33e7717761169905939d712b3dd3e3410d28a0cd7117a0ecb93"
+    "policySha256": "26cf8b53327435b97d35e95cc15d2b74fc4d579bb6746970ded622fa39441fae"
   },
   "modelSelection": "inherit-provider-or-session",
   "transformations": {

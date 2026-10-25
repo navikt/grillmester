@@ -15,7 +15,8 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    # Keep the cplt runtime gate on its reviewed Linux host baseline.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Check out repository
@@ -104,7 +105,43 @@ jobs:
         run: |
           node --check plugin/skills/design-prototype/scripts/server.js
           node --check plugin/skills/design-prototype/scripts/helper.js
-          node --test plugin/skills/design-prototype/tests/server.test.js
+          node --check plugin/skills/design-prototype/scripts/workshop.js
+          node --check plugin/skills/design-prototype/scripts/design-contract.js
+          node --check plugin/skills/design-prototype/scripts/comments.js
+          node --check plugin/skills/design-prototype/scripts/feedback-store.js
+          node --check plugin/skills/design-prototype/scripts/canvas-state.js
+          node --check plugin/skills/design-prototype/scripts/workspace-store.js
+          node --check plugin/skills/design-prototype/scripts/workspace-state.js
+          node --check plugin/skills/design-prototype/scripts/editor-contract.js
+          node --check plugin/skills/design-prototype/scripts/editor-bindings.js
+          node --check plugin/skills/design-prototype/scripts/editor.js
+          node --test plugin/skills/design-prototype/tests/*.test.js
+
+      - name: Test app canvas adapter without a model
+        run: |
+          node --check plugin/extensions/visual-companion/extension.mjs
+          node --check plugin/extensions/visual-companion/adapter.mjs
+          node --check plugin/extensions/visual-companion/backend.mjs
+          node --check plugin/extensions/visual-companion/runtime.mjs
+          node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
+          node --check scripts/smoke_visual_canvas.cjs
+          node --test plugin/extensions/visual-companion/tests/*.test.mjs
+
+      - name: Test isolated canvas experiment
+        run: |
+          node --check experiments/canvas-review/extension.mjs
+          node --check experiments/canvas-review/review.js
+          node --check experiments/canvas-review/sdk-smoke.mjs
+          node --check experiments/canvas-review/browser-smoke.mjs
+          node --check experiments/canvas-review/file-preview.mjs
+          node --check scripts/smoke_visual_exploration.cjs
+          node --check scripts/smoke_visual_review_cycle.cjs
+          node --check scripts/smoke_visual_retry.cjs
+          node --check scripts/smoke_visual_companion.cjs
+          node --check scripts/smoke_visual_review_rounds.cjs
+          node --check scripts/smoke_visual_scenarios.cjs
+          node --check scripts/smoke_visual_workshop.cjs
+          node --test experiments/canvas-review/probe.test.mjs experiments/canvas-review/file-preview.test.mjs
 
       - name: Install exact OpenCode release-test baseline
         shell: bash
@@ -154,7 +191,7 @@ jobs:
             --require-binary --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"
 
   copilot-compatibility:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read

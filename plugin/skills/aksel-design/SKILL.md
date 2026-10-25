@@ -34,8 +34,12 @@ dokumentasjon fra kilden fremfor å anta API fra treningsdata:
 https://aksel.nav.no/llm.md
 ```
 
-Denne filen er en indeks. Følg lenken til den konkrete `.md`-siden, og bruk
-bare råd som gjelder den resolverte versjonen og komponenten du arbeider med.
+Denne filen er en indeks. Hent den én gang per prosjekt og pakkeversjon i
+sesjonen, og følg bare lenkene til komponentene du bruker. Bruk bare råd som
+gjelder den resolverte versjonen. Gjenbruk allerede kontrollerte API-er, markup
+og stilkilde gjennom iterasjonen; slå opp på nytt ved ny komponent,
+versjonsendring eller et konkret avvik i gjengivelsen. Dette erstatter ikke
+kontroll av det nye, rendrede resultatet.
 
 ## Installasjon og oppsett
 
@@ -79,7 +83,8 @@ export function Example(): JSX.Element {
 
 ## Kritiske v8-regler
 
-Disse overstyrer treningsdata. Verifiser alltid mot `aksel.nav.no/llm.md`.
+Disse overstyrer treningsdata. Verifiser mot versjonens dokumentasjon, med
+gjenbruk av tidligere kontroller som beskrevet over.
 
 - **`Alert` er deprecated** (nov 2025): Bruk `LocalAlert`, `GlobalAlert`, `InlineMessage` eller `InfoCard`
 - **Ingen `Button variant="danger"`**: Bruk `data-color="danger"` i stedet

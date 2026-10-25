@@ -29,6 +29,16 @@ runtimefiler.
 
 ## Verifikasjon
 
+Linux-jobbene i PR-validering og release bruker `ubuntu-24.04`, slik at
+testing, bygging og publisering deler samme OS-generasjon. Dette er et
+kontrollert testmiljø, ikke et krav til brukerens operativsystem. Verten
+oppdaterer fortsatt runner-imaget innenfor denne OS-generasjonen.
+Etter at `ubuntu-latest` skiftet til Ubuntu 26.04, observerte vi gjentatt
+agent-discovery-feil gjennom cplt med uendrede klientbinærer, mens direkte
+OpenCode-discovery bestod. Årsaken og støtte for denne kombinasjonen er fortsatt
+uavklart; ikke flytt runtimeportene før den nye verten er verifisert med de
+samme kontrollkravene.
+
 Releasekatalogen genereres fra pluginmanifestene. Det native OpenCode 1-
 targetet genereres fra samme reviewede plugininnhold og den eksplisitte
 policyen i `policy/opencode-v1.json`. De fokuserte lokalmodelltargetene avledes
@@ -86,6 +96,10 @@ python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
 node --check plugin/skills/design-prototype/scripts/server.js
 node --check plugin/skills/design-prototype/scripts/helper.js
+node --check plugin/skills/design-prototype/scripts/workshop.js
+node --check plugin/skills/design-prototype/scripts/design-contract.js
+node --check plugin/skills/design-prototype/scripts/comments.js
+node --check plugin/skills/design-prototype/scripts/feedback-store.js
 node --test plugin/skills/design-prototype/tests/server.test.js
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py
@@ -93,6 +107,58 @@ python3 scripts/smoke_opencode_runtime.py --cplt cplt
 python3 scripts/smoke_grillmester_local.py \
   --cplt cplt --opencode opencode --copilot copilot
 ```
+
+Visual Companion kan også testes direkte i nettleser uten en modellklient.
+Den valgfrie smoken bruker en allerede installert Playwright og nettleser,
+oppretter et disponibelt prosjekt og rydder sin egen sesjon etterpå:
+
+```bash
+node scripts/smoke_visual_companion.cjs \
+  --playwright-module /absolute/path/to/playwright/index.js \
+  --browser-channel chrome \
+  --headed \
+  --evidence-dir /tmp/visual-companion-evidence
+```
+
+Utelat `--playwright-module` hvis pakken allerede kan resolves lokalt, og
+`--browser-channel` for Playwrights eksisterende Chromium-installasjon.
+Bruk `--headed` for resize-kontrollen med Chrome på macOS. Den lokale Chrome-
+versjonen kan miste treffområder for faste elementer i en sandboxet iframe når
+en hodeløs test endrer viewport etter versjonsbytter. Feilen er også reprodusert
+på uendret baseline; samme sekvens fungerer i en synlig nettleser. Smoken
+kontrollerer resize uten å laste siden på nytt, slik at utkastet må bevares.
+Smoken installerer ingenting. Den prøver konseptvalg, skjema og arbeidsoversikt
+på desktop og smale vinduer: kommentarer med mus og tastatur, tekstforslag og
+angre, innsending, svar, versjonsbytte, fokus og bevaring av utkast. HTML-fixturene
+bruker bevisst fallback-stiler; en separat visuell gjennomgang med consumerens
+verifiserte Aksel-versjon er fortsatt nødvendig. Skjermleserbruk og klientens
+videreføring av `comments.js wait` må verifiseres separat.
+
+`scripts/smoke_visual_workshop.cjs` bruker samme flagg og tester deklarerte
+justeringer, sammenligning, beholdte valg og ugyldige deklarasjoner. Kjør den
+ved endringer i denne kontrakten, i tillegg til kommentarsmoken. Bruk separate
+evidensmapper for de to kjøringene. Ingen av dem installerer avhengigheter eller
+starter en modellklient.
+
+`scripts/smoke_visual_scenarios.cjs` supplerer disse med åtte sammenhengende
+oppgaver for ulike simulerte roller, blant annet fire varianter, flere utkast,
+lange norske tekster, skjema i kort og feil under innsending. Se
+[scenarioer og akseptansekriterier](testing/visual-companion-scenarios.md).
+Flagget `--aksel-project` kan bruke en eksisterende, samversjonert Aksel-
+installasjon til faktisk komponentrendering uten å endre kildeprosjektet.
+
+`scripts/smoke_visual_review_rounds.cjs` følger fem nye oppgaver over flere
+gjennomganger: to faner, endret retning, gjenåpnet forbehold, faktisk 200 %
+nettleserzoom og frakobling med et utkast. Se
+[flere runder med innspill](testing/visual-companion-review-rounds.md).
+Klientforutsetninger og egne akseptprøver for Copilot app, CLI og andre flater
+står i [klientmatrisen](testing/visual-companion-client-capabilities.md).
+
+En isolert prøve av appens canvas-API ligger i `experiments/canvas-review/`.
+Den bruker et medfølgende SDK mot en simulert vert og et separat nettleseroppsett;
+den starter ingen modellklient og inngår ikke i pluginpayloaden. Se
+[canvas-protokollen](testing/visual-companion-canvas.md) og
+[kjøreinstruksjonene](../experiments/canvas-review/README.md).
 
 Plugin-smoken skal bekrefte 8 agenter, 44 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at

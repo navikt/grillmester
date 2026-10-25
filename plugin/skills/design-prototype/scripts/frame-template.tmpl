@@ -49,6 +49,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
       position: sticky;
       top: 0;
       z-index: 100;
@@ -57,6 +59,10 @@
       display: flex;
       align-items: center;
       gap: var(--ax-space-12);
+      flex: 1 1 100%;
+      min-width: 0;
+      min-height: 32px;
+      padding-right: 110px;
     }
     .vc-logo {
       font-weight: 700;
@@ -83,8 +89,11 @@
       display: none;
       align-items: center;
       gap: var(--ax-space-8);
+      max-width: 100%;
+      overflow-wrap: anywhere;
     }
     .vc-indicator.visible { display: flex; }
+    @media (max-width: 440px) { .vc-badge { display: none; } }
 
     /* --- Content --- */
     .vc-content {
@@ -412,6 +421,9 @@
     }
     .vc-refresh.visible { opacity: 1; }
   </style>
+  <!-- Trusted helpers load before the sketch and start when it is parsed, so
+       malformed sketch markup can never consume them. -->
+  {{HELPER_SCRIPT}}
 </head>
 <body data-color="neutral">
   <header class="vc-header">
@@ -431,6 +443,5 @@
 
   <div class="vc-refresh" id="refresh-indicator">Oppdatert!</div>
 
-  {{HELPER_SCRIPT}}
 </body>
 </html>

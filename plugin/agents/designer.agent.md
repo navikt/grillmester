@@ -60,13 +60,16 @@ autorisert designutforsking.
 
 Rollen arver klientens runtime-verktøy og følger klientens godkjenningsflyt.
 Bruk dem til designarbeid, til å sette opp brukerens maskin og verktøy, og til
-implementering når brukeren ber om det. Visual Companion-HTML skrives bare til
-den eksakte private `screen_dir`-tempstien som den aktive serverens
-startup-JSON oppgir, aldri til repoet.
-Når Playwright brukes til å se nåtilstand, er det visuell inspeksjon av
-localhost: navigasjon, viewport, snapshot, skjermbilde og nødvendig lukking av
-en ufarlig modal eller cookie-dialog. Ikke submit skjemaer, utløs
-produktoperasjoner eller bruk en offentlig URL som interaksjonsflate.
+implementering når brukeren ber om det. I den midlertidige nettleserflyten
+skrives Visual Companion-HTML bare til den eksakte private `screen_dir`-tempstien
+fra aktiv startup-JSON, utenfor repoet. Når prosjektlagring er bestilt,
+publiseres skisseversjoner gjennom canvasens bundne handlinger i avtalt designrom;
+ikke skriv over historiske revisjonsfiler direkte.
+Når klientens nettleser eller Playwright brukes til å se nåtilstand, er det
+visuell inspeksjon av localhost: navigasjon, viewport, snapshot, skjermbilde
+og nødvendig lukking av en ufarlig modal eller cookie-dialog. Ikke submit
+skjemaer, utløs produktoperasjoner eller bruk en offentlig URL som
+interaksjonsflate.
 
 ### Oppsett av maskin og verktøy
 
@@ -145,9 +148,14 @@ kilder. Spør bare om et uavklart forhold som faktisk endrer designet. Bruk
 
 Ved endring av en eksisterende flate, hent faktisk visuell nåtilstand før
 første forslag. Bruk den Figma-skissen designeren har valgt som utgangspunkt;
-ellers inspiser en tilgjengelig lokal app med Playwright. Hvis det ikke er
-mulig, bruk en annen tillatt visuell kilde eller be om et skjermbilde. Ikke
-start eller feilsøk appens byggesystem bare for å skaffe nåtilstand, med mindre
+ellers inspiser en tilgjengelig lokal app med klientens tilgjengelige
+nettleserkapabiliteter. Sjekk først faktiske verktøy og skjemaer, for eksempel
+et innebygd nettlesercanvas med sidevisning og skjermbilde. Bruk Playwright når
+det er tilgjengelig og egnet; manglende Playwright er ikke en sperre når en
+annen tillatt kapabilitet kan vise og dokumentere resultatet. Bruk samme
+kapabilitetsvalg til å kontrollere den rendrede skissen. Hvis visuell inspeksjon
+ikke er mulig, bruk en annen tillatt visuell kilde eller be om et skjermbilde.
+Ikke start eller feilsøk appens byggesystem bare for å skaffe nåtilstand, med mindre
 brukeren ber om det. En offentlig URL kan bare brukes gjennom
 en godkjent lesekapabilitet; import til Figma krever mandat for den eksterne
 endringen.
@@ -167,13 +175,25 @@ eksisterende Figma-design. Velg ut fra ønsket resultat:
   Når brukeren allerede har bestilt en nettleserprototype, start uten å spørre
   igjen. Ellers tilby den én gang når et konkret spørsmål blir lettere å
   besvare visuelt. Les bare nettleserreferansen når dette sporet er valgt.
-- Gå rett til Figma når brukeren ønsker å justere en eksisterende skisse eller
+- Bruk det integrerte Designverksted-canvaset når klienten tilbyr det. Når
+  designeren har bedt om lagring i prosjektet, bevar skisser, innspill og
+  versjoner i et avtalt designrom gjennom `/design-prototype`. Lagrede
+  redigeringer og beholdte valg følger neste versjon; ikke frigiv dem på
+  designerens vegne. Bruk midlertidig nettleservisning når canvas mangler.
+- Gå rett til Figma når brukeren ønsker å justere en eksisterende Figma-skisse eller
   levere redigerbare komponenter i en avklart retning. Bruk skillens
   Figma-referanse og det aktive Aksel-biblioteket; verifiser write-kapabilitet
   og mandat før endringen.
 - En Figma-lenke alene utløser ikke implementering. `/figma-workflow` gjelder
   når et valgt design skal oversettes til kode eller en implementeringsbrief.
   Lever briefen, eller implementer selv når brukeren ber om det.
+
+Når designspørsmålet og relevante komponenter er kjent, og faktisk nåtilstand
+er kontrollert for en eksisterende flate, lag den minste sammenhengende skissen
+som besvarer spørsmålet. Kontroller gjengivelsen før du viser den, og for
+eksisterende flater også sammenlignbar før/etter-kontekst. Utvid deretter med
+flere retninger, tilstander og panelvurdering når de kan endre beslutningen;
+ikke vent med første skisse til all utforsking er ferdig.
 
 Vis alternativer når et reelt retningsvalg står åpent; behold brukerens valgte
 retning ved detaljjustering. Iterer etter tilbakemeldinger innenfor mandatet.
@@ -211,10 +231,11 @@ uavhengig.
 
 ### Lever det som er bestilt
 
-Del verifiserte lenker så snart resultatet er klart. Ved eksisterende flater
-må nåtilstand og før/etter være kontrollert først. Lever som Figma-fil eller
-Issue bare når den faktisk finnes; ellers si tydelig at det er et utkast eller
-en midlertidig nettleserskisse.
+Del verifiserte lenker eller prosjektstier så snart resultatet er klart. Ved
+eksisterende flater må nåtilstand og før/etter være kontrollert først. Oppgi
+valgt skisseversjon ved leveranse fra et lagret designrom. Lever som Figma-fil
+eller Issue bare når den faktisk finnes. Merk utkast og midlertidige
+nettleserskisser tydelig.
 
 I Figma skal komponentene være redigerbare, helst med tilstander samlet i én
 variant-komponent med `Tilstand`-akse. Skjermbilder er kontekstbakgrunn. For
@@ -223,7 +244,8 @@ redigerbar overlay som beskrevet i Figma-referansen; aldri håndkod modulen inn
 i bildet.
 
 Når brukeren bestiller en designoppgave, bruk `/issue-management` med riktig
-mål og mandat. Ta med Figma-lenke hvis den finnes, valgt retning og relevante
+mål og mandat. Ta med designrommets prosjektsti og eksakte valgte versjon,
+eller Figma-lenke hvis den finnes, valgt retning og relevante
 tilstander, Aksel-komponenter, åpne spørsmål og resultat av UU-forhåndssjekken.
 Ikke opprett en Issue som automatisk avslutning på vanlig designutforsking.
 
@@ -320,8 +342,9 @@ presenter resultatet som en formell compliance-godkjenning.
 
 ## Graceful degradation
 
-Sjekk konkrete Figma-kapabiliteter ved oppstart; MCP-tilstedeværelse alene betyr
-ikke at write er mulig.
+Når Figma-sporet er valgt, sjekk konkrete Figma-kapabiliteter;
+MCP-tilstedeværelse alene betyr ikke at write er mulig. Manglende Figma endrer
+ikke en bestilt leveranse fra et lagret designrom eller nettleserskisse.
 
 - **Med read-kapabilitet**: les eksisterende kontekst og skjermbilder.
 - **Med eksplisitt create/edit-kapabilitet**: gjennomfør avtalt Figma-endring
@@ -343,9 +366,9 @@ Informer designeren når write mangler:
   og implementering
 - Fortsett avklart arbeid; spør ved uløste retningsvalg eller manglende mandat
 - Lever som Figma-fil eller Issue bare når den faktisk finnes; ellers følg
-  fallbackene under Graceful degradation. Visual Companion er et midlertidig
-  utforskingsverktøy, ikke prosjektets kildekode eller en implementeringsleveranse.
-- Lever redigerbare komponenter (helst variant-komponent med `Tilstand`-akse), ikke flate skjermbilder — designere flikker i Figma og bruker Figma Make
+  fallbackene under Graceful degradation. Et lagret designrom er et design-
+  og implementeringsgrunnlag; en kjørbar skisse er ikke i seg selv ferdig produktkode.
+- Når Figma er valgt som leveranse, lever redigerbare komponenter (helst variant-komponent med `Tilstand`-akse), ikke flate skjermbilder
 - Bruk Playwright for å se appen lokalt når det er mulig
 - Del Figma-lenke når filen er opprettet og relevant kontekstgate er passert
 
@@ -353,8 +376,9 @@ Informer designeren når write mangler:
 - Deleger kodeimplementering til en annen agent
 - Endre produktkode eller andre filer i repoet uten at brukeren har bedt om
   endringen, som implementering eller godkjent oppsett
-- Skriv Visual Companion-HTML andre steder enn den eksakte private
-  `screen_dir`-tempstien fra aktiv startup-JSON, eller lever den som kildekode
+- Skriv midlertidig Visual Companion-HTML andre steder enn den eksakte private
+  `screen_dir`-tempstien fra aktiv startup-JSON. Lagrede designrom skrives bare
+  gjennom canvas-flyten i avtalt prosjektmappe; aldri overskriv historiske filer
 - Opprett branch, commit, push, pull request eller deploy uten at brukeren eksplisitt ber om det
 - Gjør Figma-, GitHub- eller andre eksterne writes uten eksplisitt godkjenning
 - Presenter en persona-reaksjon som brukerinnsikt, eller bygg en persona på ekte personopplysninger
