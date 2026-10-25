@@ -5,7 +5,7 @@
         "role": "Grillmester repository maintainer",
         "team": "Team eSyfo"
       },
-      "date": "2026-10-23",
+      "date": "2026-10-25",
       "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#86",
       "status": "approved"
     },
@@ -14,7 +14,7 @@
         "role": "Hovmester repository owner",
         "team": "Team eSyfo"
       },
-      "date": "2026-10-23",
+      "date": "2026-10-25",
       "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#86",
       "status": "approved"
     }
@@ -30,7 +30,7 @@
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
         "aksel-design": "a8f0d961b93ba276b06151770a8b826af2d2b6999454bc993e33a558ed598f7e",
         "architecture-review": "8bface79bd152ee4ebe7738fec8c60a49be10b94ca7fb7e3661772072f77d474",
-        "design-prototype": "c8dc19f2dbc0779f1c07f25db9b486c373a2bf67cf0a8dc2f8f7c1188086f397",
+        "design-prototype": "1a9f2c1a6089a2fa223baadec77bc945e173ec3fd00524146de4bf87f01020da",
         "doctor": "536a4f1f117939f1149d2b67aeeb16fba174948f9fa54575de988992b44988f0",
         "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
         "figma-workflow": "bc9c94cc0b06ceeee7996ccc478461d0e84d7c85ca76ba7afb09defa4c6163a2",
