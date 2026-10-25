@@ -427,7 +427,11 @@ test("raw-text elements inside SVG and MathML are sanitized as markup", async ()
     assert.equal(preview.includes('id="swallow"'), false);
     assert.equal(/<meta http-equiv/i.test(preview), false);
     assert.equal(preview.includes("<iframe"), false);
-    assert.equal(preview.includes("https://example.invalid"), false);
+    // No kept attribute may still point at the external host.
+    const hosts = [...preview.matchAll(/\b(?:src|href|action|content)="([^"]*)"/g)].map(([, value]) => {
+      try { return new URL(value.replace(/^\d+;\s*url=/i, ""), "http://127.0.0.1/").hostname; } catch { return ""; }
+    });
+    assert(hosts.every(host => host !== "example.invalid"), hosts.join(", "));
     assert.match(preview, /<title id="kept-title">Søknader per måned<\/title>/);
   } finally {
     await stopServer(running);

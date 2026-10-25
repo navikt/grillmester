@@ -419,11 +419,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "133ae175b25965676043806051cd8e15e62b96c64c18bdce215de1f28161bf99",
+      "sha256": "53d8bb975ea310db1db72217005f380beadaee391aab9313d878303fc9b20c00",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-lifecycle.test.js": {
-      "sha256": "e02e55f879bb9e8286d2d328bbe9bb69efb67dde5a5d92ed120a043ea920378c",
+      "sha256": "8be7a6d54a89b381fe6fa24dcb47b85ff3813a74503f8118a5f96b44971520ec",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-recovery.test.js": {
