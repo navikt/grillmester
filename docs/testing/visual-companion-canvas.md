@@ -85,7 +85,7 @@ Følgende akseptanser gjelder den portable journalen før en adapter bygges:
 | Send, fjern fra listen, les runden | Runden er fortsatt lesbar, med tydelig fravær i nålisten. Ingen automatisk gjenoppretting eller påstand om kansellert arbeid. |
 | Send, åpne igjen, les før ny Send | Den gamle runden finnes fortsatt; nytt utkast har nummer 0 og leveres ikke som ny runde. |
 | Send samme kommentar i to runder før lesing | Første ventekall leverer første runde, neste leverer andre. Verken samme ID eller siste listenummer kan slå dem sammen. |
-| Endre eller frigjør en beholdt del i en senere runde | En eldre runde viser sine egne innsendte føringer. Senere føringer må ikke lekke inn bakover. |
+| Be om å beholde en del i en senere runde | En eldre runde viser bare sine egne innspill. Senere ønsker må ikke lekke inn bakover. |
 | Svar på gammel runde etter nytt utkast eller ny innsending | Rundekontrollen avviser svaret uten å overskrive nåtilstanden. |
 | Tapt HTTP-kvittering og samme innsending forsøkes igjen | Samme operasjonsnøkkel gir ingen ny journaloppføring eller ny revisjon. |
 | Full journal eller mislykket filcommit | Ingen delvis innsendt runde, cursorflytting eller sletting av eldre historikk. |

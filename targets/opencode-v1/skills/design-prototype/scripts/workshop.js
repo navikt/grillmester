@@ -49,7 +49,7 @@
     const style = document.createElement("style");
     style.nonce = nonce;
     style.textContent = `
-      .workshop{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:92px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workshop h2{margin:0;font-size:17px;letter-spacing:-.3px}.workshop h3{font-size:13px;margin:0 0 10px}.workshop-head{padding:16px 18px 12px;border-bottom:1px solid #e9e3ef}.workshop-head p{font-size:12px;color:#706578;margin:8px 0 0}.workshop-body{padding:16px 18px;overflow-y:auto;overscroll-behavior:contain;min-height:0}.workshop label{display:block;font-size:12px;font-weight:600;margin:0 0 7px}.workshop select,.workshop textarea{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #8b7a9a;border-radius:8px;padding:9px}.workshop select:focus-visible,.workshop input:focus-visible{outline:3px solid #6852ce;outline-offset:3px}.workshop textarea{min-height:68px;resize:vertical}.workshop-section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #ece7f1}.workshop-section:last-child,.workshop-section:has(+ .workshop-section[hidden]:last-child){border-bottom:0;margin-bottom:0;padding-bottom:0}.workshop-control{margin-top:17px}.workshop-control input[type=range]{width:100%;accent-color:#7133a2}.workshop-control input[type=checkbox]{accent-color:#7133a2;width:18px;height:18px;vertical-align:middle;margin:0 7px 0 0}.workshop-control output{display:block;color:#706578;font-size:11px;margin-top:5px}.workshop-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.workshop-actions button{font-size:12px}.workshop-actions .primary{flex:1}.workshop-foot{padding:12px 18px;border-top:1px solid #e9e3ef;font-size:11px;color:#706578}.workshop-status{font-size:12px;color:#5c3d70;margin:0}.workshop-drafts{margin:0 0 6px}.workshop-foot:not(:has(.workshop-drafts:not([hidden]),.workshop-status:not(:empty),.workshop-error:not([hidden]))){padding:0;border-top:0}.workshop-warning{font-size:12px;line-height:1.5;color:#855514;background:#fff7e7;padding:10px;border-radius:8px;margin:12px 0}.workshop-empty{font-size:12px;color:#706578;line-height:1.5}.workshop-keep-list{display:grid;gap:10px}.workshop-decision{border:1px solid #dce6df;border-radius:9px;padding:11px;overflow-wrap:anywhere}.workshop-decision.followup{border-color:#e9d5ad;background:#fffcf6}.workshop-decision.released{border-color:#e6e1e9;background:#faf9fb}.workshop-decision .decision-kind{display:block;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#6f4a87;margin:0 0 4px}.workshop-decision h4{font-size:12px;margin:0 0 5px}.workshop-decision p{font-size:12px;white-space:pre-wrap;margin:7px 0}.workshop-decision .decision-state{font-size:11px;font-weight:600;color:#2d7350}.workshop-decision.followup .decision-state{color:#855514}.workshop-decision.released .decision-state{color:#706578}.workshop-decision ul{font-size:11px;line-height:1.6;margin:7px 0;padding-left:16px}.workshop-decision button{font-size:11px;min-height:30px;padding:6px 8px}.workshop-decision .badge{margin-left:5px}.compare-bar{pointer-events:auto;position:fixed;top:64px;left:16px;max-width:calc(100vw - 32px);padding:10px 12px;background:#fff;border:1px solid #dfd8e8;border-radius:12px;box-shadow:0 4px 22px #2516381a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}.compare-bar label{font-size:11px;color:#706578}.compare-bar select{font:inherit;max-width:145px;padding:6px;border:1px solid #8b7a9a;border-radius:6px;color:#302737;background:#fff}.compare-bar button{font-size:12px;min-height:31px;padding:6px 9px}.compare-tabs{display:flex;gap:4px}.compare-tabs button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}.compare-bar .pair-select{display:flex;align-items:center;gap:5px}.compare-bar .prefer{color:#7133a2;background:#f6f0fa}.workshop-compare-button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}
+      .workshop{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:92px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workshop h2{margin:0;font-size:17px;letter-spacing:-.3px}.workshop h3{font-size:13px;margin:0 0 10px}.workshop-head{padding:16px 18px 12px;border-bottom:1px solid #e9e3ef}.workshop-head p{font-size:12px;color:#706578;margin:8px 0 0}.workshop-body{padding:16px 18px;overflow-y:auto;overscroll-behavior:contain;min-height:0}.workshop label{display:block;font-size:12px;font-weight:600;margin:0 0 7px}.workshop select,.workshop textarea{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #8b7a9a;border-radius:8px;padding:9px}.workshop select:focus-visible,.workshop input:focus-visible{outline:3px solid #6852ce;outline-offset:3px}.workshop textarea{min-height:68px;resize:vertical}.workshop-section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #ece7f1}.workshop-section:last-child,.workshop-section:has(+ .workshop-section[hidden]:last-child){border-bottom:0;margin-bottom:0;padding-bottom:0}.workshop-control{margin-top:17px}.workshop-control input[type=range]{width:100%;accent-color:#7133a2}.workshop-control input[type=checkbox]{accent-color:#7133a2;width:18px;height:18px;vertical-align:middle;margin:0 7px 0 0}.workshop-control output{display:block;color:#706578;font-size:11px;margin-top:5px}.workshop-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.workshop-actions button{font-size:12px}.workshop-actions .primary{flex:1}.workshop-foot{padding:12px 18px;border-top:1px solid #e9e3ef;font-size:11px;color:#706578}.workshop-status{font-size:12px;color:#5c3d70;margin:0}.workshop-drafts{margin:0 0 6px}.workshop-foot:not(:has(.workshop-drafts:not([hidden]),.workshop-status:not(:empty),.workshop-error:not([hidden]))){padding:0;border-top:0}.workshop-warning{font-size:12px;line-height:1.5;color:#855514;background:#fff7e7;padding:10px;border-radius:8px;margin:12px 0}.workshop-empty{font-size:12px;color:#706578;line-height:1.5}.compare-bar{pointer-events:auto;position:fixed;top:64px;left:16px;max-width:calc(100vw - 32px);padding:10px 12px;background:#fff;border:1px solid #dfd8e8;border-radius:12px;box-shadow:0 4px 22px #2516381a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}.compare-bar label{font-size:11px;color:#706578}.compare-bar select{font:inherit;max-width:145px;padding:6px;border:1px solid #8b7a9a;border-radius:6px;color:#302737;background:#fff}.compare-bar button{font-size:12px;min-height:31px;padding:6px 9px}.compare-tabs{display:flex;gap:4px}.compare-tabs button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}.compare-bar .pair-select{display:flex;align-items:center;gap:5px}.compare-bar .prefer{color:#7133a2;background:#f6f0fa}.workshop-compare-button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}
       @media(max-width:759px){.workshop{left:10px;right:10px;top:64px;width:auto}.compare-bar{top:62px;left:10px;right:10px;max-width:none}.compare-bar .pair-select{display:none}.compare-bar .prefer{font-size:11px}.workshop-body{padding:14px}}
       @media(max-height:540px){.workshop{overflow-y:auto;overscroll-behavior:contain}.workshop-head,.workshop-body,.workshop-foot{flex-shrink:0}.workshop-body{overflow:visible}.compare-bar{max-height:calc(100dvh - 110px);overflow-y:auto}}
       .workshop,.workshop-body,.compare-bar{scroll-padding:8px}
@@ -292,10 +292,6 @@
       api.onBusyChange();
       api.onPresentationChange();
     }
-    function followup(decision) {
-      const binding = bindings.get(`${decision.variant || ""}/${decision.target}`);
-      return !binding?.element || Object.entries(decision.values || {}).some(([id, value]) => binding.descriptor.controls.find((control) => control.id === id)?.initial !== value);
-    }
     // Comparing variants is part of trying the sketch, so Prøv can start it too.
     function toggleComparison() {
       if (!comparisonAvailable || locking) return comparing;
@@ -311,29 +307,6 @@
       el('[data-action="workshop-compare"]').setAttribute("aria-pressed", "false");
       applyComparison();
     }
-    function decisionCard(decision) {
-      const binding = bindings.get(`${decision.variant || ""}/${decision.target}`);
-      const original = sourceDesign(decision)?.targets.find((target) => target.key === decision.target && target.variant === decision.variant);
-      const target = original || binding?.descriptor;
-      const needsWork = decision.state === "active" && followup(decision);
-      const card = document.createElement("article"); card.className = `workshop-decision${needsWork ? " followup" : ""}${decision.state === "released" ? " released" : ""}`; card.dataset.decision = decision.id; card.tabIndex = -1;
-      const kind = document.createElement("span"); kind.className = "decision-kind"; kind.textContent = "Beholdt del"; card.appendChild(kind);
-      const title = document.createElement("h4"); title.textContent = target ? targetLabel(target, original ? sourceDesign(decision) : descriptor) : decision.target; card.appendChild(title);
-      const state = document.createElement("span"); state.className = "decision-state"; state.textContent = decision.state === "released" ? "Beholdes ikke lenger" : needsWork ? decision.screen === screen ? "Venter på neste versjon" : "Må følges opp" : "Beholdes videre"; card.appendChild(state);
-      if (decision.submission === 0) { const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "Ikke sendt"; card.appendChild(badge); }
-      if (decision.screen !== screen) { const old = document.createElement("p"); old.className = "muted"; old.textContent = "Fra en tidligere versjon"; card.appendChild(old); }
-      if (decision.text) { const text = document.createElement("p"); text.textContent = decision.text; card.appendChild(text); }
-      const entries = Object.entries(decision.values || {});
-      if (entries.length) {
-        const list = document.createElement("ul");
-        for (const [id, value] of entries) { const control = target?.controls.find((entry) => entry.id === id) || original?.controls.find((entry) => entry.id === id); const row = document.createElement("li"); row.textContent = `${control?.label || id}: ${control?.options.find((entry) => entry.value === value)?.label || value}`; list.appendChild(row); }
-        card.appendChild(list);
-      }
-      if (decision.state === "active") {
-        const release = document.createElement("button"); release.type = "button"; release.textContent = "Tillat senere endring"; release.dataset.action = "workshop-release"; release.dataset.decision = decision.id; release.disabled = locking; card.appendChild(release);
-      }
-      return card;
-    }
     function sourceDesign(item) { return snapshot.screens?.find((entry) => entry.screen === item.screen)?.design; }
     function lock(value) {
       locking = value;
@@ -343,7 +316,7 @@
       if (!value) { renderControls(); api.refreshFeedback(); }
       api.onBusyChange();
     }
-    async function save(action, decisionId) {
+    async function save(action) {
       if (locking) return;
       const binding = selected();
       const text = action === "workshop-add" || action === "workshop-keep" ? binding?.remark.trim() || "" : "";
@@ -354,15 +327,11 @@
         error("Merknaden er for lang. Kort den ned før du lagrer.");
         focus(remark); el(".workshop-error").scrollIntoView({ block: "nearest" }); return;
       }
-      const retryKey = `${action}/${decisionId || (action === "workshop-prefer" ? preferredVariant : selectedKey)}`;
+      const retryKey = `${action}/${action === "workshop-prefer" ? preferredVariant : selectedKey}`;
       if (!saveRetries.has(retryKey)) saveRetries.set(retryKey, {});
       const retry = saveRetries.get(retryKey);
       let operation, payload, revealSaveError = false;
-      if (action === "workshop-release") {
-        if (retry.expectedRevision === undefined) retry.expectedRevision = snapshot.decisions?.find((item) => item.id === decisionId)?.revision || 0;
-        operation = "decision-release"; payload = { id: decisionId, expectedRevision: retry.expectedRevision };
-      }
-      else if (action === "workshop-prefer") {
+      if (action === "workshop-prefer") {
         const variant = variantBindings.get(preferredVariant);
         if (!variant?.element) return;
         operation = "comment-create"; payload = { screen, kind: "variant", anchor: anchorFor(variant.element), text: text || "Foretrekker denne varianten.", variant: variant.key };
@@ -385,9 +354,8 @@
         updateDrafts();
         status("Lagret i innspill. Send samlet når du er klar.");
         announce(action === "workshop-keep" ? "Ønsket om å beholde delen er lagt til innspill." : "Valget er lagt til innspill.");
-        locking = false; close(); api.openFeedback(operation === "comment-create" ? { comment: payload } : { decisionId });
+        locking = false; close(); api.openFeedback({ comment: payload });
       } catch (failure) {
-        if (failure.conflict) delete retry.expectedRevision;
         revealSaveError = !pane.hidden && (action === "workshop-add" || action === "workshop-keep");
         if (revealSaveError) remark.before(el(".workshop-error"));
         error(failure.message); if (pane.hidden) api.showFeedbackError(failure.message);
@@ -431,7 +399,7 @@
       else if (action === "workshop-reset" && !locking) { const binding = selected(); if (binding) { binding.values = initialValues(binding.descriptor); binding.accepted = signature(binding.values); writeValues(binding); renderControls(); status("Visningen er tilbakestilt. Merknaden og lagrede innspill er beholdt."); updateDrafts(); } }
       else if (action === "workshop-compare" && comparisonAvailable && !locking) toggleComparison();
       else if (action === "workshop-stop-compare" && !locking) { endComparison(); focus(api.compareOpener?.() || toolbarButton); }
-      else if (["workshop-add", "workshop-keep", "workshop-prefer", "workshop-release"].includes(action)) void save(action, button.dataset.decision);
+      else if (["workshop-add", "workshop-keep", "workshop-prefer"].includes(action)) void save(action);
     });
     markup.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
@@ -493,7 +461,6 @@
           return `${control?.label || id}: ${control?.options.find((entry) => entry.value === value)?.label || value}`;
         })].join("\n");
       },
-      appendFeedback(container, include = () => true) { const decisions = (snapshot.decisions || []).filter(include); decisions.forEach((decision) => container.appendChild(decisionCard(decision))); return decisions.length; },
       onPrototypeClick(event) {
         if (pane.hidden || api.isComposing()) return false;
         const target = event.target.closest?.("[data-vc-key]");

@@ -14,12 +14,6 @@ async function openAdjust(ui) {
   if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await adjust.click();
 }
-// Kept choices from rooms saved before «Behold denne delen» became a wish are
-// read and released in Innspill.
-async function openBasket(ui) {
-  if (!(await ui.locator(".panel").isVisible())) await ui.locator('[data-action="panel"]').click();
-  return ui.locator(".panel").getByRole("button", { name: "Tillat senere endring", exact: true });
-}
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -102,7 +96,7 @@ async function session(browser, name, run, lostResponsePath = "/comments", lostR
     const mutationPayloads = [];
     let dropped = false;
     let frozenRead = null;
-    await page.route(/\/(?:comments|decisions)(?:\/|\?|$)/, async route => {
+    await page.route(/\/comments(?:\/|\?|$)/, async route => {
       const requestPath = new URL(route.request().url()).pathname;
       // Preserve the reviewed pre-submit list until the explicit retry. This
       // makes the lost-receipt case independent of the background poll timing.
@@ -228,78 +222,6 @@ const cases = [
     const recovered = await snapshot();
     assert.equal(recovered.comments.length, 1, "A retried keep wish is saved once.");
     assert.deepEqual(recovered.comments[0].context, { variant: "", target: "summary", values: { density: "compact" } });
-    assert.equal(recovered.decisions.length, 0, "Keeping a part is a wish, not a kept choice.");
-  } },
-  { name: "release-after-lost-receipt", lostResponsePath: /^\/decisions\/[a-f0-9]{24}$/, lostResponseMethod: "PATCH", async run({ ui, snapshot, mutate, mutations, mutationPayloads, releaseRead }) {
-    await mutate("/decisions", "POST", { screen: (await snapshot()).screens.at(-1).screen, variant: "", target: "summary", values: { density: "compact" }, text: "Behold den tettere oversikten." });
-    const release = await openBasket(ui);
-    await release.waitFor();
-    const original = (await snapshot()).decisions[0];
-    await release.click();
-    await ui.locator(".panel-error").waitFor({ state: "visible" });
-    const released = (await snapshot()).decisions[0];
-    assert.equal(released.state, "released");
-    const restored = await mutate("/decisions", "POST", { screen: released.screen, variant: released.variant, target: released.target, values: { density: "compact" }, text: "En annen fane beholdt delen igjen.", expectedRevision: released.revision });
-    await release.click();
-    await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
-    assert.equal(mutations.length, 2);
-    assert.equal(mutations[0], mutations[1]);
-    assert.deepEqual(mutationPayloads[0], mutationPayloads[1], "Release retries retain the guard of the original card.");
-    assert.equal(mutationPayloads[0].expectedRevision, original.revision);
-    const recovered = await snapshot();
-    assert.equal(recovered.revision, restored.revision);
-    assert.deepEqual(recovered.decisions, restored.decisions, "A release receipt must not release a later re-kept choice.");
-    releaseRead();
-  } },
-  { name: "release-conflict-with-late-snapshot", lostResponsePath: null, async run({ page, ui, snapshot, mutate }) {
-    await mutate("/decisions", "POST", { screen: (await snapshot()).screens.at(-1).screen, variant: "", target: "summary", values: { density: "comfortable" }, text: "Behold den romslige oversikten." });
-    const original = (await snapshot()).decisions[0];
-    await openAdjust(ui);
-    await ui.locator("#workshop-remark").fill("Min merknad skal overleve en konflikt.");
-    const release = await openBasket(ui);
-    await release.waitFor();
-    let releaseOldRead, releaseWrite, readHeld = false, writeHeld = false;
-    const holdRead = new Promise(resolve => { releaseOldRead = resolve; });
-    const holdWrite = new Promise(resolve => { releaseWrite = resolve; });
-    const attempts = [];
-    await page.route("**/comments?**", async route => {
-      if (route.request().method() !== "GET" || readHeld) { await route.continue(); return; }
-      const response = await route.fetch(); readHeld = true;
-      await holdRead;
-      await route.fulfill({ response });
-    });
-    await page.route("**/decisions/*", async route => {
-      if (route.request().method() !== "PATCH") { await route.continue(); return; }
-      attempts.push({ body: route.request().postDataJSON(), mutationId: route.request().headers()["x-feedback-mutation"] });
-      if (!writeHeld) { writeHeld = true; await holdWrite; }
-      await route.continue();
-    });
-    const basket = ui.locator(".panel");
-    try {
-      await until(() => readHeld, "The older poll was not held.");
-      await release.click();
-      await until(() => writeHeld, "The release was not held before persistence.");
-      // Another tab keeps the part again while this release is in flight.
-      const newer = await mutate("/decisions", "POST", { screen: original.screen, variant: "", target: "summary", values: { density: "compact" }, text: "Det nyere valget fra den andre fanen.", expectedRevision: original.revision });
-      releaseWrite();
-      await ui.locator(".panel-error").waitFor({ state: "visible" });
-      assert.deepEqual((await snapshot()).decisions, newer.decisions, "A stale release must preserve the newer choice.");
-      await until(async () => (await basket.textContent()).includes("Det nyere valget fra den andre fanen."), "The refreshed choice was not shown.");
-      releaseOldRead();
-      await page.waitForTimeout(150);
-      assert((await basket.textContent()).includes("Det nyere valget fra den andre fanen."), "A late older snapshot must not roll back the refreshed choice.");
-      assert.equal(attempts.length, 1, "A conflict must never retry its mutation automatically.");
-      await release.click();
-      await until(async () => (await snapshot()).decisions[0].state === "released", "The explicitly reviewed release did not finish.");
-      assert.equal(attempts.length, 2);
-      assert.equal(attempts[0].body.expectedRevision, original.revision);
-      assert.equal(attempts[1].body.expectedRevision, newer.decisions[0].revision);
-      assert.notEqual(attempts[0].mutationId, attempts[1].mutationId);
-      await ui.getByRole("button", { name: "Lukk innspill", exact: true }).click();
-      await openAdjust(ui);
-      assert.equal(await ui.locator("#workshop-remark").inputValue(), "Min merknad skal overleve en konflikt.");
-      return { writesAttempted: attempts.length, checks: ["stale release refused", "typed remark retained", "late snapshot ignored", "explicit retry uses reviewed revision"] };
-    } finally { releaseOldRead(); releaseWrite(); }
   } },
   { name: "full-comment-queue-keeps-draft", lostResponsePath: null, async run({ page, frame, ui, snapshot, mutate }) {
     const screen = (await snapshot()).screens[0].screen;

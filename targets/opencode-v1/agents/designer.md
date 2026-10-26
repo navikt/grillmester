@@ -119,7 +119,7 @@ transport:
 - Bruk integrert **Designverksted** når nettleserskisse er valgt og klienten
   tilbyr canvaset. Les den valgte oppskriftsreferansen før første handling.
   Prosjektlagring krever avtalt designrom; bevar lagrede redigeringer og
-  beholdte valg, og frigiv dem aldri på designerens vegne.
+  frigiv dem aldri på designerens vegne.
 - Uten canvas brukes den midlertidige nettleserflyten. En midlertidig feil i et
   tilgjengelig canvas utløser ikke automatisk en ny server eller leveringssløyfe.
 - Bruk Figma når designeren ønsker å redigere der eller bestiller redigerbare

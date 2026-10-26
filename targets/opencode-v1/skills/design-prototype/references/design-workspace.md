@@ -54,7 +54,7 @@ unexpected result, an undocumented value or an actual error. Keep fresh
 state/version guards before writes.
 
 Project storage contains `workspace.json` and immutable pairs in `revisions/`.
-It includes saved feedback and decisions, so use synthetic data only and treat
+It includes saved feedback and rounds, so use synthetic data only and treat
 these files like other project content before committing or sharing. Session
 tokens, process identity and delivery transport remain temporary. No Git
 action, external publication or product-code change follows from saving a room.
@@ -135,7 +135,7 @@ sent in the newly owning conversation.
 `nextAfter` while `hasMore`. `read_revision` pages either `html` or `design`;
 follow its returned character offset rather than computing byte offsets.
 `restore_revision` uses the current feedback `expectedRevision` and creates a
-new version from an earlier pair. It preserves comments, decisions and prior
+new version from an earlier pair. It preserves comments, rounds and prior
 versions. A restore that contradicts preserved source fields requires the
 designer to release those fields first.
 
@@ -225,13 +225,8 @@ the designer may also edit and save that field again.
 **Behold denne delen** saves an ordinary wish: a point comment whose text starts
 with «Behold denne delen.» and whose `context` names the part and its values.
 Keep that part in the next version and do not change it later unless a newer
-wish asks for that. Rooms saved before this change can hold active kept choices
-in `decisions`. A source edit conflicting with an active kept choice is
-rejected until the designer releases it with **Tillat senere endring** in the
-feedback basket. Publication and restore are not blocked by a kept choice: a
-version that drops the part or changes its values is marked **Må følges opp**
-in the canvas. Carry the choice into the next version, or ask the designer
-whether to release it. New
+wish asks for that. It is not a lock: publication, restore and source edits are
+not blocked by it, so carry the part forward deliberately. New
 source publication does not erase unsaved drafts: the preview offers an
 explicit version switch, while stale saves retain the draft and require a
 fresh review. **Foreslå ny tekst** remains feedback with a reversible preview,
@@ -251,7 +246,7 @@ installed styles and does not freeze an external design-system version.
 For a developer continuing from repository files, use the
 [developer handoff reference](design-handoff.md). It explains how to read the
 registered HTML/descriptor pair without opening the canvas, distinguish current
-room state from historical decisions, and record a compact implementation brief.
+room state from submitted rounds, and record a compact implementation brief.
 
 Use Figma when the designer wants to continue there: as input, for free visual
 refinement, shared library work or a requested editable handoff. Verify read and

@@ -165,7 +165,7 @@ const cases = [
     async run(view) {
       const { ui, frame, workshop, adjust, list, send, closeFeedback, write, note, save, screenshot } = view;
       await adjust(); await workshop.getByLabel("Velg del", { exact: true }).selectOption("guided/next-step"); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click();
-      const first = await send(view, 1); const kept = first.comments[0]; assert.equal(kept.context.variant, "guided"); assert.equal(first.decisions.length, 0); await closeFeedback();
+      const first = await send(view, 1); const kept = first.comments[0]; assert.equal(kept.context.variant, "guided"); await closeFeedback();
       write("Andre runde: Behold tydelig ansvar"); await frame.getByRole("heading", { name: "Andre runde: Behold tydelig ansvar", exact: true }).waitFor();
       await note("Etter ny gjennomgang trenger vi samtalen før oppgaven.");
       const screenBefore = (await list()).screens.at(-1).screen;
@@ -178,7 +178,7 @@ const cases = [
       await view.openFeedback(); await ui.getByRole("tab", { name: /^Sendt/ }).click();
       assert((await ui.locator(`article[data-id="${kept.id}"]`).innerText()).includes("Tidligere versjon")); await closeFeedback(); await adjust();
       await workshop.getByLabel("Velg del", { exact: true }).selectOption("conversation/next-step"); await workshop.getByLabel("Merknad", { exact: true }).fill("Samtalen skal avklare ansvaret sammen med brukeren."); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click();
-      const third = await send(view, 1); assert.equal(third.decisions.length, 0);
+      const third = await send(view, 1);
       const replacement = third.comments.find(item => item.context?.variant === "conversation");
       assert.equal(replacement?.text, "Behold denne delen.\nSamtalen skal avklare ansvaret sammen med brukeren.");
       const oldCard = ui.locator(`article[data-id="${second.comments[0].id}"]`); assert((await oldCard.innerText()).includes("Tidligere versjon")); await screenshot("explicit-new-direction");
@@ -192,7 +192,7 @@ const cases = [
       await adjust(); await workshop.getByLabel("Velg del", { exact: true }).selectOption("summary/next-step"); await workshop.getByLabel("Merknad", { exact: true }).fill("Behold den felles oppsummeringen av ansvar."); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click(); await closeFeedback();
       await note("Jeg støtter retningen, men hjelpen må beskrives før vi går videre."); await save(); const first = await send(view, 2);
       const reservation = first.comments.find(item => !item.context), accepted = first.comments.find(item => item.context);
-      assert.equal(accepted.context.target, "next-step"); assert.equal(first.decisions.length, 0);
+      assert.equal(accepted.context.target, "next-step");
       write("Ny gjennomgang med tydeligere hjelp"); await frame.getByRole("heading", { name: "Ny gjennomgang med tydeligere hjelp", exact: true }).waitFor();
       await command(info, "resolve", ["--id", reservation.id, "--reply", "Vi har lagt til veien til hjelp før neste steg."]); await view.openFeedback();
       const card = ui.locator(`article[data-id="${reservation.id}"]`); await card.getByText("Vi har lagt til veien til hjelp før neste steg.", { exact: false }).waitFor();

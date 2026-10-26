@@ -32,16 +32,12 @@ verdier. Innspillet sendes, besvares og vises som andre innspill. Agenten skal
 beholde delen i neste versjon og ikke endre den senere uten et nytt innspill
 som ber om det.
 
-Grensesnittet lager ikke lenger egne beholdte valg. Rom lagret før denne
-endringen kan ha aktive valg i `decisions`. De leses, valideres, vises og sendes
-som før, og gjelder til designeren velger «Tillat senere endring» i
-innspillskurven. Frigivelsen bruker samme `expectedRevision`, operasjonsnøkkel og
-innsending som tidligere. En redigering som strider mot et aktivt valg, avvises
-fortsatt. Lagrede felt og eldre beholdte valg er dermed de eneste varige
-føringene, og begge slippes med samme handling.
-
-Server-API-et for beholdte valg beholdes uendret for eksisterende rom og
-deterministiske prøver. Ingen tilstandsfil migreres eller skrives om.
+Beholdte valg fjernes helt: lagring (`decisions`, `submittedDecisions` og
+`decisions` i rundene), server-API, CLI-kommandoen `release`, kortene i
+innspillskurven og sperren mot redigering. De kom inn med det prosjektlagrede
+designrommet og er aldri sluppet, så ingen brukerdata må leses eller migreres.
+Lagrede felt fra «Rediger» er dermed den eneste varige føringen, og de slippes
+med «Tillat senere endring».
 
 «Juster» blir «Juster visning» og flyttes til «Vis» i «Prøv», sammen med
 «Sammenlign varianter». Når panelet er åpent, står Vis-knappene i panelets
@@ -52,15 +48,16 @@ de ulagrede verdiene blir stående i «Rediger».
 
 ## Konsekvenser
 
-Designeren har én varig bevaring å forholde seg til i nye rom: lagrede felt.
-Et ønske om å beholde en del er synlig i kurven og i runden, men håndheves ikke
-mekanisk. Konflikthåndteringen for samtidige «Behold dette» fra flere faner
-forsvinner; to faner gir i stedet to separate innspill.
+Designeren har én varig bevaring å forholde seg til: lagrede felt. Et ønske om
+å beholde en del er synlig i kurven og i runden, men håndheves ikke mekanisk.
+Konflikthåndteringen for samtidige «Behold dette» fra flere faner forsvinner;
+to faner gir i stedet to separate innspill. Datamodell, API og agentveiledning
+blir mindre.
 
 Agenten må lese «Behold denne delen.» med `context` som et krav for neste versjon
 og senere versjoner til et nytt innspill sier noe annet. Overleveringer
-behandler slike innspill som andre innsendte innspill, og eldre beholdte valg
-som før.
+behandler slike innspill som andre innsendte innspill. Et rom lagret av en
+uutgitt bygg med beholdte valg avvises ved åpning som ugyldig tilstand.
 
 Lokal utprøving er samlet i «Prøv», og alt i «Endre» lagrer noe: et innspill i
 kurven eller en ny skisseversjon. Ingen ny tjeneste, kø, filsynkronisering eller

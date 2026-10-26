@@ -108,7 +108,7 @@ for (const phase of ["partial-html", "partial-design", "partial-state", "before-
     t.after(() => room.store.close());
     const committed = phase === "after-rename";
     assert.equal(room.workspace.summary().version, seeded.state.workspace.version + Number(committed));
-    for (const field of ["comments", "decisions", "submittedDecisions", "submissions", "canvas"]) assert.deepEqual(room.feedback.state[field], seeded.state[field], field);
+    for (const field of ["comments", "submissions", "canvas"]) assert.deepEqual(room.feedback.state[field], seeded.state[field], field);
     assert.deepEqual(room.feedback.state.workspace.holds, seeded.state.workspace.holds);
     for (const [name, bytes] of seeded.sources) assert.deepEqual(fs.readFileSync(path.join(room.store.revisionsDir, name)), bytes, name);
     if (!committed) assert.deepEqual(fs.readFileSync(room.store.filename), seeded.bytes, "An incomplete publication cannot rewrite the accepted room.");

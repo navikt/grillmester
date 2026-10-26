@@ -33,9 +33,6 @@ rommet, og den krever ingen slik tillatelse.
 
 - **Behold denne delen** → *keep wish*: et vanlig innspill som ber agenten
   beholde en del i neste versjon.
-- **Beholdt valg** → *kept choice*: eldre beslutning om å beholde en del. Nye
-  lages ikke; eksisterende gjelder til designeren velger **Tillat senere
-  endring**.
 - **Lagret felt** → *preserved field*: editorverdi som sperrer overskriving til
   designeren velger **Tillat senere endring**.
 - **Runde** → *round*: en innsendt samling innspill og valg.
@@ -139,7 +136,7 @@ Skaler fidelitet og kontroll etter det som endres:
   ved avvik. Uten kompatible stiler, vis ærlig fallback/wireframe. Lastet CSS
   alene beviser ikke riktig font eller komponentfidelitet.
 - Deklarer bare meningsfulle direkte justeringer. Følg valgt oppskrift for
-  publisering, beholdte valg og source editing. Knapper skal ha en reell,
+  publisering, innspill og source editing. Knapper skal ha en reell,
   deklarert lokal handling eller tydelig være statiske eksempler. Simulert
   kvittering skal ikke se ut som en faktisk innsending.
 - Kontroller relevant layout ved faktisk smal panel-/innholdsbredde, ikke
@@ -156,7 +153,8 @@ Skaler fidelitet og kontroll etter det som endres:
   scrolling før innhold omtales som manglende. Et panel gir perspektiver,
   ikke observerte brukerreaksjoner.
 - Ved kosmetikk eller språkvask, kontroller at berørte tall, meningsbærende
-  tekst, komponenttilstander og beholdte valg ikke ble endret utilsiktet.
+  tekst, komponenttilstander og delene designeren ba om å beholde ikke ble
+  endret utilsiktet.
 
 Følg innspillsløkken for den valgte arbeidsflaten. La skissen stå i ro mens
 innspill samles. Les full innsendt runde og riktig versjon; usendte notater er

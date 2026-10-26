@@ -20,14 +20,6 @@ async function openAdjust(ui) {
   if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
   await adjust.click();
 }
-// Rooms saved before «Behold denne delen» became a wish can still hold kept
-// choices. Seed one through the server API to cover reading and releasing them.
-async function seedLegacyDecision(info, value) {
-  const url = new URL(info.url);
-  url.pathname = "/decisions";
-  const response = await fetch(url, { method: "POST", headers: { Origin: url.origin, "Content-Type": "application/json" }, body: JSON.stringify(value) });
-  assert(response.ok, `Seeding a kept choice failed (${response.status}).`);
-}
 
 const options = new Map();
 const args = process.argv.slice(2);
@@ -196,7 +188,7 @@ async function main() {
       headed: options.has("--headed"),
       viewports: options.get("--case") === "keyboard-errors" ? ["320x568", "568x320"]
         : options.has("--case") ? ["1440x1000"] : ["1440x1000", "390x844", "320x568", "568x320"],
-      checks: options.has("--case") ? [] : ["declared-controls", "source-css", "local-reset", "structured-batch", "variant-comparison", "narrow-comparison", "narrow-heading-clearance", "narrow-overlay-close", "hidden-variant-pin", "no-spurious-selection", "keep", "fresh-release-enabled", "release-failure-retention", "accepted-decision-batch", "release", "version-mismatch", "historical-labels", "duplicate-target", "invalid-manifest", "keyboard", "area-comparison-boundary", "draft-retention", "field-privacy", "loopback-only"],
+      checks: options.has("--case") ? [] : ["declared-controls", "source-css", "local-reset", "structured-batch", "variant-comparison", "narrow-comparison", "narrow-heading-clearance", "narrow-overlay-close", "hidden-variant-pin", "no-spurious-selection", "keep", "historical-labels", "duplicate-target", "invalid-manifest", "keyboard", "area-comparison-boundary", "draft-retention", "field-privacy", "loopback-only"],
       declaredActions: options.get("--case") === "keyboard-errors" ? [] : ["native-keyboard", "hidden-button-focus", "variant-isolation", "invalid-choice", "disabled-choice", "nested-unbound-target", "comment-mode", "state-context", "restore-context", "parked-context", "preview-context", "explicit-batch", "field-privacy"],
       ...(keyboardErrors ? { keyboardErrors } : {}),
       errors,
@@ -306,22 +298,12 @@ async function runWorkshop(context) {
   assert.equal(keepWish.context.variant, "list");
   assert.equal(keepWish.context.values.density, "compact");
   assert.equal(keepWish.submission, 0);
-  assert.equal((await list()).decisions.length, 0, "«Behold denne delen» must not create a separate kept choice.");
-  await seedLegacyDecision(info, { screen: keepWish.screen, variant: "list", target: "summary-list", values: { ...keepWish.context.values }, text: "Behold denne delen videre." });
-  const kept = await waitFor(async () => (await list()).decisions.find(item => item.state === "active" && item.target === "summary-list"), "earlier kept choice present");
-  assert.equal(kept.values.density, "compact");
-  assert.equal(kept.submission, 0);
-  const queuedRelease = ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).getByRole("button", { name: "Tillat senere endring", exact: true });
-  await waitFor(() => queuedRelease.isEnabled(), "newly saved keep can be released without another snapshot revision");
-  const beforeKeepSubmission = await list();
-  const unsentKeep = await cli("wait", info, ["--after", String(beforeKeepSubmission.submission), "--timeout", "0"]);
-  assert(!unsentKeep.decisions.some(item => item.id === kept.id), "Unsent keeps must not become active decisions in the consumer wait result.");
-  const firstBatch = await send(3);
+  assert.equal(Object.hasOwn(await list(), "decisions"), false, "«Behold denne delen» is an ordinary wish.");
+  const firstBatch = await send(2);
   assert(firstBatch.comments.some(item => item.id === proposed.id));
   assert(firstBatch.comments.some(item => item.id === keepWish.id), "The keep wish travels with the round.");
-  assert(firstBatch.decisions.some(item => item.id === kept.id && item.submission === firstBatch.submission));
   assert(!fs.readFileSync(path.join(info.state_dir, "comments.json"), "utf8").includes("PRIVAT_VERDI_SKAL_IKKE_BLI_INNSPILL"));
-  console.log("PASS: keyboard controls, rendered preview/reset, structured feedback, keep wish, earlier kept choice and batch through the CLI.");
+  console.log("PASS: keyboard controls, rendered preview/reset, structured feedback, keep wish and batch through the CLI.");
 
   await closeFeedback();
   await openWorkshop();
@@ -407,48 +389,21 @@ async function runWorkshop(context) {
   await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
   await send(1);
   await frame.getByRole("heading", { name: "Arbeidsoversikt etter gjennomgang", exact: true }).waitFor();
-  await openSent();
-  await basket.getByText("Må følges opp", { exact: true }).waitFor();
-  const carried = (await list()).decisions.find(item => item.id === kept.id);
-  assert.equal(carried.screen, kept.screen, "Kept decisions must retain the original screen identity.");
-  assert.equal(carried.values.density, "compact");
-  assert.equal(carried.state, "active");
-  await basket.getByText("Må følges opp", { exact: true }).scrollIntoViewIfNeeded();
-  await screenshot(page, "visual-workshop-decision-mismatch.png");
-  await closeFeedback();
+  // An earlier wish keeps the part's labels from the version it was written for.
   const missingDesign = manifest();
   missingDesign.targets = missingDesign.targets.filter(target => target.key !== "summary-list");
   writeScreen("missing-target", fixture("En del mangler i denne versjonen", true), missingDesign);
   await frame.getByRole("heading", { name: "En del mangler i denne versjonen", exact: true }).waitFor();
   await openSent();
-  await basket.getByText("Må følges opp", { exact: true }).waitFor();
-  const missingDecision = basket.locator(`[data-decision="${kept.id}"]`);
-  await missingDecision.getByRole("heading", { name: "Prioriterte oppgaver · Prioritert liste", exact: true }).waitFor();
-  await missingDecision.getByText("Tetthet: Tett", { exact: true }).waitFor();
+  const earlierWish = basket.locator(`article[data-id="${keepWish.id}"]`);
+  await earlierWish.getByText("Tidligere versjon", { exact: true }).waitFor();
+  assert.match(await earlierWish.innerText(), /Prioriterte oppgaver · Prioritert liste/);
+  assert.match(await earlierWish.innerText(), /Tetthet: Tett/);
   assert.equal(await frame.locator('[data-vc-key="summary-list"]').count(), 0);
+  await earlierWish.scrollIntoViewIfNeeded();
+  await screenshot(page, "visual-workshop-earlier-wish.png");
   await closeFeedback();
-  writeScreen("kept-version", fixture("Arbeidsoversikt med beholdt tetthet"), manifest("compact"));
-  await frame.getByRole("heading", { name: "Arbeidsoversikt med beholdt tetthet", exact: true }).waitFor();
-  await openSent();
-  assert.equal(await basket.getByText("Må følges opp", { exact: true }).count(), 0, "Matching declared values must not be reported as a mismatch.");
-  await page.route("**/decisions/**", async route => route.request().method() === "PATCH"
-    ? route.fulfill({ status: 503, contentType: "application/json", body: '{"error":"Unavailable"}' })
-    : route.continue());
-  await queuedRelease.click();
-  await ui.locator(".panel-error").waitFor({ state: "visible" });
-  assert((await ui.locator(".panel-error").innerText()).trim(), "A failed queue release must show an error in the visible feedback panel.");
-  assert.equal((await list()).decisions.find(item => item.id === kept.id).state, "active", "A failed release must preserve the kept decision.");
-  await page.unroute("**/decisions/**");
-  await waitFor(() => queuedRelease.isEnabled(), "failed release restores its control");
-  const beforeReleaseSubmission = await list();
-  await queuedRelease.click();
-  await waitFor(async () => (await list()).decisions.some(item => item.id === kept.id && item.state === "released" && item.submission === 0), "released decision pending submission");
-  const unsentRelease = await cli("wait", info, ["--after", String(beforeReleaseSubmission.submission), "--timeout", "0"]);
-  assert(unsentRelease.decisions.some(item => item.id === kept.id && item.state === "active" && item.values.density === "compact"), "An unsent release must preserve the last submitted active constraint for the consumer.");
-  const releasedBatch = await send(1);
-  assert(releasedBatch.decisions.some(item => item.id === kept.id && item.state === "released"));
-  await closeFeedback();
-  console.log("PASS: draft/focus preservation, retained decision identity, mismatch/missing target, matching new version and release.");
+  console.log("PASS: draft/focus preservation, matching new version and earlier wishes with their own labels.");
 
   const duplicateHtml = fixture("En tvetydig del skal ikke kunne justeres").replace(
     "<h3>Oppgaver som haster</h3>",
@@ -728,7 +683,6 @@ async function runKeyboardErrors({ page, frame, ui, list, writeScreen, openPage 
     return snapshot.comments.some(item => item.text === keepWishText) && snapshot;
   }, "keyboard keep retry saves once");
   assert.equal(kept.comments.filter(item => item.text === keepWishText).length, 1);
-  assert.equal(kept.decisions.length, baseline.decisions.length, "A keep wish must not create a kept choice.");
   assert.equal(kept.submission, baseline.submission);
   await page.keyboard.press("Escape");
   console.log("PASS: keyboard-only byte-limit recovery, visible field errors, retry and pane focus at narrow and short viewports.");

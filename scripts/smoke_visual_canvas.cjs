@@ -110,10 +110,8 @@ async function runCase(browser, createCanvasAdapter, testcase) {
         await view.openFeedback(); await view.ui.getByRole("button", { name: `Send ${count} innspill`, exact: true }).click();
         return until(async () => { const current = await snapshot(); return current.submission > previous && current; }, "explicit submission committed");
       };
-      // Rooms saved before «Behold denne delen» became a wish can hold kept choices.
-      const seedDecision = async value => { const url = new URL(opened.url); url.pathname = "/decisions"; const response = await fetch(url, { method: "POST", headers: { Origin: url.origin, "Content-Type": "application/json" }, body: JSON.stringify(value) }); assert(response.ok, `Seeding a kept choice failed (${response.status}).`); };
       const reopen = async () => { const previous = opened; opened = await bound.adapter.canvas.open(ctx); assert.notEqual(opened.url, previous.url, "Reopening rotates the transport capability."); await navigate(opened.url); return { previous, current: opened }; };
-      const item = { ...view, ctx, action, publish, snapshot, send, reopen, seedDecision, host: bound, close: () => bound.adapter.canvas.onClose(ctx), url: () => opened.url, retired: false };
+      const item = { ...view, ctx, action, publish, snapshot, send, reopen, host: bound, close: () => bound.adapter.canvas.onClose(ctx), url: () => opened.url, retired: false };
       item.retire = async () => { item.retired = true; await context.close(); await bound.adapter.close(); };
       views.push(item); return item;
     };
@@ -259,35 +257,19 @@ const cases = [
     assert.equal((await view.snapshot()).workspace.version, 2); assert.equal(bound.calls.length, 0);
     return { draftRetained: true, staleSaveDisabled: true, discardRestoresVisibleSource: true, synchronousRefreshLock: lock, latestSourceRead: true, automaticSubmissions: 0 };
   } },
-  { name: "editor-manual-hold-and-keep-conflict", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
+  { name: "editor-manual-holds-and-releases", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "constraints", "Avtalens overskrift", { fixture: editableSketch, openInput: { workspacePath: "design/constraints", create: true, title: "Bevarte valg" } });
-    // A room saved before keeping became a wish can still hold a kept choice.
-    await view.seedDecision({ screen: (await view.action("read_state")).screen, variant: "", target: "meeting", values: { detail: "full" }, text: "Behold den fulle forklaringen." });
-    await until(async () => (await view.snapshot()).decisions.length === 1, "earlier kept choice present");
     let editor = await openEditor(view); await editor.getByLabel("Overskrift", { exact: true }).fill("Min beholdte overskrift");
-    // The source is short, while the explicitly kept workshop choice is full.
-    await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).selectOption("full");
-    await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).selectOption("short");
-    // A changed finite value is required to test the keep guard: save full first, then try short against that saved source below.
     await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).selectOption("full");
     await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).click();
     await view.frame.getByRole("heading", { name: "Min beholdte overskrift", exact: true }).waitFor();
     await until(async () => (await view.snapshot()).workspace.version === 2, "manual fields saved");
     await assert.rejects(view.publish("Forsøk på å endre overskriften"), error => error.status === 409);
     const saved = await view.snapshot(); await assert.rejects(view.action("restore_revision", { revisionId: 1, expectedRevision: saved.revision }), error => error.status === 409);
+    // The designer can change a saved field again; that is a new saved value, not a release.
     editor = await openEditor(view); await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).selectOption("short");
-    await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).click(); await editor.locator(".source-editor-error").waitFor();
-    assert.match(await editor.locator(".source-editor-error").textContent(), /Tillat senere endring/); assert.equal((await view.snapshot()).workspace.version, 2);
-    await editor.getByRole("button", { name: "Lukk redigering", exact: true }).click();
-    await view.openFeedback(); await view.ui.locator(".panel").getByRole("button", { name: "Tillat senere endring", exact: true }).click();
-    await until(async () => (await view.snapshot()).decisions[0].state === "released", "earlier kept choice released");
-    editor = await openEditor(view); assert.equal(await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).inputValue(), "short");
-    await editor.getByRole("button", { name: "Oppdater grunnlaget", exact: true }).click();
-    await until(async () => await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).isEnabled(), "explicit same-source rebase after keep release");
-    assert(await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).evaluate(node => node.getRootNode().activeElement === node));
-    assert.equal(await editor.getByLabel("Mengde forklaring · Møteavtale", { exact: true }).inputValue(), "short");
     await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).click();
-    await until(async () => (await view.snapshot()).workspace.version === 3, "changed finite source saved after release");
+    await until(async () => (await view.snapshot()).workspace.version === 3, "changed finite source saved");
     await until(async () => await view.ui.locator(".source-editor").isHidden(), "third version opened");
     editor = await openEditor(view);
     await editor.getByRole("button", { name: "Tillat senere endring for Overskrift", exact: true }).click();
@@ -301,7 +283,7 @@ const cases = [
     await screenshot(view, "explicit-releases-preserve-current-values");
     await editor.getByRole("button", { name: "Lukk redigering", exact: true }).click(); await view.publish("Neste avtaleforslag");
     const final = await view.snapshot(); assert.equal(final.workspace.version, 4); assert.equal(final.submission, 0); assert.equal(bound.calls.length, 0);
-    return { manualPublishAndRestoreConflicts: 2, keepConflictRetainsDraft: true, explicitSameSourceRebase: true, manualReleases: 2, releaseCreatesNoRevision: true, publicationAfterRelease: true, automaticSubmissions: 0 };
+    return { manualPublishAndRestoreConflicts: 2, savedFieldChangedAgain: true, manualReleases: 2, releaseCreatesNoRevision: true, publicationAfterRelease: true, automaticSubmissions: 0 };
   } },
   { name: "endre-parts-and-whole-sketch", viewport: { width: 390, height: 844 }, async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "parts", "Timeavtale · deler", { fixture: editableSketch, openInput: { workspacePath: "design/deler", create: true, title: "Deler" } });
@@ -448,9 +430,7 @@ const cases = [
     await original.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
     await original.workshop.getByLabel("Merknad", { exact: true }).fill("Behold forklaringen om den opprinnelige avtalen.");
     await original.workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click(); await original.ui.locator(".panel").waitFor();
-    await original.seedDecision({ screen: (await original.action("read_state")).screen, variant: "", target: "meeting", values: { detail: "full" }, text: "Behold forklaringen fra en eldre runde." });
-    await until(async () => (await original.snapshot()).decisions.length === 1, "earlier kept choice present");
-    await original.note("Første innspill, sendt i den tidligere samtalen."); await original.save(); await original.send(3); await original.round(1, "unknown");
+    await original.note("Første innspill, sendt i den tidligere samtalen."); await original.save(); await original.send(2); await original.round(1, "unknown");
     await original.note("Nytt innspill som er lagret, men ikke sendt."); await original.save();
     await original.publish("Timeavtale · neste dag");
     const saved = await original.snapshot(); assert.equal(saved.workspace.storage, "project"); assert.equal(saved.workspace.version, 2);
@@ -458,7 +438,7 @@ const cases = [
     const next = host(), reopened = await instance(next, "second-opening", "Timeavtale · neste dag", { openInput: { workspacePath: "design/timeavtale" }, publishInitial: false });
     const recovered = await reopened.snapshot();
     assert.equal(recovered.workspace.id, saved.workspace.id); assert.equal(recovered.workspace.version, saved.workspace.version); assert.equal(recovered.workspace.recovered, true);
-    assert.deepEqual(recovered.comments, saved.comments); assert.deepEqual(recovered.decisions, saved.decisions); assert.equal(recovered.decisions.length, 1);
+    assert.deepEqual(recovered.comments, saved.comments); assert.equal(Object.hasOwn(recovered, "decisions"), false);
     assert(recovered.comments.some(item => item.text.startsWith("Behold denne delen.") && item.context?.target === "meeting"), "The keep wish is recovered as an ordinary wish.");
     assert.equal(next.calls.length, 0, "Opening a project must not deliver historical rounds.");
     await reopened.openFeedback(); const old = await reopened.round(1, "previous");
@@ -476,7 +456,7 @@ const cases = [
     await reopened.send(1); await reopened.round(2, "queued");
     assert.equal(next.calls.length, 1); assert.equal(next.calls[0].identity.submission, 2);
     assert.equal(first.calls.length, 1);
-    return { actualBackendRestart: true, projectIdentityPreserved: true, savedUnsentFeedbackPreserved: true, retainedDecisionsPreserved: true, historicalUnknownDistinguished: true, openingEnqueuesNothing: true, onlyNewRoundSent: true };
+    return { actualBackendRestart: true, projectIdentityPreserved: true, savedUnsentFeedbackPreserved: true, keepWishPreserved: true, historicalUnknownDistinguished: true, openingEnqueuesNothing: true, onlyNewRoundSent: true };
   } },
   { name: "workspace-restore-protects-draft", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "restoring", "Timeavtale · opprinnelig", { openInput: { workspacePath: "design/restore", create: true, title: "Timeavtale med historikk" } });
@@ -557,7 +537,6 @@ const cases = [
     await view.round(1, "sending");
     const batch = await view.action("read_submission", { submission: 1 });
     assert(batch.items.some(item => item.type === "comment" && item.value.text === "Behold denne delen.\nBehold forklaringen om gjeldende avtale." && item.value.context?.target === "meeting"), "The keep wish travels as a wish.");
-    assert(!batch.items.some(item => item.type === "decision"), "Keeping a part no longer creates a kept choice.");
     assert.equal(bound.calls[0].identity.instanceId, "meeting"); assert.equal(bound.calls[0].identity.submission, 1);
     assert.equal(bound.calls[0].prompt.includes("Gjør tidspunktet lettere"), false, "The message carries a bounded reference; the action reads actual feedback.");
     acknowledge("accepted-round-1"); await view.round(1, "queued");

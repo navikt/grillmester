@@ -9,7 +9,7 @@ date: 2026-10-24
 
 Appadapteren fra [ADR 0022](0022-app-canvas-adapter.md) kobler skissen til en
 bestemt samtale, men beholder hittil innholdet i en midlertidig økt. En designer
-må kunne lukke arbeidet og senere åpne samme skisse, innspill og beslutninger.
+må kunne lukke arbeidet og senere åpne samme skisse, innspill og svar.
 Prosjektlagring er valgt som neste milepæl. Appflyten prioriteres; dette er
 ikke et krav om tilsvarende nye grensesnitt i alle terminal- og editorklienter.
 
@@ -34,7 +34,7 @@ Rommet består av vanlige prosjektfiler:
 
 - `workspace.json` er den ene autoritative tilstanden: romidentitet, tittel,
   gjeldende versjon, revisjonsregister og samme `FeedbackStore` med kommentarer,
-  beslutninger, uforanderlige innsendte runder og deres svar/status.
+  uforanderlige innsendte runder og deres svar/status.
 - `revisions/<filnavn>.html` og en eventuell tilhørende `.design.json` er
   uforanderlige skisseversjoner. Registeret inneholder filhasher, størrelse,
   skjermidentitet og et eksplisitt, sekvensielt revisjonsnummer. Navn som
@@ -168,7 +168,7 @@ overskriver en nyere manuell endring.
 
 Tilstandsfilen er høyst 4 MiB, slik at 100 versjoner med største deklarasjon får plass; hver HTML-fil høyst 2 MiB og hver deklarasjon
 høyst 32 KiB. Rommet har høyst 100 skisseversjoner og 64 MiB samlet innhold.
-De eksisterende grensene på 200 kommentarer, beslutninger og innsendte runder
+De eksisterende grensene på 200 kommentarer og innsendte runder
 videreføres. Ingen historikk kastes automatisk for å gi plass. Gjenåpning må
 også fungere ved en full, ellers gyldig tilstand; gjenopprettingsmetadata må
 ikke kreve ledig innholdsplass som ikke var reservert ved lagring. Fordi en ny

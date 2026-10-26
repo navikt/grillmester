@@ -8,7 +8,9 @@ date: 2026-10-23
 Delvis erstattet av [ADR 0023](0023-prosjektlagret-designrom.md) for
 prosjektlagrede rom: journalen lagres i `workspace.json` og beholdes ved stopp.
 Gjenåpning bevarer rundene uten å sende dem på nytt. Midlertidige økter følger
-fortsatt lagrings- og oppryddingskontrakten nedenfor.
+fortsatt lagrings- og oppryddingskontrakten nedenfor. Etter
+[ADR 0025](0025-behold-som-innspill-og-juster-visning-i-prov.md) inneholder en
+runde bare innspill; `decisions` og beholdte valg er fjernet.
 
 ## Kontekst
 

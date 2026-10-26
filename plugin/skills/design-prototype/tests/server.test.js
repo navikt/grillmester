@@ -1043,7 +1043,7 @@ test("feedback receipt capacity fails closed without evicting old retries or rec
   assert.throws(() => receipts.run(c, "POST", "/comments", {}, operation), (error) => error instanceof FeedbackError && error.status === 429);
   receipts.run(a, "POST", "/comments", {}, operation);
   assert.equal(writes, 2, "The oldest accepted retry still resolves without another write.");
-  assert.throws(() => receipts.run(a, "POST", "/decisions", {}, operation), (error) => error.status === 409);
+  assert.throws(() => receipts.run(a, "POST", "/comments/submit", {}, operation), (error) => error.status === 409);
   assert.throws(() => receipts.run(b, "DELETE", "/comments/1", {}, operation), (error) => error.status === 409);
   assert.equal(writes, 2);
 });
@@ -1100,35 +1100,26 @@ test("submission history keeps both original rounds after resubmission, replies 
   assert.deepEqual(saved.submissions.map((batch) => batch.comments[0]), [original, secondOriginal]);
 });
 
-test("submission history reconstructs constraints at each cursor and preserves scoped screens", () => {
+test("submission history returns each round with its own comments and screens", () => {
   const store = privateFeedbackStore();
   const firstScreen = "a".repeat(32), secondScreen = "b".repeat(32), unrelatedScreen = "c".repeat(32);
   for (const [screen, filename] of [[firstScreen, "first.html"], [secondScreen, "second.html"], [unrelatedScreen, "unrelated.html"]]) store.knowScreen(screen, filename, sampleDesign());
   store.create(commentFor(firstScreen));
   store.create(commentFor(secondScreen, { text: "This belongs to the second version." }));
-  const keep = store.keep(keepFor(firstScreen));
-  const decisionId = keep.decisions[0].id;
   store.submit({ screen: firstScreen });
-  store.keep(keepFor(secondScreen, { values: { density: "spacious" } }));
   store.submit({ screen: secondScreen });
-  store.release(decisionId, {});
-  store.submit({});
-  store.keep(keepFor(unrelatedScreen));
-  const first = store.nextSubmission(0), second = store.nextSubmission(1), released = store.nextSubmission(2);
+  store.create(commentFor(unrelatedScreen, { text: "Not sent yet." }));
+  const first = store.nextSubmission(0), second = store.nextSubmission(1), latest = store.nextSubmission(2);
   assert.equal(first.comments.length, 1);
   assert.equal(first.comments[0].screen, firstScreen);
-  assert.deepEqual(first.decisions[0].values, { density: "compact" });
   assert.deepEqual(first.screens.map((item) => item.screen), [firstScreen]);
   assert.equal(second.comments.length, 1);
   assert.equal(second.comments[0].screen, secondScreen);
-  assert.deepEqual(second.decisions[0].values, { density: "spacious" });
   assert.deepEqual(second.screens.map((item) => item.screen), [secondScreen]);
-  assert.deepEqual(released.comments, []);
-  assert.equal(released.decisions[0].state, "released");
-  assert.equal(released.decisions[0].submission, 3);
-  assert.deepEqual(store.nextSubmission(3).decisions, [], "A newer unsent hold is not an accepted constraint.");
+  assert.deepEqual(latest.comments, [], "An unsent comment is not part of a round.");
+  for (const round of [first, second, latest]) assert.equal(Object.hasOwn(round, "decisions"), false);
   for (const cursor of [-1, 0.5, "0", null, Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => store.nextSubmission(cursor), (error) => error.status === 400);
-  assert.throws(() => store.nextSubmission(4), (error) => error.status === 409);
+  assert.throws(() => store.nextSubmission(3), (error) => error.status === 409);
 });
 
 test("submission guards prevent an old reply from resolving a pending or newer round", () => {
@@ -1327,30 +1318,29 @@ test("feedback CLI drains immutable rounds and guards replies against a later re
   } finally { await stopServer(running); }
 });
 
-test("feedback CLI reports each round's accepted constraints before later changes and releases", async () => {
+test("feedback CLI reports each round's own comments, and kept choices are not a feedback route", async () => {
   const running = await startServer(makeProject());
   try {
     const screen = await workshopScreen(running);
-    const created = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen))).json();
-    const id = created.decisions[0].id;
+    await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { text: "Første runde." }));
     await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
-    await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen, { values: { density: "spacious" } }));
-    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
-    await feedbackRequest(running.info.url, `/decisions/${id}`, "PATCH", {});
+    await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen, { text: "Andre runde." }));
     await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
     const stateArgs = ["--state-dir", running.info.state_dir, "--timeout", "0"];
     const first = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "0"])).stdout);
     const second = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "1"])).stdout);
-    const third = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "2"])).stdout);
-    const timeout = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "3"])).stdout);
-    assert.equal(first.submission, 1);
-    assert.deepEqual(first.decisions[0].values, { density: "compact" });
-    assert.equal(first.decisions[0].state, "active");
-    assert.deepEqual(second.decisions[0].values, { density: "spacious" });
-    assert.equal(second.decisions[0].state, "active");
-    assert.equal(third.decisions[0].state, "released");
-    assert.equal(third.decisions[0].submission, 3);
-    assert.deepEqual(timeout.decisions, []);
+    const timeout = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "2"])).stdout);
+    assert.deepEqual(first.comments.map((item) => item.text), ["Første runde."]);
+    assert.deepEqual(second.comments.map((item) => item.text), ["Andre runde."]);
+    assert.equal(timeout.type, "feedback-timeout");
+    assert.deepEqual(timeout.comments, []);
+    for (const result of [first, second, timeout]) assert.equal(Object.hasOwn(result, "decisions"), false);
+    const listed = await (await feedbackRequest(running.info.url, "/comments")).json();
+    assert.equal(Object.hasOwn(listed, "decisions") || Object.hasOwn(listed, "submittedDecisions"), false);
+    assert.notEqual((await feedbackRequest(running.info.url, "/decisions", "POST", { screen, variant: "", target: "header", values: { density: "compact" }, text: "Keep it." })).status, 200);
+    const release = await runComments(["release", "--state-dir", running.info.state_dir, "--id", "a".repeat(24)]);
+    assert.equal(release.code, 2);
+    assert.match(release.stderr, /Use list, wait, resolve, reopen, or delete/);
   } finally { await stopServer(running); }
 });
 
@@ -1560,8 +1550,8 @@ test("the fixed shell validates feedback messages and defers refresh while a not
     await new Promise(setImmediate);
     assert.deepEqual(JSON.parse(requests.at(-1).options.body).context, context);
     const beforeNull = requests.length;
-    for (const action of ["decision-keep", "decision-release"]) send({ ...base, action, requestId: 5, payload: null });
-    assert.equal(requests.length, beforeNull, "Null decision payloads must be rejected before property access or HTTP.");
+    for (const action of ["comment-update", "comment-delete", "comments-submit"]) send({ ...base, action, requestId: 5, payload: null });
+    assert.equal(requests.length, beforeNull, "Null payloads must be rejected before property access or HTTP.");
     for (const status of [429, 400, 500]) {
       feedbackStatus = status;
       send({ ...base, action: "comment-create", requestId: status, payload: commentFor(screen) });
@@ -1780,17 +1770,15 @@ test("release-and-restore retries resend each step's exact payload after a lost 
   }
 });
 
-test("revealed feedback opens the tab that holds it, for comments and kept parts alike", () => {
+test("revealed feedback opens the tab that holds it", () => {
   const source = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
   const from = source.indexOf("  function feedbackTab("), to = source.indexOf("  function setTab(", from);
   assert(from >= 0 && to > from);
-  const snapshot = { comments: [{ id: "c1", submission: 0 }, { id: "c2", submission: 2 }], decisions: [{ id: "d1", submission: 3 }, { id: "d2", submission: 0 }] };
+  const snapshot = { comments: [{ id: "c1", submission: 0 }, { id: "c2", submission: 2 }] };
   const feedbackTab = require("node:vm").runInNewContext(`${source.slice(from, to)}; feedbackTab`, { snapshot });
-  assert.equal(feedbackTab({ commentId: "c1" }), "ready");
-  assert.equal(feedbackTab({ commentId: "c2" }), "sent");
-  assert.equal(feedbackTab({ decisionId: "d1" }), "sent", "A submitted kept part is under Sendt, also when a receipt returns it.");
-  assert.equal(feedbackTab({ decisionId: "d2" }), "ready");
-  assert.equal(feedbackTab({}), "ready");
+  assert.equal(feedbackTab("c1"), "ready");
+  assert.equal(feedbackTab("c2"), "sent");
+  assert.equal(feedbackTab(undefined), "ready");
 });
 
 test("feedback results and conflict refreshes stay with their originating preview document", async () => {
@@ -1993,9 +1981,6 @@ async function workshopScreen(running, design = sampleDesign(), html = '<h1 data
   fs.writeFileSync(path.join(running.info.screen_dir, "test.design.json"), JSON.stringify(design));
   return previewScreen(running, html);
 }
-function keepFor(screen, overrides = {}) {
-  return { screen, variant: "", target: "header", values: { density: "compact" }, text: "Keep this spacing.", ...overrides };
-}
 
 test("design declarations accept only bounded finite options and closed structural metadata", () => {
   const { validDesign, MAX_DESIGN_BYTES } = require("../scripts/design-contract.js");
@@ -2057,7 +2042,7 @@ test("a design sidecar is optional, changes screen identity, and safely disables
     assert.equal(invalid.includes("private-invalid-metadata"), false);
     assert.match(invalid, /A stable prototype/);
     const invalidScreen = await (await fetch(endpoint(running.info.url, "/version"))).text();
-    assert.equal((await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(invalidScreen))).status, 409);
+    assert.equal((await feedbackRequest(running.info.url, "/comments", "POST", commentFor(invalidScreen, { kind: "adjustment", text: "Use the compact spacing.", adjustment: { variant: "", target: "header", values: { density: "compact" } } }))).status, 409);
     fs.writeFileSync(file, " ".repeat(32769));
     const oversized = await (await fetch(endpoint(running.info.url, "/preview"))).text();
     assert.match(oversized, /window\.__grillmesterVisualCompanionDesign=null;/);
@@ -2131,110 +2116,6 @@ test("comment context includes only declared settings from its own screen", asyn
   } finally { await stopServer(running); }
 });
 
-test("kept decisions survive versions, retain active IDs, and batch explicit releases", async () => {
-  const running = await startServer(makeProject());
-  try {
-    const screen = await workshopScreen(running);
-    const kept = await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen));
-    assert.equal(kept.status, 200);
-    const first = (await kept.json()).decisions[0];
-    assert.match(first.id, /^[a-f0-9]{24}$/);
-    assert.equal(first.state, "active");
-    assert.equal(first.submission, 0);
-    const draftWait = await runComments(["wait", "--state-dir", running.info.state_dir, "--after", "0", "--timeout", "0"]);
-    assert.equal(draftWait.code, 0, draftWait.stderr);
-    assert.deepEqual(JSON.parse(draftWait.stdout).decisions, [], "unsubmitted decisions must stay behind the explicit Send boundary");
-    const firstBatch = await (await feedbackRequest(running.info.url, "/comments/submit", "POST", {})).json();
-    assert.equal(firstBatch.submission, 1);
-    assert.equal(firstBatch.decisions[0].submission, 1);
-    const next = await workshopScreen(running, sampleDesign(), '<h1 data-vc-key="header">Next version</h1>');
-    const maintained = await (await feedbackRequest(running.info.url, "/comments")).json();
-    assert.equal(maintained.decisions[0].id, first.id);
-    assert.equal(maintained.decisions[0].screen, screen, "new screens must not rewrite a kept decision without explicit input");
-    const updated = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(next, { values: {}, text: "Keep the whole header." }))).json();
-    assert.equal(updated.decisions.length, 1);
-    assert.equal(updated.decisions[0].id, first.id);
-    assert.equal(updated.decisions[0].screen, next);
-    assert.equal(updated.decisions[0].submission, 0);
-    assert.deepEqual(updated.decisions[0].values, {});
-    const pendingUpdate = JSON.parse((await runComments(["wait", "--state-dir", running.info.state_dir, "--after", "1", "--timeout", "0"])).stdout);
-    assert.equal(pendingUpdate.type, "feedback-timeout");
-    assert.equal(pendingUpdate.decisions[0].screen, screen);
-    assert.deepEqual(pendingUpdate.decisions[0].values, { density: "compact" }, "pending updates must preserve the last submitted constraint");
-    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen })).status, 409);
-    const secondBatch = await (await feedbackRequest(running.info.url, "/comments/submit", "POST", {})).json();
-    assert.equal(secondBatch.submission, 2);
-    await feedbackRequest(running.info.url, "/comments", "POST", commentFor(next));
-    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
-    const stateArgs = ["--state-dir", running.info.state_dir];
-    const waited = await runComments(["wait", ...stateArgs, "--after", "2", "--timeout", "0"]);
-    assert.equal(waited.code, 0, waited.stderr);
-    const received = JSON.parse(waited.stdout);
-    assert.equal(received.comments.length, 1);
-    assert.equal(received.decisions[0].id, first.id, "older active holds must accompany later batches");
-    const released = await runComments(["release", ...stateArgs, "--id", first.id]);
-    assert.equal(released.code, 0, released.stderr);
-    assert.equal(JSON.parse(released.stdout).decisions[0].state, "released");
-    assert.equal(JSON.parse(released.stdout).decisions[0].submission, 0);
-    const pendingRelease = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "3", "--timeout", "0"])).stdout);
-    assert.equal(pendingRelease.type, "feedback-timeout");
-    assert.equal(pendingRelease.decisions[0].state, "active", "a pending release must not remove the submitted constraint");
-    assert.deepEqual(pendingRelease.decisions[0].values, {});
-    assert.equal((await feedbackRequest(running.info.url, `/decisions/${first.id}`, "PATCH", {})).status, 409);
-    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
-    const releaseBatch = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "3", "--timeout", "0"])).stdout);
-    assert.equal(releaseBatch.decisions[0].state, "released");
-    assert.equal(releaseBatch.decisions[0].submission, 4);
-    const timeout = JSON.parse((await runComments(["wait", ...stateArgs, "--after", "4", "--timeout", "0"])).stdout);
-    assert.equal(timeout.decisions.length, 0);
-    const token = new URL(running.info.url).searchParams.get("token");
-    assert.equal(`${waited.stdout}${released.stdout}`.includes(token), false);
-  } finally { await stopServer(running); }
-});
-
-test("design decisions reject undeclared controls, extra fields, wrong origins, and unbounded text", async () => {
-  const running = await startServer(makeProject());
-  try {
-    const screen = await workshopScreen(running);
-    const valid = keepFor(screen);
-    const invalid = [
-      { ...valid, values: { density: "arbitrary" } },
-      { ...valid, values: { onclick: "run" } },
-      { ...valid, values: [] },
-      { ...valid, values: { density: 2 } },
-      { ...valid, values: {}, target: "unknown" },
-      { ...valid, selector: "#header" },
-      { ...valid, state: "active" },
-      { ...valid, text: "ø".repeat(1001) },
-      { ...valid, variant: "compact" },
-    ];
-    for (const value of invalid) assert.equal((await feedbackRequest(running.info.url, "/decisions", "POST", value)).status, 400, JSON.stringify(value));
-    const url = endpoint(running.info.url, "/decisions");
-    assert.equal((await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(valid) })).status, 403);
-    assert.equal((await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain", Origin: url.origin }, body: JSON.stringify(valid) })).status, 415);
-    const created = await (await feedbackRequest(running.info.url, "/decisions", "POST", valid)).json();
-    const id = created.decisions[0].id;
-    assert.equal((await feedbackRequest(running.info.url, `/decisions/${id}`, "PATCH", { state: "released" })).status, 400);
-    assert.equal((await feedbackRequest(running.info.url, "/decisions/aaaaaaaaaaaaaaaaaaaaaaaa", "PATCH", {})).status, 404);
-  } finally { await stopServer(running); }
-});
-
-test("decision history has its own fixed count limit", () => {
-  const { FeedbackStore, MAX_DECISIONS } = require("../scripts/feedback-store.js");
-  const root = fs.realpathSync(makeProject());
-  fs.chmodSync(root, 0o700);
-  const store = new FeedbackStore(root);
-  const screen = "c".repeat(32);
-  store.knowScreen(screen, "test.html", sampleDesign());
-  for (let index = 0; index < MAX_DECISIONS; index += 1) {
-    const snapshot = store.keep(keepFor(screen));
-    store.release(snapshot.decisions.at(-1).id, {});
-    store.submit({});
-  }
-  assert.equal(store.snapshot().decisions.length, 200);
-  assert.throws(() => store.keep(keepFor(screen)), /Decision limit reached/);
-});
-
 test("a saved workspace at its journal limits points to a new workspace, not a new session", () => {
   const { FeedbackStore, MAX_COMMENTS } = require("../scripts/feedback-store.js");
   const root = fs.realpathSync(makeProject());
@@ -2247,152 +2128,17 @@ test("a saved workspace at its journal limits points to a new workspace, not a n
     /saved workspace/.test(error.message) && /new workspace/.test(error.message) && /keeps the same limit/.test(error.message) &&
     !/start a new (?:preview )?session/.test(error.message);
   for (let index = 0; index < 200; index += 1) {
-    const snapshot = store.keep(keepFor(screen));
-    store.release(snapshot.decisions.at(-1).id, {});
+    const sent = store.create(commentFor(screen)).comments.at(-1).id;
     store.submit({});
+    store.delete(sent, {});
     // Only an acknowledged delivery admits the next canvas round.
     store.change((state) => { state.canvas.rounds.at(-1).delivery = "queued"; });
   }
-  assert.throws(() => store.keep(keepFor(screen)), savedLimit(/Decision limit reached/));
   const id = store.create(commentFor(screen)).comments[0].id;
   assert.throws(() => store.submit({}), savedLimit(/Submission limit reached/));
   store.delete(id, {});
   for (let index = 0; index < MAX_COMMENTS; index += 1) store.create(commentFor(screen));
   assert.throws(() => store.create(commentFor(screen)), savedLimit(/Comment limit reached/));
-});
-
-test("decision revision guards preserve another tab's pending choice on the same or a newer screen", () => {
-  for (const crossScreen of [false, true]) {
-    const store = privateFeedbackStore();
-    const firstScreen = "a".repeat(32), laterScreen = crossScreen ? "b".repeat(32) : firstScreen;
-    store.knowScreen(firstScreen, "first.html", sampleDesign());
-    if (crossScreen) store.knowScreen(laterScreen, "later.html", sampleDesign());
-    const staleDraft = keepFor(firstScreen, { expectedRevision: 0, text: "An older local note." });
-    const created = store.keep(keepFor(laterScreen, { expectedRevision: 0, values: { density: "spacious" }, text: "A newer pending choice." }));
-    const first = created.decisions[0];
-    assert.equal(first.revision, created.revision);
-    assert.equal(Object.hasOwn(first, "expectedRevision"), false);
-    const saved = fs.readFileSync(store.filename, "utf8");
-    assert.throws(() => store.keep(staleDraft), (error) => error.status === 409);
-    assert.deepEqual(store.snapshot(), created);
-    assert.equal(fs.readFileSync(store.filename, "utf8"), saved);
-    const accepted = store.submit({});
-    const updated = store.keep(keepFor(laterScreen, { expectedRevision: first.revision, text: "The latest pending note." }));
-    const current = updated.decisions[0];
-    assert(current.revision > first.revision);
-    assert.equal(current.revision, updated.revision);
-    assert.deepEqual(updated.submittedDecisions, accepted.submittedDecisions, "Guarded edits do not publish or replace accepted constraints.");
-    for (const expectedRevision of [0, first.revision]) {
-      assert.throws(() => store.keep(keepFor(firstScreen, { expectedRevision })), (error) => error.status === 409);
-      assert.throws(() => store.release(first.id, { expectedRevision }), (error) => error.status === 409);
-    }
-    assert.deepEqual(store.snapshot(), updated);
-    const released = store.release(first.id, { expectedRevision: current.revision });
-    assert.equal(released.decisions[0].revision, released.revision);
-    assert.deepEqual(released.submittedDecisions, accepted.submittedDecisions);
-    assert.throws(() => store.keep(keepFor(firstScreen, { expectedRevision: current.revision })), (error) => error.status === 409);
-    const restored = store.keep(keepFor(firstScreen, { expectedRevision: released.decisions[0].revision }));
-    assert.equal(restored.decisions[0].id, first.id, "Re-keeping a pending release must guard and reuse that same decision.");
-    assert.equal(restored.decisions.length, 1);
-    store.release(first.id, { expectedRevision: restored.decisions[0].revision });
-    store.submit({});
-    const newHold = store.keep(keepFor(firstScreen, { expectedRevision: 0 }));
-    assert.equal(newHold.decisions.length, 2);
-    assert.notEqual(newHold.decisions[1].id, first.id, "A published release permits an explicitly new hold.");
-  }
-});
-
-test("decision revision guards reject invalid metadata without changing live or accepted state", () => {
-  const store = privateFeedbackStore(), screen = "a".repeat(32);
-  store.knowScreen(screen, "test.html", sampleDesign());
-  const created = store.keep(keepFor(screen, { expectedRevision: 0 }));
-  const { id, revision } = created.decisions[0];
-  const before = store.submit({});
-  for (const expectedRevision of [-1, 1.5, "1", null, Number.MAX_SAFE_INTEGER + 1]) {
-    assert.throws(() => store.keep(keepFor(screen, { expectedRevision })), (error) => error.status === 400);
-    assert.throws(() => store.release(id, { expectedRevision }), (error) => error.status === 400);
-  }
-  for (const metadata of [{ revision }, { expectedRevision: revision, extra: true }]) {
-    assert.throws(() => store.keep(keepFor(screen, metadata)), (error) => error.status === 400);
-    assert.throws(() => store.release(id, metadata), (error) => error.status === 400);
-  }
-  assert.deepEqual(store.snapshot(), before);
-  const legacy = store.keep(keepFor(screen));
-  assert(legacy.decisions[0].revision > revision, "Legacy callers remain supported and still advance the decision revision.");
-  assert.equal(store.release(id, {}).decisions[0].state, "released");
-});
-
-test("failed guarded decision commits preserve their revision and can retry with the same receipt", () => {
-  const { FeedbackMutationReceipts } = require("../scripts/feedback-store.js");
-  const store = privateFeedbackStore(), screen = "a".repeat(32);
-  store.knowScreen(screen, "test.html", sampleDesign());
-  const receipts = new FeedbackMutationReceipts();
-  const payload = keepFor(screen, { expectedRevision: 0 });
-  const keep = () => receipts.run("a".repeat(32), "POST", "/decisions", payload, (body) => store.keep(body));
-  const failCommit = (operation) => {
-    const before = store.snapshot(), saved = fs.readFileSync(store.filename, "utf8");
-    const rename = fs.renameSync;
-    fs.renameSync = (...args) => { if (args[1] === store.filename) throw new Error("decision commit failed"); return rename(...args); };
-    try { assert.throws(operation, /decision commit failed/); } finally { fs.renameSync = rename; }
-    assert.deepEqual(store.snapshot(), before);
-    assert.equal(fs.readFileSync(store.filename, "utf8"), saved);
-    operation();
-    const committed = store.snapshot();
-    operation();
-    assert.deepEqual(store.snapshot(), committed);
-  };
-  failCommit(keep);
-  const { id, revision } = store.snapshot().decisions[0];
-  const releasePayload = { expectedRevision: revision };
-  failCommit(() => receipts.run("b".repeat(32), "PATCH", `/decisions/${id}`, releasePayload, (body) => store.release(id, body)));
-});
-
-test("guarded decision retries recover an accepted write without overwriting a newer choice", async () => {
-  const running = await startServer(makeProject());
-  try {
-    const screen = await workshopScreen(running);
-    const keep = keepFor(screen, { expectedRevision: 0, text: "The original intent." });
-    const keepHeaders = { "X-Feedback-Mutation": "d".repeat(32) };
-    const firstResponse = await feedbackRequest(running.info.url, "/decisions", "POST", keep, keepHeaders);
-    assert.equal(firstResponse.status, 200);
-    const first = (await firstResponse.json()).decisions[0];
-    const second = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen, { expectedRevision: first.revision, text: "A newer local choice." }))).json();
-    assert.equal((await feedbackRequest(running.info.url, "/decisions", "POST", keep)).status, 409);
-    const retry = await feedbackRequest(running.info.url, "/decisions", "POST", keep, keepHeaders);
-    assert.equal(retry.status, 200);
-    assert.deepEqual(await retry.json(), second, "A lost-response retry returns current state without restoring its older content.");
-    const release = { expectedRevision: second.decisions[0].revision };
-    const releaseHeaders = { "X-Feedback-Mutation": "e".repeat(32) };
-    const released = await (await feedbackRequest(running.info.url, `/decisions/${first.id}`, "PATCH", release, releaseHeaders)).json();
-    const restored = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen, { expectedRevision: released.decisions[0].revision, text: "Keep this after reconsidering." }))).json();
-    assert.equal((await feedbackRequest(running.info.url, `/decisions/${first.id}`, "PATCH", release)).status, 409);
-    const releaseRetry = await feedbackRequest(running.info.url, `/decisions/${first.id}`, "PATCH", release, releaseHeaders);
-    assert.equal(releaseRetry.status, 200);
-    assert.deepEqual(await releaseRetry.json(), restored);
-    assert.equal(restored.decisions[0].state, "active");
-  } finally { await stopServer(running); }
-});
-
-
-test("re-keeping a pending release preserves one accepted hold during a scoped version submission", async () => {
-  const running = await startServer(makeProject());
-  try {
-    const firstScreen = await workshopScreen(running);
-    const kept = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(firstScreen))).json();
-    const id = kept.decisions[0].id;
-    await feedbackRequest(running.info.url, "/comments/submit", "POST", {});
-    await feedbackRequest(running.info.url, `/decisions/${id}`, "PATCH", {});
-    const nextScreen = await workshopScreen(running, sampleDesign(), '<h1 data-vc-key="header">Revised header</h1>');
-    const renewed = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(nextScreen, { values: { density: "spacious" } }))).json();
-    assert.equal(renewed.decisions.length, 1);
-    assert.equal(renewed.decisions[0].id, id);
-    assert.equal(renewed.decisions[0].state, "active");
-    const submitted = await (await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen: nextScreen })).json();
-    assert.equal(submitted.submittedDecisions.filter((item) => item.state === "active").length, 1);
-    assert.equal(submitted.submittedDecisions[0].id, id);
-    assert.deepEqual(submitted.submittedDecisions[0].values, { density: "spacious" });
-    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { screen: firstScreen })).status, 409);
-  } finally { await stopServer(running); }
 });
 
 test("selection storage failures preserve the session and never alter linked files", async () => {
@@ -2533,7 +2279,7 @@ test("a participant reopening feedback creates a new deliberate batch without lo
   } finally { await stopServer(running); }
 });
 
-test("a reviewed batch refuses unseen comments and changed decisions until the list is refreshed", async () => {
+test("a reviewed batch refuses unseen comments until the list is refreshed", async () => {
   const running = await startServer(makeProject());
   try {
     const screen = await workshopScreen(running);
@@ -2547,10 +2293,6 @@ test("a reviewed batch refuses unseen comments and changed decisions until the l
     assert.equal(afterReject.comments.length, 2);
     assert(afterReject.comments.every((item) => item.submission === 0));
     assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: unseen.revision })).status, 200);
-    const kept = await (await feedbackRequest(running.info.url, "/decisions", "POST", keepFor(screen))).json();
-    const released = await (await feedbackRequest(running.info.url, `/decisions/${kept.decisions[0].id}`, "PATCH", {})).json();
-    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: kept.revision })).status, 409);
-    assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision: released.revision })).status, 200);
     for (const revision of [-1, 1.5, "1", null, Number.MAX_SAFE_INTEGER + 1]) {
       assert.equal((await feedbackRequest(running.info.url, "/comments/submit", "POST", { revision })).status, 400);
     }
@@ -2608,7 +2350,7 @@ test("a hanging feedback poll stays bounded and permits recovery after connectio
       URL, TextEncoder, AbortController, Date: { now: () => now },
       fetch: async (url, options = {}) => {
         if (new URL(url, running.info.url).pathname !== "/comments") return { ok: true, text: async () => screen };
-        if (mode === "healthy") return { ok: true, json: async () => ({ revision: 0, submission: 0, screens: [{ screen, filename: "test.html" }], comments: [], decisions: [], submittedDecisions: [] }) };
+        if (mode === "healthy") return { ok: true, json: async () => ({ revision: 0, submission: 0, screens: [{ screen, filename: "test.html" }], comments: [] }) };
         // Headers arrive, but the response body never completes. The deadline
         // must cover reading the body, not only obtaining a Response object.
         return { ok: true, json: () => new Promise((resolve, reject) => {

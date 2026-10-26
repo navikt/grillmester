@@ -215,11 +215,8 @@ på samme element beholder hver sin forhåndsvisning.
 **Lagre innspill** bevarer innspillet i den private økten. **Send innspill**
 gjør alle usendte innspill i økten klare til behandling, også fra tidligere
 versjoner. Innspillskurven har to faner. **Klar til sending** viser usendte
-innspill og usendte frigivelser av beholdte valg; **Sendt** viser sendte innspill
-med svar og status, stående beholdte valg og innsendte runder, med filtrene
-**Alle**, **Åpne** og **Ordnet**. Beholdte valg finnes bare i rom som ble lagret
-før **Behold denne delen** ble et vanlig innspill; se
-[Beholdte valg fra eldre rom](#beholdte-valg-fra-eldre-rom). Et nylig lagret eller gjenåpnet innspill vises
+innspill; **Sendt** viser sendte innspill med svar og status og innsendte
+runder, med filtrene **Alle**, **Åpne** og **Ordnet**. Et nylig lagret eller gjenåpnet innspill vises
 under **Klar til sending**, med fokus på kortet, og etter sending åpnes
 **Sendt**. Når noe venter på sending, åpner kurven på **Klar til sending**;
 ellers beholder vanlig åpning valgt fane og filter. Nålene i skissen viser alle
@@ -243,27 +240,20 @@ node scripts/comments.js list --state-dir "$STATE_DIR"
 node scripts/comments.js wait --state-dir "$STATE_DIR" --after 0 --timeout 55
 node scripts/comments.js resolve --state-dir "$STATE_DIR" --id <id> --submission <submission> --reply "Knappen har nå en tydeligere tekst."
 node scripts/comments.js reopen --state-dir "$STATE_DIR" --id <id> --submission <submission> --reply "Vi prøver en annen plassering."
-node scripts/comments.js release --state-dir "$STATE_DIR" --id <decision-id>
 ```
 
 `list` og `wait` returnerer hele tekster og `submission`, ikke utdrag.
 Feltene har ulike formål:
 
-| Resultat | Innspill og føringer | Fortsatt utkast |
+| Resultat | Innspill | Fortsatt utkast |
 | --- | --- | --- |
-| `list` | Nåtilstand, inkludert kommentarens siste innsendingsnummer og aktive føringer i `submittedDecisions`. Dette er ikke leveringshistorikken. | Kommentarer med `submission: 0`; lokale endringer og frigivelser i `decisions` med `submission: 0`. |
-| `wait` | Én neste runde etter `--after`: opprinnelige `comments`, samt `decisions` med aktive føringer ved runden og dens nye frigivelser. | Nye utkast inngår ikke i rundens innhold. Separat `currentComments` viser nåtilstanden for de returnerte ID-ene. |
+| `list` | Nåtilstand, inkludert kommentarens siste innsendingsnummer. Dette er ikke leveringshistorikken. | Kommentarer med `submission: 0`. |
+| `wait` | Én neste runde etter `--after`: rundens opprinnelige `comments`. | Nye utkast inngår ikke i rundens innhold. Separat `currentComments` viser nåtilstanden for de returnerte ID-ene. |
 
 `currentComments` inneholder `id`, `present` og, når oppføringen fortsatt
 finnes, `status`, `submission`, `reply` og `updatedAt`. `present: false`
 betyr fjernet fra nålisten. I `list` beholder `lastSubmission` siste sendte
 rundenummer også etter at `submission` er blitt 0 ved gjenåpning.
-
-En lokal endring eller frigivelse erstatter ikke det tidligere valget før
-neste innsending. `list.decisions` er derfor ikke kilden til innsendte føringer.
-En innarbeidet beslutning er fortsatt aktiv. Bruk `release` bare når designeren
-har bedt om det, og forklar at frigivelsen må med i neste **Send innspill** før
-mottakeren ser den som innsendt.
 
 `resolve` og `reopen` oppdaterer status og svar uten å lage en ny innsending.
 Bruk `--submission` med nummeret på runden du behandler. Serveren avviser et
@@ -559,31 +549,12 @@ ber om noe annet, går foran.
 
 Lagrede felt fra **Rediger** er varige føringer som regenerering ikke kan
 endre stilltiende. De frigis bare når designeren velger **Tillat senere
-endring** i **Rediger**. Det samme gjelder aktive beholdte valg fra eldre rom.
-Begge vises med samme handling, **Tillat senere endring**.
+endring** i **Rediger**.
 
 Bevar deklarerte nøkler når en del beholder samme betydning. Ikke flytt gamle
 strukturelle kommentarankere til nye elementer. Samme nøkkel med samme
 startverdier er bare en teknisk match; kontroller også at utseende, innhold og
 oppførsel fortsatt oppfyller intensjonen.
-
-### Beholdte valg fra eldre rom
-
-Rom som ble lagret før **Behold denne delen** ble et innspill, kan ha beholdte
-valg. Grensesnittet lager ingen nye, men leser, viser og sender de eksisterende.
-Aktive valg vises i innspillskurven som **Beholdt del** og gjelder til
-designeren velger **Tillat senere endring**. Frigivelsen inngår i neste samlede
-innsending. Ved neste skisse sammenholdes valgene med deklarerte deler og
-startverdier; manglende deler eller avvik merkes **Må følges opp**. En
-redigering i **Rediger** som strider mot et aktivt valg, avvises til valget er
-frigitt.
-
-Hvert beholdt valg har `revision`, og frigivelse bruker valgfri
-`expectedRevision`. En usikker frigivelse prøves igjen med samme operasjonsnøkkel
-og revisjonskontroll. Er valget endret eller frigitt i mellomtiden, avvises
-frigivelsen, og kortet viser gjeldende valg før designeren eventuelt frigir
-det. Ikke frigi et beholdt valg automatisk når et vanlig innspill markeres
-fikset, og bruk `release` bare når designeren har bedt om det.
 
 Deklarasjonen er begrenset til 32 KiB, 24 deler, åtte kontroller per del og
 to til åtte alternativer per kontroll. Nøkler starter med en liten bokstav og

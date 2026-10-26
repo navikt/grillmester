@@ -287,7 +287,7 @@
     return usableTarget(target) && /^(P|H[1-6]|SPAN|BUTTON|A|LABEL|LI|TD|TH|CAPTION|LEGEND|STRONG|EM|SMALL)$/.test(target.tagName)
       && !target.childElementCount && Array.from(target.childNodes).some((node) => node.nodeType === Node.TEXT_NODE);
   }
-  function pendingComments() { return [...snapshot.comments, ...(snapshot.decisions || [])].filter((item) => item.submission === 0); }
+  function pendingComments() { return snapshot.comments.filter((item) => item.submission === 0); }
   function canvasRounds() { return Array.isArray(snapshot.canvas?.rounds) ? snapshot.canvas.rounds : null; }
   function canvasStatus(round) { return round.review === "answered" ? "answered" : round.previousSession ? "previous" : round.review === "working" ? "working" : round.delivery; }
   function uncertainDelivery() { return canvasRounds()?.some((round) => !round.previousSession && round.delivery === "unknown" && round.review === "unread") || false; }
@@ -423,15 +423,13 @@
     syncEndre();
     updateHint();
   }
-  // Unsent comments and kept-part changes wait in «Klar til sending»; sent
-  // feedback, standing kept parts and rounds are under «Sendt».
+  // Unsent feedback waits in «Klar til sending»; sent feedback and rounds are under «Sendt».
   function tabHasItems(name) {
     return name === "ready" ? pendingComments().length > 0
-      : [...snapshot.comments, ...(snapshot.decisions || [])].some((item) => item.submission > 0) || Boolean(canvasRounds()?.length);
+      : snapshot.comments.some((item) => item.submission > 0) || Boolean(canvasRounds()?.length);
   }
-  function feedbackTab({ commentId, decisionId }) {
-    const item = decisionId ? snapshot.decisions?.find((entry) => entry.id === decisionId) : snapshot.comments.find((entry) => entry.id === commentId);
-    return item?.submission > 0 ? "sent" : "ready";
+  function feedbackTab(commentId) {
+    return snapshot.comments.find((entry) => entry.id === commentId)?.submission > 0 ? "sent" : "ready";
   }
   function setTab(next, focus = false) {
     tab = next;
@@ -443,13 +441,13 @@
     renderComments();
     if (focus) el(`[data-tab="${tab}"]`).focus();
   }
-  function revealFeedback({ comment, commentId, decisionId } = {}) {
+  function revealFeedback({ comment, commentId } = {}) {
     const id = commentId || (comment && snapshot.comments.slice().reverse().find((item) =>
       Object.entries(comment).every(([key, value]) => JSON.stringify(item[key]) === JSON.stringify(value)))?.id);
     filter = "all";
-    setTab(feedbackTab({ commentId: id, decisionId }));
+    setTab(feedbackTab(id));
     setPanel(true);
-    const card = Array.from(el(".comment-list").children).find((entry) => decisionId ? entry.dataset.decision === decisionId : id && entry.dataset.id === id);
+    const card = Array.from(el(".comment-list").children).find((entry) => id && entry.dataset.id === id);
     if (card) { card.scrollIntoView({ block: "nearest" }); card.focus({ preventScroll: true }); }
     else el('[data-action="close-panel"]').focus();
   }
@@ -744,10 +742,9 @@
     const active = root.activeElement;
     const activeAction = active?.dataset.action;
     const activeId = active?.dataset.id;
-    const activeDecision = active?.closest("[data-decision]")?.dataset.decision;
     const list = el(".comment-list");
     const restoreCommentFocus = active && (list.contains(active) || pinLayer.contains(active));
-    const focusIndex = Math.max(0, Array.from(list.children).indexOf(active?.closest(".comment,.workshop-decision")));
+    const focusIndex = Math.max(0, Array.from(list.children).indexOf(active?.closest(".comment")));
     list.replaceChildren();
     pinLayer.replaceChildren();
     let shown = 0;
@@ -821,8 +818,6 @@
       card.appendChild(actions);
       list.appendChild(card);
     });
-    if (tab === "ready") shown += workshop?.appendFeedback(list, (decision) => decision.submission === 0) || 0;
-    else if (filter === "all") shown += workshop?.appendFeedback(list, (decision) => decision.submission > 0) || 0;
     if (!shown && !(tab === "sent" && filter === "all" && canvasRounds()?.length)) {
       const empty = document.createElement("div");
       empty.className = "empty";
@@ -834,13 +829,13 @@
       empty.append(title, text);
       list.appendChild(empty);
     }
-    all(".total").forEach((target) => { target.textContent = String(snapshot.comments.length + (snapshot.decisions?.length || 0)); });
+    all(".total").forEach((target) => { target.textContent = String(snapshot.comments.length); });
     el(".ready-count").textContent = String(pendingComments().length);
-    el(".sent-count").textContent = String([...snapshot.comments, ...(snapshot.decisions || [])].filter((item) => item.submission > 0).length);
+    el(".sent-count").textContent = String(snapshot.comments.filter((item) => item.submission > 0).length);
     if (restoreCommentFocus) {
-      const previousButton = activeAction && Array.from(list.querySelectorAll("button")).find((target) => !target.disabled && target.dataset.action === activeAction && (activeDecision ? target.dataset.decision === activeDecision : target.dataset.id === activeId));
-      const cards = Array.from(list.querySelectorAll(".comment,.workshop-decision"));
-      const target = previousButton || cards.find((card) => activeDecision ? card.dataset.decision === activeDecision : card.dataset.id === activeId) || cards[Math.min(focusIndex, cards.length - 1)] || (tab === "sent" ? el(`[data-filter="${filter}"]`) : el(`[data-tab="${tab}"]`));
+      const previousButton = activeAction && Array.from(list.querySelectorAll("button")).find((target) => !target.disabled && target.dataset.action === activeAction && target.dataset.id === activeId);
+      const cards = Array.from(list.querySelectorAll(".comment"));
+      const target = previousButton || cards.find((card) => card.dataset.id === activeId) || cards[Math.min(focusIndex, cards.length - 1)] || (tab === "sent" ? el(`[data-filter="${filter}"]`) : el(`[data-tab="${tab}"]`));
       target.focus({ preventScroll: true });
     }
     renderFooter();

@@ -87,16 +87,10 @@ i neste versjon. Det sendes med neste runde som andre innspill og er ikke bevis
 på at neste skisse er visuelt lik.
 _Avoid_: beholdt valg, lagret felt, automatisk låsing
 
-**Beholdt valg**:
-En egen beslutning om å beholde en del, fra rom lagret før «Behold denne delen»
-ble et innspill. Grensesnittet lager ingen nye; eksisterende gjelder til
-designeren velger «Tillat senere endring».
-_Avoid_: lagret felt, ønske om å beholde
-
 **Lagret felt**:
 En editorverdi som blokkerer motstridende overskriving til designeren velger
 «Tillat senere endring». Verdien beholdes da, men senere versjoner kan endre den.
-Sammen med eldre beholdte valg er dette den eneste varige bevaringen.
+Dette er den eneste varige bevaringen i rommet.
 _Avoid_: beholdt valg, føring, usendt tekstforslag
 
 **Leveringsstatus**:

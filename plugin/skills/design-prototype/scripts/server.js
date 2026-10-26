@@ -1100,9 +1100,6 @@ function renderShellPage(nonce, accessToken, title, screen) {
           const validChoice = value.kind === "variant" && hasExactKeys(value, [...baseKeys, "variant"]) && validKey(value.variant);
           if (validPoint || validEdit || validAdjustment || validChoice) return { method: "POST", path: "/comments", body: value };
         }
-        const validExpectedRevision = value !== null && typeof value === "object" && (!Object.hasOwn(value, "expectedRevision") || (Number.isSafeInteger(value.expectedRevision) && value.expectedRevision >= 0));
-        if (data.action === "decision-keep" && closedKeys(value, ["screen", "variant", "target", "values", "text"], ["expectedRevision"]) && validExpectedRevision && validScreen(value.screen) && validVariant(value.variant) && validKey(value.target) && validValues(value.values) && validText(value.text)) return { method: "POST", path: "/decisions", body: value };
-        if (data.action === "decision-release" && closedKeys(value, ["id"], ["expectedRevision"]) && validExpectedRevision && validId(value.id)) return { method: "PATCH", path: "/decisions/" + value.id, body: Object.hasOwn(value, "expectedRevision") ? { expectedRevision: value.expectedRevision } : {} };
         if (data.action === "comments-submit" && closedKeys(value, ["revision"], ["screen"]) && Number.isSafeInteger(value.revision) && value.revision >= 0 && (!Object.hasOwn(value, "screen") || validScreen(value.screen))) return { method: "POST", path: "/comments/submit", body: value };
         if (data.action === "comment-delete" && hasExactKeys(value, ["id"]) && validId(value.id)) return { method: "DELETE", path: "/comments/" + value.id, body: {} };
         if (data.action === "comment-update" && closedKeys(value, ["id"], ["status", "reply", "resubmit"]) && validId(value.id) && Object.keys(value).length > 1 &&
@@ -1223,7 +1220,7 @@ function renderShellPage(nonce, accessToken, title, screen) {
         }).then(async (response) => {
           const result = await response.json();
           if (operationEpoch !== readyEpoch) return;
-          if (!response.ok && response.status === 409 && (operation.workspace || operation.path === "/comments/submit" || operation.path === "/decisions" || operation.path.startsWith("/decisions/"))) {
+          if (!response.ok && response.status === 409 && (operation.workspace || operation.path === "/comments/submit")) {
             await withReadDeadline((signal) => pollComments(signal, operationEpoch));
             if (operationEpoch !== readyEpoch) return;
             const conflicts = Array.isArray(result.conflicts) && result.conflicts.length <= 32 && result.conflicts.every((item) => hasExactKeys(item, ["id", "label"])
@@ -1485,7 +1482,7 @@ function readEventBody(req, res) {
       }
     } catch {
       // Selection storage is optional. A failed write must never terminate
-      // the session and remove unrelated comments or design decisions.
+      // the session and remove unrelated comments.
       sendJson(res, 500, { error: "Selection storage is unavailable." });
       return;
     }
@@ -1610,9 +1607,8 @@ const server = http.createServer((req, res) => {
 
   // Existing feedback stays readable and writable even when a newer source
   // cannot be registered. Its own screen IDs were validated on preview load.
-  if (requestUrl.pathname === "/comments" || requestUrl.pathname.startsWith("/comments/") || requestUrl.pathname === "/decisions" || requestUrl.pathname.startsWith("/decisions/")) {
+  if (requestUrl.pathname === "/comments" || requestUrl.pathname.startsWith("/comments/")) {
     const commentId = /^\/comments\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
-    const decisionId = /^\/decisions\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
     if (req.method === "GET" && requestUrl.pathname === "/comments/submissions") {
       try {
         const after = requestUrl.searchParams.get("after");
@@ -1637,9 +1633,7 @@ const server = http.createServer((req, res) => {
     const operation = req.method === "POST" && requestUrl.pathname === "/comments" ? (value) => feedback.create(value)
       : req.method === "POST" && requestUrl.pathname === "/comments/submit" ? (value) => feedback.submit(value)
       : req.method === "PATCH" && commentId ? (value) => feedback.patch(commentId, value)
-      : req.method === "DELETE" && commentId ? (value) => feedback.delete(commentId, value)
-      : req.method === "POST" && requestUrl.pathname === "/decisions" ? (value) => feedback.keep(value)
-      : req.method === "PATCH" && decisionId ? (value) => feedback.release(decisionId, value) : null;
+      : req.method === "DELETE" && commentId ? (value) => feedback.delete(commentId, value) : null;
     if (!operation) {
       sendJson(res, 405, { error: "Unsupported feedback operation." });
       return;

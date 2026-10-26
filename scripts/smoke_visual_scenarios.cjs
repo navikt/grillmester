@@ -166,14 +166,14 @@ const cases = [
       await ui.locator('[data-action="panel"]').click();
       const saved = await list();
       const keeps = saved.comments.filter(item => item.context);
-      assert.equal(keeps.length, 2); assert.equal(saved.decisions.length, 0, "Keeping a part is a wish, not a kept choice.");
+      assert.equal(keeps.length, 2);
       for (const wish of keeps) {
         const card = ui.locator(`article[data-id="${wish.id}"]`);
         assert((await card.innerText()).includes(variants.find(variant => variant.key === wish.context.variant).label), "A kept part needs its variant name when target labels repeat.");
       }
       await screenshot("mixed-brief");
       const batch = await send(3);
-      assert.equal(batch.comments.length, 3); assert.equal(batch.comments.find(item => item.variant)?.variant, "calendar"); assert.equal(batch.decisions.length, 0);
+      assert.equal(batch.comments.length, 3); assert.equal(batch.comments.find(item => item.variant)?.variant, "calendar");
       assert.deepEqual(batch.comments.filter(item => item.context).map(item => `${item.context.variant}/${item.context.target}`).sort(), ["board/summary", "list/summary"]);
       await closePanel();
       const renamed = design(); renamed.variants.forEach(variant => { variant.label = `Ny ${variant.label.toLowerCase()}`; }); renamed.targets.forEach(target => { target.label = "Ny oppsummering"; target.controls[0].label = "Ny tetthet"; target.controls[0].options.forEach(option => { option.label = `Ny ${option.label.toLowerCase()}`; }); });

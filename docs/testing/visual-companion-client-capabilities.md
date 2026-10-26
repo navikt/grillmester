@@ -62,7 +62,7 @@ bevise protokollen, men ikke at en levende klient følger hele arbeidsflyten.
 | Prioritet | Case | Observerbart beståttkriterium |
 | --- | --- | --- |
 | P1 | To arbeidskopier med samme prosjektnavn | Startup-data, skjerm og innspill holdes til riktig økt. Ingen kommentar eller beslutning krysser mellom øktene. |
-| P1 | Innsending mens `wait` går | Full tekst og beholdte valg kommer tilbake med riktig skjerm og submission. Svaret vises i skissen etter verifisert revisjon. |
+| P1 | Innsending mens `wait` går | Full tekst og innspillenes situasjon kommer tilbake med riktig skjerm og submission. Svaret vises i skissen etter verifisert revisjon. |
 | P1 | Innsending etter timeout eller avsluttet tur | Køen bevares. «Se innspillene» henter den. Tilstedeværelsen lover ikke aktiv behandling etter utløpt frist. |
 | P1 | Ny innsending mens forrige runde bearbeides | Ny batch hoppes ikke over. Cursor oppdateres bare for faktisk behandlede runder. Usendte utkast blir ikke gjeldende beslutninger. |
 | P1 | Kort shellgrense | Kortere `--timeout` returnerer et lesbart resultat; ved async videreføres samme verktøyjobb. Ingen løs vakt eller løkke uten avtalt slutt innføres. |

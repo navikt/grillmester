@@ -40,11 +40,11 @@ function publish(room, filename = "initial.html", source = html, declaration = d
   return room.workspace.current().screen;
 }
 
-test("project recovery retains exact rounds, unsent notes and choices without replay or journal growth", t => {
+test("project recovery retains exact rounds, unsent notes and keep wishes without replay or journal growth", t => {
   const room = fixture(t), { feedback, workspace, store, canvas } = room;
   const screen = publish(room);
   feedback.create(note(screen));
-  feedback.keep({ screen, variant: "", target: "card", values: { density: "roomy" }, text: "Behold luft" });
+  feedback.create({ ...note(screen, "Behold denne delen."), context: { variant: "", target: "card", values: { density: "roomy" } } });
   feedback.submit({});
   feedback.create(note(screen, "Et usendt innspill."));
   const original = clone(feedback.state), bytes = fs.statSync(store.filename).size;
@@ -52,7 +52,7 @@ test("project recovery retains exact rounds, unsent notes and choices without re
   const reopened = room.open();
   assert.equal(reopened.feedback.state.revision, original.revision);
   assert(fs.statSync(store.filename).size <= bytes, "recovery must fit even when the journal was full");
-  for (const field of ["comments", "decisions", "submissions", "submittedDecisions"]) assert.deepEqual(reopened.feedback.state[field], original[field]);
+  for (const field of ["comments", "submissions"]) assert.deepEqual(reopened.feedback.state[field], original[field]);
   assert.equal(reopened.feedback.state.canvas.rounds[0].delivery, "unknown");
   assert.equal(reopened.feedback.state.canvas.rounds[0].previousSession, true);
   assert.throws(() => reopened.canvas.delivery({ submission: 1, status: "queued" }), reject(409));
@@ -107,67 +107,6 @@ test("hydration rejects malformed or cross-linked histories instead of resetting
   fs.writeFileSync(room.store.filename, JSON.stringify(bad));
   assert.throws(() => room.open(), reject(409));
   assert.deepEqual(JSON.parse(fs.readFileSync(room.store.filename)), bad);
-});
-
-for (const [label, mutate] of [
-  ["missing current copy of an accepted choice", state => { state.decisions = []; }],
-  ["two active choices for the same target", state => { state.decisions.push({ ...clone(state.decisions[0]), id: "b".repeat(24), submission: 0 }); }],
-  ["changed accepted choice without a pending update", state => { state.decisions[0].values.density = "compact"; }],
-  ["two accepted choices hidden by an unsent release", state => {
-    const duplicate = { ...clone(state.submittedDecisions[0]), id: "b".repeat(24) };
-    state.decisions[0].state = "released"; state.decisions[0].submission = 0;
-    state.decisions.push(clone(duplicate)); state.submittedDecisions.push(clone(duplicate)); state.submissions[0].decisions.push(duplicate);
-  }],
-]) {
-  test(`hydration rejects ${label} without rewriting the saved choice`, t => {
-    const room = fixture(t), screen = publish(room);
-    room.feedback.keep({ screen, variant: "", target: "card", values: { density: "roomy" }, text: "Behold luft" });
-    room.feedback.submit({});
-    const good = clone(room.feedback.state), damaged = clone(good);
-    mutate(damaged);
-    room.store.close();
-    const bytes = Buffer.from(`${JSON.stringify(damaged)}\n`);
-    fs.writeFileSync(room.store.filename, bytes);
-    assert.throws(() => room.open(), reject(409));
-    assert.deepEqual(fs.readFileSync(room.store.filename), bytes, "An invalid accepted choice must be preserved for deliberate repair.");
-    fs.writeFileSync(room.store.filename, `${JSON.stringify(good)}\n`);
-    assert.deepEqual(room.open().feedback.state.decisions, good.decisions, "A rejected hydration must release its writer claim.");
-  });
-}
-
-test("reopening retains pending choice edits, releases and scoped re-keeps without changing accepted history", t => {
-  const first = fixture(t), screen = publish(first);
-  const keep = (room, density, targetScreen = screen) => room.feedback.keep({ screen: targetScreen, variant: "", target: "card", values: { density }, text: "Behold valgt luft" });
-  const reopen = room => { room.store.close(); return first.open(); };
-  keep(first, "roomy"); first.feedback.submit({});
-  const id = first.feedback.state.decisions[0].id;
-  const originalRound = clone(first.feedback.state.submissions[0]);
-  keep(first, "compact");
-  let room = reopen(first);
-  assert.equal(room.feedback.state.decisions[0].submission, 0);
-  assert.equal(room.feedback.state.decisions[0].values.density, "compact");
-  assert.equal(room.feedback.state.submittedDecisions[0].values.density, "roomy");
-  room.feedback.release(id, {});
-  room = reopen(room);
-  assert.equal(room.feedback.state.decisions[0].state, "released");
-  assert.equal(room.feedback.state.submittedDecisions[0].state, "active");
-  const nextScreen = publish(room, "next.html", html.replace("Innhold", "Neste skisse"));
-  keep(room, "compact", nextScreen);
-  room = reopen(room);
-  assert.equal(room.feedback.state.decisions.length, 1);
-  assert.equal(room.feedback.state.decisions[0].id, id);
-  room.feedback.submit({ screen: nextScreen });
-  assert.equal(room.feedback.state.submittedDecisions[0].values.density, "compact");
-  assert.deepEqual(room.feedback.state.submissions[0], originalRound);
-  room = reopen(room);
-  room.feedback.release(id, {}); room.feedback.submit({});
-  room = reopen(room);
-  keep(room, "roomy", nextScreen); room.feedback.submit({});
-  assert.equal(room.feedback.state.decisions.length, 2, "A newly kept choice can use a new ID after its predecessor was released and submitted.");
-  room = reopen(room);
-  assert.equal(room.feedback.state.submittedDecisions.filter(choice => choice.state === "active").length, 1);
-  assert.equal(room.feedback.state.submissions.length, 4);
-  assert.deepEqual(room.feedback.state.submissions[0], originalRound);
 });
 
 test("content and history page without truncating multibyte characters or reordering versions", t => {
@@ -238,18 +177,17 @@ test("source edits save one paired revision, survive restart and protect values 
   assert.equal(reopened.feedback.state.submission, 0);
 });
 
-test("editor rejects stale, undeclared, invalid and contradictory choices without losing drafts or kept decisions", t => {
+test("editor rejects stale, undeclared and invalid choices without losing drafts", t => {
   const room = fixture(t), screen = publish(room);
   const input = { screen, expectedRevision: room.feedback.state.revision, changes: [{ id: "control:/card/density", value: "compact" }] };
-  room.feedback.keep({ screen, variant: "", target: "card", values: { density: "roomy" }, text: "Behold luften" });
+  room.feedback.create(note(screen));
   assert.throws(() => room.workspace.editorSave(input), reject(409));
   input.expectedRevision = room.feedback.state.revision;
-  assert.throws(() => room.workspace.editorSave(input), error => error.errorCode === "editor-conflict");
   for (const changes of [[{ id: "text:unknown", value: "No" }], [{ id: "control:/card/density", value: "arbitrary-css" }], [{ id: "text:heading", value: "ø".repeat(1001) }]]) {
     assert.throws(() => room.workspace.editorSave({ ...input, changes }), reject(400));
   }
   assert.equal(room.workspace.summary().version, 1);
-  assert.equal(room.feedback.state.decisions[0].state, "active");
+  assert.equal(room.feedback.state.comments.length, 1);
   const read = room.workspace.editorRead({}); assert(Buffer.byteLength(JSON.stringify(read)) <= 64 * 1024);
   const v1 = design(); v1.version = 1; delete v1.texts; delete v1.targets[0].controls[0].editable; assert(validDesign(v1));
 });

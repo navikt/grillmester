@@ -158,7 +158,7 @@ const cases = [
       const old = await view.newTab();
       await old.shown("Invitasjon · første gjennomgang");
       await view.keep("full", "Behold forklaringen om hva som skjer med den gamle tiden."); const firstState = await view.send(view, 1);
-      const first = firstState.comments[0]; assert.equal(first.context.values.detail, "full"); assert.equal(firstState.decisions.length, 0);
+      const first = firstState.comments[0]; assert.equal(first.context.values.detail, "full");
       await view.screenshot("old-tab-before-adjust", old); await old.adjust(); await view.screenshot("old-tab-adjust-open", old);
       await old.workshop.getByLabel("Merknad", { exact: true }).fill("Fra den gamle skissen: bruk kort forklaring.");
       view.write("Invitasjon · utfyllende forklaring", "full"); await view.shown("Invitasjon · utfyllende forklaring"); await old.shown("Invitasjon · første gjennomgang");
@@ -172,12 +172,12 @@ const cases = [
       assert.equal(fromOld.screen, first.screen, "The older tab's wish keeps the screen it was made on.");
       assert.notEqual(fromNew.screen, first.screen);
       assert.equal(fromOld.context.values.detail, "short"); assert.equal(fromNew.context.values.detail, "full");
-      assert.equal(state.decisions.length, 0); assert.equal(state.submission, 1);
+      assert.equal(state.submission, 1);
       await view.screenshot("both-wishes-kept", old);
       await view.send(old, 2); const second = await view.read(1);
       assert.deepEqual(second.comments.map(item => item.id).sort(), [fromOld.id, fromNew.id].sort());
       await view.openFeedback(); await view.screenshot("both-wishes-sent");
-      return { findings: [{ observation: "Keeping the same part from an older tab saves a separate wish on its own screen. Neither tab's wish replaces the other, and both reach the next round.", oldTabScreenRetained: true }], measurements: { wishes: 2, decisions: 0, submittedBatches: 2 } };
+      return { findings: [{ observation: "Keeping the same part from an older tab saves a separate wish on its own screen. Neither tab's wish replaces the other, and both reach the next round.", oldTabScreenRetained: true }], measurements: { wishes: 2, submittedBatches: 2 } };
     } },
   { name: "reversal-and-delayed-reader", role: "Content designer revising a sent round while the reader resumes from an older cursor", viewport: { width: 390, height: 844 },
     async run(view) {
@@ -257,7 +257,7 @@ cases.push(
       await view.adjust(); await view.workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption("full");
       await view.workshop.getByLabel("Merknad", { exact: true }).fill("Behold forklaringen om at den nåværende timen fortsatt gjelder.");
       await view.workshop.getByRole("button", { name: "Behold denne delen", exact: true }).press("Enter");
-      await view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); const state = await view.list(); assert.equal(state.decisions.length, 0); assert.equal(state.submission, 0);
+      await view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); const state = await view.list(); assert.equal(state.submission, 0);
       const wish = state.comments.find(item => item.submission === 0 && item.context); assert.equal(wish.text, "Behold denne delen.\nBehold forklaringen om at den nåværende timen fortsatt gjelder.");
       await view.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
       await view.screenshot("kept-with-filter");

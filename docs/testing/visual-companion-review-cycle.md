@@ -48,8 +48,8 @@ displayed in that conflict; another change produces another conflict.
 observed three conflicts, one shared decision ID and an unchanged accepted
 direction until the next deliberate submission. [ADR 0025](../adr/0025-behold-som-innspill-og-juster-visning-i-prov.md)
 later made **Behold denne delen** an ordinary wish, so this conflict flow no
-longer exists for new choices; the replacement case checks that two tabs save
-two wishes. Releasing kept choices from older rooms keeps its revision checks.
+longer exists; the replacement case checks that two tabs save two wishes. Kept
+choices were removed, as they were never released.
 
 The original mutable list could lose or change a submitted round before the
 reader fetched it. The journal in ADR 0021 preserves that round and gives its
@@ -76,12 +76,10 @@ conflict state, reopened comment and narrow reset toolbar.
 
 ## Related regression coverage and limits
 
-`scripts/smoke_visual_retry.cjs` now has six browser cases that deliberately
-lose a successful HTTP response. A keep wish retries as one comment. Two
-cases release a kept choice seeded as in an older room while another writer
-saves a newer choice. A retry reuses the original operation and revision
-instead of releasing that newer choice. The six cases passed without browser exceptions or completed
-external resource requests.
+`scripts/smoke_visual_retry.cjs` has browser cases that deliberately lose a
+successful HTTP response. A keep wish retries as one comment, and a retry reuses
+the original operation instead of saving a second copy. The cases passed without
+browser exceptions or completed external resource requests.
 
 The server suite covers immutable rounds, cursor validation, current status,
 old-round reply rejection, decision revisions, receipt replay and atomic

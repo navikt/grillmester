@@ -167,7 +167,7 @@
       } catch (failure) {
         if (failure.conflict || failure.editorConflict) { needsRebase = true; if (!failure.editorConflict) stale = true; }
         if (failure.capacity) capacity = true;
-        error(failure.editorConflict ? "Endringen strider mot en del som beholdes fra en tidligere runde. Utkastet ditt er beholdt. Velg «Tillat senere endring» for delen under Innspill, og lagre igjen." : failure.message);
+        error(failure.message);
         status("");
       } finally { writing = false; update(); }
     }

@@ -185,13 +185,6 @@ class WorkspaceState {
       const field = fields.find(item => item.id === change.id);
       requireValue(field && (field.kind === "text" || field.options.some(option => option.value === change.value)), 400, "Unknown editable field or value.");
       if (field.value === change.value) continue;
-      if (field.kind === "control") {
-        const [variant, target, control] = field.id.slice("control:".length).split("/");
-        if (this.feedback.state.decisions.some(item => item.state === "active" && item.variant === variant && item.target === target &&
-          Object.hasOwn(item.values, control) && item.values[control] !== change.value)) {
-          throw this.editorConflict("The edit conflicts with a kept choice. Release or update that choice before saving.");
-        }
-      }
       changed = true;
       setField(nextDesign, field.id, change.value);
       holds.set(field.id, holdFor({ ...field, value: change.value }));
