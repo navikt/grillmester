@@ -668,10 +668,12 @@
     if (!usableTarget(target)) return;
     if (draft) { resumeDraft(); announce("Fullfør eller forkast utkastet før du lager et nytt innspill."); return; }
     if (kind === "area" && workshop?.isComparing()) { announce("Avslutt sammenligning for å markere et område. Punkt kan brukes nå."); return; }
+    // A point is measured as the sketch shows it, without a text preview.
+    if (!rect) resetPreview();
     const anchor = anchorFor(target, rect);
     if (!anchor.path) { announce("Dette elementet kan ikke markeres. Velg et mindre detaljert område."); return; }
     resetPreview();
-    draft = { target, kind, anchor, trail: [], context: workshop?.contextFor(target), retry: {}, proposal: false, focus: root.activeElement || document.activeElement, position: position || { x: Math.max(12, target.getBoundingClientRect().left), y: Math.max(12, target.getBoundingClientRect().bottom) } };
+    draft = { target, kind, anchor, name: kind === "area" ? "" : partName(target), trail: [], context: workshop?.contextFor(target), retry: {}, proposal: false, focus: root.activeElement || document.activeElement, position: position || { x: Math.max(12, target.getBoundingClientRect().left), y: Math.max(12, target.getBoundingClientRect().bottom) } };
     note.value = "";
     proposalInput.value = "";
     errorAt(".compose-error", "");
@@ -706,7 +708,10 @@
   function leadingText(target) {
     const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
     let text = "";
-    for (let node = walker.nextNode(); node && text.length < 120; node = walker.nextNode()) text += ` ${node.data}`;
+    for (let node = walker.nextNode(); node && text.length < 120; node = walker.nextNode()) {
+      const piece = node.data.replace(/\s+/g, " ").trim();
+      if (piece) text += ` ${piece}`;
+    }
     return text;
   }
   // «Større del» widens the choice one visible step at a time, up to the whole
@@ -724,7 +729,7 @@
   }
   function renderAnchor() {
     if (!draft) return;
-    el(".anchor-label").textContent = draft.kind === "area" ? "Markert område" : `Valgt ${partName(draft.target)}`;
+    el(".anchor-label").textContent = draft.kind === "area" ? "Markert område" : `Valgt ${draft.name}`;
     const larger = draft.kind === "point" && Boolean(largerPart(draft.target)), smaller = draft.kind === "point" && draft.trail.length > 0;
     el(".anchor-scope").hidden = !larger && !smaller;
     el('[data-action="part-larger"]').disabled = !larger || Boolean(savingDraft);
@@ -744,6 +749,7 @@
     draft.trail = wider ? [...draft.trail, draft.target] : draft.trail.slice(0, -1);
     draft.target = next;
     draft.anchor = anchor;
+    draft.name = partName(next);
     draft.context = workshop?.contextFor(next);
     const text = eligibleText(next);
     if (!text && draft.proposal) {
@@ -758,7 +764,7 @@
     const larger = el('[data-action="part-larger"]'), smaller = el('[data-action="part-smaller"]');
     if (wider && larger.disabled) smaller.focus();
     else if (!wider && smaller.disabled) larger.focus();
-    announce(`Valgt ${partName(next)}.`);
+    announce(`Valgt ${draft.name}.`);
   }
   function resumeDraft() {
     if (!draft || saving()) return;

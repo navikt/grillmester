@@ -363,6 +363,9 @@ const cases = [
     await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
     await view.ui.getByLabel("Ny tekst", { exact: true }).fill("En mye lengre overskrift som brytes over flere linjer og gjør boksen høyere enn den er i skissen");
     await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Se i skissen", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Fortsett å redigere", exact: true }).click();
+    assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt overskrift «Andre boks»", "The label names the part, not the previewed text.");
     await view.ui.getByRole("button", { name: "Større del", exact: true }).click();
     await heading.waitFor();
     assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt del «Andre boks»");
