@@ -92,7 +92,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "6ad77ec178994a62cc27da9937535635be1f48dd2f377ff4a5d9559b4b6b81ae",
+      "sha256": "d7fe1eb5a1b1a4cd4c4e3fde50dd2853d6e6034bf5b22b382f78b074e10a2092",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -496,7 +496,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "7a107b6543c569845fed8fc079158d179c82966a8204cb72548f0eb3d336d703",
+      "sha256": "942fcc72f7f05bcdfbeb41a34988c2a7f4528175a7a4fa07fbc9c71e0e43b45b",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -504,7 +504,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "fb9afc9855447551d3cdae97e8575dd6b0dc28d9a4092cc7d3543e2717ffab64",
+      "sha256": "c3c6af95c7836c3a8a31c70068bab0c4d33c41230b66feb29d6c1c99a7622cd8",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/canvas-state.js": {

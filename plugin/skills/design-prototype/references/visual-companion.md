@@ -197,15 +197,14 @@ knappen **Hele skissen** der. I et punktinnspill utvider **Større del** valget
 ett synlig steg om gangen, for eksempel fra en overskrift til hele boksen, og
 **Mindre del** går tilbake; ankeret følger valget. Åpnes skissesiden alene,
 utenfor rammen med verktøylinjen, viser den «Bare visning» og ingen
-innspillsverktøy, fordi den ikke kan lagre. **Rediger** lagrer tekst og valg som
-en ny versjon. Et innspill som
-skrives mens **Rediger** har ulagrede endringer, gjelder den lagrede versjonen;
-de ulagrede verdiene blir stående i **Rediger**. Når **Juster visning** eller
-**Rediger** er åpent, står stripens knapper i panelets tittelrad. På smale, høye
-skjermer åpnes de som et ark fra bunnen, slik at toppen av skissen er synlig
-mens verdiene endres. Tastaturbrukere kan
-fokusere et element og bruke kommentarkontrollene; områdealternativet bruker da
-hele elementets ramme. Kommentarlisten viser åpne og fiksete innspill, svar og
+innspillsverktøy, fordi den ikke kan lagre. **Rediger** lagrer tekst og valg
+som en ny versjon. Et innspill som skrives mens **Rediger** har ulagrede
+endringer, gjelder den lagrede versjonen; de ulagrede verdiene blir stående i
+**Rediger**. Når **Juster visning** eller **Rediger** er åpent, står stripens
+knapper i panelets tittelrad. På smale, høye skjermer åpnes de som et ark fra
+bunnen, slik at toppen av skissen er synlig mens verdiene endres.
+Tastaturbrukere kan fokusere et element og bruke kommentarkontrollene;
+områdealternativet bruker da hele elementets ramme. Kommentarlisten viser åpne og fiksete innspill, svar og
 hvilke som tilhører en tidligere versjon. Eldre nåler flyttes aldri automatisk
 over på en ny skisse.
 

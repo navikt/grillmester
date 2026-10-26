@@ -62,8 +62,8 @@ _Avoid_: samtale, produktkode
 **Midlertidig skisse**:
 En skisse i designverkstedet som ikke er lagret i prosjektet. Den og
 innspillene forsvinner når samtalen avsluttes eller etter fire timer uten bruk,
-og den har ingen lagrede versjoner eller «Rediger». Designeren velger før første skisse om den skal lagres i
-prosjektet.
+og den har ingen lagrede versjoner eller «Rediger». Designeren velger før
+første skisse om den skal lagres i prosjektet.
 _Avoid_: prosjektlagring og designrom overfor designeren
 
 **Prøv og Endre**:
