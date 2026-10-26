@@ -92,7 +92,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "1994249fcade72efa7af624844a5b340e0230971afbc6c416aa1dc75c1a4794a",
+      "sha256": "e30dcfd444b489f377ffcf3d7aa82573aa8f23b2ea60c628297d78c39e4ac091",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -496,7 +496,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "995dde7208b6fad38c43b8a65029c735b75dbbfb010760dee73cac348b67ac48",
+      "sha256": "7fe4bcc337b18376f85cfe707592cda2e84b660094b7493f765530d5cc673a76",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -504,7 +504,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "c5c501e7c5817be48fca552d53cf6f397bb0a7679ff261629e426dfd371105f2",
+      "sha256": "fb9afc9855447551d3cdae97e8575dd6b0dc28d9a4092cc7d3543e2717ffab64",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/canvas-state.js": {
@@ -540,11 +540,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "4807faa6d003742076a3965c5484a2981f16f60a9b61b0e3df7a202e31121c27",
+      "sha256": "e60b421b0c89c264d0fcc744944b15a2e0b6da121186dbc9cc81808aaa1311cf",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "f78f24c9e149e7cbf038f35780b7175a395875c5456c285eb69cf55442257b44",
+      "sha256": "aeeb2f7ade237b9b2d881d572cb1e9121366790bf523732fdabe17fb71708072",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {

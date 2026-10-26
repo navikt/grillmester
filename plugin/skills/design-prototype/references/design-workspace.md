@@ -18,6 +18,14 @@ surface does not imply automatic synchronization.
 The canvas opens in the owning session's project directory. A worktree remains
 its own project; do not redirect to the main checkout or another session.
 
+Before the first sketch of a new task, ask the designer in one plain sentence
+whether to save it in the project or keep it temporary, unless the request
+already says. A saved sketch gets «Versjoner» and «Rediger», can be reopened in
+a later conversation and is written to a folder such as `designs/<name>` in the
+repository. A temporary sketch disappears with its feedback when the
+conversation ends. Do not say «prosjektlagring» or «designrom» to the designer.
+If they leave it open, start temporary and say once that it can be saved later.
+
 - For a temporary sketch, omit workspace input.
 - When the designer has requested project storage, create with
   `{ "workspacePath": "designs/meeting", "create": true, "title": "Timeavtale" }`.
@@ -79,9 +87,13 @@ Use the client's available browser capabilities, including a built-in browser
 canvas; missing Playwright alone is not a blocker. When the browser can read
 the owning shell but cannot inspect its isolated iframe, open the iframe's
 observed, exact preview `src` in that same browser. Use this only for rendered
-inspection and clicks on declared local prototype states. Keep feedback,
-source edits and revision actions in the owning Designverksted shell and its
-bound actions. A preview-only check does not prove saving or integrated
+inspection and clicks on declared local prototype states. Opened on its own,
+the sketch shows «Bare visning» and no feedback tools; feedback, source edits
+and revision actions stay in the owning Designverksted shell and its bound
+actions. Prefer a browser the designer does not see. A browser canvas stays
+open as an extra tab that you cannot close, so when you use one, say in your
+reply that it is only for checking and that feedback is given in
+Designverksted. A preview-only check does not prove saving or integrated
 delivery. Do not construct URLs, create a separate harness, inject DOM or
 install tools for this fallback.
 

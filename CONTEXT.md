@@ -59,6 +59,13 @@ Samlingen av skisser, innspill og valg i ett arbeid. Versjonene vises under
 «Versjoner», og et prosjektlagret rom kan åpnes igjen med samme lagrede innhold.
 _Avoid_: samtale, produktkode
 
+**Midlertidig skisse**:
+En skisse i designverkstedet som ikke er lagret i prosjektet. Den og
+innspillene forsvinner når samtalen avsluttes, og den har verken «Versjoner»
+eller «Rediger». Designeren velger før første skisse om den skal lagres i
+prosjektet.
+_Avoid_: prosjektlagring og designrom overfor designeren
+
 **Prøv og Endre**:
 De to modusene i designverkstedet. «Prøv» bruker skissen som prototype og kan,
 under «Vis», prøve deklarerte valg i «Juster visning» og sammenligne varianter.

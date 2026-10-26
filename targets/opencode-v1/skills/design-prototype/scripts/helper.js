@@ -8,17 +8,21 @@
   const screen = window.__grillmesterVisualCompanionScreen;
   // Set when a stored version is shown read-only instead of the current sketch.
   const view = window.__grillmesterVisualCompanionView || null;
+  // Opened on its own instead of inside Designverksted, the sketch has no
+  // connection that can save feedback, so it says so and offers no tools.
+  const standalone = window.parent === window;
+  const standaloneMessage = "Bare visning. Innspill lagres ikke her. Gi innspill i Designverksted.";
   const nonce = scriptNonce;
   const selected = new Map();
   const indicator = document.getElementById("indicator");
   const indicatorText = document.getElementById("indicator-text");
   const interactive = "a[href],button,input,textarea,select,label,summary,[contenteditable],audio[controls],video[controls]";
   // A layout card containing a form is not a selectable concept card.
-  const choices = Array.from(document.querySelectorAll(".option, .card")).filter((element) =>
+  const choices = standalone ? [] : Array.from(document.querySelectorAll(".option, .card")).filter((element) =>
     !element.matches("input,textarea,select,label,summary,[contenteditable]") && !element.querySelector(interactive));
   let persistenceStatus = "idle";
   let pendingEvent = null;
-  const post = (value) => parent.postMessage({ channel, version: 1, ...value }, "*");
+  const post = (value) => { if (!standalone) parent.postMessage({ channel, version: 1, ...value }, "*"); };
 
   choices.forEach((element, index) => {
     element.dataset.vcChoiceId = `choice-${index + 1}`;
@@ -119,6 +123,7 @@
     .panel,.list,.composer{scroll-padding:8px}
     .compose-error,.workshop-error{margin-bottom:8px}
     .compose-scope{font-size:12px;line-height:1.45;color:#5b426b;background:#f6f1fa;border-radius:8px;padding:8px 10px;margin:10px 0 0}
+    .anchor-scope{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}.anchor-scope button{font-size:12px;padding:6px 10px;min-height:32px;background:#f3edf7}.anchor-scope button:hover{background:#e9dff1}.endre-ask .part-whole{font-size:12px;padding:8px}
     .canvas-rounds{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #e7e1ec}.canvas-rounds h3{font-size:13px;margin:0 0 10px}.canvas-round{border:1px solid #e7e1ec;border-radius:9px;padding:10px;margin-bottom:8px;overflow-wrap:anywhere}.canvas-round .row{flex-wrap:wrap;font-size:12px}.canvas-round p{font-size:12px;white-space:pre-wrap;margin:8px 0 0}.canvas-round summary,.canvas-history>summary{font-size:12px;cursor:pointer;padding:7px 0;min-height:32px}.canvas-round summary:focus-visible,.canvas-history>summary:focus-visible{outline:3px solid #6852ce;outline-offset:2px}.canvas-round[data-status=unknown]{border-color:#c99a45;background:#fffaf0}.canvas-round[data-status=answered] .badge{background:#e9f4ed;color:#286640}.canvas-close-hint{font-size:11px;color:#685c74;margin:10px 0 0;line-height:1.5}
     .workspace-panel{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:86px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #e1dce8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workspace-head{padding:14px 16px;border-bottom:1px solid #ece8f0;flex-shrink:0}.workspace-head h2{font-size:17px;margin:0}.workspace-body{padding:16px;overflow-y:auto;overscroll-behavior:contain;min-height:0;scroll-padding:12px}.workspace-body h3{font-size:14px;margin:0 0 8px;overflow-wrap:anywhere}.workspace-body p{font-size:12px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}.workspace-path{display:block;overflow-wrap:anywhere;font-size:11px;color:#685c74}.workspace-revision,.workspace-confirm{border:1px solid #e7e1ec;border-radius:9px;padding:12px;margin:10px 0}.workspace-revision .row{flex-wrap:wrap}.workspace-revision button{font-size:12px}.workspace-confirm{background:#fffaf0;border-color:#c99a45}.workspace-confirm:focus{outline:2px solid #6852ce;outline-offset:2px}.workspace-actions{display:flex;flex-wrap:wrap;gap:5px}.workspace-status{color:#5b426b}.workspace-dirty{color:#80591d}.workspace-history-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:18px}.workspace-history-tools h3{margin:0}.workspace-history-tools button{font-size:12px}.workspace-error{margin:8px 0}.workspace-previous{color:#78607f}
     @media(max-width:600px){.workspace-panel{right:10px;width:calc(100vw - 20px)}}
@@ -139,10 +144,11 @@
       <div class="panel-foot"><div class="row between"><span class="pending muted">Ingen nye innspill</span><span class="connection">Lagres lokalt</span></div><button type="button" class="primary send" data-action="send" disabled>Send innspill</button><p class="foot-status" role="status"></p><p class="error panel-error" role="alert" hidden></p></div>
     </section>
     <section class="workspace-panel" aria-label="Versjoner og lagring" hidden><div class="workspace-head"><div class="row between"><h2>Versjoner</h2><button type="button" class="close" data-action="workspace-close" aria-label="Lukk versjoner">×</button></div></div><div class="workspace-body"><h3 class="workspace-title"></h3><p class="workspace-storage"></p><code class="workspace-path"></code><p class="workspace-unsaved" hidden>Lagre utkast før du lukker skissen eller samtalen.</p><details class="workspace-storage-details"><summary>Om lagring og gjenåpning</summary><p class="workspace-help"></p></details><p class="workspace-temporary-help" hidden></p><p class="workspace-recovered" hidden>Arbeidet er åpnet fra prosjektet. Tidligere runder sendes ikke på nytt.</p><p class="workspace-dirty" hidden></p><div class="workspace-confirm" tabindex="-1" hidden><h3 class="workspace-confirm-title"></h3><p>Dette lager en ny skisseversjon. Innspill, svar og innsendte runder beholdes.</p><p class="workspace-restore-warning"></p><div class="workspace-actions"><button type="button" class="primary" data-action="workspace-restore">Bruk som ny versjon</button><button type="button" class="primary" data-action="workspace-release-restore" hidden>Tillat endring og bruk versjonen</button><button type="button" data-action="workspace-cancel">Avbryt</button></div></div><p class="error workspace-error" role="alert" hidden></p><p class="workspace-status" role="status"></p><div class="workspace-history" hidden><div class="workspace-history-tools"><h3>Versjonshistorikk</h3><button type="button" data-action="workspace-reload">Oppdater</button></div><div class="workspace-history-list"></div><button type="button" data-action="workspace-more" hidden>Vis flere versjoner</button></div></div></section>
-    <div class="endre-bar" role="group" aria-label="Endre skissen" hidden><div class="endre-tabs"><button type="button" data-action="change-ask" aria-pressed="false">Be om endring</button></div><div class="endre-ask" hidden><div class="tools" role="group" aria-label="Type markering"><button type="button" data-action="point" aria-pressed="true">Punkt</button><button type="button" data-action="area" aria-pressed="false">Område</button></div><select id="change-part" aria-label="Velg en del"><option value="">Eller velg en del …</option></select></div></div>
+    <div class="endre-bar" role="group" aria-label="Endre skissen" hidden><div class="endre-tabs"><button type="button" data-action="change-ask" aria-pressed="false">Be om endring</button></div><div class="endre-ask" hidden><div class="tools" role="group" aria-label="Type markering"><button type="button" data-action="point" aria-pressed="true">Punkt</button><button type="button" data-action="area" aria-pressed="false">Område</button></div><select id="change-part" aria-label="Velg en del"><option value="">Eller velg en del …</option></select><button type="button" class="part-whole" data-action="part-whole" hidden>Hele skissen</button></div></div>
     <div class="vis-bar" role="group" aria-label="Vis" hidden><div class="vis-tabs"><button type="button" data-action="vis-compare" aria-pressed="false">Sammenlign varianter</button><p class="vis-note" id="vis-note" role="status" hidden></p></div></div>
     <section class="composer" role="dialog" aria-modal="false" aria-labelledby="compose-title" hidden>
       <div class="row between"><h2 id="compose-title">Nytt innspill</h2><button type="button" class="close" data-action="hide-draft" aria-label="Legg utkast til side">×</button></div><div class="anchor-label"></div>
+      <div class="anchor-scope" role="group" aria-label="Endre det valgte"><button type="button" data-action="part-larger">Større del</button><button type="button" data-action="part-smaller">Mindre del</button></div>
       <p class="compose-scope" hidden>Gjelder den lagrede versjonen. Ulagrede endringer i «Rediger» er ikke med.</p>
       <label for="feedback-note">Hva vil du endre?</label><textarea id="feedback-note" maxlength="2000" placeholder="For eksempel: Gi overskriften mer luft …"></textarea>
       <button type="button" class="proposal-toggle" data-action="proposal" aria-expanded="false" hidden>Foreslå ny tekst</button>
@@ -155,6 +161,22 @@
   root.appendChild(ui);
   const el = (selector) => root.querySelector(selector);
   const all = (selector) => Array.from(root.querySelectorAll(selector));
+  // The sketch stays usable for looking and trying; only the notice shows.
+  if (standalone) {
+    host.style.setProperty("display", "none", "important");
+    const notice = document.createElement("div");
+    notice.setAttribute("data-visual-feedback-notice", "");
+    const shadow = notice.attachShadow({ mode: "open" });
+    const noticeStyle = document.createElement("style");
+    noticeStyle.nonce = nonce;
+    noticeStyle.textContent = ':host{all:initial;position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:2147483646;width:max-content;max-width:calc(100vw - 24px);color-scheme:light}p{margin:0;padding:10px 14px;background:#fff;color:#232330;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824;text-align:center;font:600 13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}';
+    const text = document.createElement("p");
+    text.setAttribute("role", "status");
+    text.textContent = standaloneMessage;
+    shadow.append(noticeStyle, text);
+    document.body.appendChild(notice);
+    document.body.style.paddingBottom = "72px";
+  }
   const panel = el(".panel");
   const composer = el(".composer");
   const note = el("#feedback-note");
@@ -199,6 +221,12 @@
   let workspaceEntries = [];
   let workspaceNextAfter = null;
   let workspaceConfirmation = null;
+  // A temporary sketch in the app says so where the designer always sees it.
+  const temporaryBadge = document.createElement("span");
+  temporaryBadge.className = "vc-badge";
+  temporaryBadge.textContent = "Midlertidig";
+  temporaryBadge.style.display = "none";
+  if (!view) document.body.querySelector(":scope > .vc-header .vc-header-left")?.append(temporaryBadge);
   const workspaceButton = button("Versjoner", "workspace-open");
   workspaceButton.hidden = true;
   workspaceButton.setAttribute("aria-expanded", "false");
@@ -220,7 +248,57 @@
   for (const text of declared?.version === 2 && Array.isArray(declared.texts) ? declared.texts : []) {
     if (typeof text?.id === "string" && typeof text.label === "string") partOptions.push([`text:${text.id}`, text.label]);
   }
-  for (const [value, label] of partOptions) { const option = document.createElement("option"); option.value = value; option.textContent = label; el("#change-part").appendChild(option); }
+  // Undeclared boxes are found again each time the list opens, because states
+  // and variants change what the sketch shows.
+  let foundParts = [];
+  const visiblePart = (node) => node.getClientRects().length > 0 && getComputedStyle(node).visibility === "visible" && !node.closest('[inert],[aria-hidden="true"]');
+  const shortName = (text, limit) => { const value = (text || "").replace(/\s+/g, " ").trim(); return value.length > limit ? `${value.slice(0, limit - 1).trimEnd()}…` : value; };
+  // A visible heading names the largest box it introduces: one with no earlier
+  // heading and no later heading of the same or a higher level. A labelled
+  // region is a part too. Wrappers around the whole sketch are «Hele skissen».
+  function findParts() {
+    const whole = content();
+    if (!whole) return [];
+    const headings = Array.from(whole.querySelectorAll("h1,h2,h3,h4,h5,h6")).filter(visiblePart).slice(0, 60);
+    const level = (heading) => Number(heading.localName[1]);
+    const wrappers = new Set([whole]);
+    // The preview's own notices, such as missing Aksel styles, are not sketch parts.
+    for (let node = whole, children; (children = Array.from(node.children).filter((child) => !["SCRIPT", "STYLE", "TEMPLATE"].includes(child.tagName) && !child.hasAttribute("data-vc-notice"))).length === 1;) wrappers.add(node = children[0]);
+    const known = new Set(partOptions.slice(1).map(([value]) => partElement(value)));
+    const found = new Map();
+    for (const heading of headings) {
+      let box = null;
+      for (let node = heading.parentElement; node && node !== whole; node = node.parentElement) {
+        if (!headings.every((other) => other === heading || !node.contains(other)
+          || (level(other) > level(heading) && heading.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING))) break;
+        box = node;
+      }
+      if (box && !wrappers.has(box) && !known.has(box) && !found.has(box)) found.set(box, heading.textContent);
+    }
+    for (const region of whole.querySelectorAll('section[aria-label],aside[aria-label],nav[aria-label],form[aria-label],[role="region"][aria-label]')) {
+      if (visiblePart(region) && !wrappers.has(region) && !known.has(region) && !found.has(region)) found.set(region, region.getAttribute("aria-label"));
+    }
+    const parts = Array.from(found).sort(([a], [b]) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1).slice(0, 30);
+    const used = new Map();
+    return parts.map(([node, text]) => {
+      const name = shortName(text, 60) || "Del uten navn";
+      const count = (used.get(name) || 0) + 1; used.set(name, count);
+      const depth = Math.min(3, parts.filter(([other]) => other !== node && other.contains(node)).length);
+      return { node, label: `${"– ".repeat(depth)}${count > 1 ? `${name} (${count})` : name}` };
+    });
+  }
+  // With nothing to choose but the whole sketch, a single button says so.
+  function renderPartOptions() {
+    const select = el("#change-part");
+    foundParts = findParts();
+    const options = [...partOptions.map(([value, label]) => [value, label]), ...foundParts.map((part, index) => [`found:${index}`, part.label])];
+    select.replaceChildren(select.firstElementChild || new Option("Eller velg en del …", ""));
+    for (const [value, label] of options) { const option = document.createElement("option"); option.value = value; option.textContent = label; select.appendChild(option); }
+    const alone = options.length === 1;
+    select.hidden = alone;
+    el('[data-action="part-whole"]').hidden = !alone;
+  }
+  renderPartOptions();
   // A stored version starts from its declared values, as the current preview
   // does through «Juster visning».
   function applyDeclaredStart() {
@@ -233,6 +311,10 @@
   }
   function partElement(value) {
     if (value === "whole") return content();
+    if (value.startsWith("found:")) {
+      const node = foundParts[Number(value.slice(6))]?.node;
+      return node?.isConnected && content()?.contains(node) && visiblePart(node) ? node : null;
+    }
     const exact = (name, key, within = document) => Array.from(within.querySelectorAll(`[${name}]`)).filter((node) => node.getAttribute(name) === key);
     if (value.startsWith("text:")) { const found = exact("data-vc-text", value.slice(5)); return found.length === 1 ? found[0] : null; }
     const [variant, key] = value.slice(7).split("/");
@@ -386,6 +468,7 @@
     scheduleLayout();
   }
   function request(action, payload, retry = {}) {
+    if (standalone) return Promise.reject(new Error(standaloneMessage));
     if (connectionLost && action !== "comments-list") return Promise.reject(new Error("Økten er frakoblet. Kopier utkastet før du starter en ny økt."));
     let mutationId;
     if (!["comments-list", "workspace-history", "workspace-editor-read"].includes(action)) {
@@ -504,7 +587,7 @@
       outline.hidden = true;
       drag = null;
     }
-    if (mode === "comment") { workshop?.close(); setPanel(false); }
+    if (mode === "comment") { workshop?.close(); setPanel(false); renderPartOptions(); }
     updateBusy();
     updateHint();
   }
@@ -585,16 +668,85 @@
     const anchor = anchorFor(target, rect);
     if (!anchor.path) { announce("Dette elementet kan ikke markeres. Velg et mindre detaljert område."); return; }
     resetPreview();
-    draft = { target, kind, anchor, context: workshop?.contextFor(target), retry: {}, proposal: false, focus: root.activeElement || document.activeElement, position: position || { x: Math.max(12, target.getBoundingClientRect().left), y: Math.max(12, target.getBoundingClientRect().bottom) } };
+    draft = { target, kind, anchor, trail: [], context: workshop?.contextFor(target), retry: {}, proposal: false, focus: root.activeElement || document.activeElement, position: position || { x: Math.max(12, target.getBoundingClientRect().left), y: Math.max(12, target.getBoundingClientRect().bottom) } };
     note.value = "";
     proposalInput.value = "";
     errorAt(".compose-error", "");
-    el(".anchor-label").textContent = kind === "area" ? "Markert område" : `Valgt element · ${target.localName}`;
+    renderAnchor();
     el('[data-action="proposal"]').hidden = kind !== "point" || !eligibleText(target);
     el('[data-action="proposal"]').setAttribute("aria-expanded", "false");
     el(".proposal-fields").hidden = true;
     resumeDraft();
     updateBusy();
+  }
+  // Names the chosen part in words, so the label says more than a tag name.
+  function partName(target) {
+    if (target === content()) return "hele skissen";
+    const tag = target.localName;
+    const kinds = { p: "avsnitt", a: "lenke", button: "knapp", li: "listepunkt", ul: "liste", ol: "liste", img: "bilde", svg: "bilde", picture: "bilde", input: "felt", select: "felt", textarea: "felt", label: "ledetekst", table: "tabell", tr: "rad", td: "celle", th: "celle", form: "skjema" };
+    const kind = /^h[1-6]$/.test(tag) ? "overskrift" : kinds[tag] || "del";
+    const label = target.getAttribute("aria-label") || target.getAttribute("alt");
+    if (label?.trim()) return `${kind} «${shortName(label, 48)}»`;
+    // A box is named by the heading that introduces it. With several headings
+    // on its top level, it names the first two instead of picking one.
+    if (["del", "skjema", "liste", "listepunkt", "tabell"].includes(kind)) {
+      const headings = Array.from(target.querySelectorAll("h1,h2,h3,h4,h5,h6")).filter(visiblePart);
+      const top = Math.min(...headings.map((heading) => Number(heading.localName[1])));
+      const leading = headings.filter((heading) => Number(heading.localName[1]) === top).map((heading) => `«${shortName(heading.textContent, 40)}»`);
+      if (leading.length === 1) return `${kind} ${leading[0]}`;
+      if (leading.length > 1) return `${kind} med ${leading.length === 2 ? leading.join(" og ") : `${leading.slice(0, 2).join(", ")} og ${leading.length - 2} til`}`;
+    }
+    const text = shortName(target.textContent, 48);
+    return text ? `${kind} «${text}»` : kind;
+  }
+  // «Større del» widens the choice one visible step at a time, up to the whole
+  // sketch. Wrappers with the same size are skipped, so each step shows.
+  function largerPart(target) {
+    const whole = content(), size = target.getBoundingClientRect();
+    if (!whole || target === whole || !whole.contains(target)) return null;
+    for (let node = target.parentElement; node; node = node.parentElement) {
+      if (node === whole) return node;
+      if (!node.getClientRects().length) continue;
+      const rect = node.getBoundingClientRect();
+      if (["left", "top", "width", "height"].some((key) => Math.abs(rect[key] - size[key]) > 1)) return node;
+    }
+    return null;
+  }
+  function renderAnchor() {
+    if (!draft) return;
+    el(".anchor-label").textContent = draft.kind === "area" ? "Markert område" : `Valgt ${partName(draft.target)}`;
+    const larger = draft.kind === "point" && Boolean(largerPart(draft.target)), smaller = draft.kind === "point" && draft.trail.length > 0;
+    el(".anchor-scope").hidden = !larger && !smaller;
+    el('[data-action="part-larger"]').disabled = !larger || Boolean(savingDraft);
+    el('[data-action="part-smaller"]').disabled = !smaller || Boolean(savingDraft);
+  }
+  // Moves a point wish to a larger or smaller part. The text stays; a text
+  // proposal only stays while the new part is a single piece of text.
+  function changeDraftPart(wider) {
+    if (!draft || draft.kind !== "point" || savingDraft) return;
+    const next = wider ? largerPart(draft.target) : draft.trail.at(-1);
+    if (!next?.isConnected) return;
+    const anchor = anchorFor(next, null);
+    if (!anchor.path) { announce("Denne delen kan ikke markeres."); return; }
+    if (preview?.owner === draft) resetPreview();
+    draft.trail = wider ? [...draft.trail, draft.target] : draft.trail.slice(0, -1);
+    draft.target = next;
+    draft.anchor = anchor;
+    draft.context = workshop?.contextFor(next);
+    const text = eligibleText(next);
+    if (!text && draft.proposal) {
+      draft.proposal = false;
+      el(".proposal-fields").hidden = true;
+      el('[data-action="proposal"]').setAttribute("aria-expanded", "false");
+    }
+    el('[data-action="proposal"]').hidden = !text;
+    renderAnchor();
+    showDraftOutline();
+    positionComposer();
+    const larger = el('[data-action="part-larger"]'), smaller = el('[data-action="part-smaller"]');
+    if (wider && larger.disabled) smaller.focus();
+    else if (!wider && smaller.disabled) larger.focus();
+    announce(`Valgt ${partName(next)}.`);
   }
   function resumeDraft() {
     if (!draft || saving()) return;
@@ -697,6 +849,7 @@
       savingDraft = null;
       composer.setAttribute("aria-busy", "false");
       composer.querySelectorAll("button, textarea").forEach((target) => { target.disabled = false; });
+      renderAnchor();
       el(".save").textContent = "Lagre innspill";
       if (draft === submittedDraft) note.focus({ preventScroll: true });
       updateBusy();
@@ -715,7 +868,7 @@
     return { left: rect.x - scrollX, top: rect.y - scrollY, width: rect.width, height: rect.height, right: rect.x - scrollX + rect.width, bottom: rect.y - scrollY + rect.height };
   }
   function scheduleLayout() {
-    if (layoutPending) return;
+    if (standalone || layoutPending) return;
     layoutPending = true;
     requestAnimationFrame(() => {
       layoutPending = false;
@@ -879,14 +1032,14 @@
   function renderWorkspaceSummary() {
     const stored = workspaceStored();
     workspaceButton.hidden = !stored && canvasRounds() === null;
-    workspaceText(".workspace-title", stored ? snapshot.workspace.title : "Midlertidig økt");
-    workspaceText(".workspace-storage", stored ? `Lagret i prosjektet · versjon ${snapshot.workspace.version}` : "Dette arbeidet er bare tilgjengelig i den midlertidige økten.");
+    workspaceText(".workspace-title", stored ? snapshot.workspace.title : "Midlertidig skisse");
+    workspaceText(".workspace-storage", stored ? `Lagret i prosjektet · versjon ${snapshot.workspace.version}` : "Skissen og innspillene forsvinner når samtalen avsluttes.");
     workspaceText(".workspace-path", stored ? snapshot.workspace.path : "");
     el(".workspace-storage-details").hidden = !stored;
     el(".workspace-unsaved").hidden = !stored;
     el(".workspace-temporary-help").hidden = stored;
     workspaceText(".workspace-help", "Lagrede innspill og skisseversjoner beholdes i prosjektet. Å lukke dette panelet beholder utkastene. Ulagrede utkast går tapt hvis du lukker selve skissen eller samtalen. Be i samtalen om å åpne arbeidet igjen. Å lukke skissen frigjør ikke arbeidet for en annen samtale. Forhåndsvisningen bruker systemfont fordi Aksel-fonten ikke lastes fra nettet.");
-    workspaceText(".workspace-temporary-help", "Be i samtalen om å opprette eller åpne et prosjektarbeid for varig lagring. Denne midlertidige økten blir ikke automatisk kopiert dit.");
+    workspaceText(".workspace-temporary-help", "Vil du beholde skissen og få versjoner og «Rediger», be i samtalen om å lagre den i prosjektet. Innspillene her blir ikke med.");
     el(".workspace-recovered").hidden = !stored || !snapshot.workspace.recovered;
     el(".workspace-history").hidden = !stored;
     const dirty = workspaceDrafts();
@@ -1102,9 +1255,10 @@
     const count = pendingComments().length;
     const canvas = canvasRounds() !== null, uncertain = uncertainDelivery(), sending = sendingDelivery();
     const unconfirmed = uncertain ? canvasRounds().find((round) => !round.previousSession && round.delivery === "unknown" && round.review === "unread").submission : null;
+    temporaryBadge.style.display = canvas && !workspaceStored() ? "" : "none";
     el(".panel-intro").textContent = workspaceStored()
       ? "Lagrede innspill beholdes i prosjektet. Ulagrede utkast og merknader går tapt ved lukking."
-      : canvas ? "Lagrede innspill beholdes i økten. Ulagrede utkast og merknader går tapt hvis du lukker skissen i appen."
+      : canvas ? "Midlertidig skisse: den og innspillene forsvinner når samtalen avsluttes. Vil du beholde den, be om å lagre den i prosjektet. Ulagrede utkast går tapt hvis du lukker skissen."
       : snapshot.submission > 0
       ? "Send nye innspill samlet. Sendte runder bevares i denne økten, også når du fjerner innspill fra listen."
       : "Pek på det du vil forbedre. Send samlet når du er klar. Innspillene lagres bare i denne økten.";
@@ -1217,6 +1371,8 @@
     else if (action === "workspace-restore") void restoreWorkspace();
     else if (action === "workspace-release-restore") void releaseAndRestore();
     else if (action === "save") void saveDraft();
+    else if (action === "part-larger" || action === "part-smaller") changeDraftPart(action === "part-larger");
+    else if (action === "part-whole") beginDraft(content(), "point", null);
     else if (action === "discard") discardDraft();
     else if (action === "hide-draft") hideDraft();
     else if (action === "resume") resumeDraft();
@@ -1264,6 +1420,8 @@
       }).catch((error) => errorAt(".panel-error", error.message)).finally(() => { submitting = false; renderFooter(); });
     }
   });
+  // The list follows what the sketch shows when it opens.
+  for (const type of ["pointerdown", "focus"]) el("#change-part").addEventListener(type, renderPartOptions);
   el("#change-part").addEventListener("change", (event) => {
     const value = event.target.value, element = value ? partElement(value) : null;
     event.target.value = "";
@@ -1501,6 +1659,6 @@
   }
   post({ action: "feedback-ready", screen });
   renderComments();
-  request("comments-list", {}).catch((error) => errorAt(".panel-error", error.message));
+  if (!standalone) request("comments-list", {}).catch((error) => errorAt(".panel-error", error.message));
   window.setInterval(renderFooter, 1000);
 });
