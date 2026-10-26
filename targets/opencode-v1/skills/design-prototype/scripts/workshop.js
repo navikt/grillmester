@@ -49,7 +49,7 @@
     const style = document.createElement("style");
     style.nonce = nonce;
     style.textContent = `
-      .workshop{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:92px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workshop h2{margin:0;font-size:17px;letter-spacing:-.3px}.workshop h3{font-size:13px;margin:0 0 10px}.workshop-head{padding:16px 18px 12px;border-bottom:1px solid #e9e3ef}.workshop-head p{font-size:12px;color:#706578;margin:8px 0 0}.workshop-body{padding:16px 18px;overflow-y:auto;overscroll-behavior:contain;min-height:0}.workshop label{display:block;font-size:12px;font-weight:600;margin:0 0 7px}.workshop select,.workshop textarea{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #8b7a9a;border-radius:8px;padding:9px}.workshop select:focus-visible,.workshop input:focus-visible{outline:3px solid #6852ce;outline-offset:3px}.workshop textarea{min-height:68px;resize:vertical}.workshop-section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #ece7f1}.workshop-section:last-child,.workshop-section:has(+ .workshop-section[hidden]:last-child){border-bottom:0;margin-bottom:0;padding-bottom:0}.workshop-control{margin-top:17px}.workshop-control input[type=range]{width:100%;accent-color:#7133a2}.workshop-control input[type=checkbox]{accent-color:#7133a2;width:18px;height:18px;vertical-align:middle;margin:0 7px 0 0}.workshop-control output{display:block;color:#706578;font-size:11px;margin-top:5px}.workshop-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.workshop-actions button{font-size:12px}.workshop-actions .primary{flex:1}.workshop-foot{padding:12px 18px;border-top:1px solid #e9e3ef;font-size:11px;color:#706578}.workshop-status{font-size:12px;color:#5c3d70;margin:0}.workshop-drafts{margin:0 0 6px}.workshop-foot:not(:has(.workshop-drafts:not([hidden]),.workshop-status:not(:empty),.workshop-error:not([hidden]))){padding:0;border-top:0}.workshop-warning{font-size:12px;line-height:1.5;color:#855514;background:#fff7e7;padding:10px;border-radius:8px;margin:12px 0}.workshop-empty{font-size:12px;color:#706578;line-height:1.5}.compare-bar{pointer-events:auto;position:fixed;top:64px;left:16px;max-width:calc(100vw - 32px);padding:10px 12px;background:#fff;border:1px solid #dfd8e8;border-radius:12px;box-shadow:0 4px 22px #2516381a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}.compare-bar label{font-size:11px;color:#706578}.compare-bar select{font:inherit;max-width:145px;padding:6px;border:1px solid #8b7a9a;border-radius:6px;color:#302737;background:#fff}.compare-bar button{font-size:12px;min-height:31px;padding:6px 9px}.compare-tabs{display:flex;gap:4px}.compare-tabs button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}.compare-bar .pair-select{display:flex;align-items:center;gap:5px}.compare-bar .prefer{color:#7133a2;background:#f6f0fa}.workshop-compare-button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}
+      .workshop{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:92px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workshop h2{margin:0;font-size:17px;letter-spacing:-.3px}.workshop h3{font-size:13px;margin:0 0 10px}.workshop-head{padding:16px 18px 12px;border-bottom:1px solid #e9e3ef}.workshop-head p{font-size:12px;color:#706578;margin:8px 0 0}.workshop-body{padding:16px 18px;overflow-y:auto;overscroll-behavior:contain;min-height:0}.workshop label{display:block;font-size:12px;font-weight:600;margin:0 0 7px}.workshop select,.workshop textarea{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #8b7a9a;border-radius:8px;padding:9px}.workshop select:focus-visible,.workshop input:focus-visible{outline:3px solid #6852ce;outline-offset:3px}.workshop textarea{min-height:68px;resize:vertical}.workshop-section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #ece7f1}.workshop-section:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}.workshop-control{margin-top:17px}.workshop-control input[type=range]{width:100%;accent-color:#7133a2}.workshop-control input[type=checkbox]{accent-color:#7133a2;width:18px;height:18px;vertical-align:middle;margin:0 7px 0 0}.workshop-control output{display:block;color:#706578;font-size:11px;margin-top:5px}.workshop-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.workshop-actions button{font-size:12px}.workshop-actions .primary{flex:1}.workshop-foot{padding:12px 18px;border-top:1px solid #e9e3ef;font-size:11px;color:#706578}.workshop-status{font-size:12px;color:#5c3d70;margin:0}.workshop-drafts{margin:0 0 6px}.workshop-foot:not(:has(.workshop-drafts:not([hidden]),.workshop-status:not(:empty),.workshop-error:not([hidden]))){padding:0;border-top:0}.workshop-warning{font-size:12px;line-height:1.5;color:#855514;background:#fff7e7;padding:10px;border-radius:8px;margin:12px 0}.workshop-empty{font-size:12px;color:#706578;line-height:1.5}.compare-bar{pointer-events:auto;position:fixed;top:64px;left:16px;max-width:calc(100vw - 32px);padding:10px 12px;background:#fff;border:1px solid #dfd8e8;border-radius:12px;box-shadow:0 4px 22px #2516381a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}.compare-bar label{font-size:11px;color:#706578}.compare-bar select{font:inherit;max-width:145px;padding:6px;border:1px solid #8b7a9a;border-radius:6px;color:#302737;background:#fff}.compare-bar button{font-size:12px;min-height:31px;padding:6px 9px}.compare-tabs{display:flex;gap:4px}.compare-tabs button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}.compare-bar .pair-select{display:flex;align-items:center;gap:5px}.compare-bar .prefer{color:#7133a2;background:#f6f0fa}
       @media(max-width:759px){.workshop{left:10px;right:10px;top:64px;width:auto}.compare-bar{top:62px;left:10px;right:10px;max-width:none}.compare-bar .pair-select{display:none}.compare-bar .prefer{font-size:11px}.workshop-body{padding:14px}}
       @media(max-height:540px){.workshop{overflow-y:auto;overscroll-behavior:contain}.workshop-head,.workshop-body,.workshop-foot{flex-shrink:0}.workshop-body{overflow:visible}.compare-bar{max-height:calc(100dvh - 110px);overflow-y:auto}}
       .workshop,.workshop-body,.compare-bar{scroll-padding:8px}
@@ -66,7 +66,6 @@
             <label for="workshop-remark">Merknad</label><textarea id="workshop-remark" maxlength="2000" placeholder="Valgfritt: forklar hva du vil ta videre"></textarea>
             <div class="workshop-actions"><button type="button" class="primary" data-action="workshop-add">Legg til innspill</button><button type="button" data-action="workshop-keep">Behold denne delen</button></div>
           </div>
-          <div class="workshop-section workshop-comparison"><h3>Se variantene sammen</h3><button type="button" class="workshop-compare-button" data-action="workshop-compare" aria-pressed="false">Sammenlign varianter</button><p class="workshop-warning compare-warning" hidden></p></div>
         </div><div class="workshop-foot"><p class="workshop-drafts" hidden></p><p class="workshop-status" role="status"></p><p class="error workshop-error" role="alert" hidden></p></div>
       </section>
       <div class="compare-bar" role="group" aria-label="Sammenligning" hidden><div class="pair-select"><label for="compare-left">Venstre</label><select id="compare-left" aria-label="Venstre variant"></select></div><div class="pair-select"><label for="compare-right">Høyre</label><select id="compare-right" aria-label="Høyre variant"></select></div><div class="compare-tabs" role="group" aria-label="Velg variant"></div><label for="compare-preferred" class="sr">Foretrukket variant</label><select id="compare-preferred" aria-label="Foretrukket variant"></select><button type="button" class="prefer" data-action="workshop-prefer">Foretrekk denne varianten</button><button type="button" data-action="workshop-stop-compare" aria-label="Avslutt sammenligning">×</button></div>
@@ -182,7 +181,6 @@
       el('[data-action="workshop-add"]').disabled = locking || !binding?.element || !binding.descriptor.controls.length;
       el('[data-action="workshop-keep"]').disabled = locking || !binding?.element;
       el('[data-action="workshop-reset"]').disabled = locking || !binding?.element || !binding.descriptor.controls.length;
-      el('[data-action="workshop-compare"]').disabled = locking || !comparisonAvailable;
     }
     function renderControls() {
       const binding = selected();
@@ -296,7 +294,6 @@
     function toggleComparison() {
       if (!comparisonAvailable || locking) return comparing;
       comparing = !comparing;
-      el('[data-action="workshop-compare"]').setAttribute("aria-pressed", String(comparing));
       updateCompareSelects(); applyComparison();
       if (comparing) { close(); focus(innerWidth < 760 ? el(".compare-tabs button") : el("#compare-left")); }
       return comparing;
@@ -304,7 +301,6 @@
     function endComparison() {
       if (!comparing || locking) return;
       comparing = false;
-      el('[data-action="workshop-compare"]').setAttribute("aria-pressed", "false");
       applyComparison();
     }
     function sourceDesign(item) { return snapshot.screens?.find((entry) => entry.screen === item.screen)?.design; }
@@ -397,7 +393,6 @@
       if (action === "workshop-open") { if (pane.hidden) open(); else close(true); }
       else if (action === "workshop-close") close(true);
       else if (action === "workshop-reset" && !locking) { const binding = selected(); if (binding) { binding.values = initialValues(binding.descriptor); binding.accepted = signature(binding.values); writeValues(binding); renderControls(); status("Visningen er tilbakestilt. Merknaden og lagrede innspill er beholdt."); updateDrafts(); } }
-      else if (action === "workshop-compare" && comparisonAvailable && !locking) toggleComparison();
       else if (action === "workshop-stop-compare" && !locking) { endComparison(); focus(api.compareOpener?.() || toolbarButton); }
       else if (["workshop-add", "workshop-keep", "workshop-prefer"].includes(action)) void save(action);
     });
@@ -409,10 +404,6 @@
         else close(true);
       }
     });
-    // With a Prøv entry for comparison, the panel keeps to the declared parts.
-    el(".workshop-comparison").hidden = variants.length < 2 || Boolean(api.compareOpener);
-    el(".compare-warning").hidden = comparisonAvailable || variants.length < 2;
-    el(".compare-warning").textContent = "Sammenligning er utilgjengelig: variantene må finnes én gang hver, i samme beholder.";
     renderControls(); updateCompareSelects(); updateDrafts();
     window.addEventListener("resize", updateLayout);
     if (typeof ResizeObserver === "function") {
@@ -432,6 +423,8 @@
       hasRemarks: () => Array.from(bindings.values()).some((binding) => Boolean(binding.remark.trim())),
       isComparing: () => comparing,
       canCompare: () => comparisonAvailable,
+      // Declared variants that cannot be compared still show why in Prøv.
+      hasVariants: () => variants.length >= 2,
       toggleComparison,
       endComparison,
       contextFor(target) {

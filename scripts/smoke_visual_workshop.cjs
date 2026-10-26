@@ -188,7 +188,7 @@ async function main() {
       headed: options.has("--headed"),
       viewports: options.get("--case") === "keyboard-errors" ? ["320x568", "568x320"]
         : options.has("--case") ? ["1440x1000"] : ["1440x1000", "390x844", "320x568", "568x320"],
-      checks: options.has("--case") ? [] : ["declared-controls", "source-css", "local-reset", "structured-batch", "variant-comparison", "narrow-comparison", "narrow-heading-clearance", "narrow-overlay-close", "hidden-variant-pin", "no-spurious-selection", "keep", "historical-labels", "duplicate-target", "invalid-manifest", "keyboard", "area-comparison-boundary", "draft-retention", "field-privacy", "loopback-only"],
+      checks: options.has("--case") ? [] : ["declared-controls", "source-css", "local-reset", "structured-batch", "variant-comparison", "narrow-comparison", "narrow-heading-clearance", "narrow-overlay-close", "hidden-variant-pin", "no-spurious-selection", "keep", "historical-labels", "duplicate-target", "unavailable-comparison-explained", "invalid-manifest", "keyboard", "area-comparison-boundary", "draft-retention", "field-privacy", "loopback-only"],
       declaredActions: options.get("--case") === "keyboard-errors" ? [] : ["native-keyboard", "hidden-button-focus", "variant-isolation", "invalid-choice", "disabled-choice", "nested-unbound-target", "comment-mode", "state-context", "restore-context", "parked-context", "preview-context", "explicit-batch", "field-privacy"],
       ...(keyboardErrors ? { keyboardErrors } : {}),
       errors,
@@ -418,6 +418,22 @@ async function runWorkshop(context) {
   assert(await control("Tetthet").isDisabled(), "An ambiguous target must not expose an active setting control.");
   assert.equal(await frame.locator('[data-vc-key="summary-list"][data-vc-setting-density]').count(), 0, "Ambiguous targets must not receive declared settings.");
   await closeWorkshop();
+
+  // Variants outside one shared container cannot be compared; Prøv says why.
+  writeScreen("split-variants", fixture("Varianter uten felles beholder").replace("data-vc-variants ", ""), manifest());
+  await frame.getByRole("heading", { name: "Varianter uten felles beholder", exact: true }).waitFor();
+  const prov = ui.getByRole("button", { name: "Prøv", exact: true });
+  if (await prov.getAttribute("aria-pressed") !== "true") await prov.click();
+  const blockedCompare = ui.getByRole("button", { name: "Sammenlign varianter", exact: true });
+  assert.equal(await blockedCompare.getAttribute("aria-disabled"), "true");
+  assert(await blockedCompare.isVisible(), "Declared variants keep their comparison entry in Prøv.");
+  // aria-disabled keeps the entry focusable, so keyboard users reach the explanation too.
+  await blockedCompare.focus();
+  await page.keyboard.press("Enter");
+  await ui.locator(".vis-note").waitFor();
+  assert.equal(await ui.locator(".vis-note").textContent(), "Sammenligning er utilgjengelig: variantene må finnes én gang hver, i samme beholder.");
+  await screenshot(page, "visual-workshop-comparison-unavailable.png");
+  assert(await ui.locator(".compare-bar").isHidden(), "An unavailable comparison must not start.");
 
   await checkInvalidManifest(context);
 }
