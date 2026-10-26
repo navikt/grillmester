@@ -18,7 +18,6 @@ class CanvasState {
   summary() {
     const state = this.feedback.state;
     return { revision: state.revision, submission: state.submission,
-      submittedDecisionsCount: state.submittedDecisions.length,
       canvas: { rounds: state.canvas.rounds.map(({ reply, ...round }) => ({ ...round, replyAvailable: Boolean(reply) })) } };
   }
   read(input) {
@@ -29,7 +28,6 @@ class CanvasState {
     const entries = [
       ...batch.screens.map(value => ({ type: "screen", value })),
       ...batch.comments.map((value, index) => ({ type: "comment", value, current: batch.currentComments[index] })),
-      ...batch.decisions.map(value => ({ type: "decision", value })),
     ];
     const offset = input.offset ?? 0;
     requireValue(offset <= entries.length, 400, "Round page offset is out of range.");

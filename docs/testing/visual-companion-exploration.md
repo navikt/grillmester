@@ -64,17 +64,16 @@ the 8.19.2 fixtures.
 3. Type into the actual mobile field and select an actual appointment radio.
    Returning to that state must preserve the local DOM value. Neither value
    may be copied into the feedback protocol.
-4. Verify that all this exploration leaves zero saved feedback, zero decisions
-   and submission 0. Loading remains an authored state until deliberately
+4. Verify that all this exploration leaves zero saved feedback and submission 0. Loading remains an authored state until deliberately
    changed; the sketch does not simulate successful network work on a timer.
 5. Comment on the relevant state, including on a button in comment mode. The
    button must not perform its ordinary action. Save the comment, change the
    sketch's state and restore it with **Vis situasjon**. Both state and density
    must restore where declared.
-6. Keep a part from another direction. The operations case combines two kept
-   parts from different directions with a separate reservation. Send one
-   explicit batch per study; verify the exact comments, decisions and original
-   context delivered by the public feedback reader.
+6. Keep a part from another direction with **Behold denne delen**. The
+   operations case combines two wishes to keep parts from different directions
+   with a separate reservation. Send one explicit batch per study; verify the
+   exact comments and original context delivered by the public feedback reader.
 7. Check equal comparison widths, horizontal overflow, duplicate IDs, browser
    exceptions and completed external resource requests. Record measurements,
    not a claim of broad accessibility compliance.
@@ -109,7 +108,9 @@ duplicate IDs. There were no browser exceptions or completed external resource
 requests.
 
 Each full run of the three studies delivered three deliberate batches: three
-comments and four kept-part decisions in total. The same native field value and radio selection
+comments and four kept-part decisions in total. Since
+[ADR 0025](../adr/0025-behold-som-innspill-og-juster-visning-i-prov.md), the
+four kept parts are wishes in the same batches. The same native field value and radio selection
 survived returning within the open sketch, without entering comment context.
 Comments preserved the declared situation, and **Vis situasjon** restored it
 after later local changes. Commenting on the retry or safe-return button did
@@ -143,7 +144,7 @@ item counts and absence of external resources.
 - Explicit local exploration followed by one batch worked for all three tasks.
   Native field input and a clicked state button should not imply agreement or
   permission to change source code.
-- Mixed decisions are valuable: the review can keep one direction's structure
+- Mixed directions are valuable: the review can keep one direction's structure
   and another direction's explanation while preserving a separate reservation.
   A single “winner” would lose this distinction.
 - In these comparisons the fixed content area gives each desktop direction

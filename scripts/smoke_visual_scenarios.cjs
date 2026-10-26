@@ -9,6 +9,18 @@ const os = require("node:os");
 const path = require("node:path");
 const { createRequire } = require("node:module");
 const { spawn } = require("node:child_process");
+// Comparing variants belongs to Prøv; leave Endre first when needed.
+async function startComparison(ui) {
+  const compare = ui.getByRole("button", { name: "Sammenlign varianter", exact: true });
+  if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
+  await compare.click();
+}
+// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
+async function openAdjust(ui) {
+  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
+  await adjust.click();
+}
 
 const options = new Map();
 const args = process.argv.slice(2);
@@ -107,18 +119,18 @@ async function session(browser, testcase) {
       page.on("pageerror", error => errors.push(error.message));
       page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) remoteRequests.push(new URL(request.url()).origin); });
       frame = page.frameLocator("#vc-preview"); ui = frame.locator("[data-visual-feedback]");
-      workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+      workshop = ui.getByRole("region", { name: "Juster visningen", exact: true });
     };
     await show(testcase.viewport || { width: 1440, height: 1000 });
     let sequence = 0;
     const write = (name, html, descriptor) => { const stem = `${String(++sequence).padStart(2, "0")}-${name}`; if (descriptor) fs.writeFileSync(path.join(info.screen_dir, `${stem}.design.json`), JSON.stringify(descriptor)); fs.writeFileSync(path.join(info.screen_dir, `${stem}.html`), html); };
-    const reopen = async viewport => { await show(viewport); await page.goto(info.url); await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); return { page, frame, ui, workshop }; };
+    const reopen = async viewport => { await show(viewport); await page.goto(info.url); await ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); return { page, frame, ui, workshop }; };
     const screenshot = async name => { if (evidence) { await page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor(); await settle(page); await page.screenshot({ path: path.join(evidence, `${testcase.name}-${name}.png`), animations: "disabled" }); } };
-    const open = async (html, descriptor) => { write(testcase.name, html, descriptor); await page.goto(info.url); await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); };
+    const open = async (html, descriptor) => { write(testcase.name, html, descriptor); await page.goto(info.url); await ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); };
     const list = () => cli(info, "list");
     const send = async count => { const previous = await list(); const waiting = cli(info, "wait", ["--after", String(previous.submission), "--timeout", "10"]); await ui.getByRole("button", { name: `Send ${count} innspill`, exact: true }).click(); const result = await waiting; assert.equal(result.type, "feedback-submission"); return result; };
     const closePanel = async () => { const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click(); };
-    const adjust = async () => { if (!(await workshop.isVisible())) await ui.getByRole("button", { name: "Juster", exact: true }).click(); await workshop.waitFor(); };
+    const adjust = async () => { if (!(await workshop.isVisible())) await openAdjust(ui); await workshop.waitFor(); };
     await testcase.run({ page, frame, ui, open, write, list, send, closePanel, workshop, adjust, screenshot, info, reopen });
     assert.deepEqual(errors, [], "No browser exceptions are allowed."); assert.deepEqual(remoteRequests, [], "No remote resource may finish loading.");
     return { name: testcase.name, role: testcase.role, status: "passed", outcomes: testcase.outcomes };
@@ -131,10 +143,10 @@ async function session(browser, testcase) {
 const cases = [
   {
     name: "four-directions", role: "Designer comparing and combining concepts",
-    outcomes: ["Four variants can be compared in changing pairs", "A preferred variant belongs to the visible pair", "Kept parts remain distinguishable across variants", "The full mixed brief reaches the CLI in one batch", "Historical decisions retain their original labels"],
+    outcomes: ["Four variants can be compared in changing pairs", "A preferred variant belongs to the visible pair", "Wishes to keep parts remain distinguishable across variants", "The full mixed brief reaches the CLI in one batch", "Earlier wishes retain their original labels"],
     async run({ frame, ui, open, write, list, send, closePanel, workshop, adjust, screenshot }) {
-      await open(overview(), design()); await adjust();
-      await workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).click();
+      await open(overview(), design());
+      await startComparison(ui);
       await ui.getByLabel("Venstre variant", { exact: true }).selectOption("timeline");
       await ui.getByLabel("Høyre variant", { exact: true }).selectOption("calendar");
       assert(["timeline", "calendar"].includes(await ui.getByLabel("Foretrukket variant", { exact: true }).inputValue()), "Changing both compared variants must not leave an invisible preferred variant selected.");
@@ -148,34 +160,33 @@ const cases = [
         await adjust(); await workshop.getByLabel("Velg del", { exact: true }).selectOption(`${key}/summary`);
         await workshop.getByLabel("Tetthet", { exact: true }).selectOption(key === "list" ? "compact" : "comfortable");
         await workshop.getByLabel("Merknad", { exact: true }).fill(key === "list" ? "Ta med prioriteringen fra listen." : "Ta med grupperingen fra brettet.");
-        await workshop.getByRole("button", { name: "Behold dette", exact: true }).click();
-        await waitFor(async () => (await list()).decisions.some(item => item.variant === key), `kept part from ${key}`); await closePanel();
+        await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click();
+        await waitFor(async () => (await list()).comments.some(item => item.context?.variant === key), `keep wish for ${key}`); await closePanel();
       }
-      await adjust();
-      const saved = await list();
-      for (const decision of saved.decisions) {
-        const card = workshop.locator(`article[data-decision="${decision.id}"]`);
-        assert((await card.innerText()).includes(variants.find(variant => variant.key === decision.variant).label), "A kept part needs its variant name when target labels repeat.");
-      }
-      await workshop.getByRole("region", { name: "Beholdes videre", exact: true }).scrollIntoViewIfNeeded();
-      await screenshot("mixed-brief");
-      await ui.getByRole("button", { name: "Lukk justeringer", exact: true }).click();
       await ui.locator('[data-action="panel"]').click();
+      const saved = await list();
+      const keeps = saved.comments.filter(item => item.context);
+      assert.equal(keeps.length, 2);
+      for (const wish of keeps) {
+        const card = ui.locator(`article[data-id="${wish.id}"]`);
+        assert((await card.innerText()).includes(variants.find(variant => variant.key === wish.context.variant).label), "A kept part needs its variant name when target labels repeat.");
+      }
+      await screenshot("mixed-brief");
       const batch = await send(3);
-      assert.equal(batch.comments.length, 1); assert.equal(batch.comments[0].variant, "calendar");
-      assert.deepEqual(batch.decisions.map(item => `${item.variant}/${item.target}`).sort(), ["board/summary", "list/summary"]);
+      assert.equal(batch.comments.length, 3); assert.equal(batch.comments.find(item => item.variant)?.variant, "calendar");
+      assert.deepEqual(batch.comments.filter(item => item.context).map(item => `${item.context.variant}/${item.context.target}`).sort(), ["board/summary", "list/summary"]);
       await closePanel();
       const renamed = design(); renamed.variants.forEach(variant => { variant.label = `Ny ${variant.label.toLowerCase()}`; }); renamed.targets.forEach(target => { target.label = "Ny oppsummering"; target.controls[0].label = "Ny tetthet"; target.controls[0].options.forEach(option => { option.label = `Ny ${option.label.toLowerCase()}`; }); });
       write("renamed-directions", overview("Neste skisse med nye navn"), renamed);
-      await frame.getByRole("heading", { name: "Neste skisse med nye navn", exact: true }).waitFor(); await adjust();
-      for (const decision of batch.decisions) {
-        const card = workshop.locator(`article[data-decision="${decision.id}"]`);
+      await frame.getByRole("heading", { name: "Neste skisse med nye navn", exact: true }).waitFor();
+      await ui.locator('[data-action="panel"]').click(); await ui.getByRole("tab", { name: /^Sendt/ }).click();
+      for (const wish of batch.comments.filter(item => item.context)) {
+        const card = ui.locator(`article[data-id="${wish.id}"]`);
         const text = await card.innerText();
-        assert(text.includes(`Oppsummering · ${variants.find(variant => variant.key === decision.variant).label}`), "A previous decision must retain the names used when it was made.");
-        assert(!text.includes("Ny oppsummering"), "A new target label must not rewrite the historical decision.");
-        assert(text.includes(decision.variant === "list" ? "Tetthet: Tett" : "Tetthet: Romslig"), "A previous choice must retain its original control and option labels.");
+        assert(text.includes(`Oppsummering · ${variants.find(variant => variant.key === wish.context.variant).label}`), "An earlier wish must retain the names used when it was made.");
+        assert(!text.includes("Ny oppsummering"), "A new target label must not rewrite the earlier wish.");
+        assert(text.includes(wish.context.variant === "list" ? "Tetthet: Tett" : "Tetthet: Romslig"), "An earlier wish must retain its original control and option labels.");
       }
-      await workshop.getByRole("region", { name: "Beholdes videre", exact: true }).scrollIntoViewIfNeeded();
       await screenshot("historical-brief");
     },
   },
@@ -236,7 +247,7 @@ const cases = [
     async run({ page, frame, ui, open, list, send, screenshot }) {
       await open(form());
       const original = await frame.locator("#editable-copy").innerText();
-      await ui.getByRole("button", { name: "Kommenter", exact: true }).click(); await frame.locator("#editable-copy").click();
+      await ui.getByRole("button", { name: "Endre", exact: true }).click(); await frame.locator("#editable-copy").click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Forklar valget med roligere språk, og bruk æ, ø og å riktig.");
       await ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
       const proposal = "Velg et tidspunkt som passer for deg. Vi snakker om ønskene dine, spørsmål du har og veien videre. Du trenger ikke å ha alle svarene klare. <strong>Dette er vanlig tekst.</strong>";
@@ -257,7 +268,7 @@ const cases = [
     outcomes: ["The participant can recover an abandoned draft", "A failed batch leaves every saved item intact", "Retry sends exactly the saved items", "Reload preserves feedback and reply filters", "Typed prototype fields are never collected"],
     async run({ page, frame, ui, open, list, send, closePanel, screenshot, info }) {
       await open(form("Finn et tidspunkt som passer")); await frame.getByLabel("Eget prøvenotat", { exact: true }).fill("PRIVAT_PROEVE_SKAL_IKKE_LAGRES");
-      await ui.getByRole("button", { name: "Kommenter", exact: true }).click(); await frame.getByRole("heading", { name: "Finn et tidspunkt som passer", exact: true }).click();
+      await ui.getByRole("button", { name: "Endre", exact: true }).click(); await frame.getByRole("heading", { name: "Finn et tidspunkt som passer", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Fortell hvor lenge samtalen varer."); await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
       await ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click(); assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Fortell hvor lenge samtalen varer.");
       await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor(); await closePanel();
@@ -266,7 +277,7 @@ const cases = [
       await ui.getByRole("button", { name: "Send 2 innspill", exact: true }).click(); await ui.locator(".panel-error").waitFor({ state: "visible" });
       const saved = await list(); assert.equal(saved.comments.length, 2); assert(saved.comments.every(item => item.submission === 0)); await screenshot("retry");
       await page.unroute("**/comments/submit?*"); const batch = await send(2); assert.equal(batch.comments.length, 2);
-      await page.reload(); await ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); await ui.locator('[data-action="panel"]').click();
+      await page.reload(); await ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); await ui.locator('[data-action="panel"]').click();
       assert.equal(await ui.locator(".comment").count(), 2);
       await cli(info, "resolve", ["--id", batch.comments[0].id, "--reply", "Samtalen varer i 30 minutter."]);
       await ui.getByText("Samtalen varer i 30 minutter.", { exact: false }).waitFor(); await ui.getByRole("button", { name: "Ordnet", exact: true }).click();
@@ -307,7 +318,7 @@ const cases = [
         assert(!horizontalOverflow, "The header and selected concept must not create horizontal scrolling.");
         await screenshot(width === 320 ? "narrow-selection" : "form-interactions");
       }
-      assert.equal(await ui.getByRole("button", { name: "Kommenter", exact: true }).getAttribute("aria-pressed"), "false");
+      assert.equal(await ui.getByRole("button", { name: "Endre", exact: true }).getAttribute("aria-pressed"), "false");
     },
   },
   {
@@ -317,7 +328,7 @@ const cases = [
       await open(form("Tastaturgjennomgang av avtalen"));
       const active = locator => locator.evaluate(node => node.getRootNode().activeElement === node);
       const tabTo = async locator => { for (let count = 0; count < 100; count += 1) { if (await active(locator)) return; await page.keyboard.press("Tab"); } throw new Error("The requested control was not reachable by Tab."); };
-      const comment = ui.getByRole("button", { name: "Kommenter", exact: true }); await tabTo(comment); await page.keyboard.press("Enter");
+      const comment = ui.getByRole("button", { name: "Endre", exact: true }); await tabTo(comment); await page.keyboard.press("Enter");
       const title = frame.getByRole("heading", { name: "Tastaturgjennomgang av avtalen", exact: true }); await tabTo(title); await page.keyboard.press("Enter");
       assert(await active(ui.getByLabel("Hva vil du endre?", { exact: true }))); await page.keyboard.type("Vis tydelig hva neste steg er."); await page.keyboard.press("Escape"); assert(await active(title));
       await tabTo(ui.getByRole("button", { name: "Fortsett utkast", exact: true })); await page.keyboard.press("Enter");
@@ -344,13 +355,13 @@ const cases = [
       assert(noteBounds.y >= panelBounds.y && noteBounds.y + noteBounds.height <= panelBounds.y + panelBounds.height, "The entire note field must fit in the visible part of the short panel.");
       await screenshot("controls");
       await workshop.getByRole("button", { name: "Legg til innspill", exact: true }).click(); await waitFor(async () => (await list()).comments.length === 1, "landscape adjustment saved"); await send(1); await closePanel();
-      await adjust(); await workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).scrollIntoViewIfNeeded();
+      await adjust(); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).scrollIntoViewIfNeeded();
       await page.keyboard.press("Escape"); await adjust();
       const pickerBounds = await workshop.getByLabel("Velg del", { exact: true }).boundingBox();
       const reopened = await workshop.boundingBox();
       assert(pickerBounds.y >= reopened.y && pickerBounds.y + pickerBounds.height <= reopened.y + reopened.height, "The focused part picker must be visible when reopening a scrolled panel.");
       await page.keyboard.press("Escape");
-      await ui.getByRole("button", { name: "Kommenter", exact: true }).click(); const title = frame.getByRole("heading", { name: "Velg en retning på liten skjerm", exact: true }); await title.scrollIntoViewIfNeeded(); await title.click();
+      await ui.getByRole("button", { name: "Endre", exact: true }).click(); const title = frame.getByRole("heading", { name: "Velg en retning på liten skjerm", exact: true }); await title.scrollIntoViewIfNeeded(); await title.click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Sammenligningen må fungere når jeg roterer skjermen."); await page.setViewportSize({ width: 375, height: 667 });
       assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Sammenligningen må fungere når jeg roterer skjermen.");
       // Keyboard activation still reaches the rotated preview, so it saves the draft; pointer input continues on a fresh page.
@@ -358,7 +369,7 @@ const cases = [
       await waitFor(async () => (await list()).comments.length === 2, "rotated draft saved");
       ({ page, frame, ui, workshop } = await reopen({ width: 375, height: 667 }));
       await ui.locator('[data-action="panel"]').click(); await send(1); await closePanel();
-      await adjust(); await workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).click(); await ui.getByRole("button", { name: "Arbeidsbrett", exact: true }).click();
+      await startComparison(ui); await ui.getByRole("button", { name: "Arbeidsbrett", exact: true }).click();
       assert(await frame.locator('[data-vc-variant="board"]').isVisible()); assert(!(await frame.locator('[data-vc-variant="list"]').isVisible())); await ui.getByLabel("Venstre variant", { exact: true }).selectOption("timeline");
       await ui.getByLabel("Høyre variant", { exact: true }).selectOption("calendar");
       assert.equal(await ui.getByLabel("Venstre variant", { exact: true }).inputValue(), "timeline");

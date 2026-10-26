@@ -59,9 +59,16 @@ Samlingen av skisser, innspill og valg i ett arbeid. Versjonene vises under
 «Versjoner», og et prosjektlagret rom kan åpnes igjen med samme lagrede innhold.
 _Avoid_: samtale, produktkode
 
+**Prøv og Endre**:
+De to modusene i designverkstedet. «Prøv» bruker skissen som prototype og kan,
+under «Vis», prøve deklarerte valg i «Juster visning» og sammenligne varianter.
+Visningen er lokal. «Endre» samler «Be om endring» og «Rediger».
+_Avoid_: Utforsk, Kommenter, Juster som egen modus
+
 **Skisseversjon**:
 En lagret, uforanderlig revisjon av skissen og dens eventuelle deklarerte
-kontroller. Gjenoppretting lager en ny versjon og bevarer historikken.
+kontroller. «Vis» viser den uten å endre noe; gjenoppretting lager en ny
+versjon og bevarer historikken.
 _Avoid_: runde, gjeldende utkast
 
 **Runde**:
@@ -74,15 +81,16 @@ Kommentarer, tekstforslag og deklarerte valg til skissen. Lagrede, usendte
 innspill er ikke en bestilling om behandling.
 _Avoid_: automatisk kildeendring, ny fullmakt
 
-**Beholdt valg**:
-«Behold dette» ber agenten ta med en valgt del og eventuelle innstillinger
-videre. Det er en bestilling til agenten, ikke bevis på at neste skisse er
-visuelt lik. «Slutt å beholde» trekker den tilbake.
-_Avoid_: lagret felt, føring, automatisk låsing
+**Behold denne delen**:
+Et vanlig innspill som ber agenten beholde en del, med valgte innstillinger,
+i neste versjon. Det sendes med neste runde som andre innspill og er ikke bevis
+på at neste skisse er visuelt lik.
+_Avoid_: beholdt valg, lagret felt, automatisk låsing
 
 **Lagret felt**:
 En editorverdi som blokkerer motstridende overskriving til designeren velger
 «Tillat senere endring». Verdien beholdes da, men senere versjoner kan endre den.
+Dette er den eneste varige bevaringen i rommet.
 _Avoid_: beholdt valg, føring, usendt tekstforslag
 
 **Leveringsstatus**:

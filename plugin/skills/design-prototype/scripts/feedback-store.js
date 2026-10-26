@@ -6,7 +6,6 @@ const path = require("node:path");
 const { validDesign, validKey } = require("./design-contract.js");
 
 const MAX_COMMENTS = 200;
-const MAX_DECISIONS = 200;
 const MAX_SUBMISSIONS = 200;
 const MAX_SCREENS = 100;
 const MAX_STORE_BYTES = 2 * 1024 * 1024;
@@ -155,9 +154,9 @@ function validPersistedFeedback(state) {
   const integer = (value, maximum = Number.MAX_SAFE_INTEGER) => Number.isSafeInteger(value) && value >= 0 && value <= maximum;
   const timestamp = value => typeof value === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value) && Number.isFinite(Date.parse(value));
   const unique = (items, field) => new Set(items.map(item => item[field])).size === items.length;
-  if (!keys(state, ["schemaVersion", "revision", "submission", "screens", "comments", "decisions", "submittedDecisions", "submissions"], ["canvas", "workspace"]) ||
+  if (!keys(state, ["schemaVersion", "revision", "submission", "screens", "comments", "submissions"], ["canvas", "workspace"]) ||
       state.schemaVersion !== 1 || !integer(state.revision) || !integer(state.submission, MAX_SUBMISSIONS)) return false;
-  for (const [field, limit] of [["screens", MAX_SCREENS], ["comments", MAX_COMMENTS], ["decisions", MAX_DECISIONS], ["submittedDecisions", MAX_DECISIONS], ["submissions", MAX_SUBMISSIONS]]) {
+  for (const [field, limit] of [["screens", MAX_SCREENS], ["comments", MAX_COMMENTS], ["submissions", MAX_SUBMISSIONS]]) {
     if (!Array.isArray(state[field]) || state[field].length > limit || state[field].some(item => !item || typeof item !== "object" || Array.isArray(item))) return false;
   }
   if (!unique(state.screens, "screen") || !state.screens.every(item => keys(item, ["screen", "filename"], ["design"]) && typeof item.screen === "string" && SCREEN.test(item.screen) &&
@@ -175,43 +174,28 @@ function validPersistedFeedback(state) {
       (!item.context || target(item.screen, item.context)) && (item.kind !== "adjustment" || target(item.screen, item.adjustment)) &&
       (item.kind !== "variant" || screens.get(item.screen)?.design?.variants.some(value => value.key === item.variant));
   };
-  const decision = item => keys(item, ["screen", "variant", "target", "values", "text", "state", "submission", "revision", "id", "createdAt", "updatedAt"]) &&
-    typeof item.id === "string" && ID.test(item.id) && typeof item.screen === "string" && screens.has(item.screen) && validTargetIdentity(item) && validValues(item.values) && boundedText(item.text) &&
-    ["active", "released"].includes(item.state) && integer(item.submission, state.submission) && integer(item.revision, state.revision) && timestamp(item.createdAt) && timestamp(item.updatedAt) && target(item.screen, item);
-  if (!unique(state.comments, "id") || !state.comments.every(comment) || !unique(state.decisions, "id") || !state.decisions.every(decision) ||
-      !unique(state.submittedDecisions, "id") || !state.submittedDecisions.every(item => decision(item) && item.submission > 0) || state.submissions.length !== state.submission) return false;
-  const accepted = new Map();
+  if (!unique(state.comments, "id") || !state.comments.every(comment) || state.submissions.length !== state.submission) return false;
   const journalComments = new Map();
   const immutableComment = ({ status, reply, updatedAt, submission, lastSubmission, ...source }) => canonicalJson(source);
   let previousRevision = 0;
   for (let index = 0; index < state.submissions.length; index += 1) {
     const batch = state.submissions[index];
-    if (!keys(batch, ["submission", "revision", "submittedAt", "comments", "decisions"]) || batch.submission !== index + 1 || !integer(batch.revision, state.revision) || !timestamp(batch.submittedAt) ||
-        !Array.isArray(batch.comments) || batch.comments.length > MAX_COMMENTS || !Array.isArray(batch.decisions) || batch.decisions.length > MAX_DECISIONS ||
+    if (!keys(batch, ["submission", "revision", "submittedAt", "comments"]) || batch.submission !== index + 1 || !integer(batch.revision, state.revision) || !timestamp(batch.submittedAt) ||
+        !Array.isArray(batch.comments) || batch.comments.length > MAX_COMMENTS ||
         !batch.comments.every(item => item && comment(item) && item.submission === batch.submission && item.lastSubmission === batch.submission) ||
-        !batch.decisions.every(item => item && decision(item) && item.submission === batch.submission) || !unique(batch.comments, "id") || !unique(batch.decisions, "id") ||
-        batch.revision <= previousRevision || batch.comments.length + batch.decisions.length === 0) return false;
+        !unique(batch.comments, "id") || batch.revision <= previousRevision || batch.comments.length === 0) return false;
     previousRevision = batch.revision;
     for (const item of batch.comments) {
       const prior = journalComments.get(item.id);
       if (prior && immutableComment(prior) !== immutableComment(item)) return false;
       journalComments.set(item.id, item);
     }
-    for (const item of batch.decisions) accepted.set(item.id, item);
   }
   if (!state.comments.every(item => {
     const last = journalComments.get(item.id);
     return (item.submission === 0 || item.submission === item.lastSubmission) &&
       (last ? item.lastSubmission === last.submission && immutableComment(item) === immutableComment(last) : item.lastSubmission === 0);
   })) return false;
-  if (accepted.size !== state.submittedDecisions.length || !state.submittedDecisions.every(item => canonicalJson(item) === canonicalJson(accepted.get(item.id)))) return false;
-  const currentDecisions = new Map(state.decisions.map(item => [item.id, item]));
-  if ([...accepted.keys()].some(id => !currentDecisions.has(id)) ||
-      state.decisions.some(item => item.submission > 0 && canonicalJson(item) !== canonicalJson(accepted.get(item.id)))) return false;
-  for (const decisions of [state.decisions, state.submittedDecisions]) {
-    const activeTargets = decisions.filter(item => item.state === "active").map(item => `${item.variant}/${item.target}`);
-    if (new Set(activeTargets).size !== activeTargets.length) return false;
-  }
   if (state.canvas !== undefined) {
     if (!keys(state.canvas, ["rounds"]) || !Array.isArray(state.canvas.rounds) || state.canvas.rounds.length !== state.submission || !state.canvas.rounds.every((item, index) =>
       keys(item, ["submission", "delivery", "review", "reply"], ["previousSession"]) && item.submission === index + 1 && ["sending", "queued", "unknown"].includes(item.delivery) &&
@@ -233,7 +217,7 @@ class FeedbackStore {
       this.state = JSON.parse(JSON.stringify(restored));
       return;
     }
-    this.state = { schemaVersion: 1, revision: 0, submission: 0, screens: [], comments: [], decisions: [], submittedDecisions: [], submissions: [] };
+    this.state = { schemaVersion: 1, revision: 0, submission: 0, screens: [], comments: [], submissions: [] };
     if (canvas) this.state.canvas = { rounds: [] };
     if (persistence && initialWorkspace) this.state.workspace = initialWorkspace;
     this.persist(this.state);
@@ -297,26 +281,16 @@ class FeedbackStore {
     return this.snapshot();
   }
   snapshot() {
-    const { revision, submission, screens, comments, decisions, submittedDecisions } = this.state;
-    return JSON.parse(JSON.stringify({ revision, submission, screens, comments, decisions, submittedDecisions,
+    const { revision, submission, screens, comments } = this.state;
+    return JSON.parse(JSON.stringify({ revision, submission, screens, comments,
       ...(this.state.canvas ? { canvas: this.state.canvas } : {}) }));
   }
   nextSubmission(after) {
     if (!Number.isSafeInteger(after) || after < 0) throw new FeedbackError(400, "Invalid submission cursor.");
     if (after > this.state.submission) throw new FeedbackError(409, "Submission cursor belongs to a different or newer preview session.");
     const batch = this.state.submissions.find((item) => item.submission > after);
-    const accepted = new Map();
-    if (batch) {
-      for (const prior of this.state.submissions) {
-        if (prior.submission > batch.submission) break;
-        for (const decision of prior.decisions) accepted.set(decision.id, decision);
-      }
-    } else {
-      for (const decision of this.state.submittedDecisions) accepted.set(decision.id, decision);
-    }
-    const decisions = [...accepted.values()].filter((item) => item.state === "active" || (batch && item.submission === batch.submission));
     const comments = batch ? batch.comments : [];
-    const screens = new Set([...comments, ...decisions].map((item) => item.screen));
+    const screens = new Set(comments.map((item) => item.screen));
     const currentComments = comments.map(({ id }) => {
       const current = this.state.comments.find((item) => item.id === id);
       return current ? { id, present: true, status: current.status, submission: current.submission, reply: current.reply, updatedAt: current.updatedAt }
@@ -329,7 +303,7 @@ class FeedbackStore {
       hasMore: Boolean(batch && batch.submission < this.state.submission),
       submittedAt: batch ? batch.submittedAt : null,
       screens: this.state.screens.filter((item) => screens.has(item.screen)),
-      comments, decisions, currentComments,
+      comments, currentComments,
     }));
   }
   knowScreen(screen, filename, design = null) {
@@ -381,36 +355,6 @@ class FeedbackStore {
     if (!target || !Object.entries(value.values).every(([id, option]) => target.controls.some((control) => control.id === id && control.options.some((item) => item.value === option)))) throw new FeedbackError(400, "Unknown design target or setting.");
     return target;
   }
-  keep(value) {
-    if (!keys(value, ["screen", "variant", "target", "values", "text"], ["expectedRevision"]) ||
-        (Object.hasOwn(value, "expectedRevision") && (!Number.isSafeInteger(value.expectedRevision) || value.expectedRevision < 0)) || typeof value.screen !== "string" || !SCREEN.test(value.screen) ||
-        !validTargetIdentity(value) || !validValues(value.values) || !boundedText(value.text)) throw new FeedbackError(400, "Invalid design decision.");
-    this.requireTarget(value.screen, value);
-    // Re-keeping an unsent release cancels that pending change. Reuse its ID
-    // so a scoped batch cannot publish a second active copy of the same hold.
-    const existing = this.state.decisions.find((item) => item.variant === value.variant && item.target === value.target &&
-      (item.state === "active" || (item.state === "released" && item.submission === 0)));
-    if (Object.hasOwn(value, "expectedRevision") && value.expectedRevision !== (existing?.revision || 0)) throw new FeedbackError(409, "This decision changed. Review its current settings before replacing it.");
-    if (!existing && this.state.decisions.length >= MAX_DECISIONS) throw new FeedbackError(429, this.state.workspace
-      ? `Decision limit reached in this saved workspace. Create a new workspace to keep more choices. ${SAVED_LIMIT}`
-      : "Decision limit reached. Start a new preview session.");
-    const { expectedRevision, ...decision } = value;
-    return this.change((state) => {
-      const now = new Date().toISOString();
-      const changes = { ...decision, state: "active", submission: 0, revision: state.revision + 1, updatedAt: now };
-      if (existing) Object.assign(state.decisions.find((item) => item.id === existing.id), changes);
-      else state.decisions.push({ ...changes, id: crypto.randomBytes(12).toString("hex"), createdAt: now });
-    });
-  }
-  release(id, value) {
-    if (!ID.test(id) || !keys(value, [], ["expectedRevision"]) ||
-        (Object.hasOwn(value, "expectedRevision") && (!Number.isSafeInteger(value.expectedRevision) || value.expectedRevision < 0))) throw new FeedbackError(400, "Invalid decision release.");
-    const existing = this.state.decisions.find((item) => item.id === id);
-    if (!existing) throw new FeedbackError(404, "Decision not found.");
-    if (Object.hasOwn(value, "expectedRevision") && value.expectedRevision !== (existing.revision || 0)) throw new FeedbackError(409, "This decision changed. Review its current settings before releasing it.");
-    if (existing.state !== "active") throw new FeedbackError(409, "Decision is already released.");
-    return this.change((state) => Object.assign(state.decisions.find((item) => item.id === id), { state: "released", submission: 0, revision: state.revision + 1, updatedAt: new Date().toISOString() }));
-  }
   submit(value) {
     if (!keys(value, [], ["screen", "revision"]) || (Object.hasOwn(value, "screen") && (typeof value.screen !== "string" || !SCREEN.test(value.screen))) ||
         (Object.hasOwn(value, "revision") && (!Number.isSafeInteger(value.revision) || value.revision < 0))) throw new FeedbackError(400, "Invalid submission.");
@@ -420,29 +364,18 @@ class FeedbackStore {
       throw new FeedbackError(409, "The previous delivery must be acknowledged before another round is submitted.");
     }
     const matches = (item) => (!Object.hasOwn(value, "screen") || item.screen === value.screen) && item.submission === 0;
-    if (!this.state.comments.some(matches) && !this.state.decisions.some(matches)) throw new FeedbackError(409, "No unsent feedback to submit.");
+    if (!this.state.comments.some(matches)) throw new FeedbackError(409, "No unsent feedback to submit.");
     if (this.state.submissions.length >= MAX_SUBMISSIONS) throw new FeedbackError(429, this.state.workspace
       ? `Submission limit reached in this saved workspace. Create a new workspace to send more rounds. ${SAVED_LIMIT}`
       : "Submission limit reached. Start a new preview session.");
     return this.change((state) => {
       state.submission += 1;
-      const batch = { submission: state.submission, revision: state.revision + 1, submittedAt: new Date().toISOString(), comments: [], decisions: [] };
+      const batch = { submission: state.submission, revision: state.revision + 1, submittedAt: new Date().toISOString(), comments: [] };
       for (const comment of state.comments) {
         if (!matches(comment)) continue;
         comment.submission = state.submission;
         comment.lastSubmission = state.submission;
         batch.comments.push(JSON.parse(JSON.stringify(comment)));
-      }
-      for (const decision of state.decisions) {
-        if (!matches(decision)) continue;
-        decision.submission = state.submission;
-        // Pending edits and releases must not alter the accepted constraints
-        // delivered to the working session before this explicit batch.
-        const published = JSON.parse(JSON.stringify(decision));
-        batch.decisions.push(JSON.parse(JSON.stringify(published)));
-        const index = state.submittedDecisions.findIndex((item) => item.id === decision.id);
-        if (index === -1) state.submittedDecisions.push(published);
-        else state.submittedDecisions[index] = published;
       }
       state.submissions.push(batch);
       // Delivery metadata belongs to this same atomic commit. It never changes
@@ -451,4 +384,4 @@ class FeedbackStore {
     });
   }
 }
-module.exports = { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_MUTATION_RECEIPTS, MAX_BODY_BYTES, MAX_STORE_BYTES, MAX_COMMENTS, MAX_DECISIONS, MAX_SUBMISSIONS, validCreate, validPatch, validPersistedFeedback, keys, ID, SCREEN, readPrivateJson };
+module.exports = { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_MUTATION_RECEIPTS, MAX_BODY_BYTES, MAX_STORE_BYTES, MAX_COMMENTS, MAX_SUBMISSIONS, validCreate, validPatch, validPersistedFeedback, keys, ID, SCREEN, readPrivateJson };

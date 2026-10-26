@@ -184,12 +184,24 @@ sikkerhetsgrenser for å omgå den.
 
 ## Innspill i skissen
 
-Verktøylinjen skiller mellom å prøve skissen og å kommentere den. **Kommenter**
-lar designeren velge et element eller dra ut et område. Tastaturbrukere kan
-fokusere et element og bruke kommentarkontrollene; områdealternativet bruker
-da hele elementets ramme. Kommentarlisten viser åpne og fiksete innspill,
-svar og hvilke som tilhører en tidligere versjon. Eldre nåler flyttes aldri
-automatisk over på en ny skisse.
+Verktøylinjen har to moduser. **Prøv** lar designeren bruke skissen som
+prototype. Når skissen deklarerer deler eller varianter, viser **Vis** en stripe
+over verktøylinjen med **Juster visning** og **Sammenlign varianter**. **Juster
+visning** prøver deklarerte valg lokalt; **Legg til innspill** og **Behold denne
+delen** legger et ønske i innspillskurven. **Endre** samler **Be om endring**
+og, i et prosjektlagret rom med redigerbar skisse, **Rediger**. **Be om
+endring** lar designeren peke på et element med **Punkt**, dra ut et område med
+**Område**, eller velge **Hele skissen** eller en deklarert del i **Eller velg
+en del**. **Rediger** lagrer tekst og valg som en ny versjon. Et innspill som
+skrives mens **Rediger** har ulagrede endringer, gjelder den lagrede versjonen;
+de ulagrede verdiene blir stående i **Rediger**. Når **Juster visning** eller
+**Rediger** er åpent, står stripens knapper i panelets tittelrad. På smale, høye
+skjermer åpnes de som et ark fra bunnen, slik at toppen av skissen er synlig
+mens verdiene endres. Tastaturbrukere kan
+fokusere et element og bruke kommentarkontrollene; områdealternativet bruker da
+hele elementets ramme. Kommentarlisten viser åpne og fiksete innspill, svar og
+hvilke som tilhører en tidligere versjon. Eldre nåler flyttes aldri automatisk
+over på en ny skisse.
 
 Designeren kan også skrive et **tekstforslag**, prøve det lokalt og angre.
 Dette er en forhåndsvisning av en ønsket endring, ikke en lagring i kildefilen.
@@ -200,10 +212,15 @@ i sammenheng. **Fortsett å redigere** åpner samme utkast og fokuserer tekstfel
 Dette lagrer eller sender ingenting. Et lagret tekstforslag og et parkert utkast
 på samme element beholder hver sin forhåndsvisning.
 
-**Lagre innspill** bevarer innspillet i den private økten. **Send innspill** gjør
-alle usendte innspill i økten klare til behandling, også fra tidligere versjoner.
-Et nylig lagret eller gjenåpnet innspill og et lagret justeringsvalg vises under
-**Alle**, med fokus på kortet. Vanlig åpning av listen beholder valgt filter.
+**Lagre innspill** bevarer innspillet i den private økten. **Send innspill**
+gjør alle usendte innspill i økten klare til behandling, også fra tidligere
+versjoner. Innspillskurven har to faner. **Klar til sending** viser usendte
+innspill; **Sendt** viser sendte innspill med svar og status og innsendte
+runder, med filtrene **Alle**, **Åpne** og **Ordnet**. Et nylig lagret eller gjenåpnet innspill vises
+under **Klar til sending**, med fokus på kortet, og etter sending åpnes
+**Sendt**. Når noe venter på sending, åpner kurven på **Klar til sending**;
+ellers beholder vanlig åpning valgt fane og filter. Nålene i skissen viser alle
+innspill på skjermen, og en nål åpner fanen som har innspillet.
 Mens designeren skriver eller har usendte
 innspill, skal en ny skisse ikke avbryte arbeidet. En tilgjengelig ny versjon
 kan åpnes når innspillene er sendt eller avbrutt. Lokale visningsvalg holder
@@ -223,27 +240,20 @@ node scripts/comments.js list --state-dir "$STATE_DIR"
 node scripts/comments.js wait --state-dir "$STATE_DIR" --after 0 --timeout 55
 node scripts/comments.js resolve --state-dir "$STATE_DIR" --id <id> --submission <submission> --reply "Knappen har nå en tydeligere tekst."
 node scripts/comments.js reopen --state-dir "$STATE_DIR" --id <id> --submission <submission> --reply "Vi prøver en annen plassering."
-node scripts/comments.js release --state-dir "$STATE_DIR" --id <decision-id>
 ```
 
 `list` og `wait` returnerer hele tekster og `submission`, ikke utdrag.
 Feltene har ulike formål:
 
-| Resultat | Innspill og føringer | Fortsatt utkast |
+| Resultat | Innspill | Fortsatt utkast |
 | --- | --- | --- |
-| `list` | Nåtilstand, inkludert kommentarens siste innsendingsnummer og aktive føringer i `submittedDecisions`. Dette er ikke leveringshistorikken. | Kommentarer med `submission: 0`; lokale endringer og frigivelser i `decisions` med `submission: 0`. |
-| `wait` | Én neste runde etter `--after`: opprinnelige `comments`, samt `decisions` med aktive føringer ved runden og dens nye frigivelser. | Nye utkast inngår ikke i rundens innhold. Separat `currentComments` viser nåtilstanden for de returnerte ID-ene. |
+| `list` | Nåtilstand, inkludert kommentarens siste innsendingsnummer. Dette er ikke leveringshistorikken. | Kommentarer med `submission: 0`. |
+| `wait` | Én neste runde etter `--after`: rundens opprinnelige `comments`. | Nye utkast inngår ikke i rundens innhold. Separat `currentComments` viser nåtilstanden for de returnerte ID-ene. |
 
 `currentComments` inneholder `id`, `present` og, når oppføringen fortsatt
 finnes, `status`, `submission`, `reply` og `updatedAt`. `present: false`
 betyr fjernet fra nålisten. I `list` beholder `lastSubmission` siste sendte
 rundenummer også etter at `submission` er blitt 0 ved gjenåpning.
-
-En lokal endring eller frigivelse erstatter ikke det tidligere valget før
-neste innsending. `list.decisions` er derfor ikke kilden til innsendte føringer.
-En innarbeidet beslutning er fortsatt aktiv. Bruk `release` bare når designeren
-har bedt om det, og forklar at frigivelsen må med i neste **Send innspill** før
-mottakeren ser den som innsendt.
 
 `resolve` og `reopen` oppdaterer status og svar uten å lage en ny innsending.
 Bruk `--submission` med nummeret på runden du behandler. Serveren avviser et
@@ -316,9 +326,9 @@ gå over; da aktiveres lagring igjen når både skisse og innspillskø svarer.
 `events.jsonl` beholder sitt lukkede, tekstfrie skjema. `comments.json` lagrer
 bare eksplisitt skrevne kommentarer, eventuelle nye tekstforslag, svar, status,
 skjermversjon og strukturell forankring (taggsti, rolle, ramme og viewport), samt
-deklarerte variant-/delnøkler, innstillingsvalg og beholdte beslutninger.
+deklarerte variant-/delnøkler og innstillingsvalg.
 Hver innsending bevarer et uforanderlig øyeblikksbilde av akkurat rundens
-kommentarer og endrede beslutninger i samme fil og atomiske lagringsoperasjon.
+kommentarer i samme fil og atomiske lagringsoperasjon.
 Senere svar, gjenåpning og fjerning fra listen endrer ikke denne journalen.
 Kommentarer i en justerbar del beholder også delens deklarerte tilstand.
 Ingen automatisk kopiering av synlig tekst, feltverdier, DOM-ID-er eller
@@ -335,7 +345,7 @@ Når økten har nådd en lagringsgrense, forklarer grensesnittet at teksten må
 tas vare på før en ny økt startes. Utkastet beholdes; det prøves ikke automatisk
 igjen eller ryddes plass ved å slette eldre innspill.
 Hver kommentar, erstatningstekst og svar kan bruke høyst 2000 UTF-8-byte.
-Økten har plass til 200 kommentarer, 200 beslutninger, 200 innsendte runder
+Økten har plass til 200 kommentarer, 200 innsendte runder
 og 100 skjermversjoner, med maksimalt 2 MiB lagret tilbakemeldingsdata og
 16 KiB per skriveforespørsel. Eldre runder fjernes ikke automatisk for å gi
 plass. En avvist innsending lar hele utkastet, revisjonen og innsendingsnummeret
@@ -434,9 +444,9 @@ CSS kan vise riktig innhold ut fra `data-vc-setting-stage`. Alle situasjonene
 må finnes i skissen; handlingen kjører ikke eget JavaScript, leser ikke
 feltverdier og utfører ingen validering, bestilling eller innsending. Merk
 simulerte resultater tydelig, og bruk `prototype` når faktisk oppførsel er
-designspørsmålet. Knappen virker bare i **Utforsk** med justeringspanelet
+designspørsmålet. Knappen virker bare i **Prøv** med **Juster visning**
 lukket og uten et påbegynt kommentarutkast eller tekstforhåndsvisning.
-I **Kommenter** kommenterer man knappen. Ugyldige mål og valg aktiveres ikke.
+I **Be om endring** kommenterer man knappen. Ugyldige mål og valg aktiveres ikke.
 En lokal lenke som `href="#ticket-price"` kan rulle til og fokusere et
 entydig, synlig element i skissen, for eksempel fra Aksel ErrorSummary.
 Bruk en ID som starter med en bokstav og deretter bare bokstaver, tall,
@@ -444,8 +454,8 @@ understrek, bindestrek, punktum eller kolon, maksimalt 128 tegn. Lenken
 endrer ikke URL eller historikk. Eksterne lenker og navigasjon er fortsatt
 blokkert, og DOM-ID-en følger ikke innspillet.
 
-Knappen og justeringspanelet endrer samme lokale verdi. Valget blir først et
-innspill gjennom **Legg til innspill** eller **Behold dette**, deretter
+Knappen og **Juster visning** endrer samme lokale verdi. Valget blir først et
+innspill gjennom **Legg til innspill** eller **Behold denne delen**, deretter
 **Send innspill**. En kommentar til en justerbar del tar med delens deklarerte
 tilstand som kontekst, selv om man senere går tilbake til et annet steg.
 **Vis situasjon** viser disse verdiene igjen på samme skjermversjon, bevarer
@@ -478,7 +488,7 @@ attributes, for example
 `[data-vc-key="reply"][data-vc-setting-view="receipt"][data-vc-setting-answer="change"] .receipt-change`.
 For `answer=none`, hide the receipt button and show “Choose an example answer”.
 Handle `none` in receipt view too, with that explanation and the back button:
-**Juster** can select either control independently. Every combination must
+**Juster visning** can select either control independently. Every combination must
 have coherent content, even when reached without the intended button sequence.
 
 Before showing the flow, enumerate every reachable combination of its controls.
@@ -512,10 +522,13 @@ nøkkel. HTML-en må ha nøyaktig én beholder med variantene som direkte barn:
 </div>
 ```
 
-Sammenligningsvisningen bruker like brede flater på desktop og bytte mellom
-variantene i smale vinduer. Det eksplisitte variantvalget blir et innspill;
-å åpne eller vise en variant velger den ikke. **Behold dette** kan brukes på
-deler fra flere varianter, slik at neste runde kan kombinere det som fungerer.
+**Sammenlign varianter** ligger under **Vis** i **Prøv**, fordi det er en måte
+å prøve skissen på. Variantene må finnes én gang hver, som søsken i samme
+`data-vc-variants`-beholder; ellers forklarer knappen at sammenligning er
+utilgjengelig. Sammenligningsvisningen bruker like brede flater på desktop
+og bytte mellom variantene i smale vinduer. Det eksplisitte variantvalget blir et innspill;
+å åpne eller vise en variant velger den ikke. **Behold denne delen** kan brukes
+på deler fra flere varianter, slik at neste runde kan kombinere det som fungerer.
 Det er ingen automatisk sammenslåing av HTML.
 Med tre eller fire varianter kan begge sider velges også i smale vinduer.
 Valg i listen for foretrukket variant viser alltid varianten før brukeren
@@ -526,33 +539,34 @@ skjules fordi layouten er endret; avslutt sammenligning før et nytt område
 markeres. Et påbegynt områdeutkast bevares, og gjenåpning går tilbake til den
 vanlige visningen.
 
-### Beholdte valg og ny runde
+### Behold en del og ny runde
 
-Aktive beslutninger vises i **Beholdes videre**. De følger økten til brukeren
-velger **Slutt å beholde**, og inngår i samlet innsending. Ved neste skisse sammenholdes de med deklarerte
-deler og startverdier. Manglende deler eller avvik merkes **Må følges opp**.
-Samme nøkkel med samme startverdier er bare en teknisk match; kontroller også
-at utseende, innhold og oppførsel fortsatt oppfyller intensjonen.
+**Behold denne delen** lagrer et vanlig punktinnspill på delen. Teksten starter
+med «Behold denne delen.», eventuelt fulgt av designerens merknad på neste
+linje, og `context` navngir variant, del og verdiene som var valgt. Behandle det
+som andre innspill: behold delen slik den vises i neste versjon, og ikke endre
+den senere uten at et nytt innspill ber om det. Besvar det med `resolve` eller
+`reopen` som vanlig. Det finnes ingen egen frigivelse; et senere innspill som
+ber om noe annet, går foran. Fortsetter du i en ny samtale, finner du tidligere
+behold-ønsker blant de sendte kommentarene i `list`, eller i rundene med `wait
+--after 0`, `--after 1` og så videre. Det er bare lesing; gamle runder skal ikke
+behandles eller besvares på nytt.
 
-Hvis en annen fane lagrer et nyere valg for samme del mens et lokalt utkast
-pågår, avvises **Behold dette** med en konflikt. Begge intensjonene bevares:
-eget valg og egen merknad står i panelet, og det nyere lagrede valgets verdier
-og tekst vises til sammenligning. **Bruk mitt valg i stedet** erstatter først
-etter et nytt kontrollert lagringsforsøk. Endres delen igjen i mellomtiden,
-vises en ny konflikt. **Forkast mitt utkast** fjerner bare eget lokale utkast;
-det lagrede valget beholdes. Ingen av handlingene sender en ny runde alene.
-
-Hver beholdt beslutning har `revision`. Skrivegrensesnittet støtter valgfri
-`expectedRevision` ved lagring og frigivelse; nettleseren bruker kontrollen og
-binder den til beslutningen ved første lokale endring. Andre deler og vanlige
-kommentarer utløser ikke konflikt for denne delen. En usikker lagring prøves
-igjen med samme operasjonsnøkkel og revisjonskontroll; en ny bekreftet
-erstatningsintensjon bruker den nyere viste revisjonen.
+Lagrede felt fra **Rediger** er varige føringer som regenerering ikke kan
+endre stilltiende. De frigis bare når designeren velger **Tillat senere
+endring** i **Rediger**.
 
 Bevar deklarerte nøkler når en del beholder samme betydning. Ikke flytt gamle
-strukturelle kommentarankere til nye elementer, og ikke frigi et beholdt valg
-automatisk når et vanlig innspill markeres fikset. En beholdt del er ikke låst
-mot lokal utforsking; endringer skal fortsatt prøves og sendes bevisst.
+strukturelle kommentarankere til nye elementer. Samme nøkkel med samme
+startverdier er bare en teknisk match; kontroller også at utseende, innhold og
+oppførsel fortsatt oppfyller intensjonen.
+
+Hver deklarert kontroll må ha en stilregel som reagerer på minst én av
+verdiene, for eksempel `[data-vc-setting-detail="full"] .extra{display:block}`.
+Ellers endrer valget ingenting i skissen: **Juster visning** viser «Valget har
+ingen synlig virkning i skissen», og i Designverksted lister `read_state`
+kontrollen i `inertControls`. Prøv hver verdi og se forskjellen før skissen
+sendes til vurdering.
 
 Deklarasjonen er begrenset til 32 KiB, 24 deler, åtte kontroller per del og
 to til åtte alternativer per kontroll. Nøkler starter med en liten bokstav og

@@ -101,8 +101,7 @@ for vc_case in first-save-after-filter first-reopen-after-filter \
     --aksel-project "$VC_AKSEL_PROJECT" \
     --evidence-dir "/tmp/grillmester-five-rounds/reproduce/$vc_case"
 done
-for vc_case in release-conflict-with-late-snapshot \
-  full-comment-queue-keeps-draft edited-draft-after-accepted-save-timeout \
+for vc_case in full-comment-queue-keeps-draft edited-draft-after-accepted-save-timeout \
   parked-draft-versus-saved-preview late-receipt-after-version-change; do
   node scripts/smoke_visual_retry.cjs --case "$vc_case" \
     --playwright-module "$VC_PLAYWRIGHT_MODULE" --browser-channel chrome \

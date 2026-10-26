@@ -90,12 +90,12 @@ function run(args) {
     await page.goto(info.url);
     frame=page.frameLocator('iframe');
     ui=frame.locator('[data-visual-feedback]');
-    await ui.getByRole('button',{name:'Kommenter',exact:true}).waitFor();
+    await ui.getByRole('button',{name:'Endre',exact:true}).waitFor();
   };
   await openPage({width:1440,height:1000});
   await frame.getByText('En prioritert liste',{exact:true}).click();
   assert.match(await frame.locator('#indicator-text').innerText(),/Valgt/);
-  await ui.getByRole('button',{name:'Kommenter',exact:true}).click();
+  await ui.getByRole('button',{name:'Endre',exact:true}).click();
   await frame.getByText('En prioritert liste',{exact:true}).click();
   await ui.getByRole('button',{name:'Lagre innspill',exact:true}).click();
   await ui.getByText('Skriv et innspill før du lagrer.',{exact:true}).waitFor();
@@ -143,7 +143,7 @@ function run(args) {
   await ui.getByText('Tidligere versjon',{exact:true}).waitFor();
   await ui.getByRole('button',{name:'Lukk innspill'}).click();
   await frame.getByLabel('Hva vil du snakke om?',{exact:true}).fill('SKJEMA_VERDI_SKAL_IKKE_LAGRES');
-  await ui.getByRole('button',{name:'Kommenter',exact:true}).click();
+  await ui.getByRole('button',{name:'Endre',exact:true}).click();
   await frame.getByRole('heading',{name:'Avtal en veiledning'}).click();
   await ui.getByLabel('Hva vil du endre?').fill('Bruk en tydeligere overskrift.');
   await ui.getByRole('button',{name:'Foreslå ny tekst'}).click();
@@ -185,7 +185,7 @@ function run(args) {
   console.log('PASS: keyboard comments, Escape draft recovery, refresh deferral until batch submit.');
 
   await openPage({width:390,height:844});
-  await ui.getByRole('button',{name:'Kommenter',exact:true}).click();
+  await ui.getByRole('button',{name:'Endre',exact:true}).click();
   await ui.getByRole('button',{name:'Område',exact:true}).click();
   await frame.getByRole('heading',{name:'Arbeidsoversikt'}).focus();await page.keyboard.press('Enter');
   await ui.getByLabel('Hva vil du endre?').fill('På mobil bør oppgavene ligge i én kolonne.');
@@ -206,7 +206,7 @@ function run(args) {
   await ui.locator('[data-action="panel"]').click();
   await ui.getByRole('button',{name:'Slett',exact:true}).last().click();
   assert.equal((await list()).comments.length,4);
-  assert(await ui.evaluate(host=>{const active=host.shadowRoot.activeElement;return Boolean(active?.closest('.comment')||active?.matches('[data-filter]'));}),'Deleting a focused comment must preserve keyboard focus.');
+  assert(await ui.evaluate(host=>{const active=host.shadowRoot.activeElement;return Boolean(active?.closest('.comment')||active?.matches('[data-filter],[role="tab"]'));}),'Deleting a focused comment must preserve keyboard focus.');
   await screenshot(page,'/visual-companion-narrow.png');
   const panel=await ui.getByRole('region',{name:'Innspill til prototypen'}).boundingBox();
   assert(panel.x>=0&&panel.x+panel.width<=320);

@@ -75,7 +75,7 @@ complete source for a pair with a descriptor. A local preview choice or a
 feedback text proposal does not become canonical source merely because it was
 visible in the preview.
 
-## Separate values, decisions and evidence
+## Separate values, feedback and evidence
 
 - The chosen descriptor preserves that version's values. `workspace.holds`
   records currently preserved manual fields, with `id`, `label`, `value` and
@@ -84,20 +84,20 @@ visible in the preview.
   request or agreed brief requires for implementation. Holds that differ from
   the chosen pair are later room state, never conditions on its chosen values;
   do not copy them over the baseline or ask for their release to use it.
-- `decisions` includes local unsent changes and releases. `submittedDecisions`
-  contains the latest submitted state, which may be newer than the chosen sketch.
-  Unsent comments and decisions (`submission: 0`) are never part of the handoff
-  unless the user explicitly includes them. For an agreed submission cutoff,
-  replay `submissions` through that number in order. Without an agreed cutoff,
-  replay all submissions in order. Mark each decision as matched or conflicting
-  with the chosen pair, and retain the last decision for each `id`: `active`
-  retains the choice, `released` releases it. Use each decision's `screen`,
-  `variant`, `target` and `values` with its original entry in `screens` to recover
-  its context. The revision register does not record a submission cutoff;
-  include the cutoff or replayed rounds in the handoff instead of guessing from
-  timestamps. Ask only when a conflict would change the implementation.
-- A submitted choice is not proof that the chosen source incorporates it.
-  Compare the decision with the chosen descriptor and HTML, and name any
+- Unsent comments (`submission: 0`) are never part of the handoff unless the
+  user explicitly includes them. For an agreed submission cutoff, read
+  `submissions` through that number in order; without one, read all rounds in
+  order. Use each comment's `screen`, and its `context` when present, with the
+  original entry in `screens` to recover what it was written about. The revision
+  register does not record a submission cutoff; include the cutoff or the rounds
+  read in the handoff instead of guessing from timestamps. Ask only when a
+  conflict would change the implementation.
+- A keep wish is a submitted comment whose text starts with «Behold denne
+  delen.» and whose `context` names the part and values. Treat its part as kept
+  unless a later submitted wish asks otherwise, and compare it with the chosen
+  pair like any other submitted comment.
+- A submitted comment is not proof that the chosen source incorporates it.
+  Compare it with the chosen descriptor and HTML, and name any
   disagreement or unfinished work. Record the selected direction and rationale
   in plain language. A round marked `answered` is not design approval or proof
   that all its comments are fixed. Current comments/replies may differ from the
@@ -151,7 +151,7 @@ Pair: revisions/<registered filename>.html + matching .design.json
 Canonical values: text:heading = "Velg tidspunkt"; control:/summary/density = "roomy"
 Preserve for implementation: <values the request or agreed brief requires, or none>
 Direction and rationale: <chosen direction, why, and any borrowed parts>
-Decision evidence: submission cutoff <number, or all rounds>; decision IDs <ids>; <matched / conflicting>
+Feedback evidence: submission cutoff <number, or all rounds>; keep wishes and other comment IDs <ids>; <matched / conflicting>
 State coverage: <state → revision/variant/setting → inspected / unverified / not shown>
 Visual evidence: <reference or not captured>; style version: <observed version or unknown>
 Accessibility findings: <observed findings and limits, or not assessed>

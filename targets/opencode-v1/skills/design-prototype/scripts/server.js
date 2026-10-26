@@ -904,7 +904,7 @@ function newestContent() {
   return null;
 }
 
-function wrapInFrame(content, filename, screen, nonce, design = null, designError = false) {
+function wrapInFrame(content, filename, screen, nonce, design = null, designError = false, view = null) {
   const safeFilename = escapeHtml(filename || "untitled");
   const safeContent = stripActivePreviewMarkup(content, nonce);
   const akselStyle = akselCss
@@ -916,7 +916,7 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
         <strong>⚠️ Aksel CSS mangler</strong><br>Skissen vises med reservestiler fordi prosjektets Aksel-stiler ikke ble funnet.
       </div>`;
   const designWarning = designError
-    ? `<div role="alert" style="background:#fff5df;border:2px solid #a86d00;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif"><strong>Justeringspanelet er utilgjengelig.</strong> Skisseoppsettet må rettes.</div>`
+    ? `<div role="alert" style="background:#fff5df;border:2px solid #a86d00;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif"><strong>«Juster visning» er utilgjengelig.</strong> Skisseoppsettet må rettes.</div>`
     : "";
   // One pass: inserted CSS, scripts and sketch markup are never scanned again
   // for placeholders.
@@ -925,7 +925,7 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
     NONCE: nonce,
     AKSEL_STYLE: akselStyle,
     HELPER_SCRIPT:
-      `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};</script>` +
+      `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};window.__grillmesterVisualCompanionView=${serializeForInlineScript(view)};</script>` +
       `<script nonce="${nonce}">\n${workshopJs}\n</script>` +
       `<script nonce="${nonce}">\n${editorJs}\n</script>` +
       `<script nonce="${nonce}">\n${helperJs}\n</script>`,
@@ -991,6 +991,10 @@ function renderShellPage(nonce, accessToken, title, screen) {
       let provisionalBusy = true;
       let readyEpoch = 0;
       let refreshing = false;
+      // A stored version shown read-only; automatic refreshes wait until the
+      // designer returns to the current version.
+      let viewing = null;
+      let newestVersion = "";
       let lastSuccessfulPoll = Date.now();
       let connectionLost = false;
       let recoveryOpen = false;
@@ -1096,9 +1100,6 @@ function renderShellPage(nonce, accessToken, title, screen) {
           const validChoice = value.kind === "variant" && hasExactKeys(value, [...baseKeys, "variant"]) && validKey(value.variant);
           if (validPoint || validEdit || validAdjustment || validChoice) return { method: "POST", path: "/comments", body: value };
         }
-        const validExpectedRevision = value !== null && typeof value === "object" && (!Object.hasOwn(value, "expectedRevision") || (Number.isSafeInteger(value.expectedRevision) && value.expectedRevision >= 0));
-        if (data.action === "decision-keep" && closedKeys(value, ["screen", "variant", "target", "values", "text"], ["expectedRevision"]) && validExpectedRevision && validScreen(value.screen) && validVariant(value.variant) && validKey(value.target) && validValues(value.values) && validText(value.text)) return { method: "POST", path: "/decisions", body: value };
-        if (data.action === "decision-release" && closedKeys(value, ["id"], ["expectedRevision"]) && validExpectedRevision && validId(value.id)) return { method: "PATCH", path: "/decisions/" + value.id, body: Object.hasOwn(value, "expectedRevision") ? { expectedRevision: value.expectedRevision } : {} };
         if (data.action === "comments-submit" && closedKeys(value, ["revision"], ["screen"]) && Number.isSafeInteger(value.revision) && value.revision >= 0 && (!Object.hasOwn(value, "screen") || validScreen(value.screen))) return { method: "POST", path: "/comments/submit", body: value };
         if (data.action === "comment-delete" && hasExactKeys(value, ["id"]) && validId(value.id)) return { method: "DELETE", path: "/comments/" + value.id, body: {} };
         if (data.action === "comment-update" && closedKeys(value, ["id"], ["status", "reply", "resubmit"]) && validId(value.id) && Object.keys(value).length > 1 &&
@@ -1110,28 +1111,31 @@ function renderShellPage(nonce, accessToken, title, screen) {
         return null;
       }
       function sendToPreview(message) { frame.contentWindow.postMessage({ channel, version: 1, ...message }, "*"); }
+      function showFrame(next) {
+        frameReady = false;
+        provisionalScreen = null;
+        readyEpoch += 1;
+        frame.src = next.pathname + next.search;
+        feedbackBusy = true;
+      }
       function refreshPreview(force = false) {
-        if (!frameReady || !pendingVersion || refreshing) return;
+        if (!frameReady || !pendingVersion || refreshing || viewing !== null) return;
         refreshing = true;
         const version = pendingVersion;
         pendingVersion = null;
         sendToPreview({ command: "refreshing" });
         setTimeout(() => {
-          if (feedbackBusy && !force) {
+          if ((feedbackBusy && !force) || viewing !== null) {
             pendingVersion = pendingVersion || version;
             refreshing = false;
-            sendToPreview({ command: "update-available", screen: pendingVersion });
+            if (viewing === null) sendToPreview({ command: "update-available", screen: pendingVersion });
             return;
           }
           lastVersion = version;
           if (pendingVersion === version) pendingVersion = null;
           const next = new URL(${serializeForInlineScript(previewPath)}, window.location.origin);
           next.searchParams.set("v", version);
-          frameReady = false;
-          provisionalScreen = null;
-          readyEpoch += 1;
-          frame.src = next.pathname + next.search;
-          feedbackBusy = true;
+          showFrame(next);
           refreshing = false;
         }, 400);
       }
@@ -1189,6 +1193,21 @@ function renderShellPage(nonce, accessToken, title, screen) {
           refreshPreview(true);
           return;
         }
+        if (hasExactKeys(data, ["channel", "version", "action", "revisionId"]) && data.channel === channel && data.version === 1 && data.action === "view-revision"
+            && Number.isSafeInteger(data.revisionId) && data.revisionId >= 1 && data.revisionId <= 999999 && frameReady && !refreshing) {
+          viewing = data.revisionId;
+          const next = new URL(${serializeForInlineScript(previewPath)}, window.location.origin);
+          next.searchParams.set("revision", String(data.revisionId));
+          showFrame(next);
+          return;
+        }
+        if (hasExactKeys(data, ["channel", "version", "action"]) && data.channel === channel && data.version === 1 && data.action === "view-current" && viewing !== null) {
+          viewing = null;
+          const next = new URL(${serializeForInlineScript(previewPath)}, window.location.origin);
+          if (newestVersion) next.searchParams.set("v", newestVersion);
+          showFrame(next);
+          return;
+        }
         const operation = feedbackOperation(data);
         if (!operation) return;
         const operationEpoch = readyEpoch;
@@ -1201,7 +1220,7 @@ function renderShellPage(nonce, accessToken, title, screen) {
         }).then(async (response) => {
           const result = await response.json();
           if (operationEpoch !== readyEpoch) return;
-          if (!response.ok && response.status === 409 && (operation.workspace || operation.path === "/comments/submit" || operation.path === "/decisions" || operation.path.startsWith("/decisions/"))) {
+          if (!response.ok && response.status === 409 && (operation.workspace || operation.path === "/comments/submit")) {
             await withReadDeadline((signal) => pollComments(signal, operationEpoch));
             if (operationEpoch !== readyEpoch) return;
             const conflicts = Array.isArray(result.conflicts) && result.conflicts.length <= 32 && result.conflicts.every((item) => hasExactKeys(item, ["id", "label"])
@@ -1248,9 +1267,10 @@ function renderShellPage(nonce, accessToken, title, screen) {
             const response = await fetch(versionUrl, { credentials: "same-origin", cache: "no-store", signal });
             if (!response.ok) throw new Error("preview unavailable");
             const version = await response.text();
+            if (version) newestVersion = version;
             if (version && version !== lastVersion) {
               pendingVersion = version;
-              if (frameReady) {
+              if (frameReady && viewing === null) {
                 sendToPreview({ command: "update-available", screen: version });
                 if (!feedbackBusy) refreshPreview();
               }
@@ -1462,7 +1482,7 @@ function readEventBody(req, res) {
       }
     } catch {
       // Selection storage is optional. A failed write must never terminate
-      // the session and remove unrelated comments or design decisions.
+      // the session and remove unrelated comments.
       sendJson(res, 500, { error: "Selection storage is unavailable." });
       return;
     }
@@ -1587,9 +1607,8 @@ const server = http.createServer((req, res) => {
 
   // Existing feedback stays readable and writable even when a newer source
   // cannot be registered. Its own screen IDs were validated on preview load.
-  if (requestUrl.pathname === "/comments" || requestUrl.pathname.startsWith("/comments/") || requestUrl.pathname === "/decisions" || requestUrl.pathname.startsWith("/decisions/")) {
+  if (requestUrl.pathname === "/comments" || requestUrl.pathname.startsWith("/comments/")) {
     const commentId = /^\/comments\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
-    const decisionId = /^\/decisions\/([a-f0-9]{24})$/.exec(requestUrl.pathname)?.[1];
     if (req.method === "GET" && requestUrl.pathname === "/comments/submissions") {
       try {
         const after = requestUrl.searchParams.get("after");
@@ -1614,9 +1633,7 @@ const server = http.createServer((req, res) => {
     const operation = req.method === "POST" && requestUrl.pathname === "/comments" ? (value) => feedback.create(value)
       : req.method === "POST" && requestUrl.pathname === "/comments/submit" ? (value) => feedback.submit(value)
       : req.method === "PATCH" && commentId ? (value) => feedback.patch(commentId, value)
-      : req.method === "DELETE" && commentId ? (value) => feedback.delete(commentId, value)
-      : req.method === "POST" && requestUrl.pathname === "/decisions" ? (value) => feedback.keep(value)
-      : req.method === "PATCH" && decisionId ? (value) => feedback.release(decisionId, value) : null;
+      : req.method === "DELETE" && commentId ? (value) => feedback.delete(commentId, value) : null;
     if (!operation) {
       sendJson(res, 405, { error: "Unsupported feedback operation." });
       return;
@@ -1697,6 +1714,24 @@ const server = http.createServer((req, res) => {
     lastActivity = Date.now();
     const nonce = crypto.randomBytes(18).toString("base64url");
     res.setHeader("Content-Security-Policy", previewCsp(nonce));
+    const revisions = requestUrl.searchParams.getAll("revision");
+    if (revisions.length) {
+      // A stored version is shown read-only: it is hash-verified and sanitized
+      // like the current sketch, and viewing it never changes the room.
+      const revisionId = revisions.length === 1 && /^[1-9][0-9]{0,5}$/.test(revisions[0]) ? Number(revisions[0]) : 0;
+      let view = null, status = 200;
+      try {
+        if (!workspaceState) throw new FeedbackError(409, "This preview has no saved project workspace.");
+        if (!revisionId) throw new FeedbackError(400, "Invalid sketch version.");
+        view = workspaceState.view(revisionId);
+      } catch (error) { status = requestErrorStatus(error); }
+      res.writeHead(status, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(view
+        ? wrapInFrame(view.html, view.filename, view.screen, nonce, view.design, false, { revisionId: view.revisionId })
+        : wrapInFrame(`<div style="display:flex;align-items:center;justify-content:center;min-height:60vh"><div style="text-align:center"><h2>Versjonen kan ikke vises</h2><p class="subtitle">${status === 409 && workspaceState ? "En lagret fil for denne versjonen er endret eller mangler. Ingen filer er endret." : "Versjonen finnes ikke i dette arbeidet."}</p></div></div>`,
+          "unavailable", "00000000000000000000000000000000", nonce, null, false, { revisionId, unavailable: true }));
+      return;
+    }
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     const content = newest
       ? newest.content
@@ -1788,10 +1823,26 @@ function canvasEvent(value) {
     catch { /* A lost parent must not turn a committed HTTP write into a retry. */ }
   }
 }
+// A declared control can only change the sketch through a style rule that names
+// one of its values. Name the controls without one, so the sketch can be fixed
+// before review. Values written into markup by the editor do not count.
+function inertControls(newest) {
+  if (!newest?.design) return [];
+  const css = (String(newest.content).match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) || []).join("\n");
+  const inert = [];
+  for (const target of newest.design.targets) for (const control of target.controls) {
+    const values = control.options.map(option => option.value).join("|");
+    const rule = new RegExp(`data-vc-setting-${control.id}\\s*[~|^$*]?=\\s*["']?(?:${values})(?![a-z0-9-])`);
+    if (!rule.test(css)) inert.push({ variant: target.variant, target: target.key, control: control.id, label: control.label });
+  }
+  return inert;
+}
 function canvasReadState() {
   const newest = newestContent();
   activateScreen(newest);
+  const inert = inertControls(newest);
   return { ...canvasState.summary(), screen: newest?.screen || "", filename: newest?.filename || "", styles: styleReceipt,
+    ...(inert.length ? { inertControls: inert } : {}),
     ...(workspaceState ? { workspace: workspaceState.summary() } : {}) };
 }
 function publishCanvasRevision(input) {

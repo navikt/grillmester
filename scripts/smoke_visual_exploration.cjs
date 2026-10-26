@@ -8,6 +8,20 @@ const os = require("node:os");
 const path = require("node:path");
 const { createRequire } = require("node:module");
 const { spawn } = require("node:child_process");
+// Comparing variants belongs to Prøv; leave Endre first when needed.
+async function startComparison(ui) {
+  const compare = ui.getByRole("button", { name: "Sammenlign varianter", exact: true });
+  if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
+  await compare.click();
+}
+// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
+async function openAdjust(ui) {
+  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
+  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
+  await adjust.click();
+}
+// «Behold denne delen» saves an ordinary wish that names the part.
+const keepWishes = batch => batch.comments.filter(item => item.text.startsWith("Behold denne delen.") && item.context);
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -140,16 +154,16 @@ function command(info, action, extra = []) {
 }
 function controls(page) {
   const frame = page.frameLocator("#vc-preview"), ui = frame.locator("[data-visual-feedback]");
-  const workshop = ui.getByRole("region", { name: "Juster skissen", exact: true });
+  const workshop = ui.getByRole("region", { name: "Juster visningen", exact: true });
   const closeFeedback = async () => { const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click(); };
   const closeWorkshop = async () => { const close = workshop.getByRole("button", { name: "Lukk justeringer", exact: true }); if (await close.isVisible()) await close.click(); };
-  const adjust = async (key) => { await closeFeedback(); if (!(await workshop.isVisible())) await ui.getByRole("button", { name: "Juster", exact: true }).click(); if (key) await workshop.getByLabel("Velg del", { exact: true }).selectOption(key); };
-  const browse = async () => { await closeFeedback(); await closeWorkshop(); const button = ui.getByRole("button", { name: "Utforsk", exact: true }); if (await button.getAttribute("aria-pressed") !== "true") await button.click(); };
+  const adjust = async (key) => { await closeFeedback(); if (!(await workshop.isVisible())) await openAdjust(ui); if (key) await workshop.getByLabel("Velg del", { exact: true }).selectOption(key); };
+  const browse = async () => { await closeFeedback(); await closeWorkshop(); const button = ui.getByRole("button", { name: "Prøv", exact: true }); if (await button.getAttribute("aria-pressed") !== "true") await button.click(); };
   return { page, frame, ui, workshop, closeFeedback, closeWorkshop, adjust, browse,
     target: (variant, key) => frame.locator(`[data-vc-variant="${variant}"] [data-vc-key="${key}"]`),
     async set(key, label, value) { await adjust(key); await workshop.getByLabel(label, { exact: true }).selectOption(value); await browse(); },
-    async keep(key, note) { await adjust(key); await workshop.getByLabel("Merknad", { exact: true }).fill(note); await workshop.getByRole("button", { name: "Behold dette", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); },
-    async note(selector, text) { await closeWorkshop(); await closeFeedback(); const mode = ui.getByRole("button", { name: "Kommenter", exact: true }); if (await mode.getAttribute("aria-pressed") !== "true") await mode.click(); await frame.locator(selector).click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" }); },
+    async keep(key, note) { await adjust(key); await workshop.getByLabel("Merknad", { exact: true }).fill(note); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); },
+    async note(selector, text) { await closeWorkshop(); await closeFeedback(); const mode = ui.getByRole("button", { name: "Endre", exact: true }); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await mode.click(); await frame.locator(selector).click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" }); },
     async openFeedback() { if (!(await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).isVisible())) await ui.locator('[data-action="panel"]').click(); },
   };
 }
@@ -169,7 +183,7 @@ async function workshopMatches(view, key, value) {
   await view.adjust(key); assert.equal(await view.workshop.getByLabel("Situasjon", { exact: true }).inputValue(), value); await view.browse();
 }
 async function cleanLocal(view) {
-  const data = await view.list(); assert.equal(data.submission, 0); assert.equal(data.comments.length, 0); assert.equal(data.decisions.length, 0);
+  const data = await view.list(); assert.equal(data.submission, 0); assert.equal(data.comments.length, 0);
 }
 async function replay(view, comment, variant, key, expected) {
   await view.openFeedback();
@@ -185,7 +199,7 @@ async function layoutMetrics(view) {
   });
 }
 async function comparison(view) {
-  await view.adjust(); await view.workshop.getByRole("button", { name: "Sammenlign varianter", exact: true }).click();
+  await startComparison(view.ui);
   const boxes = await view.frame.locator("[data-vc-variant]").evaluateAll(nodes => nodes.map(node => ({ width: node.getBoundingClientRect().width, visible: Boolean(node.getClientRects().length) && getComputedStyle(node).display !== "none" })));
   await view.screenshot("comparison");
   if (view.viewport.width > 900) assert(Math.abs(boxes[0].width - boxes[1].width) < 1, "Compared concepts must get equal space.");
@@ -220,11 +234,11 @@ const cases = [
       const comment = (await view.list()).comments[0]; assert.deepEqual(comment.context, { variant: "steps", target: "application", values: { state: "review" } });
       await view.set("steps/application", "Situasjon", "error"); await replay(view, comment, "steps", "application", "review");
       await view.keep("overview/help", "Ta med hjelpen fra oversiktsforslaget i den trinnvise flyten.");
-      const batch = await view.send(2); assert.equal(batch.comments.length, 1); assert.equal(batch.decisions.length, 1); assert.equal(batch.decisions[0].variant, "overview");
+      const batch = await view.send(2); assert.equal(batch.comments.length, 2); assert.deepEqual(keepWishes(batch).map(item => item.context.variant), ["overview"]);
       assert(!JSON.stringify(batch).includes('"340"'), "A native field value must not be collected as comment context.");
       await view.screenshot("combined-feedback"); await view.browse();
       const metrics = await layoutMetrics(view); assert.equal(metrics.duplicateIds.length, 0); assert(metrics.documentWidth <= metrics.viewport.width + 1);
-      return { ...metrics, errorSummaryFocusedField: true, errorSummaryKeyboardFocusedField: true, fragmentKeptUrlUnchanged: true, tabsFromFareToNext: tabs, reviewVisibility, statesVisited: ["error", "review", "error", "review", "complete", "review"], batch: { comments: batch.comments.length, decisions: batch.decisions.length }, contextRestored: true, typedValuePreserved: true };
+      return { ...metrics, errorSummaryFocusedField: true, errorSummaryKeyboardFocusedField: true, fragmentKeptUrlUnchanged: true, tabsFromFareToNext: tabs, reviewVisibility, statesVisited: ["error", "review", "error", "review", "complete", "review"], batch: { comments: batch.comments.length, keepWishes: keepWishes(batch).length }, contextRestored: true, typedValuePreserved: true };
     } },
   { name: "operations-recovery", viewport: { width: 1440, height: 1000 }, make: operationsSketch,
     async run(view) {
@@ -252,9 +266,9 @@ const cases = [
       await replay(view, comment, "board", "overview", "error"); assert.equal(await view.target("board", "overview").getAttribute("data-vc-setting-density"), "compact");
       await view.set("list/overview", "Luft mellom oppgaver", "compact"); await view.keep("list/overview", "Behold den kompakte listen for rask gjennomgang av frister.");
       await view.keep("board/meaning", "Behold forklaringen som ikke er avhengig av farge.");
-      const batch = await view.send(3); assert.equal(batch.comments.length, 1); assert.equal(batch.decisions.length, 2); assert.deepEqual(batch.decisions.map(item => item.variant).sort(), ["board", "list"]);
-      await view.screenshot("mixed-decisions"); await view.browse(); const metrics = await layoutMetrics(view); assert(metrics.documentWidth <= metrics.viewport.width + 1);
-      return { ...metrics, comparison: compared, densityHeights, keyboardTabsToRetry: tabs, sharedTasks: tasks.length, statesVisited: ["loaded", "error", "loading", "empty", "loaded"], batch: { comments: batch.comments.length, decisions: batch.decisions.length }, contextRestored: true, commentButtonDidNotAct: true };
+      const batch = await view.send(3); assert.equal(batch.comments.length, 3); assert.deepEqual(keepWishes(batch).map(item => item.context.variant).sort(), ["board", "list"]);
+      await view.screenshot("mixed-keep-wishes"); await view.browse(); const metrics = await layoutMetrics(view); assert(metrics.documentWidth <= metrics.viewport.width + 1);
+      return { ...metrics, comparison: compared, densityHeights, keyboardTabsToRetry: tabs, sharedTasks: tasks.length, statesVisited: ["loaded", "error", "loading", "empty", "loaded"], batch: { comments: batch.comments.length, keepWishes: keepWishes(batch).length }, contextRestored: true, commentButtonDidNotAct: true };
     } },
   { name: "appointment-reversal", viewport: { width: 1280, height: 960 }, make: appointmentSketch,
     async run(view) {
@@ -271,9 +285,9 @@ const cases = [
       await assertState(view, "current", "appointment", "cancel-confirm"); const comment = (await view.list()).comments[0]; assert.deepEqual(comment.context, { variant: "current", target: "appointment", values: { state: "cancel-confirm" } });
       await view.set("current/appointment", "Situasjon", "booked"); await replay(view, comment, "current", "appointment", "cancel-confirm");
       await view.keep("options/consequence", "Ta med konsekvensforklaringen sammen med avtalen først.");
-      const batch = await view.send(2); assert.equal(batch.comments.length, 1); assert.equal(batch.decisions.length, 1); assert(!JSON.stringify(batch).includes("friday"), "Native radio values must not be copied into the feedback protocol.");
+      const batch = await view.send(2); assert.equal(batch.comments.length, 2); assert.equal(keepWishes(batch).length, 1); assert(!JSON.stringify(batch).includes("friday"), "Native radio values must not be copied into the feedback protocol.");
       await view.screenshot("consequence-feedback"); await view.browse(); const metrics = await layoutMetrics(view); assert.equal(metrics.duplicateIds.length, 0); assert(metrics.documentWidth <= metrics.viewport.width + 1);
-      return { ...metrics, comparison: compared, keyboardTabs: { cancel: tabs, safeReturn: safeTabs, undo: undoTabs }, statesVisited: ["booked", "change", "booked", "cancel-confirm", "booked", "cancel-confirm", "cancelled", "booked"], batch: { comments: batch.comments.length, decisions: batch.decisions.length }, contextRestored: true, localRadioPreserved: true };
+      return { ...metrics, comparison: compared, keyboardTabs: { cancel: tabs, safeReturn: safeTabs, undo: undoTabs }, statesVisited: ["booked", "change", "booked", "cancel-confirm", "booked", "cancel-confirm", "cancelled", "booked"], batch: { comments: batch.comments.length, keepWishes: keepWishes(batch).length }, contextRestored: true, localRadioPreserved: true };
     } },
 ];
 async function runCase(browser, testcase) {
@@ -287,7 +301,7 @@ async function runCase(browser, testcase) {
     fs.writeFileSync(path.join(info.screen_dir, `01-${testcase.name}.design.json`), JSON.stringify(sketch.design)); fs.writeFileSync(path.join(info.screen_dir, `01-${testcase.name}.html`), sketch.html);
     page = await context.newPage(); page.setDefaultTimeout(10000); page.on("pageerror", error => errors.push(error.message));
     page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) remoteResources.push(new URL(request.url()).origin); });
-    await page.goto(info.url); const view = controls(page); await view.ui.getByRole("button", { name: "Kommenter", exact: true }).waitFor(); await view.frame.getByRole("heading", { name: sketch.title, exact: true }).waitFor();
+    await page.goto(info.url); const view = controls(page); await view.ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); await view.frame.getByRole("heading", { name: sketch.title, exact: true }).waitFor();
     view.viewport = testcase.viewport; view.list = () => command(info, "list");
     view.screenshot = async name => { if (evidence) { await page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor(); await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); await page.screenshot({ path: path.join(evidence, `${testcase.name}-${name}.png`), animations: "disabled" }); } };
     view.send = async count => { const before = await view.list(); assert.equal(before.submission, 0, "These studies send exactly one explicit batch each."); await view.openFeedback(); await view.ui.getByRole("button", { name: `Send ${count} innspill`, exact: true }).click(); const batch = await command(info, "wait", ["--after", String(before.submission), "--timeout", "10"]); assert.equal(batch.type, "feedback-submission"); assert.equal(batch.submission, 1); return batch; };

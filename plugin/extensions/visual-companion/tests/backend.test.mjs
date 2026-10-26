@@ -358,3 +358,49 @@ test('the HTTP editor preserves explicit fields, one save receipt and user-only 
     assert.equal(restored.submission, 0); assert.deepEqual(submitted, [], 'Save, retry, release and restore never submit feedback.');
   } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
 });
+
+test('a stored version is shown read-only through the token-protected preview, and viewing writes nothing', async () => {
+  const projectDir = await mkdtemp(join(tmpdir(), 'visual-canvas-view-'));
+  const options = { projectDir, workspacePath: 'designs/view' };
+  const design = { version: 2, variants: [], targets: [], texts: [{ id: 'heading', label: 'Overskrift', value: 'Velg tidspunkt' }] };
+  const html = '<h1><span data-vc-text="heading">Velg tidspunkt</span></h1><img src="x.png" onerror="alert(1)">';
+  let backend;
+  try {
+    backend = await createServerBackend({ ...options, create: true, title: 'Visning' });
+    const first = await backend.publishRevision({ expectedScreen: '', filename: 'first.html', html, design });
+    await backend.publishRevision({ expectedScreen: first.screen, filename: 'second.html',
+      html: '<h1><span data-vc-text="heading">Finn en tid</span></h1>', design: { ...design, texts: [{ ...design.texts[0], value: 'Finn en tid' }] } });
+    const statePath = join(projectDir, 'designs/view/workspace.json'), before = fs.readFileSync(statePath);
+    const view = await backend.openView({});
+    const page = async (search, token = true) => {
+      const url = new URL(view.url); url.pathname = '/preview';
+      if (!token) url.searchParams.delete('token');
+      for (const [key, value] of search) url.searchParams.append(key, value);
+      const response = await fetch(url, { signal: AbortSignal.timeout(3000) });
+      return { status: response.status, text: await response.text(), csp: response.headers.get('content-security-policy') || '' };
+    };
+    const old = await page([['revision', '1']]);
+    assert.equal(old.status, 200);
+    assert.match(old.text, /Velg tidspunkt/);
+    assert.doesNotMatch(old.text, /Finn en tid/);
+    assert.match(old.text, /window\.__grillmesterVisualCompanionView=\{"revisionId":1\};/);
+    assert.ok(old.text.includes(`window.__grillmesterVisualCompanionScreen="${first.screen}";`));
+    assert.doesNotMatch(old.text, /onerror/, 'The stored version is sanitized like the current sketch.');
+    assert.match(old.csp, /script-src 'nonce-/);
+    const current = await page([]);
+    assert.match(current.text, /Finn en tid/);
+    assert.match(current.text, /window\.__grillmesterVisualCompanionView=null;/);
+    for (const search of [[['revision', '0']], [['revision', 'abc']], [['revision', '1'], ['revision', '2']]]) {
+      const invalid = await page(search);
+      assert.equal(invalid.status, 400, JSON.stringify(search));
+      assert.match(invalid.text, /"unavailable":true/);
+    }
+    assert.equal((await page([['revision', '9']])).status, 404);
+    assert.equal((await page([['revision', '1']], false)).status, 403, 'Viewing needs the session token.');
+    fs.appendFileSync(join(projectDir, 'designs/view/revisions/first.html'), '\n');
+    const damaged = await page([['revision', '1']]);
+    assert.equal(damaged.status, 409);
+    assert.match(damaged.text, /En lagret fil for denne versjonen er endret eller mangler/);
+    assert.deepEqual(fs.readFileSync(statePath), before, 'Viewing never writes the room.');
+  } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
+});

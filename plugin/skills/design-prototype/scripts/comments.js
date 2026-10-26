@@ -8,7 +8,7 @@ const MAX_RESPONSE_BYTES = MAX_STORE_BYTES + 64 * 1024;
 
 function parseArguments(argv) {
   const [command, ...args] = argv;
-  if (!["list", "wait", "resolve", "reopen", "delete", "release"].includes(command)) throw new Error("Use list, wait, resolve, reopen, delete, or release with --state-dir DIRECTORY.");
+  if (!["list", "wait", "resolve", "reopen", "delete"].includes(command)) throw new Error("Use list, wait, resolve, reopen, or delete with --state-dir DIRECTORY.");
   const options = {};
   for (let index = 0; index < args.length; index += 2) {
     const key = args[index];
@@ -16,9 +16,9 @@ function parseArguments(argv) {
     options[key] = args[index + 1];
   }
   if (!options["--state-dir"]) throw new Error("--state-dir is required.");
-  const mutation = ["resolve", "reopen", "delete", "release"].includes(command);
-  if (mutation && !ID.test(options["--id"] || "")) throw new Error("--id must identify one comment or decision.");
-  if (!mutation && options["--id"] !== undefined) throw new Error("--id is only used with resolve, reopen, delete, or release.");
+  const mutation = ["resolve", "reopen", "delete"].includes(command);
+  if (mutation && !ID.test(options["--id"] || "")) throw new Error("--id must identify one comment.");
+  if (!mutation && options["--id"] !== undefined) throw new Error("--id is only used with resolve, reopen, or delete.");
   if (options["--reply"] !== undefined && (!["resolve", "reopen"].includes(command) || !validPatch({ reply: options["--reply"] }))) throw new Error("--reply must be at most 2000 UTF-8 bytes and accompany resolve or reopen.");
   if (options["--submission"] !== undefined && (!["resolve", "reopen"].includes(command) || !/^(0|[1-9][0-9]*)$/.test(options["--submission"]) || !Number.isSafeInteger(Number(options["--submission"])))) throw new Error("--submission must be a nonnegative round number and accompany resolve or reopen.");
   if (command !== "wait" && (options["--after"] !== undefined || options["--timeout"] !== undefined)) throw new Error("--after and --timeout are only used with wait.");
@@ -77,7 +77,6 @@ async function main() {
       await new Promise((resolve) => setTimeout(resolve, Math.min(500, Math.max(0, deadline - Date.now()))));
     } while (true);
   }
-  if (command === "release") return request(baseUrl, `/decisions/${options["--id"]}`, "PATCH", {});
   const pathname = `/comments/${options["--id"]}`;
   if (command === "delete") return request(baseUrl, pathname, "DELETE", {});
   const patch = { status: command === "resolve" ? "fixed" : "open" };

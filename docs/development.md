@@ -152,7 +152,7 @@ verifiserte Aksel-versjon er fortsatt nødvendig. Skjermleserbruk og klientens
 videreføring av `comments.js wait` må verifiseres separat.
 
 `scripts/smoke_visual_workshop.cjs` bruker samme flagg og tester deklarerte
-justeringer, sammenligning, beholdte valg og ugyldige deklarasjoner. Kjør den
+justeringer, sammenligning, ønsker om å beholde deler og ugyldige deklarasjoner. Kjør den
 ved endringer i denne kontrakten, i tillegg til kommentarsmoken. Bruk separate
 evidensmapper for de to kjøringene. Ingen av dem installerer avhengigheter eller
 starter en modellklient.

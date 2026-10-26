@@ -103,3 +103,26 @@ test("sketch revisions without workspace.json are explained on open and create, 
   assert.deepEqual(fs.readdirSync(path.join(projectDir, "designs/example")), ["revisions"]);
   assert.equal(fs.readFileSync(path.join(revisions, "first.html"), "utf8"), html, "The leftover file is preserved for review.");
 });
+
+test("viewing a stored version shows its saved values and writes nothing", t => {
+  const { projectDir, open } = fixture(t);
+  const room = open(true);
+  room.workspace.publish({ expectedScreen: "", filename: "first.html", html, design: declaration });
+  room.workspace.editorSave({ screen: room.workspace.current().screen, expectedRevision: room.feedback.state.revision,
+    changes: [{ id: "text:heading", value: "Finn en tid" }] });
+  const filename = path.join(projectDir, "designs/example/workspace.json");
+  const before = snapshot(filename);
+  const first = room.workspace.view(1), second = room.workspace.view(2);
+  assert.equal(first.revisionId, 1);
+  assert.match(first.html, /<span data-vc-text="heading">Velg tidspunkt<\/span>/);
+  assert.match(second.html, /<span data-vc-text="heading">Finn en tid<\/span>/);
+  assert.equal(second.design.texts[0].value, "Finn en tid");
+  assert.equal(second.screen, room.workspace.current().screen);
+  assert.notEqual(first.screen, second.screen);
+  assert.deepEqual(snapshot(filename).bytes, before.bytes, "Viewing never writes the room.");
+  assert.equal(room.workspace.summary().version, 2);
+  assert.throws(() => room.workspace.view(3), error => error.status === 404);
+  assert.throws(() => room.workspace.view(0), error => error.status === 400);
+  fs.appendFileSync(path.join(projectDir, "designs/example/revisions/first.html"), "\n");
+  assert.throws(() => room.workspace.view(1), error => error.status === 409 && error.errorCode === "revision-unavailable");
+});

@@ -163,3 +163,17 @@ test("losing the owning IPC parent stops its listener and removes its private st
   assert.equal(fs.existsSync(app.info.state_dir), false);
   await assert.rejects(fetch(app.info.url));
 });
+
+test("read state names declared controls that no style rule in the sketch reacts to", async t => {
+  const app = await running(t);
+  const design = { version: 1, variants: [], targets: [{ key: "card", variant: "", label: "Kort", controls: [
+    { id: "density", label: "Tetthet", type: "select", initial: "roomy", options: [{ value: "roomy", label: "Romslig" }, { value: "compact", label: "Tett" }] }] }] };
+  // A value written into markup is not a rule; only CSS can show the difference.
+  const unstyled = await app.rpc("publishRevision", { expectedScreen: "", filename: "unstyled.html", html: '<section data-vc-key="card" data-vc-setting-density="compact"><h1>Velg tidspunkt</h1></section>', design });
+  assert.deepEqual(unstyled.inertControls, [{ variant: "", target: "card", control: "density", label: "Tetthet" }]);
+  assert.deepEqual((await app.rpc("readState")).inertControls, unstyled.inertControls);
+  const styled = await app.rpc("publishRevision", { expectedScreen: unstyled.screen, filename: "styled.html", html: '<style>[data-vc-key="card"][data-vc-setting-density=compact]{padding:4px}</style><section data-vc-key="card"><h1>Velg tidspunkt</h1></section>', design });
+  assert.equal(Object.hasOwn(styled, "inertControls"), false);
+  const plain = await app.rpc("publishRevision", { expectedScreen: styled.screen, filename: "plain.html", html: "<h1>Uten deklarerte valg</h1>" });
+  assert.equal(Object.hasOwn(plain, "inertControls"), false);
+});
