@@ -1770,6 +1770,46 @@ test("release-and-restore retries resend each step's exact payload after a lost 
   }
 });
 
+test("a retried keep wish keeps its identity after a resize, while a changed wish is new", async () => {
+  const vm = require("node:vm");
+  const { FeedbackMutationReceipts } = require("../scripts/feedback-store.js");
+  const scripts = path.resolve(__dirname, "../scripts");
+  const body = (file, start, end) => { const source = fs.readFileSync(path.join(scripts, file), "utf8"); const from = source.indexOf(start), to = source.indexOf(end, from); assert(from >= 0 && to > from); return source.slice(from, to); };
+  const save = body("workshop.js", "    async function save(action) {", "\n    for (const [key, binding] of bindings) {");
+  const request = body("helper.js", "  function request(action, payload, retry = {}) {", "\n  function errorAt(");
+  const store = privateFeedbackStore(), receipts = new FeedbackMutationReceipts(), screen = "a".repeat(32);
+  const design = { version: 1, variants: [], targets: [{ key: "card", variant: "", label: "Oppsummering", controls: [] }] };
+  store.knowScreen(screen, "fixture.html", design);
+  const binding = { descriptor: design.targets[0], element: {}, values: {}, accepted: "", remark: "Behold oversikten tydelig." };
+  let width = 1280, loseNext = true;
+  const context = vm.createContext({
+    TextEncoder, crypto: require("node:crypto").webcrypto, screen, connectionLost: false, requests: new Map(), requestCounter: 0,
+    locking: false, selected: () => binding, selectedKey: "/card", saveRetries: new Map(), preferredVariant: "", variantBindings: new Map(),
+    remark: { before() {}, value: "" }, pane: { hidden: false }, el: () => ({ scrollIntoView() {} }),
+    error() {}, focus() {}, status() {}, announce() {}, updateDrafts() {}, updateBusy() {}, close() {},
+    signature: (values) => JSON.stringify(Object.entries(values).sort()), lock(value) { context.locking = value; },
+    api: { showFeedbackError() {}, openFeedback() {} },
+    anchorFor: () => ({ path: "section:nth-of-type(1)", role: "", rect: { x: 0, y: 0, width: 100, height: 30 }, viewport: { width, height: 800 } }),
+    window: { setTimeout: (fn) => ({ fn }), clearTimeout() {} },
+    post(message) {
+      receipts.run(message.mutationId, "POST", "/comments", message.payload, (value) => store.create(value));
+      const pending = context.requests.get(message.requestId);
+      // The first save reaches storage, but its answer is lost.
+      queueMicrotask(() => { if (loseNext) { loseNext = false; pending.timer.fn(); } else { context.requests.delete(message.requestId); pending.resolve(store.snapshot()); } });
+    },
+  });
+  vm.runInContext(`${request}\n${save}\nglobalThis.runSave = save;`, context);
+  await context.runSave("workshop-keep");
+  assert.equal(store.state.comments.length, 1);
+  width = 375;
+  await context.runSave("workshop-keep");
+  assert.equal(store.state.comments.length, 1, "Retrying the same unconfirmed wish after a resize must not save it twice.");
+  assert.equal(store.state.comments[0].anchor.viewport.width, 1280);
+  binding.remark = "Et nytt ønske om samme del.";
+  await context.runSave("workshop-keep");
+  assert.deepEqual(store.state.comments.map((item) => item.text), ["Behold denne delen.\nBehold oversikten tydelig.", "Behold denne delen.\nEt nytt ønske om samme del."]);
+});
+
 test("revealed feedback opens the tab that holds it", () => {
   const source = fs.readFileSync(path.resolve(__dirname, "../scripts/helper.js"), "utf8");
   const from = source.indexOf("  function feedbackTab("), to = source.indexOf("  function setTab(", from);

@@ -258,7 +258,13 @@ class WorkspaceStore {
     const record = readFile(this.filename, MAX_STATE_BYTES);
     let state;
     try { state = JSON.parse(record.bytes.toString("utf8")); } catch { fail(409, "Design workspace state is not valid JSON."); }
-    if (this.validateState(state) !== true) fail(409, "Design workspace state is invalid or uses an unsupported version.");
+    if (this.validateState(state) !== true) {
+      // Kept choices were never released. Name them so such a room is not taken for damage.
+      if (state && typeof state === "object" && ["decisions", "submittedDecisions"].some(key => Object.hasOwn(state, key))) {
+        fail(409, "Design workspace state was saved by an unreleased build with kept choices, which are no longer supported. The files are unchanged; create a new workspace.");
+      }
+      fail(409, "Design workspace state is invalid or uses an unsupported version.");
+    }
     this.lastBytes = record.bytes;
     return state;
   }

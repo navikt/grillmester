@@ -40,6 +40,9 @@
     // A direct Endre entry beside «Be om endring»: editing saved text is its own tool.
     const toolbarButton = document.createElement("button");
     toolbarButton.type = "button"; toolbarButton.dataset.action = "editor-open"; toolbarButton.textContent = "Rediger"; toolbarButton.hidden = true;
+    toolbarButton.setAttribute("aria-expanded", "false");
+    // Like «Juster visning», Rediger tells which tool is open.
+    const expanded = () => toolbarButton.setAttribute("aria-expanded", String(!pane.hidden));
     toolbarButton.addEventListener("click", () => { if (!toolbarButton.disabled) void open(); });
     (root.querySelector(".endre-tabs") || root.querySelector(".toolbar")).appendChild(toolbarButton);
     let baseline = null, fields = [], holds = [], values = new Map(), loading = false, writing = false, stale = false, needsRebase = false, capacity = false, saved = false;
@@ -82,6 +85,8 @@
       const sameRetry = baseline && saveRetry.intent === JSON.stringify(["workspace-editor-save", { screen: baseline.screen, expectedRevision: baseline.revision, changes: changes() }]);
       pane.setAttribute("aria-busy", String(blocked));
       markup.querySelectorAll("button,textarea,select").forEach(node => { node.disabled = blocked; });
+      // Closing stays possible while the fields load, so the focused close button keeps focus.
+      el('[data-editor-action="close"]').disabled = writing || api.isRefreshing();
       el('[data-editor-action="save"]').disabled = blocked || !baseline || !count || stale || needsRebase || capacity || saved;
       el('[data-editor-action="save"]').textContent = writing ? "Lagrer …" : capacity ? "Lagringsgrensen er nådd" : sameRetry ? "Prøv samme lagring igjen" : "Lagre som ny versjon";
       el('[data-editor-action="discard"]').disabled = blocked || !count;
@@ -136,19 +141,19 @@
     }
     async function open() {
       if (!descriptor || !api.prepareOpen()) return;
-      pane.hidden = false; api.onPanelChange?.(); layout(); el('[data-editor-action="close"]').focus();
+      pane.hidden = false; expanded(); api.onPanelChange?.(); layout(); el('[data-editor-action="close"]').focus();
       if (!valid) { error("Skissens tekstfelt er ikke entydige. Be om å rette skissekilden før du redigerer."); update(); return; }
       if (!baseline) await read(); else { showPreview(); update(); }
     }
     function close(focus = false) {
       if (writing || api.isRefreshing()) return;
-      restorePreview(); pane.hidden = true; api.onBusyChange();
+      restorePreview(); pane.hidden = true; expanded(); api.onBusyChange();
       if (focus) api.focusOpener();
     }
     function discard() {
       if (writing || api.isRefreshing()) return;
       restorePreview(); values = new Map(fields.map(field => [field.id, field.value])); saveRetry = {}; error("");
-      if (stale || needsRebase) { baseline = null; fields = []; values.clear(); stale = false; needsRebase = false; pane.hidden = true; api.onBusyChange(); api.focusOpener(); announce("Redigeringsutkastet er forkastet. Den nye versjonen kan åpnes."); return; }
+      if (stale || needsRebase) { baseline = null; fields = []; values.clear(); stale = false; needsRebase = false; pane.hidden = true; expanded(); api.onBusyChange(); api.focusOpener(); announce("Redigeringsutkastet er forkastet. Den nye versjonen kan åpnes."); return; }
       renderFields(); status("Endringene er forkastet.");
     }
     async function save() {

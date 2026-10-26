@@ -35,8 +35,9 @@ Ved første åpning oppretter adapteren en privat Node.js-barneprosess for den
 bestemte kombinasjonen av samtale, utvidelse og canvasinstans. Prosessen
 kjører den kanoniske preview-runtime-en og dens ene `FeedbackStore`.
 Adapteren bruker en avgrenset IPC-kontrakt; den blir ikke en ny skriver til
-`comments.json`. Samme validering, skjermbinding, beholdte valg, atomiske
-innsendingsjournal og HTTP-grenser gjelder i nettleser og canvas.
+`comments.json`. Samme validering, skjermbinding, atomiske innsendingsjournal
+og HTTP-grenser gjelder i nettleser og canvas. Beholdte valg er fjernet etter
+[ADR 0025](0025-behold-som-innspill-og-juster-visning-i-prov.md).
 
 Barneprosessen trenger en vanlig Node.js-runtime, minst versjon 18. En
 pakket appbinær kan være vert for utvidelsen uten å kunne starte vilkårlige

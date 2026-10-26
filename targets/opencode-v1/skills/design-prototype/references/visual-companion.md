@@ -326,9 +326,9 @@ gå over; da aktiveres lagring igjen når både skisse og innspillskø svarer.
 `events.jsonl` beholder sitt lukkede, tekstfrie skjema. `comments.json` lagrer
 bare eksplisitt skrevne kommentarer, eventuelle nye tekstforslag, svar, status,
 skjermversjon og strukturell forankring (taggsti, rolle, ramme og viewport), samt
-deklarerte variant-/delnøkler, innstillingsvalg og beholdte beslutninger.
+deklarerte variant-/delnøkler og innstillingsvalg.
 Hver innsending bevarer et uforanderlig øyeblikksbilde av akkurat rundens
-kommentarer og endrede beslutninger i samme fil og atomiske lagringsoperasjon.
+kommentarer i samme fil og atomiske lagringsoperasjon.
 Senere svar, gjenåpning og fjerning fra listen endrer ikke denne journalen.
 Kommentarer i en justerbar del beholder også delens deklarerte tilstand.
 Ingen automatisk kopiering av synlig tekst, feltverdier, DOM-ID-er eller
@@ -345,7 +345,7 @@ Når økten har nådd en lagringsgrense, forklarer grensesnittet at teksten må
 tas vare på før en ny økt startes. Utkastet beholdes; det prøves ikke automatisk
 igjen eller ryddes plass ved å slette eldre innspill.
 Hver kommentar, erstatningstekst og svar kan bruke høyst 2000 UTF-8-byte.
-Økten har plass til 200 kommentarer, 200 beslutninger, 200 innsendte runder
+Økten har plass til 200 kommentarer, 200 innsendte runder
 og 100 skjermversjoner, med maksimalt 2 MiB lagret tilbakemeldingsdata og
 16 KiB per skriveforespørsel. Eldre runder fjernes ikke automatisk for å gi
 plass. En avvist innsending lar hele utkastet, revisjonen og innsendingsnummeret
@@ -547,7 +547,10 @@ linje, og `context` navngir variant, del og verdiene som var valgt. Behandle det
 som andre innspill: behold delen slik den vises i neste versjon, og ikke endre
 den senere uten at et nytt innspill ber om det. Besvar det med `resolve` eller
 `reopen` som vanlig. Det finnes ingen egen frigivelse; et senere innspill som
-ber om noe annet, går foran.
+ber om noe annet, går foran. Fortsetter du i en ny samtale, finner du tidligere
+behold-ønsker blant de sendte kommentarene i `list`, eller i rundene med `wait
+--after 0`, `--after 1` og så videre. Det er bare lesing; gamle runder skal ikke
+behandles eller besvares på nytt.
 
 Lagrede felt fra **Rediger** er varige føringer som regenerering ikke kan
 endre stilltiende. De frigis bare når designeren velger **Tillat senere
@@ -557,6 +560,13 @@ Bevar deklarerte nøkler når en del beholder samme betydning. Ikke flytt gamle
 strukturelle kommentarankere til nye elementer. Samme nøkkel med samme
 startverdier er bare en teknisk match; kontroller også at utseende, innhold og
 oppførsel fortsatt oppfyller intensjonen.
+
+Hver deklarert kontroll må ha en stilregel som reagerer på minst én av
+verdiene, for eksempel `[data-vc-setting-detail="full"] .extra{display:block}`.
+Ellers endrer valget ingenting i skissen: **Juster visning** viser «Valget har
+ingen synlig virkning i skissen», og i Designverksted lister `read_state`
+kontrollen i `inertControls`. Prøv hver verdi og se forskjellen før skissen
+sendes til vurdering.
 
 Deklarasjonen er begrenset til 32 KiB, 24 deler, åtte kontroller per del og
 to til åtte alternativer per kontroll. Nøkler starter med en liten bokstav og

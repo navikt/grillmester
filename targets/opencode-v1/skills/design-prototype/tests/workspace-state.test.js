@@ -177,6 +177,17 @@ test("source edits save one paired revision, survive restart and protect values 
   assert.equal(reopened.feedback.state.submission, 0);
 });
 
+test("a room saved with kept choices by an unreleased build is named and left unchanged", t => {
+  const room = fixture(t); publish(room);
+  room.store.close();
+  const legacy = JSON.parse(fs.readFileSync(room.store.filename, "utf8"));
+  legacy.decisions = []; legacy.submittedDecisions = [];
+  const bytes = Buffer.from(`${JSON.stringify(legacy)}\n`);
+  fs.writeFileSync(room.store.filename, bytes);
+  assert.throws(() => room.open(), error => error.status === 409 && /unreleased build with kept choices/.test(error.message));
+  assert.deepEqual(fs.readFileSync(room.store.filename), bytes, "The legacy room must stay untouched.");
+});
+
 test("editor rejects stale, undeclared and invalid choices without losing drafts", t => {
   const room = fixture(t), screen = publish(room);
   const input = { screen, expectedRevision: room.feedback.state.revision, changes: [{ id: "control:/card/density", value: "compact" }] };

@@ -188,8 +188,8 @@ async function main() {
       headed: options.has("--headed"),
       viewports: options.get("--case") === "keyboard-errors" ? ["320x568", "568x320"]
         : options.has("--case") ? ["1440x1000"] : ["1440x1000", "390x844", "320x568", "568x320"],
-      checks: options.has("--case") ? [] : ["declared-controls", "source-css", "local-reset", "structured-batch", "variant-comparison", "narrow-comparison", "narrow-heading-clearance", "narrow-overlay-close", "hidden-variant-pin", "no-spurious-selection", "keep", "historical-labels", "duplicate-target", "unavailable-comparison-explained", "invalid-manifest", "keyboard", "area-comparison-boundary", "draft-retention", "field-privacy", "loopback-only"],
-      declaredActions: options.get("--case") === "keyboard-errors" ? [] : ["native-keyboard", "hidden-button-focus", "variant-isolation", "invalid-choice", "disabled-choice", "nested-unbound-target", "comment-mode", "state-context", "restore-context", "parked-context", "preview-context", "explicit-batch", "field-privacy"],
+      checks: options.has("--case") ? [] : ["declared-controls", "source-css", "local-reset", "structured-batch", "variant-comparison", "narrow-comparison", "narrow-heading-clearance", "narrow-overlay-close", "hidden-variant-pin", "no-spurious-selection", "keep", "historical-labels", "duplicate-target", "part-variant-names", "unavailable-comparison-explained", "inert-control-note", "invalid-manifest", "keyboard", "area-comparison-boundary", "draft-retention", "field-privacy", "loopback-only"],
+      declaredActions: options.get("--case") === "keyboard-errors" ? [] : ["native-keyboard", "hidden-button-focus", "variant-isolation", "invalid-choice", "disabled-choice", "nested-unbound-target", "comment-mode", "state-context", "restore-context", "parked-context", "parked-wish-prov", "open-wish-explains", "preview-context", "explicit-batch", "field-privacy"],
       ...(keyboardErrors ? { keyboardErrors } : {}),
       errors,
     };
@@ -245,13 +245,15 @@ async function runWorkshop(context) {
     const close = ui.getByRole("button", { name: "Lukk innspill", exact: true });
     if (await close.isVisible()) await close.click();
   };
-  // Earlier kept choices are read and released under «Sendt» in Innspill.
+  // Sent wishes, including earlier keep wishes, are read under «Sendt» in Innspill.
   const openSent = async () => {
     await closeWorkshop();
     if (!(await basket.isVisible())) await ui.locator('[data-action="panel"]').click();
     await basket.getByRole("tab", { name: /^Sendt/ }).click();
   };
 
+  const partNames = await ui.locator("#change-part option").allTextContents();
+  assert(partNames.includes("Prioriterte oppgaver · Prioritert liste") && partNames.includes("Oppgaver på brettet · Arbeidsbrett"), "«Eller velg en del» names each part's variant.");
   // Keyboard: Prøv's Vis bar opens «Juster visning» without entering Endre.
   await ui.getByRole("button", { name: "Juster visning", exact: true }).focus();
   await page.keyboard.press("Enter");
@@ -420,7 +422,10 @@ async function runWorkshop(context) {
   await closeWorkshop();
 
   // Variants outside one shared container cannot be compared; Prøv says why.
-  writeScreen("split-variants", fixture("Varianter uten felles beholder").replace("data-vc-variants ", ""), manifest());
+  // The split screen also declares a control that no style rule reacts to.
+  const inertManifest = manifest();
+  inertManifest.targets[0].controls.push({ id: "tone", label: "Tone", type: "select", initial: "calm", options: [{ value: "calm", label: "Rolig" }, { value: "bold", label: "Tydelig" }] });
+  writeScreen("split-variants", fixture("Varianter uten felles beholder").replace("data-vc-variants ", ""), inertManifest);
   await frame.getByRole("heading", { name: "Varianter uten felles beholder", exact: true }).waitFor();
   const prov = ui.getByRole("button", { name: "Prøv", exact: true });
   if (await prov.getAttribute("aria-pressed") !== "true") await prov.click();
@@ -434,6 +439,22 @@ async function runWorkshop(context) {
   assert.equal(await ui.locator(".vis-note").textContent(), "Sammenligning er utilgjengelig: variantene må finnes én gang hver, i samme beholder.");
   await screenshot(page, "visual-workshop-comparison-unavailable.png");
   assert(await ui.locator(".compare-bar").isHidden(), "An unavailable comparison must not start.");
+  // The explanation follows the Vis buttons into the open panel's title row.
+  await ui.getByRole("button", { name: "Endre", exact: true }).click();
+  await prov.click();
+  assert(await ui.locator(".vis-note").isHidden(), "Leaving Prøv hides the explanation.");
+  await ui.getByRole("button", { name: "Juster visning", exact: true }).click();
+  await adjustment.waitFor();
+  await adjustment.getByRole("button", { name: "Sammenlign varianter", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await adjustment.locator(".vis-note").waitFor();
+  assert.equal(await adjustment.locator(".vis-note").textContent(), "Sammenligning er utilgjengelig: variantene må finnes én gang hver, i samme beholder.");
+  // A declared control without a style rule says so; the styled ones do not.
+  await control("Velg del").selectOption("list/summary-list");
+  await adjustment.getByText("Valget har ingen synlig virkning i skissen.", { exact: true }).waitFor();
+  assert.equal(await adjustment.locator(".workshop-inert").count(), 1);
+  await screenshot(page, "visual-workshop-unavailable-in-panel.png");
+  await closeWorkshop();
 
   await checkInvalidManifest(context);
 }
@@ -533,6 +554,18 @@ async function runDeclaredActions({ page, frame, ui, info, list, writeScreen }) 
   assert.equal(await state(), "start", "Resuming a parked draft must restore its own declared situation.");
   assert(await left.getByRole("button", { name: "Se gjennom", exact: true }).isVisible());
   assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Behold utkastet på startsteget.");
+  await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
+  // A parked wish keeps its draft while Prøv goes on; resuming restores its situation.
+  await ui.locator('[data-action="browse"]').click();
+  await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
+  assert.equal(await state(), "review", "A parked wish must not stop the prototype in Prøv.");
+  await ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
+  assert.equal(await state(), "start");
+  // With the wish open, the prototype waits and says why.
+  await left.getByRole("button", { name: "Se gjennom", exact: true }).click();
+  assert.equal(await state(), "start");
+  assert.equal(await ui.locator(".hint").textContent(), "Lagre innspillet eller legg det til side for å prøve knappene i skissen.");
+  assert(await ui.locator(".hint").isVisible());
   await ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
   await openAdjust(ui);
   await ui.getByRole("region", { name: "Juster visningen", exact: true }).getByLabel("Steg", { exact: true }).selectOption("review");

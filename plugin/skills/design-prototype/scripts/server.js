@@ -1823,10 +1823,26 @@ function canvasEvent(value) {
     catch { /* A lost parent must not turn a committed HTTP write into a retry. */ }
   }
 }
+// A declared control can only change the sketch through a style rule that names
+// one of its values. Name the controls without one, so the sketch can be fixed
+// before review. Values written into markup by the editor do not count.
+function inertControls(newest) {
+  if (!newest?.design) return [];
+  const css = (String(newest.content).match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) || []).join("\n");
+  const inert = [];
+  for (const target of newest.design.targets) for (const control of target.controls) {
+    const values = control.options.map(option => option.value).join("|");
+    const rule = new RegExp(`data-vc-setting-${control.id}\\s*[~|^$*]?=\\s*["']?(?:${values})(?![a-z0-9-])`);
+    if (!rule.test(css)) inert.push({ variant: target.variant, target: target.key, control: control.id, label: control.label });
+  }
+  return inert;
+}
 function canvasReadState() {
   const newest = newestContent();
   activateScreen(newest);
+  const inert = inertControls(newest);
   return { ...canvasState.summary(), screen: newest?.screen || "", filename: newest?.filename || "", styles: styleReceipt,
+    ...(inert.length ? { inertControls: inert } : {}),
     ...(workspaceState ? { workspace: workspaceState.summary() } : {}) };
 }
 function publishCanvasRevision(input) {

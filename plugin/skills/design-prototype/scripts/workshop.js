@@ -43,13 +43,16 @@
     const savedStyles = new Map();
     const saveRetries = new Map();
     const selected = () => bindings.get(selectedKey);
+    // A control changes the sketch only through a style rule for one of its values.
+    const sketchCss = Array.from(document.body.querySelectorAll("style")).map((node) => node.textContent).join("\n");
+    const inert = (control) => !new RegExp(`data-vc-setting-${control.id}\\s*[~|^$*]?=\\s*["']?(?:${control.options.map((option) => option.value).join("|")})(?![a-z0-9-])`).test(sketchCss);
     const hasDraft = (binding) => Boolean(binding.remark.trim() || signature(binding.values) !== binding.accepted);
     const pending = () => Array.from(bindings.values()).some(hasDraft);
 
     const style = document.createElement("style");
     style.nonce = nonce;
     style.textContent = `
-      .workshop{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:92px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workshop h2{margin:0;font-size:17px;letter-spacing:-.3px}.workshop h3{font-size:13px;margin:0 0 10px}.workshop-head{padding:16px 18px 12px;border-bottom:1px solid #e9e3ef}.workshop-head p{font-size:12px;color:#706578;margin:8px 0 0}.workshop-body{padding:16px 18px;overflow-y:auto;overscroll-behavior:contain;min-height:0}.workshop label{display:block;font-size:12px;font-weight:600;margin:0 0 7px}.workshop select,.workshop textarea{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #8b7a9a;border-radius:8px;padding:9px}.workshop select:focus-visible,.workshop input:focus-visible{outline:3px solid #6852ce;outline-offset:3px}.workshop textarea{min-height:68px;resize:vertical}.workshop-section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #ece7f1}.workshop-section:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}.workshop-control{margin-top:17px}.workshop-control input[type=range]{width:100%;accent-color:#7133a2}.workshop-control input[type=checkbox]{accent-color:#7133a2;width:18px;height:18px;vertical-align:middle;margin:0 7px 0 0}.workshop-control output{display:block;color:#706578;font-size:11px;margin-top:5px}.workshop-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.workshop-actions button{font-size:12px}.workshop-actions .primary{flex:1}.workshop-foot{padding:12px 18px;border-top:1px solid #e9e3ef;font-size:11px;color:#706578}.workshop-status{font-size:12px;color:#5c3d70;margin:0}.workshop-drafts{margin:0 0 6px}.workshop-foot:not(:has(.workshop-drafts:not([hidden]),.workshop-status:not(:empty),.workshop-error:not([hidden]))){padding:0;border-top:0}.workshop-warning{font-size:12px;line-height:1.5;color:#855514;background:#fff7e7;padding:10px;border-radius:8px;margin:12px 0}.workshop-empty{font-size:12px;color:#706578;line-height:1.5}.compare-bar{pointer-events:auto;position:fixed;top:64px;left:16px;max-width:calc(100vw - 32px);padding:10px 12px;background:#fff;border:1px solid #dfd8e8;border-radius:12px;box-shadow:0 4px 22px #2516381a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}.compare-bar label{font-size:11px;color:#706578}.compare-bar select{font:inherit;max-width:145px;padding:6px;border:1px solid #8b7a9a;border-radius:6px;color:#302737;background:#fff}.compare-bar button{font-size:12px;min-height:31px;padding:6px 9px}.compare-tabs{display:flex;gap:4px}.compare-tabs button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}.compare-bar .pair-select{display:flex;align-items:center;gap:5px}.compare-bar .prefer{color:#7133a2;background:#f6f0fa}
+      .workshop{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:92px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #dfd8e8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}.workshop h2{margin:0;font-size:17px;letter-spacing:-.3px}.workshop h3{font-size:13px;margin:0 0 10px}.workshop-head{padding:16px 18px 12px;border-bottom:1px solid #e9e3ef}.workshop-head p{font-size:12px;color:#706578;margin:8px 0 0}.workshop-body{padding:16px 18px;overflow-y:auto;overscroll-behavior:contain;min-height:0}.workshop label{display:block;font-size:12px;font-weight:600;margin:0 0 7px}.workshop select,.workshop textarea{width:100%;font:inherit;font-size:13px;color:#302737;background:#fff;border:1px solid #8b7a9a;border-radius:8px;padding:9px}.workshop select:focus-visible,.workshop input:focus-visible{outline:3px solid #6852ce;outline-offset:3px}.workshop textarea{min-height:68px;resize:vertical}.workshop-section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #ece7f1}.workshop-section:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}.workshop-control{margin-top:17px}.workshop-control input[type=range]{width:100%;accent-color:#7133a2}.workshop-control input[type=checkbox]{accent-color:#7133a2;width:18px;height:18px;vertical-align:middle;margin:0 7px 0 0}.workshop-control output{display:block;color:#706578;font-size:11px;margin-top:5px}.workshop-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.workshop-actions button{font-size:12px}.workshop-actions .primary{flex:1}.workshop-foot{padding:12px 18px;border-top:1px solid #e9e3ef;font-size:11px;color:#706578}.workshop-status{font-size:12px;color:#5c3d70;margin:0}.workshop-drafts{margin:0 0 6px}.workshop-foot:not(:has(.workshop-drafts:not([hidden]),.workshop-status:not(:empty),.workshop-error:not([hidden]))){padding:0;border-top:0}.workshop-warning{font-size:12px;line-height:1.5;color:#855514;background:#fff7e7;padding:10px;border-radius:8px;margin:12px 0}.workshop-empty{font-size:12px;color:#706578;line-height:1.5}.workshop-inert{font-size:11px;color:#855514;margin:5px 0 0}.compare-bar{pointer-events:auto;position:fixed;top:64px;left:16px;max-width:calc(100vw - 32px);padding:10px 12px;background:#fff;border:1px solid #dfd8e8;border-radius:12px;box-shadow:0 4px 22px #2516381a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}.compare-bar label{font-size:11px;color:#706578}.compare-bar select{font:inherit;max-width:145px;padding:6px;border:1px solid #8b7a9a;border-radius:6px;color:#302737;background:#fff}.compare-bar button{font-size:12px;min-height:31px;padding:6px 9px}.compare-tabs{display:flex;gap:4px}.compare-tabs button[aria-pressed=true]{background:#f0e8f7;color:#7133a2}.compare-bar .pair-select{display:flex;align-items:center;gap:5px}.compare-bar .prefer{color:#7133a2;background:#f6f0fa}
       @media(max-width:759px){.workshop{left:10px;right:10px;top:64px;width:auto}.compare-bar{top:62px;left:10px;right:10px;max-width:none}.compare-bar .pair-select{display:none}.compare-bar .prefer{font-size:11px}.workshop-body{padding:14px}}
       @media(max-height:540px){.workshop{overflow-y:auto;overscroll-behavior:contain}.workshop-head,.workshop-body,.workshop-foot{flex-shrink:0}.workshop-body{overflow:visible}.compare-bar{max-height:calc(100dvh - 110px);overflow-y:auto}}
       .workshop,.workshop-body,.compare-bar{scroll-padding:8px}
@@ -215,7 +218,9 @@
           binding.values[control.id] = controlValue(control, input);
           writeValues(binding); updateOutput(); status("Lokal visning · legg til innspill for å ta valget videre."); updateDrafts();
         });
-        updateOutput(); box.append(label, input, output); container.appendChild(box);
+        updateOutput(); box.append(label, input, output);
+        if (inert(control)) { const note = document.createElement("p"); note.className = "workshop-inert"; note.textContent = "Valget har ingen synlig virkning i skissen."; box.appendChild(note); }
+        container.appendChild(box);
       }
       if (binding && !binding.descriptor.controls.length) {
         const text = document.createElement("p"); text.className = "workshop-empty"; text.textContent = "Denne delen har ingen valg å prøve. Du kan be om at den beholdes."; container.appendChild(text);
@@ -341,6 +346,13 @@
         }
         else { if (!binding.descriptor.controls.length) return; operation = "comment-create"; payload = { screen, kind: "adjustment", anchor: anchorFor(binding.element), text: text || "Ta med disse justeringene.", adjustment: { variant: binding.descriptor.variant || "", target: binding.descriptor.key, values } }; }
       }
+      // Retrying an unconfirmed save resends its first payload, anchor geometry
+      // included, so a resize or scroll cannot turn the same wish into a second one.
+      // A changed part, value or remark is a new wish with a new identity.
+      const { rect, viewport, ...place } = payload.anchor;
+      const wish = JSON.stringify([operation, { ...payload, anchor: place }]);
+      if (retry.payload && retry.wish === wish) payload = retry.payload;
+      else { retry.payload = payload; retry.wish = wish; }
       error(""); api.showFeedbackError(""); lock(true);
       try {
         await request(operation, payload, retry);
@@ -465,7 +477,11 @@
       onPrototypeAction(event) {
         const button = event.target.closest?.("button[data-vc-control]");
         if (!button) return false;
-        if (locking || !api.canTry() || !pane.hidden || button.type !== "button" || button.disabled || button.closest('[inert],[aria-disabled="true"]')) return true;
+        if (button.type !== "button" || button.disabled || button.closest('[inert],[aria-disabled="true"]')) return true;
+        if (locking || !pane.hidden || !api.canTry()) {
+          api.explainTry?.(locking ? "Vent til lagringen er ferdig før du prøver knappene i skissen." : !pane.hidden ? "Lukk «Juster visning» for å prøve knappene i skissen." : "");
+          return true;
+        }
         const binding = bindingAt(button);
         const control = binding?.descriptor.controls.find((entry) => entry.id === button.getAttribute("data-vc-control"));
         const option = control?.options.find((entry) => entry.value === button.getAttribute("data-vc-value"));

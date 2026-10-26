@@ -409,6 +409,33 @@ const cases = [
     assert.equal(saved.comments.length, 1); assert.equal(saved.workspace.version, 1); assert.equal(bound.calls.length, 0);
     return { wishNamesSavedVersion: true, editorWaitsForDraft: true, unsavedFieldKept: true, automaticSubmissions: 0 };
   } },
+  { name: "prov-past-hidden-editor-draft", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
+    // Declared actions in the sketch switch the meeting part between short and full.
+    const fixture = title => { const value = editableSketch(title); value.html = value.html.replace(/(<[^>]*data-vc-key="meeting"[^>]*>)/, '$1<button type="button" data-vc-control="detail" data-vc-value="full">Vis mer</button><button type="button" data-vc-control="detail" data-vc-value="short">Vis mindre</button>'); return value; };
+    const bound = host(), view = await instance(bound, "prov-draft", "Avtale · prøv", { fixture, openInput: { workspacePath: "design/prov-utkast", create: true, title: "Prøv med utkast" } });
+    const meeting = view.frame.locator('[data-vc-key="meeting"]'), detail = () => meeting.getAttribute("data-vc-setting-detail");
+    await view.frame.getByRole("button", { name: "Vis mer", exact: true }).click(); assert.equal(await detail(), "full");
+    await view.frame.getByRole("button", { name: "Vis mindre", exact: true }).click(); assert.equal(await detail(), "short");
+    let editor = await openEditor(view);
+    const rediger = view.ui.getByRole("button", { name: "Rediger", exact: true });
+    assert.equal(await rediger.getAttribute("aria-expanded"), "true", "Rediger tells that it is open.");
+    await editor.getByLabel("Overskrift", { exact: true }).fill("Ulagret overskrift");
+    // With Rediger open, the prototype waits and says why.
+    await view.frame.getByRole("button", { name: "Vis mer", exact: true }).click();
+    assert.equal(await detail(), "short");
+    assert.equal(await view.ui.locator(".hint").textContent(), "Lukk «Rediger» for å prøve knappene i skissen. Utkastet ditt beholdes.");
+    await editor.getByRole("button", { name: "Lukk redigering", exact: true }).click();
+    assert.equal(await rediger.getAttribute("aria-expanded"), "false");
+    // A closed Rediger keeps its draft, and Prøv works.
+    await view.ui.getByRole("button", { name: "Prøv", exact: true }).click();
+    await view.frame.getByRole("button", { name: "Vis mer", exact: true }).click();
+    assert.equal(await detail(), "full", "A hidden editor draft must not stop the prototype in Prøv.");
+    editor = await openEditor(view);
+    assert.equal(await editor.getByLabel("Overskrift", { exact: true }).inputValue(), "Ulagret overskrift", "The editor draft survives trying the sketch.");
+    await screenshot(view, "editor-draft-kept-after-prov");
+    assert.equal((await view.snapshot()).workspace.version, 1); assert.equal(bound.calls.length, 0);
+    return { prototypeWorksWithHiddenDraft: true, openEditorExplains: true, editorExpandedState: true, automaticSubmissions: 0 };
+  } },
   { name: "workspace-limit-preserves-history", async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "capacity", "Timeavtale · første", { openInput: { workspacePath: "design/capacity", create: true, title: "Bevart historikk" } });
     await view.publish("Timeavtale · andre"); await view.frame.getByRole("heading", { name: "Timeavtale · andre", exact: true }).waitFor();
