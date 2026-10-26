@@ -912,11 +912,11 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
     : "";
   const cssWarning = akselCss
     ? ""
-    : `<div role="status" style="background:#fef0f0;border:2px solid #c30000;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif">
+    : `<div role="status" data-vc-notice style="background:#fef0f0;border:2px solid #c30000;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif">
         <strong>⚠️ Aksel CSS mangler</strong><br>Skissen vises med reservestiler fordi prosjektets Aksel-stiler ikke ble funnet.
       </div>`;
   const designWarning = designError
-    ? `<div role="alert" style="background:#fff5df;border:2px solid #a86d00;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif"><strong>«Juster visning» er utilgjengelig.</strong> Skisseoppsettet må rettes.</div>`
+    ? `<div role="alert" data-vc-notice style="background:#fff5df;border:2px solid #a86d00;padding:16px;margin-bottom:16px;border-radius:8px;font-family:sans-serif"><strong>«Juster visning» er utilgjengelig.</strong> Skisseoppsettet må rettes.</div>`
     : "";
   // One pass: inserted CSS, scripts and sketch markup are never scanned again
   // for placeholders.
@@ -1915,7 +1915,7 @@ async function canvasCommand(method, params) {
       });
     }
     const info = serverInfo();
-    return { url: info.url, title: workspaceState?.summary().title || "Designskisse", status: workspaceState ? "Arbeidet lagres i prosjektet. Send innspill når runden er klar." : "Samle innspill og send dem til samtalen." };
+    return { url: info.url, title: workspaceState?.summary().title || "Midlertidig skisse", status: workspaceState ? "Arbeidet lagres i prosjektet. Send innspill når runden er klar." : "Midlertidig skisse. Den og innspillene forsvinner når samtalen avsluttes eller etter fire timer uten bruk." };
   }
   if (method === "retire") return { retired: true };
   throw new FeedbackError(400, "Unknown canvas operation.");

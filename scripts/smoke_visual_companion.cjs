@@ -93,10 +93,10 @@ function run(args) {
     await ui.getByRole('button',{name:'Endre',exact:true}).waitFor();
   };
   await openPage({width:1440,height:1000});
-  await frame.getByText('En prioritert liste',{exact:true}).click();
+  await frame.locator('.vc-content').getByText('En prioritert liste',{exact:true}).click();
   assert.match(await frame.locator('#indicator-text').innerText(),/Valgt/);
   await ui.getByRole('button',{name:'Endre',exact:true}).click();
-  await frame.getByText('En prioritert liste',{exact:true}).click();
+  await frame.locator('.vc-content').getByText('En prioritert liste',{exact:true}).click();
   await ui.getByRole('button',{name:'Lagre innspill',exact:true}).click();
   await ui.getByText('Skriv et innspill før du lagrer.',{exact:true}).waitFor();
   assert(await ui.getByLabel('Hva vil du endre?').evaluate(node=>node.getRootNode().activeElement===node));

@@ -111,7 +111,7 @@ async function runCase(browser, createCanvasAdapter, testcase) {
         return until(async () => { const current = await snapshot(); return current.submission > previous && current; }, "explicit submission committed");
       };
       const reopen = async () => { const previous = opened; opened = await bound.adapter.canvas.open(ctx); assert.notEqual(opened.url, previous.url, "Reopening rotates the transport capability."); await navigate(opened.url); return { previous, current: opened }; };
-      const item = { ...view, ctx, action, publish, snapshot, send, reopen, host: bound, close: () => bound.adapter.canvas.onClose(ctx), url: () => opened.url, retired: false };
+      const item = { ...view, ctx, action, publish, snapshot, send, reopen, host: bound, close: () => bound.adapter.canvas.onClose(ctx), url: () => opened.url, title: () => opened.title, retired: false };
       item.retire = async () => { item.retired = true; await context.close(); await bound.adapter.close(); };
       views.push(item); return item;
     };
@@ -314,9 +314,106 @@ const cases = [
     assert.equal(part.element.key, "meeting", "A declared part points at its own element.");
     assert.equal(part.item.kind, "point"); assert.equal((await view.snapshot()).submission, 0); assert.equal(bound.calls.length, 0);
     await view.closeFeedback();
+    // A point on the heading widens to its box and back, one visible step at a time.
+    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    await view.frame.getByRole("heading", { name: "Passer tidspunktet?", exact: true }).click();
+    const label = view.ui.locator(".anchor-label"), larger = view.ui.getByRole("button", { name: "Større del", exact: true }), smaller = view.ui.getByRole("button", { name: "Mindre del", exact: true });
+    assert.equal(await label.textContent(), "Valgt overskrift «Passer tidspunktet?»");
+    assert(await smaller.isDisabled(), "Nothing smaller than the clicked element.");
+    await larger.click();
+    assert.equal(await label.textContent(), "Valgt del «Passer tidspunktet?»");
+    await screenshot(view, "larger-part");
+    await smaller.click();
+    assert.equal(await label.textContent(), "Valgt overskrift «Passer tidspunktet?»");
+    assert(await larger.evaluate(node => node.getRootNode().activeElement === node), "Focus stays on the remaining step.");
+    await larger.click();
+    await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Hele boksen bør bli kortere.");
+    await view.save();
+    const box = await pointed();
+    assert.equal(box.element.key, "meeting", "The widened point anchors the whole box.");
+    assert.equal(box.item.context?.target, "meeting", "The widened point keeps the declared part as context.");
+    await view.closeFeedback();
     await view.ui.getByRole("button", { name: "Prøv", exact: true }).click();
     assert(await view.ui.getByRole("group", { name: "Endre skissen", exact: true }).isHidden(), "Prøv leaves Endre.");
-    return { wholeSketchAnchor: true, declaredPartAnchor: "meeting", automaticSubmissions: 0 };
+    return { wholeSketchAnchor: true, declaredPartAnchor: "meeting", widenedPointAnchor: "meeting", automaticSubmissions: 0 };
+  } },
+  // Boxes come from headings: a box without its own layout is skipped, every
+  // heading bounds a box, and a text preview never changes a measured part.
+  { name: "parts-from-headings-and-preview", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
+    const steps = Array.from({ length: 59 }, (_, index) => `<h3>Punkt ${index + 1}</h3>`).join("");
+    const headed = title => ({ html: `<main>${renderToStaticMarkup(h(C.Heading, { level: "1", size: "large" }, title))}<div class="pair"><div style="display:contents"><section class="box-a"><h2>Første boks</h2>${steps}</section></div><section class="box-b"><h2>Andre boks</h2><p>Kort tekst.</p></section></div>${renderToStaticMarkup(h(C.TextField, { label: "Prøvefelt", id: "practice" }))}</main>` });
+    const bound = host(), view = await instance(bound, "headed", "Timeavtale · bokser", { fixture: headed });
+    const pointed = async () => {
+      const item = (await view.snapshot()).comments.at(-1);
+      return { item, element: await view.frame.locator("body").evaluate((_, path) => {
+        const node = document.querySelector(path), rect = node?.getBoundingClientRect();
+        return node && { className: node.className, height: Math.round(rect.height) };
+      }, item.anchor.path) };
+    };
+    await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    await view.ui.getByLabel("Velg en del", { exact: true }).selectOption({ label: "Første boks" });
+    assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt del «Første boks»");
+    await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Del opp punktene.");
+    await view.save();
+    assert.equal((await pointed()).element.className, "box-a", "The visible box, not its display: contents wrapper or the pair around both boxes.");
+    await view.closeFeedback();
+    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    const heading = view.frame.getByRole("heading", { name: "Andre boks", exact: true });
+    await heading.click();
+    await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
+    await view.ui.getByLabel("Ny tekst", { exact: true }).fill("En mye lengre overskrift som brytes over flere linjer og gjør boksen høyere enn den er i skissen");
+    await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Se i skissen", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Fortsett å redigere", exact: true }).click();
+    assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt overskrift «Andre boks»", "The label names the part, not the previewed text.");
+    await view.ui.getByRole("button", { name: "Større del", exact: true }).click();
+    await heading.waitFor();
+    assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt del «Andre boks»");
+    assert(await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).isHidden(), "A box is not a single piece of text.");
+    await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Kortere tekst i boksen.");
+    await view.save();
+    const box = await pointed();
+    assert.equal(box.element.className, "box-b");
+    assert.equal(box.item.anchor.rect.height, box.element.height, "The anchor is measured without the text preview.");
+    assert.equal(box.item.kind, "point");
+    return { displayContentsSkipped: true, headingsBeyondSixtyBound: true, previewFreeAnchor: true };
+  } },
+  // Header badges give way on narrow screens; the feedback panel still says it.
+  { name: "temporary-sketch-and-standalone-page", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
+    // No declared parts and no headed boxes besides the page heading.
+    const plain = title => ({ html: `<main>${renderToStaticMarkup(h(C.Heading, { level: "1", size: "large" }, title))}${renderToStaticMarkup(h(C.BodyShort, null, "Oppdiktet tekst uten egne deler."))}${renderToStaticMarkup(h(C.TextField, { label: "Prøvefelt", id: "practice" }))}</main>` });
+    const bound = host(), view = await instance(bound, "temporary", "Timeavtale · midlertidig", { fixture: plain });
+    assert.equal(view.title(), "Midlertidig skisse", "A temporary sketch is titled as one.");
+    const badge = view.frame.locator(".vc-header .vc-badge", { hasText: "Midlertidig" });
+    await until(async () => await badge.isVisible(), "temporary badge shown");
+    await view.openFeedback();
+    assert.equal(await view.ui.locator(".panel-intro").textContent(), "Midlertidig skisse: forsvinner når samtalen avsluttes eller etter fire timer uten bruk.");
+    await screenshot(view, "temporary-intro");
+    await view.closeFeedback();
+    // With nothing else to choose, a single button replaces the list.
+    await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    assert(await view.ui.getByLabel("Velg en del", { exact: true }).isHidden(), "A list with one choice is not offered.");
+    await view.ui.getByRole("button", { name: "Hele skissen", exact: true }).click();
+    assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt hele skissen");
+    assert(await view.ui.locator(".anchor-scope").isHidden(), "The whole sketch has no larger or smaller step.");
+    await screenshot(view, "whole-sketch-button");
+    await view.ui.getByRole("button", { name: "Forkast", exact: true }).click();
+    // Opened on its own, the sketch page offers no feedback tools.
+    const src = await view.page.locator("#vc-preview").getAttribute("src");
+    const alone = await view.page.context().newPage();
+    const aloneErrors = []; alone.on("pageerror", error => aloneErrors.push(error.message));
+    await alone.goto(new URL(src, view.url()).href);
+    await alone.getByRole("heading", { name: "Timeavtale · midlertidig", exact: true }).waitFor();
+    const notice = alone.locator("[data-visual-feedback-notice]").getByRole("status");
+    assert.equal(await notice.textContent(), "Bare visning. Innspill lagres ikke her. Gi innspill i Designverksted.");
+    assert.equal(await alone.locator("[data-visual-feedback]").evaluate(node => getComputedStyle(node).display), "none", "No feedback tools without Designverksted.");
+    await alone.getByRole("heading", { name: "Timeavtale · midlertidig", exact: true }).click();
+    assert.equal(await alone.locator("[data-visual-feedback]").evaluate(node => node.shadowRoot.querySelector(".composer").hidden), true, "A click starts no wish.");
+    if (evidence) await alone.screenshot({ path: path.join(evidence, "temporary-sketch-and-standalone-page-alone.png"), animations: "disabled" });
+    await alone.close();
+    assert.deepEqual(aloneErrors, []);
+    assert.equal((await view.snapshot()).comments.length, 0);
+    return { temporaryTitle: true, temporaryBadge: true, standaloneNotice: true, standaloneFeedbackTools: 0 };
   } },
   { name: "workspace-view-stored-version-read-only", viewport: { width: 390, height: 844 }, async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "view-stored", "Timeavtale · første", { openInput: { workspacePath: "design/visning", create: true, title: "Visning" } });

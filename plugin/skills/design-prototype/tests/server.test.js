@@ -1783,7 +1783,7 @@ test("a retried keep wish keeps its identity after a resize, while a changed wis
   const binding = { descriptor: design.targets[0], element: {}, values: {}, accepted: "", remark: "Behold oversikten tydelig." };
   let width = 1280, loseNext = true;
   const context = vm.createContext({
-    TextEncoder, crypto: require("node:crypto").webcrypto, screen, connectionLost: false, requests: new Map(), requestCounter: 0,
+    TextEncoder, crypto: require("node:crypto").webcrypto, screen, standalone: false, standaloneMessage: "", connectionLost: false, requests: new Map(), requestCounter: 0,
     locking: false, selected: () => binding, selectedKey: "/card", saveRetries: new Map(), preferredVariant: "", variantBindings: new Map(),
     remark: { before() {}, value: "" }, pane: { hidden: false }, el: () => ({ scrollIntoView() {} }),
     error() {}, focus() {}, status() {}, announce() {}, updateDrafts() {}, updateBusy() {}, close() {},

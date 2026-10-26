@@ -79,7 +79,7 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "c47c039f062c061c9478ac51f6938b3bceb0c58daafc0b5ce4509a8dbf0852a2",
+      "sha256": "fcf00f19d5768935d81cc217660c0aa74a397f15938b8b155706e6ba0ae2cb0a",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -147,7 +147,7 @@
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "ecd626b496d6e0a758248ae3ec51accb66ec1473d1a366b918be209b27083a0b",
+      "sha256": "17569d50590cf852b76858c01bbe280911d1b894d543843c859a2430cec4759f",
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
@@ -347,7 +347,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "995dde7208b6fad38c43b8a65029c735b75dbbfb010760dee73cac348b67ac48",
+      "sha256": "942fcc72f7f05bcdfbeb41a34988c2a7f4528175a7a4fa07fbc9c71e0e43b45b",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -355,7 +355,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
-      "sha256": "40ebce94d60ae3873c24922b814f3f760c0d61cc0590a9ddeeafa4de51e723d5",
+      "sha256": "f3844ce8d0677b69fc5e0542360f4a523b7bf9c545877953ec1cc9907263052e",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/canvas-state.js": {
@@ -391,11 +391,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "4807faa6d003742076a3965c5484a2981f16f60a9b61b0e3df7a202e31121c27",
+      "sha256": "e43efb183febbf6a373958f84b9540899a1678ee82faaac3a781fb4d354e9ced",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "f78f24c9e149e7cbf038f35780b7175a395875c5456c285eb69cf55442257b44",
+      "sha256": "9ef6f1d88977e1395fd1a0292bb208501d82d97aefec2ab017da40550cb24767",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
@@ -419,7 +419,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {
-      "sha256": "9637bbbed7bc24a162e2c81244dfe0cb40a7567299d17a87d8e2a7d6e3d72a5f",
+      "sha256": "e1227ed82e2fd7701bd05fa15ac37ea5662dcdff5d501693f7b032b03ad9d932",
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-lifecycle.test.js": {
