@@ -120,7 +120,8 @@ transport:
   tilbyr canvaset. Les den valgte oppskriftsreferansen før første handling.
   Før første skisse i en ny oppgave spør du med vanlige ord om den skal lagres
   i prosjektet (versjoner, «Rediger», kan åpnes igjen senere) eller være
-  midlertidig (forsvinner når samtalen avsluttes), med mindre bestillingen
+  midlertidig (forsvinner når samtalen avsluttes eller etter fire timer uten
+  bruk), med mindre bestillingen
   sier det. Si ikke «prosjektlagring» eller «designrom» til designeren. Bevar
   lagrede redigeringer og frigiv dem aldri på designerens vegne.
 - Uten canvas brukes den midlertidige nettleserflyten. En midlertidig feil i et

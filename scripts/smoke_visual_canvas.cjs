@@ -337,6 +337,44 @@ const cases = [
     assert(await view.ui.getByRole("group", { name: "Endre skissen", exact: true }).isHidden(), "Prøv leaves Endre.");
     return { wholeSketchAnchor: true, declaredPartAnchor: "meeting", widenedPointAnchor: "meeting", automaticSubmissions: 0 };
   } },
+  // Boxes come from headings: a box without its own layout is skipped, every
+  // heading bounds a box, and a text preview never changes a measured part.
+  { name: "parts-from-headings-and-preview", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
+    const steps = Array.from({ length: 59 }, (_, index) => `<h3>Punkt ${index + 1}</h3>`).join("");
+    const headed = title => ({ html: `<main>${renderToStaticMarkup(h(C.Heading, { level: "1", size: "large" }, title))}<div class="pair"><div style="display:contents"><section class="box-a"><h2>Første boks</h2>${steps}</section></div><section class="box-b"><h2>Andre boks</h2><p>Kort tekst.</p></section></div>${renderToStaticMarkup(h(C.TextField, { label: "Prøvefelt", id: "practice" }))}</main>` });
+    const bound = host(), view = await instance(bound, "headed", "Timeavtale · bokser", { fixture: headed });
+    const pointed = async () => {
+      const item = (await view.snapshot()).comments.at(-1);
+      return { item, element: await view.frame.locator("body").evaluate((_, path) => {
+        const node = document.querySelector(path), rect = node?.getBoundingClientRect();
+        return node && { className: node.className, height: Math.round(rect.height) };
+      }, item.anchor.path) };
+    };
+    await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    await view.ui.getByLabel("Velg en del", { exact: true }).selectOption({ label: "Første boks" });
+    assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt del «Første boks»");
+    await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Del opp punktene.");
+    await view.save();
+    assert.equal((await pointed()).element.className, "box-a", "The visible box, not its display: contents wrapper or the pair around both boxes.");
+    await view.closeFeedback();
+    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    const heading = view.frame.getByRole("heading", { name: "Andre boks", exact: true });
+    await heading.click();
+    await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
+    await view.ui.getByLabel("Ny tekst", { exact: true }).fill("En mye lengre overskrift som brytes over flere linjer og gjør boksen høyere enn den er i skissen");
+    await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Større del", exact: true }).click();
+    await heading.waitFor();
+    assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt del «Andre boks»");
+    assert(await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).isHidden(), "A box is not a single piece of text.");
+    await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Kortere tekst i boksen.");
+    await view.save();
+    const box = await pointed();
+    assert.equal(box.element.className, "box-b");
+    assert.equal(box.item.anchor.rect.height, box.element.height, "The anchor is measured without the text preview.");
+    assert.equal(box.item.kind, "point");
+    return { displayContentsSkipped: true, headingsBeyondSixtyBound: true, previewFreeAnchor: true };
+  } },
   // Header badges give way on narrow screens; the feedback panel still says it.
   { name: "temporary-sketch-and-standalone-page", viewport: { width: 1280, height: 900 }, async run({ host, instance, screenshot }) {
     // No declared parts and no headed boxes besides the page heading.
@@ -346,7 +384,7 @@ const cases = [
     const badge = view.frame.locator(".vc-header .vc-badge", { hasText: "Midlertidig" });
     await until(async () => await badge.isVisible(), "temporary badge shown");
     await view.openFeedback();
-    assert.match(await view.ui.locator(".panel-intro").textContent(), /^Midlertidig skisse: den og innspillene forsvinner når samtalen avsluttes\./);
+    assert.equal(await view.ui.locator(".panel-intro").textContent(), "Midlertidig skisse: forsvinner når samtalen avsluttes eller etter fire timer uten bruk.");
     await screenshot(view, "temporary-intro");
     await view.closeFeedback();
     // With nothing else to choose, a single button replaces the list.

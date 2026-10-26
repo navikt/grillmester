@@ -1915,7 +1915,7 @@ async function canvasCommand(method, params) {
       });
     }
     const info = serverInfo();
-    return { url: info.url, title: workspaceState?.summary().title || "Midlertidig skisse", status: workspaceState ? "Arbeidet lagres i prosjektet. Send innspill når runden er klar." : "Midlertidig skisse. Den og innspillene forsvinner når samtalen avsluttes." };
+    return { url: info.url, title: workspaceState?.summary().title || "Midlertidig skisse", status: workspaceState ? "Arbeidet lagres i prosjektet. Send innspill når runden er klar." : "Midlertidig skisse. Den og innspillene forsvinner når samtalen avsluttes eller etter fire timer uten bruk." };
   }
   if (method === "retire") return { retired: true };
   throw new FeedbackError(400, "Unknown canvas operation.");

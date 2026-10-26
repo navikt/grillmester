@@ -259,19 +259,21 @@
   function findParts() {
     const whole = content();
     if (!whole) return [];
-    const headings = Array.from(whole.querySelectorAll("h1,h2,h3,h4,h5,h6")).filter(visiblePart).slice(0, 60);
+    // Every visible heading bounds the boxes; the first 60 can name one.
+    const headings = Array.from(whole.querySelectorAll("h1,h2,h3,h4,h5,h6")).filter(visiblePart);
     const level = (heading) => Number(heading.localName[1]);
     const wrappers = new Set([whole]);
     // The preview's own notices, such as missing Aksel styles, are not sketch parts.
     for (let node = whole, children; (children = Array.from(node.children).filter((child) => !["SCRIPT", "STYLE", "TEMPLATE"].includes(child.tagName) && !child.hasAttribute("data-vc-notice"))).length === 1;) wrappers.add(node = children[0]);
     const known = new Set(partOptions.slice(1).map(([value]) => partElement(value)));
     const found = new Map();
-    for (const heading of headings) {
+    for (const heading of headings.slice(0, 60)) {
       let box = null;
       for (let node = heading.parentElement; node && node !== whole; node = node.parentElement) {
         if (!headings.every((other) => other === heading || !node.contains(other)
           || (level(other) > level(heading) && heading.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING))) break;
-        box = node;
+        // A wrapper without its own box, such as display: contents, cannot be marked.
+        if (visiblePart(node)) box = node;
       }
       if (box && !wrappers.has(box) && !known.has(box) && !found.has(box)) found.set(box, heading.textContent);
     }
@@ -294,9 +296,10 @@
     const options = [...partOptions.map(([value, label]) => [value, label]), ...foundParts.map((part, index) => [`found:${index}`, part.label])];
     select.replaceChildren(select.firstElementChild || new Option("Eller velg en del …", ""));
     for (const [value, label] of options) { const option = document.createElement("option"); option.value = value; option.textContent = label; select.appendChild(option); }
-    const alone = options.length === 1;
+    const alone = options.length === 1, focused = root.activeElement === select;
     select.hidden = alone;
     el('[data-action="part-whole"]').hidden = !alone;
+    if (alone && focused) el('[data-action="part-whole"]').focus();
   }
   renderPartOptions();
   // A stored version starts from its declared values, as the current preview
@@ -696,8 +699,15 @@
       if (leading.length === 1) return `${kind} ${leading[0]}`;
       if (leading.length > 1) return `${kind} med ${leading.length === 2 ? leading.join(" og ") : `${leading.slice(0, 2).join(", ")} og ${leading.length - 2} til`}`;
     }
-    const text = shortName(target.textContent, 48);
+    const text = shortName(leadingText(target), 48);
     return text ? `${kind} «${text}»` : kind;
+  }
+  // The first words of a part, with a space between separate pieces of text.
+  function leadingText(target) {
+    const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+    let text = "";
+    for (let node = walker.nextNode(); node && text.length < 120; node = walker.nextNode()) text += ` ${node.data}`;
+    return text;
   }
   // «Større del» widens the choice one visible step at a time, up to the whole
   // sketch. Wrappers with the same size are skipped, so each step shows.
@@ -724,11 +734,13 @@
   // proposal only stays while the new part is a single piece of text.
   function changeDraftPart(wider) {
     if (!draft || draft.kind !== "point" || savingDraft) return;
+    // Parts are measured as the sketch shows them, without a text preview, so
+    // a retried wish keeps the same anchor.
+    if (preview?.owner === draft) resetPreview();
     const next = wider ? largerPart(draft.target) : draft.trail.at(-1);
     if (!next?.isConnected) return;
     const anchor = anchorFor(next, null);
     if (!anchor.path) { announce("Denne delen kan ikke markeres."); return; }
-    if (preview?.owner === draft) resetPreview();
     draft.trail = wider ? [...draft.trail, draft.target] : draft.trail.slice(0, -1);
     draft.target = next;
     draft.anchor = anchor;
@@ -762,6 +774,7 @@
     previewSpacer?.remove(); previewSpacer = null;
     el('[data-action="edit-preview"]').hidden = true;
     el('[data-action="resume"]').hidden = true;
+    renderAnchor();
     showDraftOutline();
     positionComposer();
     note.focus({ preventScroll: true });
@@ -1033,7 +1046,7 @@
     const stored = workspaceStored();
     workspaceButton.hidden = !stored && canvasRounds() === null;
     workspaceText(".workspace-title", stored ? snapshot.workspace.title : "Midlertidig skisse");
-    workspaceText(".workspace-storage", stored ? `Lagret i prosjektet · versjon ${snapshot.workspace.version}` : "Skissen og innspillene forsvinner når samtalen avsluttes.");
+    workspaceText(".workspace-storage", stored ? `Lagret i prosjektet · versjon ${snapshot.workspace.version}` : "Skissen og innspillene forsvinner når samtalen avsluttes eller etter fire timer uten bruk.");
     workspaceText(".workspace-path", stored ? snapshot.workspace.path : "");
     el(".workspace-storage-details").hidden = !stored;
     el(".workspace-unsaved").hidden = !stored;
@@ -1258,7 +1271,7 @@
     temporaryBadge.style.display = canvas && !workspaceStored() ? "" : "none";
     el(".panel-intro").textContent = workspaceStored()
       ? "Lagrede innspill beholdes i prosjektet. Ulagrede utkast og merknader går tapt ved lukking."
-      : canvas ? "Midlertidig skisse: den og innspillene forsvinner når samtalen avsluttes. Vil du beholde den, be om å lagre den i prosjektet. Ulagrede utkast går tapt hvis du lukker skissen."
+      : canvas ? "Midlertidig skisse: forsvinner når samtalen avsluttes eller etter fire timer uten bruk."
       : snapshot.submission > 0
       ? "Send nye innspill samlet. Sendte runder bevares i denne økten, også når du fjerner innspill fra listen."
       : "Pek på det du vil forbedre. Send samlet når du er klar. Innspillene lagres bare i denne økten.";

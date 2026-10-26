@@ -23,7 +23,7 @@ whether to save it in the project or keep it temporary, unless the request
 already says. A saved sketch gets «Versjoner» and «Rediger», can be reopened in
 a later conversation and is written to a folder such as `designs/<name>` in the
 repository. A temporary sketch disappears with its feedback when the
-conversation ends. Do not say «prosjektlagring» or «designrom» to the designer.
+conversation ends or after four hours without use. Do not say «prosjektlagring» or «designrom» to the designer.
 If they leave it open, start temporary and say once that it can be saved later.
 
 - For a temporary sketch, omit workspace input.
