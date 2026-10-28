@@ -60,6 +60,17 @@ async function main() {
       await until(async () => await page.locator("#proposal-tab").getAttribute("aria-selected") === "true" || await page.frameLocator("#app-preview").getByRole("heading", { name: "Dialogmøter", exact: true }).count() > 0, "selected workshop surface"); return view;
     };
     const frames = () => { const frame = page.frameLocator("#proposal-preview").frameLocator("#sketch").frameLocator("#vc-preview"); return { frame, ui: frame.locator("[data-visual-feedback]") }; };
+    const settleProposalPaint = async () => {
+      // Each visible frame has its own resize/paint cycle. A heading present
+      // in the DOM does not prove that the nested preview has been painted.
+      const bridge = page.frameLocator("#proposal-preview"), sketch = bridge.frameLocator("#sketch");
+      for (const surface of [page, bridge, sketch, frames().frame]) {
+        await surface.locator("body").evaluate(async () => {
+          await document.fonts.ready;
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        });
+      }
+    };
     await open({ application, workspacePath: "designs/meeting-app", create: true, title: "Forbered et møte" });
     await check("app feedback shows immediate progress and returns to Try", async () => {
       await page.frameLocator("#app-preview").getByLabel("Prøvefelt").fill("Valg beholdes");
@@ -104,7 +115,9 @@ async function main() {
       assert.equal(context.pages().length, 1, "one direct workshop; no connection panel, popup or proposal window");
       await page.getByRole("button", { name: "Vis forslag", exact: true }).click();
       await frames().frame.getByRole("heading", { name: "Forbered møtet", exact: true }).waitFor();
+      await page.frameLocator("#proposal-preview").frameLocator("#sketch").locator('#vc-status[data-connected="true"]').waitFor({ state: "attached" });
       assert.equal(await page.locator("#proposal-message").isVisible(), false);
+      await settleProposalPaint();
       if (evidence) await page.screenshot({ path: path.join(evidence, "proposal-desktop.png") });
     });
     await check("real declarative interaction and draft survive switching between app and proposal", async () => {
@@ -183,6 +196,9 @@ async function main() {
         await page.setViewportSize(viewport); assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         await page.locator("#app-tab").focus(); await page.keyboard.press("ArrowRight"); await page.keyboard.press("Enter");
         assert.equal(await page.locator("#proposal-tab").getAttribute("aria-selected"), "true");
+        await page.frameLocator("#proposal-preview").frameLocator("#sketch").locator('#vc-status[data-connected="true"]').waitFor({ state: "attached" });
+        await frames().frame.getByRole("heading", { name: "Gjør dere klare til møtet", exact: true }).waitFor();
+        await settleProposalPaint();
         if (evidence) await page.screenshot({ path: path.join(evidence, `proposal-${viewport.width}x${viewport.height}.png`) });
       }
     });

@@ -4,13 +4,41 @@ const crypto = require("node:crypto");
 const { FeedbackError, keys, ID } = require("./feedback-store.js");
 const { relativeDirectory } = require("./application-workspace.js");
 const { validDesign, MAX_DESIGN_BYTES } = require("./design-contract.js");
-const { validateEditorBindings } = require("./editor-bindings.js");
+const { validateEditorBindings, editorBindingErrorMessage } = require("./editor-bindings.js");
 const fail = (condition, status, message) => { if (!condition) throw new FeedbackError(status, message); };
 const text = value => typeof value === "string" && value.trim() && Buffer.byteLength(value) <= 200 && !/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(value);
 const routed = new Set(["readState", "readSubmission", "publishRevision", "reviewSubmission", "updateComment", "markDelivery", "listHistory", "readRevision", "restoreRevision"]);
 const copy = value => JSON.parse(JSON.stringify(value));
 const requestHash = input => crypto.createHash("sha256").update(JSON.stringify([input.source ?? "app-feedback", input.sourceSubmission ?? null, [...(input.commentIds || [])].sort(), input.title,
   input.filename, input.html, input.design ?? null, input.workspacePath ?? null, input.create ?? null, input.styleProjectPath ?? ""])).digest("hex");
+// Child errors cross an IPC boundary. Preserve fixed recovery advice, never
+// arbitrary messages containing file paths, source text or field labels.
+const publicErrors = new Map([
+  [400, new Set(["Invalid sketch revision.", "Invalid sketch version.", "Invalid version restore.", "Invalid content offset."])],
+  [404, new Set(["Sketch version was not found in this workspace."])],
+  [409, new Set(["Use a new filename for each sketch revision.", "Use a new filename for each sketch version.",
+    "Revision filenames are immutable. Use a new filename.", "The sketch changed. Read the current screen before publishing.",
+    "The sketch changed. Read the current version before publishing.", "The workspace changed. Review its current state before restoring.",
+    "History cursor belongs to a different workspace version.", "A saved sketch no longer matches its recorded version.",
+    "Saved design controls no longer match the recorded version.",
+    "Mappen for det nye arbeidsrommet er ikke tom. Ingen filer er endret. Velg en annen mappe, eller åpne det eksisterende arbeidet."])],
+  [429, new Set(["This workspace has reached its version limit.", "Design workspace storage limit reached.", "Design workspace state limit reached."])],
+]);
+function proposalError(error) {
+  if (error instanceof FeedbackError) return error;
+  if (error?.errorCode === "invalid-editor-bindings") return new FeedbackError(400, editorBindingErrorMessage(error));
+  const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
+  if (publicErrors.get(status)?.has(error?.message)) return new FeedbackError(status, error.message);
+  if (status === 409 && typeof error?.message === "string" && error.message.startsWith("The revision changes a manually saved field (")) {
+    return new FeedbackError(409, "The revision changes a manually saved field. Preserve its value and declaration, or ask the designer to allow later changes in the editor.");
+  }
+  return new FeedbackError(status, status === 400 ? "Forslaget kunne ikke publiseres. Kontroller innholdet og les gjeldende skissestatus før et nytt forsøk."
+    : status === 409 ? "Forslaget kunne ikke bekreftes. Les gjeldende skissestatus og kontroller versjonen før et nytt forsøk."
+    : "Forslaget er ikke tilgjengelig akkurat nå. Innspillene dine er beholdt. Les gjeldende status før et nytt forsøk.");
+}
+function validateBindings(html, design) {
+  try { validateEditorBindings(html, design); } catch (error) { throw proposalError(error); }
+}
 
 // One proposal uses the existing HTML engine and its own FeedbackStore. This
 // registry owns the relationship, lifecycle and exact delivery route; it is not
@@ -40,7 +68,14 @@ class ApplicationProposals {
           entry.state = state;
           if (this.closed || this.entry !== entry) { await backend.retire({}); throw new FeedbackError(410, "This design workshop is closed."); }
           return backend;
-        } catch (error) { await backend.retire({}).catch(() => {}); throw error; }
+        } catch (error) { await backend.retire({}).catch(() => {}); throw proposalError(error); }
+      }, error => {
+        const saved = this.workspace.feedback.state.workspace;
+        // Only a never-ready child whose shutdown is confirmed is safe to
+        // replace. A durable/pending link or uncertain startup stays bound.
+        if (error?.backendStopped === true && error.backendWasReady === false && this.entry === entry &&
+            !binding.workspaceId && !entry.recoveringSave && !saved.sketch && !saved.pendingSketchSave) this.entry = null;
+        throw proposalError(error);
       });
     }
     return entry.backend;
@@ -52,7 +87,7 @@ class ApplicationProposals {
       [undefined, "conversation", "app-feedback"].includes(input.source), 400, "Invalid proposal publication.");
     const source = input.source ?? "app-feedback";
     fail(input.design === undefined || validDesign(input.design) && Buffer.byteLength(JSON.stringify(input.design)) <= MAX_DESIGN_BYTES, 400, "Invalid proposal controls.");
-    if (input.design?.version === 2) validateEditorBindings(input.html, input.design);
+    if (input.design?.version === 2) validateBindings(input.html, input.design);
     if (source === "conversation") fail(!Object.hasOwn(input, "sourceSubmission") && !Object.hasOwn(input, "commentIds"), 400, "A conversation proposal does not invent a feedback round.");
     else fail(Number.isSafeInteger(input.sourceSubmission) && input.sourceSubmission > 0 && Array.isArray(input.commentIds) && input.commentIds.length > 0 && input.commentIds.length <= 200 &&
       new Set(input.commentIds).size === input.commentIds.length && input.commentIds.every(id => typeof id === "string" && ID.test(id)), 400, "Invalid proposal feedback source.");
@@ -72,7 +107,8 @@ class ApplicationProposals {
       ...(input.styleProjectPath === undefined ? {} : { styleProjectPath: input.styleProjectPath }) } };
     const entry = this.entry, backend = await this.ensure(entry);
     this.assertOpen();
-    const before = await backend.readState({});
+    let before;
+    try { before = await backend.readState({}); } catch (error) { throw proposalError(error); }
     if (!this.workspace.temporary && input.workspacePath !== undefined) {
       fail(typeof before.workspace?.id === "string" && ID.test(before.workspace.id), 409, "The sketch workspace identity could not be verified.");
       entry.binding.workspaceId = before.workspace.id;
@@ -80,8 +116,11 @@ class ApplicationProposals {
       // remains an empty, retryable sketch, never an untracked duplicate.
       this.workspace.bindSketch(entry.binding);
     }
-    if (!before.screen) entry.state = await backend.publishRevision({ expectedScreen: "", filename: input.filename, html: input.html,
-      ...(input.design === undefined ? {} : { design: input.design }) });
+    if (!before.screen) {
+      try { entry.state = await backend.publishRevision({ expectedScreen: "", filename: input.filename, html: input.html,
+        ...(input.design === undefined ? {} : { design: input.design }) }); }
+      catch (error) { throw proposalError(error); }
+    }
     else entry.state = before; // Same initial request after a lost reply is one proposal.
     return this.describe(entry);
   }
@@ -94,10 +133,11 @@ class ApplicationProposals {
   }
   async summary() {
     this.assertOpen();
-    if (!this.entry) return [];
-    try { const backend = await this.ensure(this.entry); this.entry.state = await backend.readState({}); }
-    catch { this.entry.state = null; }
-    return [this.describe(this.entry)];
+    const entry = this.entry;
+    if (!entry) return [];
+    try { const backend = await this.ensure(entry); entry.state = await backend.readState({}); }
+    catch { entry.state = null; }
+    return this.entry === entry ? [this.describe(entry)] : [];
   }
   async action(method, input) {
     this.assertOpen();
@@ -107,7 +147,11 @@ class ApplicationProposals {
     fail(routed.has(method), 400, "This proposal action is unavailable.");
     fail(this.entry.binding.workspacePath !== undefined || !["listHistory", "readRevision", "restoreRevision"].includes(method), 409,
       "Forslaget er midlertidig og har ingen lagret versjonshistorikk. Bruk read_state for gjeldende skisse. Ingen filer er endret.");
-    const backend = await this.ensure(this.entry), result = await backend[method](params);
+    if (method === "publishRevision" && params.design?.version === 2 && validDesign(params.design) &&
+        typeof params.html === "string" && Buffer.byteLength(params.html) <= 2 * 1024 * 1024) validateBindings(params.html, params.design);
+    const backend = await this.ensure(this.entry);
+    let result;
+    try { result = await backend[method](params); } catch (error) { throw proposalError(error); }
     if (result?.screen !== undefined) this.entry.state = result;
     return result;
   }

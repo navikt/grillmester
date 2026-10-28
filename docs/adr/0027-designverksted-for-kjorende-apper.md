@@ -99,6 +99,10 @@ at instansen er avsluttet.
 
 Åpning av samme fortsatt levende instans fokuserer den eksisterende visningen.
 Kontrollskall-reload eller duplisering kan ikke overta den aktive skriveren.
+Blir kontrolldokumentet ubrukelig, må eventuell ulagret tekst kopieres og det
+gamle canvaset lukkes før et lagret rom åpnes i en ny instans. Et nytt åpningskall
+mot den levende instansen erstatter ikke dens engangsinvitasjon, og en ny instans
+kan ikke overta romlåsen før den gamle er ryddet.
 Vanlig iframe-retry laster den samme appen gjennom samme proxy og kan beholde
 cookies og worker; det er ikke en fersk lagringskontekst. Utløpt invitasjon
 betyr ikke at et allerede aktivert dokument har mistet myndigheten.

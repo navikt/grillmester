@@ -39,6 +39,11 @@ Use an explicitly owned copy for demo startup; frameworks and package managers
 may write generated metadata even when no product edit was requested. Reuse one
 local service key for this app and conversation; keep it out of normal replies.
 The start command returns a bounded status, not a tool task to poll forever.
+If status is `unreachable`, first inspect the existing demo and its ownership;
+the helper cannot safely stop or reclaim an unconfirmed controller. Only then
+use a new local service key if a separate start is appropriate. A `stopping`
+runtime is not a reusable running service. Never delete its state or signal a
+stored process ID to force a restart.
 Check the observed demo URL separately. A permitted local redirect may normalize
 the path or public parameters; follow the observed destination rather than wait
 for the original address to return 200. Do not follow a redirect into login or

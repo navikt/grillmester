@@ -351,7 +351,7 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
       });
       handler = createApplicationRequestHandler({ workspace, authority, receipts, onSubmitted });
       current.result = { url: current.origin + connection.path, title: workspace.summary().title,
-        status: "Prøvevisningen åpnes i Designverksted. Ved lukking eller omlasting: be om å åpne verkstedet igjen i samtalen. Lagrede rom beholdes; midlertidige forslag kan gå tapt." };
+        status: "Prøvevisningen åpnes i Designverksted. Ved avbrutt visning eller omlasting: kopier eventuell ulagret tekst, lukk canvaset først, og be så i samtalen om å åpne verkstedet igjen. Lagrede rom beholdes; midlertidige forslag kan gå tapt." };
       return current.result;
     } catch (error) {
       viewRetired = true;

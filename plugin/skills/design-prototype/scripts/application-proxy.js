@@ -55,10 +55,10 @@ function documentRequest(request) {
   if (destination !== undefined || mode !== undefined) return ["document", "iframe"].includes(destination) && mode === "navigate";
   return ["GET", "POST"].includes(request.method) && /(?:^|,)\s*(?:text\/html|application\/xhtml\+xml)(?:\s*;|\s*,|$)/i.test(String(request.headers.accept || ""));
 }
-function documentErrorResponse(response, status, shellOrigin) {
+function documentErrorResponse(response, status, shellOrigin, previewOrigin) {
   if (response.headersSent) { response.destroy(); return; }
   commonHeaders(response);
-  response.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin}; base-uri 'none'; form-action 'none'` });
+  response.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin} ${previewOrigin}; base-uri 'none'; form-action 'none'` });
   response.end('<!doctype html><html lang="nb"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Appen kunne ikke vises</title><body><main><h1>Appen kunne ikke vises</h1><p>Kontroller at den lokale demoen kjører, og last visningen på nytt i Designverksted.</p><p>Du kan fortsatt gå tilbake til innspillene dine.</p></main></body></html>');
 }
 
@@ -124,8 +124,9 @@ function proxyRequestHeaders(headers, upstream, previewOrigin, cookiePrefix) {
 // with effective unsafe-inline would disable the application's inline scripts.
 // Keep that policy's meaning by allowing the exact inspector URL instead.
 // script-src stays unchanged so handlers, eval and worker fallbacks retain
-// their original policy; frame ancestors are narrowed to the shell.
-function contentSecurityPolicy(policy, shellOrigin, nonce, inspectorUrl) {
+// their original policy; ancestors are limited to the shell and this preview.
+// Same-preview nested documents must pass every ancestor in their frame chain.
+function contentSecurityPolicy(policy, shellOrigin, nonce, inspectorUrl, previewOrigin) {
   if (Array.isArray(policy) || String(policy || "").includes(",")) throw failure(502, "Multiple application security policies are not supported by this preview.");
   const directives = new Map();
   for (const entry of String(policy || "").split(";")) {
@@ -148,7 +149,7 @@ function contentSecurityPolicy(policy, shellOrigin, nonce, inspectorUrl) {
   directives.delete("upgrade-insecure-requests");
   directives.delete("report-uri");
   directives.delete("report-to");
-  directives.set("frame-ancestors", [shellOrigin]);
+  directives.set("frame-ancestors", previewOrigin ? [shellOrigin, previewOrigin] : [shellOrigin]);
   return [...directives].map(([name, values]) => [name, ...values].join(" ")).join("; ");
 }
 
@@ -318,7 +319,7 @@ function responseHeaders(headers, { shellOrigin, nonce, upstreamOrigin, requestU
       output[lower] = previewOrigin + redirect.pathname + redirect.search + redirect.hash;
     } else output[lower] = value;
   }
-  output["content-security-policy"] = contentSecurityPolicy(headers["content-security-policy"], shellOrigin, nonce, previewOrigin + inspectorPath);
+  output["content-security-policy"] = contentSecurityPolicy(headers["content-security-policy"], shellOrigin, nonce, previewOrigin + inspectorPath, previewOrigin);
   output["cache-control"] = "no-store";
   output["referrer-policy"] = "no-referrer";
   output["x-content-type-options"] = "nosniff";
@@ -345,13 +346,16 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
   // Keep the complete verified lookup result. Development servers may bind
   // only one localhost family; Node can try both without resolving DNS again.
   const pinned = addresses.map(({ address, family }) => ({ address, family }));
-  const privateId = crypto.randomBytes(12).toString("hex"), secret = crypto.randomBytes(32).toString("base64url");
+  const privateId = crypto.randomBytes(12).toString("hex"), bootstrapKey = crypto.randomBytes(32).toString("base64url");
+  // The URL is an invitation, not the cookie credential. Exchange it for a
+  // distinct, one-way derived capability confined to this running preview.
+  const cookieKey = crypto.createHmac("sha256", crypto.randomBytes(32)).update(bootstrapKey).digest("base64url");
   const workerKey = crypto.randomBytes(32).toString("base64url");
   const workerTransportKey = crypto.randomBytes(32).toString("base64url");
   const authCookie = `dv_preview_${privateId}_auth`, cookiePrefix = `dv_app_${privateId}_`;
-  const internal = `/.designverksted/${privateId}`, bootstrapPath = `${internal}/open/${secret}`, inspectorPath = `${internal}/inspect.js`;
+  const internal = `/.designverksted/${privateId}`, bootstrapPath = `${internal}/open/${bootstrapKey}`, inspectorPath = `${internal}/inspect.js`;
   const sockets = new Set(), upstreamRequests = new Set(), webSockets = new Set();
-  let origin, authority, closed = false, closePromise, activeRequests = 0, navigation = 0, lastStatus = "";
+  let origin, authority, closed = false, closePromise, activeRequests = 0, navigation = 0, pendingDocument = null, lastStatus = "";
   function reportStatus(id, state, httpStatus) {
     if (!id || id !== navigation || closed) return;
     const value = { state, ...(Number.isInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599 ? { httpStatus } : {}) };
@@ -365,11 +369,14 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     if (closed || !loopback(String(request.socket.remoteAddress || "")) || request.headers.host !== authority) return false;
     if (request.headers.origin !== undefined && request.headers.origin !== origin) return false;
     if (socket || !["GET", "HEAD"].includes(request.method)) if (request.headers.origin !== origin) return false;
-    return validSecret(cookieValue(request.headers.cookie, authCookie), secret);
+    return validSecret(cookieValue(request.headers.cookie, authCookie), cookieKey);
   }
   function upstreamRequest(url, options) {
     const transport = upstream.protocol === "https:" ? https : http;
-    const request = transport.request(url, { ...options, agent: false, autoSelectFamily: true, autoSelectFamilyAttemptTimeout: 100,
+    // Request paths can vary; the connection authority cannot. Do not pass a
+    // request-derived URL to the network client, even after path validation.
+    const request = transport.request({ ...options, protocol: upstream.protocol, hostname, port: upstream.port,
+      path: url.pathname + url.search, agent: false, autoSelectFamily: true, autoSelectFamilyAttemptTimeout: 100,
       lookup: (_host, settings, callback) => settings?.all ? callback(null, pinned) : callback(null, pinned[0].address, pinned[0].family),
     });
     upstreamRequests.add(request);
@@ -384,7 +391,8 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     try { target = proxyTarget(request.url, app.origin); } catch { errorResponse(response, 400, "The application request path is invalid."); return; }
     if (target.pathname === bootstrapPath && !target.search && request.method === "GET") {
       if (request.headers.origin !== undefined && ![origin, shellOrigin].includes(request.headers.origin)) { errorResponse(response, 403, "This preview cannot be opened from that origin."); return; }
-      response.writeHead(303, { Location: app.startPath, "Set-Cookie": `${authCookie}=${secret}; HttpOnly; SameSite=None; Secure; Partitioned; Path=/`, "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin}` });
+      pendingDocument = { path: app.startPath, id: ++navigation };
+      response.writeHead(303, { Location: app.startPath, "Set-Cookie": `${authCookie}=${cookieKey}; HttpOnly; SameSite=None; Secure; Partitioned; Path=/`, "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin}` });
       response.end(); return;
     }
     const workerValues = target.searchParams.getAll(WORKER_QUERY);
@@ -414,11 +422,17 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     }
     if (target.pathname.startsWith(internal + "/")) { errorResponse(response, 409, "This resource is unavailable in the design preview."); return; }
     if (!/^(?:GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)$/.test(request.method)) { errorResponse(response, 405, "This application method is unavailable."); return; }
-    const navigationId = documentRequest(request) || workerTransport && request.headers["x-designverksted-worker-navigation"] === "1" ? ++navigation : 0;
+    const isDocument = documentRequest(request) || workerTransport && request.headers["x-designverksted-worker-navigation"] === "1";
+    // HTTP cannot distinguish a main app iframe from one nested inside it.
+    // Only the explicit bootstrap redirect chain owns transport status. Later
+    // main-page navigations are checked by the shell's source-bound inspector
+    // handshake and timeout; nested documents cannot cover a healthy app.
+    const navigationId = isDocument && pendingDocument?.path === target.pathname + target.search ? pendingDocument.id : 0;
+    if (navigationId) pendingDocument = null;
     const failRequest = (status, message) => {
       if (response.writableEnded || response.destroyed) return;
       reportStatus(navigationId, "unavailable", status);
-      if (navigationId) documentErrorResponse(response, status, shellOrigin);
+      if (isDocument) documentErrorResponse(response, status, shellOrigin, origin);
       else errorResponse(response, status, message);
     };
     reportStatus(navigationId, "loading");
@@ -440,6 +454,12 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     outgoing.once("response", async incoming => {
       const nonce = crypto.randomBytes(18).toString("base64url");
       try {
+        // An error document must not confirm inspector readiness after a later
+        // main-page navigation. Nested errors remain inside their own frame;
+        // the main shell detects its error document by the bounded handshake.
+        if (isDocument && incoming.statusCode >= 400) {
+          incoming.destroy(); failRequest(incoming.statusCode, "The application document is unavailable."); return;
+        }
         const contentType = String(incoming.headers["content-type"] || "").toLowerCase();
         if (workerRequest && (incoming.statusCode !== 200 || !/^(?:text|application)\/(?:javascript|ecmascript)(?:;|$)/.test(contentType))) throw failure(502, "The application worker must be a JavaScript resource.");
         const html = /^(?:text\/html|application\/xhtml\+xml)(?:;|$)/.test(contentType);
@@ -460,6 +480,9 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
           const destination = new URL(incoming.headers.location, target);
           if (destination.origin !== app.origin) throw failure(502, "The application redirected outside its local address. Use its demo or mock sign-in.");
           headers.location = origin + destination.pathname + destination.search + destination.hash;
+          if (navigationId === navigation && incoming.statusCode >= 300 && incoming.statusCode < 400) {
+            pendingDocument = { path: destination.pathname + destination.search, id: navigationId };
+          }
         }
         if (!transformed) {
           response.writeHead(incoming.statusCode || 502, headers);

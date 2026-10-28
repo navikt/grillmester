@@ -170,7 +170,12 @@ One open native app instance keeps the same upstream and preview origin. The
 visible app retry reloads that same app and may retain cookies or form state;
 it is not a fresh isolated context. Reloading or duplicating the control document
 does not silently take over its active writer. If that document becomes
-unusable, preserve saved work and open a fresh native instance. Do not create a
+unusable, first preserve saved work and copy any unsaved text, then ask the
+designer to close that canvas panel. Only after its close has retired the old
+writer, open a fresh native instance with the saved room. Calling open again on
+the still-live instance only focuses it; it cannot replace a consumed renderer
+invitation. A new instance while the old panel is live cannot take its room lock.
+Temporary work is not recoverable by this close/reopen path. Do not create a
 second independent feedback server. The owned upstream server must remain the
 same owned process for the lifetime of the instance; a URL alone does not prove
 that a restarted server is the same application.
@@ -180,7 +185,8 @@ must be validated before new targets can be selected. If the view stops
 responding during navigation, the shell keeps drafts and saved feedback and
 offers an explicit retry from the app's start page. This may reset app fields;
 it does not resend feedback. Renderer crashes without browser lifecycle events
-are not continuously monitored; reopen the canvas if it stops responding.
+are not continuously monitored; use this close-then-reopen sequence if it stops
+responding.
 
 Closing a native app canvas retires that instance and stops its own proxy,
 proposal view and backend. Its old identifier cannot be reopened. To reopen

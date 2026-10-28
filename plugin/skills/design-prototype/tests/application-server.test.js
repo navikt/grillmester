@@ -9,6 +9,7 @@ const { Readable, PassThrough } = require("node:stream");
 const { createConnectionState, INVITATION_MS, MAX_CANDIDATES } = require("../scripts/application-connection-state.js");
 const { fork } = require("node:child_process");
 const http = require("node:http");
+const { createProposalViews } = require("../scripts/application-proposal-view.js");
 const { ApplicationWorkspace } = require("../scripts/application-workspace.js");
 const { createApplicationServer, createPreviewStatus, createApplicationRequestHandler, authorizedRequest, renderShell, validEnvelope, parseArguments } = require("../scripts/application-server.js");
 
@@ -97,6 +98,26 @@ test("only the exact private bootstrap serves a shell; no API accepts its path a
   }
   const denied = await request(handler, { method: "OPTIONS", headers: { origin: "http://127.0.0.1:45678" } });
   assert.equal(denied.status, 403); assert.equal(denied.headers["access-control-allow-origin"], undefined);
+});
+
+test("proposal activation requires its own capability and never authorizes workspace routes", async t => {
+  const room = fixture(t).room(), views = createProposalViews(authority.origin);
+  const child = { url: "http://127.0.0.1:34568/embedded/" + "a".repeat(64), origin: "http://127.0.0.1:34568", activationKey: "b".repeat(64), leaseId: "c".repeat(32), title: "Forslag" };
+  const view = views.open("d".repeat(24), child), html = views.render(new URL(view.url).pathname).html;
+  const candidate = JSON.parse(/const config=(\{.*?\}),frame=/.exec(html)[1]).candidate;
+  const handler = createApplicationRequestHandler({ workspace: room, authority: { ...authority, proposalViews: views } });
+  const headers = { "x-designverksted-token": undefined };
+  for (const body of [{}, { candidate, activationKey: "f".repeat(64) }, { candidate: "f".repeat(64), activationKey: view.activationKey }]) {
+    const denied = await request(handler, { method: "POST", url: "/proposal/activate", headers, body });
+    assert([400, 410].includes(denied.status)); assert(!denied.text.includes(child.activationKey));
+  }
+  const body = { candidate, activationKey: view.activationKey };
+  const activated = await request(handler, { method: "POST", url: "/proposal/activate", headers, body });
+  assert.equal(activated.status, 200); assert.deepEqual(activated.body, child);
+  for (const url of ["/proposal/activate?next=/state", "/proposal/activate/../state", "/state", "/comments", "/submit", "/view"]) {
+    assert.equal((await request(handler, { method: "POST", url, headers, body })).status, 403);
+  }
+  assert.equal(room.feedback.state.comments.length, 0); assert.equal(room.feedback.state.submission, 0);
 });
 
 test("full HTTP state and route registration retain explicit application evidence and do not create feedback", async t => {
@@ -372,7 +393,12 @@ test("preview status accepts no application authority and performs no workspace 
   const generation = preview.bootstrap();
   const boundAuthority = { ...authority, preview };
   const handler = createApplicationRequestHandler({ workspace: room, authority: boundAuthority });
-  const before = fs.readFileSync(room.store.filename), beforeStat = fs.statSync(room.store.filename, { bigint: true });
+  const fileSnapshot = () => {
+    const fd = fs.openSync(room.store.filename, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    try { return { bytes: fs.readFileSync(fd), stat: fs.fstatSync(fd, { bigint: true }) }; }
+    finally { fs.closeSync(fd); }
+  };
+  const before = fileSnapshot();
   const feedbackBefore = room.feedback.snapshot();
   const body = { generation, sequence: 1, state: "unavailable", reason: "inspector-timeout" };
   const operation = { method: "POST", url: "/preview/status", headers: { "x-feedback-mutation": undefined }, body };
@@ -394,8 +420,10 @@ test("preview status accepts no application authority and performs no workspace 
   for (const change of [{ generation: [generation] }, { state: ["unavailable"] }, { reason: "secret error content" }, { sequence: 0 }, { sequence: 1.5 }, { state: "ready" }, { reason: "inspector-ready" }]) {
     assert.equal((await request(handler, { ...operation, body: { ...body, ...change } })).status, 400);
   }
-  assert.deepEqual(fs.readFileSync(room.store.filename), before);
-  assert.equal(fs.statSync(room.store.filename, { bigint: true }).mtimeNs, beforeStat.mtimeNs);
+  const after = fileSnapshot();
+  assert.deepEqual(after.bytes, before.bytes);
+  assert.equal(after.stat.ino, before.stat.ino);
+  assert.equal(after.stat.mtimeNs, before.stat.mtimeNs);
   assert.deepEqual(room.feedback.snapshot(), feedbackBefore);
 });
 

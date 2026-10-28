@@ -258,6 +258,9 @@ test("owned server: bootstrap preserves basepath/query and serves actual app cod
   assert.equal(f.bootstrap.headers.location, "/syk/demo?mode=detail");
   assert.equal(new URL(f.proxy.origin).hostname, "localhost");
   assert.match(f.bootstrap.headers["set-cookie"][0], /HttpOnly; SameSite=None; Secure; Partitioned; Path=\/$/);
+  const invitation = new URL(f.proxy.url).pathname.split("/").at(-1);
+  assert.notEqual(f.cookie.split("=")[1], invitation, "The invitation is never stored as the browser credential");
+  assert.equal((await request(f.proxy.origin + "/", { headers: { cookie: f.cookie.split("=")[0] + "=" + invitation } })).status, 403);
   const result = await f.request(f.bootstrap.headers.location);
   assert.equal(result.status, 200);
   assert.deepEqual(seen, ["/syk/demo?mode=detail"]);
@@ -445,13 +448,14 @@ test("owned server: stopped upstream gives a shell-readable fixed document and r
   assert.deepEqual(statuses, [{ state: "loading" }, { state: "ready", httpStatus: 200 }]);
   const port = f.server.address().port;
   await new Promise(resolve => { f.server.close(resolve); f.server.closeAllConnections(); });
-  const unavailable = await f.request("/demo?value=private-test-value", { headers: DOCUMENT_HEADERS });
+  await request(f.proxy.url);
+  const unavailable = await f.request("/demo", { headers: DOCUMENT_HEADERS });
   assert.equal(unavailable.status, 502);
   assert.match(unavailable.headers["content-type"], /^text\/html/);
   assert.match(unavailable.body, /<html lang="nb">/);
   assert.match(unavailable.body, /Appen kunne ikke vises/);
   assert.doesNotMatch(unavailable.body, /private-test-value|http:|inspect\.js|<script/);
-  assert.equal(unavailable.headers["content-security-policy"], `default-src 'none'; frame-ancestors ${SHELL}; base-uri 'none'; form-action 'none'`);
+  assert.equal(unavailable.headers["content-security-policy"], `default-src 'none'; frame-ancestors ${SHELL} ${f.proxy.origin}; base-uri 'none'; form-action 'none'`);
   assert.deepEqual(statuses.slice(-2), [{ state: "loading" }, { state: "unavailable", httpStatus: 502 }]);
   const count = statuses.length;
   const denied = await request(f.proxy.origin + "/demo", { headers: DOCUMENT_HEADERS });
@@ -459,6 +463,7 @@ test("owned server: stopped upstream gives a shell-readable fixed document and r
   assert.match(denied.headers["content-security-policy"], /frame-ancestors 'none'/);
   assert.equal(statuses.length, count);
   await new Promise((resolve, reject) => { f.server.once("error", reject); f.server.listen(port, "127.0.0.1", resolve); });
+  await request(f.proxy.url);
   assert.equal((await f.request("/demo", { headers: DOCUMENT_HEADERS })).status, 200);
   assert.deepEqual(statuses.slice(-2), [{ state: "loading" }, { state: "ready", httpStatus: 200 }]);
   assert(statuses.every(value => Object.isFrozen(value) && Object.keys(value).every(key => ["state", "httpStatus"].includes(key))));
@@ -477,22 +482,59 @@ test("owned server: API errors and HTML fetches never change document status", a
   assert.equal((await f.request("/fragment", { headers: { accept: "text/html", "sec-fetch-dest": "empty", "sec-fetch-mode": "same-origin" } })).status, 404);
   assert.equal(statuses.length, count);
   assert.equal((await f.request("/missing-page", { headers: DOCUMENT_HEADERS })).status, 404);
-  assert.deepEqual(statuses.slice(-2), [{ state: "loading" }, { state: "unavailable", httpStatus: 404 }]);
+  assert.equal(statuses.length, count, "Unclassified nested documents cannot replace the main view status");
+  await request(f.proxy.url);
   assert.equal((await f.request("/demo", { headers: { accept: "text/html" } })).status, 200);
   assert.deepEqual(statuses.slice(-2), [{ state: "loading" }, { state: "ready", httpStatus: 200 }]);
 });
 
-test("owned server: an older document result cannot replace the latest navigation status", async t => {
+test("owned server: nested documents keep their own errors without replacing the app status", async t => {
   const statuses = [];
-  let release, started;
+  const f = await fixture(t, (req, res) => {
+    if (req.url === "/attachment") { res.writeHead(200, { "Content-Type": "application/json" }); res.end('{"synthetic":"attachment"}'); return; }
+    res.writeHead(req.url === "/missing" ? 404 : 200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end("<!doctype html><body>Nested demo</body>");
+  }, "/demo", { onStatus: value => statuses.push(value) });
+  await f.request("/demo", { headers: DOCUMENT_HEADERS });
+  const mainStatus = structuredClone(statuses);
+  for (const route of ["/nested", "/attachment", "/missing"]) {
+    const nested = await f.request(route, { headers: { ...DOCUMENT_HEADERS, referer: f.proxy.origin + "/demo" } });
+    assert.match(nested.headers["content-security-policy"], new RegExp(`frame-ancestors ${SHELL.replaceAll(".", "\\.")} ${f.proxy.origin}`));
+    if (route === "/missing") {
+      assert.equal(nested.status, 404);
+      assert.match(nested.body, /Appen kunne ikke vises/);
+      assert.doesNotMatch(nested.body, /inspect\.js|<script/, "Failed main or nested documents cannot claim inspector readiness");
+    }
+  }
+  assert.deepEqual(statuses, mainStatus);
+});
+
+test("owned server: bootstrap redirects retain status until the selected document is complete", async t => {
+  const statuses = [];
+  const f = await fixture(t, (req, res) => {
+    if (req.url === "/start") { res.writeHead(302, { Location: "/demo" }); res.end(); return; }
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); res.end("<!doctype html><body>Demo</body>");
+  }, "/start", { onStatus: value => statuses.push(value) });
+  const redirect = await f.request("/start", { headers: DOCUMENT_HEADERS });
+  assert.equal(redirect.status, 302); assert.deepEqual(statuses, [{ state: "loading" }]);
+  await f.request("/nested", { headers: DOCUMENT_HEADERS });
+  assert.deepEqual(statuses, [{ state: "loading" }]);
+  await f.request(new URL(redirect.headers.location).pathname, { headers: DOCUMENT_HEADERS });
+  assert.deepEqual(statuses, [{ state: "loading" }, { state: "ready", httpStatus: 200 }]);
+});
+
+test("owned server: an older bootstrap document cannot replace the latest view status", async t => {
+  const statuses = [];
+  let release, started, first = true;
   const pending = new Promise(resolve => { started = resolve; });
   const f = await fixture(t, (req, res) => {
-    if (req.url === "/slow") { release = () => { res.writeHead(503, { "Content-Type": "text/html; charset=utf-8" }); res.end("<body>Old response</body>"); }; started(); return; }
+    if (first) { first = false; release = () => { res.writeHead(503, { "Content-Type": "text/html; charset=utf-8" }); res.end("<body>Old response</body>"); }; started(); return; }
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); res.end("<body>Current response</body>");
   }, "/demo", { onStatus: value => statuses.push(value) });
-  const old = f.request("/slow", { headers: DOCUMENT_HEADERS });
+  const old = f.request("/demo", { headers: DOCUMENT_HEADERS });
   await pending;
-  assert.equal((await f.request("/current", { headers: DOCUMENT_HEADERS })).status, 200);
+  await request(f.proxy.url);
+  assert.equal((await f.request("/demo", { headers: DOCUMENT_HEADERS })).status, 200);
   release(); assert.equal((await old).status, 503);
   assert.deepEqual(statuses, [{ state: "loading" }, { state: "ready", httpStatus: 200 }]);
 });
@@ -528,27 +570,33 @@ test("owned server: WebSocket HMR uses the same bound origin and strips private 
 
 test("owned server: aborted pending and denied upgrades leave the transport available", async t => {
   const f = await fixture(t, (_req, res) => res.end("still available"));
-  let waiting = 0;
-  f.server.on("upgrade", (_req, socket) => {
+  let waiting = 0, sequence = 0;
+  const pending = new Map();
+  f.server.on("upgrade", (req, socket) => {
     waiting += 1;
+    pending.get(req.headers["x-test-handshake"])?.();
     socket.on("error", () => socket.destroy());
     const timer = setTimeout(() => socket.end("HTTP/1.1 503 Unavailable\r\nConnection: close\r\n\r\n"), 50);
     socket.once("close", () => clearTimeout(timer));
   });
   async function abortHandshake(allowed) {
     const url = new URL(f.proxy.origin);
-    await new Promise(resolve => {
-      const socket = net.connect(Number(url.port), "127.0.0.1");
+    await new Promise((resolve, reject) => {
+      const id = String(++sequence), socket = net.connect(Number(url.port), "127.0.0.1");
+      const timer = setTimeout(() => { socket.destroy(); reject(new Error("Upstream handshake was not reached")); }, 5000);
+      if (allowed) pending.set(id, () => { if (!socket.destroyed) socket.resetAndDestroy(); });
       socket.on("error", () => socket.destroy());
-      socket.once("close", resolve);
+      socket.once("close", () => { clearTimeout(timer); pending.delete(id); resolve(); });
       socket.once("connect", () => {
-        socket.write(`GET /hmr HTTP/1.1\r\nHost: ${url.host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nCookie: ${f.cookie}\r\nOrigin: ${allowed ? f.proxy.origin : "http://127.0.0.1:9999"}\r\n\r\n`, () => {
-          setTimeout(() => { if (!socket.destroyed) socket.resetAndDestroy(); }, 2);
+        socket.write(`GET /hmr HTTP/1.1\r\nHost: ${url.host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nX-Test-Handshake: ${id}\r\nCookie: ${f.cookie}\r\nOrigin: ${allowed ? f.proxy.origin : "http://127.0.0.1:9999"}\r\n\r\n`, () => {
+          // Authorized resets wait for the actual upstream upgrade event;
+          // scheduling speed must not turn this into only denied requests.
+          if (!allowed && !socket.destroyed) socket.resetAndDestroy();
         });
       });
     });
   }
   for (let batch = 0; batch < 10; batch += 1) await Promise.all(Array.from({ length: 20 }, (_, index) => abortHandshake(index % 2 === 0)));
-  assert.ok(waiting > 0, "Real upstream handshakes were pending during resets");
+  assert.equal(waiting, 100, "Every authorized reset reached a real pending upstream handshake");
   assert.equal((await f.request("/health")).body, "still available");
 });

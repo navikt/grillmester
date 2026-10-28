@@ -1,6 +1,6 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
-const fs = require("node:fs"), os = require("node:os"), path = require("node:path"), http = require("node:http"), crypto = require("node:crypto");
+const fs = require("node:fs"), os = require("node:os"), path = require("node:path"), http = require("node:http"), net = require("node:net"), crypto = require("node:crypto");
 const { execFile, spawn, fork } = require("node:child_process"), { promisify } = require("node:util");
 const run = promisify(execFile), helper = path.resolve(__dirname, "../scripts/app-runtime.js");
 const runtime = require(helper), delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -190,4 +190,70 @@ test("explicit stop clears an expired empty or partial startup lease, retaining 
   }
   fs.mkdirSync(lock,{mode:0o700}); fs.writeFileSync(path.join(lock,"unknown"),"keep",{mode:0o600}); fs.utimesSync(lock,old,old);
   await assert.rejects(f.cli("stop"),/unexpected files/); assert.equal(fs.readFileSync(path.join(lock,"unknown"),"utf8"),"keep");
+});
+
+
+test("reading a FIFO runtime record refuses promptly without creating or consuming data", { skip: !supported }, async t => {
+  const f = await fixture(t);
+  fs.mkdirSync(path.dirname(f.directory), { mode: 0o700 }); fs.mkdirSync(f.directory, { mode: 0o700 });
+  const recordPath = path.join(f.directory, "state.json");
+  await run("mkfifo", ["-m", "600", recordPath]);
+  const result = await run(process.execPath, [helper, "status", ...f.args], { env: f.env, timeout: 1500 })
+    .then(value => ({ value }), error => ({ error }));
+  const retained = fs.lstatSync(recordPath).isFIFO(); fs.unlinkSync(recordPath);
+  assert.equal(result.error?.killed, false, "Reading an unsafe record must fail before the caller timeout.");
+  assert.match(result.error.stderr, /owned private file/);
+  assert.ok(retained);
+});
+
+test("runtime capabilities travel only over the pinned private Unix socket", { skip: !supported }, async t => {
+  const f = await fixture(t); await f.cli("start", f.startArgs); const record = f.record();
+  let networkConnections = 0;
+  const listener = net.createServer(socket => { networkConnections++; socket.destroy(); });
+  await new Promise(resolve => listener.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise(resolve => listener.close(resolve)));
+  const poisoned = { ...record, hostname: "127.0.0.1", host: "127.0.0.1", port: listener.address().port,
+    protocol: "http:", href: `http://127.0.0.1:${listener.address().port}/capture` };
+  assert.equal((await runtime.request(poisoned, "status")).state, "running");
+  assert.equal(networkConnections, 0, "Record data cannot select a network destination.");
+  const recordPath = path.join(f.directory, "state.json");
+  fs.writeFileSync(recordPath, JSON.stringify({ ...record, socket: path.join(f.base, "other-socket") }));
+  await assert.rejects(f.cli("status"), /does not match this project and session/);
+  fs.writeFileSync(recordPath, JSON.stringify(record));
+});
+
+test("a crashed controller gives bounded recovery guidance and never reuses stopping state", { skip: !supported }, async t => {
+  const f = await fixture(t, "serve", 5);
+  fs.mkdirSync(path.dirname(f.directory), { mode: 0o700 }); fs.mkdirSync(f.directory, { mode: 0o700 });
+  const lock = path.join(f.directory, "starting"); fs.mkdirSync(lock, { mode: 0o700 });
+  const lease = { token: "e".repeat(64), expiresAt: Date.now() + 10000 };
+  fs.writeFileSync(path.join(lock, "lease.json"), JSON.stringify(lease), { mode: 0o600 });
+  const binding = { project: fs.realpathSync(f.project), directory: f.directory,
+    binding: crypto.createHash("sha256").update(fs.realpathSync(f.project) + "\0test").digest("hex") };
+  const command = [process.execPath, path.join(f.project, "demo.cjs"), "serve"], environment = { IS_DEMO_MODE: "true" }, ttlSeconds = 5;
+  const recipe = crypto.createHash("sha256").update(JSON.stringify({ command, environment, ttlSeconds })).digest("hex");
+  const supervisor = fork(helper, ["--supervise"], { detached: true, stdio: ["ignore", "ignore", "ignore", "ipc"], env: f.env, execArgv: [] });
+  try {
+    supervisor.send({ binding, command, environment, ttlSeconds, recipe, lease });
+    await new Promise((resolve, reject) => { supervisor.once("message", resolve); supervisor.once("error", reject); });
+    await until(() => fs.existsSync(f.ready));
+    await new Promise((resolve, reject) => supervisor.send({ event: "handoff" }, error => error ? reject(error) : resolve()));
+    fs.rmSync(lock, { recursive: true });
+    const exited = new Promise(resolve => supervisor.once("exit", resolve));
+    // This handle owns the newly forked group; no PID from a runtime file is trusted.
+    process.kill(-supervisor.pid, "SIGKILL"); await exited;
+    await until(() => !alive(f.info().pid));
+    const status = await f.cli("status"); assert.equal(status.state, "unreachable");
+    assert.match(status.note, /new --session key/);
+    const stopped = await f.cli("stop"); assert.equal(stopped.state, "unreachable");
+    assert.match(stopped.note, /no unrelated process was signalled/); assert.equal(JSON.stringify(stopped).includes(f.base), false);
+    await assert.rejects(f.cli("start", f.startArgs), /new --session key/);
+    const recordPath = path.join(f.directory, "state.json"), stale = f.record();
+    fs.writeFileSync(recordPath, JSON.stringify({ ...stale, state: "stopping" }));
+    await assert.rejects(f.cli("start", f.startArgs), /still stopping/);
+    assert.equal((await f.cli("stop")).state, "unreachable");
+  } finally {
+    if (supervisor.exitCode === null && supervisor.signalCode === null) process.kill(-supervisor.pid, "SIGKILL");
+    supervisor.unref();
+  }
 });

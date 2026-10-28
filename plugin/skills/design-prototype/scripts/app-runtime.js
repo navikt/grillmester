@@ -24,7 +24,11 @@ function privateDirectory(directory, create = false) {
   return stat;
 }
 function readPrivate(file) {
-  const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+  const { O_NOFOLLOW, O_NONBLOCK } = fs.constants;
+  fail(Number.isInteger(O_NOFOLLOW) && Number.isInteger(O_NONBLOCK), "Safe runtime reads require no-follow and non-blocking file support.");
+  // Read only: a missing record stays missing, symlinks fail, and a FIFO cannot
+  // block the launcher before the descriptor checks reject it below.
+  const fd = fs.openSync(file, fs.constants.O_RDONLY | O_NOFOLLOW | O_NONBLOCK, 0o600);
   try {
     const stat = fs.fstatSync(fd);
     fail(stat.isFile() && stat.nlink === 1 && stat.uid === uid() && (stat.mode & 0o077) === 0 && stat.size <= 16384,
@@ -72,11 +76,16 @@ const publicState = record => record ? { state: record.state, owned: true, ...(r
   ...(record.exitCode !== undefined ? { exitCode: record.exitCode } : {}), expiresAt: record.expiresAt, logFile: path.join(path.dirname(record.socket), record.logFile),
   note: "Process state only; verify the demo URL separately. Closing a canvas keeps this demo available. Stop explicitly when finished." }
   : { state: "stopped", owned: false };
+const unreachableState = () => ({ state: "unreachable", owned: true,
+  note: "The owned controller could not be confirmed. Check whether the existing demo is still running before starting with a new --session key. Nothing was restarted, and no unrelated process was signalled." });
 function request(record, method) {
+  fail(method === "status" || method === "stop", "Use only status or stop for runtime control.");
   return new Promise((resolve, reject) => {
     const socketStat = fs.lstatSync(record.socket);
     fail(socketStat.isSocket() && socketStat.uid === uid() && (socketStat.mode & 0o077) === 0, "The runtime socket is not private.");
-    const req = http.request({ socketPath: record.socket, path: "/" + method,
+    // socketPath exclusively selects local IPC. File-backed credentials never
+    // select a TCP hostname, port, URL or proxy; only this private socket receives them.
+    const req = http.request({ socketPath: record.socket, path: "/" + method, agent: false,
       method: method === "stop" ? "POST" : "GET", headers: { Host: "app-runtime.invalid", "X-App-Runtime-Key": record.token, "X-App-Runtime-Generation": record.generation }, timeout: 1500 }, res => {
       let text = "";
       res.on("data", chunk => { text += chunk; if (text.length > 16384) req.destroy(new Error("Runtime response exceeded its limit.")); });
@@ -90,7 +99,7 @@ async function status(binding) {
   const record = recordFor(binding);
   if (!record || record.state !== "running") return publicState(record);
   try { return await request(record, "status"); }
-  catch { return { state: "unreachable", owned: true, note: "The owned controller could not be confirmed. No process was signalled or restarted." }; }
+  catch { return unreachableState(); }
 }
 function clearAbandonedStart(binding) {
   if (binding.missing) return false;
@@ -119,14 +128,20 @@ function clearAbandonedStart(binding) {
 async function stop(binding) {
   const record = recordFor(binding);
   if (!record || record.state === "stopped") return { ...publicState(record), clearedStarting: clearAbandonedStart(binding) };
-  if (record.state === "running") await request(record, "stop");
+  if (record.state === "running") {
+    try { await request(record, "stop"); }
+    catch { return unreachableState(); }
+  }
   for (let attempt = 0; attempt < 40; attempt++) {
     const latest = recordFor(binding);
     fail(latest?.generation === record.generation, "The runtime changed while stopping; no other runtime was stopped.");
     if (latest.state === "stopped") return { ...publicState(latest), clearedStarting: clearAbandonedStart(binding) };
     await delay(50);
   }
-  return { state: "stopping", owned: true, note: "Stop was accepted. Check status; no restart will be attempted." };
+  try {
+    await request(record, "status");
+    return { state: "stopping", owned: true, note: "Stop is still in progress. Check status before starting again; no restart will be attempted." };
+  } catch { return unreachableState(); }
 }
 async function start(binding, command, environment, ttlSeconds) {
   const recipe = hash(JSON.stringify({ command, environment, ttlSeconds }));
@@ -142,6 +157,7 @@ async function start(binding, command, environment, ttlSeconds) {
     fail(previous.recipe === recipe, "This session already owns another command. Stop it explicitly or use a new session key.");
     const current = await status(binding);
     fail(current.state !== "unreachable", current.note);
+    fail(current.state === "running", "The previous runtime is still stopping. Read status before retrying. If its controller cannot be confirmed, check the existing demo before starting with a new --session key.");
     return { ...current, reused: true };
   }
   child = fork(__filename, ["--supervise"], { cwd: binding.project, detached: true, execArgv: [],

@@ -76,6 +76,8 @@ async function main() {
     await context.addInitScript(() => {
       window.__viewEvidence = [];
       window.addEventListener("message", event => {
+        const preview = document.getElementById("app-preview");
+        if (!preview || event.source !== preview.contentWindow || event.origin !== new URL(preview.src, location.href).origin) return;
         if (["design-view-ready", "design-route"].includes(event.data?.type)) window.__viewEvidence.push(event.data);
       });
     });

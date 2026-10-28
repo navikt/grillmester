@@ -22,6 +22,69 @@ function fixture(t, saved = false) {
   return { registry, workspace, calls, deliveries, state, projectDir, root, backend, get starts() { return startCount; }, send: submission => observer(submission) };
 }
 const initial = { source: "conversation", title: "Et tydelig forslag", filename: "proposal.html", html: "<main><h1>Forbered møtet</h1></main>" };
+test("a stopped first startup can be corrected without replacing an existing proposal", async t => {
+  const f = fixture(t, true), original = f.registry.backendFactory;
+  let attempts = 0;
+  f.registry.backendFactory = async options => {
+    if (++attempts === 1) throw Object.assign(new Error("Controlled startup rejection"), { status: 409, backendStopped: true, backendWasReady: false });
+    return original(options);
+  };
+  const before = fs.readFileSync(f.workspace.store.filename);
+  await assert.rejects(f.registry.publish({ ...initial, workspacePath: "designs/occupied", create: true }), error => error.status === 409);
+  assert.deepEqual(await f.registry.summary(), []);
+  assert.deepEqual(fs.readFileSync(f.workspace.store.filename), before);
+  const next = { ...initial, workspacePath: "designs/proposal", create: true };
+  const first = await f.registry.publish(next);
+  assert.equal((await f.registry.publish(next)).id, first.id);
+  assert.equal(attempts, 2); assert.equal(f.calls.filter(value => value === "publish").length, 1);
+  await assert.rejects(f.registry.publish({ ...next, workspacePath: "designs/third" }), error => error.status === 409);
+});
+test("uncertain startup and durable bindings are never discarded for a replacement", async t => {
+  for (const durable of [false, true]) {
+    const f = fixture(t, true);
+    if (durable) await f.registry.publish({ ...initial, workspacePath: "designs/proposal", create: true });
+    const registry = durable ? new ApplicationProposals({ workspace: f.workspace, projectDir: f.projectDir, backendFactory: async () => {
+      throw Object.assign(new Error("Controlled stopped startup"), { status: 409, backendStopped: true, backendWasReady: false });
+    } }) : f.registry;
+    if (durable) t.after(() => registry.close());
+    else registry.backendFactory = async () => { throw Object.assign(new Error("Controlled uncertain startup"), { status: 503 }); };
+    if (!durable) await assert.rejects(registry.publish(initial), error => error.status === 503);
+    const binding = structuredClone(registry.entry.binding), before = fs.readFileSync(f.workspace.store.filename);
+    const state = await registry.summary(); assert.equal(state[0].available, false); assert.equal(state[0].id, binding.id);
+    await assert.rejects(registry.publish({ ...initial, workspacePath: "designs/replacement", create: true }), error => error.status === 409);
+    assert.deepEqual(registry.entry.binding, binding); assert.deepEqual(fs.readFileSync(f.workspace.store.filename), before);
+  }
+});
+test("a real occupied target can be corrected and child revision diagnostics remain useful", async t => {
+  const { createServerBackend } = await import("../../../extensions/visual-companion/backend.mjs");
+  const f = fixture(t, true);
+  f.registry.backendFactory = createServerBackend;
+  const occupied = path.join(f.projectDir, "designs/occupied"); fs.mkdirSync(occupied, { recursive: true }); fs.writeFileSync(path.join(occupied, "existing.txt"), "Keep this work.");
+  await assert.rejects(f.registry.publish({ ...initial, workspacePath: "designs/occupied", create: true }), error => error.status === 409);
+  assert.deepEqual(await f.registry.summary(), []);
+  const first = await f.registry.publish({ ...initial, workspacePath: "designs/proposal", create: true });
+  const input = { proposalId: first.id, expectedScreen: first.screen, filename: initial.filename, html: initial.html };
+  await assert.rejects(f.registry.action("publishRevision", input), error => error instanceof FeedbackError && error.status === 409 && /new filename/.test(error.message));
+  await assert.rejects(f.registry.action("publishRevision", { ...input, expectedScreen: "", filename: "second.html" }), error =>
+    error instanceof FeedbackError && error.status === 409 && /Read the current (screen|version)/.test(error.message));
+  const design = { version: 2, texts: [{ id: "heading", label: "Private label", value: "Heading" }], variants: [], targets: [] };
+  await assert.rejects(f.registry.action("publishRevision", { ...input, filename: "second.html", design,
+    html: '<span data-vc-text="heading"><b>PRIVATE_SOURCE</b></span>' }), error => error instanceof FeedbackError && error.status === 400 &&
+      /\[text-content\].*texts\[0\].*HTML offset/.test(error.message) && !/PRIVATE_SOURCE|Private label|heading|\/private|token=/.test(error.message));
+  const second = await f.registry.action("publishRevision", { ...input, filename: "second.html", html: "<h1>Et nytt forslag</h1>" });
+  assert.equal(second.workspace.version, 2); assert.equal(fs.readFileSync(path.join(occupied, "existing.txt"), "utf8"), "Keep this work.");
+});
+test("proposal errors do not expose private child details or invalid binding source", async t => {
+  const f = fixture(t), design = { version: 2, texts: [{ id: "heading", label: "Private label", value: "Heading" }], variants: [], targets: [] };
+  await assert.rejects(f.registry.publish({ ...initial, design, html: '<span data-vc-text="heading"><b>PRIVATE_SOURCE</b></span>' }), error =>
+    error instanceof FeedbackError && error.status === 400 && /\[text-content\]/.test(error.message) && !/PRIVATE_SOURCE|Private label|heading/.test(error.message));
+  const first = await f.registry.publish(initial);
+  for (const status of [400, 409, 503]) {
+    f.backend.publishRevision = async () => { throw Object.assign(new Error("/private/project?token=secret\nPRIVATE_SOURCE"), { status }); };
+    await assert.rejects(f.registry.action("publishRevision", { proposalId: first.id, expectedScreen: first.screen, filename: "second.html", html: "<h1>Forslag</h1>" }), error =>
+      error instanceof FeedbackError && error.status === status && !/private|token=|secret|PRIVATE_SOURCE|opptatt|endret utenfra/.test(error.message));
+  }
+});
 test("conversation-first design creates no fake feedback and one retry-safe proposal", async t => {
   const f = fixture(t), first = await f.registry.publish(initial), retry = await f.registry.publish(initial);
   assert.equal(first.id, retry.id); assert.equal(first.source, "conversation"); assert.equal(first.sourceSubmission, undefined); assert.equal(f.workspace.feedback.state.submission, 0);
@@ -170,7 +233,7 @@ test("an unavailable pending target is never recreated, rebound or exposed as a 
   await f.registry.close();
   const before = fs.readFileSync(f.workspace.store.filename), attempts = [];
   const registry = new ApplicationProposals({ workspace: f.workspace, projectDir: f.projectDir, backendFactory: async options => {
-    attempts.push(options); throw Object.assign(new Error("/private/unavailable/target"), { status: 404 });
+    attempts.push(options); throw Object.assign(new Error("/private/unavailable/target"), { status: 404, backendStopped: true, backendWasReady: false });
   } });
   try {
     const state = (await registry.summary())[0]; assert.equal(state.available, false); assert(state.pendingSave);

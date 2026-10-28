@@ -5,7 +5,7 @@ const { FeedbackError } = require("./feedback-store.js");
 const INVITATION_MS = 5 * 60 * 1000;
 const MAX_CANDIDATES = 8;
 function stale() {
-  const error = new FeedbackError(410, "Visningen er åpnet på nytt eller lukket. Behold eventuell ulagret tekst og be i samtalen om å åpne verkstedet igjen.");
+  const error = new FeedbackError(410, "Visningen er ikke aktiv. Kopier eventuell ulagret tekst. Lukk dette canvaset før du ber i samtalen om å åpne verkstedet igjen.");
   error.code = "renderer-stale"; return error;
 }
 // All authority is volatile. A fetched invitation is a candidate, never a writer.
@@ -26,7 +26,7 @@ function createConnectionState({ now = Date.now } = {}) {
     candidate(requestPath) {
       if (closed || requestPath !== invitation || now() >= expires) throw stale();
       for (const [token, expiry] of candidates) if (expiry <= now() && token !== active) candidates.delete(token);
-      if (candidates.size >= MAX_CANDIDATES) throw new FeedbackError(429, "For mange åpneforsøk. Be i samtalen om å åpne verkstedet igjen.");
+      if (candidates.size >= MAX_CANDIDATES) throw new FeedbackError(429, "For mange åpneforsøk. Kopier eventuell ulagret tekst. Lukk dette canvaset før du ber i samtalen om å åpne verkstedet igjen.");
       const token = secret(); candidates.set(token, Math.min(expires, now() + INVITATION_MS)); return token;
     },
     activate(token, createBootstrap) {
