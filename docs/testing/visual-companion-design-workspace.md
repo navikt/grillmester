@@ -257,19 +257,14 @@ with an explicit valid SHA, it reached installation and stopped on the same
 missing copied-manifest expectation. The version-gated checks below also
 stopped before running scenarios on that payload.
 
-A follow-up on 27 October 2026 corrected the local installation smoke for
-both copied and live registrations. The complete isolated lifecycle passed
-on CLI 1.0.91, including upgrade, rollback, legacy add-on removal, repeated
-update, disable/enable and uninstall. All 35 focused unit tests passed. Live
-registration must identify the exact marketplace, source directory, version
-and enabled state; active skill names and paths and a pre-install byte
-snapshot are checked independently. Uninstall must leave no available plugin
-skills and must preserve the live source. The obsolete `--plugin` selector is
-retried without that flag only for the exact unsupported-argument error.
-Copied installations retain their payload-removal checks. This resolves the
-local smoke mismatch above; it does not establish native canvas behavior.
-Remote release installation and an older physical client using copied
-installation were not rerun. The exact release-version gates remain unchanged.
+Update, 27 October 2026: the corrected installation smoke passed the complete
+isolated lifecycle on CLI 1.0.91, including upgrade, rollback, disable/enable
+and uninstall. Live registrations require the exact marketplace, source,
+version and enabled state; uninstall preserves source files and removes
+available skills. Copied registrations retain payload-removal checks.
+This resolves the mismatch above, without establishing native canvas behavior.
+Remote installation and older physical clients were not rerun; exact
+release-version gates remain unchanged.
 
 | Required gate | Result and boundary |
 | --- | --- |

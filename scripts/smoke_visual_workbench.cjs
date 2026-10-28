@@ -215,7 +215,7 @@ async function main() {
     await adapter?.close(); await context?.close(); await browser?.close();
     app.closeAllConnections?.(); if (app.listening) await new Promise(resolve => app.close(resolve));
     fs.rmSync(root, { recursive: true, force: true });
-    if (evidence) fs.writeFileSync(path.join(evidence, "results.json"), JSON.stringify({ results, errors, external, messages: messages.length, simulatedConversationHost: true, nativeAppTested: false, paidCalls: 0 }, null, 2) + "\n");
+    if (evidence) fs.writeFileSync(path.join(evidence, "results.json"), JSON.stringify({ results, errors, external, messages: messages.length, simulatedConversationHost: true, nativeAppTested: false }, null, 2) + "\n");
   }
 }
 main().catch(error => { console.error(String(error.stack).replace(/https?:\/\/[^\s)]+/g, "[local view]")); process.exitCode = 1; });

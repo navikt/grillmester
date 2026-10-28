@@ -91,22 +91,15 @@ en ny instans. Kontrollskall-reload overtar ikke den aktive skriveren.
 Dette bygger på observerte nativekontekster, ikke en offentlig SDK-garanti for
 lagringspartisjonering. Canvasstøtte alene beviser ikke slik isolasjon.
 Separate porter isolerer ikke cookies, og portgjenbruk kan arve workers.
-En tidligere Chrome-prøve med delt localhost viste begge problemene; den
-private nativeadressen skal derfor aldri åpnes i en vanlig delt nettleser.
+Den private nativeadressen skal derfor aldri åpnes i en vanlig delt nettleser.
 Ekstern nettlesertransport inngår ikke i den første nativeleveransen, og det
 finnes ingen automatisk fallback. En eventuell senere nettleserflate krever
 egen egnet originisolasjon og avklart eierskap til den aktive skriveren.
 
-Nativeprøven bekreftet appinteraksjon, faktisk MSW, synlig HMR, appinnspill,
-automatisk videreføring til forslag, skisseinnspill og ny versjon, samt
-gjenåpning av lagret arbeid uten observert replay. To samtidige canvas hadde
-et avvik: etter lukking av den gjenåpnede A-visningen ble inaktiv B stående
-på vertens «Loading canvas…». B kom tilbake før diagnosehandlingen kjørte,
-og et nytt serverkall virket. Årsaken er ikke fastslått. I en senere prøve
-ble innspill stående i kø mens samtalen fortsatt var opptatt med en
-bakgrunnsjobb. En synlig sluttoppsummering eller `queued` er derfor ikke
-bevis på at neste runde er behandlet. Disse funnene skal inngå i
-livsløpsverifikasjonen før utrulling; de er ikke erklært rettet av lokale tester.
+Flere samtidige canvas har et uavklart vertsavvik ved lukking og gjenåpning.
+Samtalekøen må også kontrolleres i klienten: `queued` eller en sluttoppsummering
+beviser ikke at neste innspillsrunde er behandlet. Se resultater, avgrensninger
+og krav før utrulling i [leveringsgrunnlaget](testing/designverksted-release-readiness.md).
 
 Den samlede flyten viser «Appen nå» og «Forslag» i samme verksted. En registrert
 kobling peker på én skisse med egne versjoner og innspillsrunder. Ruting krever
@@ -121,16 +114,15 @@ de erstatter ikke en ny nativeprøve av endret leveranseinnhold. Romtypene deler
 verken versjoner eller appens nettlesertilstand.
 
 En URL og pinnet DNS beviser ikke hvilken appprosess som eier oppstrømsporten.
-Den native prøven holdt én kjent syntetisk server levende og forbød omstart
-bak en gammel instans. Ved prosessbytte må tilhørende visninger avsluttes
+Ved prosessbytte må tilhørende visninger avsluttes
 før en ny app kobles til. Demooppstart kan også endre frameworkstyrte filer;
 «vis appen» er ikke et løfte om uendret checkout. Consumerens oppskrift,
 eierskap og etterkontroll gjelder fortsatt.
 [Den eide demohjelperen](adr/0028-eid-livslop-for-lokale-demoer.md) lar en kort
 shellkommando starte demoen med privat status og stopp, uten automatisk restart.
 Den beviser verken eierskap til appens URL, syntetiske data eller at appen bare
-skriver i testkopien. Lokale prosessprøver beviser heller ikke at klientens
-samtalekø blir ledig; det krever nativeprøven beskrevet over.
+skriver i arbeidskopien. Lokale prosessprøver erstatter ikke kontroll av
+samtalekø og stopp i den støttede klienten.
 Ingen sandboxpolicy skal endres
 automatisk på grunnlag av en visningsfeil: lytting, proxyens direkte
 lokaltilkobling og rendererlasting må diagnostiseres hver for seg.

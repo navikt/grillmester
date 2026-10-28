@@ -173,16 +173,13 @@ concrete content and provenance plus the applicable underlying rights decision.
 A new rights or brand decision is required when the change falls outside that
 decision's source, component, or naming scope.
 
-PR [#90](https://github.com/navikt/grillmester/pull/90) is the current-content
-review for Designer's intent and native-workshop guidance and the expanded
-`design-prototype` implementation. The Hovmester revision, imported component
-IDs, Doctor Who name and characterization, content lock and third-party notices
-are unchanged. Only Designer, design-prototype and this provenance record have
-changed within the existing rights-bound scope. The running-app runtime and
-proposal integration are original implementation as described below; no new
-upstream implementation is imported. The underlying decision in #56 remains
-applicable, while #90 records review of the changed content rather than reusing
-the earlier component digests.
+PR [#90](https://github.com/navikt/grillmester/pull/90) reviews Designer's
+native-workshop guidance and the expanded `design-prototype` implementation.
+Changed rights-bound content is limited to those two components and this
+provenance record. The Hovmester revision, component IDs, Doctor Who name and
+characterization, content lock and third-party notices are unchanged. This
+review binds the changed content while preserving the underlying decision in
+#56; it does not reuse the earlier component digests.
 
 Imported skills:
 
@@ -242,54 +239,27 @@ alive—without copying remote binds, repository state, generic file serving,
 external assets or raw event text. See the full MIT notice in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The running-application path in `design-prototype/scripts/application-*` is
-original Grillmester implementation. Its architectural reference is
-`navikt/agentic-ui-canvas` at
-`ce79929f5d2b27cc5610690bca19c4450dd530b6`: a loopback preview proxy and visual
-element selection. No source files from that project are imported or
-redistributed; no reuse licence was identified for the reviewed revision.
-A follow-up architectural comparison on 27 October 2026 inspected revision
-`b18e313a6f0eb8e5b6fc74ac671ee0490a437aa3` for native-host transport, annotation
-navigation and deliberate handoff. No source was imported from that revision.
-An independently implemented shared-hostname browser experiment was rejected
-after cookie and service-worker reuse was observed. The later native transport
-uses the host's separately observed canvas contexts; it does not make that
-browser experiment safe or establish an SDK storage-isolation guarantee.
-The explicit “Vis stedet” action independently applies the useful
-annotation-navigation idea to the existing feedback contract: conservative
-matching on the current page, without activating app controls or adding stored
-identities.
-The per-document authority and native lifecycle are also original Grillmester
-implementation. They use the existing application backend and canvas lifecycle,
-preserving one deliberately submitted feedback queue per room. The installed
-host SDK and first-party extension behavior informed the canvas contract; no
-implementation source was imported from them. The earlier browser connection
-panel is not the current native entry point. A single canvas presents the
-running app and one HTML proposal through the existing HTML engine. Its
-proposal registry, exact-origin embedding bridge, explicit activation and
-document-scoped feedback routing are
-original implementation. The relationship can start from the conversation or
-an exact submitted app round; it does not transfer app-source editing authority
-or introduce another runtime lifecycle. Intent guidance distinguishes demo,
-exploration, sketch, review and expressly requested implementation without
-requiring a new questionnaire or fabricated feedback round.
-The owned-demo helper `design-prototype/scripts/app-runtime.js` and its process
-regressions are original Grillmester implementation. It uses Node's standard
-process, filesystem, cryptography and Unix-socket APIs; no external supervisor
-or daemon implementation is imported. Its bounded lifecycle and ordinary-shell
-authority are recorded in [ADR 0028](docs/adr/0028-eid-livslop-for-lokale-demoer.md).
-The native application instance retains one upstream and proxy origin, and
-retires its own renderer, proxy and proposal child on close or backend loss.
-Reopening saved work requires a fresh instance. These lifecycle changes do not
-add a second feedback queue or import another runtime. Native observations and
-remaining release conditions are recorded in
-[the delivery checklist](docs/testing/designverksted-release-readiness.md).
-The existing sketch path retains its lineage above. Running app JavaScript
-instead uses a separate preview origin and cannot access the trusted shell's
-feedback authority. Its proxy and deliberately submitted app-feedback
-contract are described in ADR 0027; app source editing and history are outside
-this release. This addition does not change the imported component IDs or
-establish an upstream synchronization relationship.
+The running-app code in `design-prototype/scripts/application-*`, its HTML
+proposal integration and the owned-demo helper
+`design-prototype/scripts/app-runtime.js` are original Grillmester
+implementation. The existing sketch path retains its
+lineage above; no new imported component or synchronization relationship is
+introduced.
+
+Architectural references are `navikt/agentic-ui-canvas` at
+`ce79929f5d2b27cc5610690bca19c4450dd530b6` and
+`b18e313a6f0eb8e5b6fc74ac671ee0490a437aa3`: loopback proxying, visual selection,
+native-host transport, annotation navigation and deliberate handoff. No source
+files from either revision are imported or redistributed; no reuse licence was
+identified for either reviewed revision. The installed host SDK and observed
+first-party extension behavior also informed the canvas contract, without
+importing their implementation source.
+
+The app and proposal boundaries are documented in
+[ADR 0027](docs/adr/0027-designverksted-for-kjorende-apper.md).
+The owned-demo helper and its process regressions use Node's standard APIs,
+without an imported supervisor or daemon. Its lifecycle is documented in
+[ADR 0028](docs/adr/0028-eid-livslop-for-lokale-demoer.md).
 
 ### Aksel generated-reference lineage
 

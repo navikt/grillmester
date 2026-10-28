@@ -7,16 +7,10 @@ date: 2026-10-28
 
 ## Kontekst
 
-Designverksted kan vise en lokal app, men canvaset skal ikke få rett til å
-starte vilkårlig kode i et prosjekt. I en nativeprøve ble en innspillsrunde
-liggende i kø mens en langvarig shelljobb fortsatt var aktiv. Da jobben ble
-stoppet, utløste klientens avslutningsvarsel en ny respons som startet demoen
-igjen. Dette viser en uegnet arbeidsflyt; det beviser ikke alene at alle
-klientversjoner behandler bakgrunnsjobber likt.
-
-Serverens levetid og modellens svartur må derfor skilles. Det må samtidig
-være mulig å stoppe bare prosesser som denne oppgaven eier, uten å lete etter
-eller signalisere andre prosesser på samme port.
+En lokal demo må være tilgjengelig uten å holde samtalen opptatt. Uttrykkelig
+stopp skal ikke utløse omstart, og bare oppgavens egne prosesser skal stoppes.
+Canvaset skal ikke få rett til å starte vilkårlig prosjektkode eller signalisere
+andre prosesser på samme port.
 
 ## Beslutning
 
@@ -74,7 +68,7 @@ skrivbare cacher må fortsatt håndteres i den gjennomgåtte demooppskriften.
 Å lukke canvaset stopper visningen, ikke den eide demoen. Det gjør gjenåpning
 forutsigbar. `stop` og `cancel` er samme uttrykkelige handling og skal brukes
 når brukeren avslutter demonstrasjonen. Uventet prosessavslutning rapporteres
-som stoppet; ingen automatisk omstart eller modellmelding sendes.
+som stoppet; ingen automatisk omstart eller melding til samtalen sendes.
 
 Standard levetid er fire timer, maksimalt åtte timer. Utløp, eksplisitt stopp,
 feilet oppstart og kommandoens egen avslutning rydder den eide prosessgruppen
@@ -97,17 +91,11 @@ ikke garantere opprydding; tilstanden blir da utilgjengelig og krever særskilt
 undersøkelse. Hjelperen gjetter aldri eierskap ut fra port, prosessnavn eller
 lagret PID.
 
-## Verifikasjon og videre port
+## Verifikasjon
 
-Regresjonene bruker bare syntetiske, eide testprosesser. De dekker kort retur,
-gjenbruk, feil oppskrift, privat kontroll, ugyldige og feilformede nøkler,
-symlenker/hardlenker, falske PID-felt, avbrutt håndtrykk, naturlig avslutning,
-TERM-ignorerende barn, utløp, avbrutt oppstartslås og feil ved journalskriving.
-App- og verkstedsmokene kjører gjennom den faktiske adapteren og en simulert
-vert, uten modellkall.
-
-At klienten faktisk blir ledig, tar imot neste innspillsrunde uten «Send nå»,
-og respekterer stopp uten å starte demoen igjen, må også verifiseres i en
-naturlig nativeprøve. Lokale prosess- og nettlesertester erstatter ikke denne
-porten. Hjelperen distribueres ikke i OpenCode-målet, som ikke har denne
-appcanvas-flyten.
+[Prosessregresjonene](../../plugin/skills/design-prototype/tests/app-runtime.test.js)
+dekker eierskap, gjenbruk, privat kontroll, avbrudd og opprydding med syntetiske
+prosesser. App- og verkstedsmokene bruker den faktiske adapteren med simulert
+vert. Ledig samtale, neste innspillsrunde og stopp uten omstart må også prøves
+i støttet klient; se [leveringsgrunnlaget](../testing/designverksted-release-readiness.md).
+Hjelperen distribueres ikke i OpenCode-målet, som ikke har denne appcanvas-flyten.
