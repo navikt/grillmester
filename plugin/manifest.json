@@ -367,7 +367,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/app-runtime.js": {
-      "sha256": "169f06bdd353d3fcba716d15482622dcd45fd0d7ab9baf533320761c0249220e",
+      "sha256": "14adb07b51d33f18e1af78b0d3bdeb3cf587f5849f25677b764c8498bd28dd6b",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-connection-state.js": {
@@ -487,7 +487,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/app-runtime.test.js": {
-      "sha256": "3aca7a217fd2567724f4024109e5556ee4f408f7537dab086ba5e21d003e0fd9",
+      "sha256": "600216a06413f20560acbe1adeef07d620baad907baf9e10d1c83b64bf1918b0",
       "mode": "0644"
     },
     "skills/design-prototype/tests/application-contract.test.js": {

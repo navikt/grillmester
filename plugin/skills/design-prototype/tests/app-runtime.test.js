@@ -54,6 +54,73 @@ async function request(record, options = {}) {
   });
 }
 
+function privateReadRace(t, replace) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "gm-read-race-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "state.json"), opened = [], readLinks = [];
+  fs.writeFileSync(file, JSON.stringify({ state: "stopping" }), { mode: 0o600 });
+  const originalOpen = fs.openSync, originalRead = fs.readFileSync;
+  t.mock.method(fs, "openSync", function (name, ...args) {
+    if (name !== file) return Reflect.apply(originalOpen, this, [name, ...args]);
+    if (opened.length) assert.throws(() => fs.fstatSync(opened.at(-1)), { code: "EBADF" }, "Close the old descriptor before reopening.");
+    const fd = Reflect.apply(originalOpen, this, [name, ...args]);
+    opened.push(fd);
+    replace({ file, directory, attempt: opened.length });
+    return fd;
+  });
+  t.mock.method(fs, "readFileSync", function (name, ...args) {
+    if (typeof name === "number" && opened.includes(name)) readLinks.push(fs.fstatSync(name).nlink);
+    return Reflect.apply(originalRead, this, [name, ...args]);
+  });
+  return { file, opened, readLinks, assertClosed() { for (const fd of opened) assert.throws(() => fs.fstatSync(fd), { code: "EBADF" }); } };
+}
+
+test("private record reads reopen after an atomic replacement without reading the detached inode", { skip: !supported }, t => {
+  const f = privateReadRace(t, ({ file, attempt }) => {
+    if (attempt !== 1) return;
+    fs.writeFileSync(file + ".next", JSON.stringify({ state: "stopped" }), { mode: 0o600 });
+    fs.renameSync(file + ".next", file);
+  });
+  assert.deepEqual(runtime.readPrivate(f.file), { state: "stopped" });
+  assert.equal(f.opened.length, 2); assert.deepEqual(f.readLinks, [1]); f.assertClosed();
+});
+
+test("replacement records still reject symlinks, broad modes and hardlinks", { skip: !supported }, async t => {
+  for (const kind of ["symlink", "mode", "hardlink"]) await t.test(kind, t => {
+    const f = privateReadRace(t, ({ file, directory, attempt }) => {
+      if (attempt !== 1) return;
+      const target = path.join(directory, "replacement"), next = file + ".next";
+      fs.writeFileSync(target, JSON.stringify({ state: "stopped" }), { mode: 0o600 });
+      if (kind === "symlink") fs.symlinkSync(target, next);
+      else if (kind === "hardlink") fs.linkSync(target, next);
+      else { fs.chmodSync(target, 0o644); fs.renameSync(target, next); }
+      fs.renameSync(next, file);
+    });
+    assert.throws(() => runtime.readPrivate(f.file), kind === "symlink" ? { code: "ELOOP" } : /owned private file/);
+    assert.equal(f.opened.length, kind === "symlink" ? 1 : 2);
+    assert.deepEqual(f.readLinks, []); f.assertClosed();
+  });
+});
+
+test("an unsafe detached record fails before retrying its otherwise safe replacement", { skip: !supported }, t => {
+  const f = privateReadRace(t, ({ file }) => {
+    fs.writeFileSync(file + ".next", JSON.stringify({ state: "stopped" }), { mode: 0o600 });
+    fs.renameSync(file + ".next", file);
+  });
+  fs.chmodSync(f.file, 0o644);
+  assert.throws(() => runtime.readPrivate(f.file), /owned private file/);
+  assert.equal(f.opened.length, 1); assert.deepEqual(f.readLinks, []); f.assertClosed();
+});
+
+test("continuous private record replacement stops after three closed descriptors", { skip: !supported }, t => {
+  const f = privateReadRace(t, ({ file, attempt }) => {
+    fs.writeFileSync(file + ".next", JSON.stringify({ revision: attempt }), { mode: 0o600 });
+    fs.renameSync(file + ".next", file);
+  });
+  assert.throws(() => runtime.readPrivate(f.file), /record changed repeatedly.*Try the command again/);
+  assert.equal(f.opened.length, 3); assert.deepEqual(f.readLinks, []); f.assertClosed();
+});
+
 test("short launcher exits, demo survives and repeated start reuses the owned runtime", { skip: !supported }, async t => {
   const f = await fixture(t); const started = Date.now();
   const state = await f.cli("start", f.startArgs);

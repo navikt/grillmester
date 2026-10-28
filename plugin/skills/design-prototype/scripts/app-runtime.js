@@ -28,13 +28,19 @@ function readPrivate(file) {
   fail(Number.isInteger(O_NOFOLLOW) && Number.isInteger(O_NONBLOCK), "Safe runtime reads require no-follow and non-blocking file support.");
   // Read only: a missing record stays missing, symlinks fail, and a FIFO cannot
   // block the launcher before the descriptor checks reject it below.
-  const fd = fs.openSync(file, fs.constants.O_RDONLY | O_NOFOLLOW | O_NONBLOCK, 0o600);
-  try {
-    const stat = fs.fstatSync(fd);
-    fail(stat.isFile() && stat.nlink === 1 && stat.uid === uid() && (stat.mode & 0o077) === 0 && stat.size <= 16384,
-      "The runtime record is not an owned private file.");
-    return JSON.parse(fs.readFileSync(fd, "utf8"));
-  } finally { fs.closeSync(fd); }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const fd = fs.openSync(file, fs.constants.O_RDONLY | O_NOFOLLOW | O_NONBLOCK, 0o600);
+    try {
+      const stat = fs.fstatSync(fd);
+      fail(stat.isFile() && stat.uid === uid() && (stat.mode & 0o077) === 0 && stat.size <= 16384 && stat.nlink <= 1,
+        "The runtime record is not an owned private file.");
+      // The supervisor can atomically replace a record between open and stat.
+      // Close that detached inode and revalidate the current file from scratch.
+      if (stat.nlink === 0) continue;
+      return JSON.parse(fs.readFileSync(fd, "utf8"));
+    } finally { fs.closeSync(fd); }
+  }
+  throw new Error("The runtime record changed repeatedly while being read. Try the command again; no other runtime was controlled.");
 }
 function writePrivate(directory, name, value) {
   privateDirectory(directory);
