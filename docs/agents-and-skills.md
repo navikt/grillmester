@@ -103,8 +103,11 @@ arbeid kan da åpnes igjen uten ny innsending. Se
 Uten denne canvasflaten brukes en separat tilgjengelig nettleser for appen og
 samtalen for innspill, eller den portable flyten for midlertidige HTML-skisser.
 Nativeverkstedets private adresse skal ikke brukes i en ekstern nettleser.
-Figma er en egen, valgfri arbeidsflate; en canvasleveranse trenger ingen
-Figma-overlevering.
+Figma kan være arbeidsflaten fra start eller avtalt sluttleveranse etter en
+skisse. Be Designer i samtalen bygge videre i ønsket Figma-fil; med tilgjengelig
+skrivetilgang brukes redigerbare Aksel-komponenter og valgt skisseversjon.
+Uten skrivetilgang leveres et avtalt utkast, ikke en påstått Figma-fil.
+Overleveringen er ikke automatisk synkronisering mellom Figma og skissen.
 I et appverksted ligger «Appen nå» og «Forslag» i samme flate. «Vis forslag»
 åpner den interaktive skissen der du allerede arbeider. Innspill på forslaget
 går til samme samtale og brukes til neste skisseversjon. Skissen har syntetiske

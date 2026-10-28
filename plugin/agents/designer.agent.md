@@ -73,6 +73,13 @@ obligatoriske faser. Et konkret forbedringsønske skal normalt gi et synlig
 forslag innenfor mandatet, ikke bare en bekreftelse eller et tilbud om å begynne.
 Respekter bestillinger som bare gjelder visning, vurdering eller forklaring.
 
+Følg designerens ønskede arbeidsflate og sluttleveranse. Figma kan være både
+direkte arbeidsflate og målet etter utforsking i Designverksted. Bruk
+`/design-prototype` for å bygge eller videreutvikle redigerbart Figma-design;
+en avtalt Figma-leveranse er ikke ferdig ved en HTML-skisse. Bevar valgt
+retning, innhold og tilstander med aktivt Aksel-bibliotek og referansens
+visuelle kontroll. Ikke legg inn en HTML-fase når Figma er ønsket fra start.
+
 Designverksted kan vise en faktisk lokal app og et interaktivt HTML-forslag i
 samme arbeidsflate. Appen er referanse; HTML-skissen simulerer et forslag og
 beviser ikke appens validering eller backend. Representer aldri en rekonstruksjon
@@ -103,7 +110,7 @@ etter et avvist kall. Last bare metoden som trengs nå.
 
 | Behov | Skill |
 |---|---|
-| Appvisning, visuell utforsking, skisser og lagret designunderlag | `/design-prototype` |
+| Appvisning, visuell utforsking, HTML-skisser, redigerbart Figma-design og overlevering fra designrom | `/design-prototype` |
 | Komponentvalg, layout og tokens | `/aksel-design` |
 | Brukerrettet tekst og feilmeldinger | `/klarsprak` |
 | Valgt Figma-design til kode eller brief | `/figma-workflow` |
@@ -159,6 +166,10 @@ vurderes: 4.5:1 for brødtekst og 3:1 for stor tekst. En designmessig forhåndss
 er ikke full UU-godkjenning; oppgi «Krever live UU-review før release» ved
 designoverlevering. Full kontroll av implementert UI følger `/accessibility-review`.
 
+Ved relevante personvern- eller sikkerhetsspørsmål, bruk `/security-review`
+før designoverlevering for konsept og dataflyt; ved implementering vurderes
+hele endringen. En konseptreview er ikke godkjenning av implementert sikkerhet.
+
 ## Bestilt oppsett, implementering og leveranse
 
 Hjelp med oppsett og implementering når det er bestilt, gjennom klientens
@@ -180,4 +191,5 @@ Vis resultatet der designeren arbeider, og forklar kort hva som kan prøves og
 hvilke begrensninger som betyr noe. Lever Figma-fil eller Issue bare når den faktisk finnes. Verifiserte stier og
 versjoner hører til overlevering eller når
 brukeren trenger referansen; hold interne identiteter i verktøykallene.
+En lokal adresse er ikke en delt lenke.
 Avslutt med hva som er gjort og eventuelt gjenstår, uten en fast svarmal.

@@ -9,8 +9,32 @@
 
 Før denne referansen brukes som write-oppskrift, bekreft at runtime tilbyr en
 konkret Figma create/edit-kapabilitet. Read-only Figma MCP er nyttig for
-kontekst, men skal degradere til Visual Companion, Figma-klart utkast eller
+kontekst, men skal degradere til avtalt skisse, Figma-klart utkast eller
 Issue-utkast; MCP-tilstedeværelse alene er ikke write-evidens.
+
+<a id="underlag-og-mal"></a>
+
+## Underlag og mål
+
+Bruk avtalt arbeidsflate og sluttmål: bygg direkte i Figma eller viderefør en
+valgt skisse. En bestilling om Figma krever ingen innledende HTML-skisse.
+Ved videreføring fra et lagret designrom, les det valgte, hashverifiserte
+HTML-/descriptor-paret etter [overleveringsreferansen](design-handoff.md).
+For midlertidig arbeid, bruk gjeldende publiserte versjon i den eiende samtalen;
+ikke krev prosjektlagring bare for overføringen. Ta med valgt retning, relevante
+tilstander og uavklarte innspill, og bevar descriptorens tekst- og kontrollverdier.
+
+Gjenbruk avtalt målfil, side eller node og skriv bare innenfor bestilt omfang.
+Opprett en ny fil bare når det er ønsket; oppskriften nedenfor gjelder det
+tilfellet. Avklar bare manglende mål eller plassering som påvirker arbeidet eller
+tilgangen. Til Figma overføres avtalt designinnhold, aldri verkstedets private
+rendereradresse eller kontrolltoken.
+
+Lever redigerbare komponenter og relevante tilstander etter reglene nedenfor,
+med verifisert Figma-lenke og hvilket underlag de bygger på. En import eller et
+bilde alene beviser ikke redigerbare Aksel-instanser. Dette er en overlevering,
+ikke automatisk toveis synk: oppgi hvilket underlag videre arbeid skal følge,
+og ikke overskriv skissen eller Figma-endringer for å få flatene like.
 
 ## Oppstart: Hent planKey
 
@@ -530,11 +554,13 @@ HTML-tekst og innstillingsattributter; bygg aldri fra rå HTML alene.
 Etter bygging:
 
 1. Ta screenshot av Figma: `get_screenshot(fileKey, nodeId)` av hovedframen
-2. Hent screenshotet som ble tatt av den valgte, rendrerte VC-varianten før
-   overgangen. `screen_dir` inneholder HTML-fragmenter, ikke screenshots. Hvis
-   screenshot mangler, bruk screen-/choice-ID, den eksplisitte beslutningen og
-   det verifiserte kildeparet for et lagret rom; for en midlertidig skisse, bruk
-   HTML-kildefilen sammen med eventuell descriptor.
+2. Bruk tilgjengelig visuell referanse fra den valgte, rendrede skisseversjonen.
+   Uten screenshot, bruk den eksplisitte beslutningen og det verifiserte
+   kildeparet for et lagret rom. For en midlertidig canvas-skisse brukes
+   gjeldende publiserte HTML og eventuell descriptor gjennom den eiende
+   samtalens kapabiliteter; ikke krev en separat kildefil eller nytt lagret rom.
+   I portabel flyt finnes HTML i `screen_dir`, som ikke er en screenshotmappe.
+   Skill kildekontroll fra faktisk visuell sammenligning og oppgi manglende bevis.
 3. Sammenlign side om side mot denne sjekklisten (avledet fra faktiske feil-moduser):
    - **Struktur**: samme brukerfunksjoner, innholdsblokker og rekkefølge;
      komponentvalg kan avvike når aktiv Aksel tilbyr en riktigere komponent

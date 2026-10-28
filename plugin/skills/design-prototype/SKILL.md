@@ -19,6 +19,11 @@ uten appoppstart. Lagrede skisser har versjoner og en avgrenset editor. Figma
 kan brukes når redigerbare designfiler er ønsket leveranse; det er ingen
 obligatorisk fase etter en ferdig skisse.
 
+Bevar avtalt sluttleveranse gjennom utforskingen. Figma kan være utgangspunktet
+eller fortsettelsen fra en valgt skisse; en bestilt Figma-leveranse skal ikke
+stoppe ved HTML. Samtalen følger arbeidet mellom flatene. Regelen om ett canvas
+gjelder appen og dens HTML-forslag, ikke en avtalt overlevering til Figma.
+
 Velg fra hensikten og klientens faktiske kapabiliteter. En eksisterende app er
 nyttig som referanse når dens innhold eller oppførsel betyr noe for valget,
 men er ingen forutsetning for idéutforsking. Når oppgaven krever et kjørbart
@@ -38,6 +43,7 @@ Bruk klientens verktøy og skjemaer.
 | Lage en HTML-skisse uten canvas, med lokal Node.js ≥ 18 og tilgjengelig loopback | [Portabel nettleserflyt](references/visual-companion.md): midlertidig server, private filer, CLI-innspill og opprydding. |
 | Vurdere eksisterende Figma-underlag | Les den relevante noden med godkjent Figma-kapabilitet. Bruk relevante designskills; vurdering krever ikke write eller publisering. |
 | Utforme eller endre et Figma-design med tilgjengelig create/edit-kapabilitet | [Figma-oppskriften](references/figma-prototype.md): bibliotek, redigerbarhet og visuell sammenligning. Verifiser read og write separat. |
+| Bygge videre på en valgt skisse i Figma | [Figma-overlevering](references/figma-prototype.md#underlag-og-mal): valgt versjon, avtalt målfil og redigerbare komponenter. Les lagret kildepar før bygging; ikke bruk rå HTML alene. |
 | Overlevere eller implementere fra et lagret designrom | [Lesende overlevering](references/design-handoff.md): valgt underlag, kildepar og kontroll av integritet. Åpning av canvas er unødvendig. |
 
 Før HTML-forfatting, bruk `/aksel-design` og de felles innholdsreglene for
@@ -61,7 +67,7 @@ kontroller at serveren bruker kopien, og bevar originalprosjekt og urelatert arb
 En worktree alene beviser ikke at mappen er disponibel. Eksterne writes krever
 mandat for mål, handling og omfang; gjenbruk det som allerede er gitt.
 
-Før en ny selvstendig skisse, avklar én gang om den skal lagres eller være
+Før en ny selvstendig HTML-skisse, avklar én gang om den skal lagres eller være
 midlertidig, med mindre det er valgt. Appinnspill og oppfølgende forslag er
 midlertidige uten avtalt lagring; fortsett uten et nytt lagringsspørsmål og si
 kort at arbeidet er midlertidig. Bestilt lagring av hele verkstedet omfatter
@@ -87,6 +93,11 @@ Lag den minste sammenhengende skissen som lar designeren vurdere oppgaven.
 Varianter er nyttige ved reelle retningsvalg; behold valgt retning ved
 justeringer. Bruk sammenlignbare utsnitt, data og innholdstetthet når alternativer
 vurderes. Knytt observasjoner til faktisk element og tilstand.
+
+Ved vurdering eller forbedring av en eksisterende flate, kontroller faktisk
+visuelt underlag og riktig side eller Figma-node før du konkluderer om den.
+Sammenlign før og etter med tilsvarende utsnitt, data og tilstand. Manglende
+underlag gjør vurderingen foreløpig; idéutforsking krever ikke appoppstart.
 
 - Bruk Aksel-komponenter, tokens og verifisert markup med kompatible stiler.
   Vis fallback eller wireframe ærlig når komponentfidelitet mangler.
