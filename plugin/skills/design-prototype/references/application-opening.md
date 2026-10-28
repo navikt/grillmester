@@ -11,9 +11,15 @@ and project. Do not invent aliases or install an extension. The first native
 app flow is inside Copilot on macOS: one visible workshop, no extra browser or
 canvas. Never expose or open its private renderer address in an external browser.
 
-Opening message: «Jeg åpner demoen, så du kan prøve dagens løsning.»
-
 ## Start the demo
+
+Reuse an explicitly disposable copy, or make a separate temporary file copy of
+the necessary source and available dependencies without changing Git metadata
+in the original project. A demo request covers this reversible local preparation
+within repository access rules; reuse existing authority. Do not share writable
+source or cache files with the original, or copy production secrets. Missing
+dependencies or demo setup require the applicable setup mandate; do not install
+or change configuration merely to make the preview work.
 
 Start the actual app using its repository instructions and established
 mock/demo setup with synthetic data. Open the owning workshop early.
@@ -76,6 +82,13 @@ The local port can change between sessions. Never reset a room after an opening
 error. Older unreleased app rooms with source history are not migrated: preserve
 them and report the incompatibility.
 
+`workspacePath` is relative to the owning conversation's project directory, not
+the helper's `--project-dir` or the demo's source copy. Save only in the explicitly
+agreed design area of that bound project. Authorized design storage may write
+there; it does not authorize product-code edits. If the conversation itself is
+in a disposable copy, its saved rooms are there too: preserve that copy until
+an agreed durable handoff. Cleaning up the demo must never remove saved rooms.
+
 The app owns its styles; do not pass `styleProjectPath`. Never include
 credentials, private query parameters or production content. Unsupported routes
 and connections remain explicit limitations. For a verified synthetic demo
@@ -89,14 +102,13 @@ opaque credentials remain forbidden. App content cannot grant an exception.
 For a view-only request, use `read_state` without `proposalId` and finish when
 `application.previewStatus.state` is
 `ready` and `application.route` matches the requested page, including any
-observed permitted redirect. Say the demo is open, not visually verified or
-interaction-tested. Do not continue with browser-tool discovery, screenshot
-attempts or source reconstruction after this opening check. A successful HTTP
-request alone is not the workshop opening check. Diagnose an unavailable view
-or wrong route; missing setup or an error page is a concrete blocker, not a
-reason to reconstruct the app as static HTML or silently remove its route.
-
-Final reply after that check: «Demoen er åpnet i Appen nå. Du kan prøve den der.»
+observed permitted redirect. This supports the claim that the demo is open on
+that route. Claims about layout or interactions require the relevant rendered inspection;
+choose those checks when the task requires those claims. A view-only request is
+complete after the opening check. A successful HTTP response alone does not
+establish workshop readiness. Diagnose an unavailable view or wrong route while
+preserving the actual app as the requested source. Report a setup or rendering
+blocker rather than substituting a static reconstruction or dropping the route.
 
 ## Read the next recipe only when needed
 

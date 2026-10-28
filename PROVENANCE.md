@@ -174,7 +174,8 @@ A new rights or brand decision is required when the change falls outside that
 decision's source, component, or naming scope.
 
 PR [#90](https://github.com/navikt/grillmester/pull/90) reviews Designer's
-native-workshop guidance and the expanded `design-prototype` implementation.
+role and capability guidance and the expanded `design-prototype` implementation.
+Operational contracts remain in the skill's conditional references.
 Changed rights-bound content is limited to those two components and this
 provenance record. The Hovmester revision, component IDs, Doctor Who name and
 characterization, content lock and third-party notices are unchanged. This

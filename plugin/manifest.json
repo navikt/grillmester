@@ -79,7 +79,7 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "d5d59678b0e15410f1f5de4a8e7dc45ee67f17f51a529537412b55ae4111754e",
+      "sha256": "2a5312502ecbcf42cc770fabfd5303c072a69f5d936374cba80c65be8f577daf",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -327,7 +327,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "6075287ae03951be42f0fc997835d25c777fd21c3bd936837da73e31d8688833",
+      "sha256": "268db82f85954777a134a3e7d11313d74081ae7a70006c661701eaca6a48b1ab",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -347,7 +347,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/application-opening.md": {
-      "sha256": "60ca4a3f10ea9d2cbbdd527a11bc889b4e8f6b25f50e732cbfdef3fd28a37114",
+      "sha256": "36e9b232c9c40f77f32290c28b20ab563dfe769abef71c45d183f838db0d5e7a",
       "mode": "0644"
     },
     "skills/design-prototype/references/design-handoff.md": {
