@@ -296,8 +296,15 @@ async function main() {
       assert.equal(messages.length, 0);
     });
     await check("one deliberate submission reaches the exact round and receives a reply", async () => {
+      // WebKit does not necessarily focus buttons on pointer activation.
+      // Exercise that path in every browser, including the Chromium CI run.
+      await page.locator("#submit-feedback").evaluate(button => {
+        document.activeElement.blur();
+        button.addEventListener("mousedown", event => event.preventDefault(), { once: true });
+      });
       await page.locator("#submit-feedback").click();
       await until(() => messages.length === 1, "single queued round");
+      await until(async () => await page.locator("#sent-tab").getAttribute("aria-selected") === "true", "confirmed sent tab");
       assert.equal(await page.evaluate(() => document.activeElement.id), "sent-tab");
       const round = await action("read_submission", { submission: 1 });
       const comments = round.items.filter(item => item.type === "comment");
@@ -361,6 +368,8 @@ async function main() {
     await check("forced-colors retains visible focus and selected controls", async () => {
       await page.setViewportSize({ width: 640, height: 400 }); await page.emulateMedia({ forcedColors: "active" });
       await page.locator("#open-feedback").click(); await page.locator("#close-panel").focus();
+      await page.keyboard.press("Tab"); await page.keyboard.press("Shift+Tab");
+      assert.equal(await page.evaluate(() => document.activeElement.id), "close-panel");
       assert(await page.evaluate(() => matchMedia("(forced-colors: active)").matches));
       const focus = await page.locator("#close-panel").evaluate(el => ({ width: getComputedStyle(el).outlineWidth, style: getComputedStyle(el).outlineStyle }));
       assert.notEqual(focus.width, "0px"); assert.notEqual(focus.style, "none");
@@ -454,17 +463,32 @@ async function main() {
         assert.equal(messages.length, 1);
       } finally { await context.unroute("**/inspect.js", handler); }
     });
-    await check("script and direct form navigation recover while shadow links retain the current app", async () => {
+    await check("blocked navigation retains a usable app or offers recovery", async () => {
       for (const method of ["script", "form"]) {
-        await preview.locator("body").evaluate(method => {
+        await preview.locator("body").evaluate((_, method) => {
+          window.__navigationProbe = method;
           if (method === "script") location.href = "https://outside.invalid/script";
           else { const form = document.createElement("form"); form.action = "https://outside.invalid/form"; document.body.append(form); form.submit(); }
         }, method);
-        await page.locator("#retry-preview").waitFor({ state: "visible" });
-        assert.equal(await page.locator("#whole-page").isDisabled(), true);
-        await page.locator("#retry-preview").click();
-        await page.locator("#stage-message").waitFor({ state: "hidden" });
-        await until(() => page.locator("#whole-page").isEnabled(), "recovered route");
+        let needsRecovery = true;
+        try { await page.locator("#retry-preview").waitFor({ state: "visible", timeout: 8000 }); }
+        catch (error) { if (error.name !== "TimeoutError") throw error; needsRecovery = false; }
+        if (needsRecovery) {
+          assert.equal(await page.locator("#whole-page").isDisabled(), true);
+          await page.locator("#retry-preview").click();
+          await page.locator("#stage-message").waitFor({ state: "hidden" });
+          await until(() => page.locator("#whole-page").isEnabled(), "recovered route");
+        } else {
+          // Some engines reject the navigation before replacing the document.
+          // Prove it is the same usable app, not an undetected blank/error page.
+          assert.equal(await preview.locator("body").evaluate(() => window.__navigationProbe), method);
+          await preview.getByRole("heading", { name: "Avtal et møte", exact: true }).waitFor();
+          await preview.getByLabel("Hvordan vil du møtes?", { exact: true }).selectOption("phone");
+          await preview.getByRole("button", { name: "Fortsett", exact: true }).click();
+          assert.equal(await preview.locator("#form-result").textContent(), "Valgt møteform: phone");
+          assert.equal(await page.locator("#whole-page").isEnabled(), true);
+          assert.equal(await page.locator("#stage-message").isVisible(), false);
+        }
       }
       await preview.locator("body").evaluate(() => {
         const host = document.createElement("div"); document.body.append(host);
@@ -544,6 +568,38 @@ async function main() {
       assert.equal((await proposalAction("read_state")).submission, 1); assert.equal(messages.length, 2);
       assert.equal(fs.readFileSync(sourceFile, "utf8"), document, "proposal never changes original fixture code");
       await adapter.canvas.onClose(proposalIdentity); await reopenedSketch.close();
+    });
+    await check("a delayed submission respects moved focus and a closed panel", async () => {
+      const previous = page;
+      for (const closePanel of [false, true]) {
+        const focusIdentity = { ...identity, instanceId: `submission-focus-${closePanel}` };
+        let release = () => {};
+        try {
+          await openWorkshop(await adapter.canvas.open({ ...focusIdentity, input: { application } }));
+          await page.frameLocator("#app-preview").getByRole("heading", { name: "Avtal et møte", exact: true }).waitFor();
+          await page.locator("#mode-change").click(); await page.locator("#whole-page").click();
+          await page.locator("#comment-text").fill("Et eget innspill for forsinket sending.");
+          await page.locator("#save-comment").click();
+          await page.locator("#submit-feedback").waitFor({ state: "visible" });
+          let received = false;
+          const held = new Promise(resolve => { release = resolve; });
+          await page.route("**/submit", async route => { received = true; await held; await route.continue(); });
+          const before = messages.length;
+          await page.locator("#submit-feedback").focus(); await page.keyboard.press("Enter");
+          await until(() => received, "submission request starts");
+          if (closePanel) await page.keyboard.press("Escape");
+          const destination = closePanel ? "mode-browse" : "close-panel";
+          await page.locator(`#${destination}`).focus();
+          release();
+          await until(async () => await page.locator("#sent-tab").getAttribute("aria-selected") === "true", "delayed send completes");
+          assert.equal(await page.evaluate(() => document.activeElement.id), destination);
+          assert.equal(await page.locator("#side-panel").isVisible(), !closePanel);
+          await until(() => messages.length === before + 1, "one delayed round");
+        } finally {
+          release(); await page.unrouteAll({ behavior: "wait" });
+          await adapter.canvas.onClose(focusIdentity); await page.close(); page = previous;
+        }
+      }
     });
     assert.deepEqual(external, [], "the fixture must not attempt external traffic");
     assert.deepEqual(errors, [], "the browser must not have unhandled script errors");

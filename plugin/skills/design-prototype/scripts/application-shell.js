@@ -1051,7 +1051,9 @@
     if (!pendingSubmit) pendingSubmit = { id: mutationId(), path: "/submit", body: { revision: state.revision }, commentIds: pendingComments().map(comment => comment.id), expectedSubmission: state.submission + 1 };
     const operation = pendingSubmit;
     submissionNotice = { submission: operation.expectedSubmission, phase: "sending", registered: false };
-    if (document.activeElement === $("submit-feedback")) $("pending-tab").focus();
+    // Pointer activation does not focus buttons in every browser. Establish
+    // an anchor before disabling Send; completion still respects moved focus.
+    if (activePanel === "feedback" && activeTab === "pending") $("pending-tab").focus();
     busy = true;
     errorAt("submit-error", "");
     updateControls();

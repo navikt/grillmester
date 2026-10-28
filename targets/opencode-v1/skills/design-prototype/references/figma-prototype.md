@@ -29,6 +29,8 @@ HTML-/descriptor-paret etter [overleveringsreferansen](design-handoff.md).
 For midlertidig arbeid, bruk gjeldende publiserte versjon i den eiende samtalen;
 ikke krev prosjektlagring bare for overføringen. Ta med valgt retning, relevante
 tilstander og uavklarte innspill, og bevar descriptorens tekst- og kontrollverdier.
+Bevar avtalt variant, tilstand og visningsbredde. Avklar et manglende valg bare
+når det endrer leveransen; lokale valg i Juster visning er ikke automatisk lagret.
 
 Følg omfanget av den valgte skissen og bestillingen. Når hele siden skal
 videreføres, bygg sidens struktur, tekst og kontroller som redigerbare noder,
@@ -48,6 +50,8 @@ med verifisert Figma-lenke og hvilket underlag de bygger på. En import eller et
 bilde alene beviser ikke redigerbare Aksel-instanser. Dette er en overlevering,
 ikke automatisk toveis synk: oppgi hvilket underlag videre arbeid skal følge,
 og ikke overskriv skissen eller Figma-endringer for å få flatene like.
+Ved senere gjenåpning må videre Figma-endringer ikke omtales som innarbeidet i
+HTML-skissen uten kontroll.
 
 ## Oppstart: Hent planKey
 
@@ -517,6 +521,11 @@ vise plassering og proporsjoner i ekte sidekontekst. Dette mønsteret gjelder
 kontekst utenfor det redigerbare omfanget. Ved en bestilt hel side skal hele
 sidens relevante innhold bygges redigerbart etter reglene ovenfor.
 
+Måling og midlertidig spacer-injeksjon nedenfor krever godkjent nettlesertilgang
+til den isolerte demoens offentlige adresse. Gjør det aldri i verkstedets
+private renderer. En slik endret bakgrunn er forslagets kontekst, ikke
+dokumentasjon av appens uendrede nåtilstand.
+
 **Teknikk (kontekst-overlay):**
 
 1. **Mål kolonnen** i den kjørende appen — posisjon og bredde der modulen skal stå, relativt til innholdsregionen:
@@ -538,14 +547,16 @@ sidens relevante innhold bygges redigerbart etter reglene ovenfor.
 
 Resultat: ekte sidekontekst + en modul som fortsatt kan redigeres (den er en instans, ikke et bilde), uten overlapping. Endrer du komponentens høyde vesentlig, må spacer/bakgrunn knipses på nytt.
 
-**Autoriteten er delt:** Valgt Visual Companion-retning styrer flyt,
+**Autoriteten er delt:** Valgt retning styrer flyt,
 informasjonshierarki og innhold. Den aktive Figma-/Aksel-komponenten styrer
 komponentstruktur, støttede varianter og tokens. Skjermbilder er kontekst og
 sammenligningsgrunnlag, ikke en kilde som overstyrer designsystemet.
 
-## Lever tilstander som variant-komponent (ikke løse frames)
+## Flere tilstander av én modul
 
-Designere flikker i Figma og bruker Figma Make. Begge jobber best fra **ekte, redigerbar struktur** — ikke løse statiske rammer eller piksler. Samle derfor tilstandene i **én komponent med en `Tilstand`-variant-akse**:
+Når flere tilstander av en modul leveres, samle dem i **én komponent med en
+`Tilstand`-variant-akse**. Det gir redigerbar struktur for videre arbeid i Figma.
+Én helside eller én observert nåtilstand krever ikke et komponentsett:
 
 ```javascript
 const variants = states.map(s => {
@@ -559,9 +570,9 @@ set.name = "<Modulnavn>";
 
 **Slå sammen nesten-like tilstander.** Skiller to tilstander seg bare med et **forbigående** element (f.eks. en bekreftelse som vises kort etter en handling og forsvinner av seg selv), behold **én** hviletilstand og dokumentér det forbigående elementet som en egen **annotasjon** ved siden av — ikke en egen permanent skjerm. To nesten-identiske «status»-rammer leses som dobbeltføring.
 
-## Parity-gate: valgt retning mot Figma (OBLIGATORISK)
+## Visuell kontroll og interaksjoner i Figma
 
-**Aldri lever uten visuell verifisering.** Figma skal bevare den valgte
+Figma skal bevare den valgte
 retningens flyt, hierarki og innhold, men skal bruke aktiv Aksel-struktur fremfor
 å kopiere HTML-en piksel for piksel. For et lagret rom, les det hashverifiserte
 registrerte paret via [overleveringsreferansen](design-handoff.md) før bygging.
@@ -572,6 +583,8 @@ Etter bygging:
 
 1. Ta screenshot av Figma: `get_screenshot(fileKey, nodeId)` av hovedframen
 2. Bruk tilgjengelig visuell referanse fra den valgte, rendrede skisseversjonen.
+   Ved dokumentasjon av nåtilstand er den observerte appen på samme side,
+   visningsbredde og tilstand fasit; ikke legg inn designforbedringer.
    Uten screenshot, bruk den eksplisitte beslutningen og det verifiserte
    kildeparet for et lagret rom. For en midlertidig canvas-skisse brukes
    gjeldende publiserte HTML og eventuell descriptor gjennom den eiende
@@ -590,14 +603,21 @@ Etter bygging:
    - **Font**: `Source Sans 3`, ikke Inter/hardkodet
 4. Fiks utilsiktede avvik. Behold bevisste avvik som følger av korrekte
    Aksel-komponenter, og forklar dem.
-5. Ta nytt screenshot og bekreft både valgt retning og Aksel-korrekthet
-6. Lever til designeren først når resultatet er visuelt verifisert
+5. Etter rettelser, ta nytt screenshot av berørt innhold og kontroller avvikene.
+6. Er en klikkbar prototype bestilt, prøv de relevante handlingene i Figma,
+   som navigasjon frem og tilbake og valgbare kontroller. Lagrede
+   navigasjonsmål beviser at koblingen finnes, ikke at avspillingen virker.
+   Oppgi hvilke handlinger som er prøvd og hva som bare er konfigurert.
 
-Hvis du ikke har en VC-referanse (gikk rett til Figma), bruk samme sjekkliste mot det avtalte konseptet.
+Ved direkte design i Figma brukes samme sjekkliste mot det avtalte konseptet.
+Uten nødvendig bilde- eller interaksjonstilgang, del den faktiske filen som
+ukontrollert utkast med en kort beskrivelse av hva som gjenstår. Ikke meld
+resultatet verifisert eller bestilt funksjonalitet ferdig uten bevis.
 
 ## Lever
 
-Returner alltid Figma-URL til designeren:
+Returner den verifiserte Figma-URL-en, valgt underlag og hvor videre redigering
+skal skje. Hold dette kort; ikke gjenta arbeidsloggen:
 ```
 https://www.figma.com/design/<fileKey>/<fileName>
 ```

@@ -327,7 +327,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "8db39fdfb91bacb33d392cb34dd72fe0f73cd874f410207a6d6b781290bf6208",
+      "sha256": "c2b95d5381b77bc15a6e8046ea5763593a0ad5cd79dac21f4f63d9b3d1a86c03",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -359,7 +359,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
-      "sha256": "c3b4c17961ed90a73f4ef1b9f6e9e8f74a91bc6008bedea2fa6d7415a6d6ee4b",
+      "sha256": "c1f668fcbf94517032254a66270c254d559741b2b803a3a5f105842f4e29e19b",
       "mode": "0644"
     },
     "skills/design-prototype/references/visual-companion.md": {
@@ -415,7 +415,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-shell.js": {
-      "sha256": "5d350d5ec8ae6038ecc86a7408317a22a1a3a505e4ef9b1dc1052fca6337f7f3",
+      "sha256": "c2d6032c649af69975f660654e95fe7313423fe0e561bbe26fc7e0b4894591c4",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-shell.tmpl": {

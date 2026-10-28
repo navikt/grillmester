@@ -42,9 +42,10 @@ Bruk klientens verktøy og skjemaer.
 | Gi innspill eller lage forslag med appen som referanse | [App og forslag](references/design-workspace.md#running-application): samme arbeidsflate, publisering og dokumentbinding. |
 | Åpne eller videreutvikle en HTML-skisse i canvas | [Designrom](references/design-workspace.md#open-and-continue): lagring, publisering, innspillsrunder, editor og versjoner. |
 | Lage en HTML-skisse uten canvas, med lokal Node.js ≥ 18 og tilgjengelig loopback | [Portabel nettleserflyt](references/visual-companion.md): midlertidig server, private filer, CLI-innspill og opprydding. |
-| Vurdere eksisterende Figma-underlag | Les den relevante noden med godkjent Figma-kapabilitet. Bruk relevante designskills; vurdering krever ikke write eller publisering. |
-| Utforme eller endre et Figma-design med tilgjengelig create/edit-kapabilitet | [Figma-oppskriften](references/figma-prototype.md): bibliotek, redigerbarhet og visuell sammenligning. Verifiser read og write separat. |
+| Vurdere eksisterende Figma-underlag | Les den relevante noden med godkjent Figma-kapabilitet. Ved manglende verktøy, se tilgangsrådene i [Figma-oppskriften](references/figma-prototype.md). Vurdering krever ikke write eller publisering. |
+| Utforme eller endre et Figma-design | [Figma-oppskriften](references/figma-prototype.md): tilgang, bibliotek, redigerbarhet og visuell sammenligning. Les også ved manglende verktøy; verifiser read og write separat. |
 | Bygge videre på en valgt skisse i Figma | [Figma-overlevering](references/figma-prototype.md#underlag-og-mal): valgt versjon, avtalt målfil og redigerbare komponenter. Les lagret kildepar før bygging; ikke bruk rå HTML alene. |
+| Dokumentere appens nåtilstand i Figma | [Appåpning](references/application-opening.md) for faktisk underlag og [Figma-oppskriften](references/figma-prototype.md#underlag-og-mal) for redigerbar dokumentasjon av den observerte siden. |
 | Overlevere eller implementere fra et lagret designrom | [Lesende overlevering](references/design-handoff.md): valgt underlag, kildepar og kontroll av integritet. Åpning av canvas er unødvendig. |
 
 Før HTML-forfatting, bruk `aksel-design` og de felles innholdsreglene for
