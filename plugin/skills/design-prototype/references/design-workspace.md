@@ -1,17 +1,202 @@
 # Project design workspace
 
 Use the integrated **Designverksted** canvas when the active client exposes
-`design-workspace`. The same preview supports deliberate feedback, version
-history and a bounded editor. Discover the client's actual canvas tool and
+`design-workspace`. Running applications and HTML sketches share deliberate
+feedback rounds. Sketches also have the documented version viewer and bounded
+editor; do not assume those controls can edit or restore arbitrary app code.
+Discover the client's actual canvas tool and
 action schemas; do not invent tool aliases or install an extension during a
-design session. Without this capability, use the portable temporary browser
-flow in [Visual Companion](visual-companion.md).
+design session. Without this capability, inspect a running app in an available
+browser and collect feedback in the conversation. For HTML sketches, use the
+portable temporary flow in [Visual Companion](visual-companion.md).
 
 A canvas action failure is not absence of the capability. Diagnose the returned
 error and existing binding; do not start a portable server, polling loop or a
 second writer as a recovery shortcut. If work cannot continue, preserve the
 room and explain the observed limitation. An agreed later handoff to another
 surface does not imply automatic synchronization.
+
+## Running application
+
+For app startup and the view-only stopping point, use
+[Open a running application](application-opening.md). Its opening check does
+not verify rendering or interactions. Load the sections below when app
+feedback, proposals or native lifecycle are relevant; they do not add work to
+a request merely to open the demo.
+
+Use **Prøv** for real app interaction and **Endre** to select a target and write
+an observation. **Lagre innspill** adds it to the basket; only **Send innspill**
+(or **Send N innspill**) submits the deliberate round. Read its exact
+`read_submission` pages and current review/reply state. Preserve the submitted route, target and viewport context;
+they describe what was observed, not a source-file binding or saved app version.
+Use `review_submission` and `update_comment` to give a truthful response. An
+answered round does not mean every comment is fixed.
+
+**Vis stedet** on a saved or sent comment can highlight its part on the current
+page. It scrolls without activating or focusing app controls; it does not navigate
+to another page or recreate a past app state. Changed, hidden or ambiguous parts
+get an explanation instead of a guessed match. On a narrow screen, **Tilbake til
+innspill** returns to the same feedback card. This action does not save or send
+feedback and retains unfinished text.
+
+A concrete design-change request in the conversation or a submitted round,
+within the agreed design task, normally calls for a visible bounded HTML
+proposal. Honor review-only/no-HTML limits; questions and observations alone do
+not request a sketch. An explicit request to save the workshop or design work,
+for example under `designs/`, includes its proposal within that agreed design
+area; reuse the choice without another question. A request to save only feedback,
+or an app room that happens to be saved, does not request saved sketch files.
+Without agreed storage, make this follow-up temporary and say so once, without
+waiting for a storage answer. The storage question below still applies to a new
+standalone sketch task.
+
+### One workshop: current app and proposal
+
+Keep **Appen nå** as the real reference and publish under **Forslag** in the same
+owning canvas. Do not open a separate native canvas or ask for a dummy feedback
+round to connect a conversation request. There is one proposal per app workshop;
+use its existing declarative variants for a useful choice and revise it as the
+design develops. Switching tabs retains the two mounted views and their local
+drafts; closing/replacing the whole view does not promise recovery of typing.
+
+1. Read the app's `read_state`. For submitted feedback, read the exact
+   `read_submission` pages and mark the round working as described below.
+2. Call `publish_proposal` on that same instance with `title`, a new `filename`,
+   reviewed `html`, and optional `design`. For an app round, use
+   `source: "app-feedback"`, its `sourceSubmission` and actual `commentIds`.
+   For an agreed request already made in the conversation, use
+   `source: "conversation"` and omit both round fields. Never manufacture or
+   submit feedback on the designer's behalf.
+3. Omit storage fields for temporary work. With agreed saved workshop or sketch
+   storage, choose a separate new sketch `workspacePath` within that design area
+   and pass `create: true`. Use
+   `styleProjectPath` only to select the verified installed Aksel CSS for the
+   proposal; it never changes the running app. A saved proposal has its own
+   workspace separate from the saved app feedback.
+4. Keep the returned proposal `id` as `proposalId` for subsequent `read_state`,
+   `publish_revision`, review, comment and history actions. Use the current
+   `expectedScreen` for each new revision. An app round and a proposal round may
+   both be numbered 1; route by the exact notification's `proposalId`, never by
+   the tab currently selected or the most recently created room. Omitting
+   `proposalId` addresses the original app.
+5. Verify the actual rendered result before saying it is ready. The registered
+   proposal supplies **Vis forslag**; publication does not steal focus from a
+   draft. Give one short reply: what to try and the important limitation, if any.
+   Keep IDs, paths and technical transport details out of normal review replies.
+   Do not repeat the same answer on the round and every comment. Mark answered
+   truthfully; a proposal does not mean the app has been changed.
+
+The action registers a typed relationship only after validating its source.
+Do not infer a link from reply text or invent an artifact URL. Exact retry of the
+initial publication recovers the same proposal; a different first publication
+is rejected rather than creating a duplicate. Continue with `publish_revision`.
+
+If the designer later asks to save a temporary proposal in an already saved app
+workshop, use `save_proposal` on this same instance and `proposalId`. Read that
+proposal's current `read_state`; pass its exact `screen` as `expectedScreen`, its
+feedback `revision` as `expectedRevision`, and a separate new `workspacePath`
+within the agreed design area. This keeps the mounted view, drafts, all recorded
+versions, submitted and unsent feedback, and the original app relationship.
+Do not republish into another canvas. A pending save is not a completed handoff:
+retry the exact path and guards in `pendingSave` until project storage is
+confirmed. If the exact pending target is missing or unverifiable after a
+restart, report that limitation; never recreate it from model text or drop the
+intent. Temporary content that was never committed is not recoverable merely
+because a save was requested. If the app room itself is temporary, this later-save action cannot
+save the whole workshop; explain that limitation without creating a separate
+replacement or claiming that the work is durably saved.
+
+Inspect necessary source context read-only. Use declared controls, clickable
+steps and predefined synthetic states. Label simulated behavior: sketch scripts
+are removed, and the proposal does not prove arbitrary JavaScript, live field
+validation or backend/runtime parity. No automatic CSS copy, page capture or
+shared app/sketch form state is introduced.
+
+When both app feedback and the sketch were explicitly saved, the app room keeps
+a portable link to the proposal's relative workspace path and exact workspace
+identity. Reopening verifies that identity and source kind; a missing, replaced
+or incompatible room is shown as unavailable and never recreated automatically.
+Temporary proposals remain only in the current owning conversation. For a
+requested durable handoff, read and verify the actual chosen sketch version as
+specified in the [handoff reference](design-handoff.md#connect-app-feedback-to-a-sketch-proposal).
+
+App feedback is not authorization for product-code writes. This canvas has no app
+source reading, editing, source-change proposals, undo, recovery, reference-image capture or
+app version history. `publish_revision`, `list_history`, `read_revision` and
+`restore_revision` apply only to HTML sketches: supply the registered `proposalId`
+inside an app workshop. Without it these actions reject the app source.
+When code work is separately agreed, do it outside this canvas in the explicitly
+owned copy agreed for that work, verify that its running server uses that copy,
+and preserve the original checkout and unrelated changes. A Git worktree alone
+does not prove a directory is disposable. Reuse existing authority for the agreed
+work; do not infer it from DOM hints or a submitted review round.
+
+A saved app room records feedback only. Its opaque checkpoint distinguishes
+feedback context; it is not a file hash or runtime snapshot. The room is bounded
+to 100 registered pages, 200 comments and 200 submitted rounds. Passive
+navigation does not consume a registered page. Report a reached limit rather
+than discarding past feedback or silently changing rooms.
+
+`read_state.application.connection.state` is `waiting`, `connecting`, `connected`
+or `closed`; `invitationExpired` indicates that a fresh opening is needed.
+These fields contain no private address. In the native app workflow, opening
+the canvas loads and explicitly activates its renderer. Wait for that actual
+view; repeated model polling is not a repair for a blocked renderer.
+
+`read_state.application.previewStatus` reports the latest shell readiness;
+`transportStatus` separately describes the local HTTP connection. Neither proves
+that every app interaction works. If the preview is unavailable, preserve the
+room and report the concrete limitation instead of repeatedly waiting or
+reopening it. The designer can use the visible retry control. Do not claim a
+working preview from a successful HTTP request alone.
+
+### Initial native support
+
+The first native delivery renders the complete app workshop inside the Copilot
+macOS app with the canvas capability. Support is client-specific; do not infer
+compatibility with every host release, other clients or a general browser transport.
+The app stays
+under **Appen nå** and its declarative HTML proposal under **Forslag** in this
+same canvas. Deliberate Send queues the exact round to this conversation without
+an extra chat message. Opening or navigating alone does not submit feedback.
+
+Do not open, copy or expose its private renderer address in an external browser.
+The native flow has no external-browser fallback. A blocked native view is a
+concrete limitation to diagnose, not permission to change host security settings
+or split the app and proposal across tools. Ordinary standalone HTML sketches
+retain their documented flow.
+
+One open native app instance keeps the same upstream and preview origin. The
+visible app retry reloads that same app and may retain cookies or form state;
+it is not a fresh isolated context. Reloading or duplicating the control document
+does not silently take over its active writer. If that document becomes
+unusable, preserve saved work and open a fresh native instance. Do not create a
+second independent feedback server. The owned upstream server must remain the
+same owned process for the lifetime of the instance; a URL alone does not prove
+that a restarted server is the same application.
+
+A document must confirm that its inspector is available and its current route
+must be validated before new targets can be selected. If the view stops
+responding during navigation, the shell keeps drafts and saved feedback and
+offers an explicit retry from the app's start page. This may reset app fields;
+it does not resend feedback. Renderer crashes without browser lifecycle events
+are not continuously monitored; reopen the canvas if it stops responding.
+
+Closing a native app canvas retires that instance and stops its own proxy,
+proposal view and backend. Its old identifier cannot be reopened. To reopen
+saved work, create a fresh canvas instance in the same project with the exact
+saved app workspace and application binding, without `create`. The saved
+proposal is recovered through the room's existing verified link; never republish
+it into another room or send historical rounds again. If the old writer is still
+closing, report the transient lock rather than removing it.
+
+Temporary work, unfinished typing and app form/cookie state are not promised
+after close. Before an agreed close/reopen test, confirm that both app feedback
+and proposal were actually saved; use `save_proposal` for an existing temporary
+proposal in a saved app room when saving was requested. A temporary app room
+cannot yet be promoted. Closing the canvas does not stop a development server
+started separately. The following publication/editor sections describe
+standalone HTML sketches, whose lifecycle is unchanged by the app workflow.
 
 ## Open and continue
 
@@ -84,19 +269,35 @@ this distinction accurately; do not promise recovery of unsaved typing.
 
 ## Inspect the rendered sketch
 
-Use the client's available browser capabilities, including a built-in browser
-canvas; missing Playwright alone is not a blocker. When the browser can read
-the owning shell but cannot inspect its isolated iframe, open the iframe's
-observed, exact preview `src` in that same browser. Use this only for rendered
-inspection and clicks on declared local prototype states. Opened on its own,
-the sketch shows «Bare visning» and no feedback tools; feedback, source edits
-and revision actions stay in the owning Designverksted shell and its bound
-actions. Prefer a browser the designer does not see. A browser canvas stays
-open as an extra tab that you cannot close, so when you use one, say in your
-reply that it is only for checking and that feedback is given in
-Designverksted. A preview-only check does not prove saving or integrated
-delivery. Do not construct URLs, create a separate harness, inject DOM or
-install tools for this fallback.
+Use this procedure for visual review, sketch changes or requested interaction
+tests. A view-only app request ends with the
+[opening check](application-opening.md#finish-a-view-only-request); it does not
+require this procedure.
+
+Keep the designer in the owning workshop. First use an available browser
+capability that can inspect that view. The canvas's `read_state` and readiness
+are context, not screenshots or proof that layout and interactions work; the
+extension exposes no native screenshot action. Missing Playwright alone is not
+a blocker, but do not repeatedly search for an unavailable inspection tool.
+
+If same-view inspection is unavailable, an existing invisible browser may
+inspect the exact observed public demo URL or the HTML sketch's observed,
+read-only preview `src`. Keep the same page, published version, styles, viewport
+and declared state; a new browser context does not inherit native form state.
+For a sketch, use only rendered inspection and declared local prototype actions.
+For an app, stay within the authorized synthetic demo and its relevant harmless
+interactions. Never open the private workshop renderer/control URL in another
+browser: it is not a read-only preview and may compete with the active writer.
+Do not construct URLs, create a separate harness, inject DOM, install tools or
+open an extra visible browser/canvas for this check. Feedback and publication
+stay with the owning workshop. An independently rendered preview proves neither
+native focus nor saving, delivery or the integrated feedback loop.
+
+If no permitted visual path is available, keep the workshop open, state once
+which check is missing and retain the result as an unverified draft. Continue
+independent source and requirements work. Request a targeted screenshot or
+observation only when a concrete visual decision depends on it; do not describe
+source reading or a successful HTTP request as having seen the page.
 
 Use the reported style source and current source pair as context, then inspect
 the actual rendered result. Loaded Aksel CSS is not evidence that a font loaded.
@@ -107,7 +308,8 @@ different conclusions.
 
 ## Publish and respond
 
-1. Read `read_state` for the current screen, workspace version, preserved source
+1. For an app-linked proposal, include its `proposalId` in each action below.
+   For a standalone sketch, omit it. Read `read_state` for the current screen, workspace version, preserved source
    fields and submitted-round status. Open or create a room before publishing.
    If the preview differs from your last publication, reread the current room
    state and descriptor for preserved manual edits before diagnosing a defect.
@@ -120,7 +322,7 @@ different conclusions.
    change the sketch. Add the rule or remove the control, verify each value's
    visible effect, and publish again before inviting review.
 3. **Send innspill** commits one immutable feedback round and asks the owning
-   conversation to process that exact canvas instance and round. Typing,
+   conversation to process that exact canvas instance, document and round. Typing,
    clicking prototype controls, saving source edits and reopening never send
    prompts. Do not start a separate `comments.js wait` loop for this canvas.
 4. Read every `read_submission` page for the notified round, following

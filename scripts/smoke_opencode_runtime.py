@@ -424,6 +424,11 @@ def isolated_environment(
 def write_provider_config(environment: Mapping[str, str], *, port: int) -> None:
     destination = Path(environment["XDG_CONFIG_HOME"]) / "opencode/opencode.json"
     destination.parent.mkdir(parents=True, exist_ok=True)
+    # Bootstrap metadata belongs to the isolated fixture, not a client write.
+    (destination.parent / ".gitignore").write_text(
+        "node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n",
+        encoding="utf-8",
+    )
     config = {
         "$schema": "https://opencode.ai/config.json",
         "provider": {

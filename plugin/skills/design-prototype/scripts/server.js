@@ -22,8 +22,10 @@ const os = require("node:os");
 const path = require("node:path");
 const { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_BODY_BYTES, keys } = require("./feedback-store.js");
 const { CanvasState } = require("./canvas-state.js");
-const { WorkspaceStore } = require("./workspace-store.js");
-const { WorkspaceState, validWorkspaceState } = require("./workspace-state.js");
+const { createHtmlEmbedding, renderEmbeddingBootstrap } = require("./html-embedding.js");
+const { WorkspaceStore, validWorkspacePath } = require("./workspace-store.js");
+const { WorkspaceState, validWorkspaceState, screenIdentity } = require("./workspace-state.js");
+const { promoteTemporaryWorkspace } = require("./workspace-promotion.js");
 const { validDesign, MAX_DESIGN_BYTES } = require("./design-contract.js");
 const { validateEditorBindings, editorBindingErrorMessage } = require("./editor-bindings.js");
 
@@ -904,7 +906,7 @@ function newestContent() {
   return null;
 }
 
-function wrapInFrame(content, filename, screen, nonce, design = null, designError = false, view = null) {
+function wrapInFrame(content, filename, screen, nonce, design = null, designError = false, view = null, embedded = false) {
   const safeFilename = escapeHtml(filename || "untitled");
   const safeContent = stripActivePreviewMarkup(content, nonce);
   const akselStyle = akselCss
@@ -925,7 +927,14 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
     NONCE: nonce,
     AKSEL_STYLE: akselStyle,
     HELPER_SCRIPT:
-      `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};window.__grillmesterVisualCompanionView=${serializeForInlineScript(view)};</script>` +
+      (embedded ? `<style nonce="${nonce}">
+        body { background: var(--ax-bg-default, #fff); }
+        body > .vc-header { padding: 0; border: 0; height: 0; position: static; background: transparent; }
+        body > .vc-header .vc-header-left { display: none; }
+        body > .vc-header .vc-indicator.visible { position: fixed; top: 8px; right: 8px; z-index: 101; }
+        body > main.vc-content { margin: 0 auto; padding: 16px; min-height: 100vh; }
+      </style>` : "") +
+      `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};window.__grillmesterVisualCompanionView=${serializeForInlineScript(view)};window.__grillmesterVisualCompanionEmbedded=${embedded ? "true" : "false"};</script>` +
       `<script nonce="${nonce}">\n${workshopJs}\n</script>` +
       `<script nonce="${nonce}">\n${editorJs}\n</script>` +
       `<script nonce="${nonce}">\n${helperJs}\n</script>`,
@@ -934,7 +943,7 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
   return frameTemplate.replace(/\{\{(FILENAME|NONCE|AKSEL_STYLE|HELPER_SCRIPT|CONTENT)\}\}/g, (_, key) => values[key]);
 }
 
-function renderShellPage(nonce, accessToken, title, screen) {
+function renderShellPage(nonce, accessToken, title, screen, embeddedView = null) {
   const previewPath = `/preview?token=${encodeURIComponent(accessToken)}`;
   const versionPath = `/version?token=${encodeURIComponent(accessToken)}`;
   const eventsPath = `/events?token=${encodeURIComponent(accessToken)}`;
@@ -958,6 +967,7 @@ function renderShellPage(nonce, accessToken, title, screen) {
     #vc-paused p { max-width: 34rem; }
     #vc-recover { font: inherit; padding: .65rem 1rem; margin-top: .5rem; border: 1px solid #665275; border-radius: .5rem; background: #fff; color: #27262b; cursor: pointer; }
     #vc-recover:focus-visible { outline: 3px solid #6852ce; outline-offset: 3px; }
+    ${embeddedView ? "#vc-status[data-connected=\"true\"] { display: none; }" : ""}
     #vc-status {
       position: fixed; right: 1rem; top: 1rem; z-index: 3;
       border: 1px solid #b7b1a9; border-radius: 999px; padding: .35rem .7rem;
@@ -1015,9 +1025,11 @@ function renderShellPage(nonce, accessToken, title, screen) {
         connectionLost = false;
         recoveryOpen = false;
         status.textContent = "Tilkoblet";
+        status.dataset.connected = "true";
       }
 
       function markDisconnected() {
+        delete status.dataset.connected;
         if (Date.now() - lastSuccessfulPoll >= 15_000) {
           if (!connectionLost) {
             sendToPreview({ command: "connection-lost" });
@@ -1143,6 +1155,7 @@ function renderShellPage(nonce, accessToken, title, screen) {
         if (frameReady || !provisionalScreen || !(snapshot.screens.some((item) => item.screen === provisionalScreen) || provisionalScreen === "00000000000000000000000000000000")) return;
         lastVersion = provisionalScreen;
         frameReady = true;
+        ${embeddedView ? `window.parent.postMessage({channel:"design-workshop-embed",version:1,event:"activated",leaseId:${serializeForInlineScript(embeddedView.leaseId)},screen:lastVersion},${serializeForInlineScript(embeddedView.parentOrigin)});` : ""}
         feedbackBusy = provisionalBusy;
         if (pendingVersion === lastVersion) pendingVersion = null;
         if (pendingVersion) sendToPreview({ command: "update-available", screen: pendingVersion });
@@ -1287,7 +1300,7 @@ function renderShellPage(nonce, accessToken, title, screen) {
 </html>`;
 }
 
-function shellCsp(nonce) {
+function shellCsp(nonce, parentOrigin) {
   return [
     "default-src 'none'",
     `script-src 'nonce-${nonce}'`,
@@ -1298,11 +1311,11 @@ function shellCsp(nonce) {
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
-    "frame-ancestors 'none'",
+    `frame-ancestors ${parentOrigin || "'none'"}`,
   ].join("; ");
 }
 
-function previewCsp(nonce) {
+function previewCsp(nonce, parentOrigin) {
   return [
     "default-src 'none'",
     `script-src 'nonce-${nonce}'`,
@@ -1318,7 +1331,7 @@ function previewCsp(nonce) {
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
-    "frame-ancestors 'self'",
+    `frame-ancestors 'self'${parentOrigin ? ` ${parentOrigin}` : ""}`,
     "navigate-to 'none'",
   ].join("; ");
 }
@@ -1350,6 +1363,9 @@ const mutationReceipts = new FeedbackMutationReceipts();
 let accessToken = crypto.randomBytes(32).toString("base64url");
 let tokenBuffer = Buffer.from(accessToken);
 let authority = null;
+let embedding = null, viewGeneration = 0;
+function revokeView() { viewGeneration += 1; embedding?.revoke(); authority = null; }
+function currentRequest(req) { return req.viewGeneration === viewGeneration && authority !== null && (!embedding || embedding.active); }
 let eventCount = 0;
 let lastActivity = Date.now();
 let activeSessionRemoved = false;
@@ -1457,6 +1473,7 @@ function readEventBody(req, res) {
   });
   req.on("end", () => {
     if (rejected || res.writableEnded) return;
+    if (!currentRequest(req)) { sendJson(res, 410, { error: "The proposal view has expired." }); return; }
     let event;
     try {
       event = JSON.parse(Buffer.concat(chunks).toString("utf8"));
@@ -1518,6 +1535,7 @@ function readFeedbackBody(req, res, operation, pathname, maximumBytes = MAX_BODY
   });
   req.on("end", () => {
     if (rejected || res.writableEnded) return;
+    if (!currentRequest(req)) { sendJson(res, 410, { error: "The proposal view has expired." }); return; }
     let value;
     try { value = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
     catch { sendJson(res, 400, { error: "Invalid JSON." }); return; }
@@ -1563,6 +1581,39 @@ const server = http.createServer((req, res) => {
     res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Invalid URL.");
     return;
+  }
+  req.viewGeneration = viewGeneration;
+  if (embedding && requestUrl.pathname === "/embedded") {
+    try {
+      if (req.method !== "GET" || requestUrl.searchParams.size !== 1) throw new FeedbackError(400, "Invalid proposal view.");
+      const candidate = embedding.candidate(requestUrl.searchParams.get("invitation"));
+      res.setHeader("Content-Security-Policy", shellCsp(candidate.nonce, embedding.parentOrigin));
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(renderEmbeddingBootstrap({ ...candidate, parentOrigin: embedding.parentOrigin, leaseId: embedding.leaseId }));
+    } catch (error) { sendJson(res, requestErrorStatus(error), { error: "Open the proposal from the workshop." }); }
+    return;
+  }
+  if (embedding && requestUrl.pathname === "/embedded/activate") {
+    if (req.method !== "POST" || req.headers.origin !== `http://${authority}` || requestUrl.search || !/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(String(req.headers["content-type"] || ""))) {
+      sendJson(res, 403, { error: "Proposal activation is unavailable." }); return;
+    }
+    const bound = embedding; let chunks = [], size = 0, rejected = false;
+    req.on("error", () => { rejected = true; chunks = []; });
+    req.on("data", chunk => { if (rejected) return; size += chunk.length; if (size > 2048) { rejected = true; chunks = []; sendJson(res, 413, { error: "Proposal activation is too large." }); } else chunks.push(chunk); });
+    req.on("end", () => {
+      if (rejected || res.writableEnded) return;
+      try {
+        if (req.viewGeneration !== viewGeneration || bound !== embedding || authority === null) throw new FeedbackError(410, "The proposal view has expired.");
+        let input; try { input = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { throw new FeedbackError(400, "Invalid proposal activation."); }
+        const { nonce } = bound.activate(input), newest = newestContent(); activateScreen(newest);
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(renderShellPage(nonce, accessToken, newest?.filename || "proposal", newest?.screen, bound));
+      } catch (error) { sendJson(res, requestErrorStatus(error), { error: "Proposal activation is unavailable." }); }
+    });
+    return;
+  }
+  if (embedding && (!embedding.active || requestUrl.pathname === "/")) {
+    sendJson(res, 410, { error: "Open the proposal from the workshop." }); return;
   }
   if (!validToken(requestUrl.searchParams.get("token"))) {
     res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
@@ -1713,7 +1764,7 @@ const server = http.createServer((req, res) => {
   if (requestUrl.pathname === "/preview") {
     lastActivity = Date.now();
     const nonce = crypto.randomBytes(18).toString("base64url");
-    res.setHeader("Content-Security-Policy", previewCsp(nonce));
+    res.setHeader("Content-Security-Policy", previewCsp(nonce, embedding?.parentOrigin));
     const revisions = requestUrl.searchParams.getAll("revision");
     if (revisions.length) {
       // A stored version is shown read-only: it is hash-verified and sanitized
@@ -1727,9 +1778,9 @@ const server = http.createServer((req, res) => {
       } catch (error) { status = requestErrorStatus(error); }
       res.writeHead(status, { "Content-Type": "text/html; charset=utf-8" });
       res.end(view
-        ? wrapInFrame(view.html, view.filename, view.screen, nonce, view.design, false, { revisionId: view.revisionId })
+        ? wrapInFrame(view.html, view.filename, view.screen, nonce, view.design, false, { revisionId: view.revisionId }, Boolean(embedding))
         : wrapInFrame(`<div style="display:flex;align-items:center;justify-content:center;min-height:60vh"><div style="text-align:center"><h2>Versjonen kan ikke vises</h2><p class="subtitle">${status === 409 && workspaceState ? "En lagret fil for denne versjonen er endret eller mangler. Ingen filer er endret." : "Versjonen finnes ikke i dette arbeidet."}</p></div></div>`,
-          "unavailable", "00000000000000000000000000000000", nonce, null, false, { revisionId, unavailable: true }));
+          "unavailable", "00000000000000000000000000000000", nonce, null, false, { revisionId, unavailable: true }, Boolean(embedding)));
       return;
     }
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -1749,6 +1800,7 @@ const server = http.createServer((req, res) => {
         nonce,
         newest?.design,
         newest?.designError,
+        null, Boolean(embedding),
       ),
     );
     return;
@@ -1885,10 +1937,55 @@ function publishCanvasRevision(input) {
     throw error;
   }
 }
+let savedWorkspaceRequest = null, savedWorkspaceDurabilityPending = false;
+function saveCanvasWorkspace(input) {
+  if (!keys(input, ["workspacePath", "workspaceId", "title", "expectedScreen", "expectedRevision"]) || !validWorkspacePath(input.workspacePath) ||
+      typeof input.workspaceId !== "string" || !/^[a-f0-9]{24}$/.test(input.workspaceId) || typeof input.title !== "string" || !input.title.trim() || Buffer.byteLength(input.title) > 200 ||
+      /[\u0000-\u001f\u007f]/.test(input.title) || typeof input.expectedScreen !== "string" || !/^[a-f0-9]{32}$/.test(input.expectedScreen) ||
+      !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) throw new FeedbackError(400, "Invalid proposal storage request.");
+  if (workspaceState) {
+    // An acknowledged or uncertain first save is never copied again. Reopened
+    // recovery also verifies every registered pair before completing the link.
+    try {
+      const summary = workspaceState.summary();
+      if (summary.id !== input.workspaceId || summary.path !== input.workspacePath || savedWorkspaceRequest && JSON.stringify(savedWorkspaceRequest) !== JSON.stringify(input)) throw new Error("Different save.");
+      workspaceStore.assertOpen(); workspaceStore.assertUnchanged();
+      for (const revision of feedback.state.workspace.revisions) {
+        const pair = workspaceStore.readRevision(revision);
+        if (screenIdentity(revision.filename, pair.html, pair.design) !== revision.screen) throw new Error("Changed saved pair.");
+      }
+      if (savedWorkspaceDurabilityPending || workspaceState.recovered && !savedWorkspaceRequest) {
+        workspaceStore.persist(feedback.state); savedWorkspaceDurabilityPending = false;
+        savedWorkspaceRequest = JSON.parse(JSON.stringify(input));
+      }
+      return canvasReadState();
+    } catch { throw new FeedbackError(503, "Det lagrede forslaget kunne ikke bekreftes. Behold den samme lagringshandlingen og kontroller prosjektfilene før et nytt forsøk."); }
+  }
+  let promoted;
+  try {
+    promoted = promoteTemporaryWorkspace({ feedback, projectDir, ...input, currentScreen: newestContent()?.screen || "", readPair(record) {
+      const bytes = readRegularFile(path.join(contentDir, record.filename), contentDir, MAX_CONTENT_BYTES, true);
+      const html = bytes.toString("utf8");
+      if (!Buffer.from(html).equals(bytes)) throw new Error("Invalid source encoding.");
+      const declaration = readDesign(record.filename);
+      if (declaration.designError) throw new Error("Unavailable design controls.");
+      return { html, design: declaration.design };
+    } });
+  } catch (error) {
+    throw new FeedbackError([400, 409, 413, 429].includes(error?.status) ? error.status : 409,
+      "Forslaget ble ikke lagret. Skissen, innspillene eller målmappen kunne ikke verifiseres. Det midlertidige arbeidet er beholdt.");
+  }
+  workspaceStore = promoted.store; workspaceState = promoted.workspaceState;
+  savedWorkspaceRequest = JSON.parse(JSON.stringify(input)); savedWorkspaceDurabilityPending = Boolean(promoted.committedError);
+  if (savedWorkspaceDurabilityPending) throw new FeedbackError(503, "Forslaget er skrevet, men varig lagring er ikke bekreftet. Gjenta samme lagringshandling.");
+  try { return canvasReadState(); }
+  catch { throw new FeedbackError(503, "Forslaget er skrevet, men gjeldende status kunne ikke bekreftes. Behold samme lagringshandling; ikke opprett et nytt forslag."); }
+}
 async function canvasCommand(method, params) {
   lastActivity = Date.now();
   if (method === "readSubmission") return canvasState.read(params);
   if (method === "publishRevision") return publishCanvasRevision(params);
+  if (method === "saveWorkspace") return saveCanvasWorkspace(params);
   if (method === "reviewSubmission") { canvasState.review(params); return canvasReadState(); }
   if (method === "updateComment") { canvasState.updateComment(params); return canvasReadState(); }
   if (method === "markDelivery") { canvasState.delivery(params); return canvasReadState(); }
@@ -1898,14 +1995,20 @@ async function canvasCommand(method, params) {
     if (method === "readRevision") return workspaceState.read(params);
     workspaceState.restore(params); return canvasReadState();
   }
-  if (!keys(params, [])) throw new FeedbackError(400, "No arguments expected.");
+  if (method === "openView" && Object.hasOwn(params, "embedding")) {
+    if (!keys(params, ["embedding"])) throw new FeedbackError(400, "Invalid embedding options.");
+    const next = createHtmlEmbedding(params.embedding);
+    embedding?.revoke(); embedding = next; viewGeneration += 1;
+    accessToken = crypto.randomBytes(32).toString("base64url"); tokenBuffer = Buffer.from(accessToken);
+  } else if (!keys(params, [])) throw new FeedbackError(400, "No arguments expected.");
   if (method === "readState") return canvasReadState();
   if (method === "closeView") {
-    authority = null;
+    revokeView();
     if (server.listening) await new Promise(resolve => { server.close(resolve); server.closeAllConnections?.(); });
     return { closed: true };
   }
   if (method === "openView") {
+    const openingGeneration = viewGeneration;
     if (!server.listening) {
       accessToken = crypto.randomBytes(32).toString("base64url"); tokenBuffer = Buffer.from(accessToken);
       await new Promise((resolve, reject) => {
@@ -1914,7 +2017,13 @@ async function canvasCommand(method, params) {
         server.once("error", error); server.once("listening", ready); server.listen(0, normalizeHost(host));
       });
     }
+    if (openingGeneration !== viewGeneration) {
+      revokeView();
+      if (server.listening) await new Promise(resolve => { server.close(resolve); server.closeAllConnections?.(); });
+      throw new FeedbackError(410, "The proposal was closed while opening.");
+    }
     const info = serverInfo();
+    if (embedding) return { url: `http://${authority}/embedded?invitation=${embedding.invitation}`, origin: `http://${authority}`, activationKey: embedding.activationKey, leaseId: embedding.leaseId, title: workspaceState?.summary().title || "Forslag", status: "Forslag i verkstedet." };
     return { url: info.url, title: workspaceState?.summary().title || "Midlertidig skisse", status: workspaceState ? "Arbeidet lagres i prosjektet. Send innspill når runden er klar." : "Midlertidig skisse. Den og innspillene forsvinner når samtalen avsluttes eller etter fire timer uten bruk." };
   }
   if (method === "retire") return { retired: true };
@@ -1924,8 +2033,11 @@ if (canvasMode) {
   let commands = Promise.resolve();
   process.on("message", message => {
     if (message?.channel !== CANVAS_CHANNEL || message?.version !== 1 || !Number.isSafeInteger(message.id) || message.id < 1) return;
+    if (keys(message, ["channel", "version", "id", "method", "params"]) && ["closeView", "retire"].includes(message.method) && keys(message.params, [])) revokeView();
+    const requestedGeneration = viewGeneration;
     commands = commands.then(async () => {
       try {
+        if (message.method === "openView" && requestedGeneration !== viewGeneration) throw new FeedbackError(410, "The proposal was closed before opening.");
         if (!keys(message, ["channel", "version", "id", "method", "params"]) || typeof message.method !== "string" ||
             Buffer.byteLength(JSON.stringify(message)) > MAX_CONTENT_BYTES + MAX_DESIGN_BYTES + 64 * 1024) throw new FeedbackError(400, "Invalid canvas request.");
         const result = await canvasCommand(message.method, message.params);

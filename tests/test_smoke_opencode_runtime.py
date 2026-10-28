@@ -203,6 +203,29 @@ class OpenCodeRuntimeSmokeTest(unittest.TestCase):
             command[separator + 1 :],
         )
 
+    def test_provider_config_prepares_bootstrap_metadata_before_strict_launch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            sandbox = Path(directory)
+            environment = RUNTIME.isolated_environment(
+                sandbox=sandbox, config_dir=sandbox / "target"
+            )
+            RUNTIME.write_provider_config(environment, port=1234)
+            config = Path(environment["XDG_CONFIG_HOME"]) / "opencode"
+            self.assertEqual(
+                {"opencode.json", ".gitignore"},
+                {path.name for path in config.iterdir()},
+            )
+            self.assertIn(".gitignore", (config / ".gitignore").read_text().splitlines())
+            command = RUNTIME.cplt_command(
+                cplt=Path("/opt/bin/cplt"),
+                opencode_command=["/opt/bin/opencode", "run"],
+                consumer=sandbox / "consumer",
+                config_dir=sandbox / "target",
+                local_port=1234,
+            )
+            self.assertNotIn("--allow-write", command)
+            self.assertEqual("strict", command[command.index("--preset") + 1])
+
     def test_missing_binary_skips_or_fails_when_required(self) -> None:
         missing = "/definitely/missing/grillmester-opencode"
         stdout = StringIO()

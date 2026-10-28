@@ -106,10 +106,24 @@ node --check plugin/skills/design-prototype/scripts/comments.js
 node --check plugin/skills/design-prototype/scripts/feedback-store.js
 node --check plugin/skills/design-prototype/scripts/canvas-state.js
 node --check plugin/skills/design-prototype/scripts/workspace-store.js
+node --check plugin/skills/design-prototype/scripts/workspace-promotion.js
 node --check plugin/skills/design-prototype/scripts/workspace-state.js
 node --check plugin/skills/design-prototype/scripts/editor-contract.js
 node --check plugin/skills/design-prototype/scripts/editor-bindings.js
 node --check plugin/skills/design-prototype/scripts/editor.js
+node --check plugin/skills/design-prototype/scripts/app-runtime.js
+node --check plugin/skills/design-prototype/scripts/application-connection-state.js
+node --check plugin/skills/design-prototype/scripts/application-connection-view.js
+node --check plugin/skills/design-prototype/scripts/application-contract.js
+node --check plugin/skills/design-prototype/scripts/application-error.js
+node --check plugin/skills/design-prototype/scripts/application-inspector.js
+node --check plugin/skills/design-prototype/scripts/application-proxy.js
+node --check plugin/skills/design-prototype/scripts/application-server.js
+node --check plugin/skills/design-prototype/scripts/application-shell.js
+node --check plugin/skills/design-prototype/scripts/application-workspace.js
+node --check plugin/skills/design-prototype/scripts/application-proposals.js
+node --check plugin/skills/design-prototype/scripts/application-proposal-view.js
+node --check plugin/skills/design-prototype/scripts/html-embedding.js
 node --test plugin/skills/design-prototype/tests/*.test.js
 node --check plugin/extensions/visual-companion/extension.mjs
 node --check plugin/extensions/visual-companion/adapter.mjs
@@ -117,6 +131,8 @@ node --check plugin/extensions/visual-companion/backend.mjs
 node --check plugin/extensions/visual-companion/runtime.mjs
 node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
 node --check scripts/smoke_visual_canvas.cjs
+node --check scripts/smoke_visual_application.cjs
+node --check scripts/smoke_visual_workbench.cjs
 node --test plugin/extensions/visual-companion/tests/*.test.mjs
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py
@@ -172,6 +188,19 @@ med høyere enhetsskala er ikke nettleserzoom. Se
 [flere runder med innspill](testing/visual-companion-review-rounds.md).
 Klientforutsetninger og egne akseptprøver for Copilot app, CLI og andre flater
 står i [klientmatrisen](testing/visual-companion-client-capabilities.md).
+
+`scripts/smoke_visual_application.cjs` prøver direkte verkstedvisning uten popup
+og en syntetisk kjørende app gjennom
+den faktiske adapteren og en simulert canvasvert. Bruk samme Playwright-,
+nettleser- og evidensflagg som over. Prøven skal dekke navigasjon, valg av del eller
+hele siden, innspill, bevisst innsending, svar, gjenåpning og avviste skissehandlinger;
+den gjør ingen kildeendringer eller modellkall. Dette er ikke en native appprøve,
+og en liten CSS-viewport beviser ikke 200 % nettleserzoom.
+`scripts/smoke_visual_workbench.cjs` dekker app → innspill → forslag → videre
+innspill, køstatus og gjenåpning i samme verksted. Begge kjøres i CI med Chromium.
+`app-runtime.test.js` starter bare eide syntetiske prosesser og prøver kort retur,
+privat kontroll, gjenbruk, avbrudd, utløp og opprydding av vanlige barn. Se
+[beslutningen om demolivsløp](adr/0028-eid-livslop-for-lokale-demoer.md).
 
 En isolert prøve av appens canvas-API ligger i `experiments/canvas-review/`.
 Den bruker et medfølgende SDK mot en simulert vert og et separat nettleseroppsett;

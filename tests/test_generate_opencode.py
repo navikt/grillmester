@@ -21,6 +21,22 @@ SPEC.loader.exec_module(GENERATOR)
 
 
 class OpenCodeGenerationTest(unittest.TestCase):
+    def test_design_target_keeps_shared_feedback_validation_without_app_canvas_runtime(self) -> None:
+        files, _ = GENERATOR.build_projection(ROOT)
+        prefix = "skills/design-prototype/"
+        for name in ("application-contract.js", "application-error.js", "html-embedding.js"):
+            self.assertIn(prefix + "scripts/" + name, files)
+        for name in ("app-runtime.js", "application-connection-state.js", "application-connection-view.js",
+                     "application-connection.css",
+                     "application-inspector.js", "application-proxy.js", "application-server.js",
+                     "application-shell.js", "application-shell.css", "application-shell.tmpl",
+                     "application-workspace.js", "application-proposals.js", "application-proposal-view.js", "application-source.js", "application-changes.js",
+                     "application-reference.js"):
+            self.assertNotIn(prefix + "scripts/" + name, files)
+        for name in ("app-runtime.test.js", "application-inactive-view.test.js", "application-inspector.test.js", "application-proxy.test.js",
+                     "application-server.test.js", "application-workspace.test.js"):
+            self.assertNotIn(prefix + "tests/" + name, files)
+
     def test_short_skill_calls_do_not_rewrite_paths_or_urls(self) -> None:
         calls = GENERATOR.slash_skill_reference({"review", "design-prototype"})
         source = "Load `/review` or `/design-prototype`. Keep /review/assets, https://example.test/review, </review>, [Review endpoint](/review) and `GET /review HTTP/1.1`."

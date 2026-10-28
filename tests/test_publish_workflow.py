@@ -41,6 +41,20 @@ def workflow_jobs(workflow: Path) -> dict[str, str]:
 
 
 class PublishWorkflowContractTest(unittest.TestCase):
+    def test_application_browser_smoke_runs_in_validation_and_exact_source_release(self) -> None:
+        for workflow, source in (
+            (ROOT / ".github/workflows/validate.yml", "node scripts/smoke_visual_application.cjs"),
+            (ROOT / ".github/workflows/release.yml", 'node "${SOURCE_ROOT}/scripts/smoke_visual_application.cjs"'),
+        ):
+            body = workflow_jobs(workflow)["validate"]
+            self.assertIn(source, body)
+            self.assertIn(source.replace("smoke_visual_application.cjs", "smoke_visual_workbench.cjs"), body)
+            self.assertIn("playwright@1.62.1", body)
+            self.assertIn("--browser-channel chromium", body)
+            self.assertIn("--ignore-scripts --no-audit --no-fund", body)
+            self.assertNotIn("contents: write", body)
+
+
     def test_shell_run_blocks_never_expand_github_expressions_directly(self) -> None:
         """Keep attacker-controlled workflow values out of shell source text."""
 

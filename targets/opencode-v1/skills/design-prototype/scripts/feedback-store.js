@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { validDesign, validKey } = require("./design-contract.js");
+const { normalizeApplicationRoute, validApplicationScreen, validApplicationContext, screenIdentity: applicationScreenIdentity } = require("./application-contract.js");
 
 const MAX_COMMENTS = 200;
 const MAX_SUBMISSIONS = 200;
@@ -79,10 +80,12 @@ function validAnchor(value) {
     number(value.viewport.width, 1, 20000) && number(value.viewport.height, 1, 20000);
 }
 function validCreate(value) {
-  if (!keys(value, ["screen", "kind", "anchor", "text"], ["proposal", "adjustment", "variant", "context"]) ||
+  if (!keys(value, ["screen", "kind", "anchor", "text"], ["proposal", "adjustment", "variant", "context", "applicationContext"]) ||
       typeof value.screen !== "string" || !SCREEN.test(value.screen) ||
       !["point", "area", "edit", "adjustment", "variant"].includes(value.kind) || !validAnchor(value.anchor) ||
       !boundedText(value.text) || (!value.text.trim() && ["point", "area"].includes(value.kind))) return false;
+  if (Object.hasOwn(value, "applicationContext")) return ["point", "area"].includes(value.kind) &&
+    !["context", "proposal", "adjustment", "variant"].some(key => Object.hasOwn(value, key)) && validApplicationContext(value.applicationContext);
   if (Object.hasOwn(value, "context") && (!["point", "area", "edit"].includes(value.kind) ||
       !keys(value.context, ["variant", "target", "values"]) || !validTargetIdentity(value.context) || !validValues(value.context.values))) return false;
   if (value.kind === "edit") return !Object.hasOwn(value, "adjustment") && !Object.hasOwn(value, "variant") &&
@@ -99,6 +102,12 @@ function validValues(values, emptyAllowed = true) {
   return values !== null && typeof values === "object" && !Array.isArray(values) &&
     (emptyAllowed || Object.keys(values).length > 0) && Object.keys(values).length <= 8 &&
     Object.entries(values).every(([id, value]) => validKey(id) && validKey(value));
+}
+function matchesScreenSource(value, screen) {
+  if (!screen) return false;
+  return screen.source?.kind === "application"
+    ? Object.hasOwn(value, "applicationContext") && value.applicationContext.route === screen.source.route
+    : !Object.hasOwn(value, "applicationContext");
 }
 function validPatch(value) {
   return keys(value, [], ["status", "reply", "resubmit", "expectedSubmission"]) &&
@@ -159,7 +168,8 @@ function validPersistedFeedback(state) {
   for (const [field, limit] of [["screens", MAX_SCREENS], ["comments", MAX_COMMENTS], ["submissions", MAX_SUBMISSIONS]]) {
     if (!Array.isArray(state[field]) || state[field].length > limit || state[field].some(item => !item || typeof item !== "object" || Array.isArray(item))) return false;
   }
-  if (!unique(state.screens, "screen") || !state.screens.every(item => keys(item, ["screen", "filename"], ["design"]) && typeof item.screen === "string" && SCREEN.test(item.screen) &&
+  if (!unique(state.screens, "screen") || !state.screens.every(item => validApplicationScreen(item) ||
+      keys(item, ["screen", "filename"], ["design"]) && typeof item.screen === "string" && SCREEN.test(item.screen) &&
       typeof item.filename === "string" && /^[a-z0-9][a-z0-9-]{0,95}\.html$/i.test(item.filename) && (!Object.hasOwn(item, "design") || validDesign(item.design)))) return false;
   const screens = new Map(state.screens.map(item => [item.screen, item]));
   const target = (screen, value) => {
@@ -167,9 +177,9 @@ function validPersistedFeedback(state) {
     return descriptor && Object.entries(value.values).every(([id, option]) => descriptor.controls.some(control => control.id === id && control.options.some(item => item.value === option)));
   };
   const comment = item => {
-    if (!keys(item, ["screen", "kind", "anchor", "text", "id", "status", "reply", "createdAt", "updatedAt", "submission", "lastSubmission"], ["proposal", "adjustment", "variant", "context"])) return false;
+    if (!keys(item, ["screen", "kind", "anchor", "text", "id", "status", "reply", "createdAt", "updatedAt", "submission", "lastSubmission"], ["proposal", "adjustment", "variant", "context", "applicationContext"])) return false;
     const { id, status, reply, createdAt, updatedAt, submission, lastSubmission, ...input } = item;
-    return validCreate(input) && screens.has(item.screen) && typeof id === "string" && ID.test(id) && ["open", "fixed"].includes(status) && boundedText(reply) &&
+    return validCreate(input) && matchesScreenSource(input, screens.get(item.screen)) && typeof id === "string" && ID.test(id) && ["open", "fixed"].includes(status) && boundedText(reply) &&
       timestamp(createdAt) && timestamp(updatedAt) && integer(submission, state.submission) && integer(lastSubmission, state.submission) && submission <= lastSubmission &&
       (!item.context || target(item.screen, item.context)) && (item.kind !== "adjustment" || target(item.screen, item.adjustment)) &&
       (item.kind !== "variant" || screens.get(item.screen)?.design?.variants.some(value => value.key === item.variant));
@@ -312,12 +322,37 @@ class FeedbackStore {
     if (this.state.screens.length >= MAX_SCREENS) throw new FeedbackError(429, "Screen limit reached. Start a new preview session.");
     this.change((state) => { state.screens.push({ screen, filename: path.basename(filename), ...(design === null ? {} : { design }) }); });
   }
+  knowApplicationScreen(value) {
+    if (!keys(value, ["checkpoint", "route"])) throw new FeedbackError(400, "Invalid application screen.");
+    const checkpoint = value.checkpoint, route = normalizeApplicationRoute(value.route, this.state.workspace?.source?.resourceQueryKeys || []);
+    const screen = applicationScreenIdentity(checkpoint, route);
+    const record = { screen, source: { kind: "application", checkpoint, route } };
+    if (!validApplicationScreen(record)) throw new FeedbackError(400, "Invalid application screen.");
+    const existing = this.state.screens.find(item => item.screen === screen);
+    if (existing) {
+      if (canonicalJson(existing) !== canonicalJson(record)) throw new FeedbackError(409, "This application screen has a different recorded source.");
+      return screen;
+    }
+    if (this.state.screens.length >= MAX_SCREENS) throw new FeedbackError(429, this.state.workspace
+      ? `Screen limit reached in this saved workspace. Create a new workspace. ${SAVED_LIMIT}`
+      : "Screen limit reached. Start a new preview session.");
+    this.change(state => { state.screens.push(record); });
+    return screen;
+  }
   requireScreen(screen) {
     if (!this.state.screens.some((item) => item.screen === screen)) throw new FeedbackError(409, "Feedback belongs to an unknown screen.");
   }
-  create(value) {
+  create(value, applicationScreen = null) {
     if (!validCreate(value)) throw new FeedbackError(400, "Invalid comment.");
-    this.requireScreen(value.screen);
+    const known = this.state.screens.find(item => item.screen === value.screen);
+    if (applicationScreen !== null) {
+      if (!validApplicationScreen(applicationScreen) || applicationScreen.screen !== value.screen ||
+          !matchesScreenSource(value, applicationScreen) || known && canonicalJson(known) !== canonicalJson(applicationScreen)) {
+        throw new FeedbackError(400, "Invalid application comment page.");
+      }
+      if (!known && this.state.screens.length >= MAX_SCREENS) throw new FeedbackError(429, "This room has feedback on 100 pages. Start a new room to comment on another page; existing feedback can still be sent.");
+    } else this.requireScreen(value.screen);
+    if (!matchesScreenSource(value, known || applicationScreen)) throw new FeedbackError(409, "The comment context does not match its recorded screen source and route.");
     if (Object.hasOwn(value, "context")) this.requireTarget(value.screen, value.context);
     if (value.kind === "adjustment") this.requireTarget(value.screen, value.adjustment);
     if (value.kind === "variant" && !this.requireDesign(value.screen).variants.some((variant) => variant.key === value.variant)) throw new FeedbackError(400, "Unknown variant preference.");
@@ -325,9 +360,21 @@ class FeedbackStore {
       ? `Comment limit reached in this saved workspace. Delete older comments or create a new workspace. ${SAVED_LIMIT}`
       : "Comment limit reached. Delete older comments or start a new session.");
     return this.change((state) => {
+      if (!known && applicationScreen) state.screens.push(JSON.parse(JSON.stringify(applicationScreen)));
       const now = new Date().toISOString();
-      state.comments.push({ ...value, id: crypto.randomBytes(12).toString("hex"), status: "open", reply: "", createdAt: now, updatedAt: now, submission: 0, lastSubmission: 0 });
+      state.comments.push({ ...JSON.parse(JSON.stringify(value)), id: crypto.randomBytes(12).toString("hex"), status: "open", reply: "", createdAt: now, updatedAt: now, submission: 0, lastSubmission: 0 });
     });
+  }
+  editDraft(id, value) {
+    if (typeof id !== "string" || !ID.test(id) || !keys(value, ["text", "expectedRevision"])
+        || !boundedText(value.text) || !value.text.trim() || !Number.isSafeInteger(value.expectedRevision) || value.expectedRevision < 0) throw new FeedbackError(400, "Invalid draft edit.");
+    const current = this.state.comments.find(item => item.id === id);
+    if (!current) throw new FeedbackError(404, "Comment not found.");
+    if (current.submission !== 0 || current.lastSubmission !== 0) throw new FeedbackError(409, "A submitted comment cannot be rewritten. Add a new comment for a changed request.");
+    if (value.expectedRevision !== this.state.revision) throw new FeedbackError(409, "Feedback changed. Read the current draft before editing it.");
+    const text = value.text.trim();
+    if (text === current.text) return this.snapshot();
+    return this.change(state => Object.assign(state.comments.find(item => item.id === id), { text, updatedAt: new Date().toISOString() }));
   }
   patch(id, value) {
     if (!ID.test(id) || !validPatch(value)) throw new FeedbackError(400, "Invalid comment update.");

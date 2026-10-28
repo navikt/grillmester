@@ -1,5 +1,5 @@
 ---
-description: "Explore visual concepts, user flows and Figma designs, or read a saved design room as implementation or brief input. Use for layout, hierarchy and visual alternatives; use `prototype` for executable behavior and `figma-workflow` for a chosen Figma design to code or brief."
+description: "Explore running local apps, visual concepts and user flows in Designverksted or Figma; read saved design rooms for implementation or briefs. Use `prototype` for uncertain data/state/failure contracts and `figma-workflow` for a chosen Figma design to code or brief."
 ---
 
 Use the `skill` tool to load `design-prototype`, then follow that skill for this request.

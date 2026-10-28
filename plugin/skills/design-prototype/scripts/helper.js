@@ -11,6 +11,7 @@
   // Opened on its own instead of inside Designverksted, the sketch has no
   // connection that can save feedback, so it says so and offers no tools.
   const standalone = window.parent === window;
+  const embedded = window.__grillmesterVisualCompanionEmbedded === true;
   const standaloneMessage = "Bare visning. Innspill lagres ikke her. Gi innspill i Designverksted.";
   const nonce = scriptNonce;
   const selected = new Map();
@@ -100,6 +101,7 @@
   host.setAttribute("data-visual-feedback", "");
   document.body.appendChild(host);
   const root = host.attachShadow({ mode: "open" });
+  host.toggleAttribute("data-embedded", embedded);
   const style = document.createElement("style");
   style.nonce = nonce;
   style.textContent = `
@@ -110,6 +112,7 @@
     .toolbar.viewing{flex-wrap:wrap;justify-content:center;width:max-content}.view-banner{display:contents}.view-text{flex:1 1 100%;text-align:center;font-weight:600;padding:4px 8px;color:#23262a}
     .endre-bar,.vis-bar{pointer-events:auto;position:fixed;left:50%;transform:translateX(-50%);bottom:76px;width:max-content;max-width:calc(100vw - 24px);display:flex;flex-direction:column;gap:6px;padding:6px;background:#fff;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824}.row.with-endre-tabs>h2,.row.with-vis-tabs>h2{display:none}.row.with-vis-tabs{align-items:flex-start}.row.with-endre-tabs .endre-tabs,.row.with-vis-tabs .vis-tabs{flex:1;min-width:0}.row.with-endre-tabs .endre-tabs button,.row.with-vis-tabs .vis-tabs button{padding:8px 9px}.endre-tabs,.endre-ask,.vis-tabs{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.vis-tabs button[aria-disabled=true]{color:#6b6474}.vis-note{flex:1 1 100%;max-width:320px;margin:0;padding:2px 8px 4px;font-size:12px;line-height:1.45;color:#7a4a12}.endre-tabs button[aria-pressed=true],.endre-tabs button[aria-expanded=true],.vis-tabs button[aria-pressed=true],.vis-tabs button[aria-expanded=true]{background:#f0e8f7;color:#6e3197}.endre-ask select{flex:1 1 140px;min-width:0;min-height:34px;font:inherit;font-size:13px;border:1px solid #d9d2e2;border-radius:9px;padding:0 8px;background:#fff}
     .toolbar{pointer-events:auto;position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:7px;background:#fff;border:1px solid #e1dce8;border-radius:14px;box-shadow:0 8px 36px #25163824;max-width:calc(100vw - 24px)}
+    :host([data-embedded]) .toolbar{flex-wrap:wrap;justify-content:center;width:max-content}:host([data-embedded]) .toolbar .vis-tabs{display:flex;flex-wrap:wrap}:host([data-embedded]) .toolbar .vis-tabs button{font-size:12px}
     .toolbar button{white-space:nowrap}.toolbar button[aria-pressed=true],.tools button[aria-pressed=true]{color:#7133a2;background:#f1e8f7}.count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:6px;background:#ece9f0;font-size:11px;margin-left:5px}.tools{display:flex;gap:2px}.tools button{font-size:12px;padding:8px}.toolbar .update{background:#eaf1ff;color:#254c95;font-size:12px}.draft-button{color:#7133a2}
     .hint{position:fixed;top:64px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:9px 14px;border:1px solid #e8d7f1;border-radius:10px;box-shadow:0 3px 15px #25163812;background:#fcf8ff;color:#68368a;font-size:12px;text-align:center}
     .panel{pointer-events:auto;position:fixed;right:16px;top:64px;bottom:86px;width:min(366px,calc(100vw - 32px));display:flex;flex-direction:column;background:#fff;border:1px solid #e1dce8;border-radius:16px;box-shadow:0 12px 48px #25163826;overflow:hidden}
@@ -431,8 +434,11 @@
     compare.setAttribute("aria-disabled", String(compareBlocked));
     if (compareBlocked) compare.setAttribute("aria-describedby", "vis-note"); else compare.removeAttribute("aria-describedby");
     const visHead = workshop?.isOpen() ? root.querySelector(".workshop-head .row") : null;
-    const visTabs = el(".vis-tabs"), visHome = visHead || visBar;
-    if (visTabs.parentElement !== visHome) visHome.prepend(visTabs);
+    const visTabs = el(".vis-tabs"), visHome = visHead || (embedded ? el(".toolbar") : visBar);
+    if (visTabs.parentElement !== visHome) {
+      if (embedded && !visHead) visHome.insertBefore(visTabs, el('[data-action="refresh"]'));
+      else visHome.prepend(visTabs);
+    }
     for (const row of root.querySelectorAll(".with-vis-tabs")) if (row !== visHead) row.classList.remove("with-vis-tabs");
     visHead?.classList.add("with-vis-tabs");
     if (!visHead) for (const button of visTabs.querySelectorAll("button")) {
@@ -445,7 +451,8 @@
     const endre = visible && !head && (!tabs.hidden || mode === "comment");
     const changed = endreBar.hidden === endre || visBar.hidden === vis;
     endreBar.hidden = !endre;
-    visBar.hidden = !vis;
+    visBar.hidden = embedded || !vis;
+    if (embedded && !visHead) visTabs.hidden = !vis; else visTabs.hidden = false;
     el('[data-action="vis-compare"]').setAttribute("aria-pressed", String(comparing));
     host.toggleAttribute("data-endre", visible);
     el(".endre-ask").hidden = mode !== "comment";
@@ -463,8 +470,9 @@
     const blocked = blocksRefresh();
     const discardView = !blocked && workshop?.isBusy();
     refresh.disabled = blocked || frameRefreshing || savedVersionWaiting;
-    refresh.textContent = discardView ? "Nullstill og vis ny versjon" : "Vis ny versjon";
-    refresh.title = blocked ? "Fullfør utkast, send innspill og avslutt forhåndsvisningen først" : discardView ? "Lokale visningsvalg nullstilles. Lagrede innspill beholdes." : "Åpne den nye versjonen";
+    refresh.textContent = discardView ? "Vis oppdatert forslag" : "Vis ny versjon";
+    refresh.title = blocked ? "Fullfør utkast, send innspill og avslutt forhåndsvisningen først" : discardView ? "Valg i skissen starter på nytt. Lagrede innspill beholdes." : "Åpne den nye versjonen";
+    refresh.setAttribute("aria-description", refresh.title);
     renderWorkspaceSummary();
     lockRefreshControls();
     syncEndre();
@@ -1434,6 +1442,10 @@
       request("comments-submit", { revision: snapshot.revision }, submissionRetry).then(() => {
         submissionRetry = {};
         sentCount = count;
+        if (!draft && !drag && !preview && !savingDraft && !editor?.isDirty() && !editor?.isOpen() && !editor?.isSaving()) {
+          endreSticky = false;
+          setMode("browse");
+        }
         setTab("sent");
         if (canvasRounds() === null) announce("Innspillene er sendt. Skriv «se innspillene» i samtalen hvis ingen følger med.");
       }).catch((error) => errorAt(".panel-error", error.message)).finally(() => { submitting = false; renderFooter(); });

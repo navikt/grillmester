@@ -11,6 +11,26 @@ const SERVER = path.resolve(__dirname, "../scripts/server.js");
 const temporaryRoots = new Set();
 const children = new Set();
 
+test("later save keeps postcommit read failures uncertain and retries adopted handles", () => {
+  const { runInNewContext } = require("node:vm");
+  const { FeedbackError, keys } = require("../scripts/feedback-store.js");
+  const { validWorkspacePath } = require("../scripts/workspace-store.js");
+  const source = fs.readFileSync(SERVER, "utf8"), start = source.indexOf("let savedWorkspaceRequest = null"), end = source.indexOf("\nasync function canvasCommand", start);
+  assert(start > 0 && end > start);
+  const input = { workspacePath: "designs/proposal", workspaceId: "a".repeat(24), title: "Forslag", expectedScreen: "b".repeat(32), expectedRevision: 3 };
+  const store = { assertOpen() {}, assertUnchanged() {} }, state = { summary: () => ({ id: input.workspaceId, path: input.workspacePath }) };
+  let promoted = 0, fault = true;
+  const context = { Buffer, keys, validWorkspacePath, FeedbackError, projectDir: "/unused", workspaceState: null, workspaceStore: null,
+    feedback: { state: { workspace: { revisions: [] } } }, newestContent: () => ({ screen: input.expectedScreen }),
+    promoteTemporaryWorkspace: () => { promoted++; return { store, workspaceState: state }; },
+    canvasReadState: () => { if (fault) throw new FeedbackError(409, "A saved pair disappeared after commit."); return { screen: input.expectedScreen }; } };
+  const save = runInNewContext(source.slice(start, end) + "\nsaveCanvasWorkspace", context);
+  assert.throws(() => save(input), error => error.status === 503 && /Forslaget er skrevet/.test(error.message));
+  assert.equal(context.workspaceStore, store); assert.equal(context.workspaceState, state); assert.equal(promoted, 1);
+  fault = false;
+  assert.equal(save(input).screen, input.expectedScreen); assert.equal(promoted, 1, "The uncertain committed child is never promoted a second time.");
+});
+
 function makeProject() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "grillmester-vc-test-"));
   temporaryRoots.add(root);
@@ -1492,7 +1512,7 @@ test("the fixed shell validates feedback messages and defers refresh while a not
     const callbacks = [], intervals = [], requests = [], messages = [];
     const frameWindow = { postMessage: (value) => messages.push(value) };
     const frame = { contentWindow: frameWindow, src: "unchanged" };
-    const status = { textContent: "", classList: { remove() {}, add() {} }, addEventListener() {}, focus() {} };
+    const status = { textContent: "", dataset: {}, classList: { remove() {}, add() {} }, addEventListener() {}, focus() {} };
     const newer = "f".repeat(32);
     const newest = "e".repeat(32);
     let pollVersion = newer;
@@ -1831,7 +1851,7 @@ test("feedback results and conflict refreshes stay with their originating previe
     const callbacks = [], messages = [];
     const frameWindow = { postMessage: value => messages.push(value) };
     const frame = { contentWindow: frameWindow, src: "unchanged" };
-    const status = { textContent: "", classList: { remove() {}, add() {} }, addEventListener() {}, focus() {} };
+    const status = { textContent: "", dataset: {}, classList: { remove() {}, add() {} }, addEventListener() {}, focus() {} };
     const snapshot = { revision: 1, submission: 0, screens: [{ screen, filename: "test.html" }], comments: [], listeningUntil: 0 };
     const response = (statusCode, value) => ({ ok: statusCode === 200, status: statusCode, json: async () => value });
     let write = async () => response(200, snapshot), read = async () => response(200, snapshot);
@@ -1892,7 +1912,7 @@ test("viewing a stored version pauses automatic refresh until the designer retur
     let poll = null;
     const frameWindow = { postMessage: value => messages.push(value) };
     const frame = { contentWindow: frameWindow, src: "unchanged" };
-    const status = { textContent: "", classList: { remove() {}, add() {} }, addEventListener() {}, focus() {} };
+    const status = { textContent: "", dataset: {}, classList: { remove() {}, add() {} }, addEventListener() {}, focus() {} };
     const older = "a".repeat(32), newest = "b".repeat(32);
     const snapshot = { revision: 1, submission: 0, screens: [{ screen, filename: "test.html" }, { screen: older, filename: "old.html" }, { screen: newest, filename: "new.html" }], comments: [], listeningUntil: 0 };
     let version = screen;
@@ -2352,7 +2372,7 @@ test("a hanging feedback poll stays bounded and permits recovery after connectio
     function element(id) {
       const classes = new Set();
       return {
-        textContent: "", inert: false, src: "unchanged",
+        textContent: "", dataset: {}, inert: false, src: "unchanged",
         classList: { add: (name) => classes.add(name), remove: (name) => classes.delete(name), contains: (name) => classes.has(name) },
         addEventListener: (event, callback) => callbacks.set(`${id}:${event}`, callback),
         focus() { focused = id; },
@@ -2408,6 +2428,7 @@ test("a hanging feedback poll stays bounded and permits recovery after connectio
     });
     await advance(2000);
     assert.equal(status.textContent, "Tilkoblet");
+    assert.equal(status.dataset.connected, "true");
     const lastCompletePoll = now;
     mode = "hanging";
     await advance(14000);
@@ -2419,6 +2440,7 @@ test("a hanging feedback poll stays bounded and permits recovery after connectio
     assert.equal(maxPendingReads, 1, "periodic polls must not accumulate while a previous read is pending");
     assert(abortedReads > 0, "the blocked response body must be aborted");
     assert.equal(status.textContent, "Pauset");
+    assert.equal(Object.hasOwn(status.dataset, "connected"), false, "Disconnected status must remain visible in an embedded sketch.");
     assert.equal(paused.classList.contains("visible"), true);
     assert.equal(frame.inert, true);
     assert.equal(focused, "vc-recover");
@@ -2432,6 +2454,7 @@ test("a hanging feedback poll stays bounded and permits recovery after connectio
     await advance(8000);
     assert.equal(pendingReads, 0);
     assert.equal(status.textContent, "Tilkoblet");
+    assert.equal(status.dataset.connected, "true");
     assert.equal(messages.filter((message) => message.command === "connection-restored").length, 1);
     assert.equal(paused.classList.contains("visible"), false);
     assert.equal(frame.inert, false);

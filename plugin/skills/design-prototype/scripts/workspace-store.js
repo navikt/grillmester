@@ -187,11 +187,12 @@ class WorkspaceClaim {
 }
 
 class WorkspaceStore {
-  constructor({ projectDir, workspacePath, create = false, title, validateState } = {}) {
+  constructor({ projectDir, workspacePath, create = false, title, validateState, revisionFiles = true } = {}) {
     if (typeof projectDir !== "string" || !path.isAbsolute(projectDir) || !validWorkspacePath(workspacePath)
-        || typeof create !== "boolean" || typeof validateState !== "function"
+        || typeof create !== "boolean" || typeof validateState !== "function" || typeof revisionFiles !== "boolean"
         || title != null && (typeof title !== "string" || !title.trim() || Buffer.byteLength(title) > 200 || /[\u0000-\u001f\u007f]/.test(title))) fail(400, "Invalid design workspace configuration.");
     this.workspacePath = workspacePath;
+    this.revisionFiles = revisionFiles;
     this.projectDir = fs.realpathSync(projectDir);
     this.directory = path.join(this.projectDir, ...workspacePath.split("/"));
     this.revisionsDir = path.join(this.directory, "revisions");
@@ -227,15 +228,19 @@ class WorkspaceStore {
       if (create) {
         if (visible(inventory).some(name => name !== "revisions") || inventory.includes("revisions") && visible(fs.readdirSync(this.revisionsDir)).length) fail(409, "Create requires an empty design workspace directory.");
       } else if (!inventory.includes("workspace.json")) fail(404, "Design workspace was not found. Choose Create to start a new room.");
-      try { directory(this.revisionsDir); }
-      catch (error) {
-        if (error.code !== "ENOENT" || !create) throw error;
-        fs.mkdirSync(this.revisionsDir, { mode: 0o700 });
-        this.created.push({ filename: this.revisionsDir, stat: directory(this.revisionsDir) });
-      }
-      this.ancestors.push({ filename: this.revisionsDir, stat: directory(this.revisionsDir) });
-      const revisionInventory = this.inventory();
+      // Identify the room before requiring HTML-only revision files. An app
+      // feedback room checked out from Git deliberately has no such directory.
       this.initial = create ? null : this.readState();
+      if (this.revisionFiles) {
+        try { directory(this.revisionsDir); }
+        catch (error) {
+          if (error.code !== "ENOENT" || !create) throw error;
+          fs.mkdirSync(this.revisionsDir, { mode: 0o700 });
+          this.created.push({ filename: this.revisionsDir, stat: directory(this.revisionsDir) });
+        }
+        this.ancestors.push({ filename: this.revisionsDir, stat: directory(this.revisionsDir) });
+      }
+      const revisionInventory = this.inventory();
       if (revisionInventory.bytes + (this.lastBytes?.length || 0) > MAX_WORKSPACE_BYTES) fail(429, "Design workspace storage limit reached.");
     } catch (error) {
       try { this.claim?.close(); } catch { /* Preserve the original failure. */ }
@@ -259,6 +264,13 @@ class WorkspaceStore {
     let state;
     try { state = JSON.parse(record.bytes.toString("utf8")); } catch { fail(409, "Design workspace state is not valid JSON."); }
     if (this.validateState(state) !== true) {
+      if (state?.workspace?.source?.kind === "application") {
+        fail(409, state.workspace.mode === "feedback"
+          ? this.revisionFiles
+            ? "This is an application feedback room. Open it with the application option and its saved start path and query policy. Its files were not changed."
+            : "The application feedback room is invalid or uses unsupported data. Its files were not changed; restore a valid saved room or create a new one."
+          : "This application room was saved by an unreleased build with source editing or history. Its files were not changed; create a new feedback room.");
+      }
       // Kept choices were never released. Name them so such a room is not taken for damage.
       if (state && typeof state === "object" && ["decisions", "submittedDecisions"].some(key => Object.hasOwn(state, key))) {
         fail(409, "Design workspace state was saved by an unreleased build with kept choices, which are no longer supported. The files are unchanged; create a new workspace.");
@@ -285,6 +297,7 @@ class WorkspaceStore {
   inventory() {
     this.assertDirectories();
     let bytes = 0;
+    if (!this.revisionFiles) return { bytes };
     // Only names that can be registered are revision files. Finder, editor and
     // backup files (.DS_Store, ._x, .x.swp, x~) can never be referenced, so they
     // neither block the room nor count towards its limits. The registered
@@ -340,6 +353,7 @@ class WorkspaceStore {
   }
   writeRevision({ filename, html, design = null } = {}) {
     this.assertOpen();
+    if (!this.revisionFiles) fail(409, "Application feedback rooms do not store sketch revisions.");
     this.assertUnchanged();
     if (typeof filename !== "string" || !FILENAME.test(filename) || typeof html !== "string" || !html.trim()
         || design !== null && !validDesign(design)) fail(400, "Invalid immutable design revision.");

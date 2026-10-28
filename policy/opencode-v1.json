@@ -201,7 +201,28 @@
     "skills/create-a-skill/references/opencode-validation.md": "policy/opencode-v1/overlays/skills/create-a-skill/references/opencode-validation.md"
   },
   "remove": [
-    "skills/create-a-skill/references/copilot-cli-validation.md"
+    "skills/create-a-skill/references/copilot-cli-validation.md",
+    "skills/design-prototype/scripts/app-runtime.js",
+    "skills/design-prototype/tests/app-runtime.test.js",
+    "skills/design-prototype/scripts/application-connection-state.js",
+    "skills/design-prototype/scripts/application-connection-view.js",
+    "skills/design-prototype/scripts/application-connection.css",
+    "skills/design-prototype/scripts/application-inspector.js",
+    "skills/design-prototype/scripts/application-proxy.js",
+    "skills/design-prototype/scripts/application-server.js",
+    "skills/design-prototype/scripts/application-shell.js",
+    "skills/design-prototype/scripts/application-shell.css",
+    "skills/design-prototype/scripts/application-shell.tmpl",
+    "skills/design-prototype/scripts/application-workspace.js",
+    "skills/design-prototype/scripts/application-proposals.js",
+    "skills/design-prototype/scripts/application-proposal-view.js",
+    "skills/design-prototype/tests/application-inspector.test.js",
+    "skills/design-prototype/tests/application-proxy.test.js",
+    "skills/design-prototype/tests/application-server.test.js",
+    "skills/design-prototype/tests/application-workspace.test.js",
+    "skills/design-prototype/tests/application-proposals.test.js",
+    "skills/design-prototype/tests/application-proposal-view.test.js",
+    "skills/design-prototype/tests/application-inactive-view.test.js"
   ],
   "skillCapabilities": {
     "default": "native",
