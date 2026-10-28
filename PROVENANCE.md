@@ -173,6 +173,17 @@ concrete content and provenance plus the applicable underlying rights decision.
 A new rights or brand decision is required when the change falls outside that
 decision's source, component, or naming scope.
 
+PR [#90](https://github.com/navikt/grillmester/pull/90) is the current-content
+review for Designer's intent and native-workshop guidance and the expanded
+`design-prototype` implementation. The Hovmester revision, imported component
+IDs, Doctor Who name and characterization, content lock and third-party notices
+are unchanged. Only Designer, design-prototype and this provenance record have
+changed within the existing rights-bound scope. The running-app runtime and
+proposal integration are original implementation as described below; no new
+upstream implementation is imported. The underlying decision in #56 remains
+applicable, while #90 records review of the changed content rather than reusing
+the earlier component digests.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
@@ -262,6 +273,11 @@ an exact submitted app round; it does not transfer app-source editing authority
 or introduce another runtime lifecycle. Intent guidance distinguishes demo,
 exploration, sketch, review and expressly requested implementation without
 requiring a new questionnaire or fabricated feedback round.
+The owned-demo helper `design-prototype/scripts/app-runtime.js` and its process
+regressions are original Grillmester implementation. It uses Node's standard
+process, filesystem, cryptography and Unix-socket APIs; no external supervisor
+or daemon implementation is imported. Its bounded lifecycle and ordinary-shell
+authority are recorded in [ADR 0028](docs/adr/0028-eid-livslop-for-lokale-demoer.md).
 The native application instance retains one upstream and proxy origin, and
 retires its own renderer, proxy and proposal child on close or backend loss.
 Reopening saved work requires a fresh instance. These lifecycle changes do not

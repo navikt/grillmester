@@ -5,8 +5,8 @@
         "role": "Grillmester repository maintainer",
         "team": "Team eSyfo"
       },
-      "date": "2026-10-26",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#89",
+      "date": "2026-10-28",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#90",
       "status": "approved"
     },
     "organizationalRights": {
@@ -14,8 +14,8 @@
         "role": "Hovmester repository owner",
         "team": "Team eSyfo"
       },
-      "date": "2026-10-26",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#89",
+      "date": "2026-10-28",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#90",
       "status": "approved"
     }
   },
@@ -23,14 +23,14 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "fcf00f19d5768935d81cc217660c0aa74a397f15938b8b155706e6ba0ae2cb0a",
+        "designer": "d5d59678b0e15410f1f5de4a8e7dc45ee67f17f51a529537412b55ae4111754e",
         "doctor-who": "70f249d6c300f54128c55676182115de3ac3c5f6f3aeb1da9774853cdc4c86c4"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
         "aksel-design": "f0bad3142d9f93fd5dd9ffbc8498d4b649e65aaff871d5feda7924f178473620",
         "architecture-review": "16ce3bf5e7a22372c70909393af078581ae6e3344be0f93a64141299d38933ec",
-        "design-prototype": "2d059d9bff9c867a5fcf573b7bf947520a5cefdc3bed6b1d849ac65a68570e0a",
+        "design-prototype": "62429ec7a223a2f0f4776321f6cc03cc75a75e708e36b8200107d71e45303b6b",
         "doctor": "536a4f1f117939f1149d2b67aeeb16fba174948f9fa54575de988992b44988f0",
         "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
         "figma-workflow": "bc9c94cc0b06ceeee7996ccc478461d0e84d7c85ca76ba7afb09defa4c6163a2",
@@ -46,6 +46,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "8f01262c7dc8d1946c4695a7b4c82cd2a1e938896212acb84ff76a2da7e05ccd"
+    "provenanceSha256": "c26a3cef4dc943793b2eec1d7e13db4d2d9b90e441bb78cf63f48a50e4320baf"
   }
 }
