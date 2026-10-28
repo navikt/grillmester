@@ -25,6 +25,7 @@ Prøvene brukte isolerte appkopier og syntetiske data.
 | --- | --- |
 | Native kjerneløp | Appbruk, samlet innsending, umiddelbar sendestatus, retur til Prøv og automatisk oppfølging uten ekstramelding bestod. Et klikkbart forslag kom i samme canvas. Presise skisseinnspill ga synlige revisjoner med bare de bestilte tekstendringene. |
 | Native gjenåpning | En ny samtale åpnet lagret approm, forslag, tidligere runder og svar. Historiske runder ble ikke sendt på nytt. Et nytt skisseinnspill etter gjenåpningen startet oppfølging og ga en fungerende revisjon. |
+| Figma-overlevering | En valgt helsideskisse ble videreført med redigerbare Aksel-instanser og deretter redigert i samme Figma-fil. HTML-skissen ble bevart. Node- og bildekontroll samt lagrede navigasjonsmål er kontrollert; direkte prototypeavspilling i Figma gjenstår. |
 | Demoens levetid | Oppstarten gjennom den eide CLI-hjelperen ble ferdig mens demoen fortsatt var tilgjengelig. Uttrykkelig stopp stengte demoen uten observert omstart. Canvaset ble lukket med panelets UI-kontroll; lukking gjennom samtalen alene er ikke bekreftet. |
 | Native apptransport | MSW-avskjæring og oppstrømskall bestod. En HMR-endring ble synlig med feltverdi beholdt; dokumentidentitet ble ikke målt. Ingen produktkode i originalappen ble endret. |
 | Lokal regresjon | Adapter, proxy, forslag, lagring, avbrudd, gjenoppretting og smale flater er prøvd med automatiserte nettlesertester og simulert samtalevert. Testene erstatter ikke kontroll av den native vertens panelhåndtering og samtalekø. |

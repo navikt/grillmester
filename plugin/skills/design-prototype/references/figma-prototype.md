@@ -12,6 +12,12 @@ konkret Figma create/edit-kapabilitet. Read-only Figma MCP er nyttig for
 kontekst, men skal degradere til avtalt skisse, Figma-klart utkast eller
 Issue-utkast; MCP-tilstedeværelse alene er ikke write-evidens.
 
+Hvis klienten viser Figma som tilkoblet, men samtalen mangler Figma-verktøy,
+kan den eksisterende integrasjonen måtte velges i meldingen. Be brukeren velge
+den synlige Figma-integrasjonen og kontroller verktøyene på nytt. Manglende
+verktøy beviser ikke at tilkoblingen er brutt; ikke installer eller autoriser
+på nytt automatisk. Bekreft fortsatt create/edit-kapabilitet før skriving.
+
 <a id="underlag-og-mal"></a>
 
 ## Underlag og mål
@@ -23,6 +29,13 @@ HTML-/descriptor-paret etter [overleveringsreferansen](design-handoff.md).
 For midlertidig arbeid, bruk gjeldende publiserte versjon i den eiende samtalen;
 ikke krev prosjektlagring bare for overføringen. Ta med valgt retning, relevante
 tilstander og uavklarte innspill, og bevar descriptorens tekst- og kontrollverdier.
+
+Følg omfanget av den valgte skissen og bestillingen. Når hele siden skal
+videreføres, bygg sidens struktur, tekst og kontroller som redigerbare noder,
+med Aksel-instanser der de passer. Skjermbilder kan være referanse eller kontekst
+utenfor omfanget, men skal ikke erstatte innhold som skal kunne redigeres.
+En bestilt nåtilstand bygger på den faktiske appen og dens observerte tilstand;
+skill den fra skisseforslag, og ikke forbedre siden under dokumentasjonen.
 
 Gjenbruk avtalt målfil, side eller node og skriv bare innenfor bestilt omfang.
 Opprett en ny fil bare når det er ønsket; oppskriften nedenfor gjelder det
@@ -73,10 +86,9 @@ varianter og tekst-/fontkrav før første write. Erstatt demo-tekst med oppgaven
 innhold og bygg inkrementelt med eksakte verifiserte navn; se preflighten og
 tekstreglene nedenfor.
 
-```
-search_design_system(query: "Button", fileKey: "<key>")
-→ Returnerer component key, variants, props
-```
+Søk etter for eksempel `Button` med `search_design_system` i den avtalte filens
+biblioteker. Bruk argumentene fra det aktive verktøyschemaet; det kan kreve en
+liste med søk. Resultatet gir komponentnøkler, varianter og egenskaper.
 
 Nyttige søk:
 - `Button`, `TextField`, `Select`, `Checkbox`, `Radio`
@@ -498,9 +510,12 @@ Hvis du er usikker på en farge, slå opp tokenet i Aksel-biblioteket FØR du by
 
 **Bruk kun frame-navn** — aldri lag separate tekst-labels over frames. Figma viser frame-navnene automatisk. Doble labels overlapper.
 
-## Kontekst uten å miste redigerbarhet (eksisterende flater)
+## Kontekst rundt en avgrenset modul
 
-For eksisterende flater vil designere ofte se modulen i **ekte sidekontekst** (plassering, proporsjoner, hvordan resten av siden flyter) **og** kunne flikke videre på den. Et flatt skjermbilde av hele siden er en blindvei: det kan ikke redigeres, og Figma Make jobber dårlig fra piksler. Løsningen er **bakgrunn + redigerbar overlay** — ekte side som skjermbilde, med den ekte komponent-instansen lagt oppi.
+Når bestillingen gjelder én del, kan en **redigerbar modul med bakgrunnsbilde**
+vise plassering og proporsjoner i ekte sidekontekst. Dette mønsteret gjelder
+kontekst utenfor det redigerbare omfanget. Ved en bestilt hel side skal hele
+sidens relevante innhold bygges redigerbart etter reglene ovenfor.
 
 **Teknikk (kontekst-overlay):**
 
@@ -511,7 +526,9 @@ For eksisterende flater vil designere ofte se modulen i **ekte sidekontekst** (p
    // { x: m.left - c.left, y: m.top - c.top, w: m.width }
    ```
 2. **Injiser et tomt felt** (spacer) med modulens omtrentlige høyde der modulen skal stå, så innholdet under flyter naturlig ned. **Aldri håndkod en HTML-tilnærming av selve modulen** for skjermbildet — det gir drift (feil knapper, feil alert, ulik tekst) fordi tilnærmingen sklir fra den ekte komponenten. Bare et tomt felt.
-3. **Knips innholdsregionen** (`#maincontent` e.l.) — ekskluder dekoratør-krom som ofte rendrer ustylet lokalt.
+3. **Knips avtalt kontekst** (`#maincontent` e.l.). Utelat dekoratør bare når den
+   ligger utenfor avtalt omfang. Hvis den ikke rendrer riktig lokalt, oppgi
+   begrensningen; ikke beskjær bort bestilt innhold uten å si fra.
 4. **I Figma**: lag en frame med **samme dimensjon/aspektforhold** som skjermbildet (ellers cropper `FILL` bildet og offsetene treffer feil), legg skjermbildet som frame-bakgrunn (`scaleMode: FILL`), og plasser den **redigerbare** Aksel-komponent-instansen oppi det tomme feltet. Match kolonnebredden med `resize` (ikke `rescale`):
    ```javascript
    inst.x = kolonneX; inst.y = kolonneY;
