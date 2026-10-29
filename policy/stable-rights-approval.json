@@ -5,7 +5,7 @@
         "role": "Grillmester repository maintainer",
         "team": "Team eSyfo"
       },
-      "date": "2026-10-28",
+      "date": "2026-10-29",
       "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#90",
       "status": "approved"
     },
@@ -14,7 +14,7 @@
         "role": "Hovmester repository owner",
         "team": "Team eSyfo"
       },
-      "date": "2026-10-28",
+      "date": "2026-10-29",
       "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#90",
       "status": "approved"
     }
