@@ -194,6 +194,12 @@ for concurrent workspace lock creation in `design-prototype` and its regression
 tests. The source, component and naming scope remain unchanged. The rights journal
 binds this content and provenance while preserving the underlying decision in #56.
 
+PR [#93](https://github.com/navikt/grillmester/pull/93) reviews direct feedback,
+resumable views and read-only HTML inspection in `design-prototype`. The runtime
+and tests are Grillmester-authored; no third-party material is added. Designer,
+Figma handoff and the source, component and naming scope are unchanged. The rights
+journal binds this content and provenance under the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
