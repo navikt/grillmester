@@ -667,15 +667,27 @@ async function main() {
         await page.locator("#comment-text").fill(text);
         for (const recovery of ["poll", "retry"]) {
           let requests = 0, stateAvailable = false;
-          await page.route("**/state", route => {
+          await page.route("**/state", async route => {
             requests++;
-            return stateAvailable ? route.continue() : route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+            const available = recovery === "retry"
+              ? await page.locator("#retry-state").evaluate(button => button.dataset.recoveryClicked === "true").catch(() => false)
+              : stateAvailable;
+            return available ? route.continue() : route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
           });
           page.once("dialog", dialog => void dialog.accept()); await page.reload();
           await page.locator("#global-message").waitFor();
           assert.equal(await page.locator("#comment-text").inputValue(), "", "recovery waits for validated state");
-          stateAvailable = true;
-          if (recovery === "retry") await page.locator("#retry-state").click();
+          if (recovery === "retry") {
+            // Polling must not restore state and hide the button while the
+            // browser is still waiting for this deliberate click to be stable.
+            await page.locator("#retry-state").evaluate(button => {
+              button.addEventListener("click", event => {
+                if (event.isTrusted) button.dataset.recoveryClicked = "true";
+              }, { capture: true, once: true });
+            });
+            await page.locator("#retry-state").click();
+            assert.equal(await page.locator("#retry-state").getAttribute("data-recovery-clicked"), "true");
+          } else stateAvailable = true;
           await page.locator("#draft-restored").waitFor();
           assert(requests >= 2, "a later state request recovers the connection");
           assert.equal(await page.locator("#comment-text").inputValue(), text);
