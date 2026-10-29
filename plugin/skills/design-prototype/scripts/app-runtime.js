@@ -281,8 +281,20 @@ async function supervise(config) {
 function dependencyState(projectDir) {
   const files = ["pnpm-lock.yaml", "node_modules/.pnpm/lock.yaml"].map(file => path.join(projectDir, file));
   const boundedFile = file => {
-    const stat = fs.statSync(file); fail(stat.isFile() && stat.size <= 16 * 1024 * 1024, "The dependency lockfile cannot be checked safely.");
-    return hash(fs.readFileSync(file));
+    const maximum = 16 * 1024 * 1024, message = "The dependency lockfile cannot be checked safely. Keep it unchanged while checking dependencies.";
+    const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    try {
+      const stat = fs.fstatSync(fd); fail(stat.isFile() && stat.size <= maximum, message);
+      const digest = crypto.createHash("sha256"), buffer = Buffer.alloc(64 * 1024);
+      let size = 0, count;
+      while ((count = fs.readSync(fd, buffer, 0, Math.min(buffer.length, maximum - size + 1), null)) > 0) {
+        size += count; fail(size <= maximum, message); digest.update(buffer.subarray(0, count));
+      }
+      const after = fs.fstatSync(fd), current = fs.lstatSync(file);
+      fail(current.isFile() && current.dev === stat.dev && current.ino === stat.ino &&
+        size === stat.size && after.size === stat.size && after.mtimeMs === stat.mtimeMs && after.ctimeMs === stat.ctimeMs, message);
+      return digest.digest("hex");
+    } finally { fs.closeSync(fd); }
   };
   if (!files.every(file => fs.existsSync(file))) return { state: "unverified", note: "Use the project's package manager to verify the installed dependencies against its manifest and lockfile." };
   return { state: boundedFile(files[0]) === boundedFile(files[1]) ? "matching-install-record" : "mismatch",

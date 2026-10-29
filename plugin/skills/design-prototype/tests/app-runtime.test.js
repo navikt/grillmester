@@ -343,3 +343,31 @@ test("a stale copied pnpm installation is detected before any demo command start
   assert.equal(fs.existsSync(path.join(project, "unexpected")), false);
   fs.copyFileSync(declared, installed); assert.equal(runtime.dependencyState(project).state, "matching-install-record");
 });
+
+test("dependency checks reject linked, replaced and growing lockfiles", { skip: !supported }, async t => {
+  for (const kind of ["symlink", "replacement", "growth"]) await t.test(kind, t => {
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-lock-race-"));
+    t.after(() => fs.rmSync(project, { recursive: true, force: true }));
+    fs.mkdirSync(path.join(project, "node_modules/.pnpm"), { recursive: true });
+    const declared = path.join(project, "pnpm-lock.yaml"), installed = path.join(project, "node_modules/.pnpm/lock.yaml");
+    fs.writeFileSync(declared, "lockfileVersion: 9\n"); fs.copyFileSync(declared, installed);
+    if (kind === "symlink") { fs.unlinkSync(installed); fs.symlinkSync(declared, installed); }
+    else {
+      let changed = false;
+      for (const method of ["statSync", "fstatSync"]) {
+        const original = fs[method];
+        t.mock.method(fs, method, function (...args) {
+          const result = Reflect.apply(original, this, args);
+          if (!changed) {
+            changed = true;
+            if (kind === "replacement") {
+              fs.writeFileSync(declared + ".next", "lockfileVersion: 8\n"); fs.renameSync(declared + ".next", declared);
+            } else fs.truncateSync(declared, 16 * 1024 * 1024 + 1);
+          }
+          return result;
+        });
+      }
+    }
+    assert.throws(() => runtime.dependencyState(project));
+  });
+});
