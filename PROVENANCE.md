@@ -241,7 +241,8 @@ external assets or raw event text. See the full MIT notice in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 The running-app code in `design-prototype/scripts/application-*`, its HTML
-proposal integration and the owned-demo helper
+proposal integration (including running proposal copies and bounded app
+observations) and the owned-demo helper
 `design-prototype/scripts/app-runtime.js` are original Grillmester
 implementation. The existing sketch path retains its
 lineage above; no new imported component or synchronization relationship is

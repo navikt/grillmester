@@ -12,6 +12,8 @@ const { createConnectionState } = require("./application-connection-state.js");
 const { ApplicationProposals } = require("./application-proposals.js");
 const { createProposalViews } = require("./application-proposal-view.js");
 const { renderInactive } = require("./application-connection-view.js");
+const { validRuntimeHealth, parseInspection } = require("./application-contract.js");
+const { createHtmlEmbedding, renderEmbeddingBootstrap } = require("./html-embedding.js");
 const { FeedbackError, FeedbackMutationReceipts, MAX_BODY_BYTES, keys } = require("./feedback-store.js");
 
 const CHANNEL = "visual-companion-canvas";
@@ -102,15 +104,15 @@ function createPreviewStatus() {
     transport(value) { if (active) transport = { ...value }; },
     report(input) {
       const reasons = { loading: "waiting-for-app", ready: "inspector-ready", unavailable: ["inspector-timeout", "application-unavailable"] };
-      requireValue(keys(input, ["generation", "sequence", "state", "reason"]) && typeof input.generation === "string" && /^[a-f0-9]{32}$/.test(input.generation) &&
+      requireValue(keys(input, ["generation", "sequence", "state", "reason"], ["health"]) && (input.health === undefined || validRuntimeHealth(input.health)) && typeof input.generation === "string" && /^[a-f0-9]{32}$/.test(input.generation) &&
         typeof input.state === "string" && typeof input.reason === "string" &&
         Number.isSafeInteger(input.sequence) && input.sequence > 0 && Object.hasOwn(reasons, input.state) &&
         (Array.isArray(reasons[input.state]) ? reasons[input.state].includes(input.reason) : reasons[input.state] === input.reason), 400, "Invalid application view status.");
       requireValue(active && generation !== null && input.generation === generation, 409, "This application view status belongs to an older page.");
-      requireValue(input.sequence > sequence || input.sequence === sequence && observed?.state === input.state && observed?.reason === input.reason,
+      requireValue(input.sequence > sequence || input.sequence === sequence && observed?.state === input.state && observed?.reason === input.reason && JSON.stringify(observed?.health) === JSON.stringify(input.health),
         409, "This application view status has been superseded.");
       sequence = input.sequence;
-      observed = { state: input.state, reason: input.reason };
+      observed = { state: input.state, reason: input.reason, ...(input.health === undefined ? {} : { health: { ...input.health } }) };
     },
     snapshot() {
       let previewStatus = observed ? { ...observed } : { state: transport.state === "unavailable" ? "unavailable" : "loading", reason: active ? "waiting-for-view" : "view-closed" };
@@ -122,8 +124,27 @@ function createPreviewStatus() {
         previewStatus = { state: "loading", reason: "waiting-for-app" };
       }
       previewStatus.retryAvailable = active && generation !== null && previewStatus.state === "unavailable";
-      return { previewStatus, transportStatus: { ...transport } };
+      return { previewStatus, transportStatus: { ...transport }, ...(observed?.health ? { applicationHealth: {
+        state: previewStatus.state !== "ready" ? "unknown" : Object.values(observed.health).some(Boolean) ? "errors-observed" : "no-errors-observed",
+        ...observed.health } } : {}) };
     },
+  };
+}
+function createPreviewInspection({ timeoutMs = 8000 } = {}) {
+  let pending = null;
+  const cancel = () => { if (pending) { clearTimeout(pending.timer); pending.reject(new FeedbackError(503, "The open app did not confirm a fresh observation. Keep its canvas visible and read_state before retrying. No other browser was inspected.")); pending = null; } };
+  return {
+    read() {
+      requireValue(!pending, 409, "A preview observation is already pending.");
+      return new Promise((resolve, reject) => { pending = { id: crypto.randomBytes(16).toString("hex"), resolve, reject, timer: setTimeout(cancel, timeoutMs) }; });
+    },
+    request() { return pending ? { id: pending.id } : null; },
+    report(input) {
+      requireValue(keys(input, ["id", "observation"]) && pending && input.id === pending.id, 409, "This preview observation is no longer requested.");
+      const result = parseInspection(input.observation), current = pending;
+      pending = null; clearTimeout(current.timer); current.resolve(result);
+    },
+    cancel,
   };
 }
 function snapshot(workspace, full = false, preview) {
@@ -150,8 +171,19 @@ function createApplicationRequestHandler({ workspace, authority, receipts = new 
       authority.assertActive?.(); workspace.assertOpen();
       const writeHtml = rendered => {
         headers(res, "text/html; charset=utf-8"); res.setHeader("Content-Security-Policy", rendered.csp);
+        if (authority.embedding) res.removeHeader?.("X-Frame-Options");
         res.statusCode = 200; res.end(rendered.html);
       };
+      if (authority.embedding && req.method === "GET" && req.url === "/embedded/" + authority.embedding.invitation) {
+        const candidate = authority.embedding.candidate(authority.embedding.invitation);
+        writeHtml({ html: renderEmbeddingBootstrap({ ...candidate, parentOrigin: authority.embedding.parentOrigin, leaseId: authority.embedding.leaseId }),
+          csp: `default-src 'none'; script-src 'nonce-${candidate.nonce}'; style-src 'nonce-${candidate.nonce}'; img-src blob:; connect-src 'self'; frame-src 'self' ${authority.previewOrigin}; frame-ancestors ${authority.embedding.parentOrigin}; base-uri 'none'; form-action 'none'` }); return;
+      }
+      if (authority.embedding && req.method === "POST" && req.url === "/embedded/activate") {
+        const input = await readBody(req); authority.assertActive?.();
+        const activated = authority.embedding.activate(input);
+        writeHtml(authority.activateEmbedded(activated.nonce)); return;
+      }
       if (bootstrap) { writeHtml(connection ? authority.renderPanel() : authority.renderShell ? authority.renderShell() : authority); return; }
       if (browser) {
         try { writeHtml(authority.renderShell(connection.candidate(req.url))); }
@@ -195,14 +227,22 @@ function createApplicationRequestHandler({ workspace, authority, receipts = new 
       authorize();
       requireValue(["GET", "POST"].includes(req.method), 405, "This request method is unavailable.");
       requireValue(!target.search, 400, "This action does not accept query parameters.");
+      if (req.method === "GET" && target.pathname === "/preview/inspection") {
+        requireValue(authority.inspection, 409, "The application view is unavailable.");
+        send(res, 200, { request: authority.inspection.request() }); return;
+      }
       const state = async () => authority.readState ? authority.readState(true) : snapshot(workspace, true, authority.preview);
       if (req.method === "GET" && target.pathname === "/state") { const result = await state(); authorize(); send(res, 200, result); return; }
       requireValue(req.method === "POST", 404, "The requested action is unavailable.");
       const deletion = /^\/comments\/([a-f0-9]{24})\/delete$/.exec(target.pathname);
       const edit = /^\/comments\/([a-f0-9]{24})\/edit$/.exec(target.pathname);
-      requireValue(["/view", "/preview/status", "/comments", "/submit", "/proposal/open", "/proposal/selection"].includes(target.pathname) || deletion || edit, 404, "The requested action is unavailable.");
+      requireValue(["/view", "/preview/status", "/preview/inspection", "/comments", "/submit", "/proposal/open", "/proposal/selection"].includes(target.pathname) || deletion || edit, 404, "The requested action is unavailable.");
       const input = await readBody(req);
       authorize(); // A slow body cannot retain authority after a replacement or close.
+      if (target.pathname === "/preview/inspection") {
+        requireValue(authority.inspection, 409, "The application view is unavailable.");
+        authority.inspection.report(input); send(res, 200, { accepted: true }); return;
+      }
       if (target.pathname === "/proposal/open") {
         requireValue(keys(input, ["proposalId"]) && authority.openProposal, 400, "Invalid proposal opening request.");
         const result = await authority.openProposal(input.proposalId, authorize); authorize(); send(res, 200, result); return;
@@ -246,13 +286,12 @@ function createApplicationRequestHandler({ workspace, authority, receipts = new 
     }
   };
 }
-function renderShell({ previewUrl, previewOrigin, epoch, title, token, reportGeneration, activationRequired = false }) {
-  const nonce = crypto.randomBytes(24).toString("base64url");
+function renderShell({ previewUrl, previewOrigin, epoch, title, token, reportGeneration, activationRequired = false, embedding, nonce = crypto.randomBytes(24).toString("base64url") }) {
   const content = name => fs.readFileSync(path.join(__dirname, name), "utf8");
   const values = { NONCE: nonce, APPLICATION_STYLE: content("application-shell.css"),
-    APPLICATION_SCRIPT: content("application-shell.js"), APPLICATION_CONFIG: jsonScript(activationRequired ? { title, token, activationRequired } : { previewUrl, previewOrigin, epoch, title, token, reportGeneration }) };
+    APPLICATION_SCRIPT: content("application-shell.js"), APPLICATION_CONFIG: jsonScript({ ...(activationRequired ? { title, token, activationRequired } : { previewUrl, previewOrigin, epoch, title, token, reportGeneration }), ...(embedding ? { embedding } : {}) }) };
   const html = content("application-shell.tmpl").replace(/\{\{(NONCE|APPLICATION_STYLE|APPLICATION_SCRIPT|APPLICATION_CONFIG)\}\}/g, (_, name) => values[name]);
-  return { html, csp: `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; img-src blob:; frame-src 'self' ${previewOrigin}; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` };
+  return { html, csp: `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; img-src blob:; frame-src 'self' ${previewOrigin}; frame-ancestors ${embedding ? embedding.parentOrigin : "'none'"}; base-uri 'none'; form-action 'none'` };
 }
 async function stopServer(server) {
   if (!server?.listening) return;
@@ -277,12 +316,15 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
     }) });
   let view = null, viewRetired = false, retired = false, closed = false, queue = Promise.resolve(), closing = null;
   const preview = createPreviewStatus();
+  const inspection = createPreviewInspection();
   const receipts = new FeedbackMutationReceipts();
   const enqueue = operation => { const result = queue.then(operation); queue = result.catch(() => {}); return result; };
   function invalidate(current) {
     if (!current) return;
     current.live = false; current.connection.close(); current.proposalViews?.revoke();
+    current.authority.embedding?.revoke();
     current.proposalClosure = proposals.closeViews(); preview.close();
+    inspection.cancel();
   }
   function lostView(current) {
     if (!current.live) return;
@@ -304,17 +346,19 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
     const resumedApplication = { name: workspace.connection.name, url: workspace.connection.origin + workspace.current().source.route,
       ...(workspace.connection.resourceQueryKeys ? { resourceQueryKeys: workspace.connection.resourceQueryKeys } : {}) };
     const proxy = await createApplicationProxy({ application: resumedApplication, shellOrigin: current.origin, inspectorSource,
+      ...(current.authority.embedding ? { embeddingOrigin: current.authority.embedding.parentOrigin } : {}),
       onStatus: status => { if (current.live && current.epoch === epoch) preview.transport(status); },
       onClose: () => lostView(current) });
     current.proxy = proxy;
     try { current.authority.assertActive(); } catch (error) { await proxy.close(); current.proxy = null; throw error; }
     current.connection.prepare();
   }
-  async function openView() {
+  async function openView(embedding) {
     requireValue(!viewRetired, 410, "This application view is closed. Open a fresh workshop instance.");
     if (view?.live && view.result) return view.result;
     requireValue(workspace.connection, 409, "Reconnect the local application before opening its view.");
     const connection = createConnectionState(), authority = {};
+    if (embedding) authority.embedding = createHtmlEmbedding(embedding);
     const current = { server: null, proxy: null, connection, authority, live: true, result: null }; view = current;
     authority.assertActive = () => {
       if (closed || retired || view !== current || !current.live) { const error = new FeedbackError(410, "Visningen er lukket. Åpne Designverksted igjen fra samtalen."); error.code = "renderer-stale"; throw error; }
@@ -335,7 +379,7 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
       });
       authority.assertActive(); current.origin = `http://127.0.0.1:${server.address().port}`;
       current.proposalViews = createProposalViews(current.origin);
-      Object.assign(authority, { origin: current.origin, connection, preview, proposalViews: current.proposalViews,
+      Object.assign(authority, { origin: current.origin, connection, preview, inspection, proposalViews: current.proposalViews,
         readState: state, selectProposal: id => proposals.select(id),
         openProposal: (id, authorize) => enqueue(async () => {
           authorize();
@@ -349,9 +393,20 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
         renderShell: token => renderShell({ previewOrigin: current.proxy.origin, title: workspace.summary().title, token, activationRequired: true }),
         activationBootstrap: () => ({ previewUrl: current.proxy.url, previewOrigin: current.proxy.origin, epoch: current.epoch, reportGeneration: preview.bootstrap() }),
       });
+      if (authority.embedding) {
+        authority.previewOrigin = current.proxy.origin;
+        const token = connection.candidate(connection.path);
+        let bootstrap;
+        authority.activateEmbedded = nonce => {
+          bootstrap ||= connection.activate(token, authority.activationBootstrap);
+          return renderShell({ ...bootstrap, title: workspace.summary().title, token, embedding, nonce });
+        };
+      }
       handler = createApplicationRequestHandler({ workspace, authority, receipts, onSubmitted });
       current.result = { url: current.origin + connection.path, title: workspace.summary().title,
         status: "Prøvevisningen åpnes i Designverksted. Ved avbrutt visning eller omlasting: kopier eventuell ulagret tekst, lukk canvaset først, og be så i samtalen om å åpne verkstedet igjen. Lagrede rom beholdes; midlertidige forslag kan gå tapt." };
+      if (authority.embedding) current.result = { url: current.origin + "/embedded/" + authority.embedding.invitation, origin: current.origin,
+        leaseId: embedding.leaseId, activationKey: authority.embedding.activationKey, title: workspace.summary().title };
       return current.result;
     } catch (error) {
       viewRetired = true;
@@ -376,8 +431,13 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
     if (method === "reviewSubmission") { workspace.canvas.review(params); return state(); }
     if (method === "updateComment") { workspace.canvas.updateComment(params); return state(); }
     if (method === "markDelivery") { workspace.canvas.delivery(params); return state(); }
+    if (method === "openView" && keys(params, ["embedding"])) return openView(params.embedding);
     requireValue(keys(params, []), 400, "No arguments expected.");
     if (method === "readState") return state();
+    if (method === "readPreview") {
+      requireValue(view?.live && preview.snapshot().previewStatus.state === "ready", 409, "The app must be connected in its open canvas before inspection.");
+      return inspection.read();
+    }
     if (method === "openView") return openView();
     if (method === "closeView") { await closeView(); return { closed: true }; }
     if (method === "retire") { retired = true; await closeView(); await proposals.close(); workspace.close(); cleanup(); return { retired: true }; }
@@ -442,4 +502,4 @@ async function run() {
   }
 }
 if (require.main === module) void run();
-module.exports = { createApplicationServer, createPreviewStatus, createApplicationRequestHandler, authorizedRequest, renderShell, validEnvelope, parseArguments };
+module.exports = { createApplicationServer, createPreviewStatus, createPreviewInspection, createApplicationRequestHandler, authorizedRequest, renderShell, validEnvelope, parseArguments };

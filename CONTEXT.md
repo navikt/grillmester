@@ -86,8 +86,10 @@ _Avoid_: runde, gjeldende utkast
 En faktisk lokal app med repoets komponenter, navigasjon og skjemaoppførsel.
 Designverksted viser den i canvas og samler innspill, uten å lese eller
 redigere kilden. Verkstedet er knyttet til Designer-samtalen.
-«Appen nå» og «Forslag» er faner i samme verksted. Forslaget er en avgrenset
-HTML-skisse; det endrer ikke appen.
+«Appen nå» og «Forslag» er faner i samme verksted. Forslaget er en HTML-skisse
+eller en separat kjørende appkopi. Endringer i kopien avtales og utføres med
+vanlige verktøy; canvaset har ikke kildeeditor eller kodehistorikk. Referansen
+beholdes uendret. Tilkobling og observerte appfeil er separate statuser.
 _Avoid_: statisk kopi, skjermbilde, lagret appversjon
 
 **Tilkobling til verkstedet**:
@@ -98,12 +100,12 @@ appens skjematilstand må ikke omtales som gjenopprettet.
 _Avoid_: flyttet samtale, automatisk synkronisert app
 
 **Forslag**:
-En anbefalt skisse i samme verksted som «Appen nå». Den har egne innspill og
+Et anbefalt design i samme verksted som «Appen nå». Den har egne innspill og
 eventuelle skisseversjoner. Samtalen eller en faktisk innsendt apprunde kan
 bestille forslaget; det kreves ikke et kunstig innspill. Midlertidig forslag er
 standard uten avtalt lagring. En uttrykkelig bestilling om å lagre hele verkstedet
 omfatter også forslag innenfor avtalt designmappe. I et allerede lagret approm
-kan et midlertidig forslag lagres senere uten å bytte rom eller miste innspill.
+kan et midlertidig HTML-forslag lagres senere uten å bytte rom eller miste innspill.
 «Vis forslag» viser faktisk registrert arbeid.
 _Avoid_: implementert appendring, ekstra canvas, automatisk kopiert runtime
 

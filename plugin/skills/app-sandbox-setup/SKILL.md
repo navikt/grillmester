@@ -8,8 +8,10 @@ disable-model-invocation: true
 
 Use explicitly for the **GitHub Copilot desktop app on macOS**, not CLI sandbox
 configuration; the CLI keeps its own settings and the two never sync. The app
-stores one policy **per project** in `~/.copilot/data.db`; one run plans every
-project the app knows. Use the bundled [script](scripts/app_sandbox_setup.py),
+stores one policy **per project** in `~/.copilot/data.db`. For a single project,
+pass `--project /absolute/project/path` to both `plan` and `apply`; this also
+limits discovered code paths to that project and its worktrees. Omit it only
+when setup for every known project was requested. Use the bundled [script](scripts/app_sandbox_setup.py),
 never ad hoc DB updates.
 The [settings documentation](https://docs.github.com/copilot/how-tos/cloud-and-local-sandboxes/configuring-local-sandbox-settings)
 and [session documentation](https://docs.github.com/copilot/how-tos/cloud-and-local-sandboxes/using-local-sandboxing)

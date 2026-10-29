@@ -190,6 +190,28 @@ class AppSandboxSetupTest(unittest.TestCase):
             sys.stderr.write(self.cli_stderr)
         return code, output.getvalue()
 
+    def test_single_project_plan_and_apply_leave_other_policies_untouched(self) -> None:
+        other = self.home / "other/repository"
+        other.mkdir(parents=True)
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("INSERT INTO projects(id, name, main_repo_path) VALUES (?, ?, ?)",
+                               ("p2", "unrelated", str(other)))
+            connection.execute("INSERT INTO project_sandbox_policies VALUES (?, ?)",
+                               ("p2", '{"customSetting":true}'))
+        flags = ("--project", str(self.home / "code/repository"), "--no-instructions")
+        code, output = self.run_cli("plan", *flags, "--json")
+        self.assertEqual(code, 0, output)
+        plan = json.loads(output)
+        self.assertEqual([p["name"] for p in plan["projects"]], ["example"])
+        self.assertNotIn(str(other), output)
+        code, output = self.run_cli("apply", *flags, "--confirm", plan["digest"])
+        self.assertEqual(code, 0, output)
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
+            self.assertEqual(connection.execute("SELECT sandbox_enabled FROM projects WHERE id='p2'").fetchone(), (0,))
+            self.assertEqual(connection.execute("SELECT policy_json FROM project_sandbox_policies WHERE project_id='p2'").fetchone(), ('{"customSetting":true}',))
+        code, output = self.run_cli("plan", "--project", str(self.home / "missing"))
+        self.assertNotEqual(code, 0)
+
     def test_json_plan_keeps_stderr_diagnostics_separate(self) -> None:
         original_main = self.app.main
         diagnostics = io.StringIO()

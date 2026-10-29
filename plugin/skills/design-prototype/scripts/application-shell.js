@@ -4,6 +4,7 @@
   "use strict";
   const $ = id => document.getElementById(id);
   const rawConfig = window.__designApplication;
+  const embedding = rawConfig?.embedding;
   delete window.__designApplication;
   let config;
   function previewConfig(value, token, title) {
@@ -63,6 +64,8 @@
   let previewReportSignature = "";
   let pendingPreviewReport = null;
   let previewReporting = false;
+  let runtimeHealth = null, inspectionRequest = null;
+  const validHealth = value => exact(value, ["script", "module", "rejection"]) && Object.values(value).every(count => Number.isInteger(count) && count >= 0 && count <= 100);
   const narrowLayout = window.matchMedia("(max-width: 760px)");
   let ready = false;
   let latestRoute = "/";
@@ -177,13 +180,13 @@
       ? "Innspill og utkast er beholdt. Prøv å åpne appens startside igjen. Skjemaverdier i appen kan nullstilles. Har adressen endret seg, be i samtalen om å åpne appen på nytt."
       : "Venter på den lokale appen. Innspill og utkast er beholdt.";
     if (changed && next === "unavailable") announce("Appen er ikke tilgjengelig. Innspill og utkast er beholdt. Du kan prøve å åpne appen igjen.");
-    else if (changed && next === "ready") announce("Appen er klar.");
+    else if (changed && next === "ready") announce("Appvisningen er tilkoblet.");
     if (statusHeldFocus && next === "ready") focusAvailable(activePanel && narrowLayout.matches ? $("panel-title") : frame);
     const reason = next === "loading" ? "waiting-for-app" : next === "ready" ? "inspector-ready" : previewMissing ? "inspector-timeout" : "application-unavailable";
-    const signature = `${next}:${reason}`;
+    const signature = `${next}:${reason}:${JSON.stringify(runtimeHealth)}`;
     if (signature !== previewReportSignature) {
       previewReportSignature = signature;
-      pendingPreviewReport = { generation: config.reportGeneration, sequence: ++previewReportSequence, state: next, reason };
+      pendingPreviewReport = { generation: config.reportGeneration, sequence: ++previewReportSequence, state: next, reason, ...(runtimeHealth ? { health: runtimeHealth } : {}) };
     }
     void flushPreviewStatus();
   }
@@ -267,18 +270,18 @@
     $("proposal-message").hidden = true;
     if (activeSurface === "proposal") {
       proposalSeenScreen = proposal.screen; $("proposal-new").hidden = true;
-      if (newlyReady) announce(`${proposal.title} er klar. Du kan prøve skissen og gi innspill her.`);
+      if (newlyReady) announce(`${proposal.title} er åpnet. Du kan prøve forslaget og gi innspill her.`);
     }
   }
   function renderProposals() {
     const proposals = proposalList(), proposal = proposals[0];
     $("proposal-new").hidden = !proposal?.available || proposal.screen === proposalSeenScreen;
-    $("proposal-tab").setAttribute("aria-label", proposal?.available && proposal.screen !== proposalSeenScreen ? "Forslag, nytt forslag klart" : "Forslag");
+    $("proposal-tab").setAttribute("aria-label", proposal?.available && proposal.screen !== proposalSeenScreen ? "Forslag, nytt forslag tilgjengelig" : "Forslag");
     const signature = JSON.stringify(proposals.map(item => [item.id, item.title, item.screen, item.available]));
     if (signature !== proposalSignature) {
       const previouslyKnown = Boolean(proposalSignature && proposalSignature !== "[]");
       proposalSignature = signature;
-      if (proposal?.available && proposal.screen !== proposalSeenScreen && (restoredSurface || previouslyKnown)) announce("Forslaget er klart. Velg Forslag for å se det.");
+      if (proposal?.available && proposal.screen !== proposalSeenScreen && (restoredSurface || previouslyKnown)) announce("Et forslag er tilgjengelig. Velg Forslag for å se det.");
       if (proposal && !proposal.available && activeSurface === "proposal") proposalMessage("Forslaget er ikke tilgjengelig", "Innspill og svar er beholdt. Be i samtalen om å åpne forslaget igjen.", true);
     }
     if (!proposal && activeSurface === "proposal") pendingProposalMessage();
@@ -320,7 +323,10 @@
     }
     awaitingProposal = false;
     selectSurface("proposal", { remember: !restore, proposalId: id });
-    if (!proposal.available) { proposalMessage("Forslaget er ikke tilgjengelig", "Innspill og svar er beholdt. Be i samtalen om å åpne forslaget igjen.", true); return; }
+    if (!proposal.available) {
+      awaitingProposal = proposal.needsReconnect === true;
+      proposalMessage(awaitingProposal ? "Venter på appforslaget" : "Forslaget er ikke tilgjengelig", "Innspill og svar er beholdt. Be i samtalen om å åpne forslaget igjen.", true); return;
+    }
     if (proposalView?.id === id) { proposalReady(); return; }
     if (proposalBusy) return;
     const request = ++proposalRequest;
@@ -439,11 +445,15 @@
       confirmSubmission(submission);
     }
     const name = plain(state.application?.name, 200) && state.application.name ? state.application.name : config.title || "Lokal app";
-    $("app-title").textContent = name;
+    const workshopTitle = plain(state.workspace?.title, 200) && state.workspace.title ? state.workspace.title : config.title || name;
+    $("app-title").textContent = workshopTitle;
     frame.title = name;
-    document.title = `${name} – Designverksted`;
+    document.title = `${workshopTitle} – Designverksted`;
     if (!ready && safeRoute(state.application?.route)) setRoute(state.application.route);
     ready = true;
+    if (embedding && window.parent !== window && /^[a-f0-9]{32}$/.test(state.screen || "")) {
+      window.parent.postMessage({ channel: "design-workshop-embed", version: 1, event: "activated", leaseId: embedding.leaseId, screen: state.screen }, embedding.parentOrigin);
+    }
     $("reopened-note").hidden = !state.workspace?.recovered;
     $("storage-note").textContent = state.workspace?.storage === "project"
       ? "Lagrede innspill beholdes i prosjektet. Utkast lagres først når du velger Lagre innspill."
@@ -480,6 +490,7 @@
     return result;
   }
   function checkPreview(timeout) {
+    runtimeHealth = null; inspectionRequest = null; $("health-message").hidden = true;
     clearLocation();
     clearTimeout(previewTimer);
     frameReady = false;
@@ -873,7 +884,7 @@
     const showProposal = proposal && activeTab !== "sent";
     let phase = "", title = "", help = "";
     if (showProposal) {
-      phase = "proposal"; title = "Forslaget er klart"; help = "Prøv skissen og gi flere innspill i samme verksted.";
+      phase = "proposal"; title = "Forslaget er tilgjengelig"; help = "Prøv forslaget og gi flere innspill i samme verksted.";
     } else if (round?.review === "answered") {
       if (activeTab !== "sent") { phase = "answered"; title = "Svar klart"; help = "Åpne Sendt for å lese svaret."; }
     } else if (round?.review === "working") {
@@ -940,7 +951,7 @@
         const label = round?.review === "answered" ? "Svar klart" : round?.review === "working" ? "Arbeider med innspillene" : round?.delivery === "unknown" ? "Mottak ikke bekreftet" : round?.delivery === "queued" ? "Venter på svar" : "Bekrefter sending";
         title.append(message("h3", `Runde ${number}`), message("span", label, `status-badge ${round?.review === "answered" ? "answered" : ""}`));
         content.append(title);
-        if (round?.previousSession) content.append(message("p", "Fra tidligere samtale. Sendes ikke på nytt.", "round-note"));
+        if (round?.previousSession) content.append(message("p", "Fra tidligere økt. Sendes ikke på nytt.", "round-note"));
         if (round?.delivery === "unknown" && round?.review === "unread") content.append(message("p", `Mottaket er ikke bekreftet. Skriv «se runde ${number}» i samtalen. Ikke send samme runde på nytt.`, "notice"));
         const seenReplies = new Set();
         if (round?.reply) {
@@ -1125,6 +1136,18 @@
       return;
     }
     if (!frameReady) return;
+    if (data.type === "design-health" && exact(data, ["type", "epoch", "view", "health"]) && validHealth(data.health)) {
+      runtimeHealth = data.health;
+      $("health-message").hidden = !Object.values(runtimeHealth).some(Boolean);
+      renderPreviewStatus(state?.application?.transportStatus);
+      return;
+    }
+    if (data.type === "design-inspection" && exact(data, ["type", "epoch", "view", "request", "observation"]) && inspectionRequest
+      && inspectionRequest.id === data.request && inspectionRequest.view === data.view) {
+      inspectionRequest = null;
+      void api("/preview/inspection", { body: { id: data.request, observation: data.observation } }).catch(() => {});
+      return;
+    }
     if (data.type === "design-view-leaving" && exact(data, ["type", "epoch", "view"])) {
       checkPreview(20000);
       return;
@@ -1264,7 +1287,16 @@
   async function poll() {
     if (retired) return;
     if (!document.hidden && !busy) {
-      try { await refreshState(); }
+      try {
+        if (frameReady) {
+          const pending = await api("/preview/inspection");
+          if (pending.request && /^[a-f0-9]{32}$/.test(pending.request.id) && pending.request.id !== inspectionRequest?.id) {
+            inspectionRequest = { id: pending.request.id, view: previewRequest };
+            frame.contentWindow?.postMessage({ type: "inspect-view", epoch: config.epoch, view: previewRequest, request: pending.request.id }, config.previewOrigin);
+          }
+        }
+        await refreshState();
+      }
       catch {
         if (retired) return;
         markConnection(false);
@@ -1284,6 +1316,11 @@
   updateControls();
   async function start() {
     try {
+      if (embedding) {
+        document.body.classList.add("embedded-application");
+        document.querySelector(".surface-tabs").hidden = true;
+        document.querySelector(".app-identity").hidden = true;
+      }
       if (config.activationRequired) {
         const activated = await api("/renderer/activate", { body: {} });
         if (retired) return;

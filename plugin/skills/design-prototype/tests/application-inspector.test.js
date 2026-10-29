@@ -399,8 +399,8 @@ test("only a bounded challenge from the exact shell binds a document's later evi
   ping(first, { source: {} }); ping(first, { origin: "http://localhost:9999" }); ping("x".repeat(32)); ping(first, { data: { type: "check-view", epoch: "old", view: first } });
   assert.equal(f.sent.length, initial);
   ping(first);
-  assert.deepEqual(f.sent.slice(-2).map(item => item.message.type), ["design-view-ready", "design-route"]);
-  assert(f.sent.slice(-2).every(item => item.message.view === first));
+  assert.deepEqual(f.sent.slice(-3).map(item => item.message.type), ["design-view-ready", "design-health", "design-route"]);
+  assert(f.sent.slice(-3).every(item => item.message.view === first));
   f.command("comment"); f.doc.fire("click", { target: f.button });
   assert.equal(f.sent.at(-1).message.view, first);
   ping(second); f.win.history.pushState({}, "", "/next");
@@ -570,4 +570,46 @@ test("location display suppresses hover and focus outlines without changing anno
   f.doc.fire("pointermove", { target: f.heading });
   assert.equal(hoverOutline.hidden, false); assert.equal(locationOutline(f).hidden, true);
   assert.equal(f.doc.fire("click", { target: f.button }).prevented, true, "Endre still prevents application activation");
+});
+
+test("early runtime health records categories without retaining exception data", () => {
+  const { observeRuntime } = require("../scripts/application-inspector.js");
+  const win = new Events();
+  const health = observeRuntime(win);
+  win.fire("error", { message: "module factory is not available: PRIVATE ERROR DETAIL" });
+  win.fire("unhandledrejection", { reason: new Error("PRIVATE REJECTION") });
+  assert.deepEqual(health.snapshot(), { script: 0, module: 1, rejection: 1 });
+  assert(!JSON.stringify(health).includes("PRIVATE"));
+  health.dispose(); win.fire("error", { message: "failure" });
+  assert.equal(health.snapshot().script, 0);
+});
+
+test("inspection reads visible structure on request without field values or hidden content", () => {
+  const { inspectDocument } = require("../scripts/application-inspector.js");
+  const { doc, win } = fixture();
+  const hidden = new Element("h2", { hidden: "" }, "PRIVATE HIDDEN");
+  const input = new Element("input", { "aria-label": "Ditt spørsmål" });
+  Object.defineProperty(input, "value", { get() { throw Error("Never read a field value"); } });
+  doc.body.append(hidden, input);
+  const result = inspectDocument(win, doc);
+  assert.deepEqual(result.elements.map(item => item.name), ["Velg møte", "Fortsett", "Ditt spørsmål"]);
+  assert.equal(result.elements[2].text, "");
+  assert.equal(result.viewport.width, 800);
+  assert(!JSON.stringify(result).includes("PRIVATE"));
+});
+
+test("inspection answers only the current view challenge from its exact owner", () => {
+  const f = fixture(); installInspector(f.win, f.doc, f.config);
+  const view = "c".repeat(32), request = "d".repeat(32);
+  const send = (data, extra = {}) => f.win.fire("message", { source: f.win.parent, origin: f.config.shellOrigin, data, ...extra });
+  const inspect = { type: "inspect-view", epoch: f.config.epoch, view, request };
+  const before = f.sent.length; send(inspect); assert.equal(f.sent.length, before);
+  send({ type: "check-view", epoch: f.config.epoch, view });
+  const bound = f.sent.length;
+  send(inspect, { source: {} }); send(inspect, { origin: "http://localhost:5555" });
+  send({ ...inspect, view: "b".repeat(32) }); send({ ...inspect, evaluate: "document.cookie" });
+  assert.equal(f.sent.length, bound);
+  send(inspect); assert.equal(f.sent.at(-1).message.type, "design-inspection");
+  assert.equal(f.sent.at(-1).message.request, request);
+  f.win.fire("pagehide"); const ended = f.sent.length; send(inspect); assert.equal(f.sent.length, ended);
 });

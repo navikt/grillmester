@@ -206,3 +206,18 @@ test("private path segments receive the same conservative checks as query eviden
   }
   assert.equal(normalizeApplicationRoute("/demo/motevalg-2?view=kort"), "/demo/motevalg-2?view=kort");
 });
+
+test("preview observations are bounded untrusted data, with no fields, private identifiers or extra capabilities", () => {
+  const { parseInspection, validRuntimeHealth } = require("../scripts/application-contract.js");
+  const base = { viewport: { width: 800, height: 600 }, elements: [{ tag: "h1", role: "heading", name: "Dialogmøter", text: "Dialogmøter" }], health: { script: 0, module: 0, rejection: 0 }, truncated: false };
+  assert.equal(parseInspection(base).evidence, "untrusted-page-content");
+  const privateLabel = { ...base, elements: [{ ...base.elements[0], name: "test@example.invalid", text: "1".repeat(11) }] };
+  assert.equal(parseInspection(privateLabel).elements[0].name, "[omitted]");
+  assert.equal(parseInspection(privateLabel).elements[0].text, "[omitted]");
+  for (const changes of [{ health: { ...base.health, stack: "private" } }, { viewport: { width: 0, height: 600 } }, { elements: Array(81).fill(base.elements[0]) },
+    { elements: [{ tag: ["h1"], role: "heading", name: "Heading", text: "Heading" }] },
+    { elements: [{ tag: "input", role: "textbox", name: "Felt", text: "VALUE" }] }, { evaluate: "document.cookie" }]) {
+    assert.throws(() => parseInspection({ ...base, ...changes }));
+  }
+  assert.equal(validRuntimeHealth({ script: 101, module: 0, rejection: 0 }), false);
+});

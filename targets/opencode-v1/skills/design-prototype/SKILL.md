@@ -14,8 +14,9 @@ appen som dagens løsning, og skill den fra forslag og simulerte tilstander.
 
 ## Muligheter og valg av arbeidsflate
 
-Designverksted kan vise en kjørende app med innspill og ett interaktivt
-HTML-forslag i samme canvas. Selvstendige HTML-skisser kan utforske nye ideer
+Designverksted kan vise en kjørende app med innspill og ett forslag i samme
+canvas: en interaktiv HTML-skisse eller en avtalt, separat appkopi.
+Selvstendige HTML-skisser kan utforske nye ideer
 uten appoppstart. Lagrede skisser har versjoner og en avgrenset editor. Figma
 kan brukes når redigerbare designfiler er ønsket leveranse; det er ingen
 obligatorisk fase etter en ferdig skisse.
@@ -23,7 +24,7 @@ obligatorisk fase etter en ferdig skisse.
 Bevar avtalt sluttleveranse gjennom utforskingen. Figma kan være utgangspunktet
 eller fortsettelsen fra en valgt skisse; en bestilt Figma-leveranse skal ikke
 stoppe ved HTML. Samtalen følger arbeidet mellom flatene. Regelen om ett canvas
-gjelder appen og dens HTML-forslag, ikke en avtalt overlevering til Figma.
+gjelder appen og dens forslag, ikke en avtalt overlevering til Figma.
 
 Velg fra hensikten og klientens faktiske kapabiliteter. En eksisterende app er
 nyttig som referanse når dens innhold eller oppførsel betyr noe for valget,
@@ -91,7 +92,12 @@ separat oppsett med mandat, ikke automatisk feilretting av preview.
 
 ## Design og verifikasjon
 
-Lag den minste sammenhengende skissen som lar designeren vurdere oppgaven.
+Lag den minste endringen som lar designeren vurdere oppgaven, med nok av hele
+siden til å forstå før og etter. Ikke erstatt uendret innhold med en liten
+rekonstruksjon uten at en slik forenkling er valgt. For eksisterende apper kan en
+avtalt, isolert appkopi bevare komponenter og oppførsel; HTML passer til nye ideer
+og når en simulering er tilstrekkelig. Muligheter og avgrensninger står i
+[arbeidsrommet](references/design-workspace.md#one-workshop-current-app-and-proposal).
 Varianter er nyttige ved reelle retningsvalg; behold valgt retning ved
 justeringer. Bruk sammenlignbare utsnitt, data og innholdstetthet når alternativer
 vurderes. Knytt observasjoner til faktisk element og tilstand.
@@ -103,7 +109,7 @@ underlag gjør vurderingen foreløpig; idéutforsking krever ikke appoppstart.
 
 - Bruk Aksel-komponenter, tokens og verifisert markup med kompatible stiler.
   Vis fallback eller wireframe ærlig når komponentfidelitet mangler.
-- Skisser har deklarerte interaksjoner, ikke fri JavaScript eller appens backend.
+- HTML-skisser har deklarerte interaksjoner, ikke fri JavaScript eller appens backend.
   Synlige kontroller skal gjøre det teksten lover eller merkes ved kontrollen
   som statiske eksempler. Merk simuleringer og illustrative tall der de brukes.
 - Kontroller relevant gjengivelse og berørte tilstander før resultatet meldes

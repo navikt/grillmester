@@ -150,6 +150,7 @@ async function stop(binding) {
   } catch { return unreachableState(); }
 }
 async function start(binding, command, environment, ttlSeconds) {
+  fail(dependencyState(binding.project).state !== "mismatch", "The installed pnpm lockfile differs from this copy's lockfile. Verify dependencies with the project's frozen-lockfile install in the owned copy before starting. No process was started.");
   const recipe = hash(JSON.stringify({ command, environment, ttlSeconds }));
   const lock = path.join(binding.directory, "starting");
   try { fs.mkdirSync(lock, { mode: 0o700 }); }
@@ -277,8 +278,43 @@ async function supervise(config) {
   else process.send({ event: "ready", state: publicState(record) }, error => { if (error) shutdown("startup-abandoned"); });
   } catch (error) { shutdown("startup-failed"); throw error; }
 }
+function dependencyState(projectDir) {
+  const files = ["pnpm-lock.yaml", "node_modules/.pnpm/lock.yaml"].map(file => path.join(projectDir, file));
+  const boundedFile = file => {
+    const stat = fs.statSync(file); fail(stat.isFile() && stat.size <= 16 * 1024 * 1024, "The dependency lockfile cannot be checked safely.");
+    return hash(fs.readFileSync(file));
+  };
+  if (!files.every(file => fs.existsSync(file))) return { state: "unverified", note: "Use the project's package manager to verify the installed dependencies against its manifest and lockfile." };
+  return { state: boundedFile(files[0]) === boundedFile(files[1]) ? "matching-install-record" : "mismatch",
+    note: "Compares pnpm's installed lockfile record, not package contents or runtime correctness." };
+}
+async function preflight(projectDir) {
+  const project = fs.realpathSync(projectDir); fail(fs.statSync(project).isDirectory(), "A project directory is required.");
+  const dependencies = dependencyState(project), directory = fs.mkdtempSync(path.join(os.tmpdir(), "gm-check-"));
+  const probe = async socket => {
+    const marker = secret();
+    const server = http.createServer((_request, response) => { response.end(marker); });
+    try {
+      await new Promise((resolve, reject) => { server.once("error", reject); socket ? server.listen(socket, resolve) : server.listen(0, "127.0.0.1", resolve); });
+      await new Promise((resolve, reject) => {
+        const request = http.get({ ...(socket ? { socketPath: socket } : { hostname: "127.0.0.1", port: server.address().port }), path: "/", agent: false, timeout: 1500 }, response => {
+          let body = ""; response.on("data", chunk => { body += chunk; if (body.length > 128) request.destroy(new Error("Unexpected probe response.")); });
+          response.on("end", () => body === marker ? resolve() : reject(new Error("Probe response changed.")));
+        });
+        request.on("timeout", () => request.destroy(new Error("Probe timed out."))); request.on("error", reject);
+      });
+      return "available";
+    } catch { return "blocked-or-unavailable"; }
+    finally { server.closeAllConnections?.(); if (server.listening) await new Promise(resolve => server.close(resolve)); }
+  };
+  try {
+    const loopback = await probe(), localSocket = await probe(path.join(directory, "c"));
+    return { loopback, localSocket, dependencies,
+      note: "Run this check inside the intended sandboxed session. It changes no policy and checks only local transport and the available install record, not the app's rendering or external resources." };
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+}
 function parse(args) {
-  const operation = args.shift(); fail(["start", "status", "stop", "cancel"].includes(operation), "Use start, status or stop with --project-dir and --session; start takes the command after --.");
+  const operation = args.shift(); fail(["check", "start", "status", "stop", "cancel"].includes(operation), "Use check --project-dir, or start/status/stop with --project-dir and --session; start takes the command after --.");
   let projectDir = process.cwd(), session, ttlSeconds = 14400; const environment = {}; let command = [];
   while (args.length) {
     const flag = args.shift();
@@ -302,7 +338,9 @@ function parse(args) {
   return { operation, projectDir, session, ttlSeconds, environment, command };
 }
 async function main(args) {
-  const input = parse(args), binding = location(input.projectDir, input.session, input.operation === "start");
+  const input = parse(args);
+  if (input.operation === "check") return preflight(input.projectDir);
+  const binding = location(input.projectDir, input.session, input.operation === "start");
   if (input.operation === "start") return start(binding, input.command, input.environment, input.ttlSeconds);
   return input.operation === "status" ? status(binding) : stop(binding);
 }
@@ -312,4 +350,4 @@ if (require.main === module) {
     process.once("message", input => supervise(input).catch(error => { if (process.connected) process.send({ event: "error", message: "The owned runtime could not start." }, () => {}); process.exitCode = 1; }));
   } else main(process.argv.slice(2)).then(value => process.stdout.write(JSON.stringify(value) + "\n"), error => { process.stderr.write(error.message + "\n"); process.exitCode = 1; });
 }
-module.exports = { main, parse, location, recordFor, request, privateDirectory, readPrivate, cleanEnvironment };
+module.exports = { main, parse, location, recordFor, request, privateDirectory, readPrivate, cleanEnvironment, dependencyState, preflight };

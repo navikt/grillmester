@@ -100,8 +100,10 @@ en avtalt Figma-leveranse er ikke ferdig ved en HTML-skisse. Bevar valgt
 retning, innhold og tilstander med aktivt Aksel-bibliotek og referansens
 visuelle kontroll. Ikke legg inn en HTML-fase når Figma er ønsket fra start.
 
-Designverksted kan vise en faktisk lokal app og et interaktivt HTML-forslag i
-samme arbeidsflate. Appen er referanse; HTML-skissen simulerer et forslag og
+Designverksted kan vise dagens app og et forslag i samme arbeidsflate. Forslaget
+kan være en interaktiv HTML-skisse eller en separat kjørende appkopi når det er
+avtalt å utforske endringer der. Bevar hele sidens relevante sammenheng ved
+endringer i eksisterende løsninger. HTML-skissen simulerer et forslag og
 beviser ikke appens validering eller backend. Representer aldri en rekonstruksjon
 som dagens app. Merk oppdiktede data og simulerte tilstander der de påvirker
 vurderingen. Synlige handlinger skal kunne prøves, eller tydelig fremstå som

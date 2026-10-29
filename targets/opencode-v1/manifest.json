@@ -92,7 +92,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "2f67fc11bcbbb3e15158cb0f4f3c7c32908cc495d618037fe27afee9a0883b15",
+      "sha256": "013ad5e1849a9d890b1c332daa0d7c6c936f0c4e01679c880cce9dc09abc829a",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -332,7 +332,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
-      "sha256": "faec1dfdd98309b343d030bf999ab6f4effbf60968153bfa0d5004b487bfaa30",
+      "sha256": "a02a8db2345c24b3fbcc0da05a47192f9216c2f524cb2c1edac9a5281ea75133",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/references/maintenance.md": {
@@ -356,7 +356,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/cli.py": {
-      "sha256": "9d8eaab32955d58710d6a09299a8795888d45ac700e4d61ff3a6f83943165536",
+      "sha256": "a4d1f31f18d2cfda33d2e6cebb7d361cd25052670eb88658f40c8a8ba44f3f7b",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/discovery.py": {
@@ -416,7 +416,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/store.py": {
-      "sha256": "cc546db7ea6656ff14bdbec9139f14cde3f9d5afde4fe9f1172ccc7feba37b2e",
+      "sha256": "292646059d324087a43ea83fd7b92fd8d22febeb9e19289293e063ec5e8f8891",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/toolchain.py": {
@@ -472,7 +472,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "9d793d7f320e2fed57cf42d2408c0e5058ca3d8960dd5cc20b71d775dd168ac6",
+      "sha256": "196728ac8372d2b2d65c3792748541ac8726138742f48f5271dc8c9a323d2389",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -492,15 +492,15 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/application-opening.md": {
-      "sha256": "36e9b232c9c40f77f32290c28b20ab563dfe769abef71c45d183f838db0d5e7a",
+      "sha256": "f853a02b831a7a7cb4e8739ec5fa5195e27e825c621baeda52c4848e6a1fa028",
       "mode": "0644"
     },
     "skills/design-prototype/references/design-handoff.md": {
-      "sha256": "3327809c00b1b18e0abef7331c8555ec9ef851526212eb75ec700fc48eb981d0",
+      "sha256": "34af006cc535820d700d304bd0aa758d58c9c152828157c0893e2d4e44142161",
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "3c094de03ac76d79fec517c507d77ce85c8504e846c58b15c24d5f955c279893",
+      "sha256": "8fe43c0193d7bb98a32abf3815ec1bb6db42518b8e5f7b76919f9ba98f04acb6",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -512,7 +512,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-contract.js": {
-      "sha256": "8ff675685f95e732d3855e8345205fef36b71e802fedbd4d441d299c21c642a9",
+      "sha256": "346dff23825eb06b502e18f17d9346c676c23797172bf34ad287e9f44a47088c",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-error.js": {
@@ -552,7 +552,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/helper.js": {
-      "sha256": "f60843b661b88df2cb093dc96fa480172205de98749bcac0c96cc37a2609fd4d",
+      "sha256": "02af1543b77cbdc30f1f70227f6905fe34865d5d9b4c5464c5c31e4b629500a5",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/html-embedding.js": {
@@ -560,7 +560,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "17d0542db4005e8c79c1d73cd69efbdd35d449b05b2114e84662089fa7823854",
+      "sha256": "afae9b86b6b239283dc0a2a80b0931b45caa60a850341cb84e55c3cbff819ef4",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
@@ -580,7 +580,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/application-contract.test.js": {
-      "sha256": "bf589cda852a6f45c56116cd69f2fa033e8c1d21d07334d9cc9b8ead5b5f4dc9",
+      "sha256": "088b76261e389d9026a58b59ac6b1777c659959f729cb93b981a3fa9f3601838",
       "mode": "0644"
     },
     "skills/design-prototype/tests/application-feedback.test.js": {

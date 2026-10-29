@@ -243,3 +243,44 @@ test("an unavailable pending target is never recreated, rebound or exposed as a 
     assert.deepEqual(fs.readFileSync(f.workspace.store.filename), before); assert.equal(fs.existsSync(path.join(f.projectDir, input.workspacePath)), false);
   } finally { await registry.close(); }
 });
+
+test("running proposals keep a portable feedback identity without persisting their service address", async t => {
+  const { createServerBackend } = await import("../../../extensions/visual-companion/backend.mjs");
+  const f = fixture(t, true); f.registry.backendFactory = createServerBackend;
+  const input = { source: "conversation", title: "Forbered møtet", application: { name: "Møteforslag", url: "http://localhost:32101/demo" }, workspacePath: "designs/proposal", create: true };
+  const result = await f.registry.publish(input);
+  assert.equal(result.kind, "application"); assert.equal(result.storage, "project");
+  assert.equal((await f.registry.publish(input)).id, result.id);
+  const original = fs.readFileSync(f.workspace.store.filename, "utf8");
+  assert(!original.includes("32101")); assert(!original.includes("localhost"));
+  assert(validApplicationWorkspaceState(JSON.parse(original)));
+  assert.equal((await f.registry.action("readState", { proposalId: result.id })).workspace.source.kind, "application");
+  await assert.rejects(f.registry.action("publishRevision", { proposalId: result.id, expectedScreen: result.screen, filename: "wrong.html", html: "<h1>Wrong</h1>" }), error => error.status === 409);
+  await assert.rejects(f.registry.action("saveProposal", { proposalId: result.id }), error => error.status === 409);
+  await f.registry.close();
+  const reconnected = new ApplicationProposals({ workspace: f.workspace, projectDir: f.projectDir, backendFactory: createServerBackend });
+  t.after(() => reconnected.close());
+  assert.equal((await reconnected.summary())[0].needsReconnect, true);
+  const fresh = await reconnected.publish({ ...input, application: { ...input.application, url: "http://localhost:32102/demo" } });
+  assert.equal(fresh.id, result.id); assert.equal(fresh.needsReconnect, false);
+  assert.equal(fs.readFileSync(f.workspace.store.filename, "utf8"), original);
+});
+
+test("proposal inputs cannot mix formats, repurpose the reference server or smuggle source authority", async t => {
+  const f = fixture(t, true);
+  for (const application of [{ name: "Reference", url: "http://localhost:32100/demo" }, { name: "Outside", url: "https://example.com/demo" }, { name: "App", url: "http://localhost:32101/demo", sourceRoot: "/private/source" }]) {
+    await assert.rejects(f.registry.publish({ source: "conversation", title: "Test", application }), error => [400, 409].includes(error.status));
+  }
+  await assert.rejects(f.registry.publish({ ...initial, application: { name: "App", url: "http://localhost:32101/demo" } }), error => error.status === 400);
+  assert.equal(f.starts, 0);
+});
+
+test("loopback aliases cannot present the reference service as a separate proposal", async t => {
+  const f = fixture(t, true);
+  for (const host of ["127.0.0.1", "127.0.0.2", "[::1]"]) {
+    await assert.rejects(f.registry.publish({ source: "conversation", title: "Forslag",
+      application: { name: "Forslag", url: `http://${host}:32100/demo` } }), error => error.status === 409);
+  }
+  assert.equal(f.starts, 0);
+  assert.equal(f.workspace.feedback.state.workspace.sketch, undefined);
+});

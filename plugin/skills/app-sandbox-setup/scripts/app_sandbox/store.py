@@ -166,7 +166,13 @@ def policy_rows(connection: sqlite3.Connection, projects: list[dict[str, Any]]) 
     return result
 
 
-def code_path_rows(connection: sqlite3.Connection, warnings: list[str]) -> list[tuple[Any, bool]]:
+def code_path_rows(connection: sqlite3.Connection, warnings: list[str], projects=None) -> list[tuple[Any, bool]]:
+    if projects is not None:
+        paths = [(project["main_repo_path"], False) for project in projects]
+        for project in projects:
+            paths += [(row[0], True) for row in connection.execute(
+                "SELECT path FROM worktrees WHERE project_id = ? ORDER BY id", (project["id"],))]
+        return paths
     paths = [(row[0], False) for row in connection.execute(
         "SELECT main_repo_path FROM projects ORDER BY id"
     )]

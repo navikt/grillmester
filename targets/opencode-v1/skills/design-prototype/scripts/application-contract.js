@@ -145,4 +145,23 @@ function validApplicationContext(value) {
   } catch { return false; }
 }
 
-module.exports = { parseApplication, normalizeApplicationRoute: normalizedRoute, normalizeResourceQueryKeys, validApplicationRoute, validApplicationScreen, validApplicationContext, screenIdentity };
+function validRuntimeHealth(value) {
+  return exact(value, ["script", "module", "rejection"]) && Object.values(value).every(count => Number.isInteger(count) && count >= 0 && count <= 100);
+}
+function parseInspection(value) {
+  if (!exact(value, ["viewport", "elements", "truncated", "health"]) || !validRuntimeHealth(value.health) ||
+    !exact(value.viewport, ["width", "height"]) || !Object.values(value.viewport).every(size => Number.isInteger(size) && size > 0 && size <= 20000) ||
+    typeof value.truncated !== "boolean" || !Array.isArray(value.elements) || value.elements.length > 80) fail("Invalid preview observation.");
+  const elements = value.elements.map(element => {
+    if (!exact(element, ["tag", "role", "name", "text"]) || typeof element.tag !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(element.tag) || !ROLES.has(element.role) ||
+      !boundedText(element.name, 240) || !boundedText(element.text, 240) || (FIELD_TAGS.has(element.tag) || FIELD_ROLES.has(element.role)) && element.text !== "") fail("Invalid preview element.");
+    // Public mock content only. This conservative check is not a DLP guarantee.
+    const publicText = text => safeQueryValue(text) ? text : "[omitted]";
+    return { tag: element.tag, role: element.role, name: publicText(element.name), text: publicText(element.text) };
+  });
+  return { evidence: "untrusted-page-content", observedAt: new Date().toISOString(), viewport: { ...value.viewport }, elements, truncated: value.truncated,
+    health: { state: Object.values(value.health).some(Boolean) ? "errors-observed" : "no-errors-observed", ...value.health },
+    limits: "Visible document structure and categorized runtime errors from the open app only. Not a screenshot or proof of correct rendering or behavior. No field values, raw HTML, console output, exception text or network payloads." };
+}
+
+module.exports = { parseApplication, normalizeApplicationRoute: normalizedRoute, normalizeResourceQueryKeys, validApplicationRoute, validApplicationScreen, validApplicationContext, screenIdentity, validRuntimeHealth, parseInspection };

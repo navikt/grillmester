@@ -75,7 +75,7 @@ test('reopen retains one logical backend and four-instance capacity does not evi
 
 test('actions delegate to the same backend and cannot invoke delivery or change ownership', async () => {
   const f = fixture(); f.adapter.attachSession(f.session); await f.adapter.canvas.open(f.ctx);
-  assert.deepEqual(f.adapter.canvas.actions.map(item => item.name), ['read_state', 'read_submission', 'publish_proposal', 'save_proposal', 'publish_revision', 'review_submission', 'update_comment', 'list_history', 'read_revision', 'restore_revision']);
+  assert.deepEqual(f.adapter.canvas.actions.map(item => item.name), ['read_preview', 'read_state', 'read_submission', 'publish_proposal', 'save_proposal', 'publish_revision', 'review_submission', 'update_comment', 'list_history', 'read_revision', 'restore_revision']);
   await f.action('read_state');
   await f.action('read_submission', { submission: 1, offset: 32 });
   await f.action('publish_revision', { expectedScreen: '', filename: 'first.html', html: '<h1>First</h1>' });
@@ -483,7 +483,7 @@ test('temporary app feedback retains its own binding without creating or silentl
   assert.equal(f.sends.length, 1);
   assert.match(f.sends[0].prompt, /App feedback does not authorize code writes/);
   assert.match(f.sends[0].prompt, /separately agreed code work happens outside this canvas/);
-  assert.match(f.sends[0].prompt, /concrete design-change request within scope normally calls for a visible bounded HTML proposal in this same workshop via publish_proposal/);
+  assert.match(f.sends[0].prompt, /publish_proposal in this same workshop preserves full-page context/);
   assert.match(f.sends[0].prompt, /Honor review-only\/no-HTML limits; questions or observations alone do not request a sketch/);
   assert.match(f.sends[0].prompt, /An explicit request to save the workshop\/design work includes its proposal in the agreed design area; reuse that choice/);
   assert.match(f.sends[0].prompt, /Feedback-only saving or an already saved app does not/);

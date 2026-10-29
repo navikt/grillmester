@@ -6,7 +6,7 @@ import applicationContract from '../../skills/design-prototype/scripts/applicati
 const serverPath = fileURLToPath(new URL('../../skills/design-prototype/scripts/server.js', import.meta.url));
 const applicationServerPath = fileURLToPath(new URL('../../skills/design-prototype/scripts/application-server.js', import.meta.url));
 const channel = 'visual-companion-canvas';
-const methods = ['openView', 'closeView', 'readState', 'readSubmission', 'publishRevision', 'publishProposal', 'saveProposal', 'saveWorkspace', 'reviewSubmission', 'updateComment', 'markDelivery', 'listHistory', 'readRevision', 'restoreRevision', 'retire'];
+const methods = ['openView', 'closeView', 'readState', 'readPreview', 'readSubmission', 'publishRevision', 'publishProposal', 'saveProposal', 'saveWorkspace', 'reviewSubmission', 'updateComment', 'markDelivery', 'listHistory', 'readRevision', 'restoreRevision', 'retire'];
 const closedKeys = (value, required, optional = []) => value && typeof value === 'object' && !Array.isArray(value)
   && required.every(key => Object.hasOwn(value, key)) && Object.keys(value).every(key => required.includes(key) || optional.includes(key));
 const failure = message => Object.assign(new Error(message), { status: 503 });

@@ -324,3 +324,22 @@ test("a crashed controller gives bounded recovery guidance and never reuses stop
     supervisor.unref();
   }
 });
+
+test("preflight is local, read-only in the project, and separates transport from dependency evidence", { skip: !supported }, async t => {
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-check-")); t.after(() => fs.rmSync(project, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(project, "keep.txt"), "Keep this project unchanged.");
+  const result = await runtime.main(["check", "--project-dir", project]);
+  assert.equal(result.loopback, "available"); assert.equal(result.localSocket, "available");
+  assert.equal(result.dependencies.state, "unverified"); assert.deepEqual(fs.readdirSync(project), ["keep.txt"]);
+});
+
+test("a stale copied pnpm installation is detected before any demo command starts", { skip: !supported }, async t => {
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-lock-")); t.after(() => fs.rmSync(project, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(project, "node_modules/.pnpm"), { recursive: true });
+  const declared = path.join(project, "pnpm-lock.yaml"), installed = path.join(project, "node_modules/.pnpm/lock.yaml");
+  fs.writeFileSync(declared, "lockfileVersion: 9\n"); fs.writeFileSync(installed, "lockfileVersion: 8\n");
+  assert.equal(runtime.dependencyState(project).state, "mismatch");
+  await assert.rejects(runtime.main(["start", "--project-dir", project, "--session", "mismatch-check", "--", process.execPath, "-e", "require('node:fs').writeFileSync('unexpected','started')"]), /installed pnpm lockfile differs/);
+  assert.equal(fs.existsSync(path.join(project, "unexpected")), false);
+  fs.copyFileSync(declared, installed); assert.equal(runtime.dependencyState(project).state, "matching-install-record");
+});

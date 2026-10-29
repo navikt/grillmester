@@ -23,7 +23,7 @@ try { ({ chromium } = require(options.get("--playwright-module") || "playwright"
 catch { console.error("Supply an existing Playwright installation. No packages were installed."); process.exit(2); }
 const evidence = options.get("--evidence-dir") && path.resolve(options.get("--evidence-dir"));
 if (evidence) fs.mkdirSync(evidence, { recursive: true });
-const results = [], external = [], errors = [], failures = [];
+const results = [], external = [], errors = [], expectedErrors = [], failures = [];
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(read, description, timeout = 12000) {
   const end = Date.now() + timeout;
@@ -601,8 +601,38 @@ async function main() {
         }
       }
     });
+    await check("an early runtime error stays visible despite HTTP 200 and a connected inspector", async () => {
+      const healthIdentity = { ...identity, instanceId: "runtime-health" };
+      const call = (name, input = {}) => adapter.canvas.actions.find(item => item.name === name).handler({ ...healthIdentity, input });
+      const before = messages.length, previous = page;
+      const signature = "module factory is not available: synthetic failure";
+      fs.writeFileSync(sourceFile, document.replace("<head>", `<head><script>throw new Error(${JSON.stringify(signature)})</script>`));
+      expectedErrors.push(signature);
+      try {
+        await openWorkshop(await adapter.canvas.open({ ...healthIdentity, input: { application } }));
+        const appFrame = page.frameLocator("#app-preview");
+        await appFrame.getByRole("heading", { name: "Avtal et møte", exact: true }).waitFor();
+        await page.locator("#health-message").waitFor({ state: "visible" });
+        await until(async () => (await call("read_state")).application.applicationHealth?.module === 1, "early error reaches state");
+        const connected = await call("read_state");
+        assert.equal(connected.application.previewStatus.state, "ready");
+        assert.equal(connected.application.applicationHealth.state, "errors-observed");
+        await appFrame.getByLabel("Hvordan vil du møtes?").selectOption("video");
+        const observation = await call("read_preview");
+        assert.equal(observation.health.module, 1); assert.equal(observation.evidence, "untrusted-page-content");
+        assert(!JSON.stringify(observation).includes("synthetic failure"), "exception text never enters diagnostics");
+        assert(observation.elements.some(item => item.name === "Avtal et møte"));
+        assert.equal(messages.length, before, "inspection cannot submit feedback or send messages");
+        fs.writeFileSync(sourceFile, document);
+        await appFrame.locator("body").evaluate(() => location.reload());
+        await until(async () => (await call("read_state")).application.applicationHealth?.state === "no-errors-observed", "new document clears prior health");
+        assert.equal(await page.locator("#health-message").isVisible(), false);
+      } finally {
+        fs.writeFileSync(sourceFile, document); await adapter.canvas.onClose(healthIdentity); await page.close(); page = previous;
+      }
+    });
     assert.deepEqual(external, [], "the fixture must not attempt external traffic");
-    assert.deepEqual(errors, [], "the browser must not have unhandled script errors");
+    assert.deepEqual(errors, expectedErrors, "only the deliberate runtime-health fixture may throw");
   } catch (error) {
     if (evidence && page) await page.screenshot({ path: path.join(evidence, "failure.png") }).catch(() => {});
     throw error;
