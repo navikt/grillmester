@@ -69,12 +69,13 @@ lukking. Prosjektlagring velges når det er bestilt; en midlertidig skisse
 krever ikke et eget lagringsspørsmål.
 _Avoid_: prosjektlagring og designrom overfor designeren
 
-**Prøv og Endre**:
-De to modusene i designverkstedet. «Prøv» lar designeren bruke skissen eller
-appen; «Endre» samler innspill. For skisser kan «Prøv» også vise «Juster visning»
-og sammenligne deklarerte varianter, mens «Endre» kan tilby «Rediger».
-Appflyten lar designeren prøve og kommentere. Visningen er lokal.
-_Avoid_: Utforsk, Kommenter, Juster som egen modus
+**Gi innspill**:
+Appen eller skissen kan brukes som vanlig. «Gi innspill» lar designeren velge
+en del eller hele siden; etter valget kan siden brukes igjen. «Send innspill»
+sender det ferdige innspillet direkte. «Legg til flere» samler flere notater
+til en uttrykkelig innsending med synlig antall. Ingenting sendes automatisk.
+Skisser kan også ha deklarerte varianter, lokale visningsvalg og lagret redigering.
+_Avoid_: Prøv og Endre som to vedvarende arbeidsmoduser
 
 **Skisseversjon**:
 En lagret, uforanderlig revisjon av skissen og dens eventuelle deklarerte
@@ -93,7 +94,10 @@ beholdes uendret. Tilkobling og observerte appfeil er separate statuser.
 _Avoid_: statisk kopi, skjermbilde, lagret appversjon
 
 **Tilkobling til verkstedet**:
-Bindingen mellom én aktiv visning, designrommet og samme samtale. Lukking av
+Bindingen mellom én aktiv visning, designrommet og samme samtale. Omlasting av
+samme aktive fane kan gjenoppta forbindelsen og hovedappens kommentarutkast.
+Uavklart sending krever samme uttrykkelige forsøk igjen. Dette lover ikke
+bevaring av uferdige forslagstekster eller appens skjematilstand. Lukking av
 et appverksted avslutter den instansen. En ny instans kan åpne et lagret rom
 uten å sende tidligere runder på nytt; ulagret tekst, midlertidige forslag og
 appens skjematilstand må ikke omtales som gjenopprettet.

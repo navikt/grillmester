@@ -58,6 +58,19 @@ function note(room) {
     anchor: { path: "button:nth-of-type(1)", role: "button", rect: { x: 12, y: 40, width: 100, height: 40 }, viewport: { width: 375, height: 812 } },
     applicationContext: { route: room.current().source.route, target: { tag: "button", role: "button", name: "Neste", text: "Neste", path: "button:nth-of-type(1)" }, viewport: { width: 375, height: 812, scrollX: 0, scrollY: 0 } } };
 }
+test("app routing inspects unselected HTML and closing without a parent view revokes it", async t => {
+  const owner = fixture(t), server = owner.server({ create: true });
+  await assert.rejects(server.command("openInspection", { expectedScreen: "a".repeat(32) }), error => error.status === 409);
+  await assert.rejects(server.command("closeInspection", { inspectionId: "b".repeat(32) }), error => error.status === 409);
+  const proposal = await server.command("publishProposal", { source: "conversation", title: "HTML proposal", filename: "proposal.html", html: "<h1>Owned HTML</h1>" });
+  const before = await server.command("readState"); assert.equal(before.selectedProposalId, null);
+  const opened = await server.command("openInspection", { proposalId: proposal.id, expectedScreen: proposal.screen });
+  assert.equal((await fetch(opened.url)).status, 200);
+  assert.deepEqual(await server.command("readState"), before);
+  await assert.rejects(server.command("closeInspection", { proposalId: "f".repeat(24), inspectionId: opened.inspectionId }), error => error.status === 404);
+  assert.equal((await fetch(opened.url)).status, 200);
+  await server.command("closeView"); await assert.rejects(fetch(opened.url));
+});
 function requestShape(options = {}) {
   const headers = { host: "127.0.0.1:34567", "x-designverksted-token": authority.token, ...(options.method === "POST" ? { origin: authority.origin, "content-type": "application/json", "x-feedback-mutation": "d".repeat(32) } : {}), ...options.headers };
   for (const key of Object.keys(headers)) if (headers[key] === undefined) delete headers[key];
@@ -163,6 +176,49 @@ test("editing a draft has a durable target and same-intent retry without duplica
   assert.deepEqual(retry.body.comments[0].applicationContext, original.applicationContext);
   const stale = await request(handler, { ...change, headers: { "x-feedback-mutation": "b".repeat(32) }, body: { ...change.body, text: "Gammelt grunnlag" } });
   assert.equal(stale.status, 409); assert.equal(room.feedback.state.comments[0].text, change.body.text);
+});
+
+test("direct submission atomically includes the exact queued comments and retries one delivery", async t => {
+  const room = fixture(t).room(), notices = [];
+  const handler = createApplicationRequestHandler({ workspace: room, authority, onSubmitted: value => notices.push(value) });
+  const first = await request(handler, { method: "POST", url: "/comments", body: note(room) });
+  const value = { comment: { ...note(room), text: "Gi valgene en tydeligere forklaring." }, revision: first.body.revision,
+    commentIds: first.body.comments.map(item => item.id) };
+  const operation = { method: "POST", url: "/submit-draft", headers: { "x-feedback-mutation": "1".repeat(32) }, body: value };
+  const sent = await request(handler, operation);
+  assert.equal(sent.status, 200); assert.equal(sent.body.submission, 1);
+  assert.deepEqual(sent.body.comments.map(item => item.submission), [1, 1]);
+  assert.equal(sent.body.screens.length, 1); assert.deepEqual(notices, [1]);
+  const retry = await request(handler, operation);
+  assert.equal(retry.status, 200); assert.deepEqual(retry.body, sent.body); assert.deepEqual(notices, [1]);
+  assert.equal((await request(handler, { ...operation, body: { ...value, commentIds: [] } })).status, 409);
+});
+
+test("a stale direct submission never leaves a hidden saved draft or application screen", async t => {
+  const room = fixture(t).room(), handler = createApplicationRequestHandler({ workspace: room, authority });
+  const original = JSON.stringify(room.feedback.state);
+  const body = { comment: note(room), revision: room.feedback.state.revision + 1, commentIds: [] };
+  const stale = await request(handler, { method: "POST", url: "/submit-draft", body });
+  assert.equal(stale.status, 409); assert.equal(stale.body.rejected, true);
+  assert.equal(JSON.stringify(room.feedback.state), original);
+  assert.equal((await request(handler, { method: "POST", url: "/submit-draft", body: { ...body, revision: 0 }, headers: { "x-designverksted-token": undefined } })).status, 403);
+  assert.equal(JSON.stringify(room.feedback.state), original);
+});
+
+test("a committed direct send with a failed state read remains uncertain until the same receipt retries", async t => {
+  const room = fixture(t).room(), notices = [];
+  let failedRead = true;
+  const handler = createApplicationRequestHandler({ workspace: room, authority: { ...authority, readState() {
+    if (failedRead) throw Object.assign(new Error("The state changed after sending."), { status: 409, expose: true });
+    return room.feedback.snapshot();
+  } }, onSubmitted: value => notices.push(value) });
+  const operation = { method: "POST", url: "/submit-draft", body: { comment: note(room), revision: room.feedback.state.revision, commentIds: [] } };
+  const uncertain = await request(handler, operation);
+  assert.equal(uncertain.status, 503); assert.notEqual(uncertain.body.rejected, true);
+  assert.equal(room.feedback.state.submission, 1); assert.deepEqual(notices, [1]);
+  failedRead = false;
+  const retry = await request(handler, operation);
+  assert.equal(retry.status, 200); assert.equal(retry.body.comments.length, 1); assert.deepEqual(notices, [1]);
 });
 
 test("a committed durability error still signals once and retry cannot duplicate its round", async t => {
@@ -427,6 +483,44 @@ test("preview status accepts no application authority and performs no workspace 
   assert.deepEqual(room.feedback.snapshot(), feedbackBefore);
 });
 
+test("current-view failure replaces stale HTTP success and health until a fresh navigation recovers", () => {
+  const preview = createPreviewStatus(); preview.open();
+  const generation = preview.bootstrap();
+  preview.transport({ state: "ready", httpStatus: 200 });
+  preview.report({ generation, sequence: 1, state: "ready", reason: "inspector-ready", health: { script: 0, module: 0, rejection: 0 } });
+  const failure = { generation, sequence: 2, state: "unavailable", reason: "preview-cookie-unavailable", httpStatus: 403 };
+  preview.report(failure); preview.report(failure);
+  assert.deepEqual(preview.snapshot(), {
+    previewStatus: { state: "unavailable", reason: "preview-cookie-unavailable", httpStatus: 403, retryAvailable: true },
+    transportStatus: { state: "unavailable", reason: "preview-cookie-unavailable", httpStatus: 403 },
+  });
+  preview.report({ generation, sequence: 3, state: "ready", reason: "inspector-ready", health: { script: 0, module: 0, rejection: 0 } });
+  assert.equal(preview.snapshot().previewStatus.reason, "preview-cookie-unavailable", "A late ready report cannot conceal confirmed failure");
+  assert.equal(preview.snapshot().applicationHealth, undefined, "Old health never describes an unavailable document");
+  preview.report({ generation, sequence: 4, state: "loading", reason: "waiting-for-app" });
+  assert.deepEqual(preview.snapshot().transportStatus, { state: "loading" }, "A new view does not inherit the failed document status");
+  preview.transport({ state: "ready", httpStatus: 200 });
+  preview.report({ generation, sequence: 5, state: "ready", reason: "inspector-ready", health: { script: 0, module: 0, rejection: 0 } });
+  assert.equal(preview.snapshot().previewStatus.state, "ready");
+  assert.equal(preview.snapshot().applicationHealth.state, "no-errors-observed");
+});
+
+test("diagnostic status permits only bounded failure pairs from the authorized shell", async t => {
+  const room = fixture(t).room(), preview = createPreviewStatus(); preview.open();
+  const generation = preview.bootstrap();
+  const handler = createApplicationRequestHandler({ workspace: room, authority: { ...authority, preview } });
+  const body = { generation, sequence: 1, state: "unavailable", reason: "preview-origin-rejected", httpStatus: 403 };
+  for (const headers of [{ "x-designverksted-token": undefined }, { origin: "http://localhost:45678" }]) {
+    assert.equal((await request(handler, { method: "POST", url: "/preview/status", headers, body })).status, 403);
+  }
+  for (const changed of [{ httpStatus: 200 }, { httpStatus: 502 }, { state: "ready" }, { reason: "private-error-text" },
+    { health: { script: 0, module: 0, rejection: 0 } }, { httpStatus: undefined }]) {
+    assert.equal((await request(handler, { method: "POST", url: "/preview/status", body: { ...body, ...changed } })).status, 400);
+  }
+  assert.equal((await request(handler, { method: "POST", url: "/preview/status", body })).status, 200);
+  assert.deepEqual(preview.snapshot().transportStatus, { state: "unavailable", reason: "preview-origin-rejected", httpStatus: 403 });
+});
+
 test("each shell bootstrap retires the old status reporter without changing feedback", async t => {
   const room = fixture(t).room(), preview = createPreviewStatus(); preview.open();
   const boundAuthority = { ...authority, preview, renderShell: () => ({ html: preview.bootstrap(), csp: authority.csp }) };
@@ -515,7 +609,7 @@ test("native candidate reload cannot take over or rotate the immutable proxy, an
   const bootstrap = await activated.json();
   assert.deepEqual(await (await call("/renderer/activate", candidate.token, {})).json(), bootstrap);
   const reloaded = JSON.parse(/window\.__designApplication = (.*);/.exec(await (await fetch(opened.url)).text())[1]);
-  assert.notEqual(reloaded.token, candidate.token);
+  assert.equal(reloaded.token, null, "The invitation must not publish another candidate after activation");
   assert.equal((await call("/renderer/activate", reloaded.token, {})).status, 410);
   for (const url of ["/connection/reopen", "/connection/status"]) {
     assert.equal((await call(url, candidate.token, {})).status, 404, "No controller can rotate this proxy");
@@ -537,7 +631,7 @@ test("native candidate reload cannot take over or rotate the immutable proxy, an
   assert.equal(firstRetry.status, 303); assert.equal(secondRetry.status, 303);
   assert.equal(firstRetry.headers.get("set-cookie"), secondRetry.headers.get("set-cookie"), "Iframe retry retains the same private connection");
   const publicState = JSON.stringify(await server.command("readState"));
-  for (const secret of [candidate.token, reloaded.token, bootstrap.previewUrl, opened.url]) assert(!publicState.includes(secret));
+  for (const secret of [candidate.token, bootstrap.previewUrl, opened.url]) assert(!publicState.includes(secret));
   await server.command("closeView");
   await assert.rejects(server.command("openView"), rejection(410));
   assert.equal((await server.command("readState")).application.connection.state, "closed");

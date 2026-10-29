@@ -199,6 +199,7 @@ test("invalid configuration fails before opening a listener", async () => {
   }
   await assert.rejects(createApplicationProxy({ application: { name: "Demo", url: UPSTREAM }, shellOrigin: SHELL, inspectorSource: "x".repeat(300000) }), /inspector configuration is invalid/);
   await assert.rejects(createApplicationProxy({ application: { name: "Demo", url: UPSTREAM }, shellOrigin: SHELL, inspectorSource: "", onStatus: "wrong" }), /inspector configuration is invalid/);
+  await assert.rejects(createApplicationProxy({ application: { name: "Demo", url: UPSTREAM }, shellOrigin: SHELL, inspectorSource: "", diagnosticEpoch: "untrusted-script" }), /inspector configuration is invalid/);
 });
 
 test("worker passthrough adds its capability only to its own origin and preserves request bodies", async () => {
@@ -456,7 +457,7 @@ test("owned server: stopped upstream gives a shell-readable fixed document and r
   assert.match(unavailable.body, /Appen kunne ikke vises/);
   assert.doesNotMatch(unavailable.body, /private-test-value|http:|inspect\.js|<script/);
   assert.equal(unavailable.headers["content-security-policy"], `default-src 'none'; frame-ancestors ${SHELL} ${f.proxy.origin}; base-uri 'none'; form-action 'none'`);
-  assert.deepEqual(statuses.slice(-2), [{ state: "loading" }, { state: "unavailable", httpStatus: 502 }]);
+  assert.deepEqual(statuses.slice(-2), [{ state: "loading" }, { state: "unavailable", httpStatus: 502, reason: "application-unavailable" }]);
   const count = statuses.length;
   const denied = await request(f.proxy.origin + "/demo", { headers: DOCUMENT_HEADERS });
   assert.equal(denied.status, 403);
@@ -466,7 +467,7 @@ test("owned server: stopped upstream gives a shell-readable fixed document and r
   await request(f.proxy.url);
   assert.equal((await f.request("/demo", { headers: DOCUMENT_HEADERS })).status, 200);
   assert.deepEqual(statuses.slice(-2), [{ state: "loading" }, { state: "ready", httpStatus: 200 }]);
-  assert(statuses.every(value => Object.isFrozen(value) && Object.keys(value).every(key => ["state", "httpStatus"].includes(key))));
+  assert(statuses.every(value => Object.isFrozen(value) && Object.keys(value).every(key => ["state", "httpStatus", "reason"].includes(key))));
 });
 
 test("owned server: API errors and HTML fetches never change document status", async t => {
@@ -486,6 +487,62 @@ test("owned server: API errors and HTML fetches never change document status", a
   await request(f.proxy.url);
   assert.equal((await f.request("/demo", { headers: { accept: "text/html" } })).status, 200);
   assert.deepEqual(statuses.slice(-2), [{ state: "loading" }, { state: "ready", httpStatus: 200 }]);
+});
+
+test("denied document diagnostics answer only the owning view challenge without changing transport", async t => {
+  const statuses = [], epoch = "e".repeat(32);
+  const f = await fixture(t, (_req, res) => { res.writeHead(200, { "Content-Type": "text/html" }); res.end("<body>Demo</body>"); }, "/demo", {
+    diagnosticEpoch: epoch, onStatus: value => statuses.push(value),
+  });
+  await f.request("/demo", { headers: DOCUMENT_HEADERS });
+  const before = structuredClone(statuses);
+  for (const [reason, headers] of [
+    ["preview-cookie-unavailable", { ...DOCUMENT_HEADERS }],
+    ["preview-origin-rejected", { ...DOCUMENT_HEADERS, cookie: f.cookie, origin: "http://localhost:9999" }],
+  ]) {
+    const denied = await request(f.proxy.origin + "/demo?private-test-value=omitted", { headers });
+    assert.equal(denied.status, 403);
+    assert.match(denied.headers["content-type"], /^text\/html/);
+    assert.doesNotMatch(denied.body, /private-test-value|inspect\.js|design-view-ready|dv_preview_|dv_app_/);
+    const script = /<script nonce="([^"]+)">([\s\S]*?)<\/script>/.exec(denied.body);
+    assert.ok(script, "A denied document can explain failure to its current owner");
+    assert.ok(denied.headers["content-security-policy"].includes(`script-src 'nonce-${script[1]}'`));
+    const sent = [], listeners = {}, parent = { postMessage: (value, origin) => sent.push({ value, origin }) };
+    vm.runInNewContext(script[2], { window: { parent, addEventListener: (name, listener) => { listeners[name] = listener; } } });
+    assert.deepEqual(sent, [], "The error document never reports an unsolicited failure");
+    const challenge = { type: "check-view", epoch, view: "a".repeat(32) };
+    for (const event of [
+      { source: {}, origin: SHELL, data: challenge },
+      { source: parent, origin: f.proxy.origin, data: challenge },
+      { source: parent, origin: SHELL, data: { ...challenge, epoch: "b".repeat(32) } },
+      { source: parent, origin: SHELL, data: { ...challenge, view: "invalid" } },
+      { source: parent, origin: SHELL, data: { ...challenge, extra: true } },
+    ]) listeners.message(event);
+    assert.equal(sent.length, 0);
+    listeners.message({ source: parent, origin: SHELL, data: challenge });
+    assert.deepEqual(JSON.parse(JSON.stringify(sent)), [{ origin: SHELL, value: { type: "design-view-error", epoch, view: challenge.view, reason, httpStatus: 403 } }]);
+    assert.deepEqual(statuses, before, "A nested or background denial cannot poison the active app status");
+  }
+  const background = await request(f.proxy.origin + "/demo", { headers: { accept: "text/html", "sec-fetch-dest": "empty", "sec-fetch-mode": "same-origin" } });
+  assert.equal(background.status, 403); assert.doesNotMatch(background.body, /<script/);
+  assert.deepEqual(statuses, before);
+});
+
+test("document error categories retain fixed diagnostics and ignore nested failures", async t => {
+  const statuses = [], epoch = "e".repeat(32);
+  const f = await fixture(t, (req, res) => {
+    if (req.url === "/invalid") { res.writeHead(200, { "Content-Type": "text/html; charset=unsupported" }); res.end("private-test-value"); return; }
+    res.writeHead(req.url === "/demo" ? 200 : 404, { "Content-Type": "text/html" }); res.end("private-test-value");
+  }, "/demo", { diagnosticEpoch: epoch, onStatus: value => statuses.push(value) });
+  await f.request("/demo", { headers: DOCUMENT_HEADERS });
+  const before = structuredClone(statuses);
+  for (const [pathname, reason, status] of [["/missing", "application-http-error", 404], ["/invalid", "application-response-rejected", 502]]) {
+    const failed = await f.request(pathname, { headers: DOCUMENT_HEADERS });
+    assert.equal(failed.status, status);
+    assert.ok(failed.body.includes(`"reason":"${reason}","httpStatus":${status}`));
+    assert.doesNotMatch(failed.body, /private-test-value|design-view-ready|inspect\.js/);
+    assert.deepEqual(statuses, before, "Only the owning shell can correlate this later document failure");
+  }
 });
 
 test("owned server: nested documents keep their own errors without replacing the app status", async t => {

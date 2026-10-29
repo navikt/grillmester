@@ -92,13 +92,93 @@
     documentStyle.nonce = nonce;
     documentStyle.textContent = `[data-vc-workshop-comparing] > [data-vc-variant]::before{content:attr(data-vc-workshop-label);display:block;font:600 13px/1.4 system-ui,sans-serif;color:#5e3b76;background:#f3edf7;border:1px solid #e5d9ef;border-radius:7px;padding:9px 12px;margin:0 0 14px;box-sizing:border-box}`;
     document.head.appendChild(documentStyle);
+    const variantNav = document.body.querySelector(":scope > .vc-variant-nav");
+    const tabbedVariants = Boolean(variantNav && comparisonAvailable);
+    const variantTabs = document.createElement("div"), compareToggle = document.createElement("button"), variantNotice = document.createElement("p");
+    const originalPanelAttributes = new Map();
+    if (tabbedVariants) {
+      variantTabs.className = "vc-variant-tabs"; variantTabs.setAttribute("role", "tablist"); variantTabs.setAttribute("aria-label", "Velg skissevariant");
+      for (const binding of variantBindings.values()) {
+        const panel = binding.element, tab = document.createElement("button");
+        originalPanelAttributes.set(panel, Object.fromEntries(["role", "aria-labelledby", "tabindex"].map(name => [name, panel.getAttribute(name)])));
+        if (!panel.id || document.querySelectorAll(`[id="${CSS.escape(panel.id)}"]`).length !== 1) panel.id = `vc-variant-${screen}-${binding.key}`;
+        tab.type = "button"; tab.textContent = binding.label; tab.dataset.variant = binding.key; tab.id = `vc-variant-tab-${screen}-${binding.key}`;
+        tab.setAttribute("role", "tab"); tab.setAttribute("aria-controls", panel.id);
+        tab.addEventListener("click", () => chooseVariant(binding.key)); variantTabs.appendChild(tab);
+      }
+      variantTabs.addEventListener("keydown", event => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        const buttons = [...variantTabs.children], index = buttons.indexOf(event.target);
+        if (index < 0 || event.target.disabled) return;
+        event.preventDefault();
+        const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+        chooseVariant(buttons[next].dataset.variant); buttons[next].focus();
+      });
+      compareToggle.type = "button"; compareToggle.addEventListener("click", () => { toggleComparison(); refreshVariantControls(); });
+      variantNotice.setAttribute("role", "status");
+      variantNav.append(variantTabs, compareToggle, variantNotice); variantNav.hidden = false;
+    }
+
+    function refreshVariantControls() {
+      if (!tabbedVariants) return;
+      const reason = api.variantBlockedReason?.() || "";
+      variantTabs.hidden = comparing;
+      for (const tab of variantTabs.children) {
+        const active = tab.dataset.variant === activeVariant;
+        tab.setAttribute("aria-selected", String(active)); tab.tabIndex = active ? 0 : -1; tab.disabled = locking || Boolean(reason);
+      }
+      compareToggle.textContent = comparing ? "Vis én variant" : "Sammenlign";
+      compareToggle.setAttribute("aria-pressed", String(comparing)); compareToggle.disabled = locking || Boolean(reason);
+      variantNotice.hidden = !reason; variantNotice.textContent = reason;
+    }
+    function chooseVariant(key) {
+      if (!tabbedVariants || !variantBindings.has(key) || locking || api.variantBlockedReason?.()) return;
+      activeVariant = key; comparing = false;
+      applyComparison(); refreshVariantControls();
+      announce(`${variantBindings.get(key).label}. Visningen er byttet; ingen innspill er sendt.`);
+    }
+    function applyVariantPanels() {
+      if (!tabbedVariants) return;
+      if (!comparing) {
+        captureStyles(comparisonParent, ["display", "grid-template-columns", "gap", "align-items"]);
+        comparisonParent.style.setProperty("display", "grid", "important");
+        comparisonParent.style.setProperty("grid-template-columns", "minmax(0, 1fr)", "important");
+      }
+      for (const binding of variantBindings.values()) {
+        const panel = binding.element;
+        if (comparing) {
+          for (const [name, value] of Object.entries(originalPanelAttributes.get(panel))) {
+            if (value === null) panel.removeAttribute(name); else panel.setAttribute(name, value);
+          }
+        } else {
+          captureStyles(panel, ["display", "min-width", "max-width", "width", "order"]);
+          panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", `vc-variant-tab-${screen}-${binding.key}`); panel.tabIndex = 0;
+          panel.hidden = binding.key !== activeVariant;
+          if (panel.hidden) panel.style.setProperty("display", "none", "important");
+          else if (getComputedStyle(panel).display === "none") panel.style.setProperty("display", "block", "important");
+        }
+      }
+      refreshVariantControls();
+    }
+    function restoreTargetVariant(target) {
+      if (!tabbedVariants || locking) return;
+      const binding = [...variantBindings.values()].find(item => item.element.contains(target));
+      if (!binding) return;
+      activeVariant = binding.key;
+      if (comparing && !pair.includes(activeVariant)) pair[1] = activeVariant;
+      updateCompareSelects(); applyComparison();
+    }
 
     function option(label, value) {
       const node = document.createElement("option"); node.value = value; node.textContent = label; return node;
     }
     function status(text) { if (el(".workshop-status").textContent !== text) el(".workshop-status").textContent = text; }
     function error(text) { el(".workshop-error").textContent = text || ""; el(".workshop-error").hidden = !text; }
-    function focus(target) { if (target?.isConnected) target.focus(); }
+    function focus(target) {
+      if (!target?.isConnected) return;
+      const menu = target.closest(".more-tools");
+      (menu && !menu.open ? menu.querySelector("summary") : target).focus();
+    }
     function targetLabel(target, source = descriptor) {
       const variant = source?.variants.find((entry) => entry.key === target.variant);
       return `${target.label}${variant ? ` · ${variant.label}` : ""}`;
@@ -117,6 +197,7 @@
       api.onBusyChange();
     }
     function updateLayout() {
+      if (tabbedVariants) variantNav.style.top = `${Math.max(0, document.body.querySelector(":scope > .vc-header")?.getBoundingClientRect().height || 0)}px`;
       pane.style.bottom = `${Math.max(85, innerHeight - root.querySelector(".toolbar").getBoundingClientRect().top + 12)}px`;
       pane.style.top = `${api.panelTop?.() ?? api.topInset()}px`;
       el(".compare-bar").style.top = `${api.topInset()}px`;
@@ -171,7 +252,7 @@
         if (!pair.includes(context.variant)) pair[1] = context.variant;
         activeVariant = context.variant; preferredVariant = context.variant;
         updateCompareSelects(); applyComparison();
-      }
+      } else if (tabbedVariants && context.variant) { activeVariant = context.variant; applyComparison(); }
       refreshPreview(binding);
       announce("Viser situasjonen fra innspillet. Andre deler og merknader er beholdt. Visningen er lokal.");
       return true;
@@ -270,10 +351,12 @@
         for (const [element] of savedStyles) restoreStyles(element);
         comparisonParent.removeAttribute("data-vc-workshop-comparing");
         for (const binding of variantBindings.values()) binding.element.removeAttribute("data-vc-workshop-label");
+        applyVariantPanels();
         api.onBusyChange();
         api.onPresentationChange();
         return;
       }
+      applyVariantPanels();
       captureStyles(comparisonParent, properties);
       comparisonParent.setAttribute("data-vc-workshop-comparing", "");
       comparisonParent.style.setProperty("display", "grid", "important");
@@ -297,7 +380,9 @@
     }
     // Comparing variants is part of trying the sketch, so Prøv can start it too.
     function toggleComparison() {
-      if (!comparisonAvailable || locking) return comparing;
+      if (!comparisonAvailable || locking || api.variantBlockedReason?.()) return comparing;
+      if (!comparing && !pair.includes(activeVariant)) pair[0] = activeVariant;
+      if (!pair.includes(preferredVariant)) preferredVariant = activeVariant;
       comparing = !comparing;
       updateCompareSelects(); applyComparison();
       if (comparing) { close(); focus(innerWidth < 760 ? el(".compare-tabs button") : el("#compare-left")); }
@@ -384,6 +469,7 @@
       selectedKey = picker.value; error(""); status(""); renderControls();
       const variant = selected()?.descriptor.variant;
       if (comparing && variant) { if (!pair.includes(variant)) pair[1] = variant; activeVariant = variant; preferredVariant = variant; updateCompareSelects(); applyComparison(); }
+      else if (tabbedVariants && variant) { activeVariant = variant; applyComparison(); }
     });
     remark.addEventListener("input", () => { const binding = selected(); if (binding) binding.remark = remark.value; updateDrafts(); });
     for (const [selector, index] of [["#compare-left", 0], ["#compare-right", 1]]) el(selector).addEventListener("change", (event) => {
@@ -416,7 +502,7 @@
         else close(true);
       }
     });
-    renderControls(); updateCompareSelects(); updateDrafts();
+    renderControls(); updateCompareSelects(); updateDrafts(); updateLayout();
     window.addEventListener("resize", updateLayout);
     if (typeof ResizeObserver === "function") {
       const observer = new ResizeObserver(updateLayout);
@@ -437,6 +523,9 @@
       canCompare: () => comparisonAvailable,
       // Declared variants that cannot be compared still show why in Prøv.
       hasVariants: () => variants.length >= 2,
+      hasVariantTabs: () => tabbedVariants,
+      refreshVariantControls,
+      restoreTargetVariant,
       toggleComparison,
       endComparison,
       contextFor(target) {

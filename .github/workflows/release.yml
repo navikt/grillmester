@@ -345,6 +345,7 @@ jobs:
           node --check "${source_root}/plugin/skills/design-prototype/scripts/application-proposals.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/application-proposal-view.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/html-embedding.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/html-inspection.js"
           node --test "${source_root}"/plugin/skills/design-prototype/tests/*.test.js
 
       - name: Test app canvas adapter from exact source without a model
@@ -360,6 +361,7 @@ jobs:
           node --check "${source_root}/scripts/smoke_visual_canvas.cjs"
           node --check "${source_root}/scripts/smoke_visual_application.cjs"
           node --check "${source_root}/scripts/smoke_visual_workbench.cjs"
+          node --check "${source_root}/scripts/visual-smoke-controls.cjs"
           node --test "${source_root}"/plugin/extensions/visual-companion/tests/*.test.mjs
 
       - name: Smoke-test application feedback in Chromium

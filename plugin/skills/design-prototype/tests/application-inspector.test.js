@@ -70,7 +70,7 @@ function fixture() {
     walk(doc.body); return found;
   };
   const win = new Events(); win.location = new URL("http://127.0.0.1:3333/demo?mode=mock"); win.innerWidth = 800; win.innerHeight = 600; win.scrollX = 0; win.scrollY = 100;
-  doc.defaultView = win; win.getComputedStyle = node => ({ visibility: node.style.visibility || "visible", display: node.style.display || "block", contentVisibility: node.style.contentVisibility || "visible" });
+  doc.defaultView = win; win.getComputedStyle = node => ({ visibility: node.style.visibility || "visible", display: node.style.display || "block", contentVisibility: node.style.contentVisibility || "visible", opacity: node.style.opacity ?? "1" });
   const sent = []; win.parent = { postMessage: (message, origin) => sent.push({ message, origin }) };
   win.history = {
     pushState(_data, _unused, route) { win.location = new URL(route, win.location); return "push-result"; },
@@ -612,4 +612,17 @@ test("inspection answers only the current view challenge from its exact owner", 
   send(inspect); assert.equal(f.sent.at(-1).message.type, "design-inspection");
   assert.equal(f.sent.at(-1).message.request, request);
   f.win.fire("pagehide"); const ended = f.sent.length; send(inspect); assert.equal(f.sent.length, ended);
+});
+
+test("transparent elements and their children never become visible inspection or target evidence", () => {
+  const { inspectDocument } = require("../scripts/application-inspector.js");
+  const { doc, win } = fixture();
+  const transparent = new Element("section"), child = new Element("h2", {}, "HIDDEN TRANSPARENT");
+  transparent.style.opacity = "0"; transparent.append(child); doc.body.append(transparent);
+  assert.equal(available(transparent, win), false); assert.equal(available(child, win), false);
+  assert.equal(textEvidence(transparent), "");
+  assert(!JSON.stringify(inspectDocument(win, doc)).includes("HIDDEN TRANSPARENT"));
+  transparent.style.opacity = "1";
+  assert.equal(available(child, win), true);
+  assert(inspectDocument(win, doc).elements.some(item => item.name === "HIDDEN TRANSPARENT"));
 });

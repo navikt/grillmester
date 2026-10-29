@@ -22,6 +22,30 @@ function fixture(t, saved = false) {
   return { registry, workspace, calls, deliveries, state, projectDir, root, backend, get starts() { return startCount; }, send: submission => observer(submission) };
 }
 const initial = { source: "conversation", title: "Et tydelig forslag", filename: "proposal.html", html: "<main><h1>Forbered møtet</h1></main>" };
+test("inspection routes to owned unselected HTML without replacing child state or reaching apps", async t => {
+  const f = fixture(t), proposal = await f.registry.publish(initial), before = structuredClone(f.registry.entry.state);
+  const inspectionId = "d".repeat(32), calls = [];
+  f.backend.openInspection = async input => { calls.push(input); return { inspectionId, screen: proposal.screen, url: "http://127.0.0.1:32102/snapshot/readonly" }; };
+  f.backend.closeInspection = async input => { calls.push(input); return { closed: true }; };
+  assert.equal(f.registry.selected, null);
+  assert.equal((await f.registry.action("openInspection", { proposalId: proposal.id, expectedScreen: proposal.screen })).inspectionId, inspectionId);
+  assert.deepEqual(f.registry.entry.state, before, "An inspection receipt is not a replacement readState response.");
+  assert.deepEqual(await f.registry.action("closeInspection", { proposalId: proposal.id, inspectionId }), { closed: true });
+  await assert.rejects(f.registry.action("openInspection", { proposalId: "f".repeat(24), expectedScreen: proposal.screen }), error => error.status === 404);
+  f.registry.entry.binding.application = { name: "Running proposal", origin: "http://localhost:32103" };
+  await assert.rejects(f.registry.action("openInspection", { proposalId: proposal.id, expectedScreen: proposal.screen }), error => error.status === 409);
+  assert.deepEqual(calls, [{ expectedScreen: proposal.screen }, { inspectionId }]);
+});
+test("closing an unselected proposal revokes a pending inspection and rejects its late result", async t => {
+  const f = fixture(t), proposal = await f.registry.publish(initial), inspectionId = "e".repeat(32);
+  let release, begun; const started = new Promise(resolve => { begun = resolve; }); const closed = [];
+  f.backend.openInspection = () => new Promise(resolve => { release = resolve; begun(); });
+  f.backend.closeInspection = async input => { closed.push(input); return { closed: true }; };
+  const opening = f.registry.action("openInspection", { proposalId: proposal.id, expectedScreen: proposal.screen });
+  await started; await f.registry.closeViews(); release({ inspectionId, screen: proposal.screen });
+  await assert.rejects(opening, error => error.status === 410);
+  assert.deepEqual(closed, [{ inspectionId }]);
+});
 test("a stopped first startup can be corrected without replacing an existing proposal", async t => {
   const f = fixture(t, true), original = f.registry.backendFactory;
   let attempts = 0;

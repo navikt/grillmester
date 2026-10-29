@@ -215,6 +215,29 @@ function validPersistedFeedback(state) {
   return true;
 }
 
+function appendComment(state, value, applicationScreen = null) {
+  if (applicationScreen) state.screens.push(JSON.parse(JSON.stringify(applicationScreen)));
+  const now = new Date().toISOString();
+  const comment = { ...JSON.parse(JSON.stringify(value)), id: crypto.randomBytes(12).toString("hex"), status: "open", reply: "", createdAt: now, updatedAt: now, submission: 0, lastSubmission: 0 };
+  state.comments.push(comment);
+  return comment;
+}
+
+function appendSubmission(state, matches) {
+  state.submission += 1;
+  const batch = { submission: state.submission, revision: state.revision + 1, submittedAt: new Date().toISOString(), comments: [] };
+  for (const comment of state.comments) {
+    if (!matches(comment)) continue;
+    comment.submission = state.submission;
+    comment.lastSubmission = state.submission;
+    batch.comments.push(JSON.parse(JSON.stringify(comment)));
+  }
+  state.submissions.push(batch);
+  // Delivery metadata belongs to this same atomic commit. It never changes
+  // the immutable batch, and only the bound parent transport can update it.
+  if (state.canvas) state.canvas.rounds.push({ submission: state.submission, delivery: "sending", review: "unread", reply: "", ...(state.workspace ? { previousSession: false } : {}) });
+}
+
 class FeedbackStore {
   constructor(directory, { canvas = false, persistence = null, initialWorkspace = null } = {}) {
     this.directory = directory;
@@ -342,7 +365,7 @@ class FeedbackStore {
   requireScreen(screen) {
     if (!this.state.screens.some((item) => item.screen === screen)) throw new FeedbackError(409, "Feedback belongs to an unknown screen.");
   }
-  create(value, applicationScreen = null) {
+  requireCreate(value, applicationScreen = null) {
     if (!validCreate(value)) throw new FeedbackError(400, "Invalid comment.");
     const known = this.state.screens.find(item => item.screen === value.screen);
     if (applicationScreen !== null) {
@@ -359,11 +382,11 @@ class FeedbackStore {
     if (this.state.comments.length >= MAX_COMMENTS) throw new FeedbackError(429, this.state.workspace
       ? `Comment limit reached in this saved workspace. Delete older comments or create a new workspace. ${SAVED_LIMIT}`
       : "Comment limit reached. Delete older comments or start a new session.");
-    return this.change((state) => {
-      if (!known && applicationScreen) state.screens.push(JSON.parse(JSON.stringify(applicationScreen)));
-      const now = new Date().toISOString();
-      state.comments.push({ ...JSON.parse(JSON.stringify(value)), id: crypto.randomBytes(12).toString("hex"), status: "open", reply: "", createdAt: now, updatedAt: now, submission: 0, lastSubmission: 0 });
-    });
+    return known ? null : applicationScreen;
+  }
+  create(value, applicationScreen = null) {
+    const newScreen = this.requireCreate(value, applicationScreen);
+    return this.change(state => { appendComment(state, value, newScreen); });
   }
   editDraft(id, value) {
     if (typeof id !== "string" || !ID.test(id) || !keys(value, ["text", "expectedRevision"])
@@ -402,33 +425,48 @@ class FeedbackStore {
     if (!target || !Object.entries(value.values).every(([id, option]) => target.controls.some((control) => control.id === id && control.options.some((item) => item.value === option)))) throw new FeedbackError(400, "Unknown design target or setting.");
     return target;
   }
+  requireDelivery() {
+    if (this.state.canvas?.rounds.some((round) => !round.previousSession && round.review === "unread" && ["sending", "unknown"].includes(round.delivery))) {
+      throw new FeedbackError(409, "The previous delivery must be acknowledged before another round is submitted.");
+    }
+  }
+  requireSubmissionCapacity() {
+    if (this.state.submissions.length >= MAX_SUBMISSIONS) throw new FeedbackError(429, this.state.workspace
+      ? `Submission limit reached in this saved workspace. Create a new workspace to send more rounds. ${SAVED_LIMIT}`
+      : "Submission limit reached. Start a new preview session.");
+  }
+  submitDraft(value, applicationScreen = null) {
+    if (!keys(value, ["comment", "revision", "commentIds"]) || !Number.isSafeInteger(value.revision) || value.revision < 0 ||
+        !Array.isArray(value.commentIds) || value.commentIds.length > MAX_COMMENTS ||
+        !value.commentIds.every(id => typeof id === "string" && ID.test(id)) || new Set(value.commentIds).size !== value.commentIds.length) {
+      throw new FeedbackError(400, "Invalid draft submission.");
+    }
+    if (value.revision !== this.state.revision) throw new FeedbackError(409, "Feedback changed. Review the current feedback before submitting.");
+    const ids = new Set(value.commentIds), pending = this.state.comments.filter(comment => comment.submission === 0);
+    if (pending.length !== ids.size || pending.some(comment => !ids.has(comment.id))) {
+      throw new FeedbackError(409, "The unsent feedback collection changed. Review every included comment before submitting.");
+    }
+    const newScreen = this.requireCreate(value.comment, applicationScreen);
+    this.requireDelivery();
+    this.requireSubmissionCapacity();
+    // Validate the exact intended collection before creating anything. The
+    // composer, immutable batch and delivery record share one commit/receipt.
+    return this.change(state => {
+      const comment = appendComment(state, value.comment, newScreen);
+      ids.add(comment.id);
+      appendSubmission(state, item => ids.has(item.id));
+    });
+  }
   submit(value) {
     if (!keys(value, [], ["screen", "revision"]) || (Object.hasOwn(value, "screen") && (typeof value.screen !== "string" || !SCREEN.test(value.screen))) ||
         (Object.hasOwn(value, "revision") && (!Number.isSafeInteger(value.revision) || value.revision < 0))) throw new FeedbackError(400, "Invalid submission.");
     if (Object.hasOwn(value, "revision") && value.revision !== this.state.revision) throw new FeedbackError(409, "Feedback changed. Review the current feedback before submitting.");
     if (Object.hasOwn(value, "screen")) this.requireScreen(value.screen);
-    if (this.state.canvas?.rounds.some((round) => !round.previousSession && round.review === "unread" && ["sending", "unknown"].includes(round.delivery))) {
-      throw new FeedbackError(409, "The previous delivery must be acknowledged before another round is submitted.");
-    }
+    this.requireDelivery();
     const matches = (item) => (!Object.hasOwn(value, "screen") || item.screen === value.screen) && item.submission === 0;
     if (!this.state.comments.some(matches)) throw new FeedbackError(409, "No unsent feedback to submit.");
-    if (this.state.submissions.length >= MAX_SUBMISSIONS) throw new FeedbackError(429, this.state.workspace
-      ? `Submission limit reached in this saved workspace. Create a new workspace to send more rounds. ${SAVED_LIMIT}`
-      : "Submission limit reached. Start a new preview session.");
-    return this.change((state) => {
-      state.submission += 1;
-      const batch = { submission: state.submission, revision: state.revision + 1, submittedAt: new Date().toISOString(), comments: [] };
-      for (const comment of state.comments) {
-        if (!matches(comment)) continue;
-        comment.submission = state.submission;
-        comment.lastSubmission = state.submission;
-        batch.comments.push(JSON.parse(JSON.stringify(comment)));
-      }
-      state.submissions.push(batch);
-      // Delivery metadata belongs to this same atomic commit. It never changes
-      // the immutable batch, and only the bound parent transport can update it.
-      if (state.canvas) state.canvas.rounds.push({ submission: state.submission, delivery: "sending", review: "unread", reply: "", ...(state.workspace ? { previousSession: false } : {}) });
-    });
+    this.requireSubmissionCapacity();
+    return this.change(state => { appendSubmission(state, matches); });
   }
 }
 module.exports = { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_MUTATION_RECEIPTS, MAX_BODY_BYTES, MAX_STORE_BYTES, MAX_COMMENTS, MAX_SUBMISSIONS, validCreate, validPatch, validPersistedFeedback, keys, ID, SCREEN, readPrivateJson };

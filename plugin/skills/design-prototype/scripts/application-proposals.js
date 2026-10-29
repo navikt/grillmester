@@ -8,7 +8,7 @@ const { validateEditorBindings, editorBindingErrorMessage } = require("./editor-
 const { parseApplication } = require("./application-contract.js");
 const fail = (condition, status, message) => { if (!condition) throw new FeedbackError(status, message); };
 const text = value => typeof value === "string" && value.trim() && Buffer.byteLength(value) <= 200 && !/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(value);
-const routed = new Set(["readState", "readPreview", "readSubmission", "publishRevision", "reviewSubmission", "updateComment", "markDelivery", "listHistory", "readRevision", "restoreRevision"]);
+const routed = new Set(["readState", "readPreview", "openInspection", "closeInspection", "readSubmission", "publishRevision", "reviewSubmission", "updateComment", "markDelivery", "listHistory", "readRevision", "restoreRevision"]);
 const copy = value => JSON.parse(JSON.stringify(value));
 const localPort = origin => { const url = new URL(origin); return url.port || (url.protocol === "https:" ? "443" : "80"); };
 const requestHash = input => crypto.createHash("sha256").update(JSON.stringify([input.source ?? "app-feedback", input.sourceSubmission ?? null, [...(input.commentIds || [])].sort(), input.title,
@@ -171,10 +171,18 @@ class ApplicationProposals {
       "Forslaget er midlertidig og har ingen lagret versjonshistorikk. Bruk read_state for gjeldende skisse. Ingen filer er endret.");
     if (method === "publishRevision" && params.design?.version === 2 && validDesign(params.design) &&
         typeof params.html === "string" && Buffer.byteLength(params.html) <= 2 * 1024 * 1024) validateBindings(params.html, params.design);
-    const backend = await this.ensure(this.entry);
+    const inspecting = ["openInspection", "closeInspection"].includes(method);
+    fail(!inspecting || !this.entry.binding.application, 409, "HTML inspection is unavailable for running applications.");
+    const entry = this.entry, epoch = this.epoch;
+    const backend = await this.ensure(entry);
+    if (inspecting) fail(!this.closed && this.entry === entry && epoch === this.epoch, 410, "This workshop view has been replaced.");
     let result;
     try { result = await backend[method](params); } catch (error) { throw proposalError(error); }
-    if (result?.screen !== undefined) this.entry.state = result;
+    if (inspecting && (this.closed || this.entry !== entry || epoch !== this.epoch)) {
+      if (method === "openInspection") await backend.closeInspection({ inspectionId: result.inspectionId }).catch(() => {});
+      throw new FeedbackError(410, "This workshop view has been replaced.");
+    }
+    if (!inspecting && result?.screen !== undefined) this.entry.state = result;
     return result;
   }
   async save(input) {

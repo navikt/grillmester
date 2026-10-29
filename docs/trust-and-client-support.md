@@ -85,6 +85,14 @@ på macOS 29. oktober 2026 med sandkassen på: app, innspill, kjørende forslag,
 iterasjon og gjenåpning i samme canvas. Se
 [appkontrakten](../plugin/skills/design-prototype/references/design-workspace.md#running-application).
 
+HTML-skisser kan inspiseres gjennom en egen kortlivet lesevisning med samme
+rensing og stiler. Den innebygde nettleseren kan hente bilder og prøve deklarerte
+interaksjoner i bakgrunnen, mens designeren blir i verkstedet. Visningen har
+egen loopback-origin og lesekapabilitet; den deler ingen kontrollnøkkel og kan
+ikke sende innspill. Den starter fra publiserte standardverdier og dokumenterer
+ikke brukerens levende canvas-tilstand. Se
+[ADR 0031](adr/0031-skrivebeskyttet-skisseinspeksjon.md).
+
 Kontrollflaten bruker eksakt `127.0.0.1:<port>` og appiframe eksakt
 `localhost:<port>`, med bare loopbacklyttere. Appen får aldri kontrolltoken.
 En åpen instans beholder én oppstrømsapp, proxylytter og origin. Iframe-retry

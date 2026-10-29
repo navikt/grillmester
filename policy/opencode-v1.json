@@ -216,6 +216,7 @@
     "skills/design-prototype/scripts/application-workspace.js",
     "skills/design-prototype/scripts/application-proposals.js",
     "skills/design-prototype/scripts/application-proposal-view.js",
+    "skills/design-prototype/tests/application-connection.test.js",
     "skills/design-prototype/tests/application-inspector.test.js",
     "skills/design-prototype/tests/application-proxy.test.js",
     "skills/design-prototype/tests/application-server.test.js",

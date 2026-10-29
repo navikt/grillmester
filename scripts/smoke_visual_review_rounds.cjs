@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+const { openAdjust, startComparison, collectFeedback } = require("./visual-smoke-controls.cjs");
 
 // Longer review rounds with synthetic roles, isolated sessions and real UI input.
 const assert = require("node:assert/strict");
@@ -8,18 +9,6 @@ const os = require("node:os");
 const path = require("node:path");
 const { createRequire } = require("node:module");
 const { spawn } = require("node:child_process");
-// Comparing variants belongs to Prøv; leave Endre first when needed.
-async function startComparison(ui) {
-  const compare = ui.getByRole("button", { name: "Sammenlign varianter", exact: true });
-  if (!(await compare.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
-  await compare.click();
-}
-// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
-async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
-  await adjust.click();
-}
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -96,10 +85,12 @@ function controls(page) {
     adjust: async () => { if (!(await workshop.isVisible())) await openAdjust(ui); },
     note: async (text, selector = "h1") => {
       const close = ui.getByRole("button", { name: "Lukk innspill", exact: true }); if (await close.isVisible()) await close.click();
-      const comment = ui.getByRole("button", { name: "Endre", exact: true }); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await comment.click();
+      const variant = /\[data-vc-variant="([^"]+)"\]/.exec(selector)?.[1];
+      if (variant) await frame.locator(`.vc-variant-nav [data-variant="${variant}"]`).click();
+      const comment = ui.getByRole("button", { name: "Gi innspill", exact: true }); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await comment.click();
       await frame.locator(selector).first().click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text);
     },
-    save: async () => { await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" }); },
+    save: async () => { await collectFeedback(ui); await ui.getByRole("button", { name: "Legg til flere", exact: true }).waitFor({ state: "hidden" }); },
   };
 }
 async function runCase(context, testcase) {
@@ -116,7 +107,7 @@ async function runCase(context, testcase) {
       if (!testcase.zoom) await page.setViewportSize({ width: 1440, height: 1000 });
       page.on("pageerror", error => browserErrors.push(error.message));
       page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) remoteResources.push(new URL(request.url()).origin); });
-      await page.goto(info.url); const item = controls(page); await item.ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); return item;
+      await page.goto(info.url); const item = controls(page); await item.ui.getByRole("button", { name: "Gi innspill", exact: true }).waitFor(); return item;
     };
     let sequence = 0;
     const write = (title, initial = "clear") => { const stem = `${String(++sequence).padStart(2, "0")}-review`; fs.writeFileSync(path.join(info.screen_dir, `${stem}.design.json`), JSON.stringify(descriptor(initial))); fs.writeFileSync(path.join(info.screen_dir, `${stem}.html`), sketch(title, initial)); };
@@ -238,6 +229,11 @@ const cases = [
       const recoveryNote = "Et kort nettbrudd skal ikke miste forbeholdet mitt.";
       await note(recoveryNote);
       await page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor();
+      await page.route("**/comments?*", route => route.request().method() === "POST"
+        ? route.fulfill({ status: 503, contentType: "application/json", body: '{"error":"Temporarily unavailable"}' }) : route.continue());
+      await collectFeedback(ui); await ui.locator(".compose-error").waitFor({ state: "visible" });
+      assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).isEditable(), false, "An unconfirmed save retains an immutable retry intent");
+      await page.unroute("**/comments?*");
       // Only the browser's feedback reads fail; the local session remains alive.
       // This also verifies that a healthy version endpoint alone cannot report recovery.
       await page.route("**/comments?*", route => route.request().method() === "GET"
@@ -246,8 +242,8 @@ const cases = [
       try {
         await page.locator("#vc-paused").waitFor({ state: "visible", timeout: 22000 });
         await page.getByRole("button", { name: "Se skissen og kopier utkast", exact: true }).click();
-        await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
-        await ui.locator(".compose-error").waitFor({ state: "visible" });
+        assert(await ui.locator('[data-action="collect"]').isDisabled());
+        assert(await ui.locator('[data-action="save"]').isDisabled());
         assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), recoveryNote);
         assert.equal((await list()).comments.length, 0, "A failed offline save must not be reported as saved.");
         await screenshot("temporary-outage");
@@ -264,7 +260,8 @@ const cases = [
       const draft = ui.getByLabel("Hva vil du endre?", { exact: true }); assert.equal(await draft.inputValue(), "Ta vare på dette forbeholdet: Vi må avtale hvem som følger opp.");
       await draft.click(); await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
       const selected = await draft.evaluate(node => node.selectionEnd - node.selectionStart); assert.equal(selected, (await draft.inputValue()).length, "A participant must be able to select the existing draft to copy it after disconnection.");
-      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.locator(".compose-error").waitFor({ state: "visible" });
+      assert(await ui.locator('[data-action="collect"]').isDisabled(), "A stopped session cannot accept a new save");
+      assert(await ui.locator('[data-action="save"]').isDisabled(), "A stopped session cannot accept a new send");
       assert.equal(await draft.inputValue(), "Ta vare på dette forbeholdet: Vi må avtale hvem som følger opp."); await screenshot("draft-preserved");
     },
   },

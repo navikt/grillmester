@@ -22,12 +22,13 @@ dependencies or demo setup require the applicable setup mandate; do not install
 or change configuration merely to make the preview work.
 
 Start the actual app using its repository instructions and established
-mock/demo setup with synthetic data. Before reusing installed dependencies,
-compare the copied manifest and lockfile with the installed framework and UI
-packages. A copied node_modules directory is not proof that they match. Use the
-project's frozen-lockfile install in the owned copy when installation is within
-the setup mandate; never update the original checkout or its lockfile to make a
-preview work. Do not copy build caches from another source/dependency state.
+mock/demo setup with synthetic data. Validate copied dependencies at their final
+owned location: matching lockfiles do not verify package contents, and workspace
+metadata or executable wrappers may still point to the old location. Use the project's frozen-lockfile
+install there when installation is within the setup mandate; never update the
+original checkout or its lockfile to make a preview work. If install scripts
+are skipped, verify required dependency builds before calling the app ready.
+Do not copy build caches from another source/dependency state.
 Open the owning workshop early.
 
 Treat the demo as a service, not an indefinitely running tool task that keeps
@@ -63,10 +64,14 @@ the helper cannot safely stop or reclaim an unconfirmed controller. Only then
 use a new local service key if a separate start is appropriate. A `stopping`
 runtime is not a reusable running service. Never delete its state or signal a
 stored process ID to force a restart.
-Check the observed demo URL separately. A permitted local redirect may normalize
-the path or public parameters; follow the observed destination rather than wait
-for the original address to return 200. Do not follow a redirect into login or
-another unapproved service.
+Check the observed demo URL separately. An HTTP 502 may come from a sandbox or
+network proxy and does not prove that the target app is listening or its port
+is occupied.
+Confirm an existing owned demo with the helper's status and startup log; do not
+change ports, stop processes or alter sandbox/proxy policy on HTTP status alone.
+A permitted local redirect may normalize the path or public parameters; follow
+the observed destination rather than wait for the original address to return
+200. Do not follow a redirect into login or another unapproved service.
 
 Closing a canvas keeps its demo available within the service lifetime. After
 expiry, start it explicitly and reopen saved work in a fresh canvas instance.

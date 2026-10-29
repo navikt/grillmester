@@ -129,6 +129,7 @@ jobs:
           node --check plugin/skills/design-prototype/scripts/application-proposals.js
           node --check plugin/skills/design-prototype/scripts/application-proposal-view.js
           node --check plugin/skills/design-prototype/scripts/html-embedding.js
+          node --check plugin/skills/design-prototype/scripts/html-inspection.js
           node --test plugin/skills/design-prototype/tests/*.test.js
 
       - name: Test app canvas adapter without a model
@@ -141,6 +142,7 @@ jobs:
           node --check scripts/smoke_visual_canvas.cjs
           node --check scripts/smoke_visual_application.cjs
           node --check scripts/smoke_visual_workbench.cjs
+          node --check scripts/visual-smoke-controls.cjs
           node --test plugin/extensions/visual-companion/tests/*.test.mjs
 
       - name: Test isolated canvas experiment

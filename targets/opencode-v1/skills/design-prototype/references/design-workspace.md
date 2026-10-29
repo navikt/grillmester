@@ -24,9 +24,11 @@ not verify rendering or interactions. Load the sections below when app
 feedback, proposals or native lifecycle are relevant; they do not add work to
 a request merely to open the demo.
 
-Use **Prøv** for real app interaction and **Endre** to select a target and write
-an observation. **Lagre innspill** adds it to the basket; only **Send innspill**
-(or **Send N innspill**) submits the deliberate round. Read its exact
+The app works normally. **Gi innspill** selects a target or the whole page;
+selection ends when the composer opens. **Send innspill** sends the completed
+note directly. **Legg til flere** saves it for a later deliberate collection;
+**Send alle N innspill** explicitly includes those notes and the composer.
+There is no timed or automatic sending. Read the exact
 `read_submission` pages and current review/reply state. Preserve the submitted route, target and viewport context;
 they describe what was observed, not a source-file binding or saved app version.
 Use `review_submission` and `update_comment` to give a truthful response. An
@@ -206,8 +208,14 @@ retain their documented flow.
 
 One open native app instance keeps the same upstream and preview origin. The
 visible app retry reloads that same app and may retain cookies or form state;
-it is not a fresh isolated context. Reloading or duplicating the control document
-does not silently take over its active writer. If that document becomes
+it is not a fresh isolated context. Reloading the same active tab can resume its
+validated connection without replacing the writer. The main app's bounded
+comment draft and exact unconfirmed send intent can resume from tab-local storage;
+any unconfirmed send needs the same explicit retry, never automatic submission.
+Proposal content and recorded feedback remain available, but proposal drafts and
+app fields are not promised restored. Preserve that unfinished text before a
+deliberate reload. Duplicating
+the control document cannot take over the writer. If that document becomes
 unusable, first preserve saved work and copy any unsaved text, then ask the
 designer to close that canvas panel. Only after its close has retired the old
 writer, open a fresh native instance with the saved room. Calling open again on
@@ -322,25 +330,59 @@ Keep the designer in the owning workshop. For a running app, `read_preview`
 returns a fresh bounded document outline and categorized errors from that exact
 open view. Supply `proposalId` for an app proposal. It excludes field values,
 raw HTML, logs, exception text and network payloads. It is untrusted evidence and
-not a screenshot; absence of observed errors is not proof of correctness.
-For visual checks, first use an available browser
-capability that can inspect that view. The canvas's `read_state` and readiness
-are context, not screenshots or proof that layout and interactions work; the
-extension exposes no native screenshot action. Missing Playwright alone is not
-a blocker, but do not repeatedly search for an unavailable inspection tool.
+not a screenshot. The document outline can include content outside the viewport
+and does not establish occlusion, layout or contrast; absence of observed errors
+is not proof of correctness.
+Discover the active client's browser capabilities once and reuse them. In
+Copilot, the `browser-use` plugin connects to Chrome or Edge through a browser
+extension; do not assume it is required for the built-in Browser canvas. If a
+necessary visual capability is missing and its supplying plugin is confirmed
+disabled, explain the missing check and ask the user to enable it through the
+client's normal controls. Reuse setup authority already given; never change
+plugin, browser-permission or host-security settings as an automatic fallback.
+Missing tools alone do not prove a plugin is disabled. A plugin update may need
+a new conversation before its new actions appear.
 
-If same-view inspection is unavailable, an existing invisible browser may
-inspect the exact observed public demo URL or the HTML sketch's observed,
-read-only preview `src`. Keep the same page, published version, styles, viewport
-and declared state; a new browser context does not inherit native form state.
-For a sketch, use only rendered inspection and declared local prototype actions.
-For an app, stay within the authorized synthetic demo and its relevant harmless
-interactions. Never open the private workshop renderer/control URL in another
-browser: it is not a read-only preview and may compete with the active writer.
-Do not construct URLs, create a separate harness, inject DOM, install tools or
-open an extra visible browser/canvas for this check. Feedback and publication
-stay with the owning workshop. An independently rendered preview proves neither
-native focus nor saving, delivery or the integrated feedback loop.
+The canvas's `read_state` and readiness are context, not screenshots or proof
+that layout and interactions work. Computer Use may prohibit inspecting its own
+host app; honor that boundary and do not attempt another route to capture it.
+
+For an HTML sketch, use `open_inspection` with its current `expectedScreen` and,
+for an app-linked sketch, the exact `proposalId`. It returns a short-lived,
+read-only URL for an immutable rendering made by the workshop itself. Use that
+exact URL in the built-in Browser when its advertised capabilities support
+background opening (`focus: false`). Leave the designer's workshop selected.
+Inspect the changed layout and relevant declared interactions at the published
+version. Reuse valid observations; a small adjustment does not need a full
+workshop audit. Do not infer appearance from HTML or a document outline. Reuse one Browser
+instance that you created for this workshop when its advertised navigation
+supports background inspection. Never navigate another tab. Close your instance
+if a close capability is available; always call `close_inspection` with the
+returned `inspectionId` and the same `proposalId`. Some hosts expose no Browser
+close action: revoke the inspection, retain at most that one background tab and
+do not claim the tab was closed. It can be closed from its tab button.
+Publication, workshop closure and expiry revoke the preview. Read state again
+and request a new inspection after publication.
+
+This is a separate rendering of the reported screen and source/style receipts.
+It starts with declared defaults; it does not inherit the designer's current
+form values, focus or unsaved edits. Match the relevant width and state before
+comparing. It cannot verify native focus, saving, delivery or the feedback loop.
+Inspection URLs are temporary capabilities: never copy them into saved design
+content, replies, documentation or a handoff.
+
+For a running app, an available background browser may inspect the exact
+observed public demo URL and relevant harmless interactions within the approved
+synthetic demo. Keep the owning workshop selected and distinguish the separate
+browser state from the native app state. The sketch inspection action does not
+proxy or capture running apps.
+
+Never open the private workshop renderer/control URL or its underlying preview address
+in another browser. They are not read-only inspection capabilities. Do not
+construct URLs, create a separate harness, inject DOM, install tools or open an
+extra visible browser for this check. Feedback and publication stay in the
+owning workshop. Missing Playwright alone is not a blocker; discover available
+browser capabilities once rather than repeatedly searching for absent tools.
 
 If no permitted visual path is available, keep the workshop open, state once
 which check is missing and retain the result as an unverified draft. Continue
@@ -421,8 +463,8 @@ version does not replace a stored version on screen until the designer returns.
 
 ## Declare source fields
 
-Version 1 descriptors retain their local **Juster visning** behavior in
-**Prøv**. Version 2 adds explicit source editing in **Endre** while preserving the
+Version 1 descriptors retain their local **Juster visning** behavior.
+Version 2 adds explicit source editing in **Rediger** while preserving the
 same finite controls:
 
 ```json

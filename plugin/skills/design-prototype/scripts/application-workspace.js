@@ -123,15 +123,20 @@ class ApplicationWorkspace {
     this.route = normalizeApplicationRoute(input.route, workspace.source.resourceQueryKeys || []);
     return screenIdentity(workspace.checkpoint, this.route);
   }
-  createComment(value) {
+  commentScreen(value) {
     this.assertOpen();
     const workspace = this.feedback.state.workspace;
     const route = normalizeApplicationRoute(value?.applicationContext?.route, workspace.source.resourceQueryKeys || []);
     requireValue(route === value.applicationContext.route, 400, "The comment route must be canonical.");
-    const screen = { screen: screenIdentity(workspace.checkpoint, route), source: { kind: "application", checkpoint: workspace.checkpoint, route } };
+    return { screen: screenIdentity(workspace.checkpoint, route), source: { kind: "application", checkpoint: workspace.checkpoint, route } };
+  }
+  createComment(value) {
     // Screen registration and comment creation share a single atomic commit.
     // Navigation and app-generated selections can never consume saved capacity.
-    return this.feedback.create(value, screen);
+    return this.feedback.create(value, this.commentScreen(value));
+  }
+  submitDraft(value) {
+    return this.feedback.submitDraft(value, this.commentScreen(value?.comment));
   }
   bindSketch(value) {
     this.assertOpen();
