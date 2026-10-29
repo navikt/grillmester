@@ -613,8 +613,11 @@ async function main() {
         const appFrame = page.frameLocator("#app-preview");
         await appFrame.getByRole("heading", { name: "Avtal et møte", exact: true }).waitFor();
         await page.locator("#health-message").waitFor({ state: "visible" });
-        await until(async () => (await call("read_state")).application.applicationHealth?.module === 1, "early error reaches state");
-        const connected = await call("read_state");
+        let connected;
+        await until(async () => {
+          connected = await call("read_state");
+          return connected.application.applicationHealth?.module === 1 && connected.application.previewStatus.state === "ready";
+        }, "early error and completed connection reach state");
         assert.equal(connected.application.previewStatus.state, "ready");
         assert.equal(connected.application.applicationHealth.state, "errors-observed");
         await appFrame.getByLabel("Hvordan vil du møtes?").selectOption("video");
