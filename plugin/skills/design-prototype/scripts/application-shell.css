@@ -54,3 +54,9 @@
 .review-progress .button{margin-top:10px}
 
 .proposal-surface{display:flex;flex-direction:column;gap:12px}.proposal-surface>iframe{flex:1;min-height:180px}.proposal-message{flex-shrink:0}
+
+/* A proposal reuses the controls without adding another title or tab strip. */
+.showing-proposal>.app-header .app-location,.showing-proposal>.app-header .reopened-note{display:none}
+.embedded-application .app-header{min-height:0;padding:6px 12px;background:var(--surface)}
+.embedded-application .app-location{margin:0;font-size:12px}
+.embedded-application .workspace{padding:8px 12px 0;gap:12px}

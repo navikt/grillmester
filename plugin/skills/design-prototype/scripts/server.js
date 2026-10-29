@@ -2002,6 +2002,7 @@ async function canvasCommand(method, params) {
     accessToken = crypto.randomBytes(32).toString("base64url"); tokenBuffer = Buffer.from(accessToken);
   } else if (!keys(params, [])) throw new FeedbackError(400, "No arguments expected.");
   if (method === "readState") return canvasReadState();
+  if (method === "readPreview") throw new FeedbackError(409, "read_preview observes running apps only. For HTML sketches use read_state and the available visual inspection tools.");
   if (method === "closeView") {
     revokeView();
     if (server.listening) await new Promise(resolve => { server.close(resolve); server.closeAllConnections?.(); });

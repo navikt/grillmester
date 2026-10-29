@@ -21,13 +21,19 @@ class UsageParser(argparse.ArgumentParser):
 
 def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool],
                  no_docker: bool = False, no_instructions: bool = False,
-                 move_backups: bool = False) -> dict[str, Any]:
+                 move_backups: bool = False, project_path: Optional[Path] = None) -> dict[str, Any]:
     projects = store.project_rows(connection)
+    if project_path is not None:
+        selected = project_path.resolve()
+        projects = [project for project in projects if isinstance(project.get("main_repo_path"), str)
+                    and Path(project["main_repo_path"]).resolve() == selected]
+        if len(projects) != 1:
+            raise SetupError(1, "Choose one existing app project by its exact directory. No policies were changed.")
     if not projects:
         raise SetupError(1, "No projects: add a project in the app first, then rerun plan.")
     existing = store.policy_rows(connection, projects)
     warnings: list[str] = []
-    paths = store.code_path_rows(connection, warnings)
+    paths = store.code_path_rows(connection, warnings, projects if project_path is not None else None)
     facts = discovery.gather(home, projects, paths, existing, warnings, no_docker=no_docker,
                              no_instructions=no_instructions, move_backups=move_backups)
     return policy.compute_plan(rules.snapshot(), facts, existing,
@@ -255,6 +261,7 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--confirm")
     parser.add_argument("--db", type=Path)
     parser.add_argument("--home", type=Path)
+    parser.add_argument("--project", type=Path, help="Plan/apply only the app project at this exact directory.")
     masking = parser.add_mutually_exclusive_group()
     masking.add_argument("--mask-credentials", dest="mask_credentials", action="store_const", const=True, default=None)
     masking.add_argument("--no-mask-credentials", dest="mask_credentials", action="store_const", const=False)
@@ -272,6 +279,8 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
     if args.no_toolchain and args.command != "verify":
         # Easy to confuse with --no-instructions; never accept it silently.
         raise SetupError(1, "Usage error: --no-toolchain applies only to verify.")
+    if args.project is not None and args.command not in {"plan", "apply"}:
+        raise SetupError(1, "Usage error: --project applies only to plan and apply.")
     home = (args.home if args.home is not None else Path.home()).resolve()
     db = args.db if args.db is not None else home / ".copilot/data.db"
     if args.command == "verify":
@@ -286,7 +295,7 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
         store.validate_schema(connection)
         plan = (rollback_plan(connection, snapshot, args.no_instructions) if snapshot is not None
                 else compute_plan(connection, home, args.mask_credentials, args.no_docker,
-                                  args.no_instructions, args.move_backups))
+                                  args.no_instructions, args.move_backups, args.project))
         summary = None
         if writing:
             if args.confirm != plan["digest"]:

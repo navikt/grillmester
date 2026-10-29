@@ -191,13 +191,41 @@
     if (!match || targetPath(match, doc) !== saved.path) return { status: "unavailable" };
     return { status: "shown", target: match };
   }
-  function installInspector(win, doc, config, nonce = "") {
+  // Install before application scripts, including failures before DOMContentLoaded.
+  // Never retain error messages, stacks, URLs, console arguments or field values.
+  function observeRuntime(win) {
+    const counts = { script: 0, module: 0, rejection: 0 };
+    let notify = () => {};
+    const increment = key => { counts[key] = Math.min(100, counts[key] + 1); notify(); };
+    const error = event => {
+      if (typeof event.message !== "string") return;
+      increment(/module factory|chunkloaderror|loading chunk|dynamically imported module/i.test(event.message) ? "module" : "script");
+    };
+    const rejected = () => increment("rejection");
+    win.addEventListener("error", error); win.addEventListener("unhandledrejection", rejected);
+    return { snapshot: () => ({ ...counts }), subscribe(callback) { notify = callback; },
+      dispose() { win.removeEventListener("error", error); win.removeEventListener("unhandledrejection", rejected); notify = () => {}; } };
+  }
+  function inspectDocument(win, doc) {
+    const elements = [];
+    let visited = 0, truncated = false;
+    for (const node of doc.querySelectorAll(CANDIDATES)) {
+      if (++visited > MAX_CANDIDATES || elements.length >= 80) { truncated = true; break; }
+      if (!available(node, win) || node.closest?.(`[${OWNER}]`)) continue;
+      const role = roleOf(node);
+      elements.push({ tag: tagOf(node), role, name: nameOf(node, doc),
+        text: ["main", "navigation", "region", "group", "list", "dialog", "form"].includes(role) ? "" : textEvidence(node, 240) });
+    }
+    return { viewport: { width: Math.min(20000, Math.max(1, Math.round(win.innerWidth))), height: Math.min(20000, Math.max(1, Math.round(win.innerHeight))) }, elements, truncated };
+  }
+  function installInspector(win, doc, config, nonce = "", runtime) {
     if (!exact(config, ["shellOrigin", "epoch"]) || typeof config.shellOrigin !== "string" || typeof config.epoch !== "string" || !config.epoch || config.epoch.length > 200 || win.parent === win) return null;
     let origin;
     try { origin = new URL(config.shellOrigin).origin; if (origin !== config.shellOrigin || !/^https?:$/.test(new URL(origin).protocol) || origin === win.location.origin) return null; }
     catch { return null; }
     if (!doc.body) return null;
     if (typeof win[KEY]?.dispose === "function") win[KEY].dispose();
+    runtime ||= observeRuntime(win);
     let mode = "browse", highlighted = null, disposed = false, lastRoute = null, queued = false, view = null, suspended = false;
     const listeners = [];
     const originalPush = win.history.pushState;
@@ -346,11 +374,16 @@
         clearLocation();
         view = event.data.view;
         post({ type: "design-view-ready" });
+        post({ type: "design-health", health: runtime.snapshot() });
         lastRoute = null;
         routeChanged();
         return;
       }
       if (view && event.data.view === view) {
+        if (exact(event.data, ["type", "epoch", "view", "request"]) && event.data.type === "inspect-view"
+          && typeof event.data.request === "string" && /^[a-f0-9]{32}$/.test(event.data.request)) {
+          post({ type: "design-inspection", request: event.data.request, observation: { ...inspectDocument(win, doc), health: runtime.snapshot() } }); return;
+        }
         if (exact(event.data, ["type", "epoch", "view", "request", "context"]) && event.data.type === "show-location"
           && typeof event.data.request === "string" && /^[a-f0-9]{32}$/.test(event.data.request) && validLocationContext(event.data.context)) { showLocation(event.data); return; }
         if (exact(event.data, ["type", "epoch", "view"]) && event.data.type === "clear-location") { clearLocation(); return; }
@@ -439,20 +472,23 @@
       disposed = true;
       for (const [target, type, handler, capture] of listeners) target.removeEventListener(type, handler, capture);
       observer.disconnect(); host.remove();
+      runtime.dispose();
       if (win.history.pushState === pushState) win.history.pushState = originalPush;
       if (win.history.replaceState === replaceState) win.history.replaceState = originalReplace;
       if (win[KEY] === controller) delete win[KEY];
     } };
     win[KEY] = controller;
+    runtime.subscribe(() => { if (view && !disposed && !suspended) post({ type: "design-health", health: runtime.snapshot() }); });
     post({ type: "design-view-available" });
     routeChanged();
     return controller;
   }
-  if (typeof module === "object" && module.exports) module.exports = { bounded, shortLabel, available, textEvidence, nameOf, contextualName, roleOf, targetPath, buildEvidence, currentRoute, validLocationContext, locateTarget, installInspector };
+  if (typeof module === "object" && module.exports) module.exports = { bounded, shortLabel, available, textEvidence, nameOf, contextualName, roleOf, targetPath, buildEvidence, currentRoute, validLocationContext, locateTarget, installInspector, observeRuntime, inspectDocument };
   if (typeof window !== "object" || typeof document !== "object") return;
   const config = __DESIGN_INSPECTOR_CONFIG__;
   const nonce = document.currentScript?.nonce || "";
-  const start = () => installInspector(window, document, config, nonce);
+  const runtime = observeRuntime(window);
+  const start = () => installInspector(window, document, config, nonce, runtime);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
   else start();
 })();

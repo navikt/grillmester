@@ -77,7 +77,12 @@ og [de tidligere skisseprøvene](testing/visual-companion-design-workspace.md).
 
 Kjørende apper vises gjennom en separat lokal origin og deler bare den bevisste
 innspillsflyten med skisser. Appcanvaset har ingen kildeeditor eller apphistorikk;
-lagring bevarer innspill og svar. Se
+lagring bevarer innspill og svar. Forslag kan bruke en separat kjørende appkopi;
+vanlige verktøy endrer bare den avtalte kopien. `read_preview` leser begrenset
+struktur og feilstatus fra den konkrete appvisningen, ikke resten av verten,
+feltverdier, logger eller skjermbilder. Den utvidede flyten er prøvd i Copilot
+på macOS 29. oktober 2026 med sandkassen på: app, innspill, kjørende forslag,
+iterasjon og gjenåpning i samme canvas. Se
 [appkontrakten](../plugin/skills/design-prototype/references/design-workspace.md#running-application).
 
 Kontrollflaten bruker eksakt `127.0.0.1:<port>` og appiframe eksakt

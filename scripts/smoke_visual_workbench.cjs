@@ -26,7 +26,7 @@ async function main() {
   const appSource = '<!doctype html><html lang="nb"><meta charset="utf-8"><title>Møtedemo</title><style>body{font:18px/1.6 system-ui;padding:30px}input,button{font:inherit;padding:12px}</style><main><h1>Dialogmøter</h1><label for="choice">Prøvefelt</label><input id="choice"><button type="button">Be om møte</button><p>Oppdiktede data.</p></main></html>';
   fs.writeFileSync(path.join(project, "demo.html"), appSource);
   const app = http.createServer((req, res) => { res.setHeader("Content-Type", "text/html; charset=utf-8"); res.end(appSource); });
-  let adapter, browser, context, page, releaseInitialState = () => {}, generation = 0;
+  let proposalApp, adapter, browser, context, page, releaseInitialState = () => {}, generation = 0;
   const errors = [], external = [], messages = [];
   try {
     await new Promise(resolve => app.listen(0, "127.0.0.1", resolve));
@@ -73,6 +73,8 @@ async function main() {
     };
     await open({ application, workspacePath: "designs/meeting-app", create: true, title: "Forbered et møte" });
     await check("app feedback shows immediate progress and returns to Try", async () => {
+      assert.equal(await page.locator("#app-title").textContent(), "Forbered et møte");
+      assert.equal(await page.locator("#app-preview").getAttribute("title"), "Møtedemo");
       await page.frameLocator("#app-preview").getByLabel("Prøvefelt").fill("Valg beholdes");
       await page.locator("#mode-change").click(); await page.locator("#whole-page").click(); await page.locator("#comment-text").fill("Vis forberedelsene tydeligere og lag et klikkbart forslag.");
       await page.locator("#save-comment").click(); await until(async () => (await action("read_state")).revision > 0, "saved feedback");
@@ -115,6 +117,7 @@ async function main() {
       assert.equal(context.pages().length, 1, "one direct workshop; no connection panel, popup or proposal window");
       await page.getByRole("button", { name: "Vis forslag", exact: true }).click();
       await frames().frame.getByRole("heading", { name: "Forbered møtet", exact: true }).waitFor();
+      assert.equal(await page.locator("#app-title").textContent(), "Forbered et møte", "The task title must stay the same on the proposal tab");
       await page.frameLocator("#proposal-preview").frameLocator("#sketch").locator('#vc-status[data-connected="true"]').waitFor({ state: "attached" });
       assert.equal(await page.locator("#proposal-message").isVisible(), false);
       await settleProposalPaint();
@@ -202,10 +205,70 @@ async function main() {
         if (evidence) await page.screenshot({ path: path.join(evidence, `proposal-${viewport.width}x${viewport.height}.png`) });
       }
     });
+    await check("running proposal retains real interactions, exact feedback routing and saved reopen", async () => {
+      await adapter.close(); await page.close(); attach(project);
+      let proposalSource = appSource.replace("Dialogmøter", "Forbered møtet").replace('<p>Oppdiktede data.</p>', '<details><summary>Forberedelser er valgfrie</summary><p>Noter det du ønsker å ta opp.</p></details>');
+      proposalApp = http.createServer((_req, res) => { res.setHeader("Content-Type", "text/html; charset=utf-8"); res.end(proposalSource); });
+      await new Promise(resolve => proposalApp.listen(0, "127.0.0.1", resolve));
+      allowedOrigins.add(`http://127.0.0.1:${proposalApp.address().port}`);
+      await context.route("**/embedded/activate", async route => {
+        assert(allowedOrigins.has(new URL(route.request().url()).origin));
+        const response = await route.fetch();
+        const policy = response.headers()["content-security-policy"] || "";
+        for (const origin of policy.match(/http:\/\/(?:localhost|127\.0\.0\.1):[0-9]+/g) || []) allowedOrigins.add(origin);
+        await route.fulfill({ response });
+      });
+      await open({ application, workspacePath: "designs/application-workbench", create: true, title: "Forberedelser" });
+      const initialApp = { source: "conversation", title: "Forbered møtet", application: { name: "Møteforslag", url: `http://127.0.0.1:${proposalApp.address().port}/demo` }, workspacePath: "designs/application-proposal", create: true };
+      const live = await action("publish_proposal", initialApp);
+      assert.equal(live.kind, "application"); assert.equal((await action("publish_proposal", initialApp)).id, live.id);
+      await page.setViewportSize({ width: 1280, height: 800 }); await page.locator("#proposal-tab").click();
+      const shell = page.frameLocator("#proposal-preview").frameLocator("#sketch"), preview = shell.frameLocator("#app-preview");
+      await preview.getByRole("heading", { name: "Forbered møtet", exact: true }).waitFor();
+      assert.equal(await page.locator(".app-location").isVisible(), false, "Reference status must not describe the proposal");
+      assert.equal(await shell.locator(".app-location").isVisible(), true);
+      await preview.getByLabel("Prøvefelt").fill("PRIVATE FIELD VALUE");
+      await preview.locator("summary").click(); await preview.getByText("Noter det du ønsker å ta opp.").waitFor();
+      const observed = await action("read_preview", { proposalId: live.id });
+      assert.equal(observed.health.state, "no-errors-observed"); assert(!JSON.stringify(observed).includes("PRIVATE FIELD VALUE"));
+      assert(observed.elements.some(item => item.text === "Noter det du ønsker å ta opp."));
+      await shell.locator("#mode-change").click(); await shell.locator("#whole-page").click();
+      await shell.locator("#comment-text").fill("Gi overskriften en tydeligere handling."); await shell.locator("#save-comment").click(); await shell.locator("#submit-feedback").click();
+      await until(async () => (await action("read_state", { proposalId: live.id })).submission === 1, "app proposal round");
+      assert.equal((await action("read_state")).submission, 0);
+      await until(() => messages.length === 3, "app proposal delivery");
+      assert.equal(JSON.parse(messages.at(-1).prompt.split("\n").at(-1)).proposalId, live.id);
+      await shell.locator("#close-panel").click();
+      proposalSource = proposalSource.replace("Forbered møtet", "Velg hva du vil forberede");
+      // A normal document reload exercises the same immutable app proxy.
+      await preview.locator("body").evaluate(() => location.reload());
+      await preview.getByRole("heading", { name: "Velg hva du vil forberede", exact: true }).waitFor();
+      if (evidence) await page.screenshot({ path: path.join(evidence, "running-proposal.png") });
+      for (const viewport of [{ width: 320, height: 568 }, { width: 640, height: 400 }]) {
+        await page.setViewportSize(viewport);
+        const width = await shell.locator("body").evaluate(body => ({ actual: body.scrollWidth, available: innerWidth }));
+        assert(width.actual <= width.available + 1, "The running proposal must fit the workshop");
+        await shell.locator("#mode-change").focus(); await page.keyboard.press("Enter");
+        await shell.locator("#whole-page").waitFor({ state: "visible" });
+        await page.keyboard.press("Escape");
+        assert.equal(await shell.locator("#mode-change").evaluate(button => button === document.activeElement), true);
+        if (evidence) await page.screenshot({ path: path.join(evidence, `running-proposal-${viewport.width}x${viewport.height}.png`) });
+      }
+      await adapter.close(); await page.close(); attach(project);
+      await open({ application, workspacePath: "designs/application-workbench" });
+      const saved = (await action("read_state")).proposals[0]; assert.equal(saved.needsReconnect, true);
+      assert.equal((await action("publish_proposal", initialApp)).id, live.id);
+      await page.locator("#proposal-tab").click(); await page.frameLocator("#proposal-preview").frameLocator("#sketch").frameLocator("#app-preview").getByRole("heading", { name: "Velg hva du vil forberede", exact: true }).waitFor();
+      assert.equal((await action("read_submission", { proposalId: live.id, submission: 1 })).round.previousSession, true);
+      assert.equal(messages.length, 3); assert.equal(context.pages().length, 1);
+      await context.unroute("**/embedded/activate");
+    });
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
   } catch (error) {
     if (evidence && page && !page.isClosed()) {
       await page.screenshot({ path: path.join(evidence, "failure.png") }).catch(() => {});
+      const frameEvidence = await Promise.all(page.frames().map(async frame => ({ name: frame.name(), body: (await frame.locator("body").innerText({timeout: 1000}).catch(() => "unavailable")).slice(0,1000) })));
+      fs.writeFileSync(path.join(evidence, "failure-frames.json"), JSON.stringify(frameEvidence));
       const visible = await page.locator("body").innerText().catch(() => "");
       fs.writeFileSync(path.join(evidence, "failure-visible.txt"), visible.replace(/https?:\/\/[^\s]+/g, "[local view]"));
     }
@@ -213,6 +276,7 @@ async function main() {
   } finally {
     releaseInitialState();
     await adapter?.close(); await context?.close(); await browser?.close();
+    proposalApp?.closeAllConnections?.(); if (proposalApp?.listening) await new Promise(resolve => proposalApp.close(resolve));
     app.closeAllConnections?.(); if (app.listening) await new Promise(resolve => app.close(resolve));
     fs.rmSync(root, { recursive: true, force: true });
     if (evidence) fs.writeFileSync(path.join(evidence, "results.json"), JSON.stringify({ results, errors, external, messages: messages.length, simulatedConversationHost: true, nativeAppTested: false }, null, 2) + "\n");

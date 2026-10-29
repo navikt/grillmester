@@ -93,7 +93,7 @@ test("only the exact private bootstrap serves a shell; no API accepts its path a
   assert.equal(result.status, 200); assert.equal(result.text, authority.html);
   assert.equal(result.headers["set-cookie"], undefined); assert.equal(result.headers["cache-control"], "no-store");
   assert.equal(result.headers["referrer-policy"], "no-referrer");
-  for (const url of ["/state", "/history", authority.openPath + "?next=/state", authority.openPath + "/"]) {
+  for (const url of ["/state", "/history", "/preview/inspection", authority.openPath + "?next=/state", authority.openPath + "/"]) {
     assert.equal((await request(handler, { url, headers: { "x-designverksted-token": undefined } })).status, 403);
   }
   const denied = await request(handler, { method: "OPTIONS", headers: { origin: "http://127.0.0.1:45678" } });
@@ -605,4 +605,66 @@ test("unexpected control or proxy listener loss retires the whole native view wi
     await assert.rejects(fetch(opened.url)); await assert.rejects(fetchPreview(config.previewUrl));
     assert.equal((await fetch(`http://127.0.0.1:${upstream.address().port}/`)).status, 200);
   }
+});
+
+test("inspection waits for a fresh renderer report and rejects expired responses", async () => {
+  const { createPreviewInspection } = require("../scripts/application-server.js");
+  const inspection = createPreviewInspection({ timeoutMs: 50 });
+  const result = inspection.read();
+  const request = inspection.request();
+  assert.match(request.id, /^[a-f0-9]{32}$/);
+  inspection.report({ id: request.id, observation: { viewport: { width: 800, height: 600 }, elements: [], truncated: false, health: { script: 1, module: 0, rejection: 0 } } });
+  const observed = await result;
+  assert.equal(observed.health.state, "errors-observed");
+  assert.equal(observed.evidence, "untrusted-page-content");
+  assert.throws(() => inspection.report({ id: request.id, observation: {} }), rejection(409));
+  await assert.rejects(inspection.read(), rejection(503));
+  assert.equal(inspection.request(), null);
+});
+
+test("inspection endpoints require the owning shell and never persist page content", async t => {
+  const { createPreviewInspection } = require("../scripts/application-server.js");
+  const room = fixture(t).room(), inspection = createPreviewInspection();
+  const handler = createApplicationRequestHandler({ workspace: room, authority: { ...authority, inspection } });
+  const before = fs.readFileSync(room.store.filename), feedback = room.feedback.snapshot();
+  const result = inspection.read(), pending = inspection.request();
+  const body = { id: pending.id, observation: { viewport: { width: 800, height: 600 }, elements: [], truncated: false, health: { script: 0, module: 0, rejection: 0 } } };
+  for (const headers of [
+    { origin: "http://localhost:34568" }, { "x-designverksted-token": undefined },
+    { "x-designverksted-token": undefined, cookie: "token=" + authority.token }, { origin: undefined },
+  ]) assert.equal((await request(handler, { method: "POST", url: "/preview/inspection", body, headers })).status, 403);
+  assert.deepEqual((await request(handler, { url: "/preview/inspection" })).body, { request: pending });
+  assert.equal((await request(handler, { method: "POST", url: "/preview/inspection", body })).status, 200);
+  assert.equal((await result).health.state, "no-errors-observed");
+  assert.equal((await request(handler, { url: "/preview/inspection" })).body.request, null);
+  assert.deepEqual(fs.readFileSync(room.store.filename), before);
+  assert.deepEqual(room.feedback.snapshot(), feedback);
+});
+
+test("embedded app activation keeps its own capability and exact parent boundary", async t => {
+  const { createHtmlEmbedding } = require("../scripts/html-embedding.js");
+  const room = fixture(t).room(), parentOrigin = "http://127.0.0.1:34568";
+  const embedding = createHtmlEmbedding({ parentOrigin, leaseId: "e".repeat(32) });
+  let activated = 0;
+  const handler = createApplicationRequestHandler({ workspace: room, authority: { ...authority, embedding,
+    previewOrigin: "http://localhost:34569", activateEmbedded: nonce => { activated++; return { html: nonce, csp: "default-src 'none'" }; } } });
+  const headers = { "x-designverksted-token": undefined };
+  const loaded = await request(handler, { url: "/embedded/" + embedding.invitation, headers });
+  assert.equal(loaded.status, 200); assert(loaded.headers["content-security-policy"].includes("frame-ancestors " + parentOrigin + ";"));
+  assert(!loaded.text.includes(embedding.activationKey)); assert(!loaded.text.includes(authority.token));
+  const candidate = JSON.parse(/const config=(\{.*?\});/.exec(loaded.text)[1]).candidate;
+  const body = { candidate, activationKey: embedding.activationKey };
+  for (const [deniedHeaders, deniedBody] of [
+    [{ ...headers, origin: parentOrigin }, body], [headers, { ...body, activationKey: "f".repeat(64) }],
+    [headers, { ...body, candidate: "f".repeat(64) }],
+  ]) assert.equal((await request(handler, { method: "POST", url: "/embedded/activate", headers: deniedHeaders, body: deniedBody })).status, 403);
+  assert.equal(activated, 0);
+  for (const url of ["/state", "/preview/inspection", "/comments", "/submit"]) {
+    assert.equal((await request(handler, { method: "POST", url, headers, body })).status, 403);
+  }
+  assert.equal((await request(handler, { method: "POST", url: "/embedded/activate", headers, body })).status, 200);
+  assert.equal(activated, 1);
+  embedding.revoke();
+  assert.equal((await request(handler, { method: "POST", url: "/embedded/activate", headers, body })).status, 410);
+  assert.equal(activated, 1); assert.equal(room.feedback.state.comments.length, 0);
 });

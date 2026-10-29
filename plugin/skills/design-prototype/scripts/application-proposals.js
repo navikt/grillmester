@@ -5,12 +5,14 @@ const { FeedbackError, keys, ID } = require("./feedback-store.js");
 const { relativeDirectory } = require("./application-workspace.js");
 const { validDesign, MAX_DESIGN_BYTES } = require("./design-contract.js");
 const { validateEditorBindings, editorBindingErrorMessage } = require("./editor-bindings.js");
+const { parseApplication } = require("./application-contract.js");
 const fail = (condition, status, message) => { if (!condition) throw new FeedbackError(status, message); };
 const text = value => typeof value === "string" && value.trim() && Buffer.byteLength(value) <= 200 && !/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(value);
-const routed = new Set(["readState", "readSubmission", "publishRevision", "reviewSubmission", "updateComment", "markDelivery", "listHistory", "readRevision", "restoreRevision"]);
+const routed = new Set(["readState", "readPreview", "readSubmission", "publishRevision", "reviewSubmission", "updateComment", "markDelivery", "listHistory", "readRevision", "restoreRevision"]);
 const copy = value => JSON.parse(JSON.stringify(value));
+const localPort = origin => { const url = new URL(origin); return url.port || (url.protocol === "https:" ? "443" : "80"); };
 const requestHash = input => crypto.createHash("sha256").update(JSON.stringify([input.source ?? "app-feedback", input.sourceSubmission ?? null, [...(input.commentIds || [])].sort(), input.title,
-  input.filename, input.html, input.design ?? null, input.workspacePath ?? null, input.create ?? null, input.styleProjectPath ?? ""])).digest("hex");
+  input.filename, input.html, input.design ?? null, input.workspacePath ?? null, input.create ?? null, input.styleProjectPath ?? "", ...(input.applicationSource ? [input.applicationSource] : [])])).digest("hex");
 // Child errors cross an IPC boundary. Preserve fixed recovery advice, never
 // arbitrary messages containing file paths, source text or field labels.
 const publicErrors = new Map([
@@ -40,7 +42,7 @@ function validateBindings(html, design) {
   try { validateEditorBindings(html, design); } catch (error) { throw proposalError(error); }
 }
 
-// One proposal uses the existing HTML engine and its own FeedbackStore. This
+// One proposal uses an existing renderer and its own FeedbackStore. This
 // registry owns the relationship, lifecycle and exact delivery route; it is not
 // another review queue. Runtime capabilities never enter saved workspace data.
 class ApplicationProposals {
@@ -53,16 +55,18 @@ class ApplicationProposals {
   assertOpen() { fail(!this.closed, 410, "This design workshop is closed."); this.workspace.assertOpen(); }
   async ensure(entry) {
     this.assertOpen();
+    fail(!entry.binding.application || entry.application, 409, "Reconnect this saved app proposal with publish_proposal and its saved application settings. Start the isolated copy first; do not reconstruct it as HTML.");
     if (!entry.backend) {
       const binding = entry.binding;
       entry.backend = Promise.resolve().then(() => this.backendFactory({ projectDir: this.projectDir,
         ...(binding.workspacePath === undefined ? {} : { workspacePath: binding.workspacePath }),
         ...(entry.create ? { create: true, title: binding.title } : {}),
         ...(binding.styleProjectPath === undefined ? {} : { styleProjectPath: binding.styleProjectPath }),
+        ...(entry.application ? { application: entry.application } : {}),
         onSubmitted: submission => { if (!this.closed && this.entry === entry) this.onSubmitted(submission, binding.id); },
       })).then(async backend => {
         try {
-          await backend.closeView({});
+          if (!entry.application) await backend.closeView({});
           const state = await backend.readState({});
           if (binding.workspaceId) fail(state.workspace?.id === binding.workspaceId, 409, "The linked sketch has been replaced. Its feedback has not been connected to this work.");
           entry.state = state;
@@ -82,8 +86,9 @@ class ApplicationProposals {
   }
   async publish(input) {
     this.assertOpen();
-    fail(keys(input, ["title", "filename", "html"], ["source", "sourceSubmission", "commentIds", "design", "workspacePath", "create", "styleProjectPath"]) && text(input.title) &&
-      typeof input.filename === "string" && /^[a-z0-9][a-z0-9-]{0,95}\.html$/.test(input.filename) && typeof input.html === "string" && input.html.trim() && Buffer.byteLength(input.html) <= 2 * 1024 * 1024 &&
+    const isApplication = Object.hasOwn(input, "application");
+    fail(keys(input, ["title", ...(isApplication ? ["application"] : ["filename", "html"])], ["source", "sourceSubmission", "commentIds", "workspacePath", "create", ...(isApplication ? [] : ["design", "styleProjectPath"])]) && text(input.title) &&
+      (isApplication || typeof input.filename === "string" && /^[a-z0-9][a-z0-9-]{0,95}\.html$/.test(input.filename) && typeof input.html === "string" && input.html.trim() && Buffer.byteLength(input.html) <= 2 * 1024 * 1024) &&
       [undefined, "conversation", "app-feedback"].includes(input.source), 400, "Invalid proposal publication.");
     const source = input.source ?? "app-feedback";
     fail(input.design === undefined || validDesign(input.design) && Buffer.byteLength(JSON.stringify(input.design)) <= MAX_DESIGN_BYTES, 400, "Invalid proposal controls.");
@@ -99,12 +104,27 @@ class ApplicationProposals {
       fail(batch && input.commentIds.every(id => batch.comments.some(comment => comment.id === id)), 404, "The proposal must answer comments in this app's exact submitted round.");
     }
     fail(input.workspacePath === undefined || input.workspacePath !== this.workspace.path, 409, "The app reference and sketch have separate saved content.");
-    const fingerprint = requestHash(input);
+    let application, applicationSource;
+    if (isApplication) {
+      const parsed = parseApplication(input.application);
+      // Loopback aliases may reach the same listener. Distinct ports are a
+      // conservative separation check, not proof of separate source copies.
+      fail(!this.workspace.connection || localPort(parsed.origin) !== localPort(this.workspace.connection.origin), 409,
+        "Use a separately running proposal copy on a different local port, not the reference application's address.");
+      application = { name: parsed.name, url: parsed.url, ...(parsed.resourceQueryKeys ? { resourceQueryKeys: parsed.resourceQueryKeys } : {}) };
+      applicationSource = { name: parsed.name, startPath: parsed.startPath, ...(parsed.resourceQueryKeys ? { resourceQueryKeys: parsed.resourceQueryKeys } : {}) };
+    }
+    const fingerprint = requestHash({ ...input, applicationSource });
     if (this.entry) fail(this.entry.binding.requestHash === fingerprint, 409, "This work already has a proposal. Read it with proposalId and publish its next revision.");
     else this.entry = { create: input.create === true, binding: { id: crypto.randomBytes(12).toString("hex"), title: input.title.trim(),
       source, ...(source === "app-feedback" ? { sourceSubmission: input.sourceSubmission, commentIds: [...input.commentIds] } : {}), requestHash: fingerprint,
       ...(input.workspacePath === undefined ? {} : { workspacePath: input.workspacePath }),
       ...(input.styleProjectPath === undefined ? {} : { styleProjectPath: input.styleProjectPath }) } };
+    if (isApplication) {
+      this.entry.binding.application = applicationSource;
+      if (this.entry.application) fail(this.entry.application.url === application.url, 409, "Close and reopen the workshop before reconnecting a different proposal address.");
+      this.entry.application = application;
+    }
     const entry = this.entry, backend = await this.ensure(entry);
     this.assertOpen();
     let before;
@@ -116,7 +136,7 @@ class ApplicationProposals {
       // remains an empty, retryable sketch, never an untracked duplicate.
       this.workspace.bindSketch(entry.binding);
     }
-    if (!before.screen) {
+    if (!before.screen && !isApplication) {
       try { entry.state = await backend.publishRevision({ expectedScreen: "", filename: input.filename, html: input.html,
         ...(input.design === undefined ? {} : { design: input.design }) }); }
       catch (error) { throw proposalError(error); }
@@ -128,6 +148,8 @@ class ApplicationProposals {
     const { id, title, source, sourceSubmission, commentIds } = entry.binding, state = entry.state;
     const pending = this.workspace.feedback.state.workspace.pendingSketchSave || entry.saveConfirmation;
     return { id, title, source, ...(source === "app-feedback" ? { sourceSubmission, commentIds: [...commentIds] } : {}), available: Boolean(state?.screen), screen: state?.screen || "",
+      ...(entry.binding.application ? { kind: "application", application: copy(entry.binding.application), needsReconnect: !entry.application,
+        ...(entry.binding.workspacePath ? { workspacePath: entry.binding.workspacePath } : {}) } : {}),
       ...(state?.workspace?.version ? { revisionId: state.workspace.version } : {}), storage: entry.binding.workspacePath !== undefined && !pending ? "project" : "temporary",
       ...(pending ? { pendingSave: { workspacePath: pending.binding.workspacePath, expectedScreen: pending.expectedScreen, expectedRevision: pending.expectedRevision } } : {}) };
   }
@@ -157,6 +179,7 @@ class ApplicationProposals {
   }
   async save(input) {
     this.assertOpen();
+    fail(!this.entry?.binding.application, 409, "Running proposals keep feedback in their chosen app room. HTML save/version actions do not copy application sources.");
     fail(keys(input, ["workspacePath", "expectedScreen", "expectedRevision"]) && relativeDirectory(input.workspacePath) &&
       typeof input.expectedScreen === "string" && /^[a-f0-9]{32}$/.test(input.expectedScreen) && Number.isSafeInteger(input.expectedRevision) && input.expectedRevision >= 0,
       400, "Invalid proposal save request.");

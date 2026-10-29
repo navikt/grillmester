@@ -55,10 +55,10 @@ function documentRequest(request) {
   if (destination !== undefined || mode !== undefined) return ["document", "iframe"].includes(destination) && mode === "navigate";
   return ["GET", "POST"].includes(request.method) && /(?:^|,)\s*(?:text\/html|application\/xhtml\+xml)(?:\s*;|\s*,|$)/i.test(String(request.headers.accept || ""));
 }
-function documentErrorResponse(response, status, shellOrigin, previewOrigin) {
+function documentErrorResponse(response, status, shellOrigin, previewOrigin, embeddingOrigin = "") {
   if (response.headersSent) { response.destroy(); return; }
   commonHeaders(response);
-  response.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin} ${previewOrigin}; base-uri 'none'; form-action 'none'` });
+  response.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin} ${previewOrigin}${embeddingOrigin ? " " + embeddingOrigin : ""}; base-uri 'none'; form-action 'none'` });
   response.end('<!doctype html><html lang="nb"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Appen kunne ikke vises</title><body><main><h1>Appen kunne ikke vises</h1><p>Kontroller at den lokale demoen kjører, og last visningen på nytt i Designverksted.</p><p>Du kan fortsatt gå tilbake til innspillene dine.</p></main></body></html>');
 }
 
@@ -126,7 +126,7 @@ function proxyRequestHeaders(headers, upstream, previewOrigin, cookiePrefix) {
 // script-src stays unchanged so handlers, eval and worker fallbacks retain
 // their original policy; ancestors are limited to the shell and this preview.
 // Same-preview nested documents must pass every ancestor in their frame chain.
-function contentSecurityPolicy(policy, shellOrigin, nonce, inspectorUrl, previewOrigin) {
+function contentSecurityPolicy(policy, shellOrigin, nonce, inspectorUrl, previewOrigin, embeddingOrigin) {
   if (Array.isArray(policy) || String(policy || "").includes(",")) throw failure(502, "Multiple application security policies are not supported by this preview.");
   const directives = new Map();
   for (const entry of String(policy || "").split(";")) {
@@ -149,7 +149,7 @@ function contentSecurityPolicy(policy, shellOrigin, nonce, inspectorUrl, preview
   directives.delete("upgrade-insecure-requests");
   directives.delete("report-uri");
   directives.delete("report-to");
-  directives.set("frame-ancestors", previewOrigin ? [shellOrigin, previewOrigin] : [shellOrigin]);
+  directives.set("frame-ancestors", [shellOrigin, ...(previewOrigin ? [previewOrigin] : []), ...(embeddingOrigin ? [embeddingOrigin] : [])]);
   return [...directives].map(([name, values]) => [name, ...values].join(" ")).join("; ");
 }
 
@@ -298,7 +298,7 @@ async function decodeBody(body, encoding) {
   }
   return body;
 }
-function responseHeaders(headers, { shellOrigin, nonce, upstreamOrigin, requestUrl, previewOrigin, inspectorPath, cookiePrefix, transformed = false }) {
+function responseHeaders(headers, { shellOrigin, nonce, upstreamOrigin, requestUrl, previewOrigin, inspectorPath, cookiePrefix, transformed = false, embeddingOrigin }) {
   const ignored = connectionHeaders(headers), output = {};
   for (const [name, value] of Object.entries(headers)) {
     const lower = name.toLowerCase();
@@ -319,7 +319,7 @@ function responseHeaders(headers, { shellOrigin, nonce, upstreamOrigin, requestU
       output[lower] = previewOrigin + redirect.pathname + redirect.search + redirect.hash;
     } else output[lower] = value;
   }
-  output["content-security-policy"] = contentSecurityPolicy(headers["content-security-policy"], shellOrigin, nonce, previewOrigin + inspectorPath, previewOrigin);
+  output["content-security-policy"] = contentSecurityPolicy(headers["content-security-policy"], shellOrigin, nonce, previewOrigin + inspectorPath, previewOrigin, embeddingOrigin);
   output["cache-control"] = "no-store";
   output["referrer-policy"] = "no-referrer";
   output["x-content-type-options"] = "nosniff";
@@ -327,9 +327,10 @@ function responseHeaders(headers, { shellOrigin, nonce, upstreamOrigin, requestU
   return output;
 }
 
-async function createApplicationProxy({ application, shellOrigin, inspectorSource, onClose, onStatus } = {}) {
+async function createApplicationProxy({ application, shellOrigin, inspectorSource, onClose, onStatus, embeddingOrigin } = {}) {
   let app, shell;
   try {
+    if (embeddingOrigin !== undefined && (typeof embeddingOrigin !== "string" || !/^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/.test(embeddingOrigin) || Number(new URL(embeddingOrigin).port) > 65535)) throw new Error();
     app = parseApplication({ name: application?.name, url: application?.url,
       ...(application?.resourceQueryKeys !== undefined ? { resourceQueryKeys: application.resourceQueryKeys } : {}) });
     if (application.origin !== undefined && application.origin !== app.origin || application.startPath !== undefined && application.startPath !== app.startPath) throw new Error();
@@ -392,7 +393,7 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     if (target.pathname === bootstrapPath && !target.search && request.method === "GET") {
       if (request.headers.origin !== undefined && ![origin, shellOrigin].includes(request.headers.origin)) { errorResponse(response, 403, "This preview cannot be opened from that origin."); return; }
       pendingDocument = { path: app.startPath, id: ++navigation };
-      response.writeHead(303, { Location: app.startPath, "Set-Cookie": `${authCookie}=${cookieKey}; HttpOnly; SameSite=None; Secure; Partitioned; Path=/`, "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin}` });
+      response.writeHead(303, { Location: app.startPath, "Set-Cookie": `${authCookie}=${cookieKey}; HttpOnly; SameSite=None; Secure; Partitioned; Path=/`, "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin}${embeddingOrigin ? " " + embeddingOrigin : ""}` });
       response.end(); return;
     }
     const workerValues = target.searchParams.getAll(WORKER_QUERY);
@@ -432,7 +433,7 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     const failRequest = (status, message) => {
       if (response.writableEnded || response.destroyed) return;
       reportStatus(navigationId, "unavailable", status);
-      if (isDocument) documentErrorResponse(response, status, shellOrigin, origin);
+      if (isDocument) documentErrorResponse(response, status, shellOrigin, origin, embeddingOrigin);
       else errorResponse(response, status, message);
     };
     reportStatus(navigationId, "loading");
@@ -465,7 +466,7 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
         const html = /^(?:text\/html|application\/xhtml\+xml)(?:;|$)/.test(contentType);
         const css = /^text\/css(?:;|$)/.test(contentType);
         const transformed = workerRequest || request.method !== "HEAD" && ![204, 304].includes(incoming.statusCode) && (html || css);
-        const headers = responseHeaders(incoming.headers, { shellOrigin, nonce, upstreamOrigin: app.origin, requestUrl: target.href, previewOrigin: origin, inspectorPath, cookiePrefix, transformed });
+        const headers = responseHeaders(incoming.headers, { shellOrigin, nonce, upstreamOrigin: app.origin, requestUrl: target.href, previewOrigin: origin, inspectorPath, cookiePrefix, transformed, embeddingOrigin });
         if (workerRequest) {
           const decoded = await decodeBody(await readBounded(incoming), incoming.headers["content-encoding"]);
           const source = decoded.toString("utf8");

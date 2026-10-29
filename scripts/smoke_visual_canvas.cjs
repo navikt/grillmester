@@ -569,7 +569,7 @@ const cases = [
     assert(recovered.comments.some(item => item.text.startsWith("Behold denne delen.") && item.context?.target === "meeting"), "The keep wish is recovered as an ordinary wish.");
     assert.equal(next.calls.length, 0, "Opening a project must not deliver historical rounds.");
     await reopened.openFeedback(); const old = await reopened.round(1, "previous");
-    assert.equal(await old.locator(".badge").textContent(), "Fra tidligere samtale");
+    assert.equal(await old.locator(".badge").textContent(), "Fra tidligere økt");
     assert.match(await old.locator(".workspace-previous").textContent(), /uavklart/);
     assert(await reopened.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).isEnabled(), "A previous session's uncertainty must not permanently block new feedback.");
     await screenshot(reopened, "previous-round-and-new-feedback");

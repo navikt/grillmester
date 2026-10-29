@@ -67,8 +67,11 @@ the same procedure below.
 
 Before following the link, validate its bounded project-relative path, reject
 symlinks or escapes, read the target `workspace.json` as ordinary data, and match
-its exact `workspace.id` to `workspaceId`. It must be an HTML workspace with
-`version`/`revisions`, not an application source. Missing or replaced files make
+its exact `workspace.id` to `workspaceId`. For an HTML proposal it must have
+`version`/`revisions`, not an application source. If the link instead contains
+`application`, its target must be an app feedback room with the same startPath
+and resourceQueryKeys. Read that room with the app-feedback procedure above;
+never interpret its checkpoint as a source version. Missing or replaced files make
 the link unavailable; never initialize a writer store or create a replacement.
 The relationship does not pick a historical version for implementation. Resolve
 the agreed revision and verify its registered pair using the procedure below.
@@ -88,6 +91,18 @@ use their current state in the owning conversation and do not claim later
 recovery. Do not create a project note unless that deliverable was requested.
 Never write relation fields or revision files directly; only the owning canvas
 may update its managed state. A portable link does not authorize product edits.
+
+## Handoff from a running proposal
+
+A running proposal uses an explicitly owned source copy. Preserve the selected
+copy and its actual source revision or reviewed diff, safe route, synthetic
+scenario and feedback-room relationship. The canvas stores neither source
+snapshots nor backend state. A local URL alone is not a durable deliverable.
+For Figma, use the selected full page and agreed relevant states as the visual
+reference, with the active Aksel library, and verify the resulting editable
+frames against that page. Do not substitute a small HTML reconstruction or
+claim lossless code-to-Figma conversion. Implementation remains a separately
+agreed delivery; prototype source is not automatically production-ready.
 
 ## Choose the HTML sketch pair
 

@@ -29,9 +29,9 @@ Node.js 18 eller nyere, og gjeldende LTS anbefales. Prosjektlagrede designrom
 støttes bare på Unix-verter som macOS og Linux. Forhåndsvisningen bruker en
 privat lokal loopback-server. Se [forutsetninger](docs/installation.md#før-du-begynner).
 
-Designverksted samler **Appen nå**, innspill til Designer og interaktive
-skisser under **Forslag** i samme canvas ved siden av samtalen. Bruk lokale
-demoer med syntetiske data; forslag kan også bestilles direkte.
+Designverksted samler **Appen nå**, innspill og **Forslag** i samme canvas
+ved samtalen. Bruk lokale demoer med syntetiske data; forslag kan bestilles
+direkte. Forslaget kan være en HTML-skisse eller en avtalt separat appkopi.
 Appinnspill er midlertidige som standard. Avtalt lagring bevarer arbeidet,
 uten å endre appkode. Et lukket appverksted åpnes som en ny instans.
 Nativeflyten er prøvd i Copilot app på macOS; se

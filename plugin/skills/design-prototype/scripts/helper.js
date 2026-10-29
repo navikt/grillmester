@@ -1221,7 +1221,7 @@
     if (signature === canvasSignature) return;
     canvasSignature = signature;
     if (!rounds) return;
-    const labels = { sending: "Sender …", queued: "I kø", unknown: "Levering ikke bekreftet", working: "Behandles", answered: "Besvart", previous: "Fra tidligere samtale" };
+    const labels = { sending: "Sender …", queued: "I kø", unknown: "Levering ikke bekreftet", working: "Behandles", answered: "Besvart", previous: "Fra tidligere økt" };
     const ordered = rounds.slice().sort((a, b) => b.submission - a.submission);
     const active = root.activeElement;
     const changes = [];

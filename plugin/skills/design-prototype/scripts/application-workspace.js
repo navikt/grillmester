@@ -16,9 +16,14 @@ const copy = value => JSON.parse(JSON.stringify(value));
 const relativeDirectory = value => typeof value === "string" && value.length > 0 && Buffer.byteLength(value) <= 240 && value.split("/").length <= 8 &&
   value.split("/").every(part => /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(part) && !/^(?:node_modules|__pycache__|con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(part));
 function validSketchBinding(value, state) {
-  if (!keys(value, ["id", "title", "workspacePath", "workspaceId", "source", "requestHash"], ["styleProjectPath", "sourceSubmission", "commentIds"]) ||
+  if (!keys(value, ["id", "title", "workspacePath", "workspaceId", "source", "requestHash"], ["styleProjectPath", "sourceSubmission", "commentIds", "application"]) ||
       typeof value.id !== "string" || !ID.test(value.id) || typeof value.workspaceId !== "string" || !ID.test(value.workspaceId) || !text(value.title) || !relativeDirectory(value.workspacePath) || !hash(value.requestHash) ||
       Object.hasOwn(value, "styleProjectPath") && value.styleProjectPath !== "" && !relativeDirectory(value.styleProjectPath)) return false;
+  if (value.application) {
+    if (Object.hasOwn(value, "styleProjectPath") || !keys(value.application, ["name", "startPath"], ["resourceQueryKeys"]) || !text(value.application.name)) return false;
+    try { parseApplication({ name: value.application.name, url: "http://localhost" + value.application.startPath, ...(value.application.resourceQueryKeys ? { resourceQueryKeys: value.application.resourceQueryKeys } : {}) }); }
+    catch { return false; }
+  } else if (Object.hasOwn(value, "application")) return false;
   if (value.source === "conversation") return !Object.hasOwn(value, "sourceSubmission") && !Object.hasOwn(value, "commentIds");
   if (value.source !== "app-feedback" || !Array.isArray(value.commentIds) || value.commentIds.length < 1 || value.commentIds.length > 200 ||
       new Set(value.commentIds).size !== value.commentIds.length || !value.commentIds.every(id => typeof id === "string" && ID.test(id))) return false;
@@ -26,7 +31,7 @@ function validSketchBinding(value, state) {
   return Boolean(batch && value.commentIds.every(id => batch.comments.some(comment => comment.id === id)));
 }
 function validSketchSave(value, state) {
-  return keys(value, ["binding", "expectedScreen", "expectedRevision"]) && validSketchBinding(value.binding, state) &&
+  return keys(value, ["binding", "expectedScreen", "expectedRevision"]) && !value.binding?.application && validSketchBinding(value.binding, state) &&
     typeof value.expectedScreen === "string" && /^[a-f0-9]{32}$/.test(value.expectedScreen) &&
     Number.isSafeInteger(value.expectedRevision) && value.expectedRevision >= 0;
 }
