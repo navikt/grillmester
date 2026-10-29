@@ -182,6 +182,13 @@ characterization, content lock and third-party notices are unchanged. This
 review binds the changed content while preserving the underlying decision in
 #56; it does not reuse the earlier component digests.
 
+PR [#91](https://github.com/navikt/grillmester/pull/91) reviews the extension of
+Designer and `design-prototype` to separately running app proposals and bounded
+preview observations. It preserves HTML sketches, Figma handoff and the existing
+source, component and naming scope. The implementation and regression tests are
+Grillmester-authored; no new third-party material is imported. The rights journal
+binds this content and provenance under the same underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
