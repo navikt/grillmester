@@ -483,7 +483,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workspace-store.js": {
-      "sha256": "b05b8d0e87a1df227976596a4db9d3e4d8e229d1a60e730fad95927cdda78d78",
+      "sha256": "a1db6bcd4e35dc177a0deeee63cd9062df5c327ee1c86ab2578f5bca0493e6bb",
       "mode": "0644"
     },
     "skills/design-prototype/tests/app-runtime.test.js": {
@@ -563,7 +563,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/workspace-store.test.js": {
-      "sha256": "e8f34a094d0ad9514ee80fbf997b4b36478cbb7227b5f3e5b6505719cf772815",
+      "sha256": "648b93d964644c0e5add1ba2b77ba6c403a77f2e462f218d66c36dc76238ef6f",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
