@@ -1516,10 +1516,15 @@ def run_npm_access_matrix(
     npm_raw = shutil.which("npm", path=source.get("PATH"))
     if npm_raw is None:
         raise LocalSmokeError("npm is required for the package-access smoke")
-    npm_entry = Path(npm_raw).expanduser()
-    npm = npm_entry.resolve(strict=True)
+    npm = Path(npm_raw).expanduser().resolve(strict=True)
     if not npm.is_file() or not os.access(npm, os.X_OK):
         raise LocalSmokeError("npm must resolve to an executable regular file")
+    node_raw = shutil.which("node", path=source.get("PATH"))
+    if node_raw is None:
+        raise LocalSmokeError("node is required for the package-access smoke")
+    node = Path(node_raw).expanduser().resolve(strict=True)
+    if not node.is_file() or not os.access(node, os.X_OK):
+        raise LocalSmokeError("node must resolve to an executable regular file")
     with tempfile.TemporaryDirectory(
         prefix=".grillmester-npm-access-smoke-", dir=home
     ) as directory:
@@ -1540,14 +1545,10 @@ def run_npm_access_matrix(
                     client_name=client_name,
                     ripgrep=ripgrep,
                 )
-                scenario_environment["PATH"] = os.pathsep.join(
-                    dict.fromkeys(
-                        (
-                            str(npm_entry.parent),
-                            *scenario_environment["PATH"].split(os.pathsep),
-                        )
-                    )
-                )
+                # Expose only npm and its interpreter. Adding their ambient
+                # directory could shadow the exact client and cplt aliases.
+                for name, binary in (("npm", npm), ("node", node)):
+                    (scenario_root / "client-bin" / name).symlink_to(binary)
                 scenario_environment[NPM_ACCESS_ENVIRONMENT] = (
                     f"{CREDENTIAL_CANARY_PREFIX}{NPM_ACCESS_ENVIRONMENT}"
                 )

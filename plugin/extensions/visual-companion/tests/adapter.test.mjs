@@ -13,7 +13,7 @@ function fixture({ sessionId = 'session-one', send = async () => 'message-one', 
   const backends = [], sends = [];
   const backendFactory = factory || (async callbacks => {
     const calls = [], backend = { callbacks, calls, open: false, generation: 0 };
-    for (const method of ['readState', 'readSubmission', 'publishRevision', 'reviewSubmission', 'updateComment', 'markDelivery', 'listHistory', 'readRevision', 'restoreRevision']) backend[method] = async input => { calls.push({ method, input }); return { method, input }; };
+    for (const method of ['readState', 'readSubmission', 'publishRevision', 'publishProposal', 'saveProposal', 'reviewSubmission', 'updateComment', 'markDelivery', 'listHistory', 'readRevision', 'restoreRevision']) backend[method] = async input => { calls.push({ method, input }); return { method, input }; };
     backend.openView = async () => { backend.open = true; calls.push({ method: 'openView' }); return { url: `http://127.0.0.1:1234/?token=${++backend.generation}` }; };
     backend.closeView = async () => { backend.open = false; calls.push({ method: 'closeView' }); return { closed: true }; };
     backend.retire = async () => { backend.open = false; calls.push({ method: 'retire' }); callbacks.onExit(); };
@@ -75,7 +75,7 @@ test('reopen retains one logical backend and four-instance capacity does not evi
 
 test('actions delegate to the same backend and cannot invoke delivery or change ownership', async () => {
   const f = fixture(); f.adapter.attachSession(f.session); await f.adapter.canvas.open(f.ctx);
-  assert.deepEqual(f.adapter.canvas.actions.map(item => item.name), ['read_state', 'read_submission', 'publish_revision', 'review_submission', 'update_comment', 'list_history', 'read_revision', 'restore_revision']);
+  assert.deepEqual(f.adapter.canvas.actions.map(item => item.name), ['read_state', 'read_submission', 'publish_proposal', 'save_proposal', 'publish_revision', 'review_submission', 'update_comment', 'list_history', 'read_revision', 'restore_revision']);
   await f.action('read_state');
   await f.action('read_submission', { submission: 1, offset: 32 });
   await f.action('publish_revision', { expectedScreen: '', filename: 'first.html', html: '<h1>First</h1>' });
@@ -90,6 +90,15 @@ test('actions delegate to the same backend and cannot invoke delivery or change 
   assert.deepEqual(f.backends[0].calls.filter(item => item.method === 'restoreRevision')[0].input, { revisionId: 1, expectedRevision: 10 });
   for (const [name, input] of [['list_history', { workspacePath: 'other' }], ['read_revision', { revisionId: 1, part: 'html', sessionId: 'other' }], ['restore_revision', { revisionId: 1 }]]) await assert.rejects(f.action(name, input), /arguments/);
   await f.adapter.close();
+});
+test('saving a proposal requires its exact identity and guards without opening another canvas or sending', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session); await f.adapter.canvas.open(f.ctx);
+  const input = { proposalId: 'a'.repeat(24), workspacePath: 'designs/proposal', expectedScreen: 'b'.repeat(32), expectedRevision: 4 };
+  await f.action('save_proposal', input);
+  assert.deepEqual(f.backends[0].calls.at(-1), { method: 'saveProposal', input });
+  for (const key of Object.keys(input)) { const bad = { ...input }; delete bad[key]; await assert.rejects(f.action('save_proposal', bad), error => error.status === 400); }
+  await assert.rejects(f.action('save_proposal', { ...input, url: 'http://localhost:4000' }), error => error.status === 400);
+  assert.equal(f.backends.length, 1); assert.equal(f.sends.length, 0); await f.adapter.close();
 });
 
 test('workspace opening passes exact create intent once and cannot rebind a retained instance', async () => {
@@ -107,6 +116,19 @@ test('workspace opening passes exact create intent once and cannot rebind a reta
   await f.adapter.close();
 });
 
+test('the shared catalogue exposes feedback and HTML actions, never app source or reference authority', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  await f.adapter.canvas.open({ ...f.ctx, input: { application: { name: 'Møtedemo', url: 'http://localhost:3000/demo' } } });
+  const names = f.adapter.canvas.actions.map(item => item.name);
+  for (const name of ['read_source', 'read_source_changes', 'prepare_source_change', 'apply_source_change', 'restore_source_change', 'abandon_source_change', 'register_reference', 'list_references']) assert(!names.includes(name));
+  for (const name of ['publish_revision', 'list_history', 'read_revision', 'restore_revision']) {
+    assert.match(f.adapter.canvas.actions.find(item => item.name === name).description, /HTML sketch only/);
+  }
+  await f.action('read_state'); await f.action('read_submission', { submission: 1 });
+  await f.action('review_submission', { submission: 1, status: 'answered', reply: 'Vi har vurdert innspillet; kode er ikke endret.' });
+  assert.equal(f.sends.length, 0); await f.adapter.close();
+});
+
 test('invalid workspace inputs fail before creating a preview or reading another location', async () => {
   const f = fixture(); f.adapter.attachSession(f.session);
   for (const input of [null, [], { create: true }, { title: 'Title' }, { workspacePath: '' },
@@ -119,6 +141,33 @@ test('invalid workspace inputs fail before creating a preview or reading another
   assert.equal(f.backends.length, 0); assert.equal(f.sends.length, 0);
   await f.adapter.canvas.open(f.ctx);
   await assert.rejects(f.adapter.canvas.open({ ...f.ctx, input: { workspacePath: 'design/room', create: true } }), /workspace changed/);
+  await f.adapter.close();
+});
+
+test('a saved running app retains its route and immutable binding while the same canvas stays open', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  const input = { workspacePath: 'designs/meeting', create: true, title: 'Møteform', application: { name: 'Møtedemo', url: 'http://localhost:5173/dialogmote/demo?tema=mote%20form' } };
+  await f.adapter.canvas.open({ ...f.ctx, input });
+  assert.deepEqual(f.backends[0].callbacks.application, { name: 'Møtedemo', url: 'http://localhost:5173/dialogmote/demo?tema=mote+form' });
+  await f.adapter.canvas.open(f.ctx);
+  await f.adapter.canvas.open({ ...f.ctx, input });
+  for (const application of [{ ...input.application, url: 'http://localhost:5174/dialogmote/demo' }, { ...input.application, name: 'Annen app' }])
+    await assert.rejects(f.adapter.canvas.open({ ...f.ctx, input: { ...input, application } }), error => error.status === 409);
+  await assert.rejects(f.adapter.canvas.open({ ...f.ctx, input: { styleProjectPath: '' } }), error => error.status === 409);
+  assert.equal(f.backends.length, 1); assert.equal(f.sends.length, 0);
+  await f.adapter.close();
+});
+
+test('app inputs cannot silently switch a sketch, escape loopback or mix style sources', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  const application = { name: 'Demo', url: 'http://localhost:5173/demo' };
+  for (const input of [{ application, create: true }, { application, title: 'No implicit save' }, { application, styleProjectPath: '' }, { workspacePath: 'designs/room', application, styleProjectPath: '' },
+    ...['https://example.com/demo', 'http://localhost:5173/demo?token=private', 'http://name:secret@localhost:5173/demo'].map(url => ({ workspacePath: 'designs/room', application: { ...application, url } }))])
+    await assert.rejects(f.adapter.canvas.open({ ...f.ctx, input }), error => error.status === 400);
+  assert.equal(f.backends.length, 0);
+  await f.adapter.canvas.open({ ...f.ctx, input: { workspacePath: 'designs/room' } });
+  await assert.rejects(f.adapter.canvas.open({ ...f.ctx, input: { workspacePath: 'designs/room', application } }), error => error.status === 409);
+  assert.equal(f.backends.length, 1);
   await f.adapter.close();
 });
 
@@ -198,16 +247,18 @@ test('a new session reopening the same workspace never synthesizes delivery from
 
 test('one committed round sends a bounded exact reference once, never content or automatic reviews', async () => {
   const ack = deferred(), f = fixture({ send: () => ack.promise });
+  f.ctx.extensionId = '"'.repeat(200); f.ctx.instanceId = '\\'.repeat(200);
   f.adapter.attachSession(f.session); await f.adapter.canvas.open(f.ctx);
   const backend = f.backends[0];
-  backend.callbacks.onSubmitted(1); backend.callbacks.onSubmitted(1);
+  backend.callbacks.onSubmitted(200); backend.callbacks.onSubmitted(200);
   await tick(); assert.equal(f.sends.length, 1);
   assert.equal(f.sends[0].mode, 'enqueue'); assert.equal(f.sends[0].source, 'user');
-  assert(Buffer.byteLength(f.sends[0].prompt) < 2000);
-  assert.deepEqual(JSON.parse(f.sends[0].prompt.split('\n').at(-1)), { extensionId: f.ctx.extensionId, canvasId: CANVAS_ID, instanceId: f.ctx.instanceId, submission: 1 });
+  assert(Buffer.byteLength(f.sends[0].prompt.split('\n')[0]) < 2000);
+  assert(Buffer.byteLength(f.sends[0].prompt) < 3000);
+  assert.deepEqual(JSON.parse(f.sends[0].prompt.split('\n').at(-1)), { extensionId: f.ctx.extensionId, canvasId: CANVAS_ID, instanceId: f.ctx.instanceId, submission: 200 });
   assert.equal(backend.calls.some(item => item.method === 'markDelivery'), false);
   ack.resolve('accepted-message'); await tick();
-  assert.deepEqual(backend.calls.filter(item => item.method === 'markDelivery').map(item => item.input), [{ submission: 1, status: 'queued' }]);
+  assert.deepEqual(backend.calls.filter(item => item.method === 'markDelivery').map(item => item.input), [{ submission: 200, status: 'queued' }]);
   assert.equal(backend.calls.some(item => item.method === 'reviewSubmission'), false);
   await f.adapter.close();
 });
@@ -415,4 +466,151 @@ test('two sessions and two instances route each committed round only to their ow
   assert.equal(JSON.parse(two.sends[0].prompt.split('\n').at(-1)).instanceId, 'instance-one');
   await assert.rejects(one.action('read_state', {}, two.ctx), /ownership/);
   await one.adapter.close(); await two.adapter.close();
+});
+
+test('temporary app feedback retains its own binding without creating or silently saving a workspace', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  const input = { application: { name: 'Møtedemo', url: 'http://localhost:3000/demo?mode=mock' } };
+  await f.adapter.canvas.open({ ...f.ctx, input });
+  assert.deepEqual(f.backends[0].callbacks.application, input.application);
+  for (const key of ['workspacePath', 'create', 'title', 'styleProjectPath']) assert.equal(Object.hasOwn(f.backends[0].callbacks, key), false);
+  await f.adapter.canvas.open(f.ctx);
+  await f.adapter.canvas.open({ ...f.ctx, input });
+  assert.equal(f.backends.length, 1);
+  await assert.rejects(f.adapter.canvas.open({ ...f.ctx, input: { workspacePath: 'designs/app', create: true } }), /workspace changed/);
+  await assert.rejects(f.adapter.canvas.open({ ...f.ctx, input: { application: { ...input.application, url: 'http://localhost:3001/demo' } } }), /application changed/);
+  f.backends[0].callbacks.onSubmitted(1); await tick();
+  assert.equal(f.sends.length, 1);
+  assert.match(f.sends[0].prompt, /App feedback does not authorize code writes/);
+  assert.match(f.sends[0].prompt, /separately agreed code work happens outside this canvas/);
+  assert.match(f.sends[0].prompt, /concrete design-change request within scope normally calls for a visible bounded HTML proposal in this same workshop via publish_proposal/);
+  assert.match(f.sends[0].prompt, /Honor review-only\/no-HTML limits; questions or observations alone do not request a sketch/);
+  assert.match(f.sends[0].prompt, /An explicit request to save the workshop\/design work includes its proposal in the agreed design area; reuse that choice/);
+  assert.match(f.sends[0].prompt, /Feedback-only saving or an already saved app does not/);
+  assert.match(f.sends[0].prompt, /Otherwise keep this follow-up temporary and say so/);
+  assert.match(f.sends[0].prompt, /Answered is not implemented/);
+  assert.match(f.sends[0].prompt, /Never invent an artifact or link/);
+  assert.doesNotMatch(f.sends[0].prompt, /make only the agreed bounded source change/);
+  assert(Buffer.byteLength(f.sends[0].prompt) < 2000);
+  await f.adapter.close();
+});
+
+test('app and proposal rounds share one owning canvas but keep exact separate delivery identities', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  await f.adapter.canvas.open({ ...f.ctx, input: { application: { name: 'Demo', url: 'http://localhost:3000/demo' } } });
+  const proposalId = 'c'.repeat(24), backend = f.backends[0];
+  backend.callbacks.onSubmitted(1); backend.callbacks.onSubmitted(1, proposalId);
+  backend.callbacks.onSubmitted(1, proposalId); backend.callbacks.onSubmitted(1, 'bad');
+  await tick(); assert.equal(f.sends.length, 2); assert.equal(f.backends.length, 1);
+  const refs = f.sends.map(message => JSON.parse(message.prompt.split('\n').at(-1)));
+  assert.equal(refs[0].proposalId, undefined); assert.equal(refs[1].proposalId, proposalId);
+  assert.equal(refs[0].instanceId, refs[1].instanceId);
+  assert.deepEqual(backend.calls.filter(call => call.method === 'markDelivery').map(call => call.input.proposalId), [undefined, proposalId]);
+  await f.action('read_submission', { proposalId, submission: 1 });
+  await f.action('review_submission', { proposalId, submission: 1, status: 'answered', reply: 'Forslaget er klart.' });
+  assert.equal(backend.calls.at(-1).input.proposalId, proposalId);
+  await assert.rejects(f.action('read_state', { proposalId: 'bad' }), error => error.status === 400);
+  await f.adapter.close();
+});
+
+test('publishing a proposal is a bounded action on the app instance without another canvas', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  await f.adapter.canvas.open({ ...f.ctx, input: { application: { name: 'Demo', url: 'http://localhost:3000/demo' } } });
+  const input = { sourceSubmission: 1, commentIds: ['a'.repeat(24)], title: 'Tydelig neste steg', filename: 'next-step.html', html: '<h1>Neste steg</h1>' };
+  await f.action('publish_proposal', input);
+  assert.deepEqual(f.backends[0].calls.at(-1), { method: 'publishProposal', input });
+  assert.equal(f.backends.length, 1); assert.equal(f.sends.length, 0);
+  const chat = { source: 'conversation', title: 'Tydelig neste steg', filename: 'next-step.html', html: '<h1>Neste steg</h1>' };
+  await f.action('publish_proposal', chat);
+  assert.deepEqual(f.backends[0].calls.at(-1), { method: 'publishProposal', input: chat });
+  await assert.rejects(f.action('publish_proposal', { ...input, url: 'http://localhost:4000' }), error => error.status === 400);
+  await f.adapter.close();
+});
+
+
+test('native app focus reuses one renderer and close revokes actions before queued retirement', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  const input = { application: { name: 'Demo', url: 'http://localhost:5173/demo' } };
+  const opened = await f.adapter.canvas.open({ ...f.ctx, input });
+  assert.deepEqual(await f.adapter.canvas.open(f.ctx), opened);
+  assert.equal(f.backends[0].calls.filter(item => item.method === 'openView').length, 1);
+  const gate = deferred(), backend = f.backends[0], original = backend.retire;
+  backend.retire = async () => { await gate.promise; return original(); };
+  const closing = f.adapter.canvas.onClose(f.ctx);
+  await assert.rejects(f.action('read_state'), /closed|unknown/);
+  await assert.rejects(f.adapter.canvas.open(f.ctx), /expired/);
+  assert.throws(() => f.adapter.canvas.onClose({ ...f.ctx, extensionId: 'other' }), /owner/i);
+  backend.callbacks.onSubmitted(1); await tick();
+  assert.equal(f.sends.length, 0);
+  assert.equal(backend.open, false, 'Renderer revocation does not wait for retirement');
+  let shutdownDone = false; const shutdown = f.adapter.close().then(() => { shutdownDone = true; });
+  await tick(); assert.equal(shutdownDone, false, 'Session shutdown waits for outstanding app retirement');
+  gate.resolve(); await closing; await shutdown;
+  assert.equal(backend.calls.filter(item => item.method === 'retire').length, 1);
+});
+
+test('native close during a pending open requests renderer revocation before waiting for open', async () => {
+  const gate = deferred(), opened = deferred(), calls = [];
+  const f = fixture({ factory: async callbacks => ({
+    openView: async () => { calls.push('open'); opened.resolve(); await gate.promise; return { url: 'http://127.0.0.1:1234/browser/private' }; },
+    closeView: async () => { calls.push('revoke'); },
+    retire: async () => { calls.push('retire'); callbacks.onExit(); },
+  }) });
+  f.adapter.attachSession(f.session);
+  const opening = f.adapter.canvas.open({ ...f.ctx, input: { application: { name: 'Demo', url: 'http://localhost:5173/' } } });
+  const rejected = assert.rejects(opening, /closed after/); await opened.promise;
+  const closing = f.adapter.canvas.onClose(f.ctx); await tick();
+  assert.deepEqual(calls, ['open', 'revoke']);
+  await assert.rejects(f.action('read_state'), /closed|unknown/);
+  gate.resolve(); await rejected; await closing;
+  assert.deepEqual(calls, ['open', 'revoke', 'retire']);
+  await assert.rejects(f.adapter.canvas.open(f.ctx), /expired/);
+  await f.adapter.close();
+});
+
+test('native close during backend startup retires the exact backend without opening a renderer', async () => {
+  const gate = deferred(), calls = [];
+  const f = fixture({ factory: () => gate.promise }); f.adapter.attachSession(f.session);
+  const opening = f.adapter.canvas.open({ ...f.ctx, input: { application: { name: 'Demo', url: 'http://localhost:5173/' } } });
+  const rejected = assert.rejects(opening, /closed after/); await tick();
+  const closing = f.adapter.canvas.onClose(f.ctx);
+  await assert.rejects(f.adapter.canvas.open(f.ctx), /expired/);
+  gate.resolve({ openView: async () => { calls.push('open'); }, closeView: async () => { calls.push('revoke'); }, retire: async () => { calls.push('retire'); } });
+  await rejected; await closing;
+  assert.deepEqual(calls, ['revoke', 'retire']);
+  await f.adapter.close();
+});
+
+test('native app backend loss and a never-ready app failure require a fresh instance', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session);
+  const input = { application: { name: 'Demo', url: 'http://localhost:5173/demo' } };
+  await f.adapter.canvas.open({ ...f.ctx, input });
+  f.backends[0].callbacks.onExit();
+  await assert.rejects(f.adapter.canvas.open(f.ctx), /expired/);
+  await assert.rejects(f.action('read_state'), /closed|unknown/);
+  await f.adapter.close();
+  let starts = 0;
+  const failed = fixture({ factory: async () => { starts++; throw Object.assign(new Error('Stopped before ready'), { backendStopped: true, backendWasReady: false }); } });
+  failed.adapter.attachSession(failed.session);
+  await assert.rejects(failed.adapter.canvas.open({ ...failed.ctx, input }), /Stopped before ready/);
+  await assert.rejects(failed.adapter.canvas.open(failed.ctx), /expired/);
+  assert.equal(starts, 1); await failed.adapter.close();
+});
+
+test('a fresh native identity opens the saved room binding without replaying old delivery', async () => {
+  const ack = deferred(), f = fixture({ send: () => ack.promise }); f.adapter.attachSession(f.session);
+  const application = { name: 'Demo', url: 'http://localhost:5173/demo' };
+  await f.adapter.canvas.open({ ...f.ctx, input: { application, workspacePath: 'designs/meeting', create: true, title: 'Meeting' } });
+  const old = f.backends[0]; old.callbacks.onSubmitted(1); await tick();
+  await f.adapter.canvas.onClose(f.ctx);
+  ack.resolve('old-ack'); await tick();
+  assert.equal(old.calls.filter(item => item.method === 'markDelivery').length, 0, 'Late delivery acknowledgement cannot mutate a retired backend');
+  await f.adapter.canvas.open({ ...f.ctx, instanceId: 'fresh-app', input: { application, workspacePath: 'designs/meeting' } });
+  assert.equal(f.backends.length, 2);
+  assert.equal(f.backends[1].callbacks.workspacePath, 'designs/meeting');
+  assert.equal(f.backends[1].callbacks.create, undefined);
+  old.callbacks.onSubmitted(1); old.callbacks.onSubmitted(2); await tick();
+  assert.equal(f.sends.length, 1, 'Opening saved work does not resend prior rounds');
+  await assert.rejects(f.adapter.canvas.open(f.ctx), /expired/);
+  await f.adapter.close();
 });

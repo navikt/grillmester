@@ -173,6 +173,15 @@ concrete content and provenance plus the applicable underlying rights decision.
 A new rights or brand decision is required when the change falls outside that
 decision's source, component, or naming scope.
 
+PR [#90](https://github.com/navikt/grillmester/pull/90) reviews Designer's
+role and capability guidance and the expanded `design-prototype` implementation.
+Operational contracts remain in the skill's conditional references.
+Changed rights-bound content is limited to those two components and this
+provenance record. The Hovmester revision, component IDs, Doctor Who name and
+characterization, content lock and third-party notices are unchanged. This
+review binds the changed content while preserving the underlying decision in
+#56; it does not reuse the earlier component digests.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
@@ -206,9 +215,10 @@ and avoiding a drifting matrix of client-specific aliases. Their behavioral
 contracts remain narrower: Doctor Who neither delegates nor uses shell
 commands. Designer delegates only to Perspektiv and Researcher and never
 delegates code implementation; it uses edit/execute for design work, approved
-tool setup, and implementation the user asks for, and writes Visual Companion
-HTML only to the exact private `screen_dir` path returned by its active startup
-JSON. Technical containment and approval remain client-
+tool setup, and implementation the user asks for. Canvas sketches use their
+bound publication actions; the portable workflow without canvas writes HTML
+only to the exact private `screen_dir` returned by its active startup JSON.
+Technical containment and approval remain client-
 and enterprise-owned.
 
 ### Visual Companion lineage
@@ -229,6 +239,28 @@ feedback, per-screen event isolation and an idle timeout that polling cannot kee
 alive—without copying remote binds, repository state, generic file serving,
 external assets or raw event text. See the full MIT notice in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The running-app code in `design-prototype/scripts/application-*`, its HTML
+proposal integration and the owned-demo helper
+`design-prototype/scripts/app-runtime.js` are original Grillmester
+implementation. The existing sketch path retains its
+lineage above; no new imported component or synchronization relationship is
+introduced.
+
+Architectural references are `navikt/agentic-ui-canvas` at
+`ce79929f5d2b27cc5610690bca19c4450dd530b6` and
+`b18e313a6f0eb8e5b6fc74ac671ee0490a437aa3`: loopback proxying, visual selection,
+native-host transport, annotation navigation and deliberate handoff. No source
+files from either revision are imported or redistributed; no reuse licence was
+identified for either reviewed revision. The installed host SDK and observed
+first-party extension behavior also informed the canvas contract, without
+importing their implementation source.
+
+The app and proposal boundaries are documented in
+[ADR 0027](docs/adr/0027-designverksted-for-kjorende-apper.md).
+The owned-demo helper and its process regressions use Node's standard APIs,
+without an imported supervisor or daemon. Its lifecycle is documented in
+[ADR 0028](docs/adr/0028-eid-livslop-for-lokale-demoer.md).
 
 ### Aksel generated-reference lineage
 

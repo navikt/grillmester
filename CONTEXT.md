@@ -55,21 +55,25 @@ _Avoid_: plugininnhold, genererte instructions
 ### Design
 
 **Designrom**:
-Samlingen av skisser, innspill og valg i ett arbeid. Versjonene vises under
-«Versjoner», og et prosjektlagret rom kan åpnes igjen med samme lagrede innhold.
+Samlingen av underlag, innspill og valg i ett arbeid. En selvstendig skisse
+eller en kjørende app med et tilhørende forslag kan være underlaget.
+«Versjoner» gjelder lagrede skisser. Et prosjektlagret rom kan åpnes igjen med
+samme innspill; approm lagrer ikke kode eller apptilstand.
 _Avoid_: samtale, produktkode
 
 **Midlertidig skisse**:
 En skisse i designverkstedet som ikke er lagret i prosjektet. Den og
-innspillene forsvinner når samtalen avsluttes eller etter fire timer uten bruk,
-og den har ingen lagrede versjoner eller «Rediger». Designeren velger før
-første skisse om den skal lagres i prosjektet.
+innspillene følger den levende økten og har ingen lagrede versjoner eller
+«Rediger». Et midlertidig forslag i et appverksted loves ikke bevart etter
+lukking. Prosjektlagring velges når det er bestilt; en midlertidig skisse
+krever ikke et eget lagringsspørsmål.
 _Avoid_: prosjektlagring og designrom overfor designeren
 
 **Prøv og Endre**:
-De to modusene i designverkstedet. «Prøv» bruker skissen som prototype og kan,
-under «Vis», prøve deklarerte valg i «Juster visning» og sammenligne varianter.
-Visningen er lokal. «Endre» samler «Be om endring» og «Rediger».
+De to modusene i designverkstedet. «Prøv» lar designeren bruke skissen eller
+appen; «Endre» samler innspill. For skisser kan «Prøv» også vise «Juster visning»
+og sammenligne deklarerte varianter, mens «Endre» kan tilby «Rediger».
+Appflyten lar designeren prøve og kommentere. Visningen er lokal.
 _Avoid_: Utforsk, Kommenter, Juster som egen modus
 
 **Skisseversjon**:
@@ -78,14 +82,46 @@ kontroller. «Vis» viser den uten å endre noe; gjenoppretting lager en ny
 versjon og bevarer historikken.
 _Avoid_: runde, gjeldende utkast
 
+**Kjørende app**:
+En faktisk lokal app med repoets komponenter, navigasjon og skjemaoppførsel.
+Designverksted viser den i canvas og samler innspill, uten å lese eller
+redigere kilden. Verkstedet er knyttet til Designer-samtalen.
+«Appen nå» og «Forslag» er faner i samme verksted. Forslaget er en avgrenset
+HTML-skisse; det endrer ikke appen.
+_Avoid_: statisk kopi, skjermbilde, lagret appversjon
+
+**Tilkobling til verkstedet**:
+Bindingen mellom én aktiv visning, designrommet og samme samtale. Lukking av
+et appverksted avslutter den instansen. En ny instans kan åpne et lagret rom
+uten å sende tidligere runder på nytt; ulagret tekst, midlertidige forslag og
+appens skjematilstand må ikke omtales som gjenopprettet.
+_Avoid_: flyttet samtale, automatisk synkronisert app
+
+**Forslag**:
+En anbefalt skisse i samme verksted som «Appen nå». Den har egne innspill og
+eventuelle skisseversjoner. Samtalen eller en faktisk innsendt apprunde kan
+bestille forslaget; det kreves ikke et kunstig innspill. Midlertidig forslag er
+standard uten avtalt lagring. En uttrykkelig bestilling om å lagre hele verkstedet
+omfatter også forslag innenfor avtalt designmappe. I et allerede lagret approm
+kan et midlertidig forslag lagres senere uten å bytte rom eller miste innspill.
+«Vis forslag» viser faktisk registrert arbeid.
+_Avoid_: implementert appendring, ekstra canvas, automatisk kopiert runtime
+
+**Midlertidige appinnspill**:
+Innspill til en kjørende app uten lagring i prosjektet. Eksplisitt valgt lagring
+bevarer innspill og svar; det lagrer ikke appkoden eller nettleserens tilstand.
+_Avoid_: automatisk prosjektlagring
+
 **Runde**:
 Ett uforanderlig sett med innspill og valg fra en eksplisitt innsending.
-En ny skisseversjon er ikke en ny runde.
+En ny skisseversjon eller en åpnet appside er ikke en ny runde.
 _Avoid_: versjon, samtaletur
 
 **Innspill**:
-Kommentarer, tekstforslag og deklarerte valg til skissen. Lagrede, usendte
-innspill er ikke en bestilling om behandling.
+Kommentarer til skissen eller appen, samt tekstforslag og deklarerte valg som
+skissen støtter. Appinnspill beholder side-, mål- og visningskonteksten fra da
+de ble skrevet; de identifiserer ingen kildeversjon. Lagrede, usendte innspill
+er ikke en bestilling om behandling.
 _Avoid_: automatisk kildeendring, ny fullmakt
 
 **Behold denne delen**:
@@ -95,9 +131,9 @@ på at neste skisse er visuelt lik.
 _Avoid_: beholdt valg, lagret felt, automatisk låsing
 
 **Lagret felt**:
-En editorverdi som blokkerer motstridende overskriving til designeren velger
-«Tillat senere endring». Verdien beholdes da, men senere versjoner kan endre den.
-Dette er den eneste varige bevaringen i rommet.
+En verdi i skissens editor som blokkerer motstridende overskriving til designeren
+velger «Tillat senere endring». Verdien beholdes da, men senere skisseversjoner
+kan endre den. Dette feltvernet gjelder ikke appens kildefiler.
 _Avoid_: beholdt valg, føring, usendt tekstforslag
 
 **Leveringsstatus**:

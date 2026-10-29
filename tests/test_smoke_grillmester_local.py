@@ -492,19 +492,23 @@ class MatrixTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             binaries = root / "bin"
+            ambient = root / "ambient-bin"
             home = root / "home"
             state = root / "state"
-            for path in (binaries, home, state):
+            for path in (binaries, ambient, home, state):
                 path.mkdir()
             cplt = executable(binaries / "cplt")
             opencode = executable(binaries / "opencode")
             copilot = executable(binaries / "copilot")
             ripgrep = executable(binaries / "rg")
-            executable(binaries / "npm")
+            npm = executable(ambient / "npm")
+            node = executable(ambient / "node")
+            for name in ("cplt", "opencode", "copilot"):
+                executable(ambient / name, "unexpected ambient client")
             environment = {
                 "HOME": str(home),
                 "XDG_STATE_HOME": str(state),
-                "PATH": str(binaries),
+                "PATH": str(ambient) + ":" + str(binaries),
                 "LANG": "en_US.UTF-8",
             }
 
@@ -517,6 +521,14 @@ class MatrixTests(unittest.TestCase):
                 self.assertGreater(timeout, 0)
                 client = command[command.index("--client") + 1]
                 npm_access = "--npm-access" in command
+                self.assertNotIn(str(ambient), child_environment["PATH"].split(":"))
+                for name, expected in (
+                    ("cplt", cplt), ("opencode", opencode), ("copilot", copilot),
+                    ("npm", npm), ("node", node),
+                ):
+                    resolved = shutil.which(name, path=child_environment["PATH"])
+                    self.assertIsNotNone(resolved)
+                    self.assertEqual(expected.resolve(), Path(resolved).resolve())
                 self.assertIn(
                     f"_authToken=${{{SMOKE.NPM_ACCESS_ENVIRONMENT}}}",
                     (cwd / ".npmrc").read_text(encoding="utf-8"),

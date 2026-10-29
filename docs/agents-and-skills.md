@@ -92,14 +92,38 @@ med relevante tilstander og kontroll av det rendrede resultatet. Visuelle
 alternativer og panel brukes når de belyser et faktisk designvalg. En liten
 justering trenger verken nye varianter eller nytt intervju.
 
-Når Copilot app tilbyr Designverksted, brukes det integrerte canvaset. Bestilte
-designrom lagres i avtalt prosjektmappe med versjoner og innspill. Uten denne
-kapabiliteten kan en midlertidig nettleserskisse brukes. Figma er en egen,
-valgfri arbeidsflate; en canvasleveranse trenger ingen Figma-overlevering.
+I den verifiserte Copilot app-flaten åpner Designverksted både app og skisse i
+canvaset ved siden av samtalen. Sendte innspill går til samme Designer-samtale,
+og svaret kommer tilbake i verkstedet. «I kø» bekrefter mottak, ikke at arbeidet
+har startet. Appinnspill er midlertidige som standard; avtalt prosjektlagring
+bevarer innspill og svar, uten appkode eller apphistorikk. Lagrede skisser har
+også editor og versjoner. Et lukket appverksted krever en ny instans; lagret
+arbeid kan da åpnes igjen uten ny innsending. Se
+[støtteomfang og kjente grenser](testing/designverksted-release-readiness.md).
+Uten denne canvasflaten brukes en separat tilgjengelig nettleser for appen og
+samtalen for innspill, eller den portable flyten for midlertidige HTML-skisser.
+Nativeverkstedets private adresse skal ikke brukes i en ekstern nettleser.
+Figma kan være arbeidsflaten fra start eller avtalt sluttleveranse etter en
+skisse. Be Designer i samtalen bygge videre i ønsket Figma-fil; med tilgjengelig
+skrivetilgang brukes redigerbare Aksel-komponenter og valgt skisseversjon.
+Uten skrivetilgang leveres et avtalt utkast, ikke en påstått Figma-fil.
+Overleveringen er ikke automatisk synkronisering mellom Figma og skissen.
+I et appverksted ligger «Appen nå» og «Forslag» i samme flate. «Vis forslag»
+åpner den interaktive skissen der du allerede arbeider. Innspill på forslaget
+går til samme samtale og brukes til neste skisseversjon. Skissen har syntetiske
+tilstander; den beviser ikke appens runtime eller validering. Produktkode endres
+bare som separat bestilt implementering.
 
-Nye eller løst definerte konsepter starter med grilling av mål, målgruppe,
-antakelser og hva utforskingen skal lære, før første skisse. Designer er også
-riktig inngang for utviklere når leveransen er et konsept eller en Figma-skisse.
+Bestillingen styrer starten: «Kjør demoen» viser den faktiske appen, «drodle»
+kan starte i samtalen, og en brukerhistorie gir et avgrenset designforslag med
+relevante tilstander. Designer undersøker eksisterende sider når det trengs for
+oppgaven, uten å kreve at alle begynner med samme valgmeny.
+
+En konkret bestilling om skisser eller to retninger kan starte direkte, også
+i et apprepo. Mål, målgruppe og antakelser avklares når svaret trengs for et
+faktisk designvalg; et nytt konsept krever ikke alltid et intervju før første
+utkast. Designer er også riktig inngang for utviklere når leveransen er et
+konsept eller en Figma-skisse.
 
 Designer kan sette sammen et panel av spesialistperspektiver, som UX-ekspert,
 innholdsdesigner, UU-ekspert eller syntetiske personas, og syntetisere dem.
@@ -109,11 +133,13 @@ av verktøy og implementere et valgt design når du ber om det.
 **Ikke bruk når:** Oppgaven er ren kode uten designspørsmål. Da passer Barista
 eller Grillmester bedre.
 
-Designer bruker klientens tilgjengelige nettleserverktøy til å se eksisterende
-flater og kontrollere skissene, for eksempel Browser-canvas eller Playwright.
-Manglende Playwright er ikke en sperre når et annet tillatt verktøy gir visuell
-inspeksjon. Aksel- og Figma-integrasjoner brukes etter oppgaven og tilgjengelige
-kapabiliteter. Se [MCP-oppsett](mcp-setup.md).
+Designer bruker tilgjengelige og tillatte verktøy til visuell kontroll av
+den avtalte arbeidsflaten. Et native verksted krever ikke en ekstra kontrollfane.
+Hvis verktøyene ikke kan inspisere canvaset, skal det sies konkret; kodekontroll
+og HTTP-svar beviser ikke gjengivelsen. Designer skal fortsatt levere det
+avtalte forslaget og beskrive hva som gjenstår å prøve. Aksel- og
+Figma-integrasjoner brukes etter oppgaven og tilgjengelige kapabiliteter.
+Se [MCP-oppsett](mcp-setup.md).
 
 ### Doctor Who 🕰️
 

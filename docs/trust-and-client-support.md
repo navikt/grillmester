@@ -67,9 +67,65 @@ tekniske grensen.
 
 ### Designverksted og overlevering mellom klienter
 
-Designverksted er prøvd i Copilot app med den fulle pluginen. Canvas-verten
-eier den visuelle flaten og samtalebindingen; Grillmesters lokale Node-prosess
-serverer skissen og lagrer prosjektrommet. Se [de observerte prøvene](testing/visual-companion-design-workspace.md).
+Designverksted samler «Appen nå», innspill og «Forslag» i samme native canvas
+ved siden av samtalen. Canvas-verten eier den visuelle flaten og
+samtalebindingen; Grillmesters lokale Node-prosesser eier proxy, skisse og
+prosjektrom. Native appflyt er empirisk prøvd i Copilot app 1.1.33 på macOS
+28. oktober 2026 med den fulle pluginen. Andre verter og versjoner trenger
+egen verifikasjon. Se [leveringsgrunnlaget](testing/designverksted-release-readiness.md)
+og [de tidligere skisseprøvene](testing/visual-companion-design-workspace.md).
+
+Kjørende apper vises gjennom en separat lokal origin og deler bare den bevisste
+innspillsflyten med skisser. Appcanvaset har ingen kildeeditor eller apphistorikk;
+lagring bevarer innspill og svar. Se
+[appkontrakten](../plugin/skills/design-prototype/references/design-workspace.md#running-application).
+
+Kontrollflaten bruker eksakt `127.0.0.1:<port>` og appiframe eksakt
+`localhost:<port>`, med bare loopbacklyttere. Appen får aldri kontrolltoken.
+En åpen instans beholder én oppstrømsapp, proxylytter og origin. Iframe-retry
+er samme kontekst og kan beholde cookies og worker; det er ikke en ny
+lagringskontekst. Lukking, backendtap eller tap av en eid lytter pensjonerer
+instansen og tilbakekaller app- og skissemyndigheten. Lagret arbeid åpnes i
+en ny instans. Kontrollskall-reload overtar ikke den aktive skriveren.
+
+Dette bygger på observerte nativekontekster, ikke en offentlig SDK-garanti for
+lagringspartisjonering. Canvasstøtte alene beviser ikke slik isolasjon.
+Separate porter isolerer ikke cookies, og portgjenbruk kan arve workers.
+Den private nativeadressen skal derfor aldri åpnes i en vanlig delt nettleser.
+Ekstern nettlesertransport inngår ikke i den første nativeleveransen, og det
+finnes ingen automatisk fallback. En eventuell senere nettleserflate krever
+egen egnet originisolasjon og avklart eierskap til den aktive skriveren.
+
+Flere samtidige canvas har et uavklart vertsavvik ved lukking og gjenåpning.
+Samtalekøen må også kontrolleres i klienten: `queued` eller en sluttoppsummering
+beviser ikke at neste innspillsrunde er behandlet. Se resultater, avgrensninger
+og krav før utrulling i [leveringsgrunnlaget](testing/designverksted-release-readiness.md).
+
+Den samlede flyten viser «Appen nå» og «Forslag» i samme verksted. En registrert
+kobling peker på én skisse med egne versjoner og innspillsrunder. Ruting krever
+skissens identitet; valgt fane eller rundenummer alene avgjør aldri mottaker.
+Innbyggingen bruker eksakte lokale origins, en inaktiv åpning og uttrykkelig
+aktivering fra den betrodde forelderen. Appinnholdet får ingen skissemyndighet.
+Ved lukking trekkes begge visningenes myndighet tilbake. Lagret kobling kan
+gjenåpnes bare når skissens registrerte identitet fortsatt stemmer. Midlertidige
+forslag følger den levende appinstansen og loves ikke bevart etter lukking.
+Lokale protokoll-, browser- og SDK-prøver beviser sine egne kontrakter;
+de erstatter ikke en ny nativeprøve av endret leveranseinnhold. Romtypene deler
+verken versjoner eller appens nettlesertilstand.
+
+En URL og pinnet DNS beviser ikke hvilken appprosess som eier oppstrømsporten.
+Ved prosessbytte må tilhørende visninger avsluttes
+før en ny app kobles til. Demooppstart kan også endre frameworkstyrte filer;
+«vis appen» er ikke et løfte om uendret checkout. Consumerens oppskrift,
+eierskap og etterkontroll gjelder fortsatt.
+[Den eide demohjelperen](adr/0028-eid-livslop-for-lokale-demoer.md) lar en kort
+shellkommando starte demoen med privat status og stopp, uten automatisk restart.
+Den beviser verken eierskap til appens URL, syntetiske data eller at appen bare
+skriver i arbeidskopien. Lokale prosessprøver erstatter ikke kontroll av
+samtalekø og stopp i den støttede klienten.
+Ingen sandboxpolicy skal endres
+automatisk på grunnlag av en visningsfeil: lytting, proxyens direkte
+lokaltilkobling og rendererlasting må diagnostiseres hver for seg.
 
 VS Code dokumenterer også canvas som preview i lokale Copilot Agent Host-økter
 på desktop, med `chat.canvases.enabled` slått på før økten opprettes.
@@ -90,8 +146,12 @@ er fortsatt uverifisert; prøven fastslår ikke årsaken til katalogavviket.
 
 CLI-utvidelser er eksperimentelle. At utvidelsen lastes, beviser ikke at
 klienten tilbyr en canvasflate. Uten native canvas bruker `design-prototype`
-den portable nettleserflyten når Node og loopback er tilgjengelig; den gir
+den portable nettleserflyten for HTML-skisser når Node og loopback er tilgjengelig; den gir
 midlertidige skisser og ikke det prosjektlagrede designrommet.
+OpenCode-targetet distribuerer ikke runtimefilene for appcanvas. Det beholder
+skisseflyten og den delte innspillskontrakten; en kjørende app kan ses i en
+separat tilgjengelig nettleser med innspill i samtalen. Appoppskriften krever at
+klienten faktisk tilbyr Designverksted-kapabiliteten.
 Se [GitHubs utvidelsesbeskrivelse](https://docs.github.com/en/copilot/concepts/customizations/extensions).
 
 Implementering fra et allerede lagret designrom krever derimot ingen åpen app

@@ -600,6 +600,18 @@ def enabled_setting(copilot_home: Path, plugin_spec: str = PLUGIN_SPEC) -> bool 
     return value
 
 
+def assert_plugin_listing_state(listing: str, package: PackageSpec, *, enabled: bool) -> None:
+    matches = [
+        line for line in listing.splitlines() if package.qualified_name in line.split()
+    ]
+    disabled = bool(matches) and any(
+        marker in matches[0].lower() for marker in ("[disabled]", "(disabled)")
+    )
+    if len(matches) != 1 or disabled == enabled:
+        state = "enabled" if enabled else "disabled"
+        raise RuntimeError(f"plugin list did not report {package.name} as {state}")
+
+
 def try_toggle_lifecycle(
     copilot: str,
     env: dict[str, str],
@@ -611,10 +623,20 @@ def try_toggle_lifecycle(
     command_prefixes = ([copilot], [copilot, "--experimental"])
     disable_result: subprocess.CompletedProcess[str] | None = None
     selected_prefix: list[str] | None = None
+    selected_options = ["--plugin"]
 
     for prefix in command_prefixes:
+        selected_options = ["--plugin"]
         command = [*prefix, "plugins", "disable", package.qualified_name, "--plugin"]
         disable_result = execute(command, env, cwd)
+        if (
+            disable_result.returncode != 0
+            and "unexpected argument '--plugin' found" in disable_result.stdout.lower()
+        ):
+            # Newer CLIs scope this command to plugins and removed the old selector.
+            selected_options = []
+            command = [*prefix, "plugins", "disable", package.qualified_name]
+            disable_result = execute(command, env, cwd)
         if disable_result.returncode == 0:
             selected_prefix = list(prefix)
             break
@@ -632,22 +654,20 @@ def try_toggle_lifecycle(
     if enabled_setting(copilot_home, package.qualified_name) is not False:
         raise RuntimeError("disable command did not persist disabled plugin state")
     disabled_listing = run([copilot, "plugin", "list"], env, cwd)
-    if package.qualified_name not in disabled_listing or "[disabled]" not in disabled_listing:
-        raise RuntimeError(f"plugin list did not report {package.name} as disabled")
+    assert_plugin_listing_state(disabled_listing, package, enabled=False)
 
     enable_command = [
         *selected_prefix,
         "plugins",
         "enable",
         package.qualified_name,
-        "--plugin",
+        *selected_options,
     ]
     run(enable_command, env, cwd)
     if enabled_setting(copilot_home, package.qualified_name) is not True:
         raise RuntimeError("enable command did not persist enabled plugin state")
     enabled_listing = run([copilot, "plugin", "list"], env, cwd)
-    if package.qualified_name not in enabled_listing or "[disabled]" in enabled_listing:
-        raise RuntimeError(f"plugin list did not report {package.name} as enabled")
+    assert_plugin_listing_state(enabled_listing, package, enabled=True)
 
     mode = "documented --experimental mode" if len(selected_prefix) > 1 else "default mode"
     print(f"Verified enable/disable lifecycle through {mode}.")
@@ -679,6 +699,139 @@ def verify_uninstalled(
     enabled = settings.get("enabledPlugins")
     if not isinstance(enabled, dict) or package.qualified_name in enabled:
         raise RuntimeError(f"uninstall left {package.name} in enabledPlugins")
+
+
+class LocalInstallChecks:
+    """Check copied installs or live local registrations without weakening either."""
+
+    def __init__(
+        self,
+        copilot: str,
+        env: dict[str, str],
+        cwd: Path,
+        copilot_home: Path,
+        marketplace: Path,
+        sources: Sequence[Path],
+    ) -> None:
+        self.copilot, self.env, self.cwd = copilot, env, cwd
+        self.copilot_home, self.marketplace = copilot_home, marketplace.resolve()
+        # Capture before any install: comparing a live directory with itself
+        # must not silently accept a client mutation of the fixture.
+        self.expected = {path.resolve(): tree_manifest(path) for path in sources}
+        self.active: dict[str, Path] = {}
+        self.live_mode: set[str] = set()
+        self.live: dict[str, dict[Path, dict[str, str]]] = {}
+
+    def copied_path(self, package: PackageSpec) -> Path:
+        return self.copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
+
+    def listing(self, kind: str) -> list[dict[str, Any]]:
+        output = run([self.copilot, kind, "list", "--json"], self.env, self.cwd)
+        try:
+            rows = json.loads(output)
+        except json.JSONDecodeError as error:
+            raise RuntimeError(f"{kind} list did not return valid JSON") from error
+        if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+            raise RuntimeError(f"{kind} list must return an array of objects")
+        return rows
+
+    def registration(self, package: PackageSpec) -> dict[str, Any] | None:
+        matches = [
+            row for row in self.listing("plugin")
+            if row.get("name") == package.name
+            and row.get("marketplace") == MARKETPLACE_NAME
+        ]
+        if len(matches) > 1:
+            raise RuntimeError(f"duplicate registration for {package.name}")
+        if not matches:
+            return None
+        row = matches[0]
+        origin = row.get("installedFrom")
+        if (
+            row.get("source") != "live"
+            or not isinstance(origin, str)
+            or not Path(origin).is_absolute()
+            or Path(origin).resolve() != self.marketplace
+        ):
+            raise RuntimeError(f"unexpected live registration source for {package.name}")
+        return row
+
+    def verify_skills(self) -> None:
+        expected = {
+            path.resolve(): path.name
+            for root in self.active.values()
+            for path in (root / "skills").glob("*")
+            if (path / "SKILL.md").is_file()
+        }
+        actual: dict[Path, str] = {}
+        for row in self.listing("skill"):
+            if row.get("source") != "plugin":
+                continue
+            path = row.get("path")
+            if not isinstance(path, str) or not Path(path).is_absolute():
+                raise RuntimeError("plugin skill has no absolute source path")
+            resolved = Path(path).resolve()
+            if row.get("enabled") is not True or resolved in actual:
+                raise RuntimeError("plugin skill is disabled or duplicated")
+            actual[resolved] = row.get("name")
+        if actual != expected:
+            raise RuntimeError("available plugin skills differ from the active fixture paths")
+
+    def verify(self, source: Path, package: PackageSpec) -> tuple[int, int]:
+        source = source.resolve()
+        if tree_manifest(source) != self.expected[source]:
+            raise RuntimeError("installation changed the source fixture")
+        installed = self.copied_path(package)
+        if installed.exists():
+            self.live_mode.discard(package.name)
+        else:
+            row = self.registration(package)
+            if row is None or row.get("enabled") is not True:
+                raise RuntimeError(f"live installation did not enable {package.name}")
+            if row.get("version") != plugin_version(source):
+                raise RuntimeError(f"live installation has the wrong version for {package.name}")
+            catalog = load_json_object(self.marketplace / ".github/plugin/marketplace.json")
+            entries = catalog.get("plugins")
+            if not isinstance(entries, list) or any(
+                not isinstance(entry, dict) for entry in entries
+            ):
+                raise RuntimeError("live marketplace has invalid plugin entries")
+            matches = [entry for entry in entries if entry.get("name") == package.name]
+            if len(matches) != 1:
+                raise RuntimeError(f"live marketplace has no unique source for {package.name}")
+            relative = matches[0].get("source")
+            if not isinstance(relative, str) or Path(relative).is_absolute():
+                raise RuntimeError("live installation requires a relative local catalog source")
+            installed = (self.marketplace / relative).resolve()
+            if not installed.is_relative_to(self.marketplace) or installed == self.marketplace:
+                raise RuntimeError("live installation escapes the isolated marketplace")
+            self.live.setdefault(package.name, {})[installed] = self.expected[source]
+            self.live_mode.add(package.name)
+        counts = verify_installed_package(source, installed, package)
+        if package == PREVIOUS_UNIFIED_PACKAGE:
+            assert_same_package_removed_skills_present(installed)
+        self.active[package.name] = installed
+        if self.live:
+            self.verify_skills()
+        return counts
+
+    def uninstalled(self, package: PackageSpec) -> None:
+        if package.name not in self.live_mode:
+            verify_uninstalled(self.copilot_home, self.copied_path(package), package)
+        else:
+            row = self.registration(package)
+            if row is not None and row.get("enabled") is not False:
+                raise RuntimeError(f"uninstall left {package.name} live and enabled")
+            if enabled_setting(self.copilot_home, package.qualified_name) not in (None, False):
+                raise RuntimeError(f"uninstall left {package.name} enabled in settings")
+            if self.copied_path(package).exists():
+                raise RuntimeError("live uninstall left an unexpected copied payload")
+            for path, expected in self.live[package.name].items():
+                if tree_manifest(path) != expected:
+                    raise RuntimeError("live uninstall changed the source fixture")
+        self.active.pop(package.name, None)
+        if self.live:
+            self.verify_skills()
 
 
 def remote_install_smoke(
@@ -872,6 +1025,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             previous_unified_catalog,
             current_catalog,
         ) = prepare_upgrade_marketplace(catalog_path, source_root, staged_marketplace)
+        checks = LocalInstallChecks(
+            copilot, env, command_cwd, copilot_home, staged_marketplace,
+            [
+                *previous_plugins.values(), previous_unified_plugin,
+                *(source_root / package.path for package in PACKAGES),
+            ],
+        )
         write_json_object(
             staged_marketplace / ".github/plugin/marketplace.json",
             previous_unified_catalog,
@@ -886,18 +1046,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        unified_installed = (
-            copilot_home
-            / "installed-plugins"
-            / MARKETPLACE_NAME
-            / PREVIOUS_UNIFIED_PACKAGE.name
-        )
-        verify_installed_package(
+        checks.verify(
             previous_unified_plugin,
-            unified_installed,
             PREVIOUS_UNIFIED_PACKAGE,
         )
-        assert_same_package_removed_skills_present(unified_installed)
         if enabled_setting(
             copilot_home, PREVIOUS_UNIFIED_PACKAGE.qualified_name
         ) is not True:
@@ -915,9 +1067,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        verify_installed_package(
+        checks.verify(
             source_root / PACKAGES[0].path,
-            unified_installed,
             PACKAGES[0],
         )
         if enabled_setting(copilot_home, PACKAGES[0].qualified_name) is not True:
@@ -935,18 +1086,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        verify_uninstalled(copilot_home, unified_installed, PACKAGES[0])
+        checks.uninstalled(PACKAGES[0])
         run(
             [copilot, "plugin", "install", PREVIOUS_UNIFIED_PACKAGE.qualified_name],
             env,
             command_cwd,
         )
-        verify_installed_package(
+        checks.verify(
             previous_unified_plugin,
-            unified_installed,
             PREVIOUS_UNIFIED_PACKAGE,
         )
-        assert_same_package_removed_skills_present(unified_installed)
         if enabled_setting(
             copilot_home, PREVIOUS_UNIFIED_PACKAGE.qualified_name
         ) is not True:
@@ -964,9 +1113,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        verify_installed_package(
+        checks.verify(
             source_root / PACKAGES[0].path,
-            unified_installed,
             PACKAGES[0],
         )
         if enabled_setting(copilot_home, PACKAGES[0].qualified_name) is not True:
@@ -977,7 +1125,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             env,
             command_cwd,
         )
-        verify_uninstalled(copilot_home, unified_installed, PACKAGES[0])
+        checks.uninstalled(PACKAGES[0])
         activate_marketplace_catalog(
             previous_catalog,
             staged_marketplace,
@@ -991,32 +1139,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 env,
                 command_cwd,
             )
-            installed = (
-                copilot_home
-                / "installed-plugins"
-                / MARKETPLACE_NAME
-                / package.name
-            )
-            verify_installed_package(
-                previous_plugins[package.name], installed, package
+            checks.verify(
+                previous_plugins[package.name], package
             )
             if enabled_setting(copilot_home, package.qualified_name) is not True:
                 raise RuntimeError(f"installation did not enable {package.name}")
 
         # Single-package consolidation requires explicit removal of the old
         # skills-only add-on before the marketplace roster loses that entry.
-        legacy_installed = (
-            copilot_home
-            / "installed-plugins"
-            / MARKETPLACE_NAME
-            / LEGACY_ADD_ON.name
-        )
         run(
             [copilot, "plugin", "uninstall", LEGACY_ADD_ON.qualified_name],
             env,
             command_cwd,
         )
-        verify_uninstalled(copilot_home, legacy_installed, LEGACY_ADD_ON)
+        checks.uninstalled(LEGACY_ADD_ON)
 
         activate_marketplace_catalog(
             current_catalog,
@@ -1033,15 +1169,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 env,
                 command_cwd,
             )
-            installed = (
-                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
-            )
-            package_agents, package_skills = verify_installed_package(
-                source_root / package.path, installed, package
+            package_agents, package_skills = checks.verify(
+                source_root / package.path, package
             )
             agent_count += package_agents
             skill_count += package_skills
-        verify_uninstalled(copilot_home, legacy_installed, LEGACY_ADD_ON)
+        checks.uninstalled(LEGACY_ADD_ON)
 
         # `plugin update` only documents forward updates. Exercise rollback with
         # the documented uninstall/install path after repinning the marketplace.
@@ -1053,26 +1186,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             command_cwd,
         )
         for package in reversed(PACKAGES):
-            installed = (
-                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
-            )
             run(
                 [copilot, "plugin", "uninstall", package.qualified_name],
                 env,
                 command_cwd,
             )
-            verify_uninstalled(copilot_home, installed, package)
+            checks.uninstalled(package)
         for package in (LEGACY_CORE,):
             run(
                 [copilot, "plugin", "install", package.qualified_name],
                 env,
                 command_cwd,
             )
-            installed = (
-                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
-            )
-            verify_installed_package(
-                previous_plugins[package.name], installed, package
+            checks.verify(
+                previous_plugins[package.name], package
             )
             if enabled_setting(copilot_home, package.qualified_name) is not True:
                 raise RuntimeError(f"rollback reinstall did not enable {package.name}")
@@ -1085,15 +1212,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             command_cwd,
         )
         for package in PACKAGES:
-            installed = (
-                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
-            )
             run(
                 [copilot, "plugin", "update", package.qualified_name],
                 env,
                 command_cwd,
             )
-            verify_installed_package(source_root / package.path, installed, package)
+            checks.verify(source_root / package.path, package)
             if enabled_setting(copilot_home, package.qualified_name) is not True:
                 raise RuntimeError(
                     f"forward re-upgrade did not preserve {package.name} enabled state"
@@ -1103,35 +1227,32 @@ def main(argv: Sequence[str] | None = None) -> int:
             try_toggle_lifecycle(
                 copilot, env, command_cwd, copilot_home, package
             )
-            installed = (
-                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
-            )
             run(
                 [copilot, "plugin", "update", package.qualified_name],
                 env,
                 command_cwd,
             )
-            verify_installed_package(source_root / package.path, installed, package)
+            checks.verify(source_root / package.path, package)
 
         for package in reversed(PACKAGES):
-            installed = (
-                copilot_home / "installed-plugins" / MARKETPLACE_NAME / package.name
-            )
             run(
                 [copilot, "plugin", "uninstall", package.qualified_name],
                 env,
                 command_cwd,
             )
-            verify_uninstalled(copilot_home, installed, package)
+            checks.uninstalled(package)
         final_listing = run([copilot, "plugin", "list"], env, command_cwd)
         for package in PACKAGES:
-            if package.qualified_name in final_listing:
+            if package.name not in checks.live_mode and package.qualified_name in final_listing:
                 raise RuntimeError(
                     f"plugin list still reports {package.name} after uninstall"
                 )
-        if LEGACY_ADD_ON.qualified_name in final_listing:
+        if (
+            LEGACY_ADD_ON.name not in checks.live_mode
+            and LEGACY_ADD_ON.qualified_name in final_listing
+        ):
             raise RuntimeError("plugin list still reports the legacy add-on")
-        verify_uninstalled(copilot_home, legacy_installed, LEGACY_ADD_ON)
+        checks.uninstalled(LEGACY_ADD_ON)
 
         source_label = f"release {release_sha}" if release_sha else "development source"
         print(

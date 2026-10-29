@@ -257,6 +257,15 @@ with an explicit valid SHA, it reached installation and stopped on the same
 missing copied-manifest expectation. The version-gated checks below also
 stopped before running scenarios on that payload.
 
+Update, 27 October 2026: the corrected installation smoke passed the complete
+isolated lifecycle on CLI 1.0.91, including upgrade, rollback, disable/enable
+and uninstall. Live registrations require the exact marketplace, source,
+version and enabled state; uninstall preserves source files and removes
+available skills. Copied registrations retain payload-removal checks.
+This resolves the mismatch above, without establishing native canvas behavior.
+Remote installation and older physical clients were not rerun; exact
+release-version gates remain unchanged.
+
 | Required gate | Result and boundary |
 | --- | --- |
 | `smoke_opencode.py --require-binary` | Exit 1 before scenarios: installed 1.18.30; requires 1.18.20. |

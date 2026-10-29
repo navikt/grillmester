@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "74871796262868306649eadebca255190d95caac4af6213536ecce8bb63e9f06",
+    "targetManifestSha256": "d4fd5c7047be1b9aeb5b194b8720499fdb2c28920f6260c8328bc0b2f1527c0b",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "26cf8b53327435b97d35e95cc15d2b74fc4d579bb6746970ded622fa39441fae"
   },

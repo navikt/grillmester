@@ -134,12 +134,15 @@ async function screenshotFailure(view, name) { try { await view.page.screenshot(
 async function openEditor(view) {
   await view.closeFeedback();
   // Rediger is one of the Endre tools, next to Be om endring. After a
-  // save the preview reloads, so wait until the current document offers it.
+  // save the preview reloads. Match visibility and enabled state together:
+  // separate reads can see Rediger in the old frame, then wait for a missing
+  // button in the replacement frame's initial Prøv mode.
   const edit = view.ui.getByRole("button", { name: "Rediger", exact: true });
+  const enabledButtons = view.ui.locator("button:enabled");
   await until(async () => {
-    if (await edit.isVisible() && await edit.isEnabled()) return true;
+    if (await edit.and(enabledButtons).isVisible()) return true;
     const endre = view.ui.getByRole("button", { name: "Endre", exact: true });
-    if (!(await edit.isVisible()) && await endre.isVisible() && await endre.isEnabled()) await endre.click().catch(() => {});
+    if (!(await edit.isVisible()) && await endre.and(enabledButtons).isVisible()) await endre.click();
     return false;
   }, "Rediger is available in the Endre bar");
   await edit.click();

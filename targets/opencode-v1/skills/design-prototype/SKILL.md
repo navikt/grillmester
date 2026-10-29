@@ -1,190 +1,141 @@
 ---
 name: design-prototype
-description: "Explore visual concepts, user flows and Figma designs, or read a saved design room as implementation or brief input. Use for layout, hierarchy and visual alternatives; use `prototype` for executable behavior and `figma-workflow` for a chosen Figma design to code or brief."
+description: "Explore running local apps, visual concepts and user flows in Designverksted or Figma; read saved design rooms for implementation or briefs. Use `prototype` for uncertain data/state/failure contracts and `figma-workflow` for a chosen Figma design to code or brief."
 ---
-# Fra designspørsmål til synlig skisse
+# Fra designspørsmål til synlig resultat
 
 > **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
-Utforsk konsepter, hierarki og brukerflyt i den arbeidsflaten designeren ønsker.
-Et lagret designrom kan være ferdig leveranse; Figma er ingen obligatorisk
-neste fase. Bruk `prototype` når usikkerheten gjelder faktisk kjørbar
-oppførsel, datamodell, tilstandsmaskin eller feilkontrakt. En skisse med
-simulerte situasjoner beviser ikke backendlogikk. Bruk `figma-workflow` når et
-valgt Figma-design skal oversettes til kode eller implementeringsbrief.
+Bruk visuelle underlag til å utforske konsepter, hierarki og brukerflyt. Velg
+underlag og fidelitet etter det designeren skal vurdere, og gjenbruk avklart
+retning og mandat. En konkret designendring gir normalt et synlig forslag;
+spørsmål og observasjoner kan besvares uten en ny skisse. Vis bare den faktiske
+appen som dagens løsning, og skill den fra forslag og simulerte tilstander.
 
-## Implementering eller brief fra lagret designrom
+## Muligheter og valg av arbeidsflate
 
-Når bestillingen er å implementere eller lage en brief fra et lagret designrom,
-les [overleveringsreferansen](references/design-handoff.md) direkte. Les valgt
-registrert HTML-/descriptor-par og relevante beslutninger som vanlige filer;
-rå HTML alene kan mangle lagrede tekst- og kontrollverdier. Verifiser registrert
-SHA-256 og byteantall etter overleveringsreferansen før enhver skriving som
-avhenger av et lagret par; stopp og rapporter ved avvik. Dette krever ikke
-canvas, Node, Figma eller eierskap til rommet. Ikke åpne rommet, start en
-previewserver eller endre designfilene for å lese underlaget.
+Designverksted kan vise en kjørende app med innspill og ett interaktivt
+HTML-forslag i samme canvas. Selvstendige HTML-skisser kan utforske nye ideer
+uten appoppstart. Lagrede skisser har versjoner og en avgrenset editor. Figma
+kan brukes når redigerbare designfiler er ønsket leveranse; det er ingen
+obligatorisk fase etter en ferdig skisse.
 
-Ved en chatbestilling om å endre et felt designeren har lagret i editoren, i en
-ny skisseversjon eller en gjenoppretting i rommet, kan ikke agenten tillate
-endringen. Be designeren endre feltet i editoren eller velge **Tillat senere
-endring**, og fortsett med resten av bestillingen. Ved implementering eller
-brief er en ønsket verdi i produktet et krav i bestillingen, ikke en endring av
-rommet, og den krever ingen slik tillatelse.
+Bevar avtalt sluttleveranse gjennom utforskingen. Figma kan være utgangspunktet
+eller fortsettelsen fra en valgt skisse; en bestilt Figma-leveranse skal ikke
+stoppe ved HTML. Samtalen følger arbeidet mellom flatene. Regelen om ett canvas
+gjelder appen og dens HTML-forslag, ikke en avtalt overlevering til Figma.
 
-- **Behold denne delen** → *keep wish*: et vanlig innspill som ber agenten
-  beholde en del i neste versjon.
-- **Lagret felt** → *preserved field*: editorverdi som sperrer overskriving til
-  designeren velger **Tillat senere endring**.
-- **Runde** → *round*: en innsendt samling innspill og valg.
+Velg fra hensikten og klientens faktiske kapabiliteter. En eksisterende app er
+nyttig som referanse når dens innhold eller oppførsel betyr noe for valget,
+men er ingen forutsetning for idéutforsking. Når oppgaven krever et kjørbart
+forsøk med en usikker data-, tilstands- eller feilkontrakt, brukes `prototype`.
+Et valgt Figma-design til kode eller brief
+hører til `figma-workflow`.
 
-Gå deretter tilbake til den aktive agentens implementerings- eller brief-flyt.
-Bruk repoets produktkomponenter og verifikasjon; skissens rammeverk og simulerte
-handlinger er ikke ferdig produktkode. En bestilling av brief gir ikke mandat
-til implementering. Oppstart, visuell iterasjon og avslutning nedenfor gjelder
-bare når den arbeidsflaten faktisk er valgt, ikke ved denne leseflyten.
+Les den relevante referansen **før første handling i den grenen**. Last bare
+detaljene som trengs for arbeidet; videre operasjoner kan kreve nye avsnitt.
+Bruk klientens verktøy og skjemaer.
 
-## Velg én aktiv arbeidsflate
-
-Gjenbruk bestilt format og avklart retning. Hvis nettleserprototype allerede er
-bestilt, start uten å spørre på nytt. Ellers tilby den én gang når et konkret
-designspørsmål blir lettere å besvare visuelt; krav og avveininger kan tas i
-chatten. Ikke be designeren velge transport, og ikke last alle oppskriftene.
-
-| Bestilling og faktisk kapabilitet | Les før første handling |
+| Behov og tilgjengelig kapabilitet | Referanse og hva den eier |
 |---|---|
-| Nettleserskisse, og klienten tilbyr **Designverksted** (`design-workspace`) | [Designrom](references/design-workspace.md): åpning, prosjektlagring, publisering, innspillsrunder, historikk og lukking |
-| Nettleserskisse uten canvas, med lokal Node.js ≥ 18 og klienttilgjengelig loopback | [Midlertidig nettleserflyt](references/visual-companion.md): oppstart, private tempstier, CLI-innspill og opprydding |
-| Bestilt redigering eller redigerbare komponenter i Figma | Bekreft read og write separat; ved faktisk create/edit-kapabilitet, les [Figma-oppskriften](references/figma-prototype.md). For lagret rom, les hashverifisert registrert par via [overleveringsreferansen](references/design-handoff.md): descriptorens `texts[].value` og redigerbare `controls[].initial` overstyrer HTML-tekst og innstillingsattributter; bygg aldri fra rå HTML alene. |
+| Åpne en faktisk lokal app i Designverksted | [Appåpning](references/application-opening.md): repoets demooppskrift, eid prosess, tilkobling og åpningskontroll. |
+| Gi innspill eller lage forslag med appen som referanse | [App og forslag](references/design-workspace.md#running-application): samme arbeidsflate, publisering og dokumentbinding. |
+| Åpne eller videreutvikle en HTML-skisse i canvas | [Designrom](references/design-workspace.md#open-and-continue): lagring, publisering, innspillsrunder, editor og versjoner. |
+| Lage en HTML-skisse uten canvas, med lokal Node.js ≥ 18 og tilgjengelig loopback | [Portabel nettleserflyt](references/visual-companion.md): midlertidig server, private filer, CLI-innspill og opprydding. |
+| Vurdere eksisterende Figma-underlag | Les den relevante noden med godkjent Figma-kapabilitet. Ved manglende verktøy, se tilgangsrådene i [Figma-oppskriften](references/figma-prototype.md). Vurdering krever ikke write eller publisering. |
+| Utforme eller endre et Figma-design | [Figma-oppskriften](references/figma-prototype.md): tilgang, bibliotek, redigerbarhet og visuell sammenligning. Les også ved manglende verktøy; verifiser read og write separat. |
+| Bygge videre på en valgt skisse i Figma | [Figma-overlevering](references/figma-prototype.md#underlag-og-mal): valgt versjon, avtalt målfil og redigerbare komponenter. Les lagret kildepar før bygging; ikke bruk rå HTML alene. |
+| Dokumentere appens nåtilstand i Figma | [Appåpning](references/application-opening.md) for faktisk underlag og [Figma-oppskriften](references/figma-prototype.md#underlag-og-mal) for redigerbar dokumentasjon av den observerte siden. |
+| Overlevere eller implementere fra et lagret designrom | [Lesende overlevering](references/design-handoff.md): valgt underlag, kildepar og kontroll av integritet. Åpning av canvas er unødvendig. |
 
-I appen brukes det tilgjengelige Designverksted-canvaset for nettleserskisser.
-Bruk klientens faktiske verktøy og skjemaer. Start ikke ekstra server eller
-`comments.js wait` ved siden av canvas-leveringen. En feil i et annonsert
-canvas er ikke bevis på at kapabiliteten mangler: les feilen og gjeldende
-binding, og bevar rommet. Ikke bytt automatisk til en konkurrerende skriver
-eller midlertidig økt. Et senere bestilt bytte av arbeidsflate er mulig; avklar
-hvilken versjon som skal være førende og hvilke lagrings-/innspillsegenskaper
-som følger med.
-
-Når du skal skrive HTML, les `aksel-design` og de relevante felles avsnittene
-om [Aksel-markup](references/visual-companion.md#aksel-korrekthet-viktig) og
+Før HTML-forfatting, bruk `aksel-design` og de felles innholdsreglene for
+[Aksel-markup](references/visual-companion.md#aksel-korrekthet-viktig) og
 [deklarerte interaksjoner](references/visual-companion.md#justerbare-skisser).
-Canvas bruker disse innholdsreglene, ikke den portable oppstarts- og
-innspillsløkken. En lesegjennomgang eller bekreftelse trenger ikke laste hele
-markup-katalogen. Gjenbruk verifiserte komponenter og stiler for uendret prosjekt
-og pakkeversjon; les på nytt ved ny komponent eller konkret avvik.
+Canvas bruker disse reglene, ikke den portable oppstarts- og innspillsløkken.
+Gjenbruk allerede verifiserte komponenter og stiler; undersøk ny komponent,
+versjonsendring eller konkret avvik når det oppstår.
 
-## Mandat og grenser
+## Arbeidsflate, mandat og lagring
 
-Lesing og analyse er read-only. Midlertidig nettleservisning skriver bare til
-privat `screen_dir` fra aktiv startup-JSON utenfor repoet. Når brukeren har
-bestilt lagring eller videre arbeid i et designrom, skriver canvas-handlingene
-skisseversjoner og innspill i avtalt prosjektmappe. Overskriv aldri historiske
-revisjonsfiler. Designrom gir ikke mandat til å endre produktkode.
+Hold app og tilhørende forslag i samme eide verksted. Den første nativeflyten
+er inne i Copilot; den private rendereradressen skal ikke åpnes eksternt.
+Canvasfeil håndteres etter referansen uten konkurrerende server, pollingsløkke
+eller ny skriver. Uten canvas kan faktisk app undersøkes i tilgjengelig nettleser
+med innspill i samtalen. Bevar underlaget og avklar et vesentlig formatbytte.
 
-Figma-, Issue- og andre eksterne writes krever eksplisitt mandat for mål,
-handling og omfang. Brukerens konkrete bestilling kan gi mandatet; gjenbruk det
-for nødvendige operasjoner. Ved manglende mandat eller et vesentlig valg: vis
-mål og utkast og spør bare om det som mangler. Nye mål eller utvidet omfang
-trenger eget mandat; fasebytte trenger ingen ny godkjenning. Ikke opprett
-branch, commit, push, pull request eller deploy automatisk.
+Et designrom gir ikke mandat til produktkode, Git-handlinger eller publisering.
+Separat bestilt kodearbeid skjer utenfor canvas i en uttrykkelig eid arbeidskopi;
+kontroller at serveren bruker kopien, og bevar originalprosjekt og urelatert arbeid.
+En worktree alene beviser ikke at mappen er disponibel. Eksterne writes krever
+mandat for mål, handling og omfang; gjenbruk det som allerede er gitt.
 
-Bruk bare representative, syntetiske data og redigerte skjermbilder uten ekte
-personopplysninger, secrets eller autentisert produksjonsinnhold. Installer
-ikke pakker eller utvidelser, endre klientinnstillinger, `.gitignore` eller
-lockfiler, eller feilsøk bygg som del av preview. Nødvendig oppsett må være en
-separat bestilt endring innenfor agentens mandat.
+Før en ny selvstendig HTML-skisse, avklar én gang om den skal lagres eller være
+midlertidig, med mindre det er valgt. Appinnspill og oppfølgende forslag er
+midlertidige uten avtalt lagring; fortsett uten et nytt lagringsspørsmål og si
+kort at arbeidet er midlertidig. Bestilt lagring av hele verkstedet omfatter
+forslaget i avtalt designområde; lagring av bare innspill gjør det ikke.
+Følg referansens muligheter for senere lagring og gjenåpning. Et helt midlertidig
+approm kan foreløpig ikke oppgraderes til lagret arbeid.
 
-## Forstå og vise det som skal endres
+Canvas publiserer gjennom bundne handlinger. Bare den portable flyten skriver
+HTML direkte til den private tempstien fra aktiv startup-JSON. Historiske
+revisjonsfiler skal bevares byte-eksakt, også ved Git-levering. Les
+[lagringsreglene](references/design-workspace.md#open-and-continue) før commit
+av et rom; formattering og linjeslutt-konvertering kan bryte integriteten.
+Et vernet felt endres eller frigis av designeren i editoren; en beskjed i
+samtalen frigir det ikke. Et separat produktkrav krever ikke endring av rommet.
 
-Start med ett navngitt designspørsmål: hva skal brukeren finne, forstå eller
-gjøre, og hva vil utforskingen hjelpe designeren å velge? En avklart liten
-endring trenger ikke nytt intervju, flere alternativer eller en egen plan.
+Bruk syntetiske data og delte bilder uten personopplysninger eller hemmeligheter.
+Nødvendige installasjoner, klient-/sandboxendringer og byggreparasjoner er
+separat oppsett med mandat, ikke automatisk feilretting av preview.
 
-Ved endring av en eksisterende flate, kontroller faktisk visuell nåtilstand
-før første forslag. Ved tvil om siden er ny eller eksisterende, behandle den
-som eksisterende:
+## Design og verifikasjon
 
-- Bruk valgt Figma-node; ellers en tilgjengelig lokal app, annen tillatt
-  visuell kilde eller et skjermbilde. Verifiser riktig side/node. Ikke
-  rekonstruer den fra kode og presenter rekonstruksjonen som dagens løsning.
-- Bruk en faktisk tilgjengelig nettleserkapabilitet, inkludert innebygd
-  nettlesercanvas. Playwright er ett alternativ, ikke et krav. Mangler alle
-  tillatte visuelle kilder, be om skjermbilde og merk hva som ikke kan vurderes.
-  Fortsett uavhengig behovsavklaring.
-- Fjern ufarlig modal-/cookiestøy før bilde; ikke omgå innlogging eller utfør
-  produktoperasjoner. Delte bilder skal være redigert for personopplysninger.
-  Figma-import krever eget skrivemandat.
-- Sammenlign før/etter ved sammenlignbart utsnitt, viewport, innhold og data.
-  Kontroller at brukte bilder faktisk lastes (`naturalWidth > 0`). En ren
-  Figma-oppgave trenger ingen nettleserøkt.
+Lag den minste sammenhengende skissen som lar designeren vurdere oppgaven.
+Varianter er nyttige ved reelle retningsvalg; behold valgt retning ved
+justeringer. Bruk sammenlignbare utsnitt, data og innholdstetthet når alternativer
+vurderes. Knytt observasjoner til faktisk element og tilstand.
 
-## Skisser og vurder resultatet
+Ved vurdering eller forbedring av en eksisterende flate, kontroller faktisk
+visuelt underlag og riktig side eller Figma-node før du konkluderer om den.
+Sammenlign før og etter med tilsvarende utsnitt, data og tilstand. Manglende
+underlag gjør vurderingen foreløpig; idéutforsking krever ikke appoppstart.
 
-Lag den minste sammenhengende skissen som svarer på spørsmålet, og kontroller
-gjengivelsen før du viser den. Ved åpent retningsvalg, lag strukturelt ulike
-alternativer i antallet spørsmålet trenger; ulik farge eller ordlyd alene er
-ikke en ny retning. Behold valgt retning ved detaljjustering. Bruk samme
-representative datasett og omtrent samme innholdstetthet for rettferdig
-sammenligning. Be designeren vurdere hvordan alternativene støtter oppgaven,
-ikke bare hvilken de liker best. Fang valgt retning og begrunnelsen.
+- Bruk Aksel-komponenter, tokens og verifisert markup med kompatible stiler.
+  Vis fallback eller wireframe ærlig når komponentfidelitet mangler.
+- Skisser har deklarerte interaksjoner, ikke fri JavaScript eller appens backend.
+  Synlige kontroller skal gjøre det teksten lover eller merkes ved kontrollen
+  som statiske eksempler. Merk simuleringer og illustrative tall der de brukes.
+- Kontroller relevant gjengivelse og berørte tilstander før resultatet meldes
+  klart. Følg [visuell kontroll](references/design-workspace.md#inspect-the-rendered-sketch)
+  for canvas. Åpningsstatus, kildekode og lastet CSS er ikke visuell verifikasjon.
+- Skaler kontrollen til endringen: innhold, smal flate, relevant zoom, tastatur,
+  fokus og berørte feil-/tomtilstander. Full kontroll av uendret flyt trengs ikke
+  ved hver justering. Bruk `accessibility-review` for full review av implementert UI.
+- Skill målt feil, designavveining og hypotese til brukertest. Uten nødvendig
+  visuell tilgang beholdes resultatet som ukontrollert utkast; fortsett uavhengig
+  arbeid og be bare om underlag som et konkret valg avhenger av.
 
-Skaler fidelitet og kontroll etter det som endres:
+Følg den valgte referansens innspillsløp: arbeid med riktig dokument, innsendt
+runde og versjon. Usendte notater er ikke bestillinger. Bevar tidligere føringer
+og manuelle valg. Publiser og verifiser endringer før de meldes fikset; svar på
+spørsmål uten unødvendig ny versjon. Et besvart innspill betyr ikke endret app.
 
-- Bruk verifisert Aksel-markup og tokens i HTML-skisser. Snapshotet i
-  [markup-referansen](references/aksel-markup-fasit.md) er en versjonert
-  startreferanse; installert pakke, aktuell dokumentasjon og rendret DOM vinner
-  ved avvik. Uten kompatible stiler, vis ærlig fallback/wireframe. Lastet CSS
-  alene beviser ikke riktig font eller komponentfidelitet.
-- Deklarer bare meningsfulle direkte justeringer. Følg valgt oppskrift for
-  publisering, innspill og source editing. Knapper skal ha en reell,
-  deklarert lokal handling eller tydelig være statiske eksempler. Simulert
-  kvittering skal ikke se ut som en faktisk innsending.
-- Kontroller relevant layout ved faktisk smal panel-/innholdsbredde, ikke
-  bare stor nettleserbredde. Se etter skjult viktig innhold, kollisjoner,
-  lange tekster og tetthet. Kontroller berørte normal-, feil-, tom- og
-  bekreftelsestilstander og tastatur/fokus for endrede handlinger. Full
-  kontroll av uendret flyt trengs ikke ved hver liten rettelse.
-- Gi tette tabeller og grafer en uttrykt smalskjermstrategi: stablede kort,
-  prioriterte kolonner eller et navngitt rulleområde (`role="region"`,
-  `aria-label`, `tabindex="0"`) med synlig rullehint. Kontroller ved 320 px og
-  200 % zoom at sidens bredde ikke flyter over, og at verdier fortsatt kan leses.
-- Knytt kritikk til konkret element og observert tilstand. Skill målt feil,
-  designavveining og hypotese til brukertest. Inspiser utsnitt og tilgjengelig
-  scrolling før innhold omtales som manglende. Et panel gir perspektiver,
-  ikke observerte brukerreaksjoner.
-- Ved kosmetikk eller språkvask, kontroller at berørte tall, meningsbærende
-  tekst, komponenttilstander og delene designeren ba om å beholde ikke ble
-  endret utilsiktet.
+## Overlevering og avslutning
 
-Følg innspillsløkken for den valgte arbeidsflaten. La skissen stå i ro mens
-innspill samles. Les full innsendt runde og riktig versjon; usendte notater er
-ikke bestillinger. Endringer publiseres og verifiseres før de meldes fikset.
-Spørsmål og bekreftelser besvares uten ny versjon. Bevar innsendte valg og
-manuelle føringer; frigiv dem aldri bare fordi du lager neste skisse.
+Ved lagret underlag, les overleveringsreferansen før avhengig arbeid. For skisser,
+verifiser valgt HTML-/descriptor-par med hash og byteantall; descriptorens
+lagrede verdier kan overstyre HTML. Stopp ved avvik. Denne leseflyten krever
+verken canvas, Node, romendring eller ny lagring. En brief bestiller ikke kode.
+Et midlertidig forslag kan være underlag fra sin gjeldende publiserte versjon
+i den eiende samtalen. Følg [overleveringsreferansen](references/design-handoff.md#connect-app-feedback-to-a-sketch-proposal);
+ikke krev et nytt lagret rom bare for å bruke tilgjengelig underlag.
 
-## Lever og avslutt i den valgte flaten
+Returner bare URL/Figma-lenke som faktisk finnes. I verkstedet holder
+hva som kan prøves under Forslag; eksakt versjon og prosjektsti hører til avtalt
+overlevering. Oppgi vesentlige begrensninger kort. Midlertidig arbeid lover ikke
+varig gjenåpning, og en skisse er ikke ferdig produktkode.
 
-Returner bare URL/Figma-lenke som faktisk finnes, eller prosjektsti og eksakt
-valgt versjon. Bevar en observerbar referanse til retningen: skjermbilde når
-mulig, ellers kildepar/versjon og eksplisitt valg. Merk utkast, midlertidig
-lagring, gjenstående spørsmål og det som ikke er verifisert. Opprett Issue bare
-med mandat; inkluder valgt design, tilstander, komponenter og UU-funn.
-
-Kontroller relevant kontrast, klarspråk og semantikk før designleveranse.
-Dette er en UU-forhåndssjekk. Full live-kontroll av implementert UI følger
-`accessibility-review` før release. Ved bestilt Figma-leveranse skal komponenter
-være redigerbare, tilstander helst samles på en `Tilstand`-akse, og resultatet
-sammenlignes med avtalt kilde/retning. Bruk aktivt Aksel-bibliotek og
-Figma-referansens preflight og kontekstregler.
-
-Mangler nødvendig kapabilitet, oppgi konkret hva som ikke kan gjøres. Uten
-Figma-write kan du levere avtalt skisse eller Figma-/Issue-utkast, ikke en
-påstått opprettet fil. Når canvas ikke tilbys og den midlertidige nettleserflyten
-mangler lokal Node eller tilgjengelig loopback, bruk chat eller bestilt
-Figma-flyt; ikke installer eller lag en omvei. Dette er ikke en grunn til å
-forlate et fungerende canvas. Manglende Figma endrer ikke en bestilt
-nettleserleveranse.
-
-Følg den valgte oppskriftens opprydding: midlertidig serverøkt avsluttes gjennom
-den eksakte sesjonen som startet den. Canvas lukkes gjennom panelets
-lukkehandling; klienten eier prosessen og prosjektlagret designrom bevares.
+Før lukking eller gjenåpning, les [appens livsløp](references/design-workspace.md#initial-native-support)
+eller [skissens livsløp](references/design-workspace.md#open-and-continue) etter
+romtype. Stopp bare eid arbeid; canvaslukking og demostopp er forskjellige handlinger.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -453,6 +454,40 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
         self.assertFalse(tested)
         self.assertIn("SKIP enable/disable", output.getvalue())
 
+    def test_toggle_retries_only_the_removed_plugin_selector(self) -> None:
+        unsupported = subprocess.CompletedProcess([], 1, "error: unexpected argument '--plugin' found")
+        success = subprocess.CompletedProcess([], 0, "")
+        with mock.patch.object(SMOKE, "execute", side_effect=[unsupported, success]) as execute, \
+             mock.patch.object(SMOKE, "enabled_setting", side_effect=[False, True]), \
+             mock.patch.object(SMOKE, "run", side_effect=[
+                 "grillmester@grillmester [disabled]", "", "grillmester@grillmester",
+             ]) as run, redirect_stdout(StringIO()):
+            self.assertTrue(SMOKE.try_toggle_lifecycle("copilot", {}, Path("/tmp"), Path("/tmp/home")))
+        self.assertEqual(["copilot", "plugins", "disable", SMOKE.PLUGIN_SPEC], execute.call_args_list[-1].args[0])
+        self.assertEqual(["copilot", "plugins", "enable", SMOKE.PLUGIN_SPEC], run.call_args_list[1].args[0])
+
+    def test_toggle_listing_supports_both_formats_without_using_another_plugin_state(self) -> None:
+        for marker in ("[disabled]", "(disabled)"):
+            listing = f"  • {SMOKE.PLUGIN_SPEC} (v1.2.3) {marker}\n"
+            SMOKE.assert_plugin_listing_state(listing, SMOKE.PACKAGES[0], enabled=False)
+            with self.assertRaisesRegex(RuntimeError, "as enabled"):
+                SMOKE.assert_plugin_listing_state(listing, SMOKE.PACKAGES[0], enabled=True)
+            SMOKE.assert_plugin_listing_state(
+                f"{SMOKE.PLUGIN_SPEC} (v1.2.3)\nother@grillmester {marker}",
+                SMOKE.PACKAGES[0], enabled=True,
+            )
+        with self.assertRaises(RuntimeError):
+            SMOKE.assert_plugin_listing_state(
+                f"{SMOKE.PLUGIN_SPEC}-other (disabled)", SMOKE.PACKAGES[0], enabled=False,
+            )
+
+    def test_toggle_does_not_hide_an_unrelated_failure(self) -> None:
+        failure = subprocess.CompletedProcess([], 1, "permission denied")
+        with mock.patch.object(SMOKE, "execute", return_value=failure) as execute:
+            with self.assertRaisesRegex(RuntimeError, "permission denied"):
+                SMOKE.try_toggle_lifecycle("copilot", {}, Path("/tmp"), Path("/tmp/home"))
+        self.assertEqual(1, execute.call_count)
+
     def test_remote_install_uses_reviewed_release_tag_and_cleans_up(self) -> None:
         tag = "v1.2.3"
         copilot_home = Path("/tmp/copilot-home")
@@ -571,6 +606,179 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             "--allow-floating-marketplace requires --remote-marketplace-ref",
             error.getvalue(),
         )
+
+
+class LocalInstallChecksTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.source = self.root / "source"
+        self.marketplace = self.root / "marketplace"
+        self.home = self.root / "copilot-home"
+        self.package = SMOKE.PackageSpec("grillmester", "plugin", 0, 1, False)
+        SMOKE.write_json_object(self.source / "plugin.json", {
+            "name": self.package.name, "version": "1.2.3",
+        })
+        for name in ("LICENSE", "THIRD_PARTY_NOTICES.md", "skills/example/SKILL.md"):
+            path = self.source / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("fixture\n", encoding="utf-8")
+        self.live = self.marketplace / "plugin"
+        shutil.copytree(self.source, self.live)
+        self.catalog("plugin")
+        self.settings(True)
+        self.checks = SMOKE.LocalInstallChecks(
+            "copilot", {}, self.root, self.home, self.marketplace, [self.source],
+        )
+        self.row = {"name": self.package.name, "marketplace": SMOKE.MARKETPLACE_NAME,
+                    "source": "live", "installedFrom": str(self.marketplace),
+                    "version": "1.2.3", "enabled": True}
+        self.skill = {"source": "plugin", "path": str(self.live / "skills/example"),
+                      "name": "example", "enabled": True}
+
+    def catalog(self, source: str) -> None:
+        SMOKE.write_json_object(self.marketplace / ".github/plugin/marketplace.json", {
+            "plugins": [{"name": self.package.name, "source": source}],
+        })
+
+    def settings(self, enabled: bool) -> None:
+        SMOKE.write_json_object(self.home / "settings.json", {
+            "enabledPlugins": {self.package.qualified_name: enabled},
+        })
+
+    def verify_live(self) -> None:
+        with mock.patch.object(self.checks, "listing", side_effect=[[self.row], [self.skill]]):
+            self.assertEqual((0, 1), self.checks.verify(self.source, self.package))
+
+    def test_live_install_and_uninstall_verify_discovery_and_preserve_source(self) -> None:
+        self.verify_live()
+        before = SMOKE.tree_manifest(self.live)
+        self.settings(False)
+        with mock.patch.object(self.checks, "listing", side_effect=[[
+            {**self.row, "enabled": False}], []
+        ]):
+            self.checks.uninstalled(self.package)
+        self.assertEqual(before, SMOKE.tree_manifest(self.live))
+        self.assertEqual({}, self.checks.active)
+        # A removed marketplace entry may disappear completely; no skills may remain.
+        with mock.patch.object(self.checks, "listing", side_effect=[[], []]):
+            self.checks.uninstalled(self.package)
+
+    def test_copied_install_keeps_byte_checks_without_requiring_json_cli(self) -> None:
+        copied = self.checks.copied_path(self.package)
+        shutil.copytree(self.source, copied)
+        with mock.patch.object(self.checks, "listing") as listing:
+            self.assertEqual((0, 1), self.checks.verify(self.source, self.package))
+            listing.assert_not_called()
+            (copied / "LICENSE").write_text("changed", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "changed: LICENSE"):
+                self.checks.verify(self.source, self.package)
+        self.assertEqual({}, self.checks.live)
+
+    def test_copied_uninstall_still_requires_payload_and_settings_removal(self) -> None:
+        copied = self.checks.copied_path(self.package)
+        shutil.copytree(self.source, copied)
+        with self.assertRaisesRegex(RuntimeError, "payload behind"):
+            self.checks.uninstalled(self.package)
+        shutil.rmtree(copied)
+        SMOKE.write_json_object(self.home / "config.json", {"installedPlugins": []})
+        with self.assertRaisesRegex(RuntimeError, "enabledPlugins"):
+            self.checks.uninstalled(self.package)
+        SMOKE.write_json_object(self.home / "settings.json", {"enabledPlugins": {}})
+        self.checks.uninstalled(self.package)
+
+    def test_copied_update_after_live_fixture_keeps_copied_uninstall_semantics(self) -> None:
+        self.verify_live()
+        copied = self.checks.copied_path(self.package)
+        shutil.copytree(self.source, copied)
+        with mock.patch.object(self.checks, "listing", return_value=[
+            {**self.skill, "path": str(copied / "skills/example")}
+        ]):
+            self.checks.verify(self.source, self.package)
+        self.assertNotIn(self.package.name, self.checks.live_mode)
+        with mock.patch.object(SMOKE, "verify_uninstalled") as uninstalled, \
+             mock.patch.object(self.checks, "listing", return_value=[]):
+            self.checks.uninstalled(self.package)
+        uninstalled.assert_called_once_with(self.home, copied, self.package)
+
+    def test_live_registration_must_be_unique_enabled_and_from_isolated_marketplace(self) -> None:
+        for rows, error in (
+            ([], "did not enable"),
+            ([{**self.row, "enabled": False}], "did not enable"),
+            ([{**self.row, "version": "0.1.0"}], "wrong version"),
+            ([{**self.row, "installedFrom": str(self.root)}], "registration source"),
+            ([{**self.row, "installedFrom": "marketplace"}], "registration source"),
+            ([{**self.row, "source": "other"}], "registration source"),
+            ([self.row, self.row], "duplicate registration"),
+        ):
+            with self.subTest(rows=rows), mock.patch.object(self.checks, "listing", return_value=rows):
+                with self.assertRaisesRegex(RuntimeError, error):
+                    self.checks.verify(self.source, self.package)
+
+    def test_live_source_must_stay_inside_marketplace(self) -> None:
+        for path, error in (("../source", "escapes"), (".", "escapes"),
+                            (str(self.source), "relative local")):
+            self.catalog(path)
+            with self.subTest(path=path), mock.patch.object(self.checks, "listing", return_value=[self.row]):
+                with self.assertRaisesRegex(RuntimeError, error):
+                    self.checks.verify(self.source, self.package)
+
+    def test_live_payload_is_compared_with_snapshot_taken_before_install(self) -> None:
+        # Even when the expected and live source are the same directory.
+        checks = SMOKE.LocalInstallChecks(
+            "copilot", {}, self.root, self.home, self.marketplace, [self.live],
+        )
+        (self.live / "LICENSE").write_text("client mutation", encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "changed the source fixture"):
+            checks.verify(self.live, self.package)
+
+    def test_live_discovery_rejects_missing_stale_extra_disabled_and_renamed_skills(self) -> None:
+        for rows in (
+            [],
+            [{**self.skill, "path": str(self.source / "skills/example")}],
+            [self.skill, {**self.skill, "path": str(self.live / "skills/removed")}],
+            [{**self.skill, "enabled": False}],
+            [{**self.skill, "name": "wrong-name"}],
+            [self.skill, self.skill],
+        ):
+            with self.subTest(rows=rows), mock.patch.object(self.checks, "listing", side_effect=[[self.row], rows]):
+                with self.assertRaises(RuntimeError):
+                    self.checks.verify(self.source, self.package)
+
+    def test_live_uninstall_rejects_enabled_registration_or_remaining_skill(self) -> None:
+        self.verify_live()
+        self.settings(False)
+        with mock.patch.object(self.checks, "listing", return_value=[self.row]):
+            with self.assertRaisesRegex(RuntimeError, "live and enabled"):
+                self.checks.uninstalled(self.package)
+        with mock.patch.object(self.checks, "listing", side_effect=[[
+            {**self.row, "enabled": False}], [self.skill]
+        ]):
+            with self.assertRaisesRegex(RuntimeError, "available plugin skills"):
+                self.checks.uninstalled(self.package)
+
+    def test_live_uninstall_rejects_changed_source(self) -> None:
+        self.verify_live()
+        self.settings(False)
+        (self.live / "LICENSE").unlink()
+        with mock.patch.object(self.checks, "listing", return_value=[{**self.row, "enabled": False}]):
+            with self.assertRaisesRegex(RuntimeError, "changed the source fixture"):
+                self.checks.uninstalled(self.package)
+
+    def test_live_update_checks_actual_new_paths_instead_of_previous_directory(self) -> None:
+        self.verify_live()
+        updated = self.marketplace / "updated"
+        shutil.copytree(self.live, updated)
+        self.catalog("updated")
+        with mock.patch.object(self.checks, "listing", side_effect=[[self.row], [self.skill]]):
+            with self.assertRaisesRegex(RuntimeError, "available plugin skills"):
+                self.checks.verify(self.source, self.package)
+        with mock.patch.object(self.checks, "listing", side_effect=[[self.row], [
+            {**self.skill, "path": str(updated / "skills/example")}
+        ]]):
+            self.checks.verify(self.source, self.package)
+        self.assertEqual(updated.resolve(), self.checks.active[self.package.name])
 
 
 if __name__ == "__main__":

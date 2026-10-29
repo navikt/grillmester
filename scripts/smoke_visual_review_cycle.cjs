@@ -130,7 +130,7 @@ const cases = [
       const blocked = !(await updated.isVisible()), findings = [];
       assert(blocked, "Local exploration must hold back automatic replacement until explicit reset-and-open.");
       if (blocked) {
-        const refresh = view.ui.getByRole("button", { name: "Nullstill og vis ny versjon", exact: true }); assert(await refresh.isEnabled());
+        const refresh = view.ui.getByRole("button", { name: "Vis oppdatert forslag", exact: true }); assert(await refresh.isEnabled());
         await view.openFeedback(); await view.ui.locator(`article[data-id="${comment.id}"]`).getByText("Forklaringen i neste versjon sier når den opprinnelige timen slutter å gjelde.", { exact: false }).waitFor();
         await view.screenshot("explicit-reset-offered"); await view.closeFeedback();
         await view.adjust(); await view.workshop.getByLabel("Merknad", { exact: true }).fill("Dette må ikke forsvinne når ny versjon åpnes.");
@@ -140,7 +140,7 @@ const cases = [
         const geometry = await refresh.evaluate(node => { const b = node.getBoundingClientRect(), toolbar = node.closest(".toolbar").getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height, viewportWidth: innerWidth, viewportHeight: innerHeight, toolbar: { x: toolbar.x, y: toolbar.y, width: toolbar.width, height: toolbar.height } }; });
         assert(geometry.x >= 0 && geometry.x + geometry.width <= geometry.viewportWidth + 1 && geometry.y + geometry.height <= geometry.viewportHeight, "The explicit reset action must remain visible in the mobile viewport.");
         await refresh.press("Enter");
-        findings.push({ observation: "A sent situational comment can be followed by one explicit reset-and-open action. A newly written remark still disables that action.", recovery: "Nullstill og vis ny versjon", actionGeometry: geometry, savedUnsentFeedback: (await view.list()).comments.filter(item => item.submission === 0).length });
+        findings.push({ observation: "A sent situational comment can be followed by one explicit reset-and-open action. A newly written remark still disables that action.", recovery: "Vis oppdatert forslag", actionGeometry: geometry, savedUnsentFeedback: (await view.list()).comments.filter(item => item.submission === 0).length });
       }
       await view.shown("Invitasjon · forklaringen er presisert");
       const nextAction = view.frame.getByRole("button", { name: "Tilbake til invitasjonen", exact: true });
