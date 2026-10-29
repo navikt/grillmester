@@ -64,6 +64,55 @@ test("an active writer cannot be stolen, while distinct worktree directories rem
   assert.equal(open().load().revision, 0);
 });
 
+test("claim creation retries a removed directory without changing saved work", t => {
+  const { open } = fixture(t), setup = open({ create: true }); setup.persist(initial());
+  const claimDirectory = setup.claim.directory; setup.close();
+  const original = fs.openSync; let raced = false;
+  t.mock.method(fs, "openSync", function (filename, flags, ...args) {
+    if (!raced && path.dirname(String(filename)) === claimDirectory && (flags & fs.constants.O_EXCL)) {
+      raced = true; fs.rmdirSync(claimDirectory);
+      throw Object.assign(new Error("Concurrent directory removal"), { code: "EINVAL" });
+    }
+    return Reflect.apply(original, this, [filename, flags, ...args]);
+  });
+  const store = open(); assert(raced); assert.deepEqual(store.load(), initial());
+  store.persist({ ...initial(), revision: 1 }); store.close();
+  assert.equal(open().load().revision, 1);
+});
+
+test("repeated claim creation races fail closed after bounded attempts", t => {
+  const { open } = fixture(t), setup = open({ create: true }); setup.persist(initial());
+  const claimDirectory = setup.claim.directory, filename = setup.filename, before = fs.readFileSync(filename); setup.close();
+  const original = fs.openSync; let attempts = 0;
+  const mock = t.mock.method(fs, "openSync", function (file, flags, ...args) {
+    if (path.dirname(String(file)) === claimDirectory && (flags & fs.constants.O_EXCL)) {
+      attempts++; fs.rmdirSync(claimDirectory);
+      throw Object.assign(new Error("Concurrent directory removal"), { code: "EINVAL" });
+    }
+    return Reflect.apply(original, this, [file, flags, ...args]);
+  });
+  assert.throws(() => open(), rejectsStatus(409)); assert.equal(attempts, 3);
+  assert.deepEqual(fs.readFileSync(filename), before);
+  mock.mock.restore(); assert.deepEqual(open().load(), initial());
+});
+
+test("a claim retry still rejects a substituted lock directory", t => {
+  const { open, projectDir } = fixture(t), setup = open({ create: true }); setup.persist(initial());
+  const claimDirectory = setup.claim.directory; setup.close();
+  const outside = path.join(projectDir, "outside-lock"); fs.mkdirSync(outside);
+  t.after(() => { if (fs.lstatSync(claimDirectory, { throwIfNoEntry: false })?.isSymbolicLink()) fs.unlinkSync(claimDirectory); });
+  const original = fs.openSync; let raced = false;
+  t.mock.method(fs, "openSync", function (file, flags, ...args) {
+    if (!raced && path.dirname(String(file)) === claimDirectory && (flags & fs.constants.O_EXCL)) {
+      raced = true; fs.rmdirSync(claimDirectory); fs.symlinkSync(outside, claimDirectory);
+      throw Object.assign(new Error("Concurrent directory replacement"), { code: "EINVAL" });
+    }
+    return Reflect.apply(original, this, [file, flags, ...args]);
+  });
+  assert.throws(() => open(), rejectsStatus(409)); assert(raced);
+  assert.deepEqual(fs.readdirSync(outside), []);
+});
+
 test("paths are bounded and cannot escape through traversal, hidden directories or symlinks", t => {
   const { open, projectDir } = fixture(t);
   for (const value of ["", "/absolute", "../escape", "designs/../escape", "designs//room", "designs\\room", ".git/room", "node_modules/room", "designs/NUL", "a/".repeat(9), "a".repeat(241)]) {

@@ -108,7 +108,9 @@ class WorkspaceClaim {
     this.directory = path.join(root, digest(Buffer.from(`${identity.dev}:${identity.ino}`)));
     this.filename = path.join(this.directory, `${process.pid}-${this.nonce}.json`);
     // A closing holder removes the room's lock directory when it is empty, so
-    // creating it and the claim can race with that removal; retry briefly.
+    // creating it and the claim can race with that removal. Darwin can report
+    // EINVAL for the exclusive create in that race. Retry from fresh directory
+    // checks; never skip a claim or reuse an unverified directory.
     for (let attempt = 0; !this.stat; attempt += 1) {
       try {
         for (const entry of [root, this.directory]) {
@@ -117,7 +119,10 @@ class WorkspaceClaim {
         }
         this.directoryStat = directory(this.directory, true);
         this.stat = writeExclusive(this.filename, this.content(), () => this.assertDirectory());
-      } catch (error) { if (error.code !== "ENOENT" || attempt >= 2) throw error; }
+      } catch (error) {
+        if (!["ENOENT", "EINVAL"].includes(error.code)) throw error;
+        if (attempt >= 2) fail(409, "The workspace lock directory changed during opening. Try opening the room again.");
+      }
     }
     try {
       const others = this.scan();

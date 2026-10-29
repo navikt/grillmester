@@ -189,6 +189,11 @@ source, component and naming scope. The implementation and regression tests are
 Grillmester-authored; no new third-party material is imported. The rights journal
 binds this content and provenance under the same underlying decision in #56.
 
+PR [#92](https://github.com/navikt/grillmester/pull/92) reviews the bounded retry
+for concurrent workspace lock creation in `design-prototype` and its regression
+tests. The source, component and naming scope remain unchanged. The rights journal
+binds this content and provenance while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
