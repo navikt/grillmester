@@ -100,6 +100,10 @@ async function main() {
       assert.equal(await page.locator("#open-workshop").count(), 0, "native workshop opens directly");
       assert.equal(await page.evaluate(() => window.opener), null);
     }
+    async function browse() {
+      if (await page.locator("#side-panel").isVisible()) await page.locator("#close-panel").click();
+      if (await page.locator("#mode-browse").isVisible()) await page.locator("#mode-browse").click();
+    }
     await openWorkshop(temporaryView);
     let preview = page.frameLocator("#app-preview");
     await check("running applications default to a temporary feedback session", async () => {
@@ -125,8 +129,8 @@ async function main() {
         assert.equal(await page.locator("#app-preview").count(), 1);
         assert.equal(context.pages().length, 1);
         assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-        await page.locator("#mode-browse").focus();
-        assert.equal(await page.evaluate(() => document.activeElement.id), "mode-browse");
+        await page.locator("#mode-change").focus();
+        assert.equal(await page.evaluate(() => document.activeElement.id), "mode-change");
         if (evidence) await page.screenshot({ path: path.join(evidence, `native-${viewport.width}x${viewport.height}.png`) });
       }
       await page.setViewportSize({ width: 1280, height: 800 });
@@ -134,9 +138,9 @@ async function main() {
     });
     await check("a duplicate browser address cannot acquire or replace the active document", async () => {
       const duplicate = await context.newPage(); await duplicate.goto(page.url());
-      await duplicate.getByRole("heading", { name: "Denne visningen er ikke aktiv" }).waitFor();
+      await until(async () => await duplicate.locator("#app-status").textContent() === "Visningen er ikke aktiv", "duplicate renderer denied");
       assert.equal(await duplicate.locator("iframe[src]").count(), 0);
-      assert.equal(await duplicate.locator("#save-comment").isDisabled(), true);
+      assert.equal(await duplicate.locator("#stage-title").textContent(), "Åpne Designverksted igjen fra samtalen");
       assert.equal((await action("read_state")).application.connection.state, "connected");
       assert.equal(messages.length, 0); await duplicate.close();
     });
@@ -144,6 +148,23 @@ async function main() {
       await preview.getByRole("heading", { name: "Avtal et møte", exact: true }).waitFor();
       await until(async () => (await action("read_state")).application?.route === "/demo/mote?visning=ny", "start route retained");
       assert.equal(await preview.locator("#meeting-type").inputValue(), "");
+    });
+    await check("diagnostic messages require the current iframe, origin, epoch and view", async () => {
+      await until(async () => (await action("read_state")).application.previewStatus.state === "ready", "current view ready");
+      const previewOrigin = await preview.locator("body").evaluate(() => location.origin);
+      await page.evaluate(origin => {
+        const ready = [...window.__viewEvidence].reverse().find(item => item.type === "design-view-ready");
+        const frame = document.getElementById("app-preview").contentWindow;
+        const data = { type: "design-view-error", epoch: ready.epoch, view: ready.view, reason: "preview-cookie-unavailable", httpStatus: 403 };
+        const dispatch = (body, source = frame, eventOrigin = origin) => window.dispatchEvent(new MessageEvent("message", { source, origin: eventOrigin, data: body }));
+        dispatch(data, window); dispatch(data, frame, location.origin);
+        dispatch({ ...data, epoch: "0".repeat(32) }); dispatch({ ...data, view: "0".repeat(32) });
+        dispatch({ ...data, httpStatus: 200 }); dispatch({ ...data, reason: "unknown" });
+        dispatch({ ...data, health: { script: 0, module: 0, rejection: 0 } });
+      }, previewOrigin);
+      await delay(100);
+      assert.equal(await page.locator("#stage-message").isVisible(), false);
+      assert.equal((await action("read_state")).application.previewStatus.state, "ready");
     });
     await check("selection and route storms are volatile until deliberate saving", async () => {
       assert.equal(savedState().screens.length, 0); assert.equal(savedState().comments.length, 0);
@@ -153,7 +174,7 @@ async function main() {
       await page.locator("#mode-change").click(); await preview.locator('[data-action="first"]').click();
       await page.locator("#comment-text").fill("Et utkast som ikke skal lagres av observasjon.");
       assert.equal(fs.readFileSync(workspaceFile, "utf8"), initialWorkspace);
-      await page.locator("#clear-draft").click(); await page.locator("#mode-browse").click();
+      await page.locator("#clear-draft").click(); await browse();
       await frame.evaluate(() => history.pushState({}, "", "/demo/mote?visning=ny"));
       await until(async () => (await action("read_state")).application.route === "/demo/mote?visning=ny", "original observed route");
       assert.equal(fs.readFileSync(workspaceFile, "utf8"), initialWorkspace);
@@ -181,6 +202,7 @@ async function main() {
       await preview.locator('[data-action="second"]').click();
       await page.locator("#comment-text").waitFor();
       assert.equal(await preview.locator('[data-action="second"]').getAttribute("data-activated"), null);
+      assert.equal(await page.locator("#mode-browse").getAttribute("aria-pressed"), "true", "selection is a one-shot action");
       await page.locator("#comment-text").fill("Gjør tidspunktet tydeligere i den andre avtalen.");
       await page.locator("#save-comment").click();
       await until(async () => await page.locator("#feedback-count").textContent() === "1", "one pending comment");
@@ -224,7 +246,7 @@ async function main() {
       assert.equal(await preview.locator(".location-outline").isVisible(), true);
       await placeTarget.hover();
       assert.equal(await preview.locator(".outline:visible").count(), 1, "only the requested place is outlined");
-      assert.equal(await page.locator("#mode-change").getAttribute("aria-pressed"), "true");
+      assert.equal(await page.locator("#mode-change").getAttribute("aria-pressed"), "false");
       assert.deepEqual(await preview.locator("body").evaluate(() => window.__locationEffects), { click: 0, focus: 0, input: 0, change: 0, submit: 0 });
       assert.equal(await preview.locator("#meeting-type").inputValue(), "video");
       assert.equal(await placeTarget.getAttribute("data-activated"), null);
@@ -273,14 +295,14 @@ async function main() {
       await placeCard().getByRole("button", { name: "Avbryt redigering", exact: true }).click();
       await page.setViewportSize({ width: 1280, height: 800 }); await layoutSettled();
       await page.locator("#resume-draft").click(); await page.locator("#clear-draft").click();
-      await page.locator("#mode-browse").click();
+      await browse();
     });
-    await check("Ctrl+Enter deliberately saves, editing and removal keep meaningful focus", async () => {
+    await check("queued feedback editing and removal keep meaningful focus", async () => {
       await page.locator("#mode-change").click(); await page.locator("#whole-page").click();
       await page.locator("#comment-text").fill("Et tredje innspill for å prøve redigering.");
       assert.equal(savedState().comments.length, 2);
-      await page.locator("#comment-text").press("Control+Enter");
-      await until(async () => await page.locator("#feedback-count").textContent() === "3", "keyboard save");
+      await page.locator("#save-comment").click();
+      await until(async () => await page.locator("#feedback-count").textContent() === "3", "third queued comment");
       assert.equal(await page.evaluate(() => document.activeElement.id), "panel-title");
       const card = page.locator(".feedback-card").last();
       await card.locator(".edit-comment").click(); await card.locator(".edit-text").fill("Oppdatert tredje innspill.");
@@ -292,7 +314,7 @@ async function main() {
       await card.locator(".remove-comment").click();
       await until(async () => await page.locator("#feedback-count").textContent() === "2", "removed only extra feedback");
       assert(await page.evaluate(() => { const el = document.activeElement; return el !== document.body && document.getElementById("feedback-pane").contains(el) && !el.disabled && el.getClientRects().length > 0; }));
-      assert.equal(await page.locator("#submit-feedback").textContent(), "Send 2 innspill");
+      assert.equal(await page.locator("#submit-feedback").textContent(), "Send alle 2 innspill");
       assert.equal(messages.length, 0);
     });
     await check("one deliberate submission reaches the exact round and receives a reply", async () => {
@@ -321,7 +343,7 @@ async function main() {
     await check("draft survives mode changes and closing the panel", async () => {
       await page.locator("#mode-change").click(); await page.locator("#whole-page").click();
       await page.locator("#comment-text").fill("Halvskrevet ønske som skal beholdes.");
-      await page.locator("#mode-browse").click();
+      await browse();
       await page.locator("#resume-draft").click();
       assert.equal(await page.locator("#comment-text").inputValue(), "Halvskrevet ønske som skal beholdes.");
       await page.locator("#comment-text").press("Escape");
@@ -331,7 +353,7 @@ async function main() {
       await page.locator("#clear-draft").click();
     });
     await check("navigation remains live and preserves the selected form state", async () => {
-      await page.locator("#mode-browse").click();
+      await browse();
       await preview.getByRole("link", { name: "Se neste side" }).click();
       await until(async () => (await action("read_state")).application?.route === "/demo/neste?visning=ny", "navigation route");
       assert.equal(await preview.locator("#meeting-type").inputValue(), "video");
@@ -351,7 +373,7 @@ async function main() {
         if (!(await page.locator("#feedback-pane").isVisible())) await page.locator("#open-feedback").click();
         await delay(100);
         const layout = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth,
-          controls: ["mode-browse", "mode-change", "open-feedback", "close-panel"].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { id, x: r.x, y: r.y, right: r.right, bottom: r.bottom, width: r.width, height: r.height }; }) }));
+          controls: ["mode-browse", "mode-change", "open-feedback", "close-panel"].filter(id => document.getElementById(id).getClientRects().length).map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { id, x: r.x, y: r.y, right: r.right, bottom: r.bottom, width: r.width, height: r.height }; }) }));
         assert(layout.scroll <= layout.width + 1, "control surface must not scroll sideways");
         for (const control of layout.controls) assert(control.x >= -1 && control.y >= -1 && control.right <= viewport.width + 1 && control.bottom <= viewport.height + 1 && control.width >= 24 && control.height >= 24, `visible control: ${control.id}`);
         if (viewport.width <= 760) {
@@ -402,6 +424,11 @@ async function main() {
       await context.clearCookies({ domain: new URL(previewOrigin).hostname });
       await preview.locator("body").evaluate(() => location.reload());
       await page.locator("#retry-preview").waitFor({ state: "visible" });
+      await until(async () => (await action("read_state")).application.previewStatus.reason === "preview-cookie-unavailable", "validated cookie failure reaches diagnostics");
+      const failed = (await action("read_state")).application;
+      assert.equal(failed.transportStatus.state, "unavailable"); assert.equal(failed.transportStatus.httpStatus, 403);
+      assert.equal(failed.previewStatus.httpStatus, 403); assert.equal(failed.applicationHealth, undefined);
+      assert.equal(await page.locator("#stage-title").textContent(), "Appvisningen mangler tilgang");
       assert.equal(await page.locator("#whole-page").isDisabled(), true);
       await page.evaluate(({ oldMessages, previewOrigin }) => {
         for (const data of oldMessages) window.dispatchEvent(new MessageEvent("message", { source: document.getElementById("app-preview").contentWindow, origin: previewOrigin, data }));
@@ -421,7 +448,7 @@ async function main() {
       await page.locator("#resume-draft").click();
       assert.equal(await page.locator("#comment-text").inputValue(), "Uferdig innspill skal beholdes ved gjenåpning.");
       assert.equal(await page.locator("#save-comment").isEnabled(), true);
-      await page.locator("#clear-draft").click(); await page.locator("#mode-browse").click();
+      await page.locator("#clear-draft").click(); await browse();
     });
     await check("a delayed old route cannot label or block feedback on the next document", async () => {
       let release, captured;
@@ -546,8 +573,7 @@ async function main() {
       assert.equal((await action("read_state")).application.connection.state, "connected");
       await ui.locator('[data-action="comment"]').click(); await sketch.getByRole("heading", { name: "Velg møteform", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Bruk overskriften Hvordan vil du møtes?");
-      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
-      await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).click();
+      await ui.locator('.composer [data-action="save"]').click();
       await until(() => messages.length === 2, "one distinct proposal round");
       assert.equal(JSON.parse(messages[1].prompt.split("\n").at(-1)).instanceId, proposalIdentity.instanceId);
       const round = await proposalAction("read_submission", { submission: 1 });
@@ -588,7 +614,7 @@ async function main() {
           await page.locator("#submit-feedback").focus(); await page.keyboard.press("Enter");
           await until(() => received, "submission request starts");
           if (closePanel) await page.keyboard.press("Escape");
-          const destination = closePanel ? "mode-browse" : "close-panel";
+          const destination = closePanel ? "open-feedback" : "close-panel";
           await page.locator(`#${destination}`).focus();
           release();
           await until(async () => await page.locator("#sent-tab").getAttribute("aria-selected") === "true", "delayed send completes");
@@ -599,6 +625,168 @@ async function main() {
           release(); await page.unrouteAll({ behavior: "wait" });
           await adapter.canvas.onClose(focusIdentity); await page.close(); page = previous;
         }
+      }
+    });
+    await check("draft recovery ignores cloned tabs and malformed cached data", async () => {
+      const previous = page, recoveryIdentity = { ...identity, instanceId: "draft-recovery-boundary" };
+      const before = messages.length;
+      let clone;
+      try {
+        await openWorkshop(await adapter.canvas.open({ ...recoveryIdentity, input: { application } }));
+        await page.frameLocator("#app-preview").getByRole("heading", { name: "Avtal et møte", exact: true }).waitFor();
+        await page.locator("#mode-change").click(); await page.locator("#whole-page").click();
+        await page.locator("#comment-text").fill("Et privat utkast i denne fanen.");
+        [clone] = await Promise.all([context.waitForEvent("page"), page.evaluate(() => { window.open(location.href, "_blank"); })]);
+        await until(async () => await clone.locator("#app-status").textContent() === "Visningen er ikke aktiv", "cloned tab denied");
+        assert.equal(await clone.evaluate(() => Object.keys(sessionStorage).some(key => key.startsWith("designverksted.application-draft.v1:"))), true, "the clone carries storage but cannot recover authority");
+        assert.equal(await clone.locator("#comment-text").inputValue(), "");
+        assert.equal(await clone.locator("#app-preview[src]").count(), 0);
+        await clone.close(); clone = null;
+        await page.evaluate(() => {
+          const key = Object.keys(sessionStorage).find(key => key.startsWith("designverksted.application-draft.v1:"));
+          const value = JSON.parse(sessionStorage.getItem(key));
+          sessionStorage.setItem(key, JSON.stringify({ ...value, unexpected: "Not part of the recovery contract" }));
+        });
+        page.once("dialog", dialog => void dialog.accept()); await page.reload();
+        await page.locator("#stage-message").waitFor({ state: "hidden" });
+        assert.equal(await page.locator("#comment-text").inputValue(), "");
+        assert.equal(await page.locator("#draft-restored").isVisible(), false);
+        assert.equal(await page.evaluate(() => Object.keys(sessionStorage).some(key => key.startsWith("designverksted.application-draft.v1:"))), false);
+        assert.equal(messages.length, before, "reload and cloned tabs never send feedback");
+      } finally { await clone?.close(); await adapter.canvas.onClose(recoveryIdentity); await page.close(); page = previous; }
+    });
+    await check("draft recovery waits for the first successful state after a startup failure", async () => {
+      const previous = page, recoveryIdentity = { ...identity, instanceId: "draft-recovery-retry" };
+      const before = messages.length;
+      const call = (name, input = {}) => adapter.canvas.actions.find(item => item.name === name).handler({ ...recoveryIdentity, input });
+      try {
+        await openWorkshop(await adapter.canvas.open({ ...recoveryIdentity, input: { application } }));
+        await page.frameLocator("#app-preview").getByRole("heading", { name: "Avtal et møte", exact: true }).waitFor();
+        await page.locator("#mode-change").click(); await page.locator("#whole-page").click();
+        let text = "Behold utkastet selv om første tilstandshenting feiler.";
+        await page.locator("#comment-text").fill(text);
+        for (const recovery of ["poll", "retry"]) {
+          let requests = 0, stateAvailable = false;
+          await page.route("**/state", route => {
+            requests++;
+            return stateAvailable ? route.continue() : route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+          });
+          page.once("dialog", dialog => void dialog.accept()); await page.reload();
+          await page.locator("#global-message").waitFor();
+          assert.equal(await page.locator("#comment-text").inputValue(), "", "recovery waits for validated state");
+          stateAvailable = true;
+          if (recovery === "retry") await page.locator("#retry-state").click();
+          await page.locator("#draft-restored").waitFor();
+          assert(requests >= 2, "a later state request recovers the connection");
+          assert.equal(await page.locator("#comment-text").inputValue(), text);
+          assert.equal(await page.locator("#target-label").textContent(), "Hele siden");
+          assert.equal(await page.locator("#global-message").isVisible(), false);
+          await page.unroute("**/state");
+          text += " Fortsatt redigerbart.";
+          await page.locator("#comment-text").fill(text);
+          page.once("dialog", dialog => void dialog.accept()); await page.reload();
+          await page.locator("#draft-restored").waitFor();
+          assert.equal(await page.locator("#comment-text").inputValue(), text, "new edits persist after recovery");
+        }
+        assert.equal((await call("read_state")).submission, 0);
+        assert.equal(messages.length, before, "recovery never sends feedback");
+      } finally {
+        await page.unrouteAll({ behavior: "wait" });
+        await adapter.canvas.onClose(recoveryIdentity); await page.close(); page = previous;
+      }
+    });
+    await check("direct keyboard send preserves an uncertain draft and retries one immutable submission", async () => {
+      const previous = page, directIdentity = { ...identity, instanceId: "direct-feedback" };
+      const call = (name, input = {}) => adapter.canvas.actions.find(item => item.name === name).handler({ ...directIdentity, input });
+      let release = () => {};
+      try {
+        await openWorkshop(await adapter.canvas.open({ ...directIdentity, input: { application } }));
+        await page.frameLocator("#app-preview").getByRole("heading", { name: "Avtal et møte", exact: true }).waitFor();
+        await page.locator("#mode-change").click(); await page.locator("#whole-page").click();
+        const text = "Gjør møtetidspunktet lettere å finne.";
+        await page.locator("#comment-text").fill(text);
+        assert.equal(await page.locator("#send-comment").textContent(), "Send innspill");
+        assert.equal(await page.locator("#save-comment").textContent(), "Legg til flere");
+        assert.equal((await call("read_state")).revision, 0, "typing does not save or send");
+        assert(await page.evaluate(() => {
+          const area = document.getElementById("compose-pane").getBoundingClientRect();
+          return ["send-comment", "save-comment", "clear-draft"].every(id => {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            return rect.top >= area.top && rect.bottom <= area.bottom && rect.width >= 44 && rect.height >= 44;
+          });
+        }), "all composer actions fit the desktop panel without scrolling");
+        if (evidence) await page.screenshot({ path: path.join(evidence, "direct-feedback-desktop.png") });
+        page.once("dialog", dialog => void dialog.accept()); await page.reload();
+        await page.locator("#draft-restored").waitFor();
+        assert.equal(await page.locator("#comment-text").inputValue(), text);
+        assert.equal(await page.locator("#target-label").textContent(), "Hele siden");
+        assert.equal((await call("read_state")).submission, 0, "plain draft reload does not send");
+        if (evidence) await page.screenshot({ path: path.join(evidence, "restored-application-draft.png") });
+        let rejectedKey;
+        await page.route("**/submit-draft", async route => {
+          rejectedKey = route.request().headers()["x-feedback-mutation"];
+          await route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ rejected: true }) });
+        });
+        await page.locator("#send-comment").click();
+        await until(async () => await page.locator("#comment-error").isVisible() && await page.locator("#send-comment").textContent() === "Send innspill", "definite rejection leaves the draft editable");
+        assert.equal(await page.locator("#comment-text").inputValue(), text);
+        assert.equal(await page.locator("#comment-text").getAttribute("readonly"), null);
+        assert.equal((await call("read_state")).submission, 0);
+        await page.unroute("**/submit-draft");
+        const requests = []; let reached = false;
+        const hold = new Promise(resolve => { release = resolve; });
+        await page.route("**/submit-draft", async route => {
+          requests.push({ key: route.request().headers()["x-feedback-mutation"], body: route.request().postDataJSON() });
+          if (requests.length === 1) {
+            reached = true; await hold; await route.fetch();
+            // A conflicting response without an explicit rejection can also be
+            // post-commit uncertainty; it must retain the original request.
+            await route.fulfill({ status: 409, contentType: "application/json", body: "{}" });
+          } else await route.continue();
+        });
+        const before = messages.length;
+        await page.locator("#comment-text").press("Control+Enter");
+        await until(() => reached, "direct request starts");
+        assert.equal(await page.locator("#submission-status").textContent(), "Sender innspill …");
+        assert.equal(await page.locator("#comment-text").inputValue(), text);
+        release();
+        await until(async () => await page.locator("#send-comment").textContent() === "Prøv samme sending igjen", "same direct send retry");
+        assert.equal(await page.locator("#comment-text").inputValue(), text);
+        assert.equal(await page.locator("#comment-text").getAttribute("readonly"), "");
+        assert.equal(await page.locator("#clear-draft").isDisabled(), true);
+        page.once("dialog", dialog => void dialog.accept()); await page.reload();
+        await page.locator("#draft-restored").waitFor();
+        assert.equal(await page.locator("#comment-text").inputValue(), text);
+        assert.equal(await page.locator("#send-comment").textContent(), "Prøv samme sending igjen");
+        assert.equal(requests.length, 1, "restoration never retries automatically");
+        await page.locator("#send-comment").click();
+        await until(async () => await page.locator("#comment-text").inputValue() === "", "confirmed draft clears");
+        assert.equal(requests.length, 2); assert.deepEqual(requests[1], requests[0]); assert.notEqual(requests[0].key, rejectedKey);
+        assert.equal(await page.locator("#sent-count").textContent(), "1");
+        assert.equal(await page.evaluate(() => Object.keys(sessionStorage).some(key => key.startsWith("designverksted.application-draft.v1:"))), false, "confirmed send clears its cached intent");
+        assert.equal((await call("read_submission", { submission: 1 })).items.filter(item => item.type === "comment").length, 1);
+        await until(() => messages.length === before + 1, "only one direct round");
+        assert.equal(await page.locator("#mode-browse").getAttribute("aria-pressed"), "true");
+        await page.unroute("**/submit-draft");
+        await call("review_submission", { submission: 1, status: "answered", reply: "Tidspunktet kan fremheves." });
+        await page.locator("#mode-change").click(); await page.locator("#whole-page").click();
+        await page.locator("#comment-text").fill("Første innspill i neste runde."); await page.locator("#save-comment").click();
+        await until(async () => await page.locator("#feedback-count").textContent() === "1", "queued next comment");
+        await page.locator("#mode-change").click(); await page.locator("#whole-page").click();
+        await page.locator("#comment-text").fill("Andre innspill i neste runde.");
+        assert.equal(await page.locator("#send-comment").textContent(), "Send alle 2 innspill");
+        await page.setViewportSize({ width: 390, height: 844 });
+        if (evidence) await page.screenshot({ path: path.join(evidence, "direct-feedback-mobile.png") });
+        await page.locator("#send-comment").click();
+        await until(async () => (await call("read_state")).submission === 2, "combined direct send");
+        await until(async () => await page.locator("#side-panel").isHidden(), "mobile returns to app");
+        const batch = await call("read_submission", { submission: 2 });
+        assert.deepEqual(batch.items.filter(item => item.type === "comment").map(item => item.value.text), ["Første innspill i neste runde.", "Andre innspill i neste runde."]);
+        assert.equal(await page.locator("#mode-browse").getAttribute("aria-pressed"), "true");
+        assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      } finally {
+        release(); await page.unrouteAll({ behavior: "wait" });
+        await adapter.canvas.onClose(directIdentity); await page.close(); page = previous;
       }
     });
     await check("an early runtime error stays visible despite HTTP 200 and a connected inspector", async () => {

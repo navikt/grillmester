@@ -10,7 +10,7 @@ for (let i = 2; i < process.argv.length; i += 2) {
 const { chromium } = require(options.get("--playwright-module") || "playwright");
 const evidence = options.get("--evidence-dir") && path.resolve(options.get("--evidence-dir"));
 if (evidence) fs.mkdirSync(evidence, { recursive: true });
-const pause = ms => new Promise(resolve => setTimeout(resolve, ms)), results = [];
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms)), results = [], viewportMeasurements = [];
 async function until(read, label) { const end = Date.now() + 15000; while (Date.now() < end) { if (await read()) return; await pause(40); } throw new Error("Timed out: " + label); }
 async function check(name, fn) { await fn(); results.push({ name, passed: true }); console.log("PASS " + name); }
 function sketch(title) {
@@ -71,19 +71,42 @@ async function main() {
         });
       }
     };
+    const measureAppViewport = async (shell, preview, ancestors, viewport, title) => {
+      // Paint every boundary after resize/focus changes; DOM visibility alone
+      // misses clipped nested iframes and stale compositor screenshots.
+      for (let pass = 0; pass < 2; pass += 1) for (const surface of [page, ...ancestors.map(item => item.frame), shell, preview]) {
+        await surface.locator("body").evaluate(async () => {
+          await document.fonts.ready;
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        });
+      }
+      const boxes = [{ x: 0, y: 0, ...viewport }, ...await Promise.all(ancestors.map(item => item.element.boundingBox())), await shell.locator("#app-preview").boundingBox()];
+      assert(boxes.every(Boolean), "Every app iframe boundary must be visible");
+      const left = Math.max(...boxes.map(box => box.x)), top = Math.max(...boxes.map(box => box.y));
+      const right = Math.min(...boxes.map(box => box.x + box.width)), bottom = Math.min(...boxes.map(box => box.y + box.height));
+      const appBox = boxes.at(-1), visibleHeight = bottom - top;
+      assert(visibleHeight >= Math.min(250, viewport.height / 2), `App content needs usable height, got ${visibleHeight}px at ${viewport.width}×${viewport.height}`);
+      assert(visibleHeight >= appBox.height - 2, "Outer chrome must not crop the app iframe");
+      assert(right - left >= appBox.width - 2, "The app iframe must fit all outer boundaries");
+      for (const surface of [page, shell]) {
+        const layout = await surface.locator("body").evaluate(body => ({ width: body.scrollWidth, height: document.documentElement.scrollHeight, viewportWidth: innerWidth, viewportHeight: innerHeight, scrollY }));
+        assert(layout.width <= layout.viewportWidth + 1 && layout.height <= layout.viewportHeight + 1 && layout.scrollY === 0, "Workshop chrome must fit without moving its parent document");
+      }
+      const heading = await preview.getByRole("heading", { name: title, exact: true }).boundingBox();
+      assert(heading && heading.y >= top - 1 && heading.y + heading.height <= bottom + 1, "The full app heading must be visible after returning to browse");
+      viewportMeasurements.push({ embedded: ancestors.length > 0, ...viewport, visibleHeight, iframeHeight: appBox.height, headingHeight: heading.height });
+    };
     await open({ application, workspacePath: "designs/meeting-app", create: true, title: "Forbered et møte" });
     await check("app feedback shows immediate progress and returns to Try", async () => {
       assert.equal(await page.locator("#app-title").textContent(), "Forbered et møte");
       assert.equal(await page.locator("#app-preview").getAttribute("title"), "Møtedemo");
       await page.frameLocator("#app-preview").getByLabel("Prøvefelt").fill("Valg beholdes");
       await page.locator("#mode-change").click(); await page.locator("#whole-page").click(); await page.locator("#comment-text").fill("Vis forberedelsene tydeligere og lag et klikkbart forslag.");
-      await page.locator("#save-comment").click(); await until(async () => (await action("read_state")).revision > 0, "saved feedback");
-      await page.locator("#submit-feedback").waitFor({ state: "visible" });
-      await page.route("**/submit", async route => { await pause(700); await route.continue(); });
-      await page.locator("#submit-feedback").click(); assert.match(await page.locator("#review-progress-title").textContent(), /Sender/);
+      await page.route("**/submit-draft", async route => { await pause(700); await route.continue(); });
+      await page.locator("#send-comment").click(); assert.match(await page.locator("#review-progress-title").textContent(), /Sender/);
       await until(async () => (await action("read_state")).submission === 1, "round committed");
       await until(async () => await page.locator("#mode-browse").getAttribute("aria-pressed") === "true", "Try after send");
-      await page.unroute("**/submit"); await until(() => messages.length === 1, "one automatic message");
+      await page.unroute("**/submit-draft"); await until(() => messages.length === 1, "one automatic message");
     });
     const round = await action("read_submission", { submission: 1 }); const commentIds = round.items.filter(item => item.type === "comment").map(item => item.value.id);
     let proposal;
@@ -115,8 +138,21 @@ async function main() {
       await until(async () => await page.locator("#proposal-new").isVisible(), "new proposal badge");
       assert.equal(await page.locator("#app-tab").getAttribute("aria-selected"), "true"); assert.equal(await page.evaluate(() => document.activeElement.id), "app-tab");
       assert.equal(context.pages().length, 1, "one direct workshop; no connection panel, popup or proposal window");
-      await page.getByRole("button", { name: "Vis forslag", exact: true }).click();
+      // Publishing can briefly appear in a poll before its child screen is
+      // available. A deliberate tab choice must resume when that state changes.
+      let publishing = true;
+      const duringPublication = async route => {
+        const response = await route.fetch(), value = await response.json();
+        if (publishing) value.proposals = value.proposals.map(item => ({ ...item, available: false, screen: "" }));
+        await route.fulfill({ response, json: value });
+      };
+      await page.route("**/state", duringPublication);
+      await until(async () => await page.locator("#proposal-new").isHidden(), "publication-in-progress poll");
+      await page.locator("#proposal-tab").click();
+      assert.equal(await page.locator("#proposal-message-title").textContent(), "Forslaget er ikke tilgjengelig");
+      publishing = false;
       await frames().frame.getByRole("heading", { name: "Forbered møtet", exact: true }).waitFor();
+      await page.unroute("**/state", duringPublication);
       assert.equal(await page.locator("#app-title").textContent(), "Forbered et møte", "The task title must stay the same on the proposal tab");
       await page.frameLocator("#proposal-preview").frameLocator("#sketch").locator('#vc-status[data-connected="true"]').waitFor({ state: "attached" });
       assert.equal(await page.locator("#proposal-message").isVisible(), false);
@@ -126,13 +162,13 @@ async function main() {
     await check("real declarative interaction and draft survive switching between app and proposal", async () => {
       const { frame, ui } = frames(); await frame.getByRole("button", { name: "Se forberedelsene", exact: true }).click();
       await frame.getByRole("heading", { name: "Før møtet", exact: true }).waitFor();
-      await ui.getByRole("button", { name: "Endre", exact: true }).click(); await frame.getByRole("heading", { name: "Forbered møtet", exact: true }).click();
+      await ui.getByRole("button", { name: "Gi innspill", exact: true }).click(); await frame.getByRole("heading", { name: "Forbered møtet", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Gi overskriften en tydeligere handling.");
       await page.locator("#app-tab").click(); assert.equal(await page.frameLocator("#app-preview").getByLabel("Prøvefelt").inputValue(), "Valg beholdes");
       await page.locator("#proposal-tab").click(); assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Gi overskriften en tydeligere handling.");
-      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).click();
+      await ui.getByRole("button", { name: "Send innspill", exact: true }).click();
       await until(() => messages.length === 2, "proposal feedback delivered once");
-      assert.equal(await ui.getByRole("button", { name: "Prøv", exact: true }).getAttribute("aria-pressed"), "true");
+      assert.equal(await ui.getByRole("button", { name: "Gi innspill", exact: true }).getAttribute("aria-pressed"), "false");
       const ref = JSON.parse(messages[1].prompt.split("\n").at(-1)); assert.equal(ref.instanceId, identity.instanceId); assert.equal(ref.proposalId, proposal.id); assert.equal(ref.submission, 1);
       assert.equal((await action("read_submission", { proposalId: proposal.id, submission: 1 })).items.filter(item => item.type === "comment").length, 1);
       assert.equal((await action("read_submission", { submission: 1 })).round.review, "answered");
@@ -153,10 +189,10 @@ async function main() {
       const previous = page, oldProposal = frames();
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.bringToFront();
-      await oldProposal.ui.getByRole("button", { name: "Prøv", exact: true }).click();
+      assert.equal(await oldProposal.ui.getByRole("button", { name: "Gi innspill", exact: true }).getAttribute("aria-pressed"), "false");
       await until(async () => await page.locator("#proposal-new").isHidden(), "updated sketch confirmed");
-      await oldProposal.ui.getByRole("button", { name: "Endre", exact: true }).click();
-      assert.equal(await oldProposal.ui.getByRole("button", { name: "Endre", exact: true }).getAttribute("aria-pressed"), "true");
+      await oldProposal.ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
+      assert.equal(await oldProposal.ui.getByRole("button", { name: "Gi innspill", exact: true }).getAttribute("aria-pressed"), "true");
       await oldProposal.frame.getByRole("heading", { name: "Gjør dere klare til møtet", exact: true }).focus();
       await page.keyboard.press("Enter");
       await oldProposal.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Uferdig skisseinnspill som kan kopieres fra gammel visning.");
@@ -251,7 +287,15 @@ async function main() {
         await shell.locator("#mode-change").focus(); await page.keyboard.press("Enter");
         await shell.locator("#whole-page").waitFor({ state: "visible" });
         await page.keyboard.press("Escape");
+        await until(async () => await shell.locator("#mode-browse").isHidden() && await shell.locator("#mode-change").getAttribute("aria-pressed") === "false" && await shell.locator("#side-panel").isHidden(), "Escape finished selection and closed the panel");
         assert.equal(await shell.locator("#mode-change").evaluate(button => button === document.activeElement), true);
+        assert.equal(await shell.locator(".app-identity").isVisible(), false, "Embedded app must not duplicate the parent title");
+        assert.equal(await shell.locator(".surface-tabs").isVisible(), false, "Embedded app must not duplicate parent tabs");
+        await preview.locator("body").evaluate(() => scrollTo(0, 0));
+        await measureAppViewport(shell, preview, [
+          { element: page.locator("#proposal-preview"), frame: page.frameLocator("#proposal-preview") },
+          { element: page.frameLocator("#proposal-preview").locator("#sketch"), frame: shell },
+        ], viewport, "Velg hva du vil forberede");
         if (evidence) await page.screenshot({ path: path.join(evidence, `running-proposal-${viewport.width}x${viewport.height}.png`) });
       }
       await adapter.close(); await page.close(); attach(project);
@@ -262,6 +306,21 @@ async function main() {
       assert.equal((await action("read_submission", { proposalId: live.id, submission: 1 })).round.previousSession, true);
       assert.equal(messages.length, 3); assert.equal(context.pages().length, 1);
       await context.unroute("**/embedded/activate");
+    });
+    await check("main app keeps a usable viewport and keyboard width tools on narrow screens", async () => {
+      await page.locator("#app-tab").click();
+      if (await page.locator("#side-panel").isVisible()) await page.locator("#close-panel").click();
+      for (const viewport of [{ width: 320, height: 568 }, { width: 640, height: 400 }]) {
+        await page.setViewportSize(viewport);
+        await page.locator("#view-tools summary").focus(); await page.keyboard.press("Enter");
+        await page.locator("#width-mobile").click();
+        assert.equal(await page.locator("#view-tools").evaluate(node => node.open), false);
+        assert.equal(await page.locator("#view-tools summary").evaluate(node => node === document.activeElement), true);
+        await page.keyboard.press("Enter"); await page.locator("#width-fit").click();
+        await measureAppViewport(page, page.frameLocator("#app-preview"), [], viewport, "Dialogmøter");
+        if (evidence) await page.screenshot({ path: path.join(evidence, `main-app-${viewport.width}x${viewport.height}.png`) });
+      }
+      await page.setViewportSize({ width: 1280, height: 800 });
     });
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
   } catch (error) {
@@ -279,7 +338,7 @@ async function main() {
     proposalApp?.closeAllConnections?.(); if (proposalApp?.listening) await new Promise(resolve => proposalApp.close(resolve));
     app.closeAllConnections?.(); if (app.listening) await new Promise(resolve => app.close(resolve));
     fs.rmSync(root, { recursive: true, force: true });
-    if (evidence) fs.writeFileSync(path.join(evidence, "results.json"), JSON.stringify({ results, errors, external, messages: messages.length, simulatedConversationHost: true, nativeAppTested: false }, null, 2) + "\n");
+    if (evidence) fs.writeFileSync(path.join(evidence, "results.json"), JSON.stringify({ results, viewportMeasurements, errors, external, messages: messages.length, simulatedConversationHost: true, nativeAppTested: false }, null, 2) + "\n");
   }
 }
 main().catch(error => { console.error(String(error.stack).replace(/https?:\/\/[^\s)]+/g, "[local view]")); process.exitCode = 1; });

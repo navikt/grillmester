@@ -74,6 +74,7 @@ node --check plugin/skills/design-prototype/scripts/application-workspace.js
 node --check plugin/skills/design-prototype/scripts/application-proposals.js
 node --check plugin/skills/design-prototype/scripts/application-proposal-view.js
 node --check plugin/skills/design-prototype/scripts/html-embedding.js
+node --check plugin/skills/design-prototype/scripts/html-inspection.js
 node --test plugin/skills/design-prototype/tests/*.test.js
 node --check plugin/extensions/visual-companion/extension.mjs
 node --check plugin/extensions/visual-companion/adapter.mjs
@@ -83,6 +84,7 @@ node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
 node --check scripts/smoke_visual_canvas.cjs
 node --check scripts/smoke_visual_application.cjs
 node --check scripts/smoke_visual_workbench.cjs
+node --check scripts/visual-smoke-controls.cjs
 node --test plugin/extensions/visual-companion/tests/*.test.mjs
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py --require-binary

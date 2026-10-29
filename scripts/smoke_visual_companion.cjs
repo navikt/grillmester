@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+const { collectFeedback } = require("./visual-smoke-controls.cjs");
 
 // Optional browser smoke. Uses an existing Playwright installation and browser;
 // it never installs dependencies or touches a consumer repository.
@@ -90,36 +91,38 @@ function run(args) {
     await page.goto(info.url);
     frame=page.frameLocator('iframe');
     ui=frame.locator('[data-visual-feedback]');
-    await ui.getByRole('button',{name:'Endre',exact:true}).waitFor();
+    await ui.getByRole('button',{name:'Gi innspill',exact:true}).waitFor();
   };
   await openPage({width:1440,height:1000});
   await frame.locator('.vc-content').getByText('En prioritert liste',{exact:true}).click();
   assert.match(await frame.locator('#indicator-text').innerText(),/Valgt/);
-  await ui.getByRole('button',{name:'Endre',exact:true}).click();
+  await ui.getByRole('button',{name:'Gi innspill',exact:true}).click();
   await frame.locator('.vc-content').getByText('En prioritert liste',{exact:true}).click();
-  await ui.getByRole('button',{name:'Lagre innspill',exact:true}).click();
-  await ui.getByText('Skriv et innspill før du lagrer.',{exact:true}).waitFor();
+  await ui.locator('[data-action="collect"]').click();
+  await ui.getByText('Skriv et innspill først.',{exact:true}).waitFor();
   assert(await ui.getByLabel('Hva vil du endre?').evaluate(node=>node.getRootNode().activeElement===node));
   await ui.getByLabel('Hva vil du endre?').fill('Vis hvorfor denne oppgaven er prioritert. Behold fristen synlig.');
   await page.route('**/comments?*',async route=>route.request().method()==='POST'?route.fulfill({status:503,contentType:'application/json',body:'{"error":"Unavailable"}'}):route.continue());
-  await ui.getByRole('button',{name:'Lagre innspill',exact:true}).click();
+  await ui.locator('[data-action="collect"]').click();
   await ui.getByText('Lagringen ble ikke bekreftet. Behold utkastet og prøv samme innspill igjen.',{exact:true}).waitFor();
   assert.equal(await ui.getByLabel('Hva vil du endre?').inputValue(),'Vis hvorfor denne oppgaven er prioritert. Behold fristen synlig.');
-  assert(await ui.getByLabel('Hva vil du endre?').isEnabled());
+  assert.equal(await ui.getByLabel('Hva vil du endre?').isEditable(),false,'An unconfirmed receipt must keep the original text immutable');
   await page.unroute('**/comments?*');
   let releaseCreate,started;
   const gate=new Promise(resolve=>{releaseCreate=resolve;});
   const creating=new Promise(resolve=>{started=resolve;});
   await page.route('**/comments?*',async route=>{if(route.request().method()==='POST'){started();await gate;}await route.continue();});
-  await ui.getByRole('button',{name:'Lagre innspill',exact:true}).click();
+  await ui.getByRole('button',{name:'Prøv samme lagring igjen',exact:true}).click();
   await creating;
-  assert(await ui.getByLabel('Hva vil du endre?').isDisabled());
+  assert.equal(await ui.getByLabel('Hva vil du endre?').isEditable(),false);
   assert(await ui.getByRole('button',{name:'Forkast',exact:true}).isDisabled());
   assert(await ui.getByRole('button',{name:'Legg utkast til side',exact:true}).isDisabled());
   await page.keyboard.press('Escape');
   assert(await ui.getByRole('dialog').isVisible());
   releaseCreate();
 
+  await ui.getByRole('dialog').waitFor({state:'hidden'});
+  await ui.locator('[data-action="panel"]').click();
   await ui.getByRole('button',{name:'Send 1 innspill',exact:true}).waitFor();
   await page.unroute('**/comments?*');
   assert.equal((await list()).comments.length,1);
@@ -132,18 +135,18 @@ function run(args) {
   write('alternatives-updated',concepts.alternatives.replace('Neste oppgave øverst, med frist og årsak.','Neste oppgave øverst fordi fristen er nær.'));
   await frame.getByText('Neste oppgave øverst fordi fristen er nær.',{exact:true}).waitFor();
   await run(['resolve','--state-dir',info.state_dir,'--id',batch.comments[0].id,'--reply','Prioriteringen har nå en forklaring.']);
-  await ui.getByRole('button',{name:'Innspill',exact:false}).first().click();
+  await ui.locator('[data-action="panel"]').click();
   await ui.getByText('Prioriteringen har nå en forklaring.',{exact:false}).waitFor();
   await screenshot(page,'/visual-companion-reply.png');
   console.log('PASS: alternative selection, point comment, batch wait, full text, reply.');
 
   write('form',concepts.form);
   await frame.getByRole('heading',{name:'Avtal en veiledning'}).waitFor();
-  await ui.getByRole('button',{name:'Innspill',exact:false}).first().click();
+  await ui.locator('[data-action="panel"]').click();
   await ui.getByText('Tidligere versjon',{exact:true}).waitFor();
   await ui.getByRole('button',{name:'Lukk innspill'}).click();
   await frame.getByLabel('Hva vil du snakke om?',{exact:true}).fill('SKJEMA_VERDI_SKAL_IKKE_LAGRES');
-  await ui.getByRole('button',{name:'Endre',exact:true}).click();
+  await ui.getByRole('button',{name:'Gi innspill',exact:true}).click();
   await frame.getByRole('heading',{name:'Avtal en veiledning'}).click();
   await ui.getByLabel('Hva vil du endre?').fill('Bruk en tydeligere overskrift.');
   await ui.getByRole('button',{name:'Foreslå ny tekst'}).click();
@@ -153,14 +156,15 @@ function run(args) {
   await screenshot(page,'/visual-companion-text-preview.png');
   await ui.getByRole('button',{name:'Tilbakestill',exact:true}).click();
   await frame.getByRole('heading',{name:'Avtal en veiledning'}).waitFor();
-  await ui.getByRole('button',{name:'Lagre innspill'}).click();
+  await collectFeedback(ui);
   await ui.getByRole('button',{name:'Send 1 innspill'}).waitFor();
   await ui.getByRole('button',{name:'Lukk innspill'}).click();
+  await ui.getByRole('button',{name:'Gi innspill',exact:true}).click();
   await ui.getByRole('button',{name:'Område',exact:true}).click();
   const field=await frame.getByLabel('Hva vil du snakke om?',{exact:true}).boundingBox();
   await page.mouse.move(field.x+5,field.y+5);await page.mouse.down();await page.mouse.move(field.x+300,field.y+110,{steps:8});await page.mouse.up();
   await ui.getByLabel('Hva vil du endre?').fill('Samle disse feltene og forklar hva som er valgfritt.');
-  await ui.getByRole('button',{name:'Lagre innspill'}).click();
+  await collectFeedback(ui);
   await ui.getByRole('button',{name:'Send 2 innspill'}).waitFor();
   await screenshot(page,'/visual-companion-form.png');
   const saved=await list();assert.equal(saved.comments.filter(c=>c.kind==='area').length,1);assert.equal(saved.comments.filter(c=>c.kind==='edit').length,1);
@@ -168,6 +172,7 @@ function run(args) {
   console.log('PASS: old-version history, text proposal preview/undo, area drag, field-value privacy.');
 
   await ui.getByRole('button',{name:'Lukk innspill'}).click();
+  await ui.getByRole('button',{name:'Gi innspill',exact:true}).click();
   await ui.getByRole('button',{name:'Punkt',exact:true}).click();
   await frame.getByRole('heading',{name:'Avtal en veiledning'}).focus();await page.keyboard.press('Enter');
   await ui.getByLabel('Hva vil du endre?').fill('Et tastaturinnspill som skal bevares mens neste versjon kommer.');
@@ -180,12 +185,14 @@ function run(args) {
   await ui.getByRole('button',{name:'Fortsett utkast'}).click();
   assert.equal(await ui.getByLabel('Hva vil du endre?').inputValue(),'Et tastaturinnspill som skal bevares mens neste versjon kommer.');
   await page.keyboard.press(process.platform==='darwin'?'Meta+Enter':'Control+Enter');
-  await ui.getByRole('button',{name:'Send 3 innspill'}).click();
+  // The keyboard command now sends the draft and the two staged notes atomically.
   await frame.getByRole('heading',{name:'Arbeidsoversikt'}).waitFor();
+  const keyboardBatch=await run(['wait','--state-dir',info.state_dir,'--after','1','--timeout','0']);
+  assert.equal(keyboardBatch.submission,2);assert.equal(keyboardBatch.comments.length,3);
   console.log('PASS: keyboard comments, Escape draft recovery, refresh deferral until batch submit.');
 
   await openPage({width:390,height:844});
-  await ui.getByRole('button',{name:'Endre',exact:true}).click();
+  await ui.getByRole('button',{name:'Gi innspill',exact:true}).click();
   await ui.getByRole('button',{name:'Område',exact:true}).click();
   await frame.getByRole('heading',{name:'Arbeidsoversikt'}).focus();await page.keyboard.press('Enter');
   await ui.getByLabel('Hva vil du endre?').fill('På mobil bør oppgavene ligge i én kolonne.');
@@ -199,7 +206,9 @@ function run(args) {
   assert.equal(await ui.getByLabel('Hva vil du endre?').inputValue(),'På mobil bør oppgavene ligge i én kolonne.');
   const resizedComposer=await ui.getByRole('dialog').boundingBox();
   assert(resizedComposer.x>=0&&resizedComposer.x+resizedComposer.width<=320);
-  await ui.getByRole('button',{name:'Lagre innspill',exact:true}).focus();await page.keyboard.press('Enter');
+  await ui.locator('[data-action="collect"]').focus();await page.keyboard.press('Enter');
+  await ui.getByRole('dialog').waitFor({state:'hidden'});
+  await ui.locator('[data-action="panel"]').focus();await page.keyboard.press('Enter');
   await ui.getByRole('button',{name:'Send 1 innspill'}).waitFor();
   const mobile=await list();assert.equal(mobile.comments.at(-1).kind,'area');
   await openPage({width:320,height:800});

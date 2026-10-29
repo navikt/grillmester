@@ -23,6 +23,7 @@ const path = require("node:path");
 const { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_BODY_BYTES, keys } = require("./feedback-store.js");
 const { CanvasState } = require("./canvas-state.js");
 const { createHtmlEmbedding, renderEmbeddingBootstrap } = require("./html-embedding.js");
+const { createHtmlInspection } = require("./html-inspection.js");
 const { WorkspaceStore, validWorkspacePath } = require("./workspace-store.js");
 const { WorkspaceState, validWorkspaceState, screenIdentity } = require("./workspace-state.js");
 const { promoteTemporaryWorkspace } = require("./workspace-promotion.js");
@@ -906,7 +907,7 @@ function newestContent() {
   return null;
 }
 
-function wrapInFrame(content, filename, screen, nonce, design = null, designError = false, view = null, embedded = false) {
+function wrapInFrame(content, filename, screen, nonce, design = null, designError = false, view = null, embedded = false, inspection = false) {
   const safeFilename = escapeHtml(filename || "untitled");
   const safeContent = stripActivePreviewMarkup(content, nonce);
   const akselStyle = akselCss
@@ -934,9 +935,9 @@ function wrapInFrame(content, filename, screen, nonce, design = null, designErro
         body > .vc-header .vc-indicator.visible { position: fixed; top: 8px; right: 8px; z-index: 101; }
         body > main.vc-content { margin: 0 auto; padding: 16px; min-height: 100vh; }
       </style>` : "") +
-      `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};window.__grillmesterVisualCompanionView=${serializeForInlineScript(view)};window.__grillmesterVisualCompanionEmbedded=${embedded ? "true" : "false"};</script>` +
+      `<script nonce="${nonce}">window.__grillmesterVisualCompanionScreen=${serializeForInlineScript(screen)};window.__grillmesterVisualCompanionDesign=${serializeForInlineScript(design)};window.__grillmesterVisualCompanionView=${serializeForInlineScript(view)};window.__grillmesterVisualCompanionEmbedded=${embedded ? "true" : "false"};window.__grillmesterVisualCompanionInspection=${inspection ? "true" : "false"};</script>` +
       `<script nonce="${nonce}">\n${workshopJs}\n</script>` +
-      `<script nonce="${nonce}">\n${editorJs}\n</script>` +
+      (inspection ? "" : `<script nonce="${nonce}">\n${editorJs}\n</script>`) +
       `<script nonce="${nonce}">\n${helperJs}\n</script>`,
     CONTENT: cssWarning + designWarning + safeContent,
   };
@@ -1103,6 +1104,12 @@ function renderShellPage(nonce, accessToken, title, screen, embeddedView = null)
             return { workspace: true, method: "POST", path: saving ? "/workspace/editor/save" : "/workspace/editor/release", body: value };
         }
         if (data.action === "comments-list" && hasExactKeys(value, [])) return { method: "GET", path: "/comments" };
+        if (data.action === "comments-submit-draft" && hasExactKeys(value, ["comment", "revision", "commentIds"]) &&
+            Number.isSafeInteger(value.revision) && value.revision >= 0 && Array.isArray(value.commentIds) && value.commentIds.length <= 200 &&
+            value.commentIds.every(validId) && new Set(value.commentIds).size === value.commentIds.length &&
+            feedbackOperation({ ...data, action: "comment-create", payload: value.comment })) {
+          return { method: "POST", path: "/comments/submit-draft", body: value };
+        }
         if (data.action === "comment-create" && closedKeys(value, ["screen", "kind", "anchor", "text"], ["proposal", "adjustment", "variant", "context"]) && validScreen(value.screen) && validAnchor(value.anchor) && validText(value.text)) {
           const baseKeys = ["screen", "kind", "anchor", "text"];
           const validContext = !Object.hasOwn(value, "context") || (hasExactKeys(value.context, ["variant", "target", "values"]) && validVariant(value.context.variant) && validKey(value.context.target) && validValues(value.context.values));
@@ -1233,18 +1240,19 @@ function renderShellPage(nonce, accessToken, title, screen, embeddedView = null)
         }).then(async (response) => {
           const result = await response.json();
           if (operationEpoch !== readyEpoch) return;
-          if (!response.ok && response.status === 409 && (operation.workspace || operation.path === "/comments/submit")) {
+          if (!response.ok && response.status === 409 && (operation.workspace || ["/comments/submit", "/comments/submit-draft"].includes(operation.path))) {
             await withReadDeadline((signal) => pollComments(signal, operationEpoch));
             if (operationEpoch !== readyEpoch) return;
             const conflicts = Array.isArray(result.conflicts) && result.conflicts.length <= 32 && result.conflicts.every((item) => hasExactKeys(item, ["id", "label"])
               && typeof item.id === "string" && item.id.length <= 160 && typeof item.label === "string" && item.label.length <= 400) ? result.conflicts : null;
             sendToPreview({ command: resultCommand, requestId: data.requestId, ok: false, conflict: true,
+              ...(result.rejected === true ? { rejected: true } : {}),
               ...(["editor-conflict", "revision-unavailable"].includes(result.errorCode) ? { errorCode: result.errorCode } : {}),
               ...(conflicts ? { conflicts } : {}) });
             return;
           }
           sendToPreview(response.ok ? { command: resultCommand, requestId: data.requestId, ok: true, ...(operation.workspace && operation.method === "GET" ? { result } : { snapshot: result }) }
-            : { command: resultCommand, requestId: data.requestId, ok: false, ...(response.status === 429 ? { errorCode: "capacity" } : {}), error: result.error || "Feedback request failed." });
+            : { command: resultCommand, requestId: data.requestId, ok: false, ...(result.rejected === true ? { rejected: true } : {}), ...(response.status === 429 ? { errorCode: "capacity" } : {}), error: result.error || "Feedback request failed." });
         }).catch(() => {
           if (operationEpoch === readyEpoch) sendToPreview({ command: resultCommand, requestId: data.requestId, ok: false, error: "Feedback is unavailable. Keep your note and try again." });
         });
@@ -1360,11 +1368,12 @@ const feedback = new FeedbackStore(stateDir, { canvas: canvasMode, persistence: 
 if (workspaceStore) workspaceState = new WorkspaceState(feedback, workspaceStore, { path: workspacePath, recovered });
 const canvasState = canvasMode ? new CanvasState(feedback) : null;
 const mutationReceipts = new FeedbackMutationReceipts();
+const inspections = createHtmlInspection();
 let accessToken = crypto.randomBytes(32).toString("base64url");
 let tokenBuffer = Buffer.from(accessToken);
 let authority = null;
 let embedding = null, viewGeneration = 0;
-function revokeView() { viewGeneration += 1; embedding?.revoke(); authority = null; }
+function revokeView() { viewGeneration += 1; void inspections.revokeAll(); embedding?.revoke(); authority = null; }
 function currentRequest(req) { return req.viewGeneration === viewGeneration && authority !== null && (!embedding || embedding.active); }
 let eventCount = 0;
 let lastActivity = Date.now();
@@ -1377,6 +1386,7 @@ function feedbackSnapshot() { return { ...feedback.snapshot(), listeningUntil, .
 function activateScreen(newest) {
   const nextScreen = newest ? newest.screen : "";
   if (activeScreen === nextScreen) return;
+  void inspections.revokeAll();
   if (newest) feedback.knowScreen(newest.screen, newest.filename, newest.design);
   activeScreen = nextScreen;
   eventCount = 0;
@@ -1540,18 +1550,26 @@ function readFeedbackBody(req, res, operation, pathname, maximumBytes = MAX_BODY
     try { value = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
     catch { sendJson(res, 400, { error: "Invalid JSON." }); return; }
     const previousSubmission = feedback.state.submission;
+    const previousRevision = feedback.state.revision;
+    const previousWorkspaceVersion = feedback.state.workspace?.version;
+    let accepted = false;
     try {
       mutationReceipts.run(req.headers["x-feedback-mutation"], req.method, pathname, value, operation);
+      accepted = true;
       const snapshot = feedbackSnapshot();
       lastActivity = Date.now();
       sendJson(res, 200, snapshot);
     } catch (error) {
-      sendJson(res, requestErrorStatus(error), {
+      const uncertain = pathname === "/comments/submit-draft" && (accepted || error.committed === true || feedback.state.revision !== previousRevision);
+      const status = uncertain ? 503 : requestErrorStatus(error);
+      sendJson(res, status, {
+        ...(!uncertain && status >= 400 && status < 500 ? { rejected: true } : {}),
         error: error instanceof FeedbackError || error?.expose === true ? error.message : "Feedback storage is unavailable.",
         ...(["editor-conflict", "revision-unavailable"].includes(error.errorCode) ? { errorCode: error.errorCode } : {}),
         ...(error.errorCode === "editor-conflict" && Array.isArray(error.conflicts) ? { conflicts: error.conflicts } : {}),
       });
     } finally {
+      if (feedback.state.workspace?.version !== previousWorkspaceVersion) void inspections.revokeAll();
       // A post-rename error can follow a committed round. Notify that transition
       // once even when its HTTP result failed; a receipt retry has no transition.
       if (canvasMode && feedback.state.submission > previousSubmission) {
@@ -1683,6 +1701,7 @@ const server = http.createServer((req, res) => {
     }
     const operation = req.method === "POST" && requestUrl.pathname === "/comments" ? (value) => feedback.create(value)
       : req.method === "POST" && requestUrl.pathname === "/comments/submit" ? (value) => feedback.submit(value)
+      : req.method === "POST" && requestUrl.pathname === "/comments/submit-draft" ? (value) => feedback.submitDraft(value)
       : req.method === "PATCH" && commentId ? (value) => feedback.patch(commentId, value)
       : req.method === "DELETE" && commentId ? (value) => feedback.delete(commentId, value) : null;
     if (!operation) {
@@ -1826,6 +1845,7 @@ function cleanupActiveSession() {
 }
 
 function shutdown(reason) {
+  void inspections.revokeAll();
   console.log(JSON.stringify({ type: "server-stopped", reason }));
   server.close();
   server.closeAllConnections?.();
@@ -1909,8 +1929,9 @@ function publishCanvasRevision(input) {
   if (input.design?.version === 2) validateEditorBindings(input.html, input.design);
   if (input.expectedScreen !== (before?.screen || "")) throw new FeedbackError(409, "The sketch changed. Read the current screen before publishing.");
   if (workspaceState) {
-    workspaceState.publish(input);
-    return canvasReadState();
+    const beforeVersion = feedback.state.workspace.version;
+    try { workspaceState.publish(input); return canvasReadState(); }
+    finally { if (feedback.state.workspace.version !== beforeVersion) void inspections.revokeAll(); }
   }
   const filename = path.join(contentDir, input.filename);
   const descriptor = path.join(contentDir, input.filename.slice(0, -5) + ".design.json");
@@ -1981,8 +2002,31 @@ function saveCanvasWorkspace(input) {
   try { return canvasReadState(); }
   catch { throw new FeedbackError(503, "Forslaget er skrevet, men gjeldende status kunne ikke bekreftes. Behold samme lagringshandling; ikke opprett et nytt forslag."); }
 }
+async function openInspection(params) {
+  if (!keys(params, ["expectedScreen"]) || typeof params.expectedScreen !== "string" || !/^[a-f0-9]{32}$/.test(params.expectedScreen)) throw new FeedbackError(400, "Invalid inspection request.");
+  const current = newestContent();
+  if (!current || current.screen !== params.expectedScreen || current.designError) throw new FeedbackError(409, "The sketch changed. Read its current state before inspection.");
+  const generation = viewGeneration, nonce = crypto.randomBytes(18).toString("base64url");
+  const digest = value => crypto.createHash("sha256").update(value).digest("hex");
+  const html = wrapInFrame(current.content, current.filename, current.screen, nonce, current.design, false, null, Boolean(embedding), true);
+  if (html.includes(accessToken)) throw new FeedbackError(409, "The inspection could not be isolated.");
+  const saved = feedback.state.workspace?.revisions[feedback.state.workspace.version - 1];
+  const result = await inspections.open({ html, csp: previewCsp(nonce), screen: current.screen, filename: current.filename,
+    ...(saved ? { revisionId: saved.revisionId } : {}), sourceHash: digest(current.content),
+    designHash: saved ? saved.designHash : current.design ? digest(JSON.stringify(current.design)) : null,
+    frameHash: digest(html), styles: styleReceipt });
+  if (generation !== viewGeneration || newestContent()?.screen !== current.screen) {
+    await inspections.revokeAll(); throw new FeedbackError(410, "The inspection source or view changed while opening.");
+  }
+  return result;
+}
 async function canvasCommand(method, params) {
   lastActivity = Date.now();
+  if (method === "openInspection") return openInspection(params);
+  if (method === "closeInspection") {
+    if (!keys(params, ["inspectionId"])) throw new FeedbackError(400, "Invalid inspection request.");
+    return inspections.close(params.inspectionId);
+  }
   if (method === "readSubmission") return canvasState.read(params);
   if (method === "publishRevision") return publishCanvasRevision(params);
   if (method === "saveWorkspace") return saveCanvasWorkspace(params);
@@ -1993,7 +2037,9 @@ async function canvasCommand(method, params) {
     if (!workspaceState) throw new FeedbackError(409, "This sketch is temporary. Open a project workspace to keep version history.");
     if (method === "listHistory") return workspaceState.history(params);
     if (method === "readRevision") return workspaceState.read(params);
-    workspaceState.restore(params); return canvasReadState();
+    const beforeVersion = feedback.state.workspace.version;
+    try { workspaceState.restore(params); return canvasReadState(); }
+    finally { if (feedback.state.workspace.version !== beforeVersion) void inspections.revokeAll(); }
   }
   if (method === "openView" && Object.hasOwn(params, "embedding")) {
     if (!keys(params, ["embedding"])) throw new FeedbackError(400, "Invalid embedding options.");
@@ -2038,7 +2084,7 @@ if (canvasMode) {
     const requestedGeneration = viewGeneration;
     commands = commands.then(async () => {
       try {
-        if (message.method === "openView" && requestedGeneration !== viewGeneration) throw new FeedbackError(410, "The proposal was closed before opening.");
+        if (["openView", "openInspection"].includes(message.method) && requestedGeneration !== viewGeneration) throw new FeedbackError(410, "The proposal was closed before opening.");
         if (!keys(message, ["channel", "version", "id", "method", "params"]) || typeof message.method !== "string" ||
             Buffer.byteLength(JSON.stringify(message)) > MAX_CONTENT_BYTES + MAX_DESIGN_BYTES + 64 * 1024) throw new FeedbackError(400, "Invalid canvas request.");
         const result = await canvasCommand(message.method, message.params);

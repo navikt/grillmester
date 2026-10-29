@@ -161,7 +161,7 @@ function parseInspection(value) {
   });
   return { evidence: "untrusted-page-content", observedAt: new Date().toISOString(), viewport: { ...value.viewport }, elements, truncated: value.truncated,
     health: { state: Object.values(value.health).some(Boolean) ? "errors-observed" : "no-errors-observed", ...value.health },
-    limits: "Visible document structure and categorized runtime errors from the open app only. Not a screenshot or proof of correct rendering or behavior. No field values, raw HTML, console output, exception text or network payloads." };
+    limits: "Document outline and categorized runtime errors from the open app only, including elements outside the current viewport. Does not measure occlusion, layout, contrast or pixels. Not a screenshot or visual verification. No field values, raw HTML, console output, exception text or network payloads." };
 }
 
 module.exports = { parseApplication, normalizeApplicationRoute: normalizedRoute, normalizeResourceQueryKeys, validApplicationRoute, validApplicationScreen, validApplicationContext, screenIdentity, validRuntimeHealth, parseInspection };

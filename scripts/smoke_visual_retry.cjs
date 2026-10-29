@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+const { openAdjust, collectFeedback } = require("./visual-smoke-controls.cjs");
 
 // Commit each first write, then lose only its response. This differs from a
 // request rejected before persistence: retry must recover the existing intent.
@@ -8,12 +9,6 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
-async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
-  await adjust.click();
-}
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -36,6 +31,16 @@ async function until(check, message) {
   const deadline = Date.now() + 7000;
   while (Date.now() < deadline) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 50)); }
   throw new Error(message);
+}
+// An uncertain staged write is immutable. Its primary action recovers the
+// receipt before a user can edit or start another intent.
+async function recoverCollectedFeedback(ui) {
+  assert.equal(await ui.locator('[data-action="collect"]').isDisabled(), true);
+  assert.match(await ui.locator('.composer [data-action="save"]').textContent(), /Prøv samme lagring igjen/);
+  await ui.locator('.composer [data-action="save"]').click();
+  await ui.locator(".composer").waitFor({ state: "hidden" });
+  const panel = ui.getByRole("region", { name: "Innspill til prototypen", exact: true });
+  if (!(await panel.isVisible())) await ui.locator('[data-action="panel"]').click();
 }
 async function start(project) {
   const child = spawn(process.execPath, [path.join(runtime, "server.js"), "--project-dir", project], { stdio: ["ignore", "pipe", "pipe"] });
@@ -81,7 +86,7 @@ async function session(browser, name, run, lostResponsePath = "/comments", lostR
       peer.on("requestfinished", request => { if (!request.url().startsWith(new URL(running.info.url).origin) && !/^(data|blob):/.test(request.url())) external.push(new URL(request.url()).origin); });
       await peer.goto(running.info.url);
       const peerFrame = peer.frameLocator("#vc-preview"), peerUi = peerFrame.locator("[data-visual-feedback]");
-      await peerUi.getByRole("button", { name: "Endre", exact: true }).waitFor();
+      await peerUi.getByRole("button", { name: "Gi innspill", exact: true }).waitFor();
       return { page: peer, frame: peerFrame, ui: peerUi };
     };
     const url = new URL(running.info.url); url.pathname = "/comments";
@@ -115,10 +120,10 @@ async function session(browser, name, run, lostResponsePath = "/comments", lostR
       await route.abort("failed");
     });
     await page.goto(running.info.url);
-    await ui.getByRole("button", { name: "Endre", exact: true }).waitFor();
+    await ui.getByRole("button", { name: "Gi innspill", exact: true }).waitFor();
     await frame.getByLabel("Prøvefelt", { exact: true }).fill("PRIVATE_PRACTICE_VALUE");
     const begin = async text => {
-      await ui.getByRole("button", { name: "Endre", exact: true }).click();
+      await ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
       await frame.getByRole("heading", { name: "Forbered møtet", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text);
     };
@@ -143,7 +148,7 @@ async function session(browser, name, run, lostResponsePath = "/comments", lostR
 const cases = [
   { name: "submit-after-lost-receipt", lostResponsePath: "/comments/submit", async run({ ui, snapshot, mutations, begin, releaseRead }) {
     await begin("Vis neste steg tydeligere.");
-    await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+    await collectFeedback(ui);
     const send = ui.getByRole("button", { name: "Send 1 innspill", exact: true });
     await send.waitFor();
     const before = await snapshot();
@@ -167,11 +172,11 @@ const cases = [
   { name: "same-note-after-lost-receipt", async run({ ui, snapshot, mutations, begin }) {
     const text = "Vis hvor lang tid møtet tar.";
     await begin(text);
-    await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+    await collectFeedback(ui);
     await ui.locator(".compose-error").waitFor({ state: "visible" });
     assert.equal((await snapshot()).comments.length, 1);
     assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), text);
-    await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+    await recoverCollectedFeedback(ui);
     await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
     assert.equal(mutations[0], mutations[1]);
     assert.equal((await snapshot()).comments.length, 1);
@@ -181,12 +186,17 @@ const cases = [
   } },
   { name: "edited-note-after-lost-receipt", async run({ ui, snapshot, mutations, begin }) {
     await begin("Vis hvor lang tid møtet tar.");
-    await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+    await collectFeedback(ui);
     await ui.locator(".compose-error").waitFor({ state: "visible" });
-    await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Forklar hvordan jeg kan flytte møtet.");
-    await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+    assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).getAttribute("readonly"), "");
+    assert.equal(await ui.locator('[data-action="discard"]').isDisabled(), true);
+    await recoverCollectedFeedback(ui);
+    await ui.getByRole("button", { name: "Lukk innspill", exact: true }).click();
+    await begin("Forklar hvordan jeg kan flytte møtet.");
+    await collectFeedback(ui);
     await ui.getByRole("button", { name: "Send 2 innspill", exact: true }).waitFor();
-    assert.notEqual(mutations[0], mutations[1], "Changing the draft creates a distinct intent, not an invalid retry.");
+    assert.equal(mutations[0], mutations[1], "The uncertain original intent is recovered first.");
+    assert.notEqual(mutations[1], mutations[2], "A new note after recovery creates a distinct intent.");
     assert.deepEqual((await snapshot()).comments.map(item => item.text), ["Vis hvor lang tid møtet tar.", "Forklar hvordan jeg kan flytte møtet."]);
   } },
   { name: "adjustment-after-lost-receipt", async run({ ui, snapshot, mutations }) {
@@ -231,14 +241,14 @@ const cases = [
     assert.equal(before.comments.length, 200);
     const attempted = [];
     page.on("request", request => { if (request.method() === "POST" && new URL(request.url()).pathname === "/comments") attempted.push(request.postDataJSON()); });
-    await ui.getByRole("button", { name: "Endre", exact: true }).click();
+    await ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
     await frame.getByRole("heading", { name: "Forbered møtet", exact: true }).focus();
     await page.keyboard.press("Enter");
     await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Behold dette utkastet når køen er full.");
-    await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+    await collectFeedback(ui);
     await ui.locator(".compose-error").waitFor({ state: "visible" });
     assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Behold dette utkastet når køen er full.");
-    assert.equal(await ui.getByRole("button", { name: "Lagre innspill", exact: true }).isEnabled(), true);
+    assert.equal(await ui.getByRole("button", { name: "Legg til flere", exact: true }).isEnabled(), true);
     const after = await snapshot();
     assert.equal(after.revision, before.revision);
     assert.deepEqual(after.comments, before.comments);
@@ -266,30 +276,35 @@ const cases = [
     try {
       await begin("Det første innspillet er faktisk lagret.");
       const started = Date.now();
-      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+      await collectFeedback(ui);
       await until(async () => (await snapshot()).comments.length === 1, "The first note was not committed before its receipt was delayed.");
       await ui.locator(".compose-error").waitFor({ state: "visible", timeout: 15000 });
       assert(Date.now() - started >= 11500, "The actual helper timeout must expire; an immediate transport rejection is a different case.");
       assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Det første innspillet er faktisk lagret.");
-      await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Et endret utkast etter tidsavbruddet.");
+      assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).getAttribute("readonly"), "");
+      assert.equal(attempts.length, 1, "The timeout never retries automatically.");
+      await recoverCollectedFeedback(ui);
+      assert.equal(attempts[0].mutationId, attempts[1].mutationId);
+      await ui.getByRole("button", { name: "Lukk innspill", exact: true }).click();
+      await begin("Et endret utkast etter tidsavbruddet.");
       releaseReceipt();
       await until(() => lateDelivered, "The late receipt was not delivered.");
       await page.waitForTimeout(150);
       assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Et endret utkast etter tidsavbruddet.", "A late success must not clear or close a newer local draft.");
-      assert.equal(attempts.length, 1, "A timeout must never retry automatically.");
-      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+      assert.equal(attempts.length, 2, "A late receipt must never retry automatically.");
+      await collectFeedback(ui);
       await ui.getByRole("button", { name: "Send 2 innspill", exact: true }).waitFor();
-      assert.equal(attempts.length, 2);
-      assert.notEqual(attempts[0].mutationId, attempts[1].mutationId);
+      assert.equal(attempts.length, 3);
+      assert.notEqual(attempts[1].mutationId, attempts[2].mutationId);
       assert.deepEqual((await snapshot()).comments.map(item => item.text), ["Det første innspillet er faktisk lagret.", "Et endret utkast etter tidsavbruddet."]);
-      return { writesAttempted: attempts.length, checks: ["actual 12-second timeout", "accepted first note retained", "late receipt preserves edited draft", "explicit changed intent gets new key"] };
+      return { writesAttempted: attempts.length, checks: ["actual 12-second timeout", "accepted first note retained and recovered with same key", "late receipt preserves newer draft", "explicit new intent gets new key"] };
     } finally { releaseReceipt(); }
   } },
   { name: "parked-draft-versus-saved-preview", lostResponsePath: null, async run({ frame, ui, snapshot, begin }) {
     await begin("Lagret forslag B.");
     await ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
     await ui.getByLabel("Ny tekst", { exact: true }).fill("Lagret overskrift B");
-    await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+    await collectFeedback(ui);
     await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
     const saved = await snapshot();
     await ui.getByRole("button", { name: "Lukk innspill", exact: true }).click();
@@ -329,7 +344,7 @@ const cases = [
         await oldReceipt;
         await route.fulfill({ response });
         oldDelivered = true;
-      } else if (attempts.length === 2) {
+      } else if (attempts.length === 3) {
         await currentFailure;
         await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Controlled current write failure." }) });
         currentDelivered = true;
@@ -338,12 +353,13 @@ const cases = [
     try {
       await begin("Lagret før versjonsbytte.");
       const started = Date.now();
-      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+      await collectFeedback(ui);
       await ui.locator(".compose-error").waitFor({ state: "visible", timeout: 15000 });
       assert(Date.now() - started >= 11500, "The original response must outlive the actual request timeout.");
       assert.deepEqual((await snapshot()).comments.map(item => item.text), ["Lagret før versjonsbytte."]);
-      await ui.getByRole("button", { name: "Forkast", exact: true }).click();
-      await ui.locator('[data-action="panel"]').click();
+      assert.equal(await ui.getByRole("button", { name: "Forkast", exact: true }).isDisabled(), true);
+      await recoverCollectedFeedback(ui);
+      assert.equal(attempts[0].mutationId, attempts[1].mutationId);
       await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).click();
       await until(async () => (await snapshot()).submission === 1, "The accepted first comment was not submitted before changing versions.");
       publish("Neste versjon");
@@ -352,11 +368,11 @@ const cases = [
       await until(async () => await nextHeading.count() > 0 || (await refresh.isVisible() && await refresh.isEnabled()), "The next sketch version was not announced.");
       if (await nextHeading.count() === 0) await refresh.click();
       await nextHeading.waitFor();
-      await ui.getByRole("button", { name: "Endre", exact: true }).click();
+      await ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
       await frame.getByRole("heading", { name: "Neste versjon", exact: true }).click();
       await ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Nytt utkast som ikke er lagret.");
-      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
-      await until(() => attempts.length === 2, "The next version's write was not intercepted.");
+      await ui.locator('[data-action="collect"]').click();
+      await until(() => attempts.length === 3, "The next version's write was not intercepted.");
       assert.equal(await ui.locator(".composer").getAttribute("aria-busy"), "true");
       releaseOld();
       await until(() => oldDelivered, "The old version's receipt was not delivered.");
@@ -367,18 +383,18 @@ const cases = [
       await ui.locator(".compose-error").waitFor({ state: "visible" });
       assert.equal(await ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Nytt utkast som ikke er lagret.");
       assert.equal((await snapshot()).comments.length, 1);
-      assert.equal(attempts.length, 2, "Neither an old receipt nor a current failure may trigger an automatic retry.");
-      await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click();
+      assert.equal(attempts.length, 3, "Neither an old receipt nor a current failure may trigger an automatic retry.");
+      await recoverCollectedFeedback(ui);
       await ui.getByRole("button", { name: "Send 1 innspill", exact: true }).waitFor();
-      assert.equal(attempts.length, 3);
-      assert.equal(attempts[1].mutationId, attempts[2].mutationId, "An explicit unchanged retry still recovers the current document's intent.");
-      assert.notEqual(attempts[0].body.screen, attempts[1].body.screen);
+      assert.equal(attempts.length, 4);
+      assert.equal(attempts[2].mutationId, attempts[3].mutationId, "An explicit unchanged retry still recovers the current document's intent.");
+      assert.notEqual(attempts[0].body.screen, attempts[2].body.screen);
       assert.deepEqual((await snapshot()).comments.map(item => item.text), ["Lagret før versjonsbytte.", "Nytt utkast som ikke er lagret."]);
       return { writesAttempted: attempts.length, checks: ["actual timeout before version change", "old document receipt ignored", "current failure retains draft", "explicit retry saves current version"] };
     } finally {
       releaseOld(); releaseCurrent();
       if (attempts.length >= 1) await until(() => oldDelivered, "Old intercepted response was not released.");
-      if (attempts.length >= 2) await until(() => currentDelivered, "Current intercepted response was not released.");
+      if (attempts.length >= 3) await until(() => currentDelivered, "Current intercepted response was not released.");
     }
   } },
 ];

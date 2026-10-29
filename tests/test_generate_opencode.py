@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import posixpath
+import re
 import shutil
 import sys
 import tempfile
@@ -33,9 +35,23 @@ class OpenCodeGenerationTest(unittest.TestCase):
                      "application-workspace.js", "application-proposals.js", "application-proposal-view.js", "application-source.js", "application-changes.js",
                      "application-reference.js"):
             self.assertNotIn(prefix + "scripts/" + name, files)
-        for name in ("app-runtime.test.js", "application-inactive-view.test.js", "application-inspector.test.js", "application-proxy.test.js",
+        for name in ("app-runtime.test.js", "application-connection.test.js", "application-inactive-view.test.js", "application-inspector.test.js", "application-proxy.test.js",
                      "application-server.test.js", "application-workspace.test.js"):
             self.assertNotIn(prefix + "tests/" + name, files)
+        for name in ("application-contract.test.js", "application-feedback.test.js", "feedback-submit-draft.test.js"):
+            self.assertTrue(prefix + "tests/" + name in files, f"Portable feedback test omitted: {name}")
+
+    def test_projected_design_tests_keep_their_local_module_dependencies(self) -> None:
+        files, _ = GENERATOR.build_projection(ROOT)
+        imports = re.compile(r'''^\s*(?:const|let|var)\s+[^;\n]*\brequire\(["'](\.\.?/[^"']+)["']\)''', re.MULTILINE)
+        for filename, (content, _) in files.items():
+            if not filename.startswith("skills/design-prototype/tests/") or not filename.endswith(".test.js"):
+                continue
+            for dependency in imports.findall(content.decode("utf-8")):
+                resolved = posixpath.normpath(posixpath.join(posixpath.dirname(filename), dependency))
+                candidates = (resolved, resolved + ".js", resolved + "/index.js")
+                self.assertTrue(any(candidate in files for candidate in candidates),
+                                f"{filename} imports omitted local module {dependency}")
 
     def test_short_skill_calls_do_not_rewrite_paths_or_urls(self) -> None:
         calls = GENERATOR.slash_skill_reference({"review", "design-prototype"})

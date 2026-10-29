@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+const { openTools, enterBrowse, openAdjust, startComparison, collectFeedback } = require("./visual-smoke-controls.cjs");
 
 // Synthetic role scenarios, exercised through actual browser input and the public reader.
 const assert = require("node:assert/strict");
@@ -8,12 +9,6 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { createRequire } = require("node:module");
-// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
-async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
-  await adjust.click();
-}
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
@@ -87,8 +82,8 @@ function viewFor(page) {
   const adjust = async () => { await closeFeedback(); if (!(await workshop.isVisible())) await openAdjust(ui); };
   return { page, frame, ui, workshop, closeFeedback, closeWorkshop, openFeedback, adjust,
     async browse() { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="browse"]').getAttribute("aria-pressed") !== "true") await ui.locator('[data-action="browse"]').click(); },
-    async note(value, selector = "h1") { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await ui.getByRole("button", { name: "Endre", exact: true }).click(); await frame.locator(selector).click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(value); },
-    async save() { await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" }); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); },
+    async note(value, selector = "h1") { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await ui.getByRole("button", { name: "Gi innspill", exact: true }).click(); await frame.locator(selector).click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(value); },
+    async save() { await collectFeedback(ui); await ui.getByRole("button", { name: "Legg til flere", exact: true }).waitFor({ state: "hidden" }); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); },
     async keep(detail, value) { await adjust(); await workshop.getByLabel("Mengde forklaring", { exact: true }).selectOption(detail); await workshop.getByLabel("Merknad", { exact: true }).fill(value); await workshop.getByRole("button", { name: "Behold denne delen", exact: true }).click(); await ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).waitFor(); await closeFeedback(); },
     async shown(title) { await frame.getByRole("heading", { name: title, exact: true }).waitFor(); },
   };
@@ -103,7 +98,7 @@ async function runCase(browser, testcase) {
     const info = await start(child); context = await browser.newContext({ viewport: testcase.viewport, reducedMotion: "reduce" });
     let sequence = 0;
     const write = (title, detail = "short", state = "invitation") => { const stem = `${String(++sequence).padStart(2, "0")}-invitation`, value = sketch(title, detail, state); fs.writeFileSync(path.join(info.screen_dir, `${stem}.design.json`), JSON.stringify(value.design)); fs.writeFileSync(path.join(info.screen_dir, `${stem}.html`), value.html); };
-    const newTab = async (viewport = testcase.viewport) => { const page = await context.newPage(); await page.setViewportSize(viewport); page.setDefaultTimeout(12000); page.on("pageerror", error => exceptions.push(error.message)); page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) externalResources.push(new URL(request.url()).origin); }); await page.goto(info.url); const view = viewFor(page); await view.ui.getByRole("button", { name: "Endre", exact: true }).waitFor(); return view; };
+    const newTab = async (viewport = testcase.viewport) => { const page = await context.newPage(); await page.setViewportSize(viewport); page.setDefaultTimeout(12000); page.on("pageerror", error => exceptions.push(error.message)); page.on("requestfinished", request => { if (!request.url().startsWith(new URL(info.url).origin) && !/^(data|blob):/.test(request.url())) externalResources.push(new URL(request.url()).origin); }); await page.goto(info.url); const view = viewFor(page); await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).waitFor(); return view; };
     const list = () => command(info, "list"), read = (after = 0) => command(info, "wait", ["--after", String(after), "--timeout", "0"]);
     const send = async (view, count) => { const before = (await list()).submission; await view.openFeedback(); await view.ui.getByRole("button", { name: `Send ${count} innspill`, exact: true }).click(); return until(async () => { const data = await list(); return data.submission > before && data; }, "explicit batch received"); };
     const screenshot = async (name, view = current) => { if (!evidence) return; await view.page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor(); await view.page.screenshot({ path: path.join(evidence, `${testcase.name}-${name}.png`), animations: "disabled" }); };
@@ -188,12 +183,14 @@ const cases = [
       await command(view.info, "resolve", ["--id", reopened.id, "--submission", "1", "--reply", "Den neste versjonen har en tydelig vei til å endre tidspunkt."]);
       view.write("Invitasjon · revidert etter første runde"); await view.shown("Invitasjon · revidert etter første runde"); await view.openFeedback();
       const removedCard = view.ui.locator(`article[data-id="${removed.id}"]`), reopenedCard = view.ui.locator(`article[data-id="${reopened.id}"]`);
+      await removedCard.locator(".comment-details > summary").click();
       assert((await removedCard.innerText()).includes("Sendt i runde 1"));
       await removedCard.getByRole("button", { name: "Fjern fra listen", exact: true }).click(); await removedCard.waitFor({ state: "hidden" });
       const focusAfterRemoval = await view.ui.locator(".list").evaluate(list => { const active = list.getRootNode().activeElement; return { retained: list.contains(active), tag: active?.tagName || "", label: active?.textContent?.trim() || "" }; });
       assert(focusAfterRemoval.retained, "Removing an old item must retain keyboard focus in the feedback list.");
       await reopenedCard.getByRole("button", { name: "Åpne igjen", exact: true }).click();
       await until(async () => (await view.list()).comments.find(item => item.id === reopened.id)?.submission === 0, "reopened local round");
+      await reopenedCard.locator(".comment-details > summary").click();
       const reopenedText = await reopenedCard.innerText(); assert(reopenedText.includes("Ny runde ikke sendt") && reopenedText.includes("Sendt i runde 1"));
       assert(await reopenedCard.getByRole("button", { name: "Fjern fra listen", exact: true }).isVisible()); await view.screenshot("reopened-after-sent");
       await view.note("Behold den konkrete forklaringen også når teksten kortes ned."); await view.save();
@@ -230,9 +227,9 @@ cases.push(
       await view.screenshot("saved-with-filter");
       assert(await view.ui.locator(`article[data-id="${state.comments[0].id}"]`).isVisible(), "The newly saved note must be visible for review before sending, even after selecting Ordnet.");
       const card = view.ui.locator(`article[data-id="${state.comments[0].id}"]`);
-      await until(() => card.evaluate(node => node === node.getRootNode().activeElement), "focus reaches the newly saved card");
+      await until(() => view.ui.getByRole("region", { name: "Innspill til prototypen", exact: true }).evaluate(node => node.contains(node.getRootNode().activeElement)), "explicit opening retains focus in feedback");
       assert.equal(await view.ui.getByRole("tab", { name: /^Klar til sending/ }).getAttribute("aria-selected"), "true", "A new note is shown where it waits to be sent.");
-      return { measurements: { emptyStateExplained: true, ordinaryOpeningRetainedFilter: true, savedCommentVisible: true, savedCardFocused: true, submission: state.submission } };
+      return { measurements: { emptyStateExplained: true, ordinaryOpeningRetainedFilter: true, savedCommentVisible: true, feedbackPanelFocused: true, submission: state.submission } };
     } },
   { name: "first-reopen-after-filter", role: "First-time designer reopening an unsent item", viewport: { width: 390, height: 844 },
     async run(view) {
@@ -247,7 +244,8 @@ cases.push(
       assert(await view.ui.locator(`article[data-id="${id}"]`).isVisible(), "A reopened item must remain visible for review instead of disappearing under Ordnet.");
       const card = view.ui.locator(`article[data-id="${id}"]`);
       await until(() => card.evaluate(node => node === node.getRootNode().activeElement), "focus reaches the reopened card");
-      await card.getByText("Ikke sendt", { exact: true }).waitFor();
+      assert.equal(await view.ui.getByRole("tab", { name: /^Klar til sending/ }).getAttribute("aria-selected"), "true");
+      assert.equal((await view.list()).comments.find(item => item.id === id).submission, 0);
       assert.equal(await card.getByText(/Sendt i runde/).count(), 0, "A never-sent item must not imply an earlier round.");
       return { measurements: { reopenedCommentVisible: true, reopenedCardFocused: true, neverSentStatusClear: true, submission: (await view.list()).submission } };
     } },
@@ -291,7 +289,7 @@ cases.push({ name: "first-draft-preview-recovery", role: "Content designer tryin
     await view.ui.getByRole("button", { name: "Forhåndsvis teksten", exact: true }).press("Space");
     assert.equal(await view.frame.locator(".invitation h2").innerText(), edited);
     await view.ui.getByRole("button", { name: "Forkast", exact: true }).press("Enter");
-    await view.ui.getByRole("button", { name: "Lagre innspill", exact: true }).waitFor({ state: "hidden" });
+    await view.ui.getByRole("button", { name: "Legg til flere", exact: true }).waitFor({ state: "hidden" });
     assert.equal(await view.frame.locator(".invitation h2").innerText(), original, "Discard must restore the original text.");
     assert.equal(await view.ui.getByRole("button", { name: "Fortsett utkast", exact: true }).count(), 0);
     await view.openFeedback(); await view.ui.getByText("Hva kan bli bedre?", { exact: true }).waitFor();

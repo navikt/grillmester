@@ -60,3 +60,26 @@
 .embedded-application .app-header{min-height:0;padding:6px 12px;background:var(--surface)}
 .embedded-application .app-location{margin:0;font-size:12px}
 .embedded-application .workspace{padding:8px 12px 0;gap:12px}
+
+/* Keep the message and its target foremost; secondary context stays available. */
+.compose-actions{display:flex;flex-wrap:wrap;gap:8px}.compose-actions #send-comment{flex:1 0 100%}.compose-actions #save-comment{flex:1}.feedback-details{margin:8px 0;color:var(--muted);font-size:13px}.feedback-details summary{cursor:pointer;min-height:28px;display:list-item}.feedback-details .route{margin:4px 0;overflow-wrap:anywhere}.submission-status{font-size:13px;color:var(--purple);max-width:220px;text-align:left}.secondary-tools{flex-wrap:wrap}
+@media(max-width:760px){.submission-status{max-width:160px}.compose-actions #clear-draft{flex:1}}
+
+#compose-pane{padding:16px}.target-summary{padding:10px;margin-bottom:12px}#comment-text{min-height:100px}.target-summary .feedback-details{margin:4px 0}.target-summary .feedback-details summary{min-height:24px}.field-meta{margin:6px 0 12px}.compose-actions{margin:12px 0 8px}
+
+.draft-restored{margin:12px 16px 0;flex-shrink:0;max-height:25dvh;overflow:auto}
+
+/* Size the app from the space left by real, wrapped controls, including when
+   this entire shell lives inside a proposal iframe. */
+html,body{height:100%}body{display:flex;flex-direction:column;height:100dvh}.app-header{flex-shrink:0}
+#app-surface{display:flex;flex-direction:column;flex:1;min-height:0}
+.workspace{height:auto;flex:1;min-height:0}.workbench{flex-shrink:0}
+.proposal-surface{height:auto;flex:1;min-height:0}.proposal-surface>iframe,.preview-viewport{min-height:0}
+.view-tools{position:relative;flex-shrink:0}.view-tools>summary{list-style:none;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:8px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.view-tools>summary::-webkit-details-marker{display:none}.view-tools>summary:hover,.view-tools[open]>summary{background:var(--purple-soft);color:var(--purple)}.view-tools>summary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.view-tools-menu{position:absolute;z-index:8;right:0;bottom:calc(100% + 8px);padding:10px;background:white;border:1px solid var(--line);border-radius:10px;box-shadow:0 5px 22px #35224618}.view-tools-menu>p{font-size:12px;color:var(--muted);margin-bottom:4px}.view-tools .viewport-tools{border:0;padding:0;margin:0;flex-wrap:nowrap}
+body:not(.selecting-part) .preview-topline{display:none}body:not(.selecting-part) .stage-message{inset:0}
+@media(max-width:760px){.workbench{min-height:54px;padding:4px;margin:4px auto;gap:4px}.workbench .secondary-tools{display:contents}.workbench .view-tools{order:3}.workbench .submission-status,.workbench .draft-tool{order:4}.embedded-application .workspace{padding:4px 6px 0}.proposal-surface{padding:6px}.embedded-application .app-header{padding:4px 8px}}
+@media(max-height:540px){.app-header{padding-top:4px;padding-bottom:4px}.surface-tabs{margin-top:4px}}
+@media(min-width:480px) and (max-height:540px){.app-header{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px}.app-header .app-location{margin:0;flex:1}.app-header .surface-tabs,.app-header .reopened-note{flex-basis:100%;margin-top:0}}
+@media(forced-colors:active){.view-tools-menu{background:Canvas;color:CanvasText}.view-tools>summary{border:1px solid ButtonText}}

@@ -55,11 +55,33 @@ function documentRequest(request) {
   if (destination !== undefined || mode !== undefined) return ["document", "iframe"].includes(destination) && mode === "navigate";
   return ["GET", "POST"].includes(request.method) && /(?:^|,)\s*(?:text\/html|application\/xhtml\+xml)(?:\s*;|\s*,|$)/i.test(String(request.headers.accept || ""));
 }
-function documentErrorResponse(response, status, shellOrigin, previewOrigin, embeddingOrigin = "") {
+function validPreviewFailure(reason, status) {
+  if (!Number.isInteger(status)) return false;
+  if (reason === "application-http-error") return status >= 400 && status <= 599;
+  const statuses = { "preview-cookie-unavailable": [403], "preview-origin-rejected": [403],
+    "application-unavailable": [502], "application-timeout": [504], "application-response-rejected": [502],
+    "preview-request-rejected": [413, 429] };
+  return Object.hasOwn(statuses, reason) && statuses[reason].includes(status);
+}
+// A failed document has no inspector or control capability. Its fixed reply is
+// useful only after the owning shell challenges this exact iframe document.
+// Nested/background failures never report status directly to the server.
+function documentDiagnostic({ shellOrigin, epoch, reason, httpStatus }) {
+  window.addEventListener("message", event => {
+    const value = event.data;
+    if (event.source !== window.parent || event.origin !== shellOrigin || !value || typeof value !== "object" || Array.isArray(value)
+        || Object.keys(value).length !== 3 || value.type !== "check-view" || value.epoch !== epoch
+        || typeof value.view !== "string" || !/^[a-f0-9]{32}$/.test(value.view)) return;
+    window.parent.postMessage({ type: "design-view-error", epoch, view: value.view, reason, httpStatus }, shellOrigin);
+  });
+}
+function documentErrorResponse(response, status, shellOrigin, previewOrigin, embeddingOrigin = "", diagnostic) {
   if (response.headersSent) { response.destroy(); return; }
   commonHeaders(response);
-  response.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin} ${previewOrigin}${embeddingOrigin ? " " + embeddingOrigin : ""}; base-uri 'none'; form-action 'none'` });
-  response.end('<!doctype html><html lang="nb"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Appen kunne ikke vises</title><body><main><h1>Appen kunne ikke vises</h1><p>Kontroller at den lokale demoen kjører, og last visningen på nytt i Designverksted.</p><p>Du kan fortsatt gå tilbake til innspillene dine.</p></main></body></html>');
+  const nonce = diagnostic ? crypto.randomBytes(18).toString("base64url") : null;
+  const script = diagnostic ? `<script nonce="${nonce}">;(${documentDiagnostic.toString()})(${JSON.stringify({ shellOrigin, ...diagnostic })});</script>` : "";
+  response.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `default-src 'none'; ${nonce ? `script-src 'nonce-${nonce}'; ` : ""}frame-ancestors ${shellOrigin} ${previewOrigin}${embeddingOrigin ? " " + embeddingOrigin : ""}; base-uri 'none'; form-action 'none'` });
+  response.end('<!doctype html><html lang="nb"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Appen kunne ikke vises</title><body><main><h1>Appen kunne ikke vises</h1><p>Kontroller at den lokale demoen kjører, og last visningen på nytt i Designverksted.</p><p>Du kan fortsatt gå tilbake til innspillene dine.</p></main>' + script + '</body></html>');
 }
 
 // Reject absolute-form and protocol-relative targets instead of allowing a
@@ -327,7 +349,7 @@ function responseHeaders(headers, { shellOrigin, nonce, upstreamOrigin, requestU
   return output;
 }
 
-async function createApplicationProxy({ application, shellOrigin, inspectorSource, onClose, onStatus, embeddingOrigin } = {}) {
+async function createApplicationProxy({ application, shellOrigin, inspectorSource, onClose, onStatus, embeddingOrigin, diagnosticEpoch } = {}) {
   let app, shell;
   try {
     if (embeddingOrigin !== undefined && (typeof embeddingOrigin !== "string" || !/^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/.test(embeddingOrigin) || Number(new URL(embeddingOrigin).port) > 65535)) throw new Error();
@@ -337,7 +359,8 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     shell = new URL(shellOrigin);
     if (shell.origin !== shellOrigin || shell.protocol !== "http:" || shell.hostname !== "127.0.0.1" || !shell.port || shell.username || shell.password) throw new Error();
   } catch { throw failure(400, "The local application or control surface address is invalid."); }
-  if (typeof inspectorSource !== "string" || Buffer.byteLength(inspectorSource) > MAX_INSPECTOR || inspectorSource.includes("\0") || onClose !== undefined && typeof onClose !== "function" || onStatus !== undefined && typeof onStatus !== "function") throw failure(400, "The application inspector configuration is invalid.");
+  if (typeof inspectorSource !== "string" || Buffer.byteLength(inspectorSource) > MAX_INSPECTOR || inspectorSource.includes("\0") || onClose !== undefined && typeof onClose !== "function" || onStatus !== undefined && typeof onStatus !== "function"
+      || diagnosticEpoch !== undefined && (typeof diagnosticEpoch !== "string" || !/^[a-f0-9]{32}$/.test(diagnosticEpoch))) throw failure(400, "The application inspector configuration is invalid.");
   const upstream = new URL(app.origin);
   const hostname = upstream.hostname.replace(/^\[|\]$/g, "");
   let addresses;
@@ -357,9 +380,11 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
   const internal = `/.designverksted/${privateId}`, bootstrapPath = `${internal}/open/${bootstrapKey}`, inspectorPath = `${internal}/inspect.js`;
   const sockets = new Set(), upstreamRequests = new Set(), webSockets = new Set();
   let origin, authority, closed = false, closePromise, activeRequests = 0, navigation = 0, pendingDocument = null, lastStatus = "";
-  function reportStatus(id, state, httpStatus) {
+  const diagnostic = (reason, httpStatus) => diagnosticEpoch && validPreviewFailure(reason, httpStatus) ? { epoch: diagnosticEpoch, reason, httpStatus } : undefined;
+  function reportStatus(id, state, httpStatus, reason) {
     if (!id || id !== navigation || closed) return;
-    const value = { state, ...(Number.isInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599 ? { httpStatus } : {}) };
+    const value = { state, ...(Number.isInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599 ? { httpStatus } : {}),
+      ...(state === "unavailable" && validPreviewFailure(reason, httpStatus) ? { reason } : {}) };
     const serialized = JSON.stringify(value);
     if (serialized === lastStatus) return;
     lastStatus = serialized;
@@ -414,7 +439,13 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
         || request.headers.origin !== undefined && request.headers.origin !== origin || target.pathname.startsWith(internal + "/")) {
         errorResponse(response, 403, "This worker requires its private application connection."); return;
       }
-    } else if (!requestAllowed(request)) { errorResponse(response, 403, "This preview requires its private connection."); return; }
+    } else if (!requestAllowed(request)) {
+      const reason = request.headers.origin !== undefined && request.headers.origin !== origin
+        || !["GET", "HEAD"].includes(request.method) && request.headers.origin !== origin ? "preview-origin-rejected" : "preview-cookie-unavailable";
+      if (diagnosticEpoch && documentRequest(request)) documentErrorResponse(response, 403, shellOrigin, origin, embeddingOrigin, diagnostic(reason, 403));
+      else errorResponse(response, 403, "This preview requires its private connection.");
+      return;
+    }
     if (target.pathname === inspectorPath && !target.search) {
       if (!["GET", "HEAD"].includes(request.method)) { errorResponse(response, 405, "This inspector resource is read-only."); return; }
       response.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
@@ -430,15 +461,15 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     // handshake and timeout; nested documents cannot cover a healthy app.
     const navigationId = isDocument && pendingDocument?.path === target.pathname + target.search ? pendingDocument.id : 0;
     if (navigationId) pendingDocument = null;
-    const failRequest = (status, message) => {
+    const failRequest = (status, message, reason = "application-response-rejected") => {
       if (response.writableEnded || response.destroyed) return;
-      reportStatus(navigationId, "unavailable", status);
-      if (isDocument) documentErrorResponse(response, status, shellOrigin, origin, embeddingOrigin);
+      reportStatus(navigationId, "unavailable", status, reason);
+      if (isDocument) documentErrorResponse(response, status, shellOrigin, origin, embeddingOrigin, diagnostic(reason, status));
       else errorResponse(response, status, message);
     };
     reportStatus(navigationId, "loading");
-    if (activeRequests >= MAX_REQUESTS) { failRequest(429, "The application preview is busy. Try again shortly."); return; }
-    if (Number(request.headers["content-length"] || 0) > MAX_BODY) { failRequest(413, "The application request is too large."); request.resume(); return; }
+    if (activeRequests >= MAX_REQUESTS) { failRequest(429, "The application preview is busy. Try again shortly.", "preview-request-rejected"); return; }
+    if (Number(request.headers["content-length"] || 0) > MAX_BODY) { failRequest(413, "The application request is too large.", "preview-request-rejected"); request.resume(); return; }
     activeRequests += 1;
     let finished = false;
     const finish = () => { if (!finished) { finished = true; activeRequests -= 1; } };
@@ -449,9 +480,9 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     let bodyBytes = 0;
     request.on("data", chunk => {
       bodyBytes += chunk.length;
-      if (bodyBytes > MAX_BODY) { request.unpipe(outgoing); outgoing.destroy(); failRequest(413, "The application request is too large."); request.resume(); }
+      if (bodyBytes > MAX_BODY) { request.unpipe(outgoing); outgoing.destroy(); failRequest(413, "The application request is too large.", "preview-request-rejected"); request.resume(); }
     });
-    outgoing.once("error", error => failRequest(error.status === 504 ? 504 : 502, error.status === 504 ? "The local application did not respond in time." : "The local application is unavailable. Check that its demo server is running."));
+    outgoing.once("error", error => failRequest(error.status === 504 ? 504 : 502, error.status === 504 ? "The local application did not respond in time." : "The local application is unavailable. Check that its demo server is running.", error.status === 504 ? "application-timeout" : "application-unavailable"));
     outgoing.once("response", async incoming => {
       const nonce = crypto.randomBytes(18).toString("base64url");
       try {
@@ -459,7 +490,7 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
         // main-page navigation. Nested errors remain inside their own frame;
         // the main shell detects its error document by the bounded handshake.
         if (isDocument && incoming.statusCode >= 400) {
-          incoming.destroy(); failRequest(incoming.statusCode, "The application document is unavailable."); return;
+          incoming.destroy(); failRequest(incoming.statusCode, "The application document is unavailable.", "application-http-error"); return;
         }
         const contentType = String(incoming.headers["content-type"] || "").toLowerCase();
         if (workerRequest && (incoming.statusCode !== 200 || !/^(?:text|application)\/(?:javascript|ecmascript)(?:;|$)/.test(contentType))) throw failure(502, "The application worker must be a JavaScript resource.");
@@ -580,4 +611,4 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
   return { origin, url: origin + bootstrapPath, close };
 }
 
-module.exports = { createApplicationProxy, proxyTarget, appCookiesForUpstream, rewriteAppCookie, proxyRequestHeaders, contentSecurityPolicy, instrumentHtml, decodeBody, browserCompatibility, workerCompatibility };
+module.exports = { createApplicationProxy, validPreviewFailure, proxyTarget, appCookiesForUpstream, rewriteAppCookie, proxyRequestHeaders, contentSecurityPolicy, instrumentHtml, decodeBody, browserCompatibility, workerCompatibility };

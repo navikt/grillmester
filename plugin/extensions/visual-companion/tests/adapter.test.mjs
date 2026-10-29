@@ -13,7 +13,7 @@ function fixture({ sessionId = 'session-one', send = async () => 'message-one', 
   const backends = [], sends = [];
   const backendFactory = factory || (async callbacks => {
     const calls = [], backend = { callbacks, calls, open: false, generation: 0 };
-    for (const method of ['readState', 'readSubmission', 'publishRevision', 'publishProposal', 'saveProposal', 'reviewSubmission', 'updateComment', 'markDelivery', 'listHistory', 'readRevision', 'restoreRevision']) backend[method] = async input => { calls.push({ method, input }); return { method, input }; };
+    for (const method of ['openInspection', 'closeInspection', 'readState', 'readSubmission', 'publishRevision', 'publishProposal', 'saveProposal', 'reviewSubmission', 'updateComment', 'markDelivery', 'listHistory', 'readRevision', 'restoreRevision']) backend[method] = async input => { calls.push({ method, input }); return { method, input }; };
     backend.openView = async () => { backend.open = true; calls.push({ method: 'openView' }); return { url: `http://127.0.0.1:1234/?token=${++backend.generation}` }; };
     backend.closeView = async () => { backend.open = false; calls.push({ method: 'closeView' }); return { closed: true }; };
     backend.retire = async () => { backend.open = false; calls.push({ method: 'retire' }); callbacks.onExit(); };
@@ -75,7 +75,7 @@ test('reopen retains one logical backend and four-instance capacity does not evi
 
 test('actions delegate to the same backend and cannot invoke delivery or change ownership', async () => {
   const f = fixture(); f.adapter.attachSession(f.session); await f.adapter.canvas.open(f.ctx);
-  assert.deepEqual(f.adapter.canvas.actions.map(item => item.name), ['read_preview', 'read_state', 'read_submission', 'publish_proposal', 'save_proposal', 'publish_revision', 'review_submission', 'update_comment', 'list_history', 'read_revision', 'restore_revision']);
+  assert.deepEqual(f.adapter.canvas.actions.map(item => item.name), ['open_inspection', 'close_inspection', 'read_preview', 'read_state', 'read_submission', 'publish_proposal', 'save_proposal', 'publish_revision', 'review_submission', 'update_comment', 'list_history', 'read_revision', 'restore_revision']);
   await f.action('read_state');
   await f.action('read_submission', { submission: 1, offset: 32 });
   await f.action('publish_revision', { expectedScreen: '', filename: 'first.html', html: '<h1>First</h1>' });
@@ -612,5 +612,50 @@ test('a fresh native identity opens the saved room binding without replaying old
   old.callbacks.onSubmitted(1); old.callbacks.onSubmitted(2); await tick();
   assert.equal(f.sends.length, 1, 'Opening saved work does not resend prior rounds');
   await assert.rejects(f.adapter.canvas.open(f.ctx), /expired/);
+  await f.adapter.close();
+});
+
+test('sketch inspection stays with its owning open canvas and exact proposal', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session); await f.adapter.canvas.open(f.ctx);
+  const input = { expectedScreen: 'a'.repeat(32), proposalId: 'b'.repeat(24) };
+  await f.action('open_inspection', input);
+  assert.deepEqual(f.backends[0].calls.at(-1), { method: 'openInspection', input });
+  await f.action('close_inspection', { inspectionId: 'c'.repeat(32), proposalId: input.proposalId });
+  assert.equal(f.sends.length, 0);
+  for (const override of [{ sessionId: 'other' }, { extensionId: 'other' }, { instanceId: 'other' }]) {
+    await assert.rejects(f.action('open_inspection', input, override), /owner|closed|unknown/i);
+  }
+  await assert.rejects(f.action('open_inspection', { ...input, url: 'http://localhost:3000' }), /arguments/);
+  await assert.rejects(f.action('open_inspection', { proposalId: input.proposalId }), /arguments/);
+  await f.adapter.canvas.onClose(f.ctx);
+  await assert.rejects(f.action('open_inspection', input), /owning workshop/);
+  await f.adapter.canvas.open(f.ctx);
+  await f.action('open_inspection', input);
+  await f.adapter.close();
+});
+
+test('closing or closing-and-reopening a canvas discards late inspection authority', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session); await f.adapter.canvas.open(f.ctx);
+  const waiting = deferred(), started = deferred();
+  f.backends[0].openInspection = async () => { started.resolve(); return waiting.promise; };
+  const pending = f.action('open_inspection', { expectedScreen: 'a'.repeat(32) });
+  await started.promise;
+  await f.adapter.canvas.onClose(f.ctx);
+  await f.adapter.canvas.open(f.ctx);
+  waiting.resolve({ inspectionId: 'b'.repeat(32), url: 'http://127.0.0.1:1234/inspection' });
+  await assert.rejects(pending, /closed during inspection/);
+  assert.deepEqual(f.backends[0].calls.at(-1), { method: 'closeInspection', input: { inspectionId: 'b'.repeat(32) } });
+  assert.equal(f.sends.length, 0);
+  await f.adapter.close();
+});
+
+
+test('a close before inspection dispatch does not start a new listener', async () => {
+  const f = fixture(); f.adapter.attachSession(f.session); await f.adapter.canvas.open(f.ctx);
+  const pending = f.action('open_inspection', { expectedScreen: 'a'.repeat(32) });
+  const assertion = assert.rejects(pending, /closed before inspection/);
+  await f.adapter.canvas.onClose(f.ctx);
+  await assertion;
+  assert.equal(f.backends[0].calls.filter(call => call.method === 'openInspection').length, 0);
   await f.adapter.close();
 });

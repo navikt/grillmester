@@ -7,11 +7,11 @@ const http = require("node:http");
 const crypto = require("node:crypto");
 const { ApplicationWorkspace } = require("./application-workspace.js");
 const { ApplicationError } = require("./application-error.js");
-const { createApplicationProxy } = require("./application-proxy.js");
+const { createApplicationProxy, validPreviewFailure } = require("./application-proxy.js");
 const { createConnectionState } = require("./application-connection-state.js");
 const { ApplicationProposals } = require("./application-proposals.js");
 const { createProposalViews } = require("./application-proposal-view.js");
-const { renderInactive } = require("./application-connection-view.js");
+const { renderInactive, renderActivationScript } = require("./application-connection-view.js");
 const { validRuntimeHealth, parseInspection } = require("./application-contract.js");
 const { createHtmlEmbedding, renderEmbeddingBootstrap } = require("./html-embedding.js");
 const { FeedbackError, FeedbackMutationReceipts, MAX_BODY_BYTES, keys } = require("./feedback-store.js");
@@ -104,28 +104,36 @@ function createPreviewStatus() {
     transport(value) { if (active) transport = { ...value }; },
     report(input) {
       const reasons = { loading: "waiting-for-app", ready: "inspector-ready", unavailable: ["inspector-timeout", "application-unavailable"] };
-      requireValue(keys(input, ["generation", "sequence", "state", "reason"], ["health"]) && (input.health === undefined || validRuntimeHealth(input.health)) && typeof input.generation === "string" && /^[a-f0-9]{32}$/.test(input.generation) &&
+      const diagnostic = input?.state === "unavailable" && validPreviewFailure(input.reason, input.httpStatus);
+      requireValue(keys(input, ["generation", "sequence", "state", "reason"], ["health", "httpStatus"]) && (input.health === undefined || validRuntimeHealth(input.health)) && typeof input.generation === "string" && /^[a-f0-9]{32}$/.test(input.generation) &&
         typeof input.state === "string" && typeof input.reason === "string" &&
         Number.isSafeInteger(input.sequence) && input.sequence > 0 && Object.hasOwn(reasons, input.state) &&
-        (Array.isArray(reasons[input.state]) ? reasons[input.state].includes(input.reason) : reasons[input.state] === input.reason), 400, "Invalid application view status.");
+        (diagnostic ? input.health === undefined : input.httpStatus === undefined &&
+          (Array.isArray(reasons[input.state]) ? reasons[input.state].includes(input.reason) : reasons[input.state] === input.reason)), 400, "Invalid application view status.");
       requireValue(active && generation !== null && input.generation === generation, 409, "This application view status belongs to an older page.");
-      requireValue(input.sequence > sequence || input.sequence === sequence && observed?.state === input.state && observed?.reason === input.reason && JSON.stringify(observed?.health) === JSON.stringify(input.health),
+      requireValue(input.sequence > sequence || input.sequence === sequence && observed?.state === input.state && observed?.reason === input.reason && observed?.httpStatus === input.httpStatus && JSON.stringify(observed?.health) === JSON.stringify(input.health),
         409, "This application view status has been superseded.");
       sequence = input.sequence;
-      observed = { state: input.state, reason: input.reason, ...(input.health === undefined ? {} : { health: { ...input.health } }) };
+      // Only the authenticated shell can correlate a diagnostic document with
+      // the active iframe. A denied background request never reaches this path.
+      if (diagnostic) transport = { state: "unavailable", reason: input.reason, httpStatus: input.httpStatus };
+      else if (input.state === "loading" && validPreviewFailure(transport.reason, transport.httpStatus)) transport = { state: "loading" };
+      observed = { state: input.state, reason: input.reason, ...(diagnostic ? { httpStatus: input.httpStatus } : {}), ...(input.health === undefined ? {} : { health: { ...input.health } }) };
     },
     snapshot() {
       let previewStatus = observed ? { ...observed } : { state: transport.state === "unavailable" ? "unavailable" : "loading", reason: active ? "waiting-for-view" : "view-closed" };
-      // Known transport failure is terminal even before the shell has polled it.
-      // Preserve a more precise browser timeout, but never keep old loading/ready.
-      if (active && transport.state === "unavailable" && previewStatus.reason !== "inspector-timeout") {
-        previewStatus = { state: "unavailable", reason: "application-unavailable" };
+      // Precise current-view failures take precedence over an old ready report
+      // or generic timeout, including its stale health counters and HTTP 200.
+      if (active && transport.state === "unavailable" && (transport.reason || previewStatus.reason !== "inspector-timeout")) {
+        previewStatus = { state: "unavailable", reason: transport.reason || "application-unavailable",
+          ...(transport.reason && transport.httpStatus ? { httpStatus: transport.httpStatus } : {}) };
       } else if (previewStatus.state === "ready" && transport.state !== "ready") {
         previewStatus = { state: "loading", reason: "waiting-for-app" };
       }
+      if (previewStatus.state !== "ready") delete previewStatus.health;
       previewStatus.retryAvailable = active && generation !== null && previewStatus.state === "unavailable";
-      return { previewStatus, transportStatus: { ...transport }, ...(observed?.health ? { applicationHealth: {
-        state: previewStatus.state !== "ready" ? "unknown" : Object.values(observed.health).some(Boolean) ? "errors-observed" : "no-errors-observed",
+      return { previewStatus, transportStatus: { ...transport }, ...(observed?.health && previewStatus.state === "ready" ? { applicationHealth: {
+        state: Object.values(observed.health).some(Boolean) ? "errors-observed" : "no-errors-observed",
         ...observed.health } } : {}) };
     },
   };
@@ -156,10 +164,12 @@ function snapshot(workspace, full = false, preview) {
 // evidence never reaches it directly: every operation belongs to the shell.
 function createApplicationRequestHandler({ workspace, authority, receipts = new FeedbackMutationReceipts(), onSubmitted = () => {} }) {
   return async (req, res) => {
+    let directSubmission = false, feedbackAccepted = false, feedbackRevision = null;
     try {
       requireValue(typeof req.url === "string" && req.url.startsWith("/") && !req.url.startsWith("//") &&
         req.url.length <= 4096 && !/[\\\u0000-\u0020\u007f#]/.test(req.url), 400, "Invalid request path.");
       const target = new URL(req.url, authority.origin);
+      const proposalLease = authority.proposalLeaseId;
       const bootstrap = req.url === authority.openPath && req.method === "GET";
       const connection = authority.connection;
       const browser = connection && req.method === "GET" && req.url.startsWith("/browser/");
@@ -186,7 +196,7 @@ function createApplicationRequestHandler({ workspace, authority, receipts = new 
       }
       if (bootstrap) { writeHtml(connection ? authority.renderPanel() : authority.renderShell ? authority.renderShell() : authority); return; }
       if (browser) {
-        try { writeHtml(authority.renderShell(connection.candidate(req.url))); }
+        try { writeHtml(authority.renderShell(connection.bootstrapCandidate(req.url))); }
         catch (error) { if (error.code !== "renderer-stale") throw error; writeHtml(renderInactive()); }
         return;
       }
@@ -221,8 +231,10 @@ function createApplicationRequestHandler({ workspace, authority, receipts = new 
       };
       if (activation) {
         const input = await readBody(req); authority.assertActive?.();
-        requireValue(keys(input, []), 400, "No arguments expected.");
-        send(res, 200, connection.activate(documentToken, authority.activationBootstrap)); return;
+        const resume = keys(input, ["resumeId", "expectedReportGeneration"]) && /^[a-f0-9]{32}$/.test(input.resumeId || "") && /^[a-f0-9]{32}$/.test(input.expectedReportGeneration || "");
+        requireValue(keys(input, []) || resume, 400, "Invalid renderer activation request.");
+        requireValue(!target.search, 400, "This action does not accept query parameters.");
+        send(res, 200, connection.activate(documentToken, authority.activationBootstrap, resume ? input : undefined)); return;
       }
       authorize();
       requireValue(["GET", "POST"].includes(req.method), 405, "This request method is unavailable.");
@@ -236,16 +248,21 @@ function createApplicationRequestHandler({ workspace, authority, receipts = new 
       requireValue(req.method === "POST", 404, "The requested action is unavailable.");
       const deletion = /^\/comments\/([a-f0-9]{24})\/delete$/.exec(target.pathname);
       const edit = /^\/comments\/([a-f0-9]{24})\/edit$/.exec(target.pathname);
-      requireValue(["/view", "/preview/status", "/preview/inspection", "/comments", "/submit", "/proposal/open", "/proposal/selection"].includes(target.pathname) || deletion || edit, 404, "The requested action is unavailable.");
+      requireValue(["/view", "/preview/status", "/preview/inspection", "/comments", "/submit", "/submit-draft", "/proposal/open", "/proposal/selection"].includes(target.pathname) || deletion || edit, 404, "The requested action is unavailable.");
       const input = await readBody(req);
       authorize(); // A slow body cannot retain authority after a replacement or close.
+      directSubmission = target.pathname === "/submit-draft";
       if (target.pathname === "/preview/inspection") {
         requireValue(authority.inspection, 409, "The application view is unavailable.");
         authority.inspection.report(input); send(res, 200, { accepted: true }); return;
       }
       if (target.pathname === "/proposal/open") {
         requireValue(keys(input, ["proposalId"]) && authority.openProposal, 400, "Invalid proposal opening request.");
-        const result = await authority.openProposal(input.proposalId, authorize); authorize(); send(res, 200, result); return;
+        const authorizeProposal = () => {
+          authorize(); requireValue(proposalLease === authority.proposalLeaseId, 410, "This proposal opening belongs to an older page.");
+        };
+        authorizeProposal(); const result = await authority.openProposal(input.proposalId, authorizeProposal);
+        authorizeProposal(); send(res, 200, result); return;
       }
       if (target.pathname === "/proposal/selection") {
         requireValue(keys(input, ["proposalId"]) && authority.selectProposal, 400, "Invalid proposal selection.");
@@ -263,10 +280,12 @@ function createApplicationRequestHandler({ workspace, authority, receipts = new 
         const mutation = requestHeaders(req, "x-feedback-mutation");
         requireValue(typeof mutation === "string" && /^[a-f0-9]{32}$/.test(mutation), 400, "A feedback mutation identifier is required.");
         const previous = workspace.feedback.state.submission;
+        feedbackRevision = workspace.feedback.state.revision;
         try {
           receipts.run(mutation, req.method, target.pathname, input, value => {
             if (target.pathname === "/comments") workspace.createComment(value);
             else if (target.pathname === "/submit") workspace.feedback.submit(value);
+            else if (target.pathname === "/submit-draft") workspace.submitDraft(value);
             else if (edit) workspace.feedback.editDraft(edit[1], value);
             else {
               const current = workspace.feedback.state.comments.find(item => item.id === deletion[1]);
@@ -274,6 +293,7 @@ function createApplicationRequestHandler({ workspace, authority, receipts = new 
               workspace.feedback.delete(deletion[1], value);
             }
           });
+          feedbackAccepted = true;
         } finally {
           // A post-rename durability error has committed state; do not lose its
           // delivery signal or send a second one when the same request retries.
@@ -282,14 +302,19 @@ function createApplicationRequestHandler({ workspace, authority, receipts = new 
       }
       const result = await state(); authorize(); send(res, 200, result);
     } catch (error) {
-      const result = errorResponse(error); send(res, result.status, { error: result.error, ...(result.code ? { code: result.code } : {}) });
+      const result = errorResponse(error);
+      const uncertain = directSubmission && (feedbackAccepted || error.committed === true || feedbackRevision !== null && workspace.feedback.state.revision !== feedbackRevision);
+      const status = uncertain ? 503 : result.status;
+      send(res, status, { error: result.error, ...(!uncertain && status >= 400 && status < 500 ? { rejected: true } : {}), ...(result.code ? { code: result.code } : {}) });
     }
   };
 }
-function renderShell({ previewUrl, previewOrigin, epoch, title, token, reportGeneration, activationRequired = false, embedding, nonce = crypto.randomBytes(24).toString("base64url") }) {
+function renderShell({ previewUrl, previewOrigin, epoch, title, token, reportGeneration, activationRequired = false, connectionId, embedding, nonce = crypto.randomBytes(24).toString("base64url") }) {
   const content = name => fs.readFileSync(path.join(__dirname, name), "utf8");
+  const script = content("application-shell.js");
   const values = { NONCE: nonce, APPLICATION_STYLE: content("application-shell.css"),
-    APPLICATION_SCRIPT: content("application-shell.js"), APPLICATION_CONFIG: jsonScript({ ...(activationRequired ? { title, token, activationRequired } : { previewUrl, previewOrigin, epoch, title, token, reportGeneration }), ...(embedding ? { embedding } : {}) }) };
+    APPLICATION_SCRIPT: activationRequired && connectionId ? renderActivationScript(script) : script,
+    APPLICATION_CONFIG: jsonScript({ ...(activationRequired ? { title, token, activationRequired, ...(connectionId ? { connectionId } : {}) } : { previewUrl, previewOrigin, epoch, title, token, reportGeneration }), ...(embedding ? { embedding } : {}) }) };
   const html = content("application-shell.tmpl").replace(/\{\{(NONCE|APPLICATION_STYLE|APPLICATION_SCRIPT|APPLICATION_CONFIG)\}\}/g, (_, name) => values[name]);
   return { html, csp: `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; img-src blob:; frame-src 'self' ${previewOrigin}; frame-ancestors ${embedding ? embedding.parentOrigin : "'none'"}; base-uri 'none'; form-action 'none'` };
 }
@@ -320,11 +345,12 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
   const receipts = new FeedbackMutationReceipts();
   const enqueue = operation => { const result = queue.then(operation); queue = result.catch(() => {}); return result; };
   function invalidate(current) {
-    if (!current) return;
+    if (!current) return proposals.closeViews();
     current.live = false; current.connection.close(); current.proposalViews?.revoke();
     current.authority.embedding?.revoke();
     current.proposalClosure = proposals.closeViews(); preview.close();
     inspection.cancel();
+    return current.proposalClosure;
   }
   function lostView(current) {
     if (!current.live) return;
@@ -333,8 +359,8 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
   }
   async function closeView() {
     viewRetired = true;
-    const current = view; view = null; invalidate(current);
-    if (current) await Promise.allSettled([current.proxy?.close(), current.proposalClosure, stopServer(current.server)]);
+    const current = view; view = null; const proposalClosure = invalidate(current);
+    await Promise.allSettled([proposalClosure, ...(current ? [current.proxy?.close(), stopServer(current.server)] : [])]);
   }
   async function preparePreview(current) {
     current.authority.assertActive();
@@ -345,7 +371,7 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
       .replace("__DESIGN_INSPECTOR_CONFIG__", () => jsonScript({ shellOrigin: current.origin, epoch }));
     const resumedApplication = { name: workspace.connection.name, url: workspace.connection.origin + workspace.current().source.route,
       ...(workspace.connection.resourceQueryKeys ? { resourceQueryKeys: workspace.connection.resourceQueryKeys } : {}) };
-    const proxy = await createApplicationProxy({ application: resumedApplication, shellOrigin: current.origin, inspectorSource,
+    const proxy = await createApplicationProxy({ application: resumedApplication, shellOrigin: current.origin, inspectorSource, diagnosticEpoch: epoch,
       ...(current.authority.embedding ? { embeddingOrigin: current.authority.embedding.parentOrigin } : {}),
       onStatus: status => { if (current.live && current.epoch === epoch) preview.transport(status); },
       onClose: () => lostView(current) });
@@ -353,9 +379,32 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
     try { current.authority.assertActive(); } catch (error) { await proxy.close(); current.proxy = null; throw error; }
     current.connection.prepare();
   }
+  function bindEmbeddedView(current, embedding) {
+    const { authority, connection } = current;
+    const token = connection.candidate(connection.path);
+    let bootstrap;
+    authority.activateEmbedded = nonce => {
+      bootstrap ||= connection.activate(token, authority.activationBootstrap);
+      return renderShell({ ...bootstrap, title: workspace.summary().title, token,
+        embedding: { parentOrigin: embedding.parentOrigin, leaseId: embedding.leaseId }, nonce });
+    };
+    current.result = { url: current.origin + "/embedded/" + embedding.invitation, origin: current.origin,
+      leaseId: embedding.leaseId, activationKey: embedding.activationKey, title: workspace.summary().title };
+    return current.result;
+  }
   async function openView(embedding) {
     requireValue(!viewRetired, 410, "This application view is closed. Open a fresh workshop instance.");
-    if (view?.live && view.result) return view.result;
+    if (view?.live && view.result) {
+      if (!embedding) return view.result;
+      // A live child can be rebound only by its existing private controller.
+      // Revoke old controls, retaining the proxy, source and feedback backend.
+      const next = createHtmlEmbedding(embedding), previous = view.authority.embedding;
+      requireValue(previous && previous.parentOrigin === next.parentOrigin, 409, "The proposal belongs to a different workshop.");
+      if (previous.leaseId === next.leaseId) return view.result;
+      previous.revoke(); view.authority.embedding = next;
+      view.connection.prepare(); view.proposalViews.revoke(); inspection.cancel();
+      return bindEmbeddedView(view, next);
+    }
     requireValue(workspace.connection, 409, "Reconnect the local application before opening its view.");
     const connection = createConnectionState(), authority = {};
     if (embedding) authority.embedding = createHtmlEmbedding(embedding);
@@ -383,30 +432,27 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
         readState: state, selectProposal: id => proposals.select(id),
         openProposal: (id, authorize) => enqueue(async () => {
           authorize();
-          const generation = connection.generation;
-          const child = await proposals.openView(id, { parentOrigin: current.origin, leaseId: generation });
-          authorize(); requireValue(generation === connection.generation, 410, "This workshop view has been replaced.");
+          const generation = connection.generation, leaseId = authority.proposalLeaseId;
+          const child = await proposals.openView(id, { parentOrigin: current.origin, leaseId });
+          authorize(); requireValue(generation === connection.generation && leaseId === authority.proposalLeaseId, 410, "This workshop view has been replaced.");
           return current.proposalViews.open(id, child);
         }) });
       await preparePreview(current);
       Object.assign(authority, {
-        renderShell: token => renderShell({ previewOrigin: current.proxy.origin, title: workspace.summary().title, token, activationRequired: true }),
-        activationBootstrap: () => ({ previewUrl: current.proxy.url, previewOrigin: current.proxy.origin, epoch: current.epoch, reportGeneration: preview.bootstrap() }),
+        renderShell: token => renderShell({ previewOrigin: current.proxy.origin, title: workspace.summary().title, token, activationRequired: true, connectionId: connection.generation }),
+        activationBootstrap: () => {
+          const reportGeneration = preview.bootstrap();
+          current.proposalViews.revoke(); authority.proposalLeaseId = reportGeneration;
+          return { previewUrl: current.proxy.url, previewOrigin: current.proxy.origin, epoch: current.epoch, reportGeneration };
+        },
       });
       if (authority.embedding) {
         authority.previewOrigin = current.proxy.origin;
-        const token = connection.candidate(connection.path);
-        let bootstrap;
-        authority.activateEmbedded = nonce => {
-          bootstrap ||= connection.activate(token, authority.activationBootstrap);
-          return renderShell({ ...bootstrap, title: workspace.summary().title, token, embedding, nonce });
-        };
+        bindEmbeddedView(current, authority.embedding);
       }
       handler = createApplicationRequestHandler({ workspace, authority, receipts, onSubmitted });
-      current.result = { url: current.origin + connection.path, title: workspace.summary().title,
-        status: "Prøvevisningen åpnes i Designverksted. Ved avbrutt visning eller omlasting: kopier eventuell ulagret tekst, lukk canvaset først, og be så i samtalen om å åpne verkstedet igjen. Lagrede rom beholdes; midlertidige forslag kan gå tapt." };
-      if (authority.embedding) current.result = { url: current.origin + "/embedded/" + authority.embedding.invitation, origin: current.origin,
-        leaseId: embedding.leaseId, activationKey: authority.embedding.activationKey, title: workspace.summary().title };
+      if (!embedding) current.result = { url: current.origin + connection.path, title: workspace.summary().title,
+        status: "Prøvevisningen åpnes i Designverksted. Lagrede innspill beholdes. Skjemaverdier og ulagret tekst kan gå tapt ved gjenlasting. Midlertidige forslag beholdes bare så lenge dette verkstedet er åpent." };
       return current.result;
     } catch (error) {
       viewRetired = true;
@@ -426,6 +472,7 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
     workspace.assertOpen();
     if (Object.hasOwn(params, "proposalId")) return proposals.action(method, params);
     if (method === "publishProposal") return proposals.publish(params);
+    if (["openInspection", "closeInspection"].includes(method)) throw new FeedbackError(409, "HTML inspection requires an owned HTML proposal, not a running application.");
     if (["publishRevision", "readRevision", "restoreRevision", "listHistory"].includes(method)) throw new FeedbackError(409, "This room is for trying an application and sending feedback. Sketch versions are available only in HTML rooms.");
     if (method === "readSubmission") return workspace.canvas.read(params);
     if (method === "reviewSubmission") { workspace.canvas.review(params); return state(); }

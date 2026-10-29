@@ -31,6 +31,7 @@
   let previewRequest = null;
   let previewTimer = null;
   let previewMissing = false;
+  let previewFailure = null;
   let state = null;
   let mode = "browse";
   let activePanel = null;
@@ -41,6 +42,7 @@
   let busy = false;
   let pendingSave = null;
   let pendingSubmit = null;
+  let draftCacheKey = null, draftCacheReady = false, draftCacheValue = null;
   let submissionNotice = null;
   let progressSignature = "";
   let activeSurface = "application";
@@ -93,7 +95,13 @@
   const mutationId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), value => value.toString(16).padStart(2, "0")).join("");
   const pendingComments = () => (state?.comments || []).filter(comment => comment.submission === 0);
   const sentComments = () => (state?.comments || []).filter(comment => Number.isSafeInteger(comment.submission) && comment.submission > 0);
-  const hasDraft = () => Boolean($("comment-text").value.trim() || pendingSave);
+  const hasDraft = () => Boolean($("comment-text").value.trim() || pendingSave || pendingSubmit?.includesDraft);
+  const validPreviewFailure = (reason, status) => Number.isInteger(status) && ({
+    "preview-cookie-unavailable": status === 403, "preview-origin-rejected": status === 403,
+    "application-unavailable": status === 502, "application-timeout": status === 504,
+    "application-http-error": status >= 400 && status <= 599, "application-response-rejected": status === 502,
+    "preview-request-rejected": status === 413 || status === 429,
+  })[reason] === true;
   const getScreen = value => value?.screen || value?.application?.screen || "";
   const validScreen = value => typeof value === "string" && /^[a-f0-9]{32}$/.test(value);
 
@@ -168,25 +176,37 @@
     if (modal && !$("side-panel").contains(document.activeElement)) $("panel-title").focus();
   }
   function renderPreviewStatus(value) {
-    const next = previewMissing ? "unavailable" : value?.state === "ready" && !frameReady ? "loading" : value?.state;
+    const failure = previewFailure || (value?.state === "unavailable" && validPreviewFailure(value.reason, value.httpStatus) ? value : null);
+    const next = failure || previewMissing ? "unavailable" : value?.state === "ready" && !frameReady ? "loading" : value?.state;
     if (!["loading", "ready", "unavailable"].includes(next)) return;
     const changed = next !== previewState;
     const statusHeldFocus = $("stage-message").contains(document.activeElement);
     previewState = next;
     $("stage-message").hidden = next === "ready";
     $("retry-preview").hidden = next !== "unavailable";
-    $("stage-title").textContent = previewMissing ? "Appvisningen svarer ikke" : next === "unavailable" ? "Appen er ikke tilgjengelig" : "Åpner appen";
+    const explanation = {
+      "preview-cookie-unavailable": ["Appvisningen mangler tilgang", "Nettleseren sendte ikke tilgangsinformasjonskapselen for appvisningen. Prøv å åpne appen igjen for å fornye tilgangen."],
+      "preview-origin-rejected": ["Appvisningens opphav ble avvist", "Forespørselen kom fra et opphav som ikke er tillatt. Prøv å åpne appen igjen. Hvis det gjentar seg, be i samtalen om å undersøke appforbindelsen."],
+      "application-unavailable": ["Den lokale appen svarer ikke", "Forbindelsen til den lokale appen kunne ikke opprettes. Kontroller at appen kjører, og prøv igjen."],
+      "application-timeout": ["Den lokale appen brukte for lang tid", "Appen svarte ikke innen tidsfristen. Prøv å åpne den igjen."],
+      "application-http-error": ["Appen returnerte en feil", `Den lokale appen svarte med HTTP ${failure?.httpStatus}. Prøv igjen, eller be i samtalen om å undersøke feilen.`],
+      "application-response-rejected": ["Appens svar kunne ikke vises", "Appens svar kunne ikke behandles i visningen. Be i samtalen om å undersøke appforbindelsen hvis et nytt forsøk ikke hjelper."],
+      "preview-request-rejected": ["Forespørselen kunne ikke behandles", "Appvisningen nådde en grense for størrelse eller samtidige forespørsler. Prøv å åpne appen igjen."],
+    }[failure?.reason];
+    $("stage-title").textContent = explanation?.[0] || (previewMissing ? "Appvisningen svarer ikke" : next === "unavailable" ? "Appen er ikke tilgjengelig" : "Åpner appen");
     $("stage-help").textContent = next === "unavailable"
-      ? "Innspill og utkast er beholdt. Prøv å åpne appens startside igjen. Skjemaverdier i appen kan nullstilles. Har adressen endret seg, be i samtalen om å åpne appen på nytt."
+      ? `${explanation?.[1] || "Prøv å åpne appens startside igjen. Har adressen endret seg, be i samtalen om å åpne appen på nytt."} Innspill og utkast er beholdt. Skjemaverdier i appen kan nullstilles.`
       : "Venter på den lokale appen. Innspill og utkast er beholdt.";
     if (changed && next === "unavailable") announce("Appen er ikke tilgjengelig. Innspill og utkast er beholdt. Du kan prøve å åpne appen igjen.");
     else if (changed && next === "ready") announce("Appvisningen er tilkoblet.");
     if (statusHeldFocus && next === "ready") focusAvailable(activePanel && narrowLayout.matches ? $("panel-title") : frame);
-    const reason = next === "loading" ? "waiting-for-app" : next === "ready" ? "inspector-ready" : previewMissing ? "inspector-timeout" : "application-unavailable";
-    const signature = `${next}:${reason}:${JSON.stringify(runtimeHealth)}`;
+    const reason = failure?.reason || (next === "loading" ? "waiting-for-app" : next === "ready" ? "inspector-ready" : previewMissing ? "inspector-timeout" : "application-unavailable");
+    const health = next === "ready" ? runtimeHealth : null;
+    $("health-message").hidden = !health || !Object.values(health).some(Boolean);
+    const signature = `${next}:${reason}:${failure?.httpStatus || ""}:${JSON.stringify(health)}`;
     if (signature !== previewReportSignature) {
       previewReportSignature = signature;
-      pendingPreviewReport = { generation: config.reportGeneration, sequence: ++previewReportSequence, state: next, reason, ...(runtimeHealth ? { health: runtimeHealth } : {}) };
+      pendingPreviewReport = { generation: config.reportGeneration, sequence: ++previewReportSequence, state: next, reason, ...(failure ? { httpStatus: failure.httpStatus } : {}), ...(health ? { health } : {}) };
     }
     void flushPreviewStatus();
   }
@@ -324,8 +344,10 @@
     awaitingProposal = false;
     selectSurface("proposal", { remember: !restore, proposalId: id });
     if (!proposal.available) {
-      awaitingProposal = proposal.needsReconnect === true;
-      proposalMessage(awaitingProposal ? "Venter på appforslaget" : "Forslaget er ikke tilgjengelig", "Innspill og svar er beholdt. Be i samtalen om å åpne forslaget igjen.", true); return;
+      // A poll can observe publication before its child screen is ready. Keep
+      // the deliberate tab choice so the next available state opens it once.
+      awaitingProposal = true;
+      proposalMessage(proposal.needsReconnect === true ? "Venter på appforslaget" : "Forslaget er ikke tilgjengelig", "Innspill og svar er beholdt. Be i samtalen om å åpne forslaget igjen.", true); return;
     }
     if (proposalView?.id === id) { proposalReady(); return; }
     if (proposalBusy) return;
@@ -368,7 +390,7 @@
   }
   function safeError(error, fallback) {
     if (error?.code === "renderer-stale" || retired) return "Verkstedet er lukket. Be om å åpne det igjen i samtalen. Lagrede rom beholdes. Kopier eventuell ulagret tekst før du fortsetter.";
-    if (error?.status === 409) return "Arbeidet har endret seg. Utkastet ditt er beholdt. Hent siste tilstand før du prøver igjen.";
+    if (error?.status === 409) return "Arbeidet har endret seg. Utkastet ditt er beholdt. Se gjennom innspillet og prøv igjen.";
     if (error?.status === 429 || error?.status === 413) return "Arbeidet har nådd en grense. Utkastet ditt er beholdt. Be i samtalen om hjelp til å fortsette.";
     return fallback;
   }
@@ -414,7 +436,7 @@
         const value = await response.json().catch(() => ({}));
         const code = value.code === "renderer-stale" ? value.code : undefined;
         if (code) retireRenderer();
-        throw Object.assign(new Error("Request failed."), { status: response.status, code });
+        throw Object.assign(new Error("Request failed."), { status: response.status, code, rejected: value.rejected === true });
       }
       return await response.json();
     } finally { clearTimeout(timer); }
@@ -437,7 +459,7 @@
       errorAt("submit-error", "");
       announce("Innspillet er fjernet.");
     }
-    if (pendingSubmit && pendingSubmit.commentIds.length && pendingSubmit.commentIds.every(id =>
+    if (pendingSubmit && !pendingSubmit.includesDraft && pendingSubmit.commentIds.length && pendingSubmit.commentIds.every(id =>
       state.comments.some(comment => comment.id === id && comment.lastSubmission === pendingSubmit.expectedSubmission))) {
       const submission = pendingSubmit.expectedSubmission;
       pendingSubmit = null;
@@ -456,7 +478,7 @@
     }
     $("reopened-note").hidden = !state.workspace?.recovered;
     $("storage-note").textContent = state.workspace?.storage === "project"
-      ? "Lagrede innspill beholdes i prosjektet. Utkast lagres først når du velger Lagre innspill."
+      ? "Innspill beholdes i prosjektet når du velger Send innspill eller Legg til flere."
       : "Midlertidig økt · innspillene er ikke lagret i prosjektet.";
     markConnection(true);
     if (pollError || !wasReady) globalError("");
@@ -473,6 +495,9 @@
     }
     renderProposals();
     renderFeedback();
+    // Startup may fail before state arrives; polling and explicit retry must
+    // initialize recovery too, before a new draft can replace cached intent.
+    restoreDraft();
     updateControls();
     return state;
   }
@@ -490,6 +515,7 @@
     return result;
   }
   function checkPreview(timeout) {
+    previewFailure = null;
     runtimeHealth = null; inspectionRequest = null; $("health-message").hidden = true;
     clearLocation();
     clearTimeout(previewTimer);
@@ -588,8 +614,81 @@
       && finite(value.rect.width, 0, 100000) && finite(value.rect.height, 0, 100000)
       && exact(value.viewport, ["width", "height"]) && finite(value.viewport.width, 1, 20000) && finite(value.viewport.height, 1, 20000);
   }
+  function validCachedDraft(value) {
+    const integer = number => Number.isSafeInteger(number) && number >= 0;
+    const ids = values => Array.isArray(values) && values.length <= 200 && new Set(values).size === values.length
+      && values.every(id => typeof id === "string" && /^[a-f0-9]{24}$/.test(id));
+    const context = item => validContext(item) && (!(new Set(["input", "textarea", "select", "option"]).has(item.target.tag)
+      || new Set(["textbox", "searchbox", "combobox", "spinbutton", "slider"]).has(item.target.role)) || item.target.text === "");
+    const selected = value.selection;
+    if (!exact(value, ["version", "selection", "text", "pendingSave", "pendingSubmit"]) || value.version !== 1
+      || !plain(value.text, 8192) || bytes(value.text) > 8192 || value.pendingSave && value.pendingSubmit) return false;
+    if (selected !== null && (!exact(selected, ["context", "anchor", "screen", "checkpoint", "label"])
+      || !context(selected.context) || !validAnchor(selected.anchor) || !validScreen(selected.screen)
+      || selected.checkpoint !== state.application?.checkpoint || !/^[a-f0-9]{64}$/.test(selected.checkpoint)
+      || !plain(selected.label, 200) || selected.anchor.path !== selected.context.target.path)) return false;
+    if (value.text && !selected) return false;
+    const comment = item => selected && exact(item, ["screen", "kind", "anchor", "text", "applicationContext"])
+      && item.kind === "point" && item.screen === selected.screen && plain(item.text, MAX_TEXT_BYTES) && item.text.trim()
+      && bytes(item.text) <= MAX_TEXT_BYTES && item.text === value.text.trim()
+      && JSON.stringify(item.anchor) === JSON.stringify(selected.anchor)
+      && JSON.stringify(item.applicationContext) === JSON.stringify(selected.context);
+    const base = item => object(item) && typeof item.id === "string" && /^[a-f0-9]{32}$/.test(item.id);
+    if (value.pendingSave !== null && (!base(value.pendingSave) || !exact(value.pendingSave, ["id", "path", "body"])
+      || value.pendingSave.path !== "/comments" || !comment(value.pendingSave.body))) return false;
+    if (value.pendingSubmit !== null) {
+      const operation = value.pendingSubmit, direct = operation.includesDraft === true;
+      if (!base(operation) || !exact(operation, ["id", "path", "body", "commentIds", "expectedSubmission", ...(direct ? ["includesDraft"] : [])])
+        || !ids(operation.commentIds) || !integer(operation.expectedSubmission) || operation.expectedSubmission < 1
+        || !exact(operation.body, direct ? ["comment", "revision", "commentIds"] : ["revision"])
+        || !integer(operation.body.revision) || operation.path !== (direct ? "/submit-draft" : "/submit")) return false;
+      if (direct && (!comment(operation.body.comment) || !ids(operation.body.commentIds)
+        || JSON.stringify(operation.body.commentIds) !== JSON.stringify(operation.commentIds))) return false;
+    }
+    return true;
+  }
+  function persistDraft() {
+    if (!draftCacheReady || !draftCacheKey) return;
+    try {
+      if (!selection && !pendingSave && !pendingSubmit) {
+        sessionStorage.removeItem(draftCacheKey); draftCacheValue = null; $("draft-restored").hidden = true; return;
+      }
+      const value = { version: 1, selection, text: $("comment-text").value, pendingSave, pendingSubmit };
+      const serialized = JSON.stringify(value);
+      // Never keep an older send intent when the current value cannot be saved.
+      if (bytes(serialized) > 32768 || !validCachedDraft(value)) {
+        sessionStorage.removeItem(draftCacheKey); draftCacheValue = null; return;
+      }
+      if (serialized !== draftCacheValue) { sessionStorage.setItem(draftCacheKey, serialized); draftCacheValue = serialized; }
+    } catch { /* Storage can be unavailable; the current document keeps its draft. */ }
+  }
+  function restoreDraft() {
+    if (draftCacheReady || !state || config.activationRequired) return;
+    draftCacheKey = `designverksted.application-draft.v1:${location.origin}:${config.epoch}:${config.token}`;
+    try {
+      const serialized = sessionStorage.getItem(draftCacheKey);
+      if (performance.getEntriesByType("navigation")[0]?.type === "reload" && serialized && bytes(serialized) <= 32768) {
+        const value = JSON.parse(serialized);
+        if (validCachedDraft(value)) {
+          selection = value.selection; $("comment-text").value = value.text;
+          pendingSave = value.pendingSave; pendingSubmit = value.pendingSubmit;
+          if (pendingSubmit) submissionNotice = { submission: pendingSubmit.expectedSubmission, phase: "uncertain", registered: false };
+          renderSelection();
+          const notice = $("draft-restored"); notice.hidden = false;
+          notice.textContent = pendingSubmit ? "Et uavklart sendeforsøk er gjenopprettet. Prøv samme sending igjen for å få bekreftelse. Ingenting sendes automatisk."
+            : pendingSave ? "En uavklart lagring er gjenopprettet. Prøv samme lagring igjen. Ingenting sendes automatisk."
+              : "Utkastet er gjenopprettet i denne fanen. Det er ikke sendt. Appens skjemafelt kan være nullstilt.";
+          if (selection) openPanel("compose", $("resume-draft"), false);
+          else if (pendingSubmit) { setTab("pending"); openPanel("feedback", $("open-feedback"), false); }
+          announce(notice.textContent);
+        }
+      }
+    } catch { /* Ignore malformed or unavailable tab-local recovery data. */ }
+    draftCacheReady = true;
+    persistDraft(); updateControls();
+  }
   async function chooseTarget(context, anchor, label) {
-    if (mode !== "comment" || busy || pendingSave || !frameReady || !routeReady || ![routeSeen, latestRoute].includes(context.route)) return;
+    if (mode !== "comment" || busy || pendingSave || pendingSubmit || !frameReady || !routeReady || ![routeSeen, latestRoute].includes(context.route)) return;
     const request = ++selectionRequest;
     try {
       const view = await registerView(context.route, true);
@@ -608,12 +707,14 @@
     }
   }
   function useTarget(chosen) {
+    $("draft-restored").hidden = true;
     selection = chosen;
     replacement = null;
     $("draft-change").hidden = true;
     $("comment-text").value = "";
     errorAt("comment-error", "");
     renderSelection();
+    setMode("browse", { showPanel: false, keepPanel: true, announceChange: false });
     openPanel("compose", $("mode-change"), false);
     $("comment-text").focus();
     announce(`Valgt: ${selection.label}. Skriv innspillet ditt.`);
@@ -634,17 +735,20 @@
   function setMode(value, { showPanel = true, keepPanel = false, announceChange = true } = {}) {
     clearLocation();
     mode = value;
+    document.body.classList.toggle("selecting-part", mode === "comment");
     ++selectionRequest;
     $("mode-browse").setAttribute("aria-pressed", String(mode === "browse"));
+    $("mode-browse").hidden = mode === "browse";
     $("mode-change").setAttribute("aria-pressed", String(mode === "comment"));
     $("preview-label").textContent = mode === "browse" ? "Prøv appen som vanlig" : "Velg det du vil endre";
     postMode();
     if (mode === "comment" && showPanel) openPanel("compose", $("mode-change"));
     else if (mode === "browse" && !keepPanel && (activePanel === "compose" || narrowLayout.matches)) closePanel(false);
-    if (announceChange) announce(mode === "browse" ? "Prøv. Appen kan brukes som vanlig." : "Endre. Velg et element for å gi innspill.");
+    if (announceChange) announce(mode === "browse" ? "Appen kan brukes som vanlig." : "Velg en del av appen for å gi innspill.");
     updateControls();
   }
   function openPanel(name, source, focus = true) {
+    $("view-tools").open = false;
     if (name !== "feedback") clearLocation();
     activePanel = name;
     opener = source || opener;
@@ -665,11 +769,11 @@
     $("workspace").classList.remove("has-panel");
     $("open-feedback").setAttribute("aria-expanded", "false");
     syncPanelAccess();
-    if (focus) (opener?.getClientRects().length ? opener : $("mode-browse")).focus();
+    if (focus) (opener?.getClientRects().length ? opener : $("mode-change")).focus();
     updateControls();
   }
   function pickPart() {
-    if (busy || pendingSave || previewState === "unavailable") return;
+    if (busy || pendingSave || pendingSubmit || previewState === "unavailable") return;
     setMode("comment", { showPanel: false });
     closePanel(false);
     frame.focus();
@@ -756,8 +860,15 @@
     heading.append(title);
     if (sent && comment.status === "fixed") heading.append(message("span", "Fulgt opp", "status-badge"));
     card.append(heading);
-    if (safeRoute(context?.route)) card.append(message("p", routeLabel(context.route), "route"));
     card.append(message("p", typeof comment.text === "string" ? comment.text : "", "feedback-text"));
+    if (safeRoute(context?.route)) {
+      const sameNameElsewhere = state.comments.some(other => other.id !== comment.id &&
+        other.applicationContext?.target?.name === context.target?.name && other.applicationContext?.route !== context.route);
+      if (sameNameElsewhere) card.append(message("p", routeLabel(context.route), "route feedback-place"));
+      const details = message("details", "", "feedback-details"); details.dataset.replyKey = `context-${comment.id}`;
+      details.append(message("summary", "Detaljer"), message("p", routeLabel(context.route), "route"));
+      card.append(details);
+    }
     if (replyText) {
       const reply = message("div", "", "feedback-reply");
       appendReply(reply, replyText, `comment-${comment.id}`);
@@ -890,20 +1001,22 @@
     } else if (round?.review === "working") {
       phase = "working"; title = "Arbeider med innspillene …"; help = "Du kan prøve appen mens du venter.";
     } else if (round?.delivery === "queued") {
-      phase = "queued"; title = "Sendt – venter på svar"; help = "Du kan prøve appen mens du venter.";
+      phase = "queued"; title = "Venter på svar"; help = "Innspillene er sendt. Du kan prøve appen mens du venter.";
     } else if (round?.delivery === "unknown") {
       phase = "unknown"; title = "Mottaket er ikke bekreftet"; help = "Innspillene er beholdt. Se Sendt for neste steg.";
     } else if (round) {
-      phase = "registered"; title = "Innspillene er lagret"; help = "Bekrefter sending til samtalen …";
+      phase = "registered"; title = "Venter på svar"; help = "Bekrefter sending til samtalen …";
     } else if (submissionNotice?.phase === "sending") {
-      phase = "sending"; title = "Sender innspill …"; help = "Venter på bekreftelse. Innspillene dine er beholdt.";
+      phase = "sending"; title = "Sender innspill …"; help = "Teksten er beholdt til sendingen er bekreftet.";
     } else if (submissionNotice?.phase === "uncertain") {
       phase = "unknown"; title = "Sendingen er ikke bekreftet"; help = "Prøv samme sending igjen. Innspillene dine er beholdt.";
     }
-    if (phase && hasDraft()) help += " Uferdig tekst er ikke sendt.";
+    if (phase && hasDraft() && !pendingSubmit?.includesDraft) help += " Uferdig tekst er ikke sendt.";
     const signature = JSON.stringify([phase, title, help, showProposal ? proposal.id : null]);
     if (signature === progressSignature) return;
     progressSignature = signature;
+    $("submission-status").hidden = !phase;
+    $("submission-status").textContent = title;
     $("review-progress").hidden = !phase;
     $("review-progress").dataset.phase = phase;
     $("review-progress-title").textContent = title;
@@ -939,7 +1052,7 @@
     }
     if (!comments.length && !orphanedEdit) {
       const empty = message("div", "", "empty-feedback");
-      empty.append(message("h3", activeTab === "pending" ? "Ingen innspill klare ennå" : "Ingen innspill er sendt"), message("p", activeTab === "pending" ? "Velg Endre, pek på noe i appen og beskriv ønsket ditt. Send når du er klar." : "Etter sending finner du innspillene og svarene her."));
+      empty.append(message("h3", activeTab === "pending" ? "Ingen innspill klare ennå" : "Ingen innspill er sendt"), message("p", activeTab === "pending" ? "Velg Gi innspill, pek på noe i appen og beskriv ønsket ditt." : "Etter sending finner du innspillene og svarene her."));
       content.append(empty);
     } else if (activeTab === "pending") pending.forEach(comment => content.append(renderComment(comment, false)));
     else {
@@ -989,46 +1102,61 @@
     }
   }
   function updateControls() {
+    persistDraft();
     if (retired) {
-      for (const id of ["mode-browse", "mode-change", "pick-part", "whole-page", "save-comment", "submit-feedback", "clear-draft", "keep-draft", "discard-for-target", "retry-state", "retry-preview"]) $(id).disabled = true;
+      for (const id of ["mode-browse", "mode-change", "pick-part", "whole-page", "send-comment", "save-comment", "submit-feedback", "clear-draft", "keep-draft", "discard-for-target", "retry-state", "retry-preview"]) $(id).disabled = true;
       for (const button of document.querySelectorAll(".edit-comment,.remove-comment,.edit-form button,.show-location")) button.disabled = true;
       for (const textarea of document.querySelectorAll("textarea")) textarea.readOnly = true;
       return;
     }
     $("mode-browse").disabled = config.activationRequired === true;
-    $("mode-change").disabled = config.activationRequired === true;
+    $("mode-change").disabled = config.activationRequired === true || Boolean(pendingSave || pendingSubmit);
     const text = $("comment-text").value;
-    const count = bytes(text);
-    $("comment-limit").textContent = count > MAX_TEXT_BYTES ? "Teksten er for lang" : `${Array.from(text).length} tegn`;
-    $("comment-help").textContent = count > MAX_TEXT_BYTES ? "Kort ned teksten for å legge den til i Innspill." : "Beskriv ønsket. Samle flere innspill før du sender.";
-    $("comment-text").setAttribute("aria-invalid", String(count > MAX_TEXT_BYTES));
-    $("comment-text").readOnly = busy || Boolean(pendingSave);
-    $("save-comment").disabled = busy || !ready || !selection || (!pendingSave && (!text.trim() || count > MAX_TEXT_BYTES)) || Boolean(pendingSubmit || pendingDelete);
-    $("save-comment").textContent = busy && pendingSave ? "Lagrer …" : pendingSave ? "Prøv samme lagring igjen" : "Lagre innspill";
-    $("clear-draft").disabled = busy || Boolean(pendingSave);
-    $("comment-retry-note").hidden = !pendingSave || busy;
-    $("whole-page").disabled = busy || !ready || !frameReady || !routeReady || Boolean(pendingSave) || previewState === "unavailable";
-    $("pick-part").disabled = busy || !ready || !frameReady || !routeReady || Boolean(pendingSave) || previewState === "unavailable";
-    $("resume-draft").hidden = !hasDraft() || activePanel === "compose";
+    const count = bytes(text), validDraft = Boolean(selection && text.trim() && count <= MAX_TEXT_BYTES);
+    const frozenDraft = Boolean(pendingSubmit?.includesDraft);
     const unknown = (state?.canvas?.rounds || []).find(round => round.delivery === "unknown" && round.review === "unread");
-    const blocked = !ready || !pendingComments().length || busy || Boolean(pendingSave || pendingDelete || editingComment || unknown);
-    $("submit-feedback").disabled = blocked;
-    $("submit-feedback").textContent = busy && pendingSubmit ? "Sender …" : pendingSubmit ? "Prøv samme sending igjen" : pendingComments().length ? `Send ${pendingComments().length} innspill` : "Send innspill";
-    $("submit-help").textContent = editingComment ? "Lagre eller avbryt redigeringen før du sender innspillene." : unknown ? `Avklar mottaket av runde ${unknown.submission} i samtalen før du sender mer.`
+    const included = pendingComments().length + (hasDraft() ? 1 : 0);
+    const sendLabel = included > 1 ? `Send alle ${included} innspill` : "Send innspill";
+    const blocked = !ready || busy || Boolean(pendingSave || pendingDelete || editingComment || unknown && !pendingSubmit);
+    $("comment-limit").textContent = count > MAX_TEXT_BYTES ? "Teksten er for lang" : `${Array.from(text).length} tegn`;
+    $("comment-help").textContent = count > MAX_TEXT_BYTES ? "Kort ned teksten før du sender." : pendingComments().length ? `Send sammen med ${pendingComments().length} innspill du har lagt til.` : "Beskriv ønsket og send når du er klar.";
+    $("comment-text").setAttribute("aria-invalid", String(count > MAX_TEXT_BYTES));
+    $("comment-text").readOnly = busy || Boolean(pendingSave) || frozenDraft;
+    $("send-comment").disabled = blocked || !validDraft || Boolean(pendingSubmit && !frozenDraft);
+    $("send-comment").textContent = busy && frozenDraft ? "Sender …" : frozenDraft ? "Prøv samme sending igjen" : sendLabel;
+    $("save-comment").disabled = busy || !ready || !selection || (!pendingSave && !validDraft) || Boolean(pendingSubmit || pendingDelete || editingComment);
+    $("save-comment").textContent = busy && pendingSave ? "Legger til …" : pendingSave ? "Prøv samme lagring igjen" : "Legg til flere";
+    $("clear-draft").disabled = busy || Boolean(pendingSave) || frozenDraft;
+    $("comment-retry-note").hidden = !pendingSave && !frozenDraft || busy;
+    $("comment-retry-note").textContent = frozenDraft ? "Sendingen er ikke bekreftet. Prøv samme sending igjen før du endrer innspillet." : "Lagringen er ikke bekreftet. Prøv samme lagring igjen før du endrer innspillet.";
+    $("whole-page").disabled = busy || !ready || !frameReady || !routeReady || Boolean(pendingSave || pendingSubmit) || previewState === "unavailable";
+    $("pick-part").disabled = $("whole-page").disabled;
+    $("resume-draft").hidden = !hasDraft() || activePanel === "compose";
+    $("submit-feedback").disabled = blocked || (!pendingSubmit && (hasDraft() ? !validDraft : !pendingComments().length));
+    $("submit-feedback").textContent = busy && pendingSubmit ? "Sender …" : pendingSubmit ? "Prøv samme sending igjen" : sendLabel;
+    $("submit-help").textContent = editingComment ? "Lagre eller avbryt redigeringen før du sender innspillene." : unknown && !pendingSubmit ? `Avklar mottaket av runde ${unknown.submission} i samtalen før du sender mer.`
       : pendingSave || pendingDelete ? "Bekreft den uavklarte lagringen eller fjerningen før du sender."
         : !ready ? "Venter på forbindelsen til arbeidet."
-          : !pendingComments().length ? "Legg til et innspill i Endre før du sender."
-            : busy && pendingSubmit ? "Innspillene beholdes mens vi venter på bekreftelse."
-              : pendingSubmit ? "Sendingen er ikke bekreftet. Prøv samme sending igjen; innspillene bevares."
-                : `${pendingComments().length} innspill sendes samlet til samtalen. ${hasDraft() ? "Uferdig tekst er ikke med." : "Du velger selv når."}`;
+          : pendingSubmit ? "Innspillene er beholdt til sendingen er bekreftet. Et nytt forsøk sender samme bestilling."
+            : hasDraft() && !validDraft ? "Gjør ferdig eller forkast utkastet før du sender."
+              : included ? `${included} innspill sendes samlet til samtalen.${hasDraft() ? " Utkastet ditt er med." : ""}` : "Velg Gi innspill for å begynne.";
     $("keep-draft").disabled = busy;
-    $("discard-for-target").disabled = busy || Boolean(pendingSave);
+    $("discard-for-target").disabled = busy || Boolean(pendingSave) || frozenDraft;
     $("retry-state").disabled = busy;
     renderFeedback();
+  }
+  function commentPayload() {
+    return { screen: selection.screen, kind: "point", anchor: selection.anchor,
+      text: $("comment-text").value.trim(), applicationContext: selection.context };
+  }
+  function clearSubmittedDraft() {
+    $("comment-text").value = ""; selection = null; replacement = null;
+    $("draft-change").hidden = true; errorAt("comment-error", ""); renderSelection();
   }
   async function saveComment(event) {
     event.preventDefault();
     if ($("save-comment").disabled || !selection) return;
+    $("draft-restored").hidden = true;
     if (!pendingSave) pendingSave = {
       id: mutationId(), path: "/comments", body: {
         screen: selection.screen, kind: "point", anchor: selection.anchor,
@@ -1057,30 +1185,56 @@
       if (activePanel === "compose" && [document.body, $("save-comment"), $("comment-text"), $("panel-title")].includes(document.activeElement)) focusAvailable($("save-comment"), $("comment-text"));
     }
   }
+  async function submitDraft(event) {
+    event?.preventDefault();
+    if ($("send-comment").disabled || !selection) return;
+    if (!pendingSubmit) pendingSubmit = { id: mutationId(), path: "/submit-draft", includesDraft: true,
+      body: { comment: commentPayload(), revision: state.revision, commentIds: pendingComments().map(comment => comment.id) },
+      commentIds: pendingComments().map(comment => comment.id), expectedSubmission: state.submission + 1 };
+    await sendFeedback();
+  }
   async function submitFeedback() {
     if ($("submit-feedback").disabled) return;
+    if (pendingSubmit?.includesDraft || !pendingSubmit && hasDraft()) { await submitDraft(); return; }
     if (!pendingSubmit) pendingSubmit = { id: mutationId(), path: "/submit", body: { revision: state.revision }, commentIds: pendingComments().map(comment => comment.id), expectedSubmission: state.submission + 1 };
+    await sendFeedback();
+  }
+  async function sendFeedback() {
     const operation = pendingSubmit;
+    $("draft-restored").hidden = true;
     submissionNotice = { submission: operation.expectedSubmission, phase: "sending", registered: false };
-    // Pointer activation does not focus buttons in every browser. Establish
-    // an anchor before disabling Send; completion still respects moved focus.
     if (activePanel === "feedback" && activeTab === "pending") $("pending-tab").focus();
     busy = true;
-    errorAt("submit-error", "");
+    errorAt("submit-error", ""); errorAt("comment-error", "");
     updateControls();
+    announce("Venter på svar. Sender innspillene til samtalen.");
     try {
       await settle(operation);
       pendingSubmit = null;
+      if (operation.includesDraft) clearSubmittedDraft();
       confirmSubmission(operation.expectedSubmission);
+      const ownsComposer = operation.includesDraft && activePanel === "compose";
       const ownsFocus = activePanel === "feedback" && [$("pending-tab"), $("submit-feedback"), $("feedback-list")].includes(document.activeElement);
       setTab("sent", ownsFocus);
+      if (ownsComposer) {
+        setMode("browse", { showPanel: false, keepPanel: !narrowLayout.matches, announceChange: false });
+        if (!narrowLayout.matches) openPanel("feedback", $("open-feedback"));
+        else focusAvailable($("submission-status"), $("mode-change"));
+      }
     } catch (error) {
       submissionNotice.phase = "uncertain";
-      if ([400, 409, 413, 422, 429].includes(error.status)) { pendingSubmit = null; submissionNotice = null; await refreshState().catch(() => {}); }
-      errorAt("submit-error", safeError(error, "Sendingen ble ikke bekreftet. Prøv samme sending igjen. Innspillene dine er beholdt."));
+      // A direct submission may have committed even when its response is lost.
+      // Only an explicit rejection releases the immutable intent for editing.
+      const rejected = operation.includesDraft ? error.rejected === true : [400, 409, 413, 422, 429].includes(error.status);
+      if (rejected) { pendingSubmit = null; submissionNotice = null; await refreshState().catch(() => {}); }
+      const text = !rejected && operation.includesDraft
+        ? "Sendingen ble ikke bekreftet. Teksten er beholdt. Prøv samme sending igjen."
+        : safeError(error, "Sendingen ble ikke bekreftet. Prøv samme sending igjen. Innspillene dine er beholdt.");
+      errorAt(operation.includesDraft ? "comment-error" : "submit-error", text);
     } finally {
       busy = false; updateControls();
-      if (activePanel === "feedback" && activeTab === "pending" && [document.body, $("pending-tab"), $("submit-feedback")].includes(document.activeElement)) focusAvailable($("submit-feedback"), $("pending-tab"));
+      if (activePanel === "compose" && operation.includesDraft && [document.body, $("send-comment"), $("comment-text"), $("panel-title")].includes(document.activeElement)) focusAvailable($("send-comment"), $("comment-text"));
+      else if (activePanel === "feedback" && activeTab === "pending" && [document.body, $("pending-tab"), $("submit-feedback")].includes(document.activeElement)) focusAvailable($("submit-feedback"), $("pending-tab"));
     }
   }
   async function deleteComment(id) {
@@ -1126,7 +1280,17 @@
       return;
     }
     if (data.view !== previewRequest) return;
+    if (data.type === "design-view-error" && exact(data, ["type", "epoch", "view", "reason", "httpStatus"])
+      && validPreviewFailure(data.reason, data.httpStatus)) {
+      frameReady = false; routeReady = false; previewMissing = false;
+      runtimeHealth = null; inspectionRequest = null;
+      clearTimeout(previewTimer); clearLocation();
+      previewFailure = { reason: data.reason, httpStatus: data.httpStatus };
+      renderPreviewStatus({ state: "unavailable" }); updateControls();
+      return;
+    }
     if (data.type === "design-view-ready" && exact(data, ["type", "epoch", "view"])) {
+      if (previewFailure) return;
       frameReady = true;
       previewMissing = false;
       clearTimeout(previewTimer);
@@ -1165,7 +1329,7 @@
     }
     if (data.type === "design-exit" && exact(data, ["type", "epoch", "view"])) {
       setMode("browse", { showPanel: false });
-      $("mode-browse").focus();
+      $("mode-change").focus();
     } else if (data.type === "design-navigation-blocked" && exact(data, ["type", "epoch", "view"])) {
       $("navigation-message").hidden = false;
       syncPanelAccess();
@@ -1207,14 +1371,14 @@
     const next = event.key === "Home" ? "app-tab" : event.key === "End" ? "proposal-tab" : id === "app-tab" ? "proposal-tab" : "app-tab";
     $(next).focus(); $(next).click();
   });
-  $("mode-browse").addEventListener("click", () => setMode("browse"));
+  $("mode-browse").addEventListener("click", () => { setMode("browse"); $("mode-change").focus(); });
   $("mode-change").addEventListener("click", () => setMode("comment"));
   $("open-feedback").addEventListener("click", () => locationPeeking ? returnToFeedback() : activePanel === "feedback" ? closePanel() : openPanel("feedback", $("open-feedback")));
   $("close-panel").addEventListener("click", () => closePanel());
-  $("resume-draft").addEventListener("click", () => { setMode("comment", { showPanel: false }); openPanel("compose", $("resume-draft"), false); $("comment-text").focus(); });
+  $("resume-draft").addEventListener("click", () => { setMode("browse", { showPanel: false, keepPanel: true, announceChange: false }); openPanel("compose", $("resume-draft"), false); $("comment-text").focus(); });
   $("whole-page").addEventListener("click", wholePage);
   $("pick-part").addEventListener("click", pickPart);
-  $("panel-browse").addEventListener("click", () => { setMode("browse"); $("mode-browse").focus(); });
+  $("panel-browse").addEventListener("click", () => { setMode("browse"); $("mode-change").focus(); });
   $("retry-preview").addEventListener("click", () => {
     openPreview();
     $("stage-title").focus();
@@ -1230,12 +1394,14 @@
     renderLocations();
     if (returnHeldFocus && !locationPeeking) focusComment(locationNotice?.id, "location");
   });
-  $("comment-form").addEventListener("submit", event => void saveComment(event));
-  $("comment-text").addEventListener("input", () => { errorAt("comment-error", ""); updateControls(); });
+  $("comment-form").addEventListener("submit", event => void submitDraft(event));
+  $("save-comment").addEventListener("click", event => void saveComment(event));
+  $("submission-status").addEventListener("click", () => { setTab("sent"); openPanel("feedback", $("submission-status")); });
+  $("comment-text").addEventListener("input", () => { $("draft-restored").hidden = true; errorAt("comment-error", ""); updateControls(); });
   $("keep-draft").addEventListener("click", () => { replacement = null; $("draft-change").hidden = true; $("comment-text").focus(); });
-  $("discard-for-target").addEventListener("click", () => { if (replacement && !busy && !pendingSave) useTarget(replacement); });
+  $("discard-for-target").addEventListener("click", () => { if (replacement && !busy && !pendingSave && !pendingSubmit) useTarget(replacement); });
   $("clear-draft").addEventListener("click", () => {
-    if (busy || pendingSave) return;
+    if (busy || pendingSave || pendingSubmit) return;
     selection = null; replacement = null; $("comment-text").value = ""; $("draft-change").hidden = true;
     errorAt("comment-error", ""); renderSelection(); $("whole-page").focus(); announce("Utkastet er forkastet. Lagrede innspill er beholdt.");
   });
@@ -1247,7 +1413,9 @@
     event.preventDefault();
     setTab(event.key === "Home" ? "pending" : event.key === "End" ? "sent" : activeTab === "pending" ? "sent" : "pending", true);
   });
-  for (const width of ["fit", "desktop", "mobile"]) $(`width-${width}`).addEventListener("click", () => setWidth(width));
+  for (const width of ["fit", "desktop", "mobile"]) $(`width-${width}`).addEventListener("click", () => {
+    setWidth(width); $("view-tools").open = false; $("view-tools").querySelector("summary").focus();
+  });
   $("show-local-draft").addEventListener("click", () => {
     $("local-draft-copy").hidden = false; $("local-draft-copy").focus(); $("local-draft-copy").select();
   });
@@ -1256,7 +1424,7 @@
     void refreshState().then(() => {
     const heldFocus = document.activeElement === $("retry-state");
     globalError("");
-    if (heldFocus || document.activeElement === document.body) focusAvailable(activePanel ? $("panel-title") : $("mode-browse"));
+    if (heldFocus || document.activeElement === document.body) focusAvailable(activePanel ? $("panel-title") : $("mode-change"));
   }).catch(() => { globalError("Forbindelsen er fortsatt utilgjengelig. Innspill og utkast er beholdt."); if (!retired) $("retry-state").focus(); });
   });
   document.addEventListener("keydown", event => {
@@ -1274,12 +1442,18 @@
       return;
     }
     if (event.key !== "Escape") return;
+    if ($("view-tools").open) { event.preventDefault(); $("view-tools").open = false; $("view-tools").querySelector("summary").focus(); return; }
     if (locationPeeking) { event.preventDefault(); returnToFeedback(); return; }
     if (replacement) { event.preventDefault(); replacement = null; $("draft-change").hidden = true; $("comment-text").focus(); }
-    else if (activePanel) { event.preventDefault(); closePanel(); }
-    else if (mode === "comment") { event.preventDefault(); setMode("browse", { showPanel: false }); $("mode-browse").focus(); }
+    else if (activePanel) {
+      event.preventDefault();
+      if (mode === "comment") setMode("browse", { showPanel: false, keepPanel: true });
+      closePanel();
+    }
+    else if (mode === "comment") { event.preventDefault(); setMode("browse", { showPanel: false }); $("mode-change").focus(); }
   });
   window.addEventListener("beforeunload", event => {
+    persistDraft();
     if (!hasDraft() && !editingComment && !pendingSubmit && !pendingDelete) return;
     event.preventDefault(); event.returnValue = "";
   });

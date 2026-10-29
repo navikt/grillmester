@@ -209,7 +209,7 @@ const temporary = await mkdtemp(join(tmpdir(), 'visual-canvas-sdk-'));
 const hosts = [], checks = [];
 const check = async (name, run) => { await run(); checks.push(name); process.stdout.write(`ok ${checks.length} - ${name}\n`); };
 const canvasId = 'design-workspace';
-const methods = ['list_history', 'publish_proposal', 'publish_revision', 'read_preview', 'read_revision', 'read_state', 'read_submission', 'restore_revision', 'review_submission', 'save_proposal', 'update_comment'];
+const methods = ['close_inspection', 'list_history', 'open_inspection', 'publish_proposal', 'publish_revision', 'read_preview', 'read_revision', 'read_state', 'read_submission', 'restore_revision', 'review_submission', 'save_proposal', 'update_comment'];
 try {
   // Paths stay data; the loader source is constant, never interpolated JS.
   await writeFile(join(temporary, 'loader.mjs'), `export async function resolve(specifier, context, next) {

@@ -10,10 +10,10 @@ prosjektlagring, historikk og deklarerte redigeringsfelt.
 
 ## Aksel-korrekthet (VIKTIG)
 
-> **Bruk markup-snapshotet — `references/aksel-markup-fasit.md`.** Det inneholder
-> ekte `.aksel-*`-markup generert fra en navngitt ds-react-versjon. Sammenlikn
-> med consumerens installerte versjon før bruk; aktuell pakke og rendret DOM er
-> autoritativ når snapshotet avviker.
+> **Bruk verifisert markup fra consumerens installerte Aksel-versjon med
+> matchende `@navikt/ds-css`.** Avklar installert versjon først. Bruk
+> `references/aksel-markup-fasit.md` som alternativ bare når snapshotet er
+> verifisert kompatibelt; installert pakke og rendret DOM er autoritative.
 
 Serveren laster **ekte `@navikt/ds-css`** fra prosjektets node_modules, slik at
 alle Aksel-tokens (`--ax-*`) og komponentklasser (`.aksel-*`) er definert.
@@ -184,25 +184,27 @@ sikkerhetsgrenser for å omgå den.
 
 ## Innspill i skissen
 
-Verktøylinjen har to moduser. **Prøv** lar designeren bruke skissen som
-prototype. Når skissen deklarerer deler eller varianter, viser **Vis** en stripe
-over verktøylinjen med **Juster visning** og **Sammenlign varianter**. **Juster
-visning** prøver deklarerte valg lokalt; **Legg til innspill** og **Behold denne
-delen** legger et ønske i innspillskurven. **Endre** samler **Be om endring**
-og, i et prosjektlagret rom med redigerbar skisse, **Rediger**. **Be om
-endring** lar designeren peke på et element med **Punkt**, dra ut et område med
-**Område**, eller velge **Hele skissen**, en deklarert del eller en boks med
-overskrift i **Eller velg en del**. Har skissen ingen slike deler, står bare
-knappen **Hele skissen** der. I et punktinnspill utvider **Større del** valget
-ett synlig steg om gangen, for eksempel fra en overskrift til hele boksen, og
-**Mindre del** går tilbake; ankeret følger valget. Åpnes skissesiden alene,
-utenfor rammen med verktøylinjen, viser den «Bare visning» og ingen
-innspillsverktøy, fordi den ikke kan lagre. **Rediger** lagrer tekst og valg
-som en ny versjon. Et innspill som skrives mens **Rediger** har ulagrede
-endringer, gjelder den lagrede versjonen; de ulagrede verdiene blir stående i
-**Rediger**. Når **Juster visning** eller **Rediger** er åpent, står stripens
-knapper i panelets tittelrad. På smale, høye skjermer åpnes de som et ark fra
-bunnen, slik at toppen av skissen er synlig mens verdiene endres.
+Skissen kan brukes som prototype uten å velge en modus. **Gi innspill** lar
+designeren velge noe å kommentere; markeringen avsluttes etter valget.
+Deklarerte varianter vises som navngitte faner over skissen. Bare valgt variant
+vises; **Sammenlign** viser dem sammen. Visning eller bytte sender ingenting.
+**Verktøy** samler **Juster visning**, **Rediger** når skissen kan redigeres,
+og **Versjoner**. Hver funksjon beholder sitt eget panel og sin lukkeknapp.
+**Juster visning** prøver deklarerte valg lokalt; **Legg til innspill** og
+**Behold denne delen** legger et ønske i samlingen.
+
+**Gi innspill** lar designeren peke med **Punkt**, dra ut et **Område**, eller
+velge **Hele skissen**, en deklarert del eller en boks med overskrift i
+**Eller velg en del**. **Større del** utvider valget ett synlig steg om gangen,
+og **Mindre del** går tilbake; ankeret følger valget. Etter valget er siden
+igjen en vanlig prototype. Et påbegynt innspill bevares ved parkering, og det
+binder seg til delen, varianten og versjonen som ble valgt.
+
+Åpnes skissesiden alene, uten den eiende rammen, viser den «Bare visning» og
+kan ikke lagre innspill. **Rediger** lagrer tekst og valg som en ny versjon.
+Innspill skrevet mens editoren har ulagrede endringer gjelder den lagrede
+versjonen; editorens utkast beholdes. På smale, høye skjermer åpnes
+justeringer og editor som et ark fra bunnen.
 Tastaturbrukere kan fokusere et element og bruke kommentarkontrollene;
 områdealternativet bruker da hele elementets ramme. Kommentarlisten viser åpne og fiksete innspill, svar og
 hvilke som tilhører en tidligere versjon. Eldre nåler flyttes aldri automatisk
@@ -217,13 +219,17 @@ i sammenheng. **Fortsett å redigere** åpner samme utkast og fokuserer tekstfel
 Dette lagrer eller sender ingenting. Et lagret tekstforslag og et parkert utkast
 på samme element beholder hver sin forhåndsvisning.
 
-**Lagre innspill** bevarer innspillet i den private økten. **Send innspill**
-gjør alle usendte innspill i økten klare til behandling, også fra tidligere
-versjoner. Innspillskurven har to faner. **Klar til sending** viser usendte
+**Send innspill** sender det ferdige innspillet direkte. **Legg til flere**
+bevarer det til en senere samlet innsending. Når andre notater venter, viser
+**Send alle N innspill** nøyaktig hvor mange som inkluderes, også fra tidligere
+versjoner. Sendingen oppretter innspillet og runden atomisk; ved et tapt svar
+prøves samme sending igjen. Ingenting sendes på en timer eller bare ved
+modusskifte. Innspillskurven har to faner. **Klar til sending** viser usendte
 innspill; **Sendt** viser sendte innspill med svar og status og innsendte
-runder, med filtrene **Alle**, **Åpne** og **Ordnet**. Et nylig lagret eller gjenåpnet innspill vises
-under **Klar til sending**, med fokus på kortet, og etter sending åpnes
-**Sendt**. Når noe venter på sending, åpner kurven på **Klar til sending**;
+runder, med filtrene **Alle**, **Åpne** og **Ordnet**. **Legg til flere** lukker
+skrivefeltet og gir fokus tilbake til **Gi innspill**. Et gjenåpnet innspill vises
+under **Klar til sending**, med fokus på kortet. Etter sending åpnes **Sendt**.
+Når noe venter på sending, åpner kurven på **Klar til sending**;
 ellers beholder vanlig åpning valgt fane og filter. Nålene i skissen viser alle
 innspill på skjermen, og en nål åpner fanen som har innspillet.
 Mens designeren skriver eller har usendte
@@ -449,9 +455,9 @@ CSS kan vise riktig innhold ut fra `data-vc-setting-stage`. Alle situasjonene
 må finnes i skissen; handlingen kjører ikke eget JavaScript, leser ikke
 feltverdier og utfører ingen validering, bestilling eller innsending. Merk
 simulerte resultater tydelig, og bruk `prototype` når faktisk oppførsel er
-designspørsmålet. Knappen virker bare i **Prøv** med **Juster visning**
+designspørsmålet. Knappen virker når ingen del velges til innspill og **Juster visning** er
 lukket og uten et påbegynt kommentarutkast eller tekstforhåndsvisning.
-I **Be om endring** kommenterer man knappen. Ugyldige mål og valg aktiveres ikke.
+Når **Gi innspill** venter på et valg, kommenterer man knappen. Ugyldige mål og valg aktiveres ikke.
 En lokal lenke som `href="#ticket-price"` kan rulle til og fokusere et
 entydig, synlig element i skissen, for eksempel fra Aksel ErrorSummary.
 Bruk en ID som starter med en bokstav og deretter bare bokstaver, tall,
@@ -527,8 +533,7 @@ nøkkel. HTML-en må ha nøyaktig én beholder med variantene som direkte barn:
 </div>
 ```
 
-**Sammenlign varianter** ligger under **Vis** i **Prøv**, fordi det er en måte
-å prøve skissen på. Variantene må finnes én gang hver, som søsken i samme
+**Sammenlign** ved variantfanene lar designeren prøve alternativene side om side. Variantene må finnes én gang hver, som søsken i samme
 `data-vc-variants`-beholder; ellers forklarer knappen at sammenligning er
 utilgjengelig. Sammenligningsvisningen bruker like brede flater på desktop
 og bytte mellom variantene i smale vinduer. Det eksplisitte variantvalget blir et innspill;

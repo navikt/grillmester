@@ -38,7 +38,7 @@
     for (let current = node; isElement(current); current = current.parentElement) {
       if (current.hidden || current.hasAttribute?.("hidden") || current.inert || current.hasAttribute?.("inert") || attr(current, "aria-hidden") === "true") return true;
       const style = win?.getComputedStyle?.(current);
-      if (style && (style.display === "none" || ["hidden", "collapse"].includes(style.visibility) || style.contentVisibility === "hidden")) return true;
+      if (style && (style.display === "none" || ["hidden", "collapse"].includes(style.visibility) || style.contentVisibility === "hidden" || style.opacity === "0")) return true;
     }
     return false;
   }

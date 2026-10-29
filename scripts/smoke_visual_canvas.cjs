@@ -8,11 +8,13 @@ const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { createRequire } = require("node:module");
-// «Juster visning» belongs to Prøv; leave Endre first when its Vis bar is hidden.
+async function openTools(ui) {
+  const menu = ui.locator(".more-tools");
+  if (!(await menu.evaluate(node => node.open))) await menu.locator(":scope > summary").click();
+}
 async function openAdjust(ui) {
-  const adjust = ui.getByRole("button", { name: "Juster visning", exact: true });
-  if (!(await adjust.isVisible())) await ui.getByRole("button", { name: "Prøv", exact: true }).click();
-  await adjust.click();
+  await openTools(ui);
+  await ui.getByRole("button", { name: "Juster visning", exact: true }).click();
 }
 const options = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -66,7 +68,7 @@ function viewFor(page) {
   return { page, frame, ui, workshop, closeFeedback, closeWorkshop,
     async openFeedback() { await closeWorkshop(); if (!(await ui.locator(".panel").isVisible())) await ui.locator('[data-action="panel"]').click(); },
     async note(value) { await closeFeedback(); await closeWorkshop(); if (await ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await ui.locator('[data-action="comment"]').click(); await frame.locator("h1").click(); await ui.getByLabel("Hva vil du endre?", { exact: true }).fill(value); },
-    async save() { await ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await ui.locator(".composer").waitFor({ state: "hidden" }); await ui.locator(".panel").waitFor(); },
+    async save() { await ui.getByRole("button", { name: "Legg til flere", exact: true }).click(); await ui.locator(".composer").waitFor({ state: "hidden" }); await ui.locator('[data-action="panel"]').click(); await ui.locator(".panel").waitFor(); },
     async round(number, status) { const card = ui.locator(`[data-canvas-submission="${number}"]`); await until(async () => await card.getAttribute("data-status") === status, `round ${number} is ${status}`); return card; },
   };
 }
@@ -116,7 +118,17 @@ async function runCase(browser, createCanvasAdapter, testcase) {
       views.push(item); return item;
     };
     const screenshot = async (view, suffix) => { if (evidence) { await view.page.locator("#vc-status").filter({ hasText: /^Tilkoblet$/ }).waitFor(); await view.page.screenshot({ path: path.join(evidence, `${testcase.name}-${suffix}.png`), animations: "disabled" }); } };
-    const measured = await testcase.run({ host, instance, screenshot });
+    const openInspectionPage = async (url, viewport) => {
+      const origin = new URL(url).origin;
+      allowedOrigins.add(origin);
+      const context = await browser.newContext({ viewport, reducedMotion: "reduce" }); contexts.push(context);
+      const page = await context.newPage(); page.setDefaultTimeout(12000);
+      page.on("pageerror", error => errors.push(error.message));
+      page.on("requestfinished", request => { if (!/^(data|blob):/.test(request.url()) && new URL(request.url()).origin !== origin) external.push(new URL(request.url()).origin); });
+      await page.goto(url);
+      return page;
+    };
+    const measured = await testcase.run({ host, instance, screenshot, openInspectionPage });
     for (const view of views.filter(item => !item.retired)) assert.equal(JSON.stringify(await view.snapshot()).includes("PRIVATE_PRACTICE_VALUE"), false, "Ordinary form contents must not enter feedback snapshots.");
     assert(allMessages.every(item => !item.prompt.includes("PRIVATE_PRACTICE_VALUE")), "The notification must not contain ordinary form values.");
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
@@ -133,18 +145,11 @@ async function runCase(browser, createCanvasAdapter, testcase) {
 async function screenshotFailure(view, name) { try { await view.page.screenshot({ path: path.join(evidence, `${name}.png`), animations: "disabled" }); } catch { /* Preserve the assertion if the page closed. */ } }
 async function openEditor(view) {
   await view.closeFeedback();
-  // Rediger is one of the Endre tools, next to Be om endring. After a
-  // save the preview reloads. Match visibility and enabled state together:
-  // separate reads can see Rediger in the old frame, then wait for a missing
-  // button in the replacement frame's initial Prøv mode.
   const edit = view.ui.getByRole("button", { name: "Rediger", exact: true });
-  const enabledButtons = view.ui.locator("button:enabled");
   await until(async () => {
-    if (await edit.and(enabledButtons).isVisible()) return true;
-    const endre = view.ui.getByRole("button", { name: "Endre", exact: true });
-    if (!(await edit.isVisible()) && await endre.and(enabledButtons).isVisible()) await endre.click();
-    return false;
-  }, "Rediger is available in the Endre bar");
+    await openTools(view.ui);
+    return await edit.isVisible() && await edit.isEnabled();
+  }, "Rediger is available in Verktøy");
   await edit.click();
   const editor = view.ui.getByRole("region", { name: "Rediger skissen", exact: true });
   await editor.getByLabel("Overskrift", { exact: true }).waitFor();
@@ -152,6 +157,285 @@ async function openEditor(view) {
   return editor;
 }
 const cases = [
+  { name: "compact-tools-keyboard", viewport: { width: 320, height: 568 }, async run({ host, instance, screenshot }) {
+    const bound = host(), view = await instance(bound, "compact-tools", "Din avtale", { fixture: editableSketch, openInput: { workspacePath: "design/compact-tools", create: true, title: "Kompakte verktøy" } });
+    const summary = view.ui.locator(".more-tools > summary"), menu = view.ui.locator(".more-tools");
+    assert.deepEqual(await view.ui.locator(".toolbar button").evaluateAll(buttons => buttons.filter(button => button.getClientRects().length).map(button => button.dataset.action)), ["comment", "panel"]);
+    await summary.focus(); await view.page.keyboard.press("Enter");
+    const bounds = await view.ui.locator(".more-items").evaluate(node => { const rect = node.getBoundingClientRect(); return { left: rect.left, right: rect.right, bottom: rect.bottom, width: innerWidth, height: innerHeight }; });
+    assert(bounds.left >= 0 && bounds.right <= bounds.width && bounds.bottom <= bounds.height, JSON.stringify(bounds));
+    await screenshot(view, "mobile-tools");
+    await view.page.keyboard.press("Tab"); await view.page.keyboard.press("Tab"); await view.page.keyboard.press("Enter");
+    await view.ui.getByRole("region", { name: "Rediger skissen", exact: true }).waitFor();
+    await view.page.keyboard.press("Escape");
+    assert(await summary.evaluate(node => node.getRootNode().activeElement === node));
+    await view.page.keyboard.press("Enter"); await view.page.keyboard.press("Tab"); await view.page.keyboard.press("Enter");
+    await view.ui.getByRole("region", { name: "Versjoner og lagring", exact: true }).waitFor();
+    await view.page.keyboard.press("Escape");
+    assert(await summary.evaluate(node => node.getRootNode().activeElement === node));
+    await view.page.keyboard.press("Enter"); await view.page.keyboard.press("Tab"); await view.page.keyboard.press("Tab"); await view.page.keyboard.press("Tab"); await view.page.keyboard.press("Enter");
+    await view.workshop.waitFor(); await view.page.keyboard.press("Escape");
+    assert(await summary.evaluate(node => node.getRootNode().activeElement === node));
+    await view.page.keyboard.press("Enter"); await view.page.keyboard.press("Escape");
+    assert.equal(await menu.getAttribute("open"), null); assert(await summary.evaluate(node => node.getRootNode().activeElement === node));
+    await view.page.setViewportSize({ width: 1280, height: 900 }); await screenshot(view, "desktop-default");
+    assert.equal(bound.calls.length, 0); assert.equal((await view.snapshot()).submission, 0);
+    return { defaultPrimaryButtons: 2, secondaryToolsInOneMenu: 3, keyboardOpenAndFocusReturn: true, menuBounds: bounds, automaticSubmissions: 0 };
+  } },
+  { name: "visible-variant-tabs", viewport: { width: 390, height: 844 }, async run({ host, instance, screenshot }) {
+    const variants = [{ key: "short", label: "Kort" }, { key: "steps", label: "Trinnvis" }, { key: "all", label: "Samlet" }, { key: "detail", label: "Detaljert" }];
+    const fixture = title => ({ html: `<style>[data-vc-variants]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}</style><main><h1>${title}</h1><div data-vc-variants>${variants.map(variant => `<section data-vc-variant="${variant.key}"><article data-vc-key="card"><h2>${variant.label} variant</h2><label>Notat ${variant.label}<input aria-label="Notat ${variant.label}"></label></article></section>`).join("")}</div><label>Prøvefelt<input id="practice" aria-label="Prøvefelt"></label></main>`,
+      design: { version: 1, variants, targets: variants.map(variant => ({ key: "card", variant: variant.key, label: `Kort ${variant.label}`, controls: [] })) } });
+    const bound = host(), view = await instance(bound, "variant-tabs", "Fire forslag", { fixture });
+    const tabs = view.frame.getByRole("tablist", { name: "Velg skissevariant", exact: true });
+    await tabs.waitFor(); assert.equal(await tabs.getByRole("tab").count(), 4);
+    const container = await view.frame.locator("[data-vc-variants]").boundingBox(), single = await view.frame.getByRole("tabpanel", { name: "Kort", exact: true }).boundingBox();
+    assert(Math.abs(container.width - single.width) <= 1, "A single variant must use the full authored comparison container.");
+    await view.frame.getByLabel("Notat Kort", { exact: true }).fill("LOCAL_VARIANT_VALUE");
+    const first = tabs.getByRole("tab", { name: "Kort", exact: true });
+    await first.focus(); await view.page.keyboard.press("ArrowRight");
+    assert.equal(await tabs.getByRole("tab", { name: "Trinnvis", exact: true }).getAttribute("aria-selected"), "true");
+    assert(await view.frame.getByRole("tabpanel", { name: "Trinnvis", exact: true }).isVisible());
+    assert(await view.frame.getByRole("heading", { name: "Kort variant", exact: true }).isHidden());
+    await view.page.keyboard.press("End"); assert(await view.frame.getByRole("tabpanel", { name: "Detaljert", exact: true }).isVisible());
+    await view.page.keyboard.press("Home"); assert.equal(await view.frame.getByLabel("Notat Kort", { exact: true }).inputValue(), "LOCAL_VARIANT_VALUE");
+    assert.equal((await view.snapshot()).comments.length, 0); assert.equal(bound.calls.length, 0);
+    await screenshot(view, "four-named-tabs");
+    await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
+    await view.frame.getByRole("heading", { name: "Kort variant", exact: true }).click();
+    await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Behold den korte forklaringen.");
+    assert(await first.isDisabled(), "An unfinished target cannot silently move to another variant.");
+    await view.ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
+    await tabs.getByRole("tab", { name: "Detaljert", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
+    assert.equal(await first.getAttribute("aria-selected"), "true", "Resuming a parked draft must show its original variant.");
+    assert(await first.isDisabled(), "A resumed draft must immediately expose its protected variant state.");
+    assert.equal(await view.ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Behold den korte forklaringen.");
+    await view.save(); await view.closeFeedback();
+    await tabs.getByRole("tab", { name: "Trinnvis", exact: true }).click();
+    const saved = (await view.snapshot()).comments[0];
+    assert.equal(await view.frame.locator(saved.anchor.path).evaluate(node => node.closest("[data-vc-variant]").dataset.vcVariant), "short");
+    await view.page.setViewportSize({ width: 1280, height: 900 });
+    await view.frame.getByRole("button", { name: "Sammenlign", exact: true }).click();
+    assert(await view.frame.getByRole("heading", { name: "Kort variant", exact: true }).isVisible());
+    assert(await view.frame.getByRole("heading", { name: "Trinnvis variant", exact: true }).isVisible());
+    await screenshot(view, "comparison-kept");
+    await view.frame.getByRole("button", { name: "Vis én variant", exact: true }).click();
+    assert(await tabs.isVisible()); assert(await view.frame.getByRole("tabpanel", { name: "Trinnvis", exact: true }).isVisible());
+    assert.equal(bound.calls.length, 0); assert.equal((await view.snapshot()).submission, 0);
+    assert(!JSON.stringify(await view.snapshot()).includes("LOCAL_VARIANT_VALUE"));
+    return { namedTabs: 4, keyboardNavigation: true, fullWidthSingleVariant: true, parkedDraftRestoresVariant: true, variantFormPreserved: true, savedTargetRetained: true, comparisonRetained: true, automaticSubmissions: 0 };
+  } },
+  { name: "read-only-inspection-render-and-revocation", viewport: { width: 800, height: 700 }, async run({ host, instance, screenshot, openInspectionPage }) {
+    const fixture = title => {
+      const value = sketch(title);
+      value.html = value.html.replace(/(<[^>]*data-vc-key="meeting"[^>]*>)/,
+        '$1<button type="button" data-vc-control="detail" data-vc-value="full">Vis mer</button><button type="button" data-vc-control="detail" data-vc-value="short">Vis mindre</button>');
+      return value;
+    };
+    const bound = host(), view = await instance(bound, "inspection", "Forbered avtalen", {
+      fixture, openInput: { workspacePath: "design/inspection", create: true, title: "Visuell kontroll" },
+    });
+    const before = await view.action("read_state"), feedbackBefore = await view.snapshot();
+    const sourceBefore = await view.action("read_revision", { revisionId: 1, part: "html" });
+    await view.frame.getByRole("button", { name: "Vis mer", exact: true }).click();
+    await view.frame.locator(".canvas-extra").waitFor({ state: "visible" });
+    const viewport = await view.frame.locator("html").evaluate(() => ({ width: innerWidth, height: innerHeight }));
+    const geometry = async root => root.locator(".canvas-meeting").evaluate(node => {
+      const bounds = node.getBoundingClientRect(), style = getComputedStyle(node);
+      const heading = node.querySelector("h2"), headingStyle = getComputedStyle(heading);
+      return { width: bounds.width, padding: style.padding, border: style.borderTopWidth,
+        headingFont: headingStyle.fontFamily, headingSize: headingStyle.fontSize };
+    });
+    const normalGeometry = await geometry(view.frame);
+    const inspection = await view.action("open_inspection", { expectedScreen: before.screen });
+    assert.equal(inspection.screen, before.screen);
+    assert.equal(typeof inspection.inspectionId, "string");
+    assert.notEqual(new URL(inspection.url).origin, new URL(view.url()).origin, "Inspection must have its own read-only origin.");
+    const preview = await openInspectionPage(inspection.url, viewport);
+    await preview.getByRole("heading", { name: "Forbered avtalen", exact: true }).waitFor();
+    assert.equal(await preview.locator("[data-visual-feedback]").count(), 0, "Inspection does not mount the feedback toolbar.");
+    assert.equal(await preview.getByRole("button", { name: "Gi innspill", exact: true }).count(), 0);
+    assert(await preview.locator(".canvas-extra").isHidden(), "Inspection starts from declared initial state, not the designer's local view.");
+    assert.equal(await preview.getByLabel("Prøvefelt", { exact: true }).inputValue(), "", "Live form values must not be copied into inspection.");
+    const inspectedGeometry = await geometry(preview);
+    const initialImage = await preview.screenshot({ animations: "disabled", ...(evidence ? { path: path.join(evidence, "read-only-inspection-initial.png") } : {}) });
+    assert.deepEqual(inspectedGeometry, normalGeometry, "The same Aksel CSS and content width must render in the inspection view.");
+    assert.equal(initialImage.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+    await preview.getByRole("button", { name: "Vis mer", exact: true }).click();
+    await preview.locator(".canvas-extra").waitFor({ state: "visible" });
+    const changedImage = await preview.screenshot({ animations: "disabled", ...(evidence ? { path: path.join(evidence, "read-only-inspection-expanded.png") } : {}) });
+    assert(!initialImage.equals(changedImage), "A declared interaction visibly changes the rendered PNG.");
+    await preview.getByRole("button", { name: "Vis mindre", exact: true }).focus();
+    await preview.keyboard.press("Enter");
+    await preview.locator(".canvas-extra").waitFor({ state: "hidden" });
+    assert(await view.frame.locator(".canvas-extra").isVisible(), "Inspection does not change the open workshop's local state.");
+    assert.equal(await view.frame.getByLabel("Prøvefelt", { exact: true }).inputValue(), "PRIVATE_PRACTICE_VALUE");
+    const rejectedWrite = await fetch(inspection.url, { method: "POST", body: "{}", signal: AbortSignal.timeout(3000) });
+    assert([404, 405].includes(rejectedWrite.status), "The inspection capability must reject writes.");
+    assert.deepEqual(await view.snapshot(), feedbackBefore, "Inspection and interactions do not write feedback or versions.");
+    assert.deepEqual(await view.action("read_revision", { revisionId: 1, part: "html" }), sourceBefore);
+    assert.equal(bound.calls.length, 0, "Inspection never queues a message.");
+    const assertRevoked = async url => {
+      let response;
+      try { response = await fetch(url, { signal: AbortSignal.timeout(3000) }); }
+      catch (error) { assert(error instanceof TypeError, "A revoked listener may refuse the connection."); return; }
+      assert([403, 404, 410].includes(response.status), `Revoked inspection returned ${response.status}.`);
+    };
+    await view.action("close_inspection", { inspectionId: inspection.inspectionId });
+    await assertRevoked(inspection.url);
+    const stale = await view.action("open_inspection", { expectedScreen: before.screen });
+    assert.equal((await fetch(stale.url, { signal: AbortSignal.timeout(3000) })).status, 200);
+    await view.publish("Forbered neste avtale");
+    await assertRevoked(stale.url);
+    await view.ui.getByRole("button", { name: "Vis oppdatert forslag", exact: true }).click();
+    await view.frame.getByRole("heading", { name: "Forbered neste avtale", exact: true }).waitFor();
+    await screenshot(view, "workshop-retained");
+    assert.equal((await view.snapshot()).comments.length, 0); assert.equal(bound.calls.length, 0);
+    assert.deepEqual(await view.action("read_revision", { revisionId: 1, part: "html" }), sourceBefore);
+    await preview.close();
+    return { readOnlyInspection: true, declaredInitialState: true, nativeFormValuesExcluded: true,
+      sameContentGeometry: true, pointerAndKeyboardInteraction: true, actualPngChanged: true,
+      feedbackUnchanged: true, originalSourceUnchanged: true, closeRevokesUrl: true, publicationRevokesUrl: true,
+      inspectionImageBytes: changedImage.length, automaticSubmissions: 0 };
+  } },
+  { name: "direct-send-keyboard-and-collection", viewport: { width: 390, height: 844 }, async run({ host, instance, screenshot }) {
+    const bound = host(), view = await instance(bound, "direct-send", "Avtale · direkte innspill");
+    await view.note("Gjør tidspunktet tydeligere.");
+    assert.equal(await view.ui.locator('[data-action="comment"]').getAttribute("aria-pressed"), "false", "Choosing one target leaves pointer interception.");
+    assert(await view.ui.getByRole("button", { name: "Send innspill", exact: true }).isVisible());
+    await screenshot(view, "single-composer");
+    await view.page.keyboard.press("Control+Enter");
+    await until(async () => (await view.snapshot()).submission === 1, "keyboard sends one draft directly");
+    await view.round(1, "queued");
+    assert.equal(bound.calls.length, 1);
+    assert.equal((await view.snapshot()).comments.length, 1);
+    await view.closeFeedback();
+    assert.equal(await view.frame.getByLabel("Prøvefelt", { exact: true }).inputValue(), "PRIVATE_PRACTICE_VALUE");
+    await view.frame.getByLabel("Prøvefelt", { exact: true }).focus();
+    await view.page.keyboard.press("End"); await view.page.keyboard.type("!");
+    assert.equal(await view.frame.getByLabel("Prøvefelt", { exact: true }).inputValue(), "PRIVATE_PRACTICE_VALUE!");
+    await view.note("Behold kontaktinformasjonen."); await view.save();
+    assert.equal(bound.calls.length, 1, "Collecting must never enqueue work.");
+    await view.note("Gi knappen en tydeligere tekst.");
+    const sendAll = view.ui.getByRole("button", { name: "Send alle 2 innspill", exact: true });
+    await view.ui.locator(".compose-batch summary").click();
+    assert(await view.ui.locator(".compose-batch li").isVisible());
+    assert.equal(await view.ui.locator(".compose-batch-text").textContent(), "Behold kontaktinformasjonen.");
+    await screenshot(view, "explicit-collection");
+    await sendAll.click();
+    await until(async () => (await view.snapshot()).submission === 2, "exact collection sent directly");
+    const result = await view.snapshot();
+    assert.deepEqual(result.comments.filter(item => item.submission === 2).map(item => item.text), ["Behold kontaktinformasjonen.", "Gi knappen en tydeligere tekst."]);
+    assert.equal(result.comments.filter(item => item.submission === 1).length, 1);
+    await view.round(2, "queued");
+    return { directKeyboardSend: true, collectedCount: 2, ordinaryFormPreserved: true };
+  } },
+  { name: "direct-send-variant-labels", viewport: { width: 320, height: 568 }, async run({ host, instance, screenshot }) {
+    const variants = [{ key: "list", label: "Prioritert liste" }, { key: "board", label: "Arbeidsbrett" }];
+    const fixture = title => ({ html: `<main><h1>${title}</h1><div data-vc-variants>${variants.map(variant => `<section data-vc-variant="${variant.key}"><article data-vc-key="summary"><h2>Oppsummering</h2><p>Oppgaver og neste steg.</p></article></section>`).join("")}</div><label>Prøvefelt<input aria-label="Prøvefelt"></label></main>`,
+      design: { version: 1, variants, targets: variants.map(variant => ({ key: "summary", variant: variant.key, label: "Oppsummering", controls: [] })) } });
+    const bound = host(), view = await instance(bound, "batch-labels", "To retninger", { fixture });
+    const text = "Gjør neste steg tydeligere.";
+    for (const variant of variants) {
+      await view.frame.getByRole("tab", { name: variant.label, exact: true }).click();
+      await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
+      await view.frame.getByRole("heading", { name: "Oppsummering", exact: true }).click();
+      await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill(text);
+      await view.save(); await view.closeFeedback();
+    }
+    const before = await view.snapshot();
+    assert.equal(before.comments.length, 2); assert.equal(bound.calls.length, 0);
+    assert(before.comments.every(item => !item.context), "The label must also work for declared parts without adjustable controls.");
+    await view.note("Vurder begge retningene samlet.");
+    const batch = view.ui.locator(".compose-batch");
+    assert.equal(await batch.evaluate(node => node.open), false, "A fresh composer keeps the collected notes collapsed.");
+    const primaryGeometry = await view.ui.locator('[data-action="save"]').evaluate(node => {
+      const button = node.getBoundingClientRect(), clip = node.closest(".composer").getBoundingClientRect();
+      return { top: button.top, bottom: button.bottom, clipTop: clip.top, clipBottom: clip.bottom, visible: button.top >= clip.top && button.bottom <= clip.bottom };
+    });
+    assert(primaryGeometry.visible, JSON.stringify(primaryGeometry));
+    await screenshot(view, "collapsed-primary-visible-320");
+    await batch.locator("summary").click();
+    await view.page.waitForResponse(response => /\/comments\?/.test(response.url()) && response.request().method() === "GET");
+    assert.equal(await batch.evaluate(node => node.open), true, "Polling must preserve the participant's expanded collection.");
+    const labels = view.ui.locator(".compose-batch-target");
+    assert.deepEqual(await labels.allTextContents(), ["Oppsummering · Prioritert liste", "Oppsummering · Arbeidsbrett"]);
+    assert.deepEqual(await view.ui.locator(".compose-batch-text").allTextContents(), [text, text]);
+    await batch.scrollIntoViewIfNeeded();
+    await batch.locator("li").last().evaluate(node => node.scrollIntoView({ block: "nearest" }));
+    const geometry = await batch.evaluate(node => {
+      const composer = node.closest(".composer"), clip = composer.getBoundingClientRect();
+      const actions = composer.querySelector(".compose-actions").getBoundingClientRect();
+      const rows = [...node.querySelectorAll("li")].map(row => { const rect = row.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }; });
+      return { viewport: innerWidth, clip: { left: clip.left, right: clip.right, top: clip.top, bottom: Math.min(clip.bottom, actions.top) }, rows, horizontalOverflow: composer.scrollWidth > composer.clientWidth + 1 };
+    });
+    assert(!geometry.horizontalOverflow);
+    assert(geometry.rows.every(row => row.left >= geometry.clip.left && row.right <= geometry.clip.right && row.top >= geometry.clip.top && row.bottom <= geometry.clip.bottom), JSON.stringify(geometry));
+    await screenshot(view, "same-notes-distinct-targets-320");
+    await view.ui.getByRole("button", { name: "Send alle 3 innspill", exact: true }).click();
+    await view.round(1, "queued");
+    const sent = await view.snapshot();
+    assert.equal(sent.comments.length, 3); assert.equal(bound.calls.length, 1);
+    assert.deepEqual(sent.comments.slice(0, 2).map(item => item.id), before.comments.map(item => item.id));
+    assert(sent.comments.every(item => item.submission === 1));
+    return { identicalNotes: 2, defaultDetailsCollapsed: true, primaryGeometry, distinctHumanLabels: true, exactCommentCount: 3, geometry };
+  } },
+  { name: "direct-send-lost-response", async run({ host, instance, screenshot }) {
+    const bound = host(), view = await instance(bound, "direct-retry", "Avtale · samme sending");
+    await view.note("Et lagret innspill."); await view.save();
+    await view.note("Dette innspillet sendes med det første.");
+    const requests = [];
+    await view.page.route(/\/comments\/submit-draft(?:\?|$)/, async route => {
+      requests.push({ body: route.request().postData(), mutation: route.request().headers()["x-feedback-mutation"] });
+      const response = await route.fetch();
+      if (requests.length === 1) await route.abort("failed"); else await route.fulfill({ response });
+    });
+    await view.ui.getByRole("button", { name: "Send alle 2 innspill", exact: true }).click();
+    const retry = view.ui.getByRole("button", { name: "Prøv samme sending igjen", exact: true });
+    await retry.waitFor();
+    assert.equal(await view.ui.getByLabel("Hva vil du endre?", { exact: true }).getAttribute("readonly"), "");
+    assert(await view.ui.getByRole("button", { name: "Legg til flere", exact: true }).isDisabled());
+    assert(await view.ui.getByRole("button", { name: "Forkast", exact: true }).isDisabled());
+    await screenshot(view, "preserved-intent");
+    await retry.click();
+    await view.ui.locator(".composer").waitFor({ state: "hidden" });
+    await view.round(1, "queued");
+    assert.equal(requests.length, 2); assert.deepEqual(requests[1], requests[0]);
+    const result = await view.snapshot();
+    assert.equal(result.submission, 1); assert.equal(result.comments.length, 2); assert.equal(bound.calls.length, 1);
+    return { lostResponseRetried: true, identicalRequestAndReceipt: true, exactCommentCount: 2 };
+  } },
+  { name: "direct-send-changed-collection", async run({ host, instance, screenshot }) {
+    const bound = host(), view = await instance(bound, "direct-stale", "Avtale · endret samling");
+    await view.note("Dette er min uferdige tekst.");
+    const requests = [];
+    await view.page.route(/\/comments\/submit-draft(?:\?|$)/, async route => {
+      requests.push({ body: route.request().postDataJSON(), mutation: route.request().headers()["x-feedback-mutation"] });
+      if (requests.length === 1) {
+        const target = new URL(route.request().url()); target.pathname = "/comments";
+        const response = await fetch(target, { method: "POST", headers: { Origin: target.origin, "Content-Type": "application/json" }, body: JSON.stringify({ ...requests[0].body.comment, text: "Et nyere lagret innspill." }) });
+        assert.equal(response.status, 200);
+      }
+      await route.continue();
+    });
+    await view.ui.getByRole("button", { name: "Send innspill", exact: true }).click();
+    await view.ui.locator(".compose-error").waitFor();
+    const text = view.ui.getByLabel("Hva vil du endre?", { exact: true });
+    assert.equal(await text.inputValue(), "Dette er min uferdige tekst.");
+    assert.equal(await text.getAttribute("readonly"), null);
+    assert(await view.ui.getByRole("button", { name: "Send alle 2 innspill", exact: true }).isEnabled());
+    await view.ui.locator(".compose-batch summary").click();
+    assert.equal(await view.ui.locator(".compose-batch-text").textContent(), "Et nyere lagret innspill.");
+    assert(await view.ui.locator(".compose-batch li").isVisible());
+    assert.equal((await view.snapshot()).submission, 0); assert.equal(bound.calls.length, 0); assert.equal(requests.length, 1);
+    await screenshot(view, "collection-needs-review");
+    await view.ui.getByRole("button", { name: "Send alle 2 innspill", exact: true }).click();
+    await view.round(1, "queued");
+    assert.equal(requests.length, 2); assert.notEqual(requests[0].mutation, requests[1].mutation);
+    assert.equal((await view.snapshot()).comments.length, 2);
+    return { staleCollectionRejected: true, composerTextRetained: true, updatedScopeVisible: true, explicitNewIntentRequired: true };
+  } },
   { name: "editor-keyboard-error-and-proposal-ownership", viewport: { width: 320, height: 568 }, async run({ host, instance, screenshot }) {
     const fixture = title => {
       const value = editableSketch(title), lead = "Oppdiktet møte: Servicesenteret i Solvik, 18. november kl. 10.00.";
@@ -160,7 +444,7 @@ const cases = [
       return value;
     };
     const bound = host(), view = await instance(bound, "keyboard-source", "Din avtale", { fixture, openInput: { workspacePath: "design/keyboard", create: true, title: "Tekst og innspill" } });
-    await view.ui.getByRole("button", { name: "Endre", exact: true }).click(); await view.frame.locator("[data-vc-text=heading]").click();
+    await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).click(); await view.frame.locator("[data-vc-text=heading]").click();
     await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Foreslår en annen tittel til vurdering.");
     await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click(); await view.ui.getByLabel("Ny tekst", { exact: true }).fill("Forslag som fortsatt er et innspill"); await view.save();
     const originalComment = (await view.snapshot()).comments[0];
@@ -290,7 +574,7 @@ const cases = [
   } },
   { name: "endre-parts-and-whole-sketch", viewport: { width: 390, height: 844 }, async run({ host, instance, screenshot }) {
     const bound = host(), view = await instance(bound, "parts", "Timeavtale · deler", { fixture: editableSketch, openInput: { workspacePath: "design/deler", create: true, title: "Deler" } });
-    await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
     await view.ui.getByRole("group", { name: "Endre skissen", exact: true }).waitFor();
     assert.equal(await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed"), "true", "Endre starts with Be om endring.");
     const parts = view.ui.getByLabel("Velg en del", { exact: true });
@@ -309,7 +593,7 @@ const cases = [
     const whole = await pointed();
     assert.equal(whole.element.content, true, "Hele skissen points at the sketch content.");
     await view.closeFeedback();
-    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
     await parts.selectOption({ label: "Møteavtale" });
     await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Vis hva som skjer med den opprinnelige timen.");
     await view.save();
@@ -318,7 +602,7 @@ const cases = [
     assert.equal(part.item.kind, "point"); assert.equal((await view.snapshot()).submission, 0); assert.equal(bound.calls.length, 0);
     await view.closeFeedback();
     // A point on the heading widens to its box and back, one visible step at a time.
-    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
     await view.frame.getByRole("heading", { name: "Passer tidspunktet?", exact: true }).click();
     const label = view.ui.locator(".anchor-label"), larger = view.ui.getByRole("button", { name: "Større del", exact: true }), smaller = view.ui.getByRole("button", { name: "Mindre del", exact: true });
     assert.equal(await label.textContent(), "Valgt overskrift «Passer tidspunktet?»");
@@ -336,8 +620,7 @@ const cases = [
     assert.equal(box.element.key, "meeting", "The widened point anchors the whole box.");
     assert.equal(box.item.context?.target, "meeting", "The widened point keeps the declared part as context.");
     await view.closeFeedback();
-    await view.ui.getByRole("button", { name: "Prøv", exact: true }).click();
-    assert(await view.ui.getByRole("group", { name: "Endre skissen", exact: true }).isHidden(), "Prøv leaves Endre.");
+    assert(await view.ui.getByRole("group", { name: "Endre skissen", exact: true }).isHidden(), "Completed annotation returns directly to ordinary interaction.");
     return { wholeSketchAnchor: true, declaredPartAnchor: "meeting", widenedPointAnchor: "meeting", automaticSubmissions: 0 };
   } },
   // Boxes come from headings: a box without its own layout is skipped, every
@@ -353,14 +636,14 @@ const cases = [
         return node && { className: node.className, height: Math.round(rect.height) };
       }, item.anchor.path) };
     };
-    await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
     await view.ui.getByLabel("Velg en del", { exact: true }).selectOption({ label: "Første boks" });
     assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt del «Første boks»");
     await view.ui.getByLabel("Hva vil du endre?", { exact: true }).fill("Del opp punktene.");
     await view.save();
     assert.equal((await pointed()).element.className, "box-a", "The visible box, not its display: contents wrapper or the pair around both boxes.");
     await view.closeFeedback();
-    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    if (await view.ui.locator('[data-action="change-ask"]').getAttribute("aria-pressed") !== "true") await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
     const heading = view.frame.getByRole("heading", { name: "Andre boks", exact: true });
     await heading.click();
     await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click();
@@ -394,7 +677,7 @@ const cases = [
     await screenshot(view, "temporary-intro");
     await view.closeFeedback();
     // With nothing else to choose, a single button replaces the list.
-    await view.ui.getByRole("button", { name: "Endre", exact: true }).click();
+    await view.ui.getByRole("button", { name: "Gi innspill", exact: true }).click();
     assert(await view.ui.getByLabel("Velg en del", { exact: true }).isHidden(), "A list with one choice is not offered.");
     await view.ui.getByRole("button", { name: "Hele skissen", exact: true }).click();
     assert.equal(await view.ui.locator(".anchor-label").textContent(), "Valgt hele skissen");
@@ -424,11 +707,11 @@ const cases = [
     const before = await view.snapshot(); let restoreRequests = 0;
     view.page.on("request", request => { if (new URL(request.url()).pathname === "/workspace/restore") restoreRequests += 1; });
     const banner = view.ui.getByText("Viser lagret versjon 1. Ingen ny versjon er laget.", { exact: true });
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Vis versjon 1", exact: true }).click();
     await view.frame.getByRole("heading", { name: "Timeavtale · første", exact: true }).waitFor(); await banner.waitFor();
     assert.equal(await view.frame.locator('[data-vc-key="meeting"]').getAttribute("data-vc-setting-detail"), "short", "A stored version starts from its declared values.");
-    for (const name of ["Endre", "Juster visning", "Innspill"]) assert.equal(await view.ui.getByRole("button", { name, exact: true }).count(), 0, `${name} is not offered on a stored version.`);
+    for (const name of ["Gi innspill", "Juster visning", "Innspill"]) assert.equal(await view.ui.getByRole("button", { name, exact: true }).count(), 0, `${name} is not offered on a stored version.`);
     assert.deepEqual(await view.snapshot(), before, "Viewing changes nothing in the room."); assert.equal(restoreRequests, 0);
     await screenshot(view, "stored-version-read-only");
     await view.publish("Timeavtale · tredje"); await new Promise(resolve => setTimeout(resolve, 4500));
@@ -436,7 +719,7 @@ const cases = [
     await view.ui.getByRole("button", { name: "Tilbake til gjeldende versjon", exact: true }).click();
     await view.frame.getByRole("heading", { name: "Timeavtale · tredje", exact: true }).waitFor();
     await view.ui.locator('[data-action="comment"]').waitFor(); assert.equal(await banner.count(), 0);
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Vis versjon 1", exact: true }).click(); await banner.waitFor();
     await view.ui.getByRole("button", { name: "Bruk som ny versjon", exact: true }).first().click();
     await view.ui.locator('[data-action="workspace-restore"]').click();
@@ -453,13 +736,13 @@ const cases = [
     await editor.getByLabel("Overskrift", { exact: true }).fill("Min lagrede overskrift");
     await editor.getByRole("button", { name: "Lagre som ny versjon", exact: true }).click();
     await view.frame.getByRole("heading", { name: "Min lagrede overskrift", exact: true }).waitFor();
-    // Prøv leaves Endre even while Rediger is open.
+    // Closing Rediger returns directly to normal sketch interaction.
     editor = await openEditor(view);
-    await view.ui.getByRole("button", { name: "Prøv", exact: true }).click();
+    await editor.getByRole("button", { name: "Lukk redigering", exact: true }).click();
     assert.equal(await view.ui.locator('[data-action="comment"]').getAttribute("aria-pressed"), "false", "Prøv leaves Endre.");
     assert(await editor.isHidden(), "Prøv closes Rediger.");
     // Using a stored version can release the preserved field it changes.
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Vis versjon 1", exact: true }).click();
     await view.ui.getByText("Viser lagret versjon 1. Ingen ny versjon er laget.", { exact: true }).waitFor();
     await view.ui.getByRole("button", { name: "Bruk som ny versjon", exact: true }).first().click();
@@ -470,7 +753,7 @@ const cases = [
     await view.ui.locator('[data-action="comment"]').waitFor();
     await view.frame.getByRole("heading", { name: "Avtale · første", exact: true }).waitFor();
     // «Vises nå» follows the version on screen while a newer one waits.
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await view.ui.locator('.workspace-revision[data-revision-id="3"]').waitFor();
     await view.publish("Avtale · fjerde");
     await view.ui.locator('[data-action="workspace-reload"]').click();
@@ -488,7 +771,7 @@ const cases = [
     await editor.getByLabel("Overskrift", { exact: true }).fill("Ulagret overskrift");
     await view.frame.getByRole("heading", { name: "Ulagret overskrift", exact: true }).waitFor();
     // A wish names the saved sketch; the unsaved field stays in Rediger.
-    await view.ui.locator('[data-action="change-ask"]').click();
+    await view.ui.locator('[data-action="comment"]').click();
     assert(await editor.isHidden(), "Be om endring leaves Rediger.");
     const heading = view.frame.getByRole("heading", { name: "Avtale · lagret", exact: true });
     await heading.waitFor(); await heading.click();
@@ -497,11 +780,11 @@ const cases = [
     await screenshot(view, "wish-names-saved-version");
     // Rediger shows the unfinished wish instead of opening over it.
     await view.ui.getByRole("button", { name: "Legg utkast til side", exact: true }).click();
-    await view.ui.getByRole("button", { name: "Rediger", exact: true }).click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Rediger", exact: true }).click();
     await view.ui.locator(".composer").waitFor();
     assert(await editor.isHidden(), "Rediger stays closed while a wish draft is unfinished.");
     assert.equal(await view.ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Overskriften kan være kortere.");
-    await view.ui.getByRole("button", { name: "Lagre innspill", exact: true }).click(); await view.ui.locator(".panel").waitFor();
+    await view.save();
     editor = await openEditor(view);
     assert.equal(await editor.getByLabel("Overskrift", { exact: true }).inputValue(), "Ulagret overskrift", "The unsaved field survives the wish.");
     assert(await view.ui.locator(".compose-scope").isHidden());
@@ -517,7 +800,7 @@ const cases = [
     await view.frame.getByRole("button", { name: "Vis mer", exact: true }).click(); assert.equal(await detail(), "full");
     await view.frame.getByRole("button", { name: "Vis mindre", exact: true }).click(); assert.equal(await detail(), "short");
     let editor = await openEditor(view);
-    const rediger = view.ui.getByRole("button", { name: "Rediger", exact: true });
+    const rediger = view.ui.locator('[data-action="editor-open"]');
     assert.equal(await rediger.getAttribute("aria-expanded"), "true", "Rediger tells that it is open.");
     await editor.getByLabel("Overskrift", { exact: true }).fill("Ulagret overskrift");
     // With Rediger open, the prototype waits and says why.
@@ -526,8 +809,7 @@ const cases = [
     assert.equal(await view.ui.locator(".hint").textContent(), "Lukk «Rediger» for å prøve knappene i skissen. Utkastet ditt beholdes.");
     await editor.getByRole("button", { name: "Lukk redigering", exact: true }).click();
     assert.equal(await rediger.getAttribute("aria-expanded"), "false");
-    // A closed Rediger keeps its draft, and Prøv works.
-    await view.ui.getByRole("button", { name: "Prøv", exact: true }).click();
+    // A closed Rediger keeps its draft, and ordinary interaction works immediately.
     await view.frame.getByRole("button", { name: "Vis mer", exact: true }).click();
     assert.equal(await detail(), "full", "A hidden editor draft must not stop the prototype in Prøv.");
     editor = await openEditor(view);
@@ -542,7 +824,7 @@ const cases = [
     const before = await view.snapshot(); let attempts = 0;
     // The backend capacity limit has its own tests; exercise the browser's permanent-error guidance without creating 100 revisions here.
     await view.page.route(/\/workspace\/restore(?:\?|$)/, async route => { attempts += 1; await route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: "Workspace capacity reached." }) }); });
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Bruk som ny versjon", exact: true }).click(); await view.ui.locator('[data-action="workspace-restore"]').click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Bruk som ny versjon", exact: true }).click(); await view.ui.locator('[data-action="workspace-restore"]').click();
     await view.ui.locator(".workspace-error").waitFor(); assert.match(await view.ui.locator(".workspace-error").textContent(), /lagringsgrense/);
     assert(await view.ui.getByRole("button", { name: "Lagringsgrensen er nådd", exact: true }).isDisabled());
     assert.equal(await view.ui.getByRole("button", { name: "Prøv samme gjenoppretting igjen", exact: true }).count(), 0);
@@ -573,7 +855,7 @@ const cases = [
     assert.match(await old.locator(".workspace-previous").textContent(), /uavklart/);
     assert(await reopened.ui.getByRole("button", { name: "Send 1 innspill", exact: true }).isEnabled(), "A previous session's uncertainty must not permanently block new feedback.");
     await screenshot(reopened, "previous-round-and-new-feedback");
-    await reopened.closeFeedback(); await reopened.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await reopened.closeFeedback(); await openTools(reopened.ui); await reopened.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await reopened.ui.locator(".workspace-history-list article").first().waitFor();
     assert.equal(await reopened.ui.locator(".workspace-title").textContent(), "Timeavtale");
     assert.match(await reopened.ui.locator(".workspace-path").textContent(), /design\/timeavtale/);
@@ -593,7 +875,7 @@ const cases = [
     await view.note("Ulagret begrunnelse som må beholdes."); await view.ui.getByRole("button", { name: "Foreslå ny tekst", exact: true }).click(); await view.ui.getByLabel("Ny tekst", { exact: true }).fill("Din neste avtale");
     let restoreRequests = 0;
     view.page.on("request", request => { if (new URL(request.url()).pathname === "/workspace/restore") restoreRequests += 1; });
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Bruk som ny versjon", exact: true }).click();
     assert(await view.ui.locator('[data-action="workspace-restore"]').isDisabled()); assert.equal(restoreRequests, 0);
     assert.match(await view.ui.locator(".workspace-restore-warning").textContent(), /Utkastet ditt er beholdt/);
@@ -601,13 +883,13 @@ const cases = [
     await view.ui.getByRole("button", { name: "Lukk versjoner", exact: true }).click(); await view.ui.getByRole("button", { name: "Fortsett utkast", exact: true }).click();
     assert.equal(await view.ui.getByLabel("Hva vil du endre?", { exact: true }).inputValue(), "Ulagret begrunnelse som må beholdes."); assert.equal(await view.ui.getByLabel("Ny tekst", { exact: true }).inputValue(), "Din neste avtale");
     await view.ui.getByRole("button", { name: "Forkast", exact: true }).click();
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await view.ui.locator('.workspace-revision[data-revision-id="1"]').getByRole("button", { name: "Bruk som ny versjon", exact: true }).click();
     await view.ui.locator('[data-action="workspace-restore"]').click();
     await view.frame.getByRole("heading", { name: "Timeavtale · opprinnelig", exact: true }).waitFor();
     const restored = await view.snapshot();
     assert.equal(restored.workspace.version, 3); assert.deepEqual(restored.comments, saved.comments); assert.equal(restored.submission, 0); assert.equal(bound.calls.length, 0); assert.equal(restoreRequests, 1);
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     const revision = view.ui.locator('.workspace-revision[data-revision-id="3"]'); await revision.waitFor();
     assert.match(await revision.textContent(), /Fra versjon 1/); assert(await revision.getByRole("button", { name: "Gjeldende versjon", exact: true }).isDisabled());
     await screenshot(view, "restored-as-new-version");
@@ -618,7 +900,7 @@ const cases = [
     for (let version = 2; version <= 22; version += 1) await view.publish(`Timeavtale · versjon ${version}`);
     await view.frame.getByRole("heading", { name: "Timeavtale · versjon 22", exact: true }).waitFor();
     await view.note("Lagret innspill skal overleve gjenoppretting."); await view.save(); const saved = await view.snapshot();
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click();
     await until(async () => await view.ui.locator(".workspace-revision").count() === 20, "first bounded history page");
     const initialOrder = await view.ui.locator(".workspace-revision").evaluateAll(nodes => nodes.map(node => Number(node.dataset.revisionId)));
     assert.deepEqual(initialOrder, Array.from({ length: 20 }, (_, index) => 22 - index));
@@ -640,7 +922,7 @@ const cases = [
     await view.frame.getByRole("heading", { name: "Timeavtale · versjon 1", exact: true }).waitFor();
     const recovered = await view.snapshot(); assert.equal(recovered.workspace.version, 23); assert.deepEqual(recovered.comments, saved.comments);
     assert.equal(attempts.length, 2); assert.match(attempts[0].key, /^[a-f0-9]{32}$/); assert.equal(attempts[0].key, attempts[1].key); assert.deepEqual(attempts[0].payload, attempts[1].payload); assert.equal(bound.calls.length, 0);
-    await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="23"]').waitFor();
+    await openTools(view.ui); await view.ui.getByRole("button", { name: "Versjoner", exact: true }).click(); await view.ui.locator('.workspace-revision[data-revision-id="23"]').waitFor();
     const bounds = await view.ui.locator(".workspace-panel").evaluate(node => { const rect = node.getBoundingClientRect(), body = node.querySelector(".workspace-body"); return { left: rect.left, right: rect.right, viewport: innerWidth, readingHeight: body.clientHeight, horizontalOverflow: body.scrollWidth > body.clientWidth + 1 }; });
     assert(bounds.left >= 0 && bounds.right <= bounds.viewport + 1); assert(bounds.readingHeight >= 150); assert.equal(bounds.horizontalOverflow, false);
     const firstVersionVisible = await view.ui.locator('.workspace-revision[data-revision-id="23"] h3').evaluate(node => { const rect = node.getBoundingClientRect(), clip = node.closest(".workspace-body").getBoundingClientRect(); return rect.top >= clip.top && rect.bottom <= clip.bottom; });

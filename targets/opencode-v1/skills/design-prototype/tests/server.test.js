@@ -1050,6 +1050,28 @@ test("feedback retry receipts commit once, preserve newer state, and reject chan
   } finally { await stopServer(running); }
 });
 
+test("direct HTML feedback sends the exact collection once without a separately saved composer", async () => {
+  const running = await startServer(makeProject());
+  try {
+    const screen = await previewScreen(running);
+    const saved = await (await feedbackRequest(running.info.url, "/comments", "POST", commentFor(screen))).json();
+    const value = { comment: commentFor(screen, { text: "Make the next step clearer too." }), revision: saved.revision,
+      commentIds: saved.comments.map(item => item.id) };
+    const headers = { "X-Feedback-Mutation": "8".repeat(32) };
+    const stale = await feedbackRequest(running.info.url, "/comments/submit-draft", "POST", { ...value, commentIds: [] }, headers);
+    assert.equal(stale.status, 409);
+    assert.deepEqual(await (await feedbackRequest(running.info.url, "/comments")).json(), saved);
+    const sent = await feedbackRequest(running.info.url, "/comments/submit-draft", "POST", value, headers);
+    assert.equal(sent.status, 200);
+    const batch = await sent.json(); assert.deepEqual(batch.comments.map(item => item.submission), [1, 1]);
+    assert.equal(batch.submission, 1);
+    const retry = await feedbackRequest(running.info.url, "/comments/submit-draft", "POST", value, headers);
+    assert.equal(retry.status, 200); assert.deepEqual(await retry.json(), batch);
+    const wrongOrigin = await feedbackRequest(running.info.url, "/comments/submit-draft", "POST", value, { ...headers, Origin: "https://example.invalid" });
+    assert.equal(wrongOrigin.status, 403);
+  } finally { await stopServer(running); }
+});
+
 test("feedback receipt capacity fails closed without evicting old retries or recording failed commits", () => {
   const { FeedbackMutationReceipts, FeedbackError } = require("../scripts/feedback-store.js");
   const receipts = new FeedbackMutationReceipts(2);
