@@ -355,7 +355,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/design-workspace.md": {
-      "sha256": "e4d7f733aeeb24502e483b8e7532718d3d2710c751f13ab8b72305e49e04dc3a",
+      "sha256": "f20846f9e1635b0e3ca62c64a3fb7541bb339c69aaff3b95d893c82dec7396d7",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
@@ -403,11 +403,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-proxy.js": {
-      "sha256": "a16955436b415e2adc32b058ecb8e7e0759836d237d7e7a168a4c2856d542e15",
+      "sha256": "2078c0721e675475c88d9dab5a074b89a27345e317cf36b98ac49cc7b8563ca2",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-server.js": {
-      "sha256": "4c066ee2fdaa79a958420754ae7c5f07c571c59592837d5d7d454529151e0069",
+      "sha256": "8629f5d431c5de074666aec93b5c8a98ff35398003f01f7a015091c04603b7f0",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-shell.css": {
@@ -415,7 +415,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-shell.js": {
-      "sha256": "3f1d26f29c5b3723c1df98a8b1b2aa020b374cffa57ed717c6a98ea67433746c",
+      "sha256": "8ee6edb017044a1f75b2a50a29148d454e5dfc7dc61fc07b64cdf26121f0a47f",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/application-shell.tmpl": {
@@ -467,11 +467,15 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/html-inspection.js": {
-      "sha256": "1372a4c6fde642b21151d1e83f0f2b097ea84a557c7179a20586bb5151ed6dfb",
+      "sha256": "ee928fa585c8c32423eeb26527abcc3fe7f140df54a86df9b3eb79331797a540",
+      "mode": "0644"
+    },
+    "skills/design-prototype/scripts/local-ports.js": {
+      "sha256": "99df9cf20b63d8abf2a915f0dba0b4634e9916297f71b7937f60732fbb9930bc",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/server.js": {
-      "sha256": "01d54afe6f9c36d0cae20f178638f391e0ddd29e15d638f31efac810129e6edf",
+      "sha256": "2564cc62ebb802a09a15fb1bfb28e74ef0bafba4483d4a152e9d397235f6dc65",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/workshop.js": {
@@ -523,11 +527,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/tests/application-proxy.test.js": {
-      "sha256": "e8c56dab27805203a5f635a12f5eeaf4ba2e1d3c750ede5ca5c008b07bb18896",
+      "sha256": "114614f033126e0e090fef8836534cb42089a9f736317e39cb07a587e176efff",
       "mode": "0644"
     },
     "skills/design-prototype/tests/application-server.test.js": {
-      "sha256": "90cc8ea6bce0f6d84ae4b2b645157e6904e41109c0e9b6092a770f8628f29b61",
+      "sha256": "629bfe81f078cae1b87229084d58d63f6208526367549f4c75c319c10d7f4950",
       "mode": "0644"
     },
     "skills/design-prototype/tests/application-workspace.test.js": {
@@ -556,6 +560,10 @@
     },
     "skills/design-prototype/tests/html-inspection.test.js": {
       "sha256": "0518c04436e0f4c83365bd1d844dfb7addae08f533b65fad3423d5c58dc05d82",
+      "mode": "0644"
+    },
+    "skills/design-prototype/tests/local-ports.test.js": {
+      "sha256": "ea67c1f8d992e80bb3d1aacf2a07b4ad46f7d112b8464ed0a7e99237ee32e8cc",
       "mode": "0644"
     },
     "skills/design-prototype/tests/server.test.js": {

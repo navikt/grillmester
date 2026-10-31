@@ -16,7 +16,7 @@ const { createApplicationServer, createPreviewStatus, createApplicationRequestHa
 const application = { name: "Møtevalg", url: "http://localhost:3000/start?view=kort" };
 const authority = { origin: "http://127.0.0.1:34567", token: "a".repeat(64), openPath: "/open/" + "b".repeat(64), html: "<!doctype html><title>Arbeid</title>", csp: "default-src 'none'" };
 const rejection = status => error => error.status === status;
-// The native localhost origin uses the selected loopback socket in this
+// The native loopback origin uses the selected loopback socket in this
 // Node harness; preserve Host so production authority checks are unchanged.
 function fetchPreview(value, options = {}) {
   const url = new URL(value);
@@ -355,7 +355,7 @@ test("native shell and app keep exact immutable origins and reopening requires a
   const first = await server.command("openView"), origin = new URL(first.url).origin;
   assert.deepEqual(await server.command("openView"), first);
   const config = await externalView(first.url);
-  assert.equal(new URL(origin).hostname, "127.0.0.1"); assert.equal(new URL(config.previewOrigin).hostname, "localhost");
+  assert.equal(new URL(origin).hostname, "127.0.0.1"); assert.equal(new URL(config.previewOrigin).hostname, "127.0.0.1");
   assert.match(new URL(first.url).pathname, /^\/browser\/[a-f0-9]{64}$/); assert.equal(config.title, "Møtevalg");
   const authenticated = headers => ({ headers: { "X-Designverksted-Token": config.token, ...headers } });
   assert.equal((await fetch(origin + "/state")).status, 410);
@@ -365,6 +365,9 @@ test("native shell and app keep exact immutable origins and reopening requires a
   const bootstrap = await fetchPreview(config.previewUrl);
   assert.equal(bootstrap.status, 303);
   const cookie = bootstrap.headers.get("set-cookie").split(";")[0];
+  assert.notEqual(origin, config.previewOrigin, "Same-site app and shell must remain separate origins");
+  assert.equal((await fetch(origin + "/state", { headers: { Cookie: cookie, Origin: origin } })).status, 410, "App cookies cannot authenticate the control surface");
+  assert.equal((await fetch(origin + "/state", authenticated({ Cookie: cookie, Origin: config.previewOrigin }))).status, 403, "Same-site app requests still fail the exact control Origin check");
   const page = await fetchPreview(new URL(bootstrap.headers.get("location"), config.previewOrigin), { headers: { Cookie: cookie } });
   const pageHtml = await page.text(); assert.equal(page.status, 200); assert(pageHtml.includes("Neste"));
   assert(!pageHtml.includes(config.token));

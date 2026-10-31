@@ -11,6 +11,7 @@ const zlib = require("node:zlib");
 const { promisify } = require("node:util");
 const { parseApplication } = require("./application-contract.js");
 const { ApplicationError } = require("./application-error.js");
+const { listenLocal } = require("./local-ports.js");
 
 const MAX_BODY = 8 * 1024 * 1024;
 const MAX_INSPECTOR = 256 * 1024;
@@ -113,11 +114,12 @@ function rewriteAppCookie(cookie, prefix) {
   if (equals < 1) return null;
   const name = parts[0].slice(0, equals).trim();
   if (!COOKIE_NAME.test(name)) return null;
-  // The app uses localhost, separate from the 127.0.0.1 control host. Partitioning keeps its cookies
-  // usable inside the shell without depending on third-party cookie access.
-  // The upstream receives only the original logical application cookie names.
+  // Preview and shell are same-site HTTP loopback, with distinct ports/origins.
+  // Strict cookies work without third-party storage or Secure-on-HTTP support.
+  // The control surface never authenticates with cookies; the upstream receives
+  // only this preview's namespaced logical application cookies.
   const attributes = parts.slice(1).map(part => part.trim()).filter(part => !/^(?:domain\s*=|samesite\s*=|secure$|partitioned$)/i.test(part));
-  return `${prefix}${name}${parts[0].slice(equals)}${attributes.length ? "; " + attributes.join("; ") : ""}; Secure; SameSite=None; Partitioned`;
+  return `${prefix}${name}${parts[0].slice(equals)}${attributes.length ? "; " + attributes.join("; ") : ""}; SameSite=Strict`;
 }
 
 function connectionHeaders(headers) {
@@ -161,7 +163,7 @@ function contentSecurityPolicy(policy, shellOrigin, nonce, inspectorUrl, preview
       !current.some(value => value.toLowerCase() === "'strict-dynamic'" || /^'(?:nonce-|sha(?:256|384|512)-)[a-z0-9+/_-]+={0,2}'$/i.test(value));
     let permission = `'nonce-${nonce}'`;
     if (effectiveInline) {
-      if (typeof inspectorUrl !== "string" || !/^http:\/\/localhost:\d+\/\.designverksted\/[a-f0-9]{24}\/inspect\.js$/.test(inspectorUrl)) throw failure(502, "The application inspector address is invalid.");
+      if (typeof inspectorUrl !== "string" || !/^http:\/\/127\.0\.0\.1:\d+\/\.designverksted\/[a-f0-9]{24}\/inspect\.js$/.test(inspectorUrl)) throw failure(502, "The application inspector address is invalid.");
       permission = inspectorUrl;
     }
     directives.set("script-src-elem", [...current.filter(value => value.toLowerCase() !== "'none'"), permission]);
@@ -239,18 +241,18 @@ function browserCompatibility(config) {
       const parts = String(value).split(";"), equals = parts[0].indexOf("=");
       if (equals < 1) return;
       const attributes = parts.slice(1).filter(part => !/^\s*(?:domain\s*=|samesite\s*=|secure\s*$|partitioned\s*$)/i.test(part));
-      descriptor.set.call(this, cookiePrefix + parts[0].trim() + (attributes.length ? ";" + attributes.join(";") : "") + "; Secure; SameSite=None; Partitioned");
+      descriptor.set.call(this, cookiePrefix + parts[0].trim() + (attributes.length ? ";" + attributes.join(";") : "") + "; SameSite=Strict");
     },
   });
-  // Workers (including browser MSW) stay on this preview's unique hostname.
-  // A later preview never reuses its origin or its worker registrations.
+  // Workers (including browser MSW) stay on this preview's exact origin.
+  // Storage isolation after port reuse also depends on the native data store.
   if (navigator.serviceWorker?.register) {
     const register = navigator.serviceWorker.register;
     navigator.serviceWorker.register = function(script, options) {
       const url = new URL(mapUrl(script), location.href);
       if (url.origin === previewOrigin) {
         if (url.searchParams.has("__designverksted_worker")) return Promise.reject(new Error("The worker address contains a reserved preview parameter."));
-        // Chrome omits partitioned cookies when retrieving a worker script.
+        // Worker-script retrieval need not carry the document's cookies.
         // This separate capability can retrieve only a worker JavaScript
         // response; it grants no ordinary app request or control access.
         url.search += `${url.search ? "&" : "?"}__designverksted_worker=${workerKey}`;
@@ -283,7 +285,7 @@ function browserCompatibility(config) {
   }, true);
 }
 
-// Worker passthrough fetches also omit partitioned cookies in Chrome. This
+// Worker passthrough fetches need not carry the document's cookies. This
 // capability is confined to the worker's own preview transport, never the
 // shell. Upstream forwarding strips the private headers before delivery.
 function workerCompatibility({ previewOrigin, workerTransportKey }) {
@@ -418,7 +420,7 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     if (target.pathname === bootstrapPath && !target.search && request.method === "GET") {
       if (request.headers.origin !== undefined && ![origin, shellOrigin].includes(request.headers.origin)) { errorResponse(response, 403, "This preview cannot be opened from that origin."); return; }
       pendingDocument = { path: app.startPath, id: ++navigation };
-      response.writeHead(303, { Location: app.startPath, "Set-Cookie": `${authCookie}=${cookieKey}; HttpOnly; SameSite=None; Secure; Partitioned; Path=/`, "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin}${embeddingOrigin ? " " + embeddingOrigin : ""}` });
+      response.writeHead(303, { Location: app.startPath, "Set-Cookie": `${authCookie}=${cookieKey}; HttpOnly; SameSite=Strict; Path=/`, "Content-Security-Policy": `default-src 'none'; frame-ancestors ${shellOrigin}${embeddingOrigin ? " " + embeddingOrigin : ""}` });
       response.end(); return;
     }
     const workerValues = target.searchParams.getAll(WORKER_QUERY);
@@ -585,16 +587,14 @@ async function createApplicationProxy({ application, shellOrigin, inspectorSourc
     outgoing.end();
   });
   try {
-    await new Promise((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(0, "127.0.0.1", () => { server.off("error", reject); resolve(); });
-    });
+    await listenLocal(server, { role: "application" });
   } catch { throw failure(503, "The local application preview could not start."); }
-  // Explicit native test variant: one immutable listener/upstream per canvas.
-  // localhost separates the app cookie host from the 127.0.0.1 control host.
-  // Storage isolation between native instances remains host-specific evidence,
-  // not an SDK guarantee or permission to use this variant in a normal browser.
-  authority = `localhost:${server.address().port}`;
+  // One immutable loopback listener/upstream per native canvas. Keeping every
+  // ancestor on the same site avoids third-party cookies. Distinct ports still
+  // enforce browser same-origin isolation; control APIs require their secret
+  // header and exact Origin, never these cookies. Ports do not isolate cookies
+  // or guarantee a fresh data store after reuse: keep this native-only.
+  authority = `127.0.0.1:${server.address().port}`;
   origin = `http://${authority}`;
   function close() {
     if (closePromise) return closePromise;

@@ -3,6 +3,7 @@
 const http = require("node:http");
 const crypto = require("node:crypto");
 const { FeedbackError } = require("./feedback-store.js");
+const { listenLocal } = require("./local-ports.js");
 const MAX_SNAPSHOT_BYTES = 12 * 1024 * 1024;
 const INSPECTION_TTL_MS = 10 * 60 * 1000;
 
@@ -44,11 +45,8 @@ function createHtmlInspection({ ttlMs = INSPECTION_TTL_MS } = {}) {
       entry.server.requestTimeout = 3000; entry.server.headersTimeout = 3000;
       entry.server.keepAliveTimeout = 1000; entry.server.maxHeadersCount = 24; entry.server.maxConnections = 8;
       try {
-        await new Promise((resolve, reject) => {
-          const error = () => { entry.server.off("listening", ready); reject(new FeedbackError(503, "The inspection could not be opened.")); };
-          const ready = () => { entry.server.off("error", error); resolve(); };
-          entry.server.once("error", error); entry.server.once("listening", ready); entry.server.listen(0, "127.0.0.1");
-        });
+        try { await listenLocal(entry.server, { role: "control" }); }
+        catch { throw new FeedbackError(503, "The inspection could not be opened."); }
         entry.host = `127.0.0.1:${entry.server.address().port}`;
         if (epoch !== openingEpoch) throw new FeedbackError(410, "The inspection was closed while opening.");
         current = entry;

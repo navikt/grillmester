@@ -44,11 +44,14 @@ markeringslag kan bare foreslå avgrenset element-, rute- og visningskontekst.
 Disse dataene er ubekreftet appinnhold, også når de ligner en React-kildesti.
 Bare den betrodde flaten oppretter innspill og utfører eksplisitt innsending.
 
-Proxyen bruker eksakt `localhost:<port>` i én native appinstans;
-kontrollflaten bruker eksakt `127.0.0.1:<port>`. Begge lyttere bindes bare til
-`127.0.0.1`. App- og transportcookies er vertsbundne og partisjonerte
-(`SameSite=None; Secure; Partitioned`). Kontrollflaten deler ikke cookiehost
-med appen. Én instans beholder samme oppstrømsapp, proxylytter og origin
+Vertene og cookie-attributtene er erstattet av
+[ADR 0032](0032-samme-nettsted-for-lokal-appvisning.md): kontrollflate og app
+bruker `127.0.0.1` på forskjellige porter, med vertsbundne `SameSite=Strict`-
+cookies og `HttpOnly` for transporttilgangen. Kontrollmyndighet krever fortsatt
+sin private headernøkkel og eksakt Origin; cookies gir ingen slik myndighet.
+Begge lyttere bindes bare til `127.0.0.1`.
+Adskilte portområder hindrer at en appworker senere overtar en kontrolladresse.
+Én instans beholder samme oppstrømsapp, proxylytter og origin
 hele levetiden; en ny app skal ikke bindes bak den gamle proxyen.
 DNS-oppslaget for oppstrømsappen
 valideres én gang til bare loopback-adresser, og tilkoblingen kan prøve både
@@ -117,9 +120,9 @@ appens URL og gir ikke canvaset rett til å starte kommandoer. `queued` bekrefte
 bare mottatt runde, ikke ledig samtale eller påbegynt behandling. Stopp av en
 oppgave bestiller ikke automatisk restart av demoen.
 
-Browser-MSW støttes på den isolerte origin. Chrome sender ikke de partisjonerte
-cookiene når den henter worker-filen eller når en aktiv worker videresender
-forespørsler. Worker-henting bruker derfor en separat visningskapasitet i en
+Browser-MSW støttes på den separate app-origin. Worker-transporten beholder
+sin avgrensede kapasitet uavhengig av nettleserens cookiehåndtering etter
+ADR 0032. Worker-henting bruker en separat visningskapasitet i en
 reservert transportparameter: bare GET med worker-headere, eksakt lokal Host
 og riktig nøkkel godtas; parameteren fjernes før oppstrømskallet. Svaret må være
 JavaScript, og workerens scope må bli innenfor samme app-origin. En avgrenset
