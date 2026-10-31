@@ -2,12 +2,15 @@
 "use strict";
 const assert = require("node:assert/strict"), fs = require("node:fs"), os = require("node:os"), path = require("node:path"), http = require("node:http");
 const { pathToFileURL } = require("node:url");
+const { checkWorkerOriginIsolation } = require("./visual-smoke-workers.cjs");
 const options = new Map();
 for (let i = 2; i < process.argv.length; i += 2) {
-  if (!["--playwright-module", "--browser-channel", "--evidence-dir", "--aksel-project"].includes(process.argv[i]) || !process.argv[i + 1]) throw new Error("Supply the existing Playwright module and optional browser, evidence and Aksel paths.");
+  if (!["--playwright-module", "--browser-engine", "--browser-channel", "--evidence-dir", "--aksel-project"].includes(process.argv[i]) || !process.argv[i + 1]) throw new Error("Supply the existing Playwright module and optional browser, evidence and Aksel paths.");
   options.set(process.argv[i], process.argv[i + 1]);
 }
-const { chromium } = require(options.get("--playwright-module") || "playwright");
+const browserEngine = options.get("--browser-engine") || "chromium";
+if (!["chromium", "webkit"].includes(browserEngine) || browserEngine !== "chromium" && options.has("--browser-channel")) throw new Error("Choose chromium or webkit; browser-channel is supported only with chromium.");
+const browserType = require(options.get("--playwright-module") || "playwright")[browserEngine];
 const evidence = options.get("--evidence-dir") && path.resolve(options.get("--evidence-dir"));
 if (evidence) fs.mkdirSync(evidence, { recursive: true });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms)), results = [], viewportMeasurements = [];
@@ -36,7 +39,7 @@ async function main() {
     attach(project);
     const action = (name, input = {}) => adapter.canvas.actions.find(item => item.name === name).handler({ ...identity, input });
     const application = { name: "Møtedemo", url: `http://127.0.0.1:${app.address().port}/demo` };
-    browser = await chromium.launch({ headless: true, ...(options.has("--browser-channel") ? { channel: options.get("--browser-channel") } : {}) });
+    browser = await browserType.launch({ headless: true, ...(options.has("--browser-channel") ? { channel: options.get("--browser-channel") } : {}) });
     context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" });
     const allowedOrigins = new Set([new URL(application.url).origin]);
     await context.route("**/*", route => { const url = new URL(route.request().url()); if (["data:", "blob:"].includes(url.protocol) || url.protocol === "http:" && allowedOrigins.has(url.origin)) return route.continue(); external.push(url.origin); return route.abort(); });
@@ -45,7 +48,7 @@ async function main() {
       const response = await route.fetch();
       if (response.ok()) {
         const value = await response.json(), origin = new URL(endpoint === "renderer" ? value.previewOrigin : value.origin);
-        assert.equal(origin.protocol, "http:"); assert.equal(origin.hostname, endpoint === "renderer" ? "localhost" : "127.0.0.1");
+        assert.equal(origin.protocol, "http:"); assert.equal(origin.hostname, "127.0.0.1");
         allowedOrigins.add(origin.origin);
       }
       await route.fulfill({ response });
@@ -322,6 +325,7 @@ async function main() {
       }
       await page.setViewportSize({ width: 1280, height: 800 });
     });
+    await check("retired app workers cannot inherit a control surface when a port is reused", () => checkWorkerOriginIsolation({ browser, root }));
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
   } catch (error) {
     if (evidence && page && !page.isClosed()) {

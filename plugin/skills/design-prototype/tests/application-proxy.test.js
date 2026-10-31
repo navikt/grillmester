@@ -11,7 +11,7 @@ const { parseApplication } = require("../scripts/application-contract.js");
 const { createApplicationProxy, proxyTarget, appCookiesForUpstream, rewriteAppCookie, proxyRequestHeaders, contentSecurityPolicy, instrumentHtml, decodeBody, browserCompatibility, workerCompatibility } = require("../scripts/application-proxy.js");
 
 const UPSTREAM = "http://127.0.0.1:3000";
-const PREVIEW = "http://localhost:4000";
+const PREVIEW = "http://127.0.0.1:4000";
 const SHELL = "http://127.0.0.1:5000";
 const PREFIX = "dv_app_1234567890abcdef12345678_";
 const INSPECTOR = PREVIEW + "/.designverksted/1234567890abcdef12345678/inspect.js";
@@ -36,10 +36,10 @@ test("upstream cookies are allowlisted to one application namespace", () => {
 
 test("application Set-Cookie cannot create a privileged or another instance cookie", () => {
   assert.equal(rewriteAppCookie("__Host-session=synthetic; Secure; HttpOnly; Domain=localhost; Path=/; SameSite=None", PREFIX),
-    `${PREFIX}__Host-session=synthetic; HttpOnly; Path=/; Secure; SameSite=None; Partitioned`);
-  assert.equal(rewriteAppCookie("dv_preview_other_auth=forged; Path=/", PREFIX), `${PREFIX}dv_preview_other_auth=forged; Path=/; Secure; SameSite=None; Partitioned`);
-  assert.equal(rewriteAppCookie("theme=light; Max-Age=0; Path=/syk", PREFIX), `${PREFIX}theme=light; Max-Age=0; Path=/syk; Secure; SameSite=None; Partitioned`);
-  assert.equal(rewriteAppCookie("theme=dark; Domain=localhost; SameSite=Strict; Secure; Partitioned; Path=/", PREFIX), `${PREFIX}theme=dark; Path=/; Secure; SameSite=None; Partitioned`);
+    `${PREFIX}__Host-session=synthetic; HttpOnly; Path=/; SameSite=Strict`);
+  assert.equal(rewriteAppCookie("dv_preview_other_auth=forged; Path=/", PREFIX), `${PREFIX}dv_preview_other_auth=forged; Path=/; SameSite=Strict`);
+  assert.equal(rewriteAppCookie("theme=light; Max-Age=0; Path=/syk", PREFIX), `${PREFIX}theme=light; Max-Age=0; Path=/syk; SameSite=Strict`);
+  assert.equal(rewriteAppCookie("theme=dark; Domain=localhost; SameSite=Strict; Secure; Partitioned; Path=/", PREFIX), `${PREFIX}theme=dark; Path=/; SameSite=Strict`);
   assert.equal(rewriteAppCookie("bad cookie=value", PREFIX), null);
   assert.equal(rewriteAppCookie("ok=x\r\nSet-Cookie: another=y", PREFIX), null);
 });
@@ -173,7 +173,7 @@ test("browser transport adapters preserve fetch, API, HMR and logical app cookie
   assert.equal(new window.EventSource(UPSTREAM + "/events").arguments[0], PREVIEW + "/events");
   assert.equal(document.cookie, "theme=dark");
   document.cookie = "theme=light; Path=/; Domain=localhost; Secure; SameSite=None";
-  assert.equal(document.lastSetCookie, PREFIX + "theme=light; Path=/; Secure; SameSite=None; Partitioned");
+  assert.equal(document.lastSetCookie, PREFIX + "theme=light; Path=/; SameSite=Strict");
   history.pushState({}, "", UPSTREAM + "/syk/next");
   assert.equal(calls.at(-1)[2], PREVIEW + "/syk/next");
   await navigator.serviceWorker.register(UPSTREAM + "/sw.js", { scope: UPSTREAM + "/syk/", type: "module" });
@@ -257,8 +257,8 @@ test("owned server: bootstrap preserves basepath/query and serves actual app cod
     res.end('<!doctype html><html><head><script src="/assets/main.js"></script></head><body>Demo</body></html>');
   });
   assert.equal(f.bootstrap.headers.location, "/syk/demo?mode=detail");
-  assert.equal(new URL(f.proxy.origin).hostname, "localhost");
-  assert.match(f.bootstrap.headers["set-cookie"][0], /HttpOnly; SameSite=None; Secure; Partitioned; Path=\/$/);
+  assert.equal(new URL(f.proxy.origin).hostname, "127.0.0.1");
+  assert.match(f.bootstrap.headers["set-cookie"][0], /HttpOnly; SameSite=Strict; Path=\/$/);
   const invitation = new URL(f.proxy.url).pathname.split("/").at(-1);
   assert.notEqual(f.cookie.split("=")[1], invitation, "The invitation is never stored as the browser credential");
   assert.equal((await request(f.proxy.origin + "/", { headers: { cookie: f.cookie.split("=")[0] + "=" + invitation } })).status, 403);
@@ -342,7 +342,7 @@ test("owned server: cookie-free worker capability grants only a same-origin Java
   assert.equal((await request(address("/worker.js"), { headers: { cookie: f.cookie } })).status, 403);
   assert.equal((await request(address("/worker.js"), { method: "POST", headers })).status, 403);
   assert.equal((await request(address("/worker.js"), { headers: { ...headers, origin: SHELL } })).status, 403);
-  assert.equal((await request(address("/worker.js"), { headers: { ...headers, host: new URL(f.proxy.origin).host.replace("localhost", "other.localhost") } })).status, 403);
+  assert.equal((await request(address("/worker.js"), { headers: { ...headers, host: new URL(f.proxy.origin).host.replace("127.0.0.1", "localhost") } })).status, 403);
   assert.equal((await request(address("/worker.js") + "&__designverksted_worker=" + key, { headers })).status, 403);
   assert.equal((await request(address(inspectorPath), { headers })).status, 403);
   assert.deepEqual(seen, ["/"]);
