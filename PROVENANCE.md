@@ -200,6 +200,13 @@ and tests are Grillmester-authored; no third-party material is added. Designer,
 Figma handoff and the source, component and naming scope are unchanged. The rights
 journal binds this content and provenance under the underlying decision in #56.
 
+PR [#94](https://github.com/navikt/grillmester/pull/94) reviews same-site local
+app transport, separate app/control port ranges and whole-page feedback recovery
+in `design-prototype`. The implementation and regression tests add no third-party
+material. Designer, Figma handoff and the source, component and naming scope are
+unchanged. The rights journal binds this content and provenance while preserving
+the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
