@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "e645dbff2f838ac88f1d7626cfad71355cb9107b211cdca615af6ce23ed4f68e",
+    "targetManifestSha256": "a0dc947ce6e29ad7b0cdbbf5855716873c4bd04aeb440d5c316299438fbf64bd",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -20,12 +20,15 @@
       "researcher"
     ],
     "skillPermissionEntriesRemoved": [
+      "agent-retro",
       "app-sandbox-setup",
       "doctor",
       "grill-me",
       "grill-with-docs",
       "guided-review",
-      "handoff"
+      "handoff",
+      "to-questionnaire",
+      "wait-what"
     ]
   },
   "counts": {

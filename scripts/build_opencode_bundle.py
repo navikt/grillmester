@@ -271,9 +271,9 @@ def _distribution_support_files(source_root: Path) -> list[BundleFile]:
         or not isinstance(content_lock.get("agents"), dict)
         or len(content_lock["agents"]) != 6
         or not isinstance(content_lock.get("skills"), dict)
-        or len(content_lock["skills"]) != 42
+        or len(content_lock["skills"]) != 45
     ):
-        raise BundleBuildError("content lock must be the complete 6-agent/42-skill BOM")
+        raise BundleBuildError("content lock must be the complete 6-agent/45-skill BOM")
 
     result = [BundleFile(CONTENT_LOCK_PATH, content_lock_content, 0o644)]
     for source_path, distribution_path, label in (
@@ -478,11 +478,11 @@ def _target_files(
         "agents": 6,
         "primaryAgents": 3,
         "subagents": 3,
-        "skills": 42,
-        "commands": 42,
+        "skills": 45,
+        "commands": 45,
     }
     if manifest.get("counts") != expected_counts:
-        raise BundleBuildError("OpenCode target manifest has the wrong 6/42/42 counts")
+        raise BundleBuildError("OpenCode target manifest has the wrong 6/45/45 counts")
     capabilities = manifest.get("skillCapabilities")
     expected_capabilities = {
         skill_id: (
@@ -615,12 +615,15 @@ def _focused_target_files(
             "excludedSkillReferences": "full-context-guidance",
             "agentPermissionEntriesRemoved": ["researcher"],
             "skillPermissionEntriesRemoved": [
+                "agent-retro",
                 "app-sandbox-setup",
                 "doctor",
                 "grill-me",
                 "grill-with-docs",
                 "guided-review",
                 "handoff",
+                "to-questionnaire",
+                "wait-what",
             ],
         }
     elif client == "copilot":

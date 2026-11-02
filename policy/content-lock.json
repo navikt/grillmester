@@ -51,6 +51,11 @@
       "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
       "note": "Adapted round-based grilling over the decision frontier, thin grill-me and grill-with-docs entries, and the GLOSSARY.md convention with CONTEXT.md as a fallback; documentation writes stay behind an explicit request or acceptance."
     },
+    "matt-additions": {
+      "repository": "mattpocock/skills",
+      "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+      "note": "Adapted three user-invoked skills, retro as agent-retro, wait-what and to-questionnaire, and the context-pointer rules for descriptions from writing-for-agents in create-a-skill's principles."
+    },
     "matt-delivery": {
       "repository": "mattpocock/skills",
       "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
@@ -121,6 +126,7 @@
   },
   "skills": {
     "accessibility-review": {"source": "hovmester", "sourcePath": ".github/skills/accessibility-review", "disposition": "adapted"},
+    "agent-retro": {"source": "matt-additions", "sourcePath": "skills/engineering/retro", "disposition": "adapted", "disable-model-invocation": true},
     "aksel-design": {"source": "hovmester", "sourcePath": ".github/skills/aksel-design", "disposition": "adapted"},
     "api-design": {"source": "pilot", "sourcePath": ".github/skills/api-design", "disposition": "adapted"},
     "app-sandbox-setup": {"source": "grillmester", "sourcePath": "plugin/skills/app-sandbox-setup", "disposition": "original", "disable-model-invocation": true},
@@ -138,7 +144,8 @@
       "source": "pilot",
       "sourcePath": ".github/skills/create-a-skill",
       "lineage": [
-        {"source": "matt-current", "sourcePath": "skills/productivity/writing-for-agents"}
+        {"source": "matt-current", "sourcePath": "skills/productivity/writing-for-agents"},
+        {"source": "matt-additions", "sourcePath": "skills/productivity/writing-for-agents"}
       ],
       "disposition": "adapted"
     },
@@ -272,8 +279,10 @@
     },
     "team-status": {"source": "hovmester", "sourcePath": ".github/skills/team-status", "disposition": "adapted"},
     "to-issues": {"source": "pilot", "sourcePath": ".github/skills/to-issues", "disposition": "adapted"},
+    "to-questionnaire": {"source": "matt-additions", "sourcePath": "skills/productivity/to-questionnaire", "disposition": "adapted", "disable-model-invocation": true},
     "to-spec": {"source": "pilot", "sourcePath": ".github/skills/to-spec", "disposition": "adapted"},
     "triage": {"source": "pilot", "sourcePath": ".github/skills/triage", "disposition": "adapted"},
+    "wait-what": {"source": "matt-additions", "sourcePath": "skills/productivity/wait-what", "disposition": "adapted", "disable-model-invocation": true},
     "wayfinder": {"source": "pilot", "sourcePath": ".github/skills/wayfinder", "disposition": "adapted"},
     "workshop-design": {"source": "hovmester", "sourcePath": ".github/skills/workshop-design", "disposition": "adapted"}
   }

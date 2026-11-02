@@ -193,13 +193,13 @@ ikke gjette detaljer fra minnet.
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 42 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 45 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-De 42 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
+De 45 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
 `design-prototype` og `review`. Nav-pilot eier valg og distribusjon av
 agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som
@@ -246,6 +246,9 @@ Disse grensene gjør overlappende metoder enklere å velge:
 | Se layout, hierarki eller en brukerflyt | `design-prototype` | Visuell skisse; `figma-workflow` bruker et eksisterende design som grunnlag. |
 | Bestemme hvor testene skal ligge, også integrasjons- og e2e-tester | `tdd` | Lager en kort testplan og holder testene få og plassert så høyt som det fortsatt er raskt. |
 | Kontrollere en ferdig diff eller forstå den sammen | `review` / `guided-review` | Egenkontroll versus interaktiv gjennomgang; `security-review` brukes ved relevante sikkerhets- og personvernspørsmål. |
+| Få forrige svar forklart enklere | `/wait-what` | Kun manuelt. Ny forklaring med litt kontekst, korte setninger og repoets begreper. |
+| Spørre en jurist, saksbehandler eller annen fagperson om noe du ikke kan svare på selv | `/to-questionnaire` | Kun manuelt. Spør bare hvem som skal svare og hva du trenger tilbake, og lager et spørreskjema i samtalen uten personopplysninger. |
+| Forbedre agentmiljøet etter en økt som gikk tungt | `/agent-retro` | Kun manuelt. Foreslår pekere, automatiske sjekker, slankere instruksjonsfiler og bedre tilgang til logger og informasjon; endrer bare det du godtar. Team-retroer hører til `workshop-design`. |
 
 Skillvalg krever ikke at brukeren kan navnene. En forespørsel om en spec eller
 oppdeling i tickets kan uttrykkes i vanlig språk. Det oppretter ingen

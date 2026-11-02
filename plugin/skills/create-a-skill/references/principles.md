@@ -3,7 +3,9 @@
 A skill helps a capable model produce useful, reliable outcomes in a bounded
 kind of task. **Predictability** means honoring intent, constraints and evidence,
 not forcing the same process on different situations. Add guidance only when
-it changes a decision or improves the result.
+it changes a decision or improves the result. The writing principles apply
+equally to other agent-facing text, such as agent prompts and instruction
+files.
 
 **Bold terms** use the definitions in the skill's glossary.
 
@@ -36,11 +38,19 @@ in prose.
 
 ## Writing the description
 
-A model-facing **description** states what the skill does and when it applies.
-Use concrete task language and a boundary against likely neighboring skills.
-Include a synonym or example only when it materially improves discovery; avoid
-catchalls, exhaustive trigger lists and process detail. Test with natural user
-requests that do not name the expected skill.
+A model-facing **description** is the skill's top-level **context pointer**, and
+every word of it stays loaded on every turn. State what the skill does and when
+it applies, in concrete task language:
+
+- Front-load the **leading word** that should trigger the skill.
+- Give each distinct **branch** that should reach the skill one trigger, and
+  collapse synonyms that rename the same branch.
+- Add a boundary against likely neighboring skills, and cut role or background
+  detail the body already carries.
+
+Include an example only when it materially improves discovery; avoid catchalls,
+exhaustive trigger lists and process detail. Test with natural user requests
+that do not name the expected skill.
 
 A manual skill's description is a short human-facing picker summary, not a list
 of automatic triggers the model cannot use.

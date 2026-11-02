@@ -119,8 +119,8 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 "agents": 6,
                 "primaryAgents": 3,
                 "subagents": 3,
-                "skills": 42,
-                "commands": 42,
+                "skills": 45,
+                "commands": 45,
             },
             "skillCapabilities": {
                 skill_id: (
@@ -864,7 +864,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         content_lock = json.loads(content_lock_path.read_text(encoding="utf-8"))
         content_lock["agents"].pop(next(iter(content_lock["agents"])))
         content_lock_path.write_text(json.dumps(content_lock), encoding="utf-8")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "complete 6-agent/42-skill"):
+        with self.assertRaisesRegex(BUILDER.BundleBuildError, "complete 6-agent/45-skill"):
             BUILDER.build_bundle(
                 incomplete_bom,
                 SOURCE_SHA,

@@ -73,7 +73,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
         )
         self.assertIn("    grill-inspektor: ask\n", stripped)
         self.assertIn("    nav-troubleshoot: ask\n", stripped)
-        for entry in ("wait-what: ask", "triage: deny"):
+        for entry in ("teach: ask", "triage: deny"):
             with self.subTest(entry=entry):
                 text = allowed.replace("    review: allow\n", f"    {entry}\n")
                 with self.assertRaisesRegex(GENERATOR.ProjectionError, entry.split(":")[0]):
@@ -398,12 +398,15 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "excludedSkillReferences": "full-context-guidance",
                 "agentPermissionEntriesRemoved": ["researcher"],
                 "skillPermissionEntriesRemoved": [
+                    "agent-retro",
                     "app-sandbox-setup",
                     "doctor",
                     "grill-me",
                     "grill-with-docs",
                     "guided-review",
                     "handoff",
+                    "to-questionnaire",
+                    "wait-what",
                 ],
             },
             opencode_manifest["transformations"],
