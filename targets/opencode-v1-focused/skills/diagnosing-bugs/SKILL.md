@@ -1,38 +1,26 @@
 ---
 name: diagnosing-bugs
-description: "Diagnose failures, hangs, flakes or performance regressions from reproduction, code and runtime evidence. Use when the cause is unclear; use `tdd` for an established fix and the repository's platform diagnostic workflow when the missing evidence is in a deployed Nais environment."
+description: "Diagnose hard bugs, flakes and performance regressions with a tight feedback loop that goes red before any fix. Use when something is broken, failing or slow and the cause is unclear; use `tdd` for an established fix and the repository's platform diagnostic workflow when the evidence is in a deployed Nais environment."
 ---
 # Diagnosing Bugs
 
 > **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
-Establish the failing boundary, test the most plausible causes and verify the
-fix. Use the sequence below as a preferred loop, adapting it to the evidence
-and access available. Distinguish observations, hypotheses and unverified work.
+A discipline for bugs whose cause is unclear: build a loop that goes red on
+this bug, shrink it, test ranked hypotheses, then fix it with a regression
+test. Skip a phase only with a stated reason, and keep observations,
+hypotheses and unverified work apart.
 
-Use the active task or calling brief as scope. If the repository advertises
-domain documentation or binding decisions, read only what touches the symptom;
-the workflow does not depend on any particular documentation path.
+Use the repository's runtime, test runner and commands; find them in build
+files, scripts, neighboring tests, CI and local run documentation. Read only
+the domain documentation and decisions that touch the symptom.
 
-Before choosing a command or test shape, discover the repository's runtime and
-test contract from manifests, scripts, neighboring tests, CI configuration and
-local run documentation. Record the detected language, framework, test runner,
-focused command, application boot command and available fixtures. Do not assume
-Gradle, Kotest, Ktor, Node, pytest, containers, Kafka or a database until
-repository evidence establishes them.
-
-Before reading logs, traces, HARs, events or other operational output, establish
-that the source, scope and content are permitted in the active client and model
-by organizational and repository policy. Reuse existing data-access decisions
-within scope; read access or task approval alone is insufficient. Do not fetch
-disallowed raw data for later redaction: any required filtering or redaction
-must happen through an approved path before output reaches the model.
-Exclude secrets, auth headers, cookies, tokens and personal or sensitive data;
-use `<REDACTED>` placeholders in permitted artifacts. Keep credentials in approved
-environment variables, never in commands, scripts or fixtures. If this boundary
-is unclear, continue with code and synthetic tests and mark dependent runtime
-work `Status: NEEDS_CONTEXT`, naming the missing policy/access decision or
-permitted minimum evidence.
+**Redact first.** Every command, output and artifact you show uses
+`<REDACTED>` for secrets, tokens, cookies and personal data, and credentials
+stay in approved environment variables. Filter operational output through an
+approved path before it reaches the model; never fetch raw data to redact it
+afterwards. Before reading logs, traces, HAR files, events or other
+operational output, follow [the data-access rules](references/data-access.md).
 
 If the symptom is a runtime/platform problem in production, use the platform's
 approved diagnostic tooling to establish the failing boundary, then return here
@@ -43,159 +31,126 @@ defined in the Full-context boundary section.
 
 ## Phase 1 — Build a feedback loop
 
-Build a check that fails on the reported symptom and run it before the fix.
-Read relevant code, configuration and permitted diagnostic evidence to construct
-that check. When access or triggering conditions prevent reproduction, use the
-bounded investigation below and identify the missing runtime proof explicitly.
+**This is the skill.** With a tight loop that goes red on this bug, the cause
+will be found; without one, every conclusion from reading code stays
+inference. Spend disproportionate effort here.
 
-### Ways to construct one — try them roughly in this order
+### Ways to construct one, roughly in this order
 
-1. **Failing test** at the seam that reaches the bug — unit, integration, or
-   application test in the framework already used by the repository. Run the
-   discovered focused command and assert the exact symptom.
-2. **HTTP, CLI, or protocol script** against the repository's discovered local
-   boot path, diffing status, output, or response against known-good behavior.
-3. **Replay of a captured event.** Save a sanitized representative message,
-   HTTP payload or event artifact and play it through the code path in isolation.
-4. **Throwaway harness.** Spin up the smallest subset that reaches the failing
-   path, reusing the repository's existing fakes, fixtures, embedded services,
-   or container strategy where evidence supports them.
-5. **Property / fuzz loop.** If the bug is "sometimes wrong output", run 1000 random inputs and look for the failure mode.
-6. **Bisection harness.** If the bug appeared between two known states (commit, dataset, version), automate "boot at X, check, repeat" so you can `git bisect run` it.
-7. **Differential loop.** Run the same input through the old vs. the new version (or two configurations) and diff the output.
-8. **HITL bash script.** Last resort. If a human has to click/act, drive _them_ with `scripts/hitl-loop.template.sh` so the loop stays structured. Only sanitized signal output is fed back to you.
+1. **Failing test** at the seam that reaches the bug, asserting the exact
+   symptom.
+2. **HTTP, CLI or protocol script** against the local boot path, diffing the
+   response against known-good behavior.
+3. **Replay of a captured event:** a sanitized message, payload or event played
+   through the code path in isolation.
+4. **Throwaway harness:** the smallest subset of the system that reaches the
+   failing path, reusing the repository's fakes and fixtures.
+5. **Property or fuzz loop** for output that is sometimes wrong.
+6. **Bisection harness** between two known states, so `git bisect run` can
+   drive it.
+7. **Differential loop:** the same input through the old and new version, or
+   two configurations, with the outputs diffed.
+8. **Human-in-the-loop script** as a last resort: drive the person with
+   `scripts/hitl-loop.template.sh` and feed back only sanitized signal.
 
 ### Tighten the loop
 
-Treat the loop as a product. Once you have _a_ loop, **tighten** it:
+Make it faster (focused selectors, cached setup), sharper (assert the specific
+symptom, not "did not crash") and more deterministic (pinned time, seeded
+randomness, isolated state). A slower integration test can still be the right
+boundary; speed is an optimization, not an entry gate.
 
-- Can I make it faster? (Cache setup, skip unrelated initialization, use the
-  test runner's focused selector, reuse an existing fixture.)
-- Can I make the signal sharper? (Assert on the specific symptom, not "did not crash".)
-- Can I make it more deterministic? (Pin time, seed randomness, isolate mutable
-  state, and replace uncontrolled network access at an established seam.)
+For a flaky bug, raise the reproduction rate with bounded repetition,
+parallelism or narrowed timing in an isolated test environment until it is
+debuggable. Record the number of runs and failures; a few passing runs do not
+prove a flake fixed.
 
-Use the fastest reliable loop the repository supports. A slower integration
-test can be the right boundary; speed is an optimization, not an entry gate.
+### Done when the loop is red
 
-### Non-deterministic bugs
+Phase 1 is done when you can name one command you have already run, shown
+redacted, that:
 
-Measure the failure rate and seek a controlled trigger using bounded repeated
-runs, concurrency or timing controls in an isolated test environment. Record
-the number of runs and failures; a few passing runs do not prove a flake fixed.
+- drives the real failing path and asserts the user's exact symptom;
+- gives the same verdict every run, or a pinned, high failure rate;
+- is as fast as the failing boundary allows, ideally seconds;
+- runs unattended, or through the human-in-the-loop script.
 
-### When you genuinely cannot build a loop
+If you cannot build such a loop, say so, list what you tried, and ask for the
+smallest thing that would help: access to an environment that reproduces it, a
+redacted captured artifact, or permission for temporary production
+instrumentation. Meanwhile continue bounded code, configuration and permitted
+log analysis, labelled as inference; static analysis does not prove a runtime
+cause or fix. Local investigation and reversible local instrumentation within
+the task are already authorized; production changes need explicit authority.
+Missing runtime access does not block an evidence-backed local patch.
 
-State what could not be reproduced and what you tried. Continue bounded code,
-configuration and permitted log analysis to test specific explanations or
-design targeted instrumentation. Label inference and missing evidence; static
-analysis does not prove a runtime reproduction or a successful runtime fix.
+## Phase 2 — Reproduce and minimize
 
-Ask only for evidence or access needed for the next dependent step, such as
-a trace prepared within the data boundary above or an approved environment.
-Reuse existing authorization for local investigation and reversible
-instrumentation within scope. Production changes still require explicit
-authority. Lack of runtime access does not block independent analysis or an
-evidence-supported local patch.
-
-### Evidence for a reproduction claim
-
-Name the command or human-assisted steps actually run and record sanitized
-signal output. The check must exercise the real failing path and detect the
-user's exact symptom. Report determinism or measured failure rate and any
-environment limits. An unrun command is a proposed check, not reproduction
-evidence. `scripts/hitl-loop.template.sh` can structure manual steps when useful.
-
-## Phase 2 — Reproduce + minimize
-
-When a runnable loop is available, run it and confirm the observed failure.
-
-Confirm:
-
-- [ ] The loop produces the failure mode **the user** described — not some other bug that happens to be nearby. Wrong bug = wrong fix.
-- [ ] The bug is reproducible across several runs (or, for non-deterministic bugs, reproducible at a high enough rate to debug against).
-- [ ] You have captured the exact symptom (error message, wrong output, slow timing) so later phases can verify that the fix actually hits it.
-
-### Minimize
-
-Once it is red, shrink the repro to the **smallest scenario that still goes red**. Cut inputs, callers, config, data and steps **one at a time**, rerunning the loop after each cut — keep only what is load-bearing for the bug.
-
-Why bother: a minimal repro shrinks the hypothesis space in phase 3 (fewer moving parts left to suspect) and becomes the clean regression test in phase 5.
-
-Minimize enough to separate plausible causes and support a meaningful test.
-Do not delay a decisive experiment solely to obtain the smallest possible
-reproduction. Without a runnable loop, narrow the relevant code and evidence
-instead, preserving uncertainty about the runtime trigger.
+Run the loop and confirm that it shows the failure the user described, not a
+nearby one, and capture the exact symptom. Then shrink the scenario one element
+at a time, keeping only what is load-bearing: removing it turns the loop
+green. A minimal reproduction narrows the hypotheses and becomes the
+regression test. Stop once the remaining elements separate the plausible
+causes; do not delay a decisive experiment for the smallest possible
+reproduction. Without a loop, narrow the relevant code and evidence instead.
 
 ## Phase 3 — Hypothesize
 
-Rank the explanations supported by the evidence. Consider alternatives when
-the cause remains ambiguous; do not invent extra hypotheses to fill a quota.
-
-Each hypothesis must be **falsifiable**: state the prediction it makes.
-
-> Format: "If <X> is the cause, then <changing Y> will make the bug disappear / <changing Z> will make it worse."
-
-If you cannot state the prediction, the hypothesis is a gut feeling — discard it or sharpen it.
-
-Share the leading explanation and next discriminating check when useful.
-Continue authorized experiments; this progress update is not an approval gate.
+Rank 3–5 falsifiable hypotheses before testing any of them; a single
+hypothesis anchors on the first plausible idea. Give fewer when the loop
+already isolates the cause, and never invent one to fill the count. State the
+prediction for each: "If X is the cause, then changing Y makes the bug
+disappear." Show the ranked list, since the user may rule some out, and
+continue without waiting for an answer.
 
 ## Phase 4 — Instrument
 
-Each probe must map to a specific prediction from phase 3. **Change one variable at a time.**
+Map each probe to one prediction and change one variable at a time. Prefer a
+debugger or REPL, then targeted logs at the boundaries that separate the
+hypotheses; never log everything and grep. Tag every temporary log with a
+unique prefix, such as `[DEBUG-a4f2]`, so cleanup is one search.
 
-Tool preference:
+**PII boundary (Nav):** never log national identity numbers, tokens, names or
+special categories of personal data, not even in temporary debug logs. Log IDs
+and correlation fields such as `Nav-Call-Id` instead.
 
-1. **Debugger / REPL inspection** if the environment supports it. One breakpoint beats ten log lines.
-2. **Targeted logging** at the boundaries that separate the hypotheses, using
-   the repository's established logging framework.
-3. Never "log everything and grep".
-
-**Tag every debug log** with a unique prefix, e.g. `log.info("[DEBUG-a4f2] ...")`. Cleanup at the end becomes a single grep. Untagged logs survive; tagged logs die.
-
-**PII boundary (Nav):** never log national identity numbers, tokens, names or special categories of personal data — not even in temporary debug logs. Log IDs/correlation (`Nav-Call-Id`, `callId`), not personal data.
-
-**Perf branch.** For performance regressions, logs are usually the wrong tool.
-Establish a baseline with the profiler, metrics, benchmark or query-plan tooling
-already supported by the stack, then bisect. Measure first, fix afterwards. On
-a managed platform, use its approved observability tooling to establish the
-boundary before changing application code.
+For a performance regression, measure a baseline with the stack's profiler,
+metrics, benchmark or query plan, then bisect; measure before you fix.
 
 ## Phase 5 — Fix + regression test
 
-Write the regression test **before the fix** — but only if a **correct seam** exists for it.
+Write the regression test before the fix, at a **correct seam**: one where the
+test exercises the real failure pattern as it occurs at the call site. A seam
+too shallow to reproduce the chain gives false confidence. When none exists,
+you may still apply an evidence-backed fix; report the missing regression
+proof and why (architecture, fixtures, access or an unknown trigger) as a
+finding.
 
-A correct seam is one where the test hits the **real failure pattern** as it occurs at the call site. If the only available seam is too shallow (a single-caller test when the bug requires several callers, a unit test that cannot replicate the chain that triggered the bug), a regression test there gives false confidence.
-
-If no suitable seam is available, report whether the limitation is architecture,
-fixtures, access or an unknown trigger. Avoid a test that cannot catch the bug.
-An evidence-supported patch can still be prepared with the available checks;
-report the missing regression proof and the next useful verification.
-
-If a correct seam exists:
-
-1. Turn the minimized repro into a failing test at that seam.
-2. Watch it fail.
+1. Turn the minimized reproduction into a failing test at that seam.
+2. Watch it fail. If you forced the red by changing code or a fixture, diff
+   against a pristine copy to prove the change landed before you trust it.
 3. Apply the fix.
 4. Watch it pass.
-5. Run the phase 1 loop against the original (un-minimized) scenario.
+5. Rerun the Phase 1 loop against the original, unminimized scenario.
 
-Use the repository's focused test command and proportionate broader gates.
-Report commands actually run, relevant results and exit codes. Separate passing
-checks from any original runtime scenario that remains unverified.
+The regression test stays; the rest of the loop is throwaway unless it is that
+test. Run the focused tests and the repository's broader gate, and report the
+commands, results and exit codes.
 
-## Phase 6 — Cleanup + post-mortem
+## Phase 6 — Cleanup
 
 Before delivery:
 
-- Rerun the original reproduction and regression test when available; state
-  explicitly which scenarios could not be verified.
-- Remove temporary instrumentation and harnesses introduced by this task,
-  unless the user requested a diagnostic artifact for the next investigation.
-- Report the established cause or leading explanation, the patch if any,
-  checks run and remaining uncertainty. Do not call an unverified runtime
-  outcome fixed or the investigation complete when dependent work remains.
+- the original reproduction no longer reproduces;
+- the regression test passes, or the missing seam is documented;
+- all `[DEBUG-...]` instrumentation and throwaway harnesses are removed, unless
+  the user asked to keep a diagnostic artifact;
+- the established cause, or the leading explanation when it is not proven, is
+  stated in the commit, pull request or report, so the next person debugging
+  learns from it.
+
+State plainly which scenarios could not be verified, and do not call an
+unverified runtime outcome fixed.
 
 **Then ask: what would have prevented this bug?** Record the smallest useful
 follow-up after the fix, when the evidence is strongest. If the follow-up

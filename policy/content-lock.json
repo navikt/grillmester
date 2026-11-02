@@ -36,6 +36,11 @@
       "revision": "3cca18b368ae95cdbdebbff572ccafa662551015",
       "note": "Adapted independent test expectations and interface/seam vocabulary with scoped architecture exploration; other upstream workflow changes are not imported."
     },
+    "matt-quality": {
+      "repository": "mattpocock/skills",
+      "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+      "note": "Adapted the standards and spec review axes with the Fowler smell baseline as judgement calls, extended with a correctness lens; and the diagnosing-bugs red loop criteria, ranked hypotheses and forced-mutation diff check."
+    },
     "matt-testing": {
       "repository": "mattpocock/skills",
       "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
@@ -144,7 +149,8 @@
       "source": "pilot",
       "sourcePath": ".github/skills/diagnosing-bugs",
       "lineage": [
-        {"source": "matt-current", "sourcePath": "skills/engineering/diagnosing-bugs"}
+        {"source": "matt-current", "sourcePath": "skills/engineering/diagnosing-bugs"},
+        {"source": "matt-quality", "sourcePath": "skills/engineering/diagnosing-bugs"}
       ],
       "disposition": "adapted"
     },
@@ -217,7 +223,14 @@
     "prototype": {"source": "pilot", "sourcePath": ".github/skills/prototype", "disposition": "adapted"},
     "pull-request": {"source": "pilot", "sourcePath": ".github/skills/pull-request", "disposition": "adapted"},
     "readme-update": {"source": "pilot", "sourcePath": ".github/skills/readme-update", "disposition": "adapted"},
-    "review": {"source": "pilot", "sourcePath": ".github/skills/review", "disposition": "adapted"},
+    "review": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/review",
+      "lineage": [
+        {"source": "matt-quality", "sourcePath": "skills/engineering/code-review"}
+      ],
+      "disposition": "adapted"
+    },
     "security-review": {"source": "pilot", "sourcePath": ".github/skills/security-review", "disposition": "adapted"},
     "tdd": {
       "source": "pilot",

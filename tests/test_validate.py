@@ -559,19 +559,22 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("cloud activation evidence boundary")
 
     def test_diagnosing_skill_bounds_model_input_and_hitl_evidence(self) -> None:
-        skill = (
-            self.root / "plugin/skills/diagnosing-bugs/SKILL.md"
-        ).read_text(encoding="utf-8")
-        hitl = (
-            self.root
-            / "plugin/skills/diagnosing-bugs/scripts/hitl-loop.template.sh"
-        ).read_text(encoding="utf-8")
+        folder = self.root / "plugin/skills/diagnosing-bugs"
+        skill = (folder / "SKILL.md").read_text(encoding="utf-8")
+        rules = " ".join(
+            (skill + (folder / "references/data-access.md").read_text(encoding="utf-8")).split()
+        )
+        hitl = (folder / "scripts/hitl-loop.template.sh").read_text(encoding="utf-8")
 
-        self.assertIn("before output reaches the model", skill)
-        self.assertIn("auth headers, cookies, tokens", skill)
+        self.assertIn("references/data-access.md", skill)
+        self.assertIn(
+            "never fetch raw data to redact it afterwards", " ".join(skill.split())
+        )
+        self.assertIn("before the output reaches the model", rules)
+        self.assertIn("auth headers, cookies, tokens", rules)
         self.assertIn("`<REDACTED>`", skill)
-        self.assertIn("approved\nenvironment variables", skill)
-        self.assertIn("Status: NEEDS_CONTEXT", skill)
+        self.assertIn("approved environment variables", rules)
+        self.assertIn("Status: NEEDS_CONTEXT", rules)
         self.assertIn("capture_signal", hitl)
         self.assertIn("Never enter raw logs, HAR content", hitl)
         self.assertNotIn("Paste the error message", hitl)

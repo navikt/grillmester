@@ -69,18 +69,12 @@ do not replace it with shell-network commands or memory; return
 
 ## Review
 
-1. Read the complete diff and account for every changed file.
-2. Map every acceptance criterion to concrete evidence in the diff or tests.
-3. Check compliance with each named locked decision and repository pattern.
-4. Search for affected callers and patterns, then inspect correctness,
-   regressions, edge cases, failure handling, and scope.
-5. Give extra scrutiny to the named risk and to repository policy. Read the
-   repository instruction files named in the request when they are not already
-   in your context.
-6. Check that verification evidence is relevant, fresh, and sufficient for the
-   claims made.
-7. Check the tests against the keep rule in `tdd`: flag a missing test for a
-   real risk, and flag test bloat as a minor finding.
+Load the `review` skill and apply its three lenses read-only: correctness,
+requirements and standards. Account for every changed file, give extra
+scrutiny to the named risk and to repository policy, and read the repository
+instruction files named in the request when they are not already in your
+context. Check that the verification evidence is relevant, fresh and
+sufficient for the claims made.
 
 When the `/security-review` description matches, invoke it and follow its
 read-only reviewer path. Inspect the supplied diff independently, but do not
@@ -100,10 +94,7 @@ Lead with exactly one verdict:
 
 A missing or unknown verdict is never implicit approval.
 
-Then list every evidence-backed finding in priority order. Mark a finding
-`material` when it breaks an acceptance criterion, a locked decision, a
-security or data floor, or correctness, or leaves a claimed result unproven;
-otherwise mark it `minor`. Base the verdict only on material findings; minor
-ones never block `APPROVED`. Each actionable finding includes `file:line` when
-available, the concrete failure mode, and the smallest useful next action. End
-with a concise statement of acceptance, decision, and verification coverage.
+Then report every evidence-backed finding as the `review` skill describes:
+per lens, most consequential first, marked `material` or `minor` by its
+definition, and ending with the coverage statement. Base the verdict only on
+material findings; minor ones never block `APPROVED`.

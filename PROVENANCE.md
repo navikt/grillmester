@@ -389,6 +389,14 @@ and continues, asks only when the seam or the tests to keep are an unsettled
 material choice, keeps refactoring inside the loop, and separates throwaway
 feedback checks from the tests it keeps.
 
+The quality review at the same revision adapts the standards and spec axes of
+`code-review`, with a Fowler smell baseline reported as judgement calls, into
+`review`. Grillmester adds a correctness lens, keeps self-review by the writer
+as the default and uses the same lenses for its independent reviewer. It also
+adopts the red, deterministic loop criteria, 3–5 ranked hypotheses and the
+forced-mutation diff check in `diagnosing-bugs`, while keeping Nav's
+operational data-access rules and bounded analysis when no loop is possible.
+
 The observability review at `navikt/copilot` revision
 `ce9abd567a89eb72f1b8f95447435fd16fe805d3` adapts the
 `skills/observability-debugging` guidance on trace representativeness into

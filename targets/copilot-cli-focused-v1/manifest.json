@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "be23677bb0171680654757254b0e9ee755bbeba191e7fae5851d1f01c5d6b505",
+    "payloadManifestSha256": "1eb9be1c428c99d907ce8a0f352a319aac2bd9845b4e15bef21a9ba8ba03ccac",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -48,11 +48,11 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "db0efcd80b018f276a8a7f83aa7181e132fffa43c112fffcee0e7dbda39ef38c",
+      "sha256": "c0e815a244211caeabf04da70f0a2a0c83d4a942b002e381054f1171f8702e21",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "a31c635b97252d95cc8fd2a15e54d2a9ac4c1ee85c9177ce66c8318e3bccd16c",
+      "sha256": "7cda3934dc81b1bcfa8cb262a49c2a57338ed6a7c2c5c637bafa84dfb9ccae73",
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
@@ -64,7 +64,11 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "04e3b4dad3001342434591d8f3f9095803a8744678ad90e0b54c2e5caa35e1a3",
+      "sha256": "e38a6a93c1966b6400f96d8b160c986ac5ca167e3efa112c81b3d4bcd70a014e",
+      "mode": "0644"
+    },
+    "skills/diagnosing-bugs/references/data-access.md": {
+      "sha256": "fb5814efdbed2997731a1ec80318967c5d6e453290c9d99662dc3fd52b313aab",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
@@ -84,7 +88,11 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "1cc500e2b060ecd91ec7c3005aed837cab6da6d7608e42323fc3aed9eb2199fb",
+      "sha256": "8e23954567e6b8e7a3a171705099e24c7ae84a46ade0d26a7e9eb010624fc0a7",
+      "mode": "0644"
+    },
+    "skills/review/references/smells.md": {
+      "sha256": "4cc59d31d4a27a1c7c31c5a3bdca34b40b01b85cb2ffe601cb9b7c39023381d6",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
