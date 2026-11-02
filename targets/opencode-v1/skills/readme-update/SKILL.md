@@ -12,11 +12,11 @@ update. For a review request, return findings without editing files.
 
 ## Discover the documentation contract
 
-1. Locate the relevant README and consumer-owned documentation instructions.
-   Do not assume one root file or a fixed docs layout.
+1. Locate the relevant READMEs and consumer-owned documentation instructions,
+   wherever the repository keeps them.
 2. Discover the required language, audience, section conventions, ownership
    details and generated/manual boundaries.
-3. Read the existing README and preserve accurate, intentional content.
+3. Read the existing READMEs and preserve accurate, intentional content.
 4. If target, language, audience or publication scope remains ambiguous, ask.
 
 ## Build an evidence map
@@ -84,23 +84,22 @@ edit alone does not authorize those actions or contacting others. If authority
 or a material choice is missing, prepare the diff and exact target, then ask
 only for what remains unresolved.
 
-## Grenser
+## Boundaries
 
-### Alltid
+### Always
 
 - Cross-check consequential statements against current repository evidence.
 - Preserve accurate manual content.
 - Validate local links and commands proportionally to risk.
 
-### Spør når valget eller fullmakten mangler
+### Ask when a choice or authority is missing
 
 - Remove substantial manual sections whose accuracy is unresolved.
 - Choose between conflicting product descriptions or language rules.
 - Resolve a private link, owner or contact channel that cannot be verified.
 - Perform an external write beyond the user's authorized scope.
 
-### Aldri
+### Never
 
 - Invent endpoints, data stores, auth, environments, owners or dashboards.
-- Assume a framework, package, manifest or documentation path.
 - Replace a repository-specific README with a generic template.

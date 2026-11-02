@@ -15,10 +15,10 @@ contract surface: HTTP, generated clients, published libraries, Kafka events,
 and files such as OpenAPI or AsyncAPI definitions.
 
 Identify the current framework, versioning mechanism, error shape,
-serialization rules, authentication, consumers, and release gates from that
-evidence. Do not assume Ktor, Spring, path versioning, a source layout, or that
-HTTP is the repository's public contract. If the evidence is missing, ask for
-the contract owner and intended consumers before designing the change.
+serialization rules, authentication, consumers, source layout and release gates
+from that evidence, including whether HTTP is the public contract at all. If
+the evidence is missing, ask for the contract owner and intended consumers
+before designing the change.
 
 ## Define the contract and its owners
 

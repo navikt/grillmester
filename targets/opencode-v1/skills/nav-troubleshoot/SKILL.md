@@ -29,8 +29,8 @@ tests or a permitted aggregate/prepared excerpt. Mark dependent retrieval
 
 ## Establish runtime identity
 
-Do not assume environment names, namespace, app, cluster, container, repository
-or observability labels.
+Establish the environment, cluster, namespace, app, container, repository and
+observability labels from evidence before using any of them:
 
 1. Read consumer-owned deployment and operational documentation.
 2. Confirm target environment, cluster, namespace, workload/app, container and
@@ -66,8 +66,8 @@ a live command.
 
 For a deploy failure, first separate automation/build failure, Nais resource
 rejection and a successful deploy followed by runtime failure. Read the actual
-workflow and deployment status; do not assume registry, identity or manifest
-layout.
+workflow and deployment status, and the registry, identity and manifest layout
+they use.
 
 For performance, locate the bottleneck with the service's actual metrics and
 traces, then distinguish application, database, downstream dependency and
@@ -99,21 +99,21 @@ message payloads or personal data.
 - observability-setup for instrumentation design
 - diagnosing-bugs for reproduction and regression tests
 
-## Grenser
+## Boundaries
 
-### Alltid
+### Always
 
 - Verify runtime identity before querying.
 - Use actual stack and names from consumer evidence.
 - Correlate the same target and time window.
 - Verify time-sensitive platform advice against current authoritative docs.
 
-### Spør først
+### Ask first
 
 - External mutations or production-sensitive inspections not already authorized.
 - Expanding beyond the approved environment, namespace or service scope.
 
-### Aldri
+### Never
 
 - Run mutating Kubernetes, Nais, database or messaging commands implicitly.
 - Expose credentials, tokens, payloads or personal data.

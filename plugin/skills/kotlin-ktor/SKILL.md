@@ -143,7 +143,6 @@ that could not run.
 
 ### Never
 
-- Assume package names, source paths, versions, config formats, or dependencies.
 - Add framework APIs whose artifacts are absent.
 - Leak personal data, tokens, or raw bodies through logs or exception causes.
 - Start blocking work in an HTTP handler or leave owned resources unclosed.

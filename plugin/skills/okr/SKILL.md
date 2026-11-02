@@ -12,8 +12,8 @@ measurement data. Examples are available in
 
 ## Discover the goal context
 
-Do not assume a four-month (tertial) cadence, OKR format, goal document, tracker
-or project fields.
+Take the cadence, goal format, goal document, tracker and project fields from
+the team's own sources:
 
 1. Read the request and relevant consumer-owned instructions and documents.
 2. Find the team's documented goal period, terminology, adopted goals, owners,
@@ -79,8 +79,8 @@ as a suggestion:
 
 A tracker can connect work to goals, but tracker activity does not itself
 document goal attainment. Discover the project and fields dynamically if the
-team actually uses them. Do not assume that goals should become field options
-or that field names can be changed automatically.
+team actually uses them, and turn goals into field options or rename fields
+only when the user asks for it.
 
 ## Durable changes
 

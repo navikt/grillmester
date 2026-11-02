@@ -1,5 +1,5 @@
 ---
-description: "Prepare and publish a pull request for a verified, scoped change when the user asks to open or update a PR. Use `review` to assess the diff first; implementing or reviewing work alone does not authorize publication."
+description: "Prepare and publish a pull request when the user asks to open or update one. Use `review` to assess the diff first."
 ---
 
 Use the `skill` tool to load `pull-request`, then follow that skill for this request.

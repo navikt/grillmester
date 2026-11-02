@@ -46,8 +46,10 @@ sum(rate({<service_label>="<service_value>"} | json
   | <correlation_field>="<approved-id>"
 ```
 
-Do not assume JSON, field casing, a correlation key or platform label. Never
-query by personal identifier, token or raw payload.
+Read the log format and parser stage, field casing, correlation key and
+platform labels from logger configuration, existing queries, documentation or
+an approved redacted sample. Never query by personal identifier, token or raw
+payload.
 
 ## Dashboard workflow
 

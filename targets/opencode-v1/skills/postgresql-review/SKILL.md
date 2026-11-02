@@ -11,9 +11,9 @@ description: "Design or review PostgreSQL schemas, queries, transactions, migrat
 Inspect database dependencies, configuration loading, data-source construction,
 Nais manifests and replicas, Cloud SQL resources, migration tool and locations,
 schema history, query or ORM style, transaction boundaries, tests, metrics, and
-known consumers. Search by symbols and configuration keys rather than assuming
-source paths, package names, environment prefixes, HikariCP, Flyway, or one
-database per service.
+known consumers. Search by symbols and configuration keys to establish source
+paths, package names, environment prefixes, the connection pool, the migration
+tool and how many databases each service uses.
 
 For capacity claims, obtain the actual production tier, replica range,
 `max_connections`, pool settings, connection metrics, and other workloads using

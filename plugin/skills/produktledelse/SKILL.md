@@ -12,7 +12,7 @@ assumptions visible. Conclude only when the user asks you to.
 ## Discover the product context
 
 Start with the consumer repository's relevant instructions and documentation,
-but do not assume that the repository alone describes the product or team.
+and treat them as one source among several for the product and the team.
 
 Clarify as needed:
 
@@ -65,7 +65,7 @@ consumer's practices have been clarified.
 - Ask about actual behaviour: «Fortell om sist gang …»
 - Avoid hypothetical questions that only measure polite intent.
 - Suggest regular, small learning loops when the context allows it.
-- Clarify who should participate; do not assume a specific team or trio model.
+- Clarify who should participate, based on how the team actually works.
 
 ## Six product risks
 

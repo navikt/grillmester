@@ -53,8 +53,8 @@ Database failure
 ## Pool interpretation
 
 Calculate total potential connections from verified replica and pool settings,
-then include other clients and reserved headroom. Do not assume a default pool
-size, instance class or max-connections value.
+then include other clients and reserved headroom. Read the instance class and
+max-connections value from the instance or its deployed configuration.
 
 Pool timeouts can indicate:
 

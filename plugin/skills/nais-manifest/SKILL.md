@@ -10,8 +10,8 @@ description: "Create, change or review Nais Application and Naisjob deployment r
 Find existing Nais resources, environment overlays, templating, deployment
 workflows, app configuration, server startup, health and metrics routes, runtime
 type, external calls, auth, Kafka, database configuration, and production
-telemetry. Search the repository rather than assuming `.nais/`, `nais/`, file
-names, or one manifest per environment.
+telemetry. Search the repository for the manifest locations, file names and
+number of manifests per environment.
 
 Derive application name, namespace, team label, image placeholder, port, probes,
 ingress, resource values, environment variables, pools, database type, and

@@ -48,7 +48,7 @@ those fields before output reaches the model, following the
 ```
 
 Check whether the failure began after deploy, key rotation, target change or
-clock issue. Do not assume a cache implementation or renewal skew; inspect it.
+clock issue. Inspect the actual cache implementation and renewal skew.
 
 ## 403 tree
 

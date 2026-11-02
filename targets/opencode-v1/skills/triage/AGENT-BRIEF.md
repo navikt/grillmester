@@ -22,8 +22,7 @@ them.
 
 Every acceptance criterion must name an observable result and, where known, its
 verification method. Discover the repository's test, build, security,
-configuration and operational gates; do not insert a familiar command or
-platform requirement by default.
+configuration and operational gates, and name only those.
 
 ### Explicit scope
 

@@ -140,5 +140,5 @@ generated ID. If the published contract uses a payload ID instead, follow it.
 - Exercise startup and shutdown so a blocking poll exits within the pod's grace
   period.
 
-Run the repository's own test and build gates; do not assume Gradle, Kotest, or
-a specific test path.
+Run the repository's own test and build gates, with the commands and test paths
+it declares.

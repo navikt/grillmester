@@ -4,9 +4,8 @@
 
 Find the Flyway version, configured locations, naming convention, schemas,
 baseline, placeholders, repeatable migrations, transaction settings, startup
-timing, and tests. Do not assume `db/migration`, a version number sequence, or a
-per-script transaction directive. If another migration tool is in use, apply
-its actual semantics instead of these Flyway patterns.
+timing, and tests. If another migration tool is in use, apply its actual
+semantics instead of these Flyway patterns.
 
 Never edit a versioned migration already applied to a shared environment. Add a
 new forward migration and preserve a forward repair path.

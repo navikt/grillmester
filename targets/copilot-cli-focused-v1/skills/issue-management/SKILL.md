@@ -11,11 +11,12 @@ this skill owns the resulting tracker mutations.
 
 ## 1. Discover tracker context
 
-Read consumer-owned instructions and tracker documentation before using tracker
-tools. Do not assume a path or that an adapter exists. Establish the target
-repository and account, authorization boundary, issue templates, language,
-available labels and types, project mapping, and supported native
-relationships from repository evidence or read-only tracker queries.
+Read consumer-owned instructions and tracker documentation, wherever the
+repository keeps them, before using tracker tools. Establish from repository
+evidence or read-only tracker queries whether a dedicated tracker adapter file
+exists, the target repository and account, authorization boundary, issue
+templates, language, available labels and types, project mapping, and supported
+native relationships.
 
 If any fact required for the requested mutation remains ambiguous, ask the
 user. Never guess a repository, account, label, relationship, project or

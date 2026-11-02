@@ -47,10 +47,10 @@ consumer's installed Aksel version and current primary documentation. Mark
 contract cannot be verified.
 
 Use the exact configuration types, component exports, presets, props, styles,
-and import order supported by the resolved package. Do not assume names from
-this skill. Keep the survey focused on one learning objective, minimize free
-text and personal data, and provide a usable loading, success, closed, and
-failure experience.
+and import order supported by the resolved package; the package takes
+precedence over any name in this skill. Keep the survey focused on one learning
+objective, minimize free text and personal data, and provide a usable loading,
+success, closed, and failure experience.
 
 ## Keep credentials and upstream access on the server
 
