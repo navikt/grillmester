@@ -66,8 +66,8 @@ Pod fails
 | failed scheduling | exact event reason, quota and placement constraints |
 | image pull failure | resolved digest/tag and upstream build/push evidence |
 
-Do not assume a JVM heap fraction, manifest key, database proxy, auth flag,
-Kafka pool or readiness path. Discover them.
+Discover whichever of these apply from the workload: the JVM heap fraction,
+manifest keys, database proxy, auth flags, Kafka pool and readiness path.
 
 ## Mutation boundary
 

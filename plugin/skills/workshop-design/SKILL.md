@@ -24,8 +24,8 @@ at a time:
 5. **Tools and documentation:** what does the team use, who should have access,
    and what may be stored?
 
-Do not assume the team, meeting tool, collaboration surface, decision model or
-reporting requirements. Ask when facts are missing.
+Establish the team, meeting tool, collaboration surface, decision model and
+reporting requirements, and ask when facts are missing.
 
 ## The BØRA gate
 

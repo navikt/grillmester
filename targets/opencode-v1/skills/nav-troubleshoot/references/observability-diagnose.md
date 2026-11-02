@@ -2,8 +2,8 @@
 
 Use when metrics, logs and traces disagree. Discover which backends, service
 names, labels, metric names and correlation fields the consumer actually uses.
-Mimir, Loki and Tempo may be available on Nais, but do not assume all three are
-configured for the workload.
+Mimir, Loki and Tempo may be available on Nais; check which of them hold the
+workload's telemetry.
 
 ## Align scope first
 

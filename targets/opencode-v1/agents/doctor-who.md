@@ -111,8 +111,8 @@ only the missing decision; when the capability is missing, return the draft with
 
 ## Find the correct consumer and team context
 
-Do not assume the team, product area, repository, project, goal document,
-cadence, field semantics, or report format.
+Establish the team, product area, repository, project, goal document, cadence,
+field semantics and report format from these sources before relying on them:
 
 1. Start with what the user has provided and the repository where the
    conversation is running.

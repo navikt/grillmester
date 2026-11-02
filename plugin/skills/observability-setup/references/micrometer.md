@@ -54,9 +54,11 @@ Compare application behavior with deployed probes:
 - Readiness: should this instance receive its intended work now?
 - Startup: does the platform need a distinct allowance for initialization?
 
-Do not assume route names, ports or which dependencies belong in a probe.
-External dependency availability often belongs in metrics/alerts rather than
-liveness, because restarting may not help. Decide from workload semantics.
+Take route names and ports from the application and its deployed probe
+configuration. External dependency
+availability often belongs in metrics/alerts rather than liveness, because
+restarting may not help. Decide from workload semantics which dependencies
+belong in a probe.
 
 Keep checks fast, bounded and free of sensitive response detail. Validate
 failure and recovery behavior, not only the green path.

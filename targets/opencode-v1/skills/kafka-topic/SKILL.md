@@ -15,10 +15,10 @@ documentation, persistence, health checks, metrics, and tests.
 
 Determine where topics are provisioned and how they are deployed from repository
 evidence. They may live beside the application or in another owned repository.
-Do not assume a build tool, package, source path, environment variable mapping,
-consumer group, event-ID location, topic directory, or dead-letter strategy. If
-the flow has no established owner or provisioning repository, ask the user
-before creating either.
+Take the build tool, package, source path, environment variable mapping,
+consumer group, event-ID location, topic directory and dead-letter strategy
+from the same evidence. If the flow has no established owner or provisioning
+repository, ask the user before creating either.
 
 ## Detect and preserve the Kafka stack
 

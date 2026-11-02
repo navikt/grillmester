@@ -1,6 +1,6 @@
 ---
 name: architecture-review
-description: "Evaluate a consequential architecture proposal, its alternatives, migration and reversibility. Use for new services, cross-team boundaries, platform choices or costly migrations; use `improve-codebase-architecture` to discover refactoring candidates in existing code and `security-review` for security analysis."
+description: "Evaluate a consequential architecture proposal. Use for new services, cross-team boundaries, platform choices or costly migrations; use `improve-codebase-architecture` to discover refactoring candidates in existing code and `security-review` for security analysis."
 ---
 # Review architecture
 
@@ -27,9 +27,8 @@ review without pretending to replace it.
 
 Read the proposal, relevant code and contracts, repository instructions,
 existing decisions, and only the domain documentation needed for the affected
-seam. Derive the actual stack and constraints from evidence; do not assume a
-language, framework, storage technology, deployment platform, or application
-shape.
+seam. Derive the actual language, framework, storage technology, deployment
+platform, application shape and constraints from evidence.
 
 Identify:
 

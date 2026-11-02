@@ -1,6 +1,6 @@
 ---
 name: wayfinder
-description: "Organize several unresolved, dependent decisions as a persistent shared issue map when a conversation checkpoint cannot keep the route navigable across sessions. Select automatically from that need or continue an existing map; use grilling for each design decision, and ordinary planning when the direction is already settled."
+description: "Map several unresolved, dependent decisions as a shared issue map when they must stay navigable across sessions, or continue an existing map. Use `grilling` when the decisions fit one conversation and ordinary planning when the direction is settled."
 ---
 # Wayfinder
 

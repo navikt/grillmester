@@ -4,10 +4,9 @@ description: "Use when designing actionable alerts from verified service signals
 
 # Alert design
 
-Discover the current Nais alert mechanism, repository pattern, notification
-routing, owner, severities and runbook convention from authoritative docs and
-consumer evidence. Do not assume a resource kind, namespace-based routing,
-channel or severity vocabulary.
+Discover the current Nais alert mechanism and resource kind, repository pattern,
+notification routing and channel, owner, severity vocabulary and runbook
+convention from authoritative docs and consumer evidence.
 
 ## Choose symptoms, not components
 

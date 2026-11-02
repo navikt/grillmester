@@ -18,7 +18,8 @@ Establish from consumer instructions and read-only tracker metadata:
 - templates, language and required attribution
 - which authors or PR states count as intake work
 
-Do not assume paths or familiar labels. Ask when a mapping is missing.
+Use only the paths and labels this evidence establishes, and ask when a mapping
+is missing.
 
 ## Semantic outcomes
 
@@ -92,7 +93,7 @@ metadata and full comment, then ask only for what remains unresolved. Verify
 the authorized changes after writing. A request to assess an item alone does
 not authorize posting, contacting its reporter or additional cleanup.
 
-## Grenser
+## Boundaries
 
 - Always verify before declaring work ready or invalid.
 - Ask when authority for a tracker write is missing or the work expands scope.

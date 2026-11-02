@@ -18,8 +18,7 @@ preview alone does not prove a state machine or failure-handling rule.
 1. State the question, competing hypotheses, and the observation that would
    distinguish them. If the choice is user-owned, use `/grilling` first.
 2. Inspect the repository for the current language, framework, test seams, and
-   existing spike conventions. Do not assume a stack or invent a parallel
-   project layout.
+   existing spike conventions, and follow them.
 3. Define a strict time, file, and side-effect boundary. Use synthetic data and
    do not contact production systems or external services merely to increase
    fidelity.

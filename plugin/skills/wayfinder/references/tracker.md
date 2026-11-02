@@ -3,7 +3,7 @@
 Read this when inspecting or publishing a live Wayfinder map. The consumer's
 repository instructions, issue templates, contributor documentation, and
 read-only tracker metadata identify the tracker and its policy. Verify its
-actual operations; do not assume a particular API or invent missing labels.
+actual operations, and use only the labels it already has.
 
 ## Map and ticket schema
 

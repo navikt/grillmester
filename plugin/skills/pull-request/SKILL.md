@@ -1,6 +1,6 @@
 ---
 name: pull-request
-description: "Prepare and publish a pull request for a verified, scoped change when the user asks to open or update a PR. Use `review` to assess the diff first; implementing or reviewing work alone does not authorize publication."
+description: "Prepare and publish a pull request when the user asks to open or update one. Use `review` to assess the diff first."
 ---
 
 # Prepare and publish a reviewable pull request

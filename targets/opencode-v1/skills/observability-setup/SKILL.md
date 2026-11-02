@@ -11,10 +11,9 @@ traces show where time and failures occur.
 
 ## Discover current state
 
-Do not assume framework, package, paths, endpoints, metric names, labels,
-service names, environments, backends, dashboard location or alert routing.
-
-Inspect consumer evidence for:
+Take the framework, package, paths, endpoints, metric names, labels, service
+names, environments, backends, dashboard location and alert routing from
+consumer evidence. Inspect it for:
 
 - runtime, instrumentation, registry/exporter and scrape configuration
 - logger format, approved fields, language and correlation
@@ -78,22 +77,22 @@ Drafts and read-only inspection come first. Before editing code/config,
 dashboards, alerts, thresholds or routing, publishing, deploying, or running
 sensitive live queries, show the target and plan and get explicit approval.
 
-## Grenser
+## Boundaries
 
-### Alltid
+### Always
 
 - Derive names and labels from consumer evidence.
 - Tie every new signal to an operational question.
 - Protect personal data, credentials and payloads.
 - Validate that the signal is actually emitted and queryable.
 
-### Spør først
+### Ask first
 
 - New high-cardinality dimensions or retained data.
 - Dashboard, alert, routing or production-threshold changes.
 - Every external write or sensitive runtime inspection.
 
-### Aldri
+### Never
 
 - Invent service, metric, label, environment or routing names.
 - Add instrumentation with no intended consumer.

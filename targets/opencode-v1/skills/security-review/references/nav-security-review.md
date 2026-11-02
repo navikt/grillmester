@@ -36,8 +36,8 @@ document as a universal policy.
   that correlation values cannot themselves identify a person or grant access.
 - Determine audit-logging requirements from the user journey, data category,
   applicable Nav guidance, and maintained consumer policy. Audit access to or
-  changes of protected data when required; do not assume that every background
-  lookup belongs in an audit log.
+  changes of protected data when required; a background lookup needs an audit
+  entry only when those requirements call for it.
 - Keep audit events separate from ordinary logs when the approved platform
   pattern requires it. Log only necessary actor, subject reference, action,
   decision, time, and resource context; protect access and retention according
