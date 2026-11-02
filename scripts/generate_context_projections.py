@@ -84,6 +84,7 @@ OPENCODE_ABSENT_PERMISSION_SKILLS = (
     "app-sandbox-setup",
     "doctor",
     "grill-me",
+    "grill-with-docs",
     "guided-review",
     "handoff",
 )
@@ -367,6 +368,21 @@ def strip_opencode_absent_skill_permissions(text: str, *, path: str) -> str:
         return text
     for skill in OPENCODE_ABSENT_PERMISSION_SKILLS:
         text = replace_once(text, f"    {skill}: ask\n", "", path=path)
+    # A manual skill added to the full payload must also be listed above.
+    frontmatter = text.split("\n---\n", 1)[0]
+    skill_block = re.search(r"(?m)^  skill:\n((?:    .+\n)*)", frontmatter + "\n")
+    remaining = set(
+        re.findall(
+            r'(?m)^    ([a-z][a-z0-9-]*): (?:allow|ask|deny)$',
+            skill_block.group(1) if skill_block else "",
+        )
+    )
+    absent = sorted(remaining - set(EXPECTED_SKILLS))
+    if absent:
+        raise ProjectionError(
+            f"{path} keeps permission entries for skills absent from the focused "
+            f"payload: {absent}"
+        )
     return text
 
 
@@ -435,7 +451,9 @@ def apply_grillmester_focused_overlay(text: str, *, client: str, path: str) -> s
             "## Delegation\n\n"
             "Implement and investigate in this context. The only bundled subagent is\n"
             f"`{inspector}` for independent review. Give it the complete scoped diff,\n"
-            "acceptance criteria, relevant decisions, and fresh verification evidence.\n"
+            "acceptance criteria, the risk class and its reason, relevant decisions, the\n"
+            "paths of the repository instruction files that govern the change, and fresh\n"
+            "verification evidence.\n"
             "Do not invent or invoke absent agent IDs. Missing optional delegation is not\n"
             "a blocker; missing required independent review must remain explicit and may\n"
             "not be replaced by self-review.\n"

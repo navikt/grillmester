@@ -112,9 +112,9 @@ when changing an outgoing client.
   layer and keep credentials out of logs and object string representations.
 - Run Kafka polling outside request handlers. Preserve the repository's commit,
   idempotency, parking, health, and close semantics.
-- Keep storage and event-contract decisions separate from Ktor wiring and
-  record hard-to-reverse decisions through the repository's ADR process after
-  user approval.
+- Keep storage and event-contract decisions separate from Ktor wiring. If an
+  accepted hard-to-reverse decision may qualify for an ADR, propose it through
+  `domain-modeling`.
 
 ## Shut down through the framework lifecycle
 

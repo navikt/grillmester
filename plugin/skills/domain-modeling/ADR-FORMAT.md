@@ -1,9 +1,9 @@
 # ADR Format
 
-Follow an established repository ADR format when one is defined. Otherwise use
-this minimal default.
+Follow the repository's ADR location, numbering, status and language. Keep the
+content to this short format even when older ADRs in the repository are longer.
 
-ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`,
+By default, ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`,
 `0002-slug.md`, etc.
 
 Create the `docs/adr/` directory lazily — only when the first ADR is needed.

@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "7c19f470431f327ebd8139360addd27fcd88cfb4130c1464cbef54bbc2a6ccca",
+    "payloadManifestSha256": "432058f3ebda78fc41f16f4356998650305b1a1bf34c993fe8bee39db7110117",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a3b007cc7f247c2d75fc3230a7935858c1f89fd345f63c6d1be0a8d93b501cf8"
   },
@@ -48,7 +48,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "557a82dbcb5254009e1f52f170fc587306e442e3cb9183d9ce261a29ff299f52",
+      "sha256": "56fce476fbb933a03068cbb1531ed6e9ae1357cea9a8f765b6fb8123899e3a99",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
@@ -56,7 +56,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "58149a292e1b982a8dc05f58e19f173772189057f8d38c80925286a9637caf1e",
+      "sha256": "70668a701671d6a223750ec083cfc1e9ce22cdc83dc46bd1aea72162ffb25745",
       "mode": "0644"
     },
     "plugin.json": {

@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "a679276a21164d03b76c7b968ff2b1d48192fcccf7f844488ce2e29ea10e9edf",
+    "targetManifestSha256": "accea5d7820dbb84ddaa8d72d1ec72f84e13b7d851b12237b967aa4d2d223e41",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a3b007cc7f247c2d75fc3230a7935858c1f89fd345f63c6d1be0a8d93b501cf8"
   },
@@ -23,6 +23,7 @@
       "app-sandbox-setup",
       "doctor",
       "grill-me",
+      "grill-with-docs",
       "guided-review",
       "handoff"
     ]
@@ -55,7 +56,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "8ea61a91632d5c9f1a73f4903406f55fc43bcbb5fda5ce9d3a39535d6c8e8ee0",
+      "sha256": "99b158fd261f58d88e8e536f0fa62da0ce3108dbc4f28209f2657c8863d5a259",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {

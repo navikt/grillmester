@@ -58,6 +58,29 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 else:
                     self.assertIn("`grillmester:grill-inspektor`", focused)
 
+    def test_focused_agent_rejects_permission_for_an_absent_manual_skill(self) -> None:
+        manual = "".join(
+            f"    {skill}: ask\n" for skill in GENERATOR.OPENCODE_ABSENT_PERMISSION_SKILLS
+        )
+        allowed = (
+            "---\npermission:\n  skill:\n    \"*\": allow\n"
+            + manual
+            + "    review: allow\n  task:\n    \"*\": deny\n    grill-inspektor: ask\n"
+            + "---\n# Agent\n\n    nav-troubleshoot: ask\n"
+        )
+        stripped = GENERATOR.strip_opencode_absent_skill_permissions(
+            allowed, path="agents/grillmester.md"
+        )
+        self.assertIn("    grill-inspektor: ask\n", stripped)
+        self.assertIn("    nav-troubleshoot: ask\n", stripped)
+        for entry in ("wait-what: ask", "triage: deny"):
+            with self.subTest(entry=entry):
+                text = allowed.replace("    review: allow\n", f"    {entry}\n")
+                with self.assertRaisesRegex(GENERATOR.ProjectionError, entry.split(":")[0]):
+                    GENERATOR.strip_opencode_absent_skill_permissions(
+                        text, path="agents/grillmester.md"
+                    )
+
     def test_focused_grillmester_rejects_missing_shared_review_boundary(self) -> None:
         source = (
             "## Available capabilities\n\nFull catalog.\n\n"
@@ -384,6 +407,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     "app-sandbox-setup",
                     "doctor",
                     "grill-me",
+                    "grill-with-docs",
                     "guided-review",
                     "handoff",
                 ],

@@ -47,8 +47,7 @@ Useful shapes include:
 Pause when the prototype exposes a new product, architecture, security, or
 scope decision. Use `architecture-review` for architecture
 boundaries, including when the decision depends on Nav or NAIS. Use
-`domain-modeling` for qualifying durable decisions within the active task's
-documented-work boundary; preserve its eligibility and authorization gate.
+`domain-modeling` to propose an ADR when a qualifying decision emerges.
 
 ## Close the experiment
 

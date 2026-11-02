@@ -13,6 +13,7 @@ permission:
     app-sandbox-setup: ask
     doctor: ask
     grill-me: ask
+    grill-with-docs: ask
     guided-review: ask
     handoff: ask
   task: deny

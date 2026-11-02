@@ -382,6 +382,15 @@ keeps the existing source pin while applying the reviewed principles of one
 named design question, structurally distinct alternatives, comparable synthetic
 data and an explicit record of the winner, rationale and borrowed elements.
 
+The grilling review at `mattpocock/skills` revision
+`4ae2317ddb22b046e26455e4f9c9b3aaaf62212d` adapts round-based grilling over the
+decision frontier, with numbered questions worded so that "ja" accepts the
+recommendation, the thin `grill-me` and `grill-with-docs` entries, and the
+`GLOSSARY.md`/`GLOSSARY-MAP.md` convention. Grillmester reads an existing
+`CONTEXT.md` or `CONTEXT-MAP.md` in place, keeps grilling proportionate for
+settled work, and writes glossary entries or ADRs only when the user asks for
+documentation, accepts a one-line proposal, or repository policy requires it.
+
 When imported material changes, update the content lock and this document in
 the same change. Advancing a source revision means reviewing the concrete
 upstream diff; changing only the recorded pin is insufficient.

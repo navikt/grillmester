@@ -274,7 +274,7 @@ tokenisering. Kort ned discoverytekst før grensen eventuelt økes.
 
 ## Dokumentasjonskontrakt
 
-Bruk [CONTEXT.md](../CONTEXT.md) som kanonisk ordliste for prosjektspesifikke
+Bruk [GLOSSARY.md](../GLOSSARY.md) som kanonisk ordliste for prosjektspesifikke
 begreper. Arkitekturbeslutninger som er vanskelige å reversere, overraskende
 uten kontekst **og** resultat av en reell trade-off, hører hjemme som
 sekvensielt nummererte ADR-er i [`docs/adr/`](adr/). Hold hver ADR fokusert på

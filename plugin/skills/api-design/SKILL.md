@@ -71,10 +71,8 @@ the baseline through the repository's approved process.
 5. Remove the old contract only after the agreed window and after observed use
    has stopped.
 
-Record resolved contract and migration decisions through `/domain-modeling`
-when they qualify for the repository's ADR process and fall within the
-authorized task. Keep an unchosen recommendation as a candidate; do not ask
-again for a documentation route already covered by the task.
+When a resolved contract or migration decision qualifies for an ADR, propose it
+through `/domain-modeling`. Keep an unchosen recommendation as a candidate.
 
 ## Apply Nav boundaries
 

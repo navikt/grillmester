@@ -1,5 +1,5 @@
 ---
-description: "Run an explicitly requested standalone stress-test of a plan, proposal, or idea. Use when the user asks to be grilled; expose weak assumptions and resolve choices in conversation without automatically creating documentation or a decision map."
+description: "Grill a plan or idea in the conversation; writes nothing."
 ---
 
 Use the `skill` tool to load `grill-me`, then follow that skill for this request.

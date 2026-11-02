@@ -28,19 +28,21 @@ kan starte her.
 
 **Forventet leveranse:** En avgrenset endring med fersk verifikasjon og selvreview.
 Uavhengig review følger oppgavens risiko og repoets regler; for R0–R2 er den
-valgfri. Beslutningsgrunnlag, domenemodell eller ADR inngår når arbeidet trenger
-det og skrivingen er innenfor oppdraget.
+valgfri. Beslutningsgrunnlag, ordliste eller ADR foreslås i én linje når
+arbeidet trenger det, og skrives når du ber om det, sier ja eller repoets
+policy krever det.
 
 Grillmester sjekker fakta, ønsket resultat og en relevant feilcase først. Når
 retningen er avklart, fortsetter den med plan etter behov, implementering og
 verifikasjon uten et nytt intervju. Uklare mål og materielle valg undersøkes
-før arbeidet som avhenger av dem. For én sammenhengende avklaring mot repoets
-begreper og beslutninger brukes `grill-with-docs`; domenemetoden lastes når
-begreper endres eller en varig beslutning trenger vurdering. Når flere uløste
-beslutninger avhenger av hverandre og trenger en delt oversikt på tvers av
-økter, velger den `wayfinder`. Wayfinder organiserer beslutningene og bruker
-grilling, dokumentert grilling, research eller prototyper inne i hvert
-spørsmål. Størrelsen på den senere implementasjonen er ikke alene grunn til
+før arbeidet som avhenger av dem. Grillmester griller i runder: alle spørsmål
+som kan stilles nå, nummerert og med en anbefaling til hvert, slik at «ja»
+godtar anbefalingene. Begreper og beslutninger som bør skrives ned, foreslås i
+én linje og skrives først når du sier ja. Med `/grill-with-docs` ber du om at
+de skrives underveis. Når flere uløste beslutninger avhenger av hverandre og
+trenger en delt oversikt på tvers av økter, velger den `wayfinder`. Wayfinder
+organiserer beslutningene og bruker grilling, research eller prototyper inne i
+hvert spørsmål. Størrelsen på den senere implementasjonen er ikke alene grunn til
 å opprette et kart.
 
 Grillmester eier plan, implementering, tester og leveranse på alle risikonivåer
@@ -236,7 +238,7 @@ Disse grensene gjør overlappende metoder enklere å velge:
 | Behov | Metode | Avgrensning |
 | --- | --- | --- |
 | Sette opp lokal sandbox i GitHub Copilot desktop på macOS | `/app-sandbox-setup` | Kun manuelt i fullprofilen; plan først, eksplisitt bekreftelse før DB-write og verify i ny sandboxet økt. Klikkguide og bekreftet rollback; varsler om credentials, loopback og Docker. |
-| Avklare ett spørsmål mot dokumenterte begreper og beslutninger | `grill-with-docs` | Dokumenterer bare avklarte begreper og kvalifiserende beslutninger. |
+| Grille en plan og skrive ned begreper og beslutninger underveis | `/grill-with-docs` | Kun manuelt. Uten den foreslår Grillmester dokumentasjon i én linje og skriver når du sier ja. |
 | Holde flere avhengige, uløste beslutninger navigerbare over flere økter | `wayfinder` | Bruker grilling og andre metoder per spørsmål; kartet avsluttes når veien er klar. |
 | Finne hvorfor eksisterende moduler er vanskelige å endre eller teste | `improve-codebase-architecture` | Finner refaktoreringsmuligheter; `architecture-review` vurderer et konkret forslag. |
 | Vurdere tjenester, systemgrenser eller kostbare arkitekturvalg | `architecture-review` | Gir funn og beslutningskandidater; `domain-modeling` eier ADR-vurderingen. |

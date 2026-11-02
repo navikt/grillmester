@@ -173,8 +173,8 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         manifest_path = source / "targets/opencode-v1-focused/manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         removed = manifest["transformations"]["skillPermissionEntriesRemoved"]
-        self.assertNotIn("grill-with-docs", removed)
-        removed.append("grill-with-docs")
+        self.assertNotIn("grilling", removed)
+        removed.append("grilling")
         removed.sort()
         manifest_path.write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",

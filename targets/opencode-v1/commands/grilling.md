@@ -1,5 +1,5 @@
 ---
-description: "Clarify a request and challenge a plan's assumptions, requirements, and trade-offs through one question at a time. Use for unresolved intent or design choices, and as Grillmester's opening method; grill-with-docs adds durable domain documentation and Wayfinder organizes dependent decisions."
+description: "Grill the user relentlessly about a plan, decision or idea, one round of numbered questions at a time. Use for unresolved intent, assumptions or design choices, or when the user asks to be grilled."
 ---
 
 Use the `skill` tool to load `grilling`, then follow that skill for this request.

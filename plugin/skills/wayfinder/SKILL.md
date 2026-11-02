@@ -1,6 +1,6 @@
 ---
 name: wayfinder
-description: Organize several unresolved, dependent decisions as a persistent shared issue map when a conversation checkpoint cannot keep the route navigable across sessions. Select automatically from that need or continue an existing map; use grill-with-docs for each design decision, and ordinary planning when the direction is already settled.
+description: Organize several unresolved, dependent decisions as a persistent shared issue map when a conversation checkpoint cannot keep the route navigable across sessions. Select automatically from that need or continue an existing map; use grilling for each design decision, and ordinary planning when the direction is already settled.
 ---
 
 # Wayfinder
@@ -8,7 +8,7 @@ description: Organize several unresolved, dependent decisions as a persistent sh
 Chart a shared map of **decision tickets**: questions whose resolution clears
 the route to a destination, not implementation slices. Use an existing relevant
 map. Size or implementation duration alone does not justify one: use
-`grill-with-docs` for one coherent conversation and ordinary planning when the
+`grilling` for one coherent conversation and ordinary planning when the
 direction is settled. Explain the route choice briefly and continue.
 
 The destination may be a specification, a decision, or an eventual change.
@@ -18,18 +18,17 @@ already authorized it.
 
 ## Decision method
 
-- Load `grill-with-docs` through the active skill catalog for each unresolved
-  design decision. Let its shared grilling/domain method own terminology and
-  documentation eligibility; no separate documentation-mode choice is needed.
-- Resolve material user-owned choices with the user, one at a time. Reuse an
-  already settled answer; never impersonate the human side of a decision.
+- Load `grilling` for each unresolved design decision, and `domain-modeling`
+  when a term or an ADR-worthy decision is at stake.
+- Resolve material user-owned choices with the user. Reuse an already settled
+  answer; never impersonate the human side of a decision.
 - Investigate independent facts while waiting. Keep conclusions proportional
   to the evidence and record only decisions actually reached.
 - Refer to maps and tickets by their linked titles, not bare issue numbers.
 
 Choose the method that answers the current question:
 
-- **Grilling** is the default for a design decision: use `grill-with-docs`.
+- **Grilling** is the default for a design decision: use `grilling`.
 - **Research** establishes a fact a decision depends on. Delegate a bounded,
   sourced question to `grillmester:researcher` through the agent task tool.
   Independent investigations may run in parallel. The caller owns tracker
@@ -47,7 +46,7 @@ Choose the method that answers the current question:
 ## Chart or continue the map
 
 1. **Establish the destination and frontier.** Reuse an agreed destination, or
-   use documented grilling to clarify it. Explore unresolved dependencies
+   grill to clarify it. Explore unresolved dependencies
    breadth-first before going deep. If the route fits one conversation or is
    already settled, return to the lighter method instead of creating a map.
 2. **Keep the map selective.** A precise question is a ticket even when it is

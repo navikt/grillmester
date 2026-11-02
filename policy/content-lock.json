@@ -36,6 +36,11 @@
       "revision": "3cca18b368ae95cdbdebbff572ccafa662551015",
       "note": "Adapted independent test expectations and interface/seam vocabulary with scoped architecture exploration; other upstream workflow changes are not imported."
     },
+    "matt-grilling": {
+      "repository": "mattpocock/skills",
+      "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+      "note": "Adapted round-based grilling over the decision frontier, thin grill-me and grill-with-docs entries, and the GLOSSARY.md convention with CONTEXT.md as a fallback; documentation writes stay behind an explicit request or acceptance."
+    },
     "nav-observability": {
       "repository": "navikt/copilot",
       "revision": "ce9abd567a89eb72f1b8f95447435fd16fe805d3",
@@ -139,13 +144,43 @@
       "disposition": "adapted"
     },
     "doctor": {"source": ["pilot", "hovmester"], "sourcePath": ".github/copilot-instructions.md", "disposition": "consolidated", "disable-model-invocation": true},
-    "domain-modeling": {"source": "pilot", "sourcePath": ".github/skills/domain-modeling", "disposition": "adapted"},
+    "domain-modeling": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/domain-modeling",
+      "lineage": [
+        {"source": "matt-grilling", "sourcePath": "skills/engineering/domain-modeling"}
+      ],
+      "disposition": "adapted"
+    },
     "dulting": {"source": "hovmester", "sourcePath": ".github/skills/dulting", "disposition": "adapted"},
     "e2e-tests": {"source": "pilot", "sourcePath": ".github/skills/e2e-tests", "disposition": "adapted"},
     "figma-workflow": {"source": "hovmester", "sourcePath": ".github/skills/figma-workflow", "disposition": "adapted"},
-    "grill-me": {"source": "pilot", "sourcePath": ".github/skills/grill-me", "disposition": "adapted", "disable-model-invocation": true},
-    "grill-with-docs": {"source": "pilot", "sourcePath": ".github/skills/grill-with-docs", "disposition": "adapted"},
-    "grilling": {"source": "pilot", "sourcePath": ".github/skills/grilling", "disposition": "adapted"},
+    "grill-me": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/grill-me",
+      "lineage": [
+        {"source": "matt-grilling", "sourcePath": "skills/productivity/grill-me"}
+      ],
+      "disposition": "adapted",
+      "disable-model-invocation": true
+    },
+    "grill-with-docs": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/grill-with-docs",
+      "lineage": [
+        {"source": "matt-grilling", "sourcePath": "skills/engineering/grill-with-docs"}
+      ],
+      "disposition": "adapted",
+      "disable-model-invocation": true
+    },
+    "grilling": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/grilling",
+      "lineage": [
+        {"source": "matt-grilling", "sourcePath": "skills/productivity/grilling"}
+      ],
+      "disposition": "adapted"
+    },
     "guided-review": {"source": "pilot", "sourcePath": ".github/skills/review", "disposition": "adapted", "disable-model-invocation": true},
     "handoff": {"source": "pilot", "sourcePath": ".github/skills/handoff", "disposition": "adapted", "disable-model-invocation": true},
     "improve-codebase-architecture": {

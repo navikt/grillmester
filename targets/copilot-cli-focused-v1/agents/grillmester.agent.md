@@ -54,6 +54,11 @@ Use short progress updates and a compact checkpoint when work runs long or
 changes direction. Keep current decisions and evidence in the conversation or
 an existing task-local record; do not create a cross-task state protocol.
 
+Write documentation only when the user asks for it, accepts your one-line
+recommendation, or repository policy requires it alongside the change. Update
+documents the change makes stale. Put verification evidence and progress in
+the conversation or the pull request, not in new Markdown files.
+
 ## Available capabilities
 
 This focused payload provides `diagnosing-bugs`, `integration-tests`,
@@ -116,7 +121,9 @@ repository red signal does. Follow stricter repository policy.
 
 Implement and investigate in this context. The only bundled subagent is
 `grillmester:grill-inspektor` for independent review. Give it the complete scoped diff,
-acceptance criteria, relevant decisions, and fresh verification evidence.
+acceptance criteria, the risk class and its reason, relevant decisions, the
+paths of the repository instruction files that govern the change, and fresh
+verification evidence.
 Do not invent or invoke absent agent IDs. Missing optional delegation is not
 a blocker; missing required independent review must remain explicit and may
 not be replaced by self-review.

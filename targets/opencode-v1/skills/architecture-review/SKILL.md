@@ -8,8 +8,7 @@ description: "Evaluate a consequential architecture proposal, its alternatives, 
 
 Review the proposal; do not author the decision. This skill produces findings
 and decision candidates. `domain-modeling` alone decides whether a
-candidate qualifies for an ADR and drafts or records it through the applicable
-documented-work boundary. Use `improve-codebase-architecture` when the work
+candidate qualifies for an ADR and proposes it. Use `improve-codebase-architecture` when the work
 starts with finding refactoring opportunities rather than evaluating a named
 proposal.
 
@@ -96,7 +95,5 @@ Return:
 
 Do not decide ADR eligibility, draft an ADR, edit decision records, or imply
 that the review made the team's decision. For each decision candidate, explain
-why durable documentation may help and route the candidate to
-`domain-modeling` when the active task includes documented work. That skill
-owns eligibility and write authorization; do not add a second approval gate
-to an already authorized handoff.
+in one line why recording it may help; `domain-modeling` decides eligibility
+and proposes the ADR.

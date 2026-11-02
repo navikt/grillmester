@@ -5,6 +5,9 @@ date: 2026-09-09
 
 # Korte skillnavn og automatisk valg av grillflyt
 
+> Valget av grillflyt og skrivingen av domenedokumenter er delvis erstattet av
+> [ADR 0033](0033-grilling-i-runder-og-dokumentasjon-pa-foresporsel.md).
+
 ## Kontekst
 
 Prefikset `grillmester-` gjør katalogen vanskelig å skanne og har ført til

@@ -618,6 +618,7 @@ def _focused_target_files(
                 "app-sandbox-setup",
                 "doctor",
                 "grill-me",
+                "grill-with-docs",
                 "guided-review",
                 "handoff",
             ],
