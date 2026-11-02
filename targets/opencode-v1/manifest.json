@@ -91,7 +91,7 @@
       "mode": "0644"
     },
     "agents/doctor-who.md": {
-      "sha256": "e5ae119a41e724c66e66b71b4b8526733b1c58d41d3396e522a6b50d23ab91f2",
+      "sha256": "3957a7e06d4892eb1c4e05c67d21d68d21e313f1d53bd2d29125d3c3022e69ca",
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
@@ -99,7 +99,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "d7bf127f28ff16be9791ee8cfcd619c20934b5d2308c03ab4ca45247091ce07d",
+      "sha256": "2594f303075b8676c752a55904613ee2b8a5e586319caead88f6612eebb51359",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
@@ -707,7 +707,7 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "fc26fd422a32afbac82fe246e1fee806b8a2c74a12e0e918543fcfba1e6f56b2",
+      "sha256": "c4e341429a40e3e8fe0b4f5a154e9fe142f5013f9bd809d67eb08f90084acdd8",
       "mode": "0644"
     },
     "skills/kafka-topic/SKILL.md": {
@@ -871,11 +871,11 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "d641da766b3b1bce02b7e5061a0b6bb0d06e8608b6fd7f60f18b2e0f3d6ed9c1",
+      "sha256": "37abf9dc5db786d0d1508044155690de32582658ddac939ad364b2175331f696",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
-      "sha256": "1b18149fc5e793f9f5069d8ef0dbff96fe5c2e53f9a40e375937c5acce0bd153",
+      "sha256": "4201325c69733b39a015d1c6d9a8ad742fbdadaff2b4f3fae731bbef5141f091",
       "mode": "0644"
     },
     "skills/security-review/references/threat-model.md": {
