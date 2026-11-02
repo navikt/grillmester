@@ -276,9 +276,11 @@ provenance while preserving the underlying decision in #56.
 PR [#105](https://github.com/navikt/grillmester/pull/105) reviews a careful
 cleanup of duplicated sentences in the imported `designer` agent and
 `design-prototype` skill. It removes text that the skill description, the
-skill body, a branch reference or the `doctor` floor already carries, and asks
-Designer to load `design-prototype` before the actions the skill owns.
-Behavior, names, sources, imported skills and the component set are
+skill body, a branch reference or the `doctor` floor already carries, asks
+Designer to load `design-prototype` before the actions the skill owns, and
+corrects the canvas reference so that a temporary standalone sketch is no
+longer described as savable afterwards, matching ADR 0023 and the canvas
+actions. Names, sources, imported skills and the component set are
 unchanged. The rights journal binds this content and provenance while
 preserving the underlying decision in #56.
 
