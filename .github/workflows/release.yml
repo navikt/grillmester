@@ -339,6 +339,7 @@ jobs:
           node --check "${source_root}/plugin/skills/design-prototype/scripts/application-error.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/application-inspector.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/application-proxy.js"
+          node --check "${source_root}/plugin/skills/design-prototype/scripts/local-ports.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/application-server.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/application-shell.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/application-workspace.js"
@@ -361,6 +362,7 @@ jobs:
           node --check "${source_root}/scripts/smoke_visual_canvas.cjs"
           node --check "${source_root}/scripts/smoke_visual_application.cjs"
           node --check "${source_root}/scripts/smoke_visual_workbench.cjs"
+          node --check "${source_root}/scripts/visual-smoke-workers.cjs"
           node --check "${source_root}/scripts/visual-smoke-controls.cjs"
           node --test "${source_root}"/plugin/extensions/visual-companion/tests/*.test.mjs
 

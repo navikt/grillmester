@@ -1259,6 +1259,7 @@
   }
   function wholePage() {
     if ($("whole-page").disabled) return;
+    setMode("comment", { showPanel: false, announceChange: false });
     const viewport = { width: Math.max(1, frame.clientWidth), height: Math.max(1, frame.clientHeight) };
     const path = "html:nth-of-type(1) > body:nth-of-type(1)";
     void chooseTarget({ route: latestRoute, target: { tag: "body", role: "main", name: "Hele siden", text: "", path }, viewport: { ...viewport, scrollX: 0, scrollY: 0 } }, { path, role: "main", rect: { x: 0, y: 0, ...viewport }, viewport }, "Hele siden");

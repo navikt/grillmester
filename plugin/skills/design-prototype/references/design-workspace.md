@@ -195,6 +195,12 @@ working preview from a successful HTTP request alone.
 The first native delivery renders the complete app workshop inside the Copilot
 macOS app with the canvas capability. Support is client-specific; do not infer
 compatibility with every host release, other clients or a general browser transport.
+The control surface and app use separate `127.0.0.1` ports with same-site
+cookies; control actions require their own origin-bound header capability.
+Reserved app ports never become control addresses, including after closing.
+This avoids reliance on Secure cookies over HTTP or partitioned third-party
+cookies. It does not isolate cookie storage: the native host's private storage
+must still be verified, and app cookie prefixes are not a security boundary.
 The app stays
 under **Appen nå** and its proposal under **Forslag** in this
 same canvas. Deliberate Send queues the exact round to this conversation without

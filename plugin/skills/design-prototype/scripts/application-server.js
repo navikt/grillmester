@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const http = require("node:http");
 const crypto = require("node:crypto");
+const { listenLocal } = require("./local-ports.js");
 const { ApplicationWorkspace } = require("./application-workspace.js");
 const { ApplicationError } = require("./application-error.js");
 const { createApplicationProxy, validPreviewFailure } = require("./application-proxy.js");
@@ -418,14 +419,11 @@ function createApplicationServer({ projectDir, workspacePath, create = false, ti
       void handler(req, res);
     });
     const server = current.server;
-    server.once("close", () => lostView(current));
     server.requestTimeout = 20000; server.headersTimeout = 15000; server.keepAliveTimeout = 1000;
     try {
-      await new Promise((resolve, reject) => {
-        const ready = () => { server.off("error", failed); resolve(); };
-        const failed = () => { server.off("listening", ready); reject(new FeedbackError(503, "The local application view could not start.")); };
-        server.once("error", failed); server.once("listening", ready); server.listen(0, "127.0.0.1");
-      });
+      try { await listenLocal(server, { role: "control" }); }
+      catch { throw new FeedbackError(503, "The local application view could not start."); }
+      server.once("close", () => lostView(current));
       authority.assertActive(); current.origin = `http://127.0.0.1:${server.address().port}`;
       current.proposalViews = createProposalViews(current.origin);
       Object.assign(authority, { origin: current.origin, connection, preview, inspection, proposalViews: current.proposalViews,

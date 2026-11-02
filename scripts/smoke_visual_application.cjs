@@ -13,13 +13,17 @@ const options = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const flag = process.argv[i];
   if (flag === "--headed") { options.set(flag, true); continue; }
-  if (!["--playwright-module", "--browser-channel", "--evidence-dir"].includes(flag) || !process.argv[i + 1] || process.argv[i + 1].startsWith("--")) {
-    console.error("Usage: node scripts/smoke_visual_application.cjs --playwright-module PATH [--browser-channel chrome] [--evidence-dir DIRECTORY] [--headed]"); process.exit(2);
+  if (!["--playwright-module", "--browser-engine", "--browser-channel", "--evidence-dir"].includes(flag) || !process.argv[i + 1] || process.argv[i + 1].startsWith("--")) {
+    console.error("Usage: node scripts/smoke_visual_application.cjs --playwright-module PATH [--browser-engine chromium|webkit] [--browser-channel chrome] [--evidence-dir DIRECTORY] [--headed]"); process.exit(2);
   }
   options.set(flag, process.argv[++i]);
 }
-let chromium;
-try { ({ chromium } = require(options.get("--playwright-module") || "playwright")); }
+const browserEngine = options.get("--browser-engine") || "chromium";
+if (!["chromium", "webkit"].includes(browserEngine) || browserEngine !== "chromium" && options.has("--browser-channel")) {
+  console.error("Choose chromium or webkit; browser-channel is supported only with chromium."); process.exit(2);
+}
+let browserType;
+try { browserType = require(options.get("--playwright-module") || "playwright")[browserEngine]; }
 catch { console.error("Supply an existing Playwright installation. No packages were installed."); process.exit(2); }
 const evidence = options.get("--evidence-dir") && path.resolve(options.get("--evidence-dir"));
 if (evidence) fs.mkdirSync(evidence, { recursive: true });
@@ -35,6 +39,34 @@ async function check(name, action) {
   try { await action(); results.push({ name, status: "passed", durationMs: Date.now() - start }); console.log(`PASS ${name}`); }
   catch (error) { failures.push({ name, error: error.message.replace(/https?:\/\/[^\s)]+/g, "[local preview address]") }); throw error; }
 }
+function rejectSecureCookies(headers) {
+  return Object.fromEntries(Object.entries(headers).flatMap(([name, value]) => {
+    if (name.toLowerCase() === "set-cookie") {
+      const accepted = (Array.isArray(value) ? value : [value]).filter(cookie => !/;\s*Secure\s*(?:;|$)/i.test(cookie));
+      return accepted.length ? [[name, accepted]] : [];
+    }
+    return [[name, value]];
+  }));
+}
+function bootstrapResponse(url, headers) {
+  // A browser-linked request client would store Set-Cookie before filtering.
+  // Keep this request outside the browser's cookie jar and never follow the
+  // redirect: the browser must process the filtered response itself.
+  return new Promise((resolve, reject) => {
+    const request = http.get(url, { headers, agent: false }, response => {
+      const parts = []; let length = 0;
+      response.on("data", chunk => {
+        length += chunk.length;
+        if (length > 65536) request.destroy(new Error("The bootstrap response exceeded its fixture limit."));
+        else parts.push(chunk);
+      });
+      response.once("error", reject);
+      response.once("end", () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(parts) }));
+    });
+    request.setTimeout(10000, () => request.destroy(new Error("The bootstrap fixture did not respond.")));
+    request.once("error", reject);
+  });
+}
 const document = `<!doctype html><html lang="nb"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Møtedemo</title>
 <style>body{font:18px/1.5 system-ui;margin:0;background:#f7f7fa;color:#1b1b24}main{max-width:700px;padding:28px;margin:auto}h1{line-height:1.2}label{display:block;font-weight:600}button,select,input{font:inherit;padding:12px;margin:8px 0;max-width:100%}section{padding:16px;margin-top:20px;background:white;border:1px solid #b7b7c1;border-radius:8px}button{background:#0645ad;color:white;border:2px solid #0645ad;border-radius:6px}a{color:#0645ad}button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid #b05e00;outline-offset:3px}</style></head>
 <body><main><p>Oppdiktede data · Servicesenter Solvik</p><h1>Avtal et møte</h1><form id="meeting-form"><label for="meeting-type">Hvordan vil du møtes?</label><select id="meeting-type" name="meetingType" required><option value="">Velg møteform</option><option value="video">Videomøte</option><option value="office">På kontoret</option><option value="phone">Telefon</option></select><p id="meeting-help">Velg det som passer deg. Valget kan endres.</p><button type="submit">Fortsett</button><p id="form-result" role="status"></p></form><a id="next-page" href="/demo/neste?visning=ny">Se neste side</a><section aria-label="Første avtale"><h2>Første avtale</h2><button type="button" data-action="first">Velg tidspunkt</button></section><section aria-label="Andre avtale"><h2>Andre avtale</h2><button type="button" data-action="second">Velg tidspunkt</button></section><a id="outside-link" href="https://outside.invalid/fixture">Les utenfor demoen</a><button id="load-options" type="button">Hent ledige tider</button><p id="api-result" role="status"></p></main>
@@ -47,10 +79,21 @@ async function main() {
   const sockets = new Set(), messages = [];
   const app = http.createServer((request, response) => {
     if (request.url === "/demo/api") { response.writeHead(200, { "Content-Type": "application/json" }); response.end(JSON.stringify({ message: "Tre ledige, oppdiktede tider" })); return; }
+    if (request.url === "/demo/cookies") {
+      response.writeHead(200, { "Content-Type": "application/json", "Set-Cookie": "serverPreview=synthetic; HttpOnly; Secure; SameSite=None; Path=/" });
+      response.end("{}"); return;
+    }
+    if (request.url === "/demo/cookie-echo") {
+      const cookies = String(request.headers.cookie || "").split(/;\s*/);
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ server: cookies.includes("serverPreview=synthetic"), script: cookies.includes("clientPreview=synthetic"), privateCookie: cookies.some(cookie => cookie.startsWith("dv_")) })); return;
+    }
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); response.end(fs.readFileSync(sourceFile, "utf8"));
   });
   app.on("connection", socket => { sockets.add(socket); socket.once("close", () => sockets.delete(socket)); });
-  let browser, context, htmlContext, adapter, page;
+  let browser, context, htmlContext, adapter, page, browserVersion;
+  const bootstrapCookies = new Map(); let bootstrapCount = 0;
+  assert.deepEqual(rejectSecureCookies({ "Set-Cookie": ["secure=synthetic; Secure; SameSite=None", "plain=synthetic; SameSite=Strict"] }), { "Set-Cookie": ["plain=synthetic; SameSite=Strict"] });
   try {
     await new Promise((resolve, reject) => { app.once("error", reject); app.listen(0, "127.0.0.1", resolve); });
     const { createCanvasAdapter, CANVAS_ID } = await import(pathToFileURL(path.resolve(__dirname, "../plugin/extensions/visual-companion/adapter.mjs")).href);
@@ -63,7 +106,8 @@ async function main() {
     const temporaryView = await adapter.canvas.open({ ...temporaryIdentity, input: { application } });
     const allowedOrigins = new Set([new URL(application.url).origin]);
     async function allowView(view) { allowedOrigins.add(new URL(view.url).origin); }
-    browser = await chromium.launch({ headless: !options.has("--headed"), ...(options.has("--browser-channel") ? { channel: options.get("--browser-channel") } : {}) });
+    browser = await browserType.launch({ headless: !options.has("--headed"), ...(options.has("--browser-channel") ? { channel: options.get("--browser-channel") } : {}) });
+    browserVersion = browser.version();
     context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce", serviceWorkers: "block" });
     const localRequest = route => {
       const url = new URL(route.request().url());
@@ -72,6 +116,23 @@ async function main() {
       external.push(url.origin); return route.abort();
     };
     await context.route("**/*", localRequest);
+    const bootstrapPattern = /\/\.designverksted\/[a-f0-9]{24}\/open\/[^/?]+$/;
+    const recordBootstrap = (origin, cookies) => {
+      const auth = cookies.find(cookie => /^dv_preview_[a-f0-9]{24}_auth=/.test(cookie));
+      if (auth) { bootstrapCookies.set(origin, auth.slice(0, auth.indexOf("="))); bootstrapCount++; }
+    };
+    if (browserEngine === "chromium") {
+      await context.route(bootstrapPattern, async route => {
+        const request = route.request(), url = new URL(request.url());
+        assert.equal(url.protocol, "http:"); assert(allowedOrigins.has(url.origin));
+        assert.equal(request.method(), "GET");
+        const response = await bootstrapResponse(url, await request.allHeaders());
+        assert.equal(response.status, 303);
+        recordBootstrap(url.origin, response.headers["set-cookie"] || []);
+        const headers = Object.fromEntries(Object.entries(rejectSecureCookies(response.headers)).map(([name, value]) => [name, Array.isArray(value) ? value.join(name === "set-cookie" ? "\n" : ", ") : String(value)]));
+        await route.fulfill({ ...response, headers });
+      });
+    }
     await context.routeWebSocket("**/*", socket => socket.close());
     await context.addInitScript(() => {
       window.__viewEvidence = [];
@@ -87,7 +148,7 @@ async function main() {
       const response = await route.fetch();
       if (response.ok()) {
         const value = await response.json(), previewOrigin = new URL(value.previewOrigin);
-        assert.equal(previewOrigin.protocol, "http:"); assert.equal(previewOrigin.hostname, "localhost");
+        assert.equal(previewOrigin.protocol, "http:"); assert.equal(previewOrigin.hostname, "127.0.0.1");
         allowedOrigins.add(previewOrigin.origin);
       }
       await route.fulfill({ response });
@@ -148,6 +209,60 @@ async function main() {
       await preview.getByRole("heading", { name: "Avtal et møte", exact: true }).waitFor();
       await until(async () => (await action("read_state")).application?.route === "/demo/mote?visning=ny", "start route retained");
       assert.equal(await preview.locator("#meeting-type").inputValue(), "");
+    });
+    await check("preview and application cookies work without Secure HTTP cookie support", async () => {
+      const origin = await preview.locator("body").evaluate(() => location.origin);
+      const bootstrap = new URL(await page.locator("#app-preview").getAttribute("src"));
+      const identity = /^\/\.designverksted\/([a-f0-9]{24})\/open\//.exec(bootstrap.pathname);
+      assert(identity, "the app iframe retains its private bootstrap address");
+      const authName = `dv_preview_${identity[1]}_auth`;
+      if (browserEngine === "chromium") {
+        assert(bootstrapCount >= 2, "every opening uses the cookie-policy fixture");
+        assert(bootstrapCookies.get(origin) === authName, "the current preview used the filtered bootstrap");
+      }
+      // WebKit cannot fulfil an intercepted 303. Its run uses the unmodified
+      // redirect and checks the actual cookie store instead of filtering it.
+      const auth = (await context.cookies(origin)).find(cookie => cookie.name === authName);
+      assert(auth, "the browser accepted the preview bootstrap cookie");
+      assert.equal(auth.domain, "127.0.0.1"); assert.equal(auth.httpOnly, true);
+      assert.equal(auth.secure, false); assert.equal(auth.sameSite, "Strict");
+      const result = await preview.locator("body").evaluate(async () => {
+        await fetch("/demo/cookies");
+        document.cookie = "clientPreview=synthetic; Path=/; Secure; SameSite=None";
+        return { echo: await (await fetch("/demo/cookie-echo")).json(), scriptCookie: document.cookie };
+      });
+      assert.deepEqual(result.echo, { server: true, script: true, privateCookie: false });
+      assert.equal(result.scriptCookie, "clientPreview=synthetic", "app scripts cannot read private or HttpOnly cookies");
+      const appCookies = (await context.cookies(origin)).filter(cookie => /^dv_app_[a-f0-9]{24}_(?:serverPreview|clientPreview)$/.test(cookie.name));
+      assert.equal(appCookies.length, 2);
+      assert(appCookies.every(cookie => cookie.domain === "127.0.0.1" && cookie.sameSite === "Strict" && !cookie.secure));
+      assert.equal(appCookies.find(cookie => cookie.name.endsWith("serverPreview")).httpOnly, true);
+    });
+    await check("whole-page feedback can restart after discarding a draft without selecting a mode again", async () => {
+      const originalWorkspace = fs.readFileSync(workspaceFile, "utf8");
+      for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 568 }, { width: 640, height: 400 }]) {
+        await page.setViewportSize(viewport);
+        await page.locator("#mode-change").click(); await page.locator("#whole-page").click();
+        await page.locator("#comment-text").fill("Et utkast som skal forkastes.");
+        await page.locator("#clear-draft").click();
+        assert.equal(await page.locator("#mode-change").getAttribute("aria-pressed"), "false");
+        assert.equal(await page.locator("#whole-page").isEnabled(), true);
+        assert.equal(await page.evaluate(() => document.activeElement.id), "whole-page");
+        if (viewport.width === 1280) await page.locator("#whole-page").click();
+        else await page.keyboard.press("Enter");
+        await page.locator("#comment-text").waitFor({ state: "visible" });
+        assert.equal(await page.evaluate(() => document.activeElement.id), "comment-text");
+        assert.equal(await page.locator("#target-label").textContent(), "Hele siden");
+        assert.equal(await page.locator("#comment-text").inputValue(), "");
+        await page.locator("#comment-text").fill("Et nytt innspill til hele siden.");
+        assert.equal(await page.locator("#send-comment").isEnabled(), true);
+        assert.equal(await page.locator("#mode-change").getAttribute("aria-pressed"), "false", "the app remains usable while writing");
+        if (evidence) await page.screenshot({ path: path.join(evidence, `whole-page-restart-${viewport.width}x${viewport.height}.png`) });
+        await page.locator("#clear-draft").click(); await browse();
+      }
+      await page.setViewportSize({ width: 1280, height: 800 });
+      assert.equal(fs.readFileSync(workspaceFile, "utf8"), originalWorkspace, "choosing and discarding never saves or sends feedback");
+      assert.equal(messages.length, 0);
     });
     await check("diagnostic messages require the current iframe, origin, epoch and view", async () => {
       await until(async () => (await action("read_state")).application.previewStatus.state === "ready", "current view ready");
@@ -844,7 +959,7 @@ async function main() {
     for (const socket of sockets) socket.destroy();
     if (app.listening) await new Promise(resolve => app.close(resolve));
     fs.rmSync(temporary, { recursive: true, force: true });
-    if (evidence) fs.writeFileSync(path.join(evidence, "results.json"), JSON.stringify({ fixture: "synthetic application", scope: "Actual Chrome and adapter/backend; simulated host replies, no native application or model calls.", results, failures, externalOrigins: [...new Set(external)], unhandledScriptErrors: errors, zoomNote: "640x400 is a small CSS viewport, not a claim of actual 200% browser zoom." }, null, 2) + "\n");
+    if (evidence) fs.writeFileSync(path.join(evidence, "results.json"), JSON.stringify({ fixture: "synthetic application", browserEngine, browserVersion, scope: `Actual ${options.get("--browser-channel") || browserEngine} and adapter/backend; ${browserEngine === "chromium" ? "Secure HTTP bootstrap cookies rejected before browser storage" : "unmodified HTTP redirects and browser cookie storage"}; deterministic host replies.`, results, failures, externalOrigins: [...new Set(external)], unhandledScriptErrors: errors, zoomNote: "640x400 is a small CSS viewport, not a claim of actual 200% browser zoom." }, null, 2) + "\n");
   }
 }
 main().catch(error => { console.error(error.message.replace(/https?:\/\/[^\s)]+/g, "[local preview address]")); process.exitCode = 1; });

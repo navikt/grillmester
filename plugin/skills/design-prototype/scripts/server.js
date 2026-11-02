@@ -24,6 +24,7 @@ const { FeedbackStore, FeedbackError, FeedbackMutationReceipts, MAX_BODY_BYTES, 
 const { CanvasState } = require("./canvas-state.js");
 const { createHtmlEmbedding, renderEmbeddingBootstrap } = require("./html-embedding.js");
 const { createHtmlInspection } = require("./html-inspection.js");
+const { listenLocal, isApplicationPort } = require("./local-ports.js");
 const { WorkspaceStore, validWorkspacePath } = require("./workspace-store.js");
 const { WorkspaceState, validWorkspaceState, screenIdentity } = require("./workspace-state.js");
 const { promoteTemporaryWorkspace } = require("./workspace-promotion.js");
@@ -307,6 +308,9 @@ if (!isLoopbackHost(host)) {
 const requestedPort = Number(getArg("port", "0"));
 if (!Number.isInteger(requestedPort) || requestedPort < 0 || requestedPort > 65535) {
   failCli("--port must be an integer from 0 through 65535.");
+}
+if (isApplicationPort(requestedPort)) {
+  failCli("Ports 20000 through 29999 are reserved for application previews. Choose another --port or use 0.");
 }
 const idleTimeoutMinutes = Number(
   getArg("idle-timeout-minutes", String(DEFAULT_IDLE_TIMEOUT_MINUTES)),
@@ -1861,13 +1865,19 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("exit", cleanupActiveSession);
 
-server.on("error", (error) => {
+function serverError(error) {
   cleanupActiveSession();
   console.error(
     JSON.stringify({ type: "error", message: `Server failed: ${error.message}` }),
   );
   process.exit(1);
-});
+}
+
+async function listenControl(port = 0) {
+  server.off("error", serverError);
+  try { await listenLocal(server, { role: "control", port, host: normalizeHost(host) }); }
+  finally { server.on("error", serverError); }
+}
 
 function serverInfo() {
   const address = server.address();
@@ -2058,11 +2068,7 @@ async function canvasCommand(method, params) {
     const openingGeneration = viewGeneration;
     if (!server.listening) {
       accessToken = crypto.randomBytes(32).toString("base64url"); tokenBuffer = Buffer.from(accessToken);
-      await new Promise((resolve, reject) => {
-        const error = value => { server.off("listening", ready); reject(value); };
-        const ready = () => { server.off("error", error); resolve(); };
-        server.once("error", error); server.once("listening", ready); server.listen(0, normalizeHost(host));
-      });
+      await listenControl();
     }
     if (openingGeneration !== viewGeneration) {
       revokeView();
@@ -2101,11 +2107,10 @@ if (canvasMode) {
   process.once("disconnect", () => shutdown("canvas-disconnected"));
 }
 
-server.listen(requestedPort, normalizeHost(host), () => {
-  const info = serverInfo();
-  console.log(JSON.stringify(info));
-  canvasEvent({ event: "ready", info });
-});
+await listenControl(requestedPort);
+const info = serverInfo();
+console.log(JSON.stringify(info));
+canvasEvent({ event: "ready", info });
 }
 
 void runPreview().catch(error => {

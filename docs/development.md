@@ -118,6 +118,7 @@ node --check plugin/skills/design-prototype/scripts/application-contract.js
 node --check plugin/skills/design-prototype/scripts/application-error.js
 node --check plugin/skills/design-prototype/scripts/application-inspector.js
 node --check plugin/skills/design-prototype/scripts/application-proxy.js
+node --check plugin/skills/design-prototype/scripts/local-ports.js
 node --check plugin/skills/design-prototype/scripts/application-server.js
 node --check plugin/skills/design-prototype/scripts/application-shell.js
 node --check plugin/skills/design-prototype/scripts/application-workspace.js
@@ -134,6 +135,7 @@ node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
 node --check scripts/smoke_visual_canvas.cjs
 node --check scripts/smoke_visual_application.cjs
 node --check scripts/smoke_visual_workbench.cjs
+node --check scripts/visual-smoke-workers.cjs
 node --check scripts/visual-smoke-controls.cjs
 node --test plugin/extensions/visual-companion/tests/*.test.mjs
 python3 scripts/smoke_plugin_install.py

@@ -93,8 +93,15 @@ ikke sende innspill. Den starter fra publiserte standardverdier og dokumenterer
 ikke brukerens levende canvas-tilstand. Se
 [ADR 0031](adr/0031-skrivebeskyttet-skisseinspeksjon.md).
 
-Kontrollflaten bruker eksakt `127.0.0.1:<port>` og appiframe eksakt
-`localhost:<port>`, med bare loopbacklyttere. Appen får aldri kontrolltoken.
+Kontrollflaten og appiframe bruker eksakt `127.0.0.1` på forskjellige porter,
+med bare loopbacklyttere. De har separate origins, men samme nettsted.
+Appens transportcookie er vertsbundet, `HttpOnly` og `SameSite=Strict`;
+transporten krever ikke `Secure`-cookies på HTTP eller partisjonerte cookies.
+Kontroll-API-ene krever sin egen headernøkkel og eksakt Origin, og godtar aldri
+cookies som myndighet. Appproxyer bruker portområdet 20000–29999;
+kontrollflater og skisseinspeksjon avviser disse portene. En lagret appworker
+kan derfor ikke overta en senere kontrolladresse. Appen får aldri kontrolltoken. Se
+[ADR 0032](adr/0032-samme-nettsted-for-lokal-appvisning.md).
 En åpen instans beholder én oppstrømsapp, proxylytter og origin. Iframe-retry
 er samme kontekst og kan beholde cookies og worker; det er ikke en ny
 lagringskontekst. Lukking, backendtap eller tap av en eid lytter pensjonerer
@@ -103,7 +110,9 @@ en ny instans. Kontrollskall-reload overtar ikke den aktive skriveren.
 
 Dette bygger på observerte nativekontekster, ikke en offentlig SDK-garanti for
 lagringspartisjonering. Canvasstøtte alene beviser ikke slik isolasjon.
-Separate porter isolerer ikke cookies, og portgjenbruk kan arve workers.
+Separate porter isolerer ikke cookies, og gjenbruk av appporter kan arve appworkers.
+Navneprefikset for appcookies tilpasser videresendingen; det isolerer ikke
+apper som deler nettleserdatalager.
 Den private nativeadressen skal derfor aldri åpnes i en vanlig delt nettleser.
 Ekstern nettlesertransport inngår ikke i den første nativeleveransen, og det
 finnes ingen automatisk fallback. En eventuell senere nettleserflate krever
