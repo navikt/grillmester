@@ -257,6 +257,12 @@ the shorter `handoff`. It changes no Hovmester-imported component. The rights
 journal binds the changed content lock and this provenance record while
 preserving the underlying decision in #56.
 
+PR [#101](https://github.com/navikt/grillmester/pull/101) reviews the
+user-invoked `agent-retro`, `wait-what` and `to-questionnaire` skills and the
+context-pointer rules in `create-a-skill`. It changes no Hovmester-imported
+component. The rights journal binds the changed content lock and this
+provenance record while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,

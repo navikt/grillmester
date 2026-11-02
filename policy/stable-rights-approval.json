@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-02",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#100",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#101",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-02",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#100",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#101",
       "status": "approved"
     }
   },
@@ -41,11 +41,11 @@
         "workshop-design": "0418cfc368605512456838621833a375ffda1f0bbdff939491d6c0271ed2af7d"
       }
     },
-    "contentLockSha256": "df7e887deee7f4ae0bd3b7644e89dfe1fe5f4a0813edca82b02c81b9f46cbf0b",
+    "contentLockSha256": "9259e537c963106f08ac3b7f6d8c739ca9cd36e8bfe08493a7279af181246d29",
     "hovmester": {
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "5fc1ac877ac90893e2e589af8b73ab6825e93787bf7c1f3c8eac0d942d3e5c45"
+    "provenanceSha256": "3d229604bfc9fd97f88237aef84961b1e13afd1368be2eb11ae365300cc7d939"
   }
 }
