@@ -1,135 +1,82 @@
 ---
 name: tdd
-description: "Develop behavior in small red-green-refactor cycles through public interfaces. Use for requested test-first development or a confirmed bug requiring a failing regression test; use `diagnosing-bugs` to find an unclear cause and `integration-tests` or the repository's full-system test workflow to choose the test boundary."
+description: "Build or fix behavior test-first with few, well-placed tests. Use when writing or adding unit, integration, end-to-end (e2e) or regression tests, or building a feature or fixing a bug test-first; use `diagnosing-bugs` when the cause is unclear."
 ---
 # Test-driven development
 
 > **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
-TDD determines the order of development, not how much of the system a test
-boots. Use `integration-tests` for a real adapter boundary and the repository's full-system test workflow
-when the assembled application must run; either boundary can support a TDD
-cycle. Ordinary test creation does not require a full TDD workflow.
+TDD is the red → green loop: a failing test, then the least code that makes it
+pass. This skill keeps the loop tight and the kept tests few and well placed.
+Use the repository's test framework, naming, fixtures and commands; find them
+in neighboring tests, build files and CI.
 
-See [tests.md](tests.md) for examples and [mocking.md](mocking.md) for when and how to mock system boundaries.
+## Plan the tests first
 
-## Anti-pattern: horizontal slices
+Before the first test, write a short test plan: the **seam** you test at and
+the tests you intend to keep, one line each with what the test catches and what
+it misses. Choose the highest seam that is still fast enough for the loop; the
+ideal is one seam per feature. [test-boundaries.md](test-boundaries.md) helps
+choose between the module interface, a real adapter and the running
+application.
 
-**DO NOT write all the tests first and then all the implementation.** That is "horizontal slicing" — treating RED as "write all the tests" and GREEN as "write all the code".
+State the plan and continue; starting a TDD cycle needs no approval. Ask only
+when the seam or the tests to keep are an unsettled material choice, such as a
+new test harness, an end-to-end test, or a listed risk you propose to leave
+untested, and then inside an open grilling round if there is one.
 
-It produces bad tests:
+## Keep only tests worth keeping
 
-- Tests written in bulk test *imagined* behavior, not *actual* behavior.
-- You end up testing the *shape* of things (data structures, function signatures) instead of user-facing behavior.
-- The tests become insensitive to real changes — they pass when behavior breaks and fail when everything is fine.
-- You lock yourself into a test structure before you understand the implementation.
+The loop and the kept tests are different things. Use typechecks, focused runs
+and throwaway checks freely while you work, and keep a test only when it
+protects one of these:
 
-```
-WRONG (horizontal):
-  RED:   test1, test2, test3, test4, test5
-  GREEN: impl1, impl2, impl3, impl4, impl5
+- an acceptance criterion;
+- a real risk: access control, personal data, money or benefits, an external
+  contract, input validation, or data loss or duplication (migrations,
+  idempotency, concurrency);
+- a non-obvious rule or state transition;
+- a fixed bug, whose regression test always stays.
 
-RIGHT (vertical):
-  RED→GREEN: test1→impl1
-  RED→GREEN: test2→impl2
-  RED→GREEN: test3→impl3
-```
+Extend an existing test or add a row to a table-driven test before creating a
+new test file. Checklists in other skills list cases to verify, not tests to
+keep: handle them in the code, and keep a test only when it meets the list
+above. Delete throwaway checks before delivery, and leave existing tests in
+place unless the user asks to change them.
 
-**The right approach**: vertical slices via tracer bullets. One test → one implementation → repeat. Each test answers what you just learned from the previous cycle.
+Use synthetic data in tests; never real personal data, such as a fødselsnummer,
+or secrets.
 
-## Workflow
+## What a good test is
 
-### 1. Plan
+A good test verifies behavior through a public interface, so the code can
+change while the test stays. See [tests.md](tests.md) for patterns and
+[mocking.md](mocking.md) for mocking only at system boundaries.
 
-If you are following a plan or task brief from the calling workflow, stick to
-the behaviors there. Use domain vocabulary or binding decisions when the
-repository exposes them, but do not depend on a particular documentation path.
+Avoid:
 
-Discover the test contract before writing: inspect neighboring tests, build
-manifests, runner configuration, scripts and CI. Record the framework, test
-style, public seam, focused command, broader gate and fixture conventions. Do
-not assume Gradle, Kotest, Ktor, Jest, Vitest, pytest, containers or any other
-stack choice until repository evidence establishes it.
+- **Implementation-coupled tests:** mocking internal collaborators, testing
+  private methods, or checking a side channel instead of the interface.
+- **Tautological tests:** an expected value computed the way the code computes
+  it. Take expected values from an independent source: a literal, a worked
+  example or the spec.
+- **Horizontal slicing:** writing all tests first and then all code. Work one
+  vertical slice at a time.
+- **Test bloat:** near-duplicate tests, one test per trivial edge case, tests
+  of trivial code, and snapshots nobody reads.
 
-Identify the public interface and list the observable behaviors to prove, using
-the existing brief and repository contract. Prioritize critical paths and
-complex logic such as authorization, validation and state transitions. Prefer
-a small interface that can be tested without exposing internal collaborators.
+## Rules of the loop
 
-An agreed brief or a concrete request to add a regression test and fix the bug
-is sufficient to begin. Ask only about material behavior or interface choices
-that remain unresolved; starting a TDD cycle does not require another approval.
+- **Red before green.** Watch the new test fail for the right reason, then
+  write only enough code to pass it. For behavior that already exists, show
+  that each new test can fail, for example by briefly breaking the code, before
+  trusting it.
+- **One slice at a time.** One behavior, one test, one minimal change.
+- **Refactor only when green**, using [refactoring.md](refactoring.md), and
+  rerun the focused tests after each step.
+- **Bug fixes start red.** Reproduce the bug in one test at the seam where it
+  actually happens, then fix it.
 
-### 2. Tracer bullet
-
-Write ONE test that confirms ONE thing end-to-end through the public interface:
-
-```
-RED:   Write a test for the first behavior → fails
-GREEN: Minimal code to make it pass → passes
-```
-
-For a new entry point, choose the thinnest production-shaped test supported by
-the detected stack. It should prove that the entry point, composition and
-observable response or outcome hang together without locking the test to
-internal collaborators.
-
-### 3. Incremental loop
-
-For each remaining behavior:
-
-```
-RED:   Next test → fails
-GREEN: Minimal code → passes
-```
-
-Rules:
-
-- One test at a time
-- Only enough code to pass the current test
-- Do not anticipate future tests
-- Keep the tests on observable behavior
-
-Run the discovered focused command while you work:
-
-```bash
-<focused-test-command>
-echo "exit: $?"
-```
-
-A GREEN claim needs an actual passing run against the relevant code state.
-Report the command, result and exit code. Reuse that evidence while the code and
-relevant environment remain unchanged; rerun affected checks after changes.
-An unrun check remains UNVERIFIED.
-
-### 4. Refactor
-
-When all tests pass, look for [refactoring candidates](refactoring.md):
-
-- [ ] Extract duplication
-- [ ] Deepen modules — move complexity behind simple interfaces
-- [ ] Apply SOLID where it falls naturally
-- [ ] Consider what the new code reveals about existing code
-- [ ] Run the tests after each refactoring step
-
-**Never refactor while RED.** Get to GREEN first.
-
-When the implementation is done and green, return the command that was run and
-the result to the calling workflow so it can close the verification phase.
-
-## Checklist per cycle
-
-```
-[ ] Test describes behavior, not implementation
-[ ] Test uses only the public interface
-[ ] Test would have survived internal refactoring
-[ ] Code is minimal for this test
-[ ] No speculative features added
-[ ] GREEN supported by a passing run against the current relevant code state
-```
-
-## Bug fixing is TDD
-
-A bug fix starts with a **reproduction test**: write a test that fails because the bug exists (RED), then fix until it turns green (GREEN). That way you have both proven the bug and prevented regression. Never write the fix first.
-
-For a bug that is hard to reproduce (flaky, timing- or environment-dependent): start with `diagnosing-bugs` to build a tight, red-capable repro loop first — the reproduction test here is then the minimized loop.
+Run the focused tests while you work and the repository's broader test gate
+before reporting done. Report the commands, their results and exit codes; an
+unrun check is unverified.

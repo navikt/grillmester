@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 44 skills. The sources below record attribution
+`plugin/`: six agents and 42 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -86,13 +86,16 @@ flow, including implementation at every risk level.
 Imported skills:
 
 - `api-design`, `architecture-review`, `auth-overview`, `create-a-skill`,
-  `diagnosing-bugs`, `domain-modeling`, `e2e-tests`, `grill-me`,
+  `diagnosing-bugs`, `domain-modeling`, `grill-me`,
   `grill-with-docs`, `grilling`, `handoff`,
-  `improve-codebase-architecture`, `integration-tests`, `issue-management`,
+  `improve-codebase-architecture`, `issue-management`,
   `kafka-topic`, `klarsprak`, `kotlin-ktor`, `nais-manifest`,
   `nav-troubleshoot`, `observability-setup`, `postgresql-review`, `prototype`,
   `pull-request`, `readme-update`, `review`, `security-review`, `tdd`,
   `to-issues`, `to-spec`, `triage`, `wayfinder`
+
+The pilot's `integration-tests` and `e2e-tests` skills are consolidated into
+`tdd/test-boundaries.md`; `tdd` is their runtime successor.
 
 `guided-review` is a Grillmester adaptation of the pilot review boundary. It
 keeps complete diff coverage and deterministic evidence while adding a
@@ -370,8 +373,15 @@ outcomes independently of the implementation, precise interface/seam vocabulary
 from `codebase-design`, and scoped exploration from `improve-codebase-architecture`.
 Grillmester retains its
 red-green-refactor cycle, existing task authorization and repository test seams.
-It does not import upstream's mandatory seam approval or move refactoring to a
-separate review workflow, or require two adapters as proof of every refactoring.
+It does not move refactoring to a separate review workflow or require two
+adapters as proof of every refactoring.
+
+The testing review at `mattpocock/skills` revision
+`4ae2317ddb22b046e26455e4f9c9b3aaaf62212d` adds a seam-first test plan in which
+each kept test states what it catches and misses. Grillmester states the plan
+and continues, asks only when the seam or the tests to keep are an unsettled
+material choice, keeps refactoring inside the loop, and separates throwaway
+feedback checks from the tests it keeps.
 
 The observability review at `navikt/copilot` revision
 `ce9abd567a89eb72f1b8f95447435fd16fe805d3` adapts the

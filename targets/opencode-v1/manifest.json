@@ -20,8 +20,8 @@
     "agents": 6,
     "primaryAgents": 3,
     "subagents": 3,
-    "skills": 44,
-    "commands": 44
+    "skills": 42,
+    "commands": 42
   },
   "skillCapabilities": {
     "accessibility-review": "native",
@@ -36,7 +36,6 @@
     "doctor": "overlay",
     "domain-modeling": "native",
     "dulting": "native",
-    "e2e-tests": "native",
     "figma-workflow": "native",
     "grill-me": "native",
     "grill-with-docs": "native",
@@ -44,7 +43,6 @@
     "guided-review": "native",
     "handoff": "native",
     "improve-codebase-architecture": "native",
-    "integration-tests": "native",
     "issue-management": "native",
     "kafka-topic": "native",
     "klarsprak": "native",
@@ -97,11 +95,11 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "cfd41d2ef56d0993ad3d74a1029cbeb19f6683ae36921b970367c913a492586e",
+      "sha256": "886b70365adb82a7806715abaec9c96f844db09f467e2434f50714baf1b34655",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "658050204ce6770ecf6a1b4ac0c05bf5684e0a6842125c583b8cce966b5b07ae",
+      "sha256": "d7bf127f28ff16be9791ee8cfcd619c20934b5d2308c03ab4ca45247091ce07d",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
@@ -160,10 +158,6 @@
       "sha256": "709187ca644c1ceeb912648c110501e83ac06443221776337e4397c982b00151",
       "mode": "0644"
     },
-    "commands/e2e-tests.md": {
-      "sha256": "42d67e5a1247be7f4166f46cdef934f17a5f46ad335e9b77e0279027de8b04cf",
-      "mode": "0644"
-    },
     "commands/figma-workflow.md": {
       "sha256": "3bd4addf7608848347bdb61fa1c0b711dc18f36ece4d740d0014c15f33f82d82",
       "mode": "0644"
@@ -190,10 +184,6 @@
     },
     "commands/improve-codebase-architecture.md": {
       "sha256": "47f7d5eb49ad64f6ed1e9fc05971b84b97c8b4ea2a3b6503a80bfe5a324a5173",
-      "mode": "0644"
-    },
-    "commands/integration-tests.md": {
-      "sha256": "68790b8ac20dbb02170abcb2ac5f1b587437fb725fdb5ab8c34ade096fdc56f1",
       "mode": "0644"
     },
     "commands/issue-management.md": {
@@ -261,7 +251,7 @@
       "mode": "0644"
     },
     "commands/tdd.md": {
-      "sha256": "b31dcf6de03c2f61e10d76a129ef1b121c57a3d25860833adb9454f82f274f05",
+      "sha256": "f777fa4b0ffa7be5de5623324fa9844bb2c10f723de503138680d481154cc1f3",
       "mode": "0644"
     },
     "commands/team-status.md": {
@@ -680,10 +670,6 @@
       "sha256": "ddc8b71269eb796c3365b701c9bf53878a3efdbf4e99ce5bc927404fd0f8e015",
       "mode": "0644"
     },
-    "skills/e2e-tests/SKILL.md": {
-      "sha256": "b20ca6837c51085e8b3444d3f91d088acd919016453f5b47a8ffdf45aa071f86",
-      "mode": "0644"
-    },
     "skills/figma-workflow/SKILL.md": {
       "sha256": "8395121f2a05cd58c33a6711a42fc2562b88d88576346cb5eb3052fe914bb6d2",
       "mode": "0644"
@@ -714,10 +700,6 @@
     },
     "skills/improve-codebase-architecture/SKILL.md": {
       "sha256": "6bbec0eb5d60e19ed8ccae97563bce2b3e00aa5edfe63627aaa1bec25bd1de65",
-      "mode": "0644"
-    },
-    "skills/integration-tests/SKILL.md": {
-      "sha256": "5466b3ae3ea18a128ecac44f661f672d0cb72f16c8ee9032494fbab6ca6fa4ec",
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
@@ -877,7 +859,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "0c18ff2fc0b054256407257aaf9ba1d65ced8986f699f69d34d456e92726d60b",
+      "sha256": "13aa944869054a5c3daa7b0daaebfe6ae7d28ac0088bc992a99806546b158f5a",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -893,19 +875,23 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "26a27e15cd56b817da0412c36fed14d73a64ea000a2729849476bcdcf3b2b3e2",
+      "sha256": "90961505fe7e9ea3773c99c3c75a6463cf0e471c80c5bb3dcd637b1bbc17c70d",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
-      "sha256": "f0f865cce8f85e9b520d4396121234f46aa9a19f01529eb1d19476f635c3e883",
+      "sha256": "e97614726acef3958b8b5236758d01c1e41e1919418005dd532c07015a3c381a",
       "mode": "0644"
     },
     "skills/tdd/refactoring.md": {
       "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
+    "skills/tdd/test-boundaries.md": {
+      "sha256": "cfee2884f0dddd5af1f020f674df946c1ddffce8d3fbb43720bd05a7e0ae3395",
+      "mode": "0644"
+    },
     "skills/tdd/tests.md": {
-      "sha256": "a76f683f8b0d8a4feeb5175f6ea4c88456bb221203593e88548c456850c9c0b6",
+      "sha256": "ce570f378f822b0205296d7189eb727c2dd6e9710162a90f7c20119c321fbe6d",
       "mode": "0644"
     },
     "skills/team-status/SKILL.md": {

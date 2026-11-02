@@ -36,6 +36,11 @@
       "revision": "3cca18b368ae95cdbdebbff572ccafa662551015",
       "note": "Adapted independent test expectations and interface/seam vocabulary with scoped architecture exploration; other upstream workflow changes are not imported."
     },
+    "matt-testing": {
+      "repository": "mattpocock/skills",
+      "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+      "note": "Adapted the seam-first test plan, where each kept test states what it catches and misses; Grillmester states the plan and asks only when the seam or the kept tests are an unsettled material choice, and keeps refactoring inside the loop."
+    },
     "matt-grilling": {
       "repository": "mattpocock/skills",
       "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
@@ -153,7 +158,6 @@
       "disposition": "adapted"
     },
     "dulting": {"source": "hovmester", "sourcePath": ".github/skills/dulting", "disposition": "adapted"},
-    "e2e-tests": {"source": "pilot", "sourcePath": ".github/skills/e2e-tests", "disposition": "adapted"},
     "figma-workflow": {"source": "hovmester", "sourcePath": ".github/skills/figma-workflow", "disposition": "adapted"},
     "grill-me": {
       "source": "pilot",
@@ -192,7 +196,6 @@
       ],
       "disposition": "adapted"
     },
-    "integration-tests": {"source": "pilot", "sourcePath": ".github/skills/integration-tests", "disposition": "adapted"},
     "issue-management": {"source": "pilot", "sourcePath": ".github/skills/issue-management", "disposition": "adapted"},
     "kafka-topic": {"source": "pilot", "sourcePath": ".github/skills/kafka-topic", "disposition": "adapted"},
     "klarsprak": {"source": "pilot", "sourcePath": ".github/skills/klarsprak", "disposition": "adapted"},
@@ -220,9 +223,12 @@
       "source": "pilot",
       "sourcePath": ".github/skills/tdd",
       "lineage": [
-        {"source": "matt-methods", "sourcePath": "skills/engineering/tdd"}
+        {"source": "pilot", "sourcePath": ".github/skills/integration-tests"},
+        {"source": "pilot", "sourcePath": ".github/skills/e2e-tests"},
+        {"source": "matt-methods", "sourcePath": "skills/engineering/tdd"},
+        {"source": "matt-testing", "sourcePath": "skills/engineering/tdd"}
       ],
-      "disposition": "adapted"
+      "disposition": "consolidated"
     },
     "team-status": {"source": "hovmester", "sourcePath": ".github/skills/team-status", "disposition": "adapted"},
     "to-issues": {"source": "pilot", "sourcePath": ".github/skills/to-issues", "disposition": "adapted"},

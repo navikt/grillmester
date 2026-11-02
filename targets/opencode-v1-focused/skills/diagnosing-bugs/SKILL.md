@@ -199,9 +199,10 @@ Before delivery:
 
 **Then ask: what would have prevented this bug?** Record the smallest useful
 follow-up after the fix, when the evidence is strongest. If the follow-up
-requires specialist architecture, domain, design-stress, identity, or Nav
-platform guidance outside this roster, return `Status: NEEDS_FULL_CONTEXT`
-as defined in the Full-context boundary section.
+requires specialist architecture, domain, identity, or Nav platform
+guidance outside this roster, return `Status: NEEDS_FULL_CONTEXT` as defined
+in the Full-context boundary section. Use `grilling` to stress-test a design
+gap the bug exposes.
 
 ## Runtime/platform symptoms
 
@@ -220,7 +221,7 @@ Full-context boundary section.
 ## Full-context boundary
 
 This focused skill deliberately omits specialist architecture, domain, identity,
-design-stress, and Nav platform skills. When the task requires one, stop with:
+and Nav platform skills. When the task requires one, stop with:
 
 ```text
 Status: NEEDS_FULL_CONTEXT

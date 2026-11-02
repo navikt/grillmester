@@ -34,8 +34,8 @@ på alle risikonivåer og laster metoder fra skills ved behov.
   1.0.86; eldre klienter laster agenten med en advarsel. Grillmester oppgir
   derfor også stiene til repoets instruksjonsfiler og risikoklassen i
   review-forespørselen.
-- Den fokuserte profilen inneholder Grillmester og Grill-inspektør med de samme
-  sju skillsene.
+- Den fokuserte profilen inneholder Grillmester og Grill-inspektør med sju
+  skills.
 - Hybridprofilen i OpenCode låser Grill-inspektør, ikke en implementør, til en
   lokal modell. OpenCode-smokene bruker inspektøren til `.env`- og
   skillscenariene og Grillmester til godkjent skriving.

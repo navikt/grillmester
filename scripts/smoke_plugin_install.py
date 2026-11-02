@@ -59,7 +59,7 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 6, 44, True),
+    PackageSpec("grillmester", "plugin", 6, 42, True),
 )
 LEGACY_CORE = PackageSpec("grillmester", "plugin", 8, 34, False)
 LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10, False)
@@ -77,7 +77,11 @@ LEGACY_ADD_ON_SKILLS = (
     "observability-setup",
     "postgresql-review",
 )
-SAME_PACKAGE_REMOVED_SKILLS = ("grillmester-nav-architecture-review",)
+SAME_PACKAGE_REMOVED_SKILLS = (
+    "e2e-tests",
+    "grillmester-nav-architecture-review",
+    "integration-tests",
+)
 HISTORICAL_REMOVED_SKILLS = ("grillmester-kotlin-spring",)
 CURRENT_ONLY_SKILLS = ("app-sandbox-setup", "guided-review")
 REMOVED_SKILLS = SAME_PACKAGE_REMOVED_SKILLS + HISTORICAL_REMOVED_SKILLS

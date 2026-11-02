@@ -50,7 +50,7 @@ POLICY_FIELDS = frozenset(
 EXPECTED_AGENTS = ("grill-inspektor", "grillmester")
 EXPECTED_SKILLS = (
     "diagnosing-bugs",
-    "integration-tests",
+    "grilling",
     "issue-management",
     "pull-request",
     "review",
@@ -72,7 +72,7 @@ COPILOT_FULL_GENERATOR = {
     "version": 1,
 }
 EXCLUDED_SKILL_REPLACEMENTS = {
-    "e2e-tests": "the repository's full-system test workflow",
+    "domain-modeling": "the full-context domain documentation workflow",
     "nav-troubleshoot": "the repository's platform diagnostic workflow",
     "to-issues": "the full-context plan decomposition workflow",
     "triage": "the full-context issue assessment workflow",
@@ -418,7 +418,7 @@ def apply_grillmester_focused_overlay(text: str, *, client: str, path: str) -> s
         end="\n## Implement and prove",
         new=(
             "## Available capabilities\n\n"
-            "This focused payload provides `diagnosing-bugs`, `integration-tests`,\n"
+            "This focused payload provides `diagnosing-bugs`, `grilling`,\n"
             "`issue-management`, `pull-request`, `review`, `security-review`, and `tdd`.\n"
             "Load a skill from the active catalog only when the task needs its method;\n"
             "use its exact advertised identity and source through the native loading\n"
@@ -491,9 +491,10 @@ def apply_diagnosing_focused_overlay(text: str, *, path: str) -> str:
         new=(
             "**Then ask: what would have prevented this bug?** Record the smallest useful\n"
             "follow-up after the fix, when the evidence is strongest. If the follow-up\n"
-            "requires specialist architecture, domain, design-stress, identity, or Nav\n"
-            "platform guidance outside this roster, return `Status: NEEDS_FULL_CONTEXT`\n"
-            "as defined in the Full-context boundary section."
+            "requires specialist architecture, domain, identity, or Nav platform\n"
+            "guidance outside this roster, return `Status: NEEDS_FULL_CONTEXT` as defined\n"
+            "in the Full-context boundary section. Use `grilling` to stress-test a design\n"
+            "gap the bug exposes."
         ),
         path=path,
     )
@@ -523,7 +524,7 @@ def apply_diagnosing_focused_overlay(text: str, *, path: str) -> str:
         new=(
             "## Full-context boundary\n\n"
             "This focused skill deliberately omits specialist architecture, domain, identity,\n"
-            "design-stress, and Nav platform skills. When the task requires one, stop with:\n\n"
+            "and Nav platform skills. When the task requires one, stop with:\n\n"
             "```text\n"
             "Status: NEEDS_FULL_CONTEXT\n"
             "Resume with: grillmester local --full\n"
@@ -551,17 +552,6 @@ def apply_focused_text_overlay(
         if relative == "skills/diagnosing-bugs/SKILL.md":
             text = apply_diagnosing_focused_overlay(text, path=relative)
         text = replace_excluded_skill_references(text)
-        if relative == "skills/issue-management/SKILL.md":
-            text = replace_once(
-                text,
-                "The caller owns\n"
-                "`grilling`, planning, specifications, and ticket "
-                "decomposition;\n"
-                "this skill owns the resulting tracker mutations.",
-                "The caller owns problem shaping, planning, specifications, and ticket\n"
-                "decomposition; this skill owns the resulting tracker mutations.",
-                path=relative,
-            )
         if relative in {"agents/grillmester.md", "agents/grillmester.agent.md"}:
             text = apply_grillmester_focused_overlay(text, client=client, path=relative)
         transformed[relative] = (text.encode("utf-8"), mode)
@@ -675,8 +665,8 @@ def validate_copilot_full_manifest(
         raise ProjectionError("Copilot full payload manifest generator is invalid")
     agents = string_list(manifest["agents"], label="Copilot full payload agents")
     skills = string_list(manifest["skills"], label="Copilot full payload skills")
-    if len(agents) != 6 or len(skills) != 44:
-        raise ProjectionError("Copilot full payload is not the complete 6/44 target")
+    if len(agents) != 6 or len(skills) != 42:
+        raise ProjectionError("Copilot full payload is not the complete 6/42 target")
     if manifest["counts"] != {"agents": len(agents), "skills": len(skills)}:
         raise ProjectionError("Copilot full payload counts are invalid")
     observed_agents = tuple(
@@ -728,8 +718,8 @@ def build_opencode_projection(
     counts = source_manifest.get("counts")
     if not isinstance(counts, dict) or counts.get("agents") != 6 or counts.get(
         "skills"
-    ) != 44 or counts.get("commands") != 44:
-        raise ProjectionError("focused OpenCode source is not the complete 6/44 target")
+    ) != 42 or counts.get("commands") != 42:
+        raise ProjectionError("focused OpenCode source is not the complete 6/42 target")
     files: dict[str, GeneratedFile] = {}
     for relative in (".gitignore", "opencode.json"):
         add_file(

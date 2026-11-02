@@ -89,12 +89,14 @@ GOOD:
 The direct query is appropriate only when the storage schema itself is the
 contract under test. Otherwise assert through the seam.
 
-## Pick the smallest honest test level
+## Pick the highest honest test level
 
 - **Pure behavior:** use the repository's fast unit-test style.
-- **Serialization, query, transaction or protocol contract:** use the real
-  adapter through `integration-tests` when a fake would hide the risk.
-- **Application composition or complete user/system flow:** use the repository's full-system test workflow.
+- **Serialization, query, transaction or protocol contract:** test the real
+  adapter when a fake would hide the risk; see
+  [test-boundaries.md](test-boundaries.md).
+- **Application composition or complete user/system flow:** test through the
+  running application; see [test-boundaries.md](test-boundaries.md).
 - **Hard-to-reproduce bug:** use `diagnosing-bugs` to build a tight loop before
   turning the minimized reproduction into a regression test.
 

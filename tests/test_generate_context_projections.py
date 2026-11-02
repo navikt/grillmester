@@ -213,7 +213,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
         self.assertEqual(
             {
                 "commands/diagnosing-bugs.md",
-                "commands/integration-tests.md",
+                "commands/grilling.md",
                 "commands/issue-management.md",
                 "commands/pull-request.md",
                 "commands/review.md",
@@ -231,7 +231,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
         )
         expected_skills = {
             "diagnosing-bugs",
-            "integration-tests",
+            "grilling",
             "issue-management",
             "pull-request",
             "review",
@@ -341,17 +341,13 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "agents/grillmester.md",
                 "agents/grill-inspektor.md",
                 "commands/diagnosing-bugs.md",
-                "commands/integration-tests.md",
                 "commands/issue-management.md",
                 "commands/security-review.md",
-                "commands/tdd.md",
                 "skills/diagnosing-bugs/SKILL.md",
-                "skills/integration-tests/SKILL.md",
+                "skills/grilling/SKILL.md",
                 "skills/issue-management/SKILL.md",
                 "skills/review/SKILL.md",
                 "skills/security-review/SKILL.md",
-                "skills/tdd/SKILL.md",
-                "skills/tdd/tests.md",
             },
             changed_opencode,
         )
@@ -380,12 +376,10 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "agents/grillmester.agent.md",
                 "agents/grill-inspektor.agent.md",
                 "skills/diagnosing-bugs/SKILL.md",
-                "skills/integration-tests/SKILL.md",
+                "skills/grilling/SKILL.md",
                 "skills/issue-management/SKILL.md",
                 "skills/review/SKILL.md",
                 "skills/security-review/SKILL.md",
-                "skills/tdd/SKILL.md",
-                "skills/tdd/tests.md",
             },
             changed_copilot,
         )
@@ -525,7 +519,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
         allowed_agents = {"grillmester", "grill-inspektor"}
         allowed_skills = {
             "diagnosing-bugs",
-            "integration-tests",
+            "grilling",
             "issue-management",
             "pull-request",
             "review",
