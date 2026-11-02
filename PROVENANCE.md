@@ -236,6 +236,12 @@ plan in `tdd` and the consolidation of the pilot `integration-tests` and
 rights journal binds the changed content lock and this provenance record while
 preserving the underlying decision in #56.
 
+PR [#98](https://github.com/navikt/grillmester/pull/98) reviews the three-lens
+`review` skill with its smell baseline, Grill-inspektor's use of it, and the
+tightened feedback loop in `diagnosing-bugs`. It changes no Hovmester-imported
+component. The rights journal binds the changed content lock and this
+provenance record while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
