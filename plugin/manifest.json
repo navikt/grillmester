@@ -7,7 +7,7 @@
   },
   "counts": {
     "agents": 6,
-    "skills": 42
+    "skills": 44
   },
   "agents": [
     "designer",
@@ -19,6 +19,7 @@
   ],
   "skills": [
     "accessibility-review",
+    "agent-retro",
     "aksel-design",
     "api-design",
     "app-sandbox-setup",
@@ -58,6 +59,7 @@
     "to-issues",
     "to-spec",
     "triage",
+    "wait-what",
     "wayfinder",
     "workshop-design"
   ],
@@ -67,7 +69,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "e051f6cc571f833a609d029377b8369c29538b59042f6552fae667808e0b0bbd",
+      "sha256": "3d7cb47af2af9f6b9f3c2657d592eca466369956f28a4cdf08bd9f2adc709fbe",
       "mode": "0644"
     },
     "agents/designer.agent.md": {
@@ -144,6 +146,10 @@
     },
     "skills/accessibility-review/SKILL.md": {
       "sha256": "ff3fa76d759f16e0a10a9b4c2ed2d796ed05990440b5d27895fbb53919a74cda",
+      "mode": "0644"
+    },
+    "skills/agent-retro/SKILL.md": {
+      "sha256": "d44ad593fb990fbf3a219c4f2ba5dd7b2df8315bfd2228837522c935ebcbaf98",
       "mode": "0644"
     },
     "skills/aksel-design/SKILL.md": {
@@ -311,7 +317,7 @@
       "mode": "0644"
     },
     "skills/create-a-skill/references/principles.md": {
-      "sha256": "30307d77945a9819f2f6124cbd8a399e62b36d2c700a86b663b5479ed3563f54",
+      "sha256": "0104087c22f6428b11f262957c222801842242dcf7985c81b4a0edc4f3b92c00",
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
@@ -876,6 +882,10 @@
     },
     "skills/triage/SKILL.md": {
       "sha256": "fd9fd01e000dd88824503897f6ad7f1b892971cc3480d3bfb7b4098a4d18fe60",
+      "mode": "0644"
+    },
+    "skills/wait-what/SKILL.md": {
+      "sha256": "d449d4d395a0e688aa5bbe9222e7e88ac8132441092cd2b620b43035ded723fa",
       "mode": "0644"
     },
     "skills/wayfinder/SKILL.md": {

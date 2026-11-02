@@ -10,12 +10,14 @@ permission:
   question: deny
   skill:
     "*": allow
+    agent-retro: ask
     app-sandbox-setup: ask
     doctor: ask
     grill-me: ask
     grill-with-docs: ask
     guided-review: ask
     handoff: ask
+    wait-what: ask
   task: deny
 ---
 # Perspektiv 🔭

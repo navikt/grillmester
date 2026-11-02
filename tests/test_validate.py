@@ -836,7 +836,7 @@ class PackageValidationTest(unittest.TestCase):
             path.parent.name
             for path in (self.root / "plugin/skills").glob("*/SKILL.md")
         }
-        self.assertEqual(42, len(locked))
+        self.assertEqual(44, len(locked))
         self.assertEqual(locked, installed)
 
     def test_nav_specialist_skill_is_part_of_the_single_plugin(self) -> None:
@@ -877,7 +877,7 @@ class PackageValidationTest(unittest.TestCase):
 
     def test_package_counts_are_locked(self) -> None:
         manifest = self.load_json("package-manifest.json")
-        manifest["packages"][0]["skills"] = 45
+        manifest["packages"][0]["skills"] += 1
         self.write_json("package-manifest.json", manifest)
         self.assert_error("package roster or counts have drifted")
 

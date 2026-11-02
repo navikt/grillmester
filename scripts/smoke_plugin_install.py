@@ -59,7 +59,7 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 6, 42, True),
+    PackageSpec("grillmester", "plugin", 6, 44, True),
 )
 LEGACY_CORE = PackageSpec("grillmester", "plugin", 8, 34, False)
 LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10, False)
@@ -83,7 +83,12 @@ SAME_PACKAGE_REMOVED_SKILLS = (
     "integration-tests",
 )
 HISTORICAL_REMOVED_SKILLS = ("grillmester-kotlin-spring",)
-CURRENT_ONLY_SKILLS = ("app-sandbox-setup", "guided-review")
+CURRENT_ONLY_SKILLS = (
+    "agent-retro",
+    "app-sandbox-setup",
+    "guided-review",
+    "wait-what",
+)
 REMOVED_SKILLS = SAME_PACKAGE_REMOVED_SKILLS + HISTORICAL_REMOVED_SKILLS
 REMOVED_AGENTS = ("barista", "kokk")
 PACKAGE_BY_NAME = {package.name: package for package in PACKAGES}
