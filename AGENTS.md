@@ -26,7 +26,7 @@ repository.
 - Do not add a second file-sync lifecycle, managed consumer manifest, install
   hook, MCP server, or executable hook without an explicit architecture
   decision. Record a qualifying decision as a sequentially numbered ADR in
-  `docs/adr/`; use `CONTEXT.md` for canonical project language rather than
+  `docs/adr/`; use `GLOSSARY.md` for canonical project language rather than
   implementation detail.
 - Preserve the reviewed pilot agent IDs. Canonical runtime skills use short,
   task-oriented IDs matching their directories. Resolve calls against the

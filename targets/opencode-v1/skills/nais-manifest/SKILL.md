@@ -200,8 +200,8 @@ from code, environment differences, security and cost changes, probe evidence,
 and validation command with exit code. Mark unverified capacity or platform
 assumptions explicitly.
 
-Record hard-to-reverse platform decisions through the repository's ADR process
-after the user accepts them.
+If an accepted hard-to-reverse platform decision may qualify for an ADR,
+propose it through `domain-modeling`.
 
 ## Boundaries
 

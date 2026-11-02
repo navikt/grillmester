@@ -194,16 +194,13 @@ Before delivery:
   checks run and remaining uncertainty. Do not call an unverified runtime
   outcome fixed or the investigation complete when dependent work remains.
 
-**Then ask: what would have prevented this bug?** If the answer involves an
-architectural change (no good test seam, entangled callers, hidden coupling),
-carry the finding forward via `/grilling`. Use
-`/architecture-review` for consequential architecture questions.
-When the agreed fix changes lasting concepts or qualifying decisions, use
-`/grill-with-docs` and `/domain-modeling` within the authorized task and the
-repository's documentation policy. Do not require the user to select the same
-route again. Keep additional architectural proposals as candidates until the
-user chooses them. Base those recommendations on the boundary established by
-the investigation, without turning every fix into an architecture exercise.
+**Then ask: what would have prevented this bug?** Answer in one or two lines.
+When the answer is an architectural gap (no good test seam, entangled callers,
+hidden coupling), recommend `/improve-codebase-architecture` or
+`/architecture-review`; when the fix changes a domain term or an ADR-worthy
+decision, recommend recording it through `domain-modeling`. Leave each as a
+recommendation until the user chooses it; not every fix needs an architecture
+exercise.
 
 ## Runtime/platform symptoms
 
@@ -223,7 +220,7 @@ inventing Nav behavior.
 ## Related skills
 
 - `/grilling` — stress-test the design when the bug exposes a design gap;
-  recommend the documented route when needed
+  propose records through `domain-modeling` when needed
 - `auth-overview` — Azure AD / TokenX /
   ID-porten / Maskinporten / Texas when those mechanisms are involved
 - `/architecture-review` — review architectural changes that would

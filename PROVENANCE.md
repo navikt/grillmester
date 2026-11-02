@@ -211,6 +211,22 @@ material. Designer, Figma handoff and the source, component and naming scope are
 unchanged. The rights journal binds this content and provenance while preserving
 the underlying decision in #56.
 
+PR [#95](https://github.com/navikt/grillmester/pull/95) reviews the retirement
+of Barista and Kokk and the repository-instruction binding for Grill-inspektor.
+It changes no Hovmester-imported component. The rights journal binds the changed
+content lock and this provenance record while preserving the underlying
+decision in #56.
+
+PR [#96](https://github.com/navikt/grillmester/pull/96) reviews round-based
+grilling and documentation that is proposed before it is written. Within the
+rights scope it changes the imported `designer` agent's grilling and
+`wayfinder` guidance, the `doctor-who` agent's grilling and ADR routing, and the
+`architecture-review` skill's handoff of decision candidates to
+`domain-modeling`. Names, sources, the Doctor Who name and characterization and
+the component set are unchanged. The new grilling lineage is recorded above and
+in the third-party notices. The rights journal binds this content and
+provenance while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
@@ -381,6 +397,15 @@ The UI prototype guidance was also compared with current `mattpocock/skills` at
 keeps the existing source pin while applying the reviewed principles of one
 named design question, structurally distinct alternatives, comparable synthetic
 data and an explicit record of the winner, rationale and borrowed elements.
+
+The grilling review at `mattpocock/skills` revision
+`4ae2317ddb22b046e26455e4f9c9b3aaaf62212d` adapts round-based grilling over the
+decision frontier, with numbered questions worded so that "ja" accepts the
+recommendation, the thin `grill-me` and `grill-with-docs` entries, and the
+`GLOSSARY.md`/`GLOSSARY-MAP.md` convention. Grillmester reads an existing
+`CONTEXT.md` or `CONTEXT-MAP.md` in place, keeps grilling proportionate for
+settled work, and writes glossary entries or ADRs only when the user asks for
+documentation, accepts a one-line proposal, or repository policy requires it.
 
 When imported material changes, update the content lock and this document in
 the same change. Advancing a source revision means reviewing the concrete

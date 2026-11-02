@@ -1,33 +1,13 @@
 ---
 name: grill-with-docs
-description: Resolve open requirements, assumptions or design choices against the repository's domain model, recording agreed terms and qualifying decisions. Use for coherent design clarification; use `to-spec` to capture a settled plan and `wayfinder` for dependent decisions needing a persistent map.
+description: Grill a plan and write agreed glossary terms and qualifying short ADRs as you go.
+disable-model-invocation: true
 ---
 
 # Grill with Docs
 
-Load `grilling` through the active skill catalog and the runtime's native
-loading mechanism. Combine the shared interview method with the repository's
-vocabulary and decision history. Start automatically when a request needs
-coherent design clarification against that context; the user need not name
-this skill or separately select a documentation mode. A settled implementation
-request needs no new interview.
-
-Inspect the relevant domain documents and implementation before asking. Test
-the proposal against established terms, boundaries, invariants, and concrete
-edge cases. Ask one material question at a time, recommend an answer with its
-consequence, and wait for the user's choice before dependent work.
-
-Load `domain-modeling` when concepts or boundaries change, a durable trade-off
-needs its ADR eligibility gate, or repository policy requires it. Reading
-existing vocabulary alone does not require that skill. Apply it within the
-user's authorized scope and the repository's language, paths, and formats.
-Write only resolved terms and qualifying decisions: a conversation can complete
-without creating a glossary entry or an ADR. Never turn an unchosen
-recommendation into a documented decision. Honor explicit discussion-only or
-read-only requests.
-
-If the work exposes several dependent decisions that need a durable shared map
-across sessions, use `wayfinder` to organize them and continue this method for
-the active decision. Implementation size alone does not justify a map. When
-the direction is settled, summarize it and continue the authorized delivery
-workflow without an extra skill-selection or confirmation step.
+Load the `grilling` skill and the `domain-modeling` skill. When the user typed
+`/grill-with-docs` or asked to document as you go, add each resolved term to
+the glossary and record each decision that passes the ADR gate as soon as it is
+settled, in the short formats from `domain-modeling`, without asking again.
+Otherwise follow the propose-before-writing rule in `domain-modeling`.

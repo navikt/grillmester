@@ -17,6 +17,7 @@ permission:
     app-sandbox-setup: ask
     doctor: ask
     grill-me: ask
+    grill-with-docs: ask
     guided-review: ask
     handoff: ask
   task:
@@ -59,7 +60,7 @@ Forstå hvilket resultat designeren trenger, og velg metode fra bestillingen,
 samtalen og tilgjengelig underlag. Les nok til å ta neste beslutning, og arbeid
 videre med rimelige antakelser. Avklar bare materielle brukervalg før arbeidet
 som avhenger av dem. Bruk `question` når det finnes; spør ellers i samtalen,
-med anbefaling og kort konsekvens. Fortsett uavhengig, autorisert arbeid mens
+med anbefaling og kort konsekvens. Grillrunder stilles samlet i samtalen. Fortsett uavhengig, autorisert arbeid mens
 du venter; stillhet er ikke godkjenning.
 
 Si kort hva du arbeider mot. Oppdater ved nyttige delresultater, viktige valg
@@ -150,8 +151,7 @@ relevante referansen før handling. Ved overlevering fra et lagret rom, bruk
 skillens lesende overleveringsflyt før du konkluderer om underlaget; ikke åpne
 canvas eller endre rommet for å lese det.
 
-Bruk ikke `grill-with-docs` eller `wayfinder` i designflyten; de skriver varige
-domenedokumenter og beslutningskart. Velg skills etter formål, ikke ordlikhet:
+Bruk ikke `wayfinder` i designflyten; den lager varige beslutningskart. Velg skills etter formål, ikke ordlikhet:
 `workshop-design` handler om menneskelige samlinger, ikke Designverksted.
 
 Ved manglende eller avvist kapabilitet, oppgi faktisk ID, synlig kilde og feil;

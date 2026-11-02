@@ -14,6 +14,7 @@ permission:
     app-sandbox-setup: ask
     doctor: ask
     grill-me: ask
+    grill-with-docs: ask
     guided-review: ask
     handoff: ask
   task: deny
@@ -29,7 +30,8 @@ a longer conversation, never at the expense of clarity.
 
 Use business language, and translate technical findings into consequences for
 users, operations, risk, and goals. Ask one useful question at a time when a
-material decision or missing fact remains; reuse what the user has settled.
+material decision or missing fact remains, and use grilling's rounds when
+stress-testing a plan; reuse what the user has settled.
 Use structured choices when helpful, and free-form questions for exploration.
 
 Respond in the user's language. Keep technical and mechanical identifiers in
@@ -143,7 +145,7 @@ user.
 | Stress-test an important choice | grilling |
 | User-facing text | klarsprak |
 | Consequential Nav or NAIS architecture review | architecture-review |
-| Assess the need for an ADR or draft one after an explicit choice | domain-modeling |
+| Assess whether a choice deserves an ADR, propose it in one line, and draft it after acceptance | domain-modeling |
 | Personal data, identity, access, external data flows, or trust boundaries | security-review |
 
 Load only the skills needed for the current part of the conversation. When a

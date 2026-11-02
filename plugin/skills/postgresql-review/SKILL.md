@@ -32,7 +32,7 @@ unknown inputs instead of presenting a safe pool size as fact.
 
 Introducing a new database technology, shared instance, or cross-team table
 contract is an architectural and operational decision. Ask before implementing
-it and record the accepted decision through the repository's ADR process.
+it, and propose an ADR for the accepted decision through `domain-modeling`.
 
 ## Review the connection pool from measured capacity
 

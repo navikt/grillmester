@@ -142,8 +142,8 @@ never log the raw payload or personal key.
 - Changing a consumer group can replay data according to `auto.offset.reset`;
   treat it as an operational change requiring approval.
 
-Record durable contract and replay decisions through the repository's ADR
-process after user agreement.
+If an accepted contract or replay decision may qualify for an ADR, propose it
+through `domain-modeling`.
 
 ## Load only the relevant implementation reference
 

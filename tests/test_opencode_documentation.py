@@ -27,7 +27,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
         cls.trust = (ROOT / "docs/trust-and-client-support.md").read_text(
             encoding="utf-8"
         )
-        cls.context = (ROOT / "CONTEXT.md").read_text(encoding="utf-8")
+        cls.context = (ROOT / "GLOSSARY.md").read_text(encoding="utf-8")
         cls.development = (ROOT / "docs/development.md").read_text(
             encoding="utf-8"
         )
@@ -63,7 +63,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             with self.subTest(removed_term=removed_term):
                 self.assertNotIn(removed_term, self.context)
 
-        self.assertIn("[CONTEXT.md](../CONTEXT.md)", self.development)
+        self.assertIn("[GLOSSARY.md](../GLOSSARY.md)", self.development)
         self.assertIn("[`docs/adr/`](adr/)", self.development)
         for number in ("0001", "0003", "0004", "0005", "0006", "0007"):
             with self.subTest(adr=number):

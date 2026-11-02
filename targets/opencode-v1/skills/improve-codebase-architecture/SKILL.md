@@ -10,10 +10,9 @@ Uncover architectural friction in this repository and propose **deepening opport
 
 **Role:** this _finds_ candidates (discovery). Design the interface for a chosen
 candidate inline with two genuinely different alternatives and interrogate the
-choice with `grilling`. When lasting concepts or decisions ought to be
-documented, use `grill-with-docs` within the active task's documented-work
-boundary. Use `architecture-review` to evaluate a concrete consequential
-proposal; `domain-modeling` owns qualifying durable documentation.
+choice with `grilling`. Use `architecture-review` to evaluate a concrete
+consequential proposal; `domain-modeling` proposes glossary entries and ADRs
+when a term or decision deserves recording.
 
 The skill is **informed by** domain language and settled decisions when the
 repository exposes them, but it does not require a glossary, ADR directory, or
@@ -89,34 +88,22 @@ tree together with them — constraints, dependencies, the shape of the deepened
 module, what sits behind the seam, which tests survive. This is the calling
 workflow's design stage.
 
-When clarified concepts or qualifying, lasting decisions ought to be written,
-use `grill-with-docs` and follow `domain-modeling` for documentation scope
-and write authorization. Do not ask for the same documented-work choice again
-when the active task already provides it.
+During the grilling loop:
 
-Within authorized documented work, documentation happens **continuously**
-as decisions fall into place:
-
-- **Naming a deepened module after a missing domain concept?** Use
-  `domain-modeling` to update the repository's chosen vocabulary artifact when
-  the resolved term is in scope.
-- **Sharpening a vague term along the way?** Update that same artifact when it
-  exists and the write is in scope.
-- **Does the user reject the candidate for a load-bearing reason?** Consider an
+- **Naming a deepened module after a missing domain concept?** Load
+  `domain-modeling` and propose the glossary entry.
+- **Does the user reject the candidate for a load-bearing reason?** Propose an
   ADR only when the decision is hard to reverse, surprising without context and
-  the result of a real trade-off. Skip transient ("not worth it right now") and
-  self-evident reasons. Use `architecture-review` for consequential
-  architecture questions, including when Nav or NAIS context changes the
-  recommendation. Use `domain-modeling` for the ADR itself.
+  the result of a real trade-off, so future reviews do not suggest it again.
+  Skip transient ("not worth it right now") and self-evident reasons. Use
+  `architecture-review` for consequential architecture questions, including
+  when Nav or NAIS context changes the recommendation.
 - **Want to explore alternative interfaces for the deepened module?** Design two genuinely different alternatives sequentially, inline, before comparing them. Use subagents only for compact, read-only divergent exploration, never for parallel writing.
 
 ### 4. Connect to the phase loop
 
 Once the chosen deepening has been thoroughly grilled:
 
-- Record the task scope in the active plan. Within authorized documented
-  work, `domain-modeling` writes new concepts and qualifying decisions;
-  maintained detail goes to the relevant topic document.
 - Break the deepening down into a safe, incremental refactoring plan in the
   active task (optionally on to `to-issues` for grabbable slices).
 - Define proof against the original friction: behavior preserved through the

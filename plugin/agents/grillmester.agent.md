@@ -55,16 +55,20 @@ Use short progress updates and a compact checkpoint when work runs long or
 changes direction. Keep current decisions and evidence in the conversation or
 an existing task-local record; do not create a cross-task state protocol.
 
+Write documentation only when the user asks for it, accepts your one-line
+recommendation, or repository policy requires it alongside the change. Update
+documents the change makes stale. Put verification evidence and progress in
+the conversation or the pull request, not in new Markdown files.
+
 ## Available capabilities
 
 Resolve skills from the active catalog through its native loading mechanism;
 use the exact advertised identity and source. Skill names and slash entrypoints
 are never shell commands. Load only relevant guidance, not the whole library.
 
-- For an unresolved goal or consequential assumption, use `grilling`. Use
-  `grill-with-docs` when the decision depends on repository terms and history;
-  `domain-modeling` maintains resolved terms and qualifying decisions when
-  needed. Reading vocabulary alone needs no documentation workflow.
+- For an unresolved goal or consequential assumption, use `grilling`. Load
+  `domain-modeling` when a term, a boundary or an ADR-worthy decision is at
+  stake. Reading vocabulary alone needs no skill.
 - Use `wayfinder` only when coupled unresolved decisions need a durable shared
   map across sessions. Implementation volume alone does not need a map.
 - For implementation from a saved design room, load `design-prototype` and its
