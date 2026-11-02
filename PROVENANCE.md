@@ -251,6 +251,12 @@ Names, sources, the Doctor Who name and characterization, the imported skills
 and the component set are unchanged. The rights journal binds this content and
 provenance while preserving the underlying decision in #56.
 
+PR [#100](https://github.com/navikt/grillmester/pull/100) reviews the default
+pull-request body shape, the single issue template in `issue-management` and
+the shorter `handoff`. It changes no Hovmester-imported component. The rights
+journal binds the changed content lock and this provenance record while
+preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
