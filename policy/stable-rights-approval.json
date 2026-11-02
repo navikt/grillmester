@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-02",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#95",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#96",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-02",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#95",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#96",
       "status": "approved"
     }
   },
@@ -23,13 +23,13 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "c5a26d60bbf2259786a716d16003251023fe761fd43a655a4bf5772ba9401116",
-        "doctor-who": "70f249d6c300f54128c55676182115de3ac3c5f6f3aeb1da9774853cdc4c86c4"
+        "designer": "12a9a1d10b43465e2b41ac89fa9b85323ddd0441479ea45065a7604574ea76f7",
+        "doctor-who": "5f9592dbd48f1d5138dd960c1ed17b02ed3d16d086b49709ac8850e4d790a4e1"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
         "aksel-design": "f0bad3142d9f93fd5dd9ffbc8498d4b649e65aaff871d5feda7924f178473620",
-        "architecture-review": "16ce3bf5e7a22372c70909393af078581ae6e3344be0f93a64141299d38933ec",
+        "architecture-review": "1b6c14f28c24e9df2e76ad3ab9d5159369c23889f48ead3b41b8fe6dab34e65b",
         "design-prototype": "5cab41b3ad7bf2b667246278836cbbe15c05382352f4a589168a1dc636b56b96",
         "doctor": "536a4f1f117939f1149d2b67aeeb16fba174948f9fa54575de988992b44988f0",
         "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
@@ -41,11 +41,11 @@
         "workshop-design": "0418cfc368605512456838621833a375ffda1f0bbdff939491d6c0271ed2af7d"
       }
     },
-    "contentLockSha256": "5a8ed4cbdd78620fd07453c541fc6b40f6e5f16672bd659478ce8a5134a18c64",
+    "contentLockSha256": "1d1af961b8439685d432029a2b63c40b1164b71555adeb13ba16a3fa32d2c657",
     "hovmester": {
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "ea032033d56cfe8c16b20aaee48ed9d870a2c7799c9d9f370780daf24ba5f5b7"
+    "provenanceSha256": "90a1cb9beb0d559e2b56e4099535e87558d4e10580b839dab563b5a72a2de1e9"
   }
 }

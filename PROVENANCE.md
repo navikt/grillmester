@@ -211,6 +211,22 @@ material. Designer, Figma handoff and the source, component and naming scope are
 unchanged. The rights journal binds this content and provenance while preserving
 the underlying decision in #56.
 
+PR [#95](https://github.com/navikt/grillmester/pull/95) reviews the retirement
+of Barista and Kokk and the repository-instruction binding for Grill-inspektor.
+It changes no Hovmester-imported component. The rights journal binds the changed
+content lock and this provenance record while preserving the underlying
+decision in #56.
+
+PR [#96](https://github.com/navikt/grillmester/pull/96) reviews round-based
+grilling and documentation that is proposed before it is written. Within the
+rights scope it changes the imported `designer` agent's grilling and
+`wayfinder` guidance, the `doctor-who` agent's grilling and ADR routing, and the
+`architecture-review` skill's handoff of decision candidates to
+`domain-modeling`. Names, sources, the Doctor Who name and characterization and
+the component set are unchanged. The new grilling lineage is recorded above and
+in the third-party notices. The rights journal binds this content and
+provenance while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
