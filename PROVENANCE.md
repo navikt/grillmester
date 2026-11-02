@@ -230,6 +230,12 @@ the component set are unchanged. The new grilling lineage is recorded above and
 in the third-party notices. The rights journal binds this content and
 provenance while preserving the underlying decision in #56.
 
+PR [#97](https://github.com/navikt/grillmester/pull/97) reviews the lean test
+plan in `tdd` and the consolidation of the pilot `integration-tests` and
+`e2e-tests` skills into it. It changes no Hovmester-imported component. The
+rights journal binds the changed content lock and this provenance record while
+preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
