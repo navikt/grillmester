@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "0b4ff313ea7ca8871e874316d29c8fe040299f20d0a7245739ac40f576514a28",
+    "targetManifestSha256": "bda492953979218304aa3c8ef98f6606c1d48e0bff6fbc87897da7eee5873cee",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -56,7 +56,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "7f48bc2075aa0757ed8dbf65bc8ee38120b406b08d41957421bb76131d09f8d6",
+      "sha256": "5ce1a02b671bbb469f1d7fc06f470f4241d73f6b99d69027b951a0c5000f4fb6",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
@@ -108,7 +108,7 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "eaaed215c4b915ad322fb4bb93fca2f6d9114b5ab2b42fb24f9b624654c2fe68",
+      "sha256": "e54abea4e00889a36f2f61c12d9a89c746fde1b5233f0a3b0cf5cdd970750609",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
@@ -124,11 +124,11 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "b9d0d270525ebf30c6748d6a84b9dd6247b13dd6af9ea2b9aa8730dabb6ecc36",
+      "sha256": "6b0991f4e06e09035f332b2a24d7c3c0636b00946f9d9b1627b577863ba5e88a",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
-      "sha256": "1b18149fc5e793f9f5069d8ef0dbff96fe5c2e53f9a40e375937c5acce0bd153",
+      "sha256": "4201325c69733b39a015d1c6d9a8ad742fbdadaff2b4f3fae731bbef5141f091",
       "mode": "0644"
     },
     "skills/security-review/references/threat-model.md": {

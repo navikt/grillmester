@@ -85,14 +85,14 @@ That mode has no second client tool dialog. Existing authorization does not allo
 unstated writes or resolve an ambiguous repository, account, issue body or
 metadata choice; return `Status: NEEDS_INPUT` when any such choice remains.
 
-For Doctor Who, and for any runtime without explicit command-execution
-capability, use only an available, approved semantic GitHub integration. Never
-fall back to `gh`, shell, raw HTTP, or ask the user to run a command on the
-agent's behalf. If read evidence is unavailable, request the smallest pasted or
-exported issue/project excerpt and return `Status: NEEDS_INPUT`. If a write tool
-is unavailable, keep the reviewed mutation as a draft and return
-`Status: NEEDS_INPUT`, naming the required integration or the exact manual
-GitHub UI action.
+When your role forbids command execution or the runtime lacks explicit
+command-execution capability, use only an available, approved semantic GitHub
+integration. Never fall back to `gh`, shell, raw HTTP, or ask the user to run a
+command on the agent's behalf. If read evidence is unavailable, request the
+smallest pasted or exported issue/project excerpt and return
+`Status: NEEDS_INPUT`. If a write tool is unavailable, keep the reviewed
+mutation as a draft and return `Status: NEEDS_INPUT`, naming the required
+integration or the exact manual GitHub UI action.
 
 An implementation agent in a terminal session explicitly started through
 Grillmester and cplt may use cplt-guarded `gh issue` commands as its approved
