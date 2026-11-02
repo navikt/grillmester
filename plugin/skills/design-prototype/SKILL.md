@@ -27,14 +27,10 @@ gjelder appen og dens forslag, ikke en avtalt overlevering til Figma.
 
 Velg fra hensikten og klientens faktiske kapabiliteter. En eksisterende app er
 nyttig som referanse når dens innhold eller oppførsel betyr noe for valget,
-men er ingen forutsetning for idéutforsking. Når oppgaven krever et kjørbart
-forsøk med en usikker data-, tilstands- eller feilkontrakt, brukes `/prototype`.
-Et valgt Figma-design til kode eller brief
-hører til `/figma-workflow`.
+men er ingen forutsetning for idéutforsking.
 
 Les den relevante referansen **før første handling i den grenen**. Last bare
 detaljene som trengs for arbeidet; videre operasjoner kan kreve nye avsnitt.
-Bruk klientens verktøy og skjemaer.
 
 | Behov og tilgjengelig kapabilitet | Referanse og hva den eier |
 |---|---|
@@ -43,7 +39,7 @@ Bruk klientens verktøy og skjemaer.
 | Åpne eller videreutvikle en HTML-skisse i canvas | [Designrom](references/design-workspace.md#open-and-continue): lagring, publisering, innspillsrunder, editor og versjoner. |
 | Lage en HTML-skisse uten canvas, med lokal Node.js ≥ 18 og tilgjengelig loopback | [Portabel nettleserflyt](references/visual-companion.md): midlertidig server, private filer, CLI-innspill og opprydding. |
 | Vurdere eksisterende Figma-underlag | Les den relevante noden med godkjent Figma-kapabilitet. Ved manglende verktøy, se tilgangsrådene i [Figma-oppskriften](references/figma-prototype.md). Vurdering krever ikke write eller publisering. |
-| Utforme eller endre et Figma-design | [Figma-oppskriften](references/figma-prototype.md): tilgang, bibliotek, redigerbarhet og visuell sammenligning. Les også ved manglende verktøy; verifiser read og write separat. |
+| Utforme eller endre et Figma-design | [Figma-oppskriften](references/figma-prototype.md): tilgang, bibliotek, redigerbarhet og visuell sammenligning. Les også ved manglende verktøy. |
 | Bygge videre på en valgt skisse i Figma | [Figma-overlevering](references/figma-prototype.md#underlag-og-mal): valgt versjon, avtalt målfil og redigerbare komponenter. Les lagret kildepar før bygging; ikke bruk rå HTML alene. |
 | Dokumentere appens nåtilstand i Figma | [Appåpning](references/application-opening.md) for faktisk underlag og [Figma-oppskriften](references/figma-prototype.md#underlag-og-mal) for redigerbar dokumentasjon av den observerte siden. |
 | Overlevere eller implementere fra et lagret designrom | [Lesende overlevering](references/design-handoff.md): valgt underlag, kildepar og kontroll av integritet. Åpning av canvas er unødvendig. |
@@ -73,9 +69,8 @@ Før en ny selvstendig HTML-skisse, avklar én gang om den skal lagres eller væ
 midlertidig, med mindre det er valgt. Appinnspill og oppfølgende forslag er
 midlertidige uten avtalt lagring; fortsett uten et nytt lagringsspørsmål og si
 kort at arbeidet er midlertidig. Bestilt lagring av hele verkstedet omfatter
-forslaget i avtalt designområde; lagring av bare innspill gjør det ikke.
-Følg referansens muligheter for senere lagring og gjenåpning. Et helt midlertidig
-approm kan foreløpig ikke oppgraderes til lagret arbeid.
+forslaget i avtalt designområde; lagring av bare innspill gjør det ikke. Et
+helt midlertidig approm kan foreløpig ikke oppgraderes til lagret arbeid.
 
 Canvas publiserer gjennom bundne handlinger. Bare den portable flyten skriver
 HTML direkte til den private tempstien fra aktiv startup-JSON. Historiske
@@ -104,7 +99,7 @@ vurderes. Knytt observasjoner til faktisk element og tilstand.
 Ved vurdering eller forbedring av en eksisterende flate, kontroller faktisk
 visuelt underlag og riktig side eller Figma-node før du konkluderer om den.
 Sammenlign før og etter med tilsvarende utsnitt, data og tilstand. Manglende
-underlag gjør vurderingen foreløpig; idéutforsking krever ikke appoppstart.
+underlag gjør vurderingen foreløpig.
 
 - Bruk Aksel-komponenter, tokens og verifisert markup med kompatible stiler.
   Vis fallback eller wireframe ærlig når komponentfidelitet mangler.
@@ -124,7 +119,7 @@ underlag gjør vurderingen foreløpig; idéutforsking krever ikke appoppstart.
 Følg den valgte referansens innspillsløp: arbeid med riktig dokument, innsendt
 runde og versjon. Usendte notater er ikke bestillinger. Bevar tidligere føringer
 og manuelle valg. Publiser og verifiser endringer før de meldes fikset; svar på
-spørsmål uten unødvendig ny versjon. Et besvart innspill betyr ikke endret app.
+spørsmål uten unødvendig ny versjon.
 
 ## Overlevering og avslutning
 
