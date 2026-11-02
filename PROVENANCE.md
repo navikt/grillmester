@@ -412,6 +412,17 @@ adopts the red, deterministic loop criteria, 3–5 ranked hypotheses and the
 forced-mutation diff check in `diagnosing-bugs`, while keeping Nav's
 operational data-access rules and bounded analysis when no loop is possible.
 
+The delivery review at the same revision adapts the `pr` body shape into
+`pull-request` as the default when a repository has no template: a summary
+with the smallest useful visual, before-and-after evidence, and the merge
+danger as a one-way or two-way door with its blast radius. A repository
+template still wins. Upstream credits its menu of summary visuals to Dex
+Horthy's `show-me` skill from Humanlayer. Grillmester reproduces none of that
+menu and names the kinds of visual in its own words; only the section headings
+and the Door and Blast radius labels follow `pr`. `handoff` keeps
+Grillmester's private temporary directory, redaction and verified/unverified
+split, and adds suggested skills and tailoring to the next session's purpose.
+
 The observability review at `navikt/copilot` revision
 `ce9abd567a89eb72f1b8f95447435fd16fe805d3` adapts the
 `skills/observability-debugging` guidance on trace representativeness into

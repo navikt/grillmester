@@ -77,6 +77,12 @@ Use the agreed plan to choose granularity and blocking edges. Ask only when a
 material scope or dependency choice cannot be inferred. A settled breakdown
 does not need another interview.
 
+Load `issue-management` and draft each issue with its issue body and drafting
+rules: a functional title, the human-readable opening first, and the technical
+brief after it. Present tracker metadata alongside each draft: issue type,
+labels, project and initial status, parent, blockers, and assignee when
+applicable.
+
 Distinguish drafting from publishing. A request to create tickets from the
 agreed plan authorizes those issue writes and their necessary native
 relationships; carry that authorization forward. Approval of a draft alone
@@ -101,51 +107,3 @@ linear chain that means top to bottom.
 
 Do NOT close or otherwise modify a parent issue unless that mutation was
 included in the authorized set.
-
-Use a functional title that names the observable change rather than the
-implementation mechanism. Start the body for humans who do not know the code:
-
-<issue-template>
-## In short
-
-<one or two sentences: who or what benefits, what changes, and why it matters>
-
-## What to build
-
-<the end-to-end behaviour this issue makes work, not a layer-by-layer walkthrough>
-
-## Acceptance criteria
-
-- [ ] Criterion 1
-- [ ] Criterion 2
-
-## Implementation context and proof
-
-<relevant current state, constraints, risks, test seams, and evidence>
-
-## Out of scope
-
-<the nearest tempting work that this issue deliberately does not include>
-
-</issue-template>
-
-Use a user story only when a real actor and value become clearer in that form.
-Do not force technical work into “As a …” prose. Put the technical brief after
-the human-readable opening. Preserve the evidence, constraints, test seams,
-and non-goals an implementer or agent needs; remove only detail that would go
-stale or prescribe an unchosen implementation.
-
-Present tracker metadata alongside the draft: issue type, labels, project and
-initial status, parent, blockers, and assignee when applicable. Store parent,
-blocking, and project state in native metadata rather than body prose.
-
-Keep parent and blocking state in native tracker relationships, not duplicated
-body sections. Add dependency prose only when a non-obvious rationale will
-help the implementer; it never carries graph state.
-
-Avoid speculative paths, exhaustive file inventories, and snippets that merely
-prescribe an implementation. Retain verified current anchors such as a symbol,
-path, failing test, query, or command when they are evidence or the clearest
-test seam. If a prototype produced a snippet that encodes a decision more
-precisely than prose can (state machine, reducer, schema, type shape), inline
-only its decision-rich parts and identify it as prototype output.

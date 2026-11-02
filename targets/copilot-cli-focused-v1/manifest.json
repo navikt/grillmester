@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "fde47765e1bad89eec39a4bdbfff16594972a6c60c3a3185c9cec98b1ccc5867",
+    "payloadManifestSha256": "1c3efdd8686b96381db6ef541e65b1ff43cee28cb62cf6ed7d5b66dbdee95664",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -48,7 +48,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "c0e815a244211caeabf04da70f0a2a0c83d4a942b002e381054f1171f8702e21",
+      "sha256": "e051f6cc571f833a609d029377b8369c29538b59042f6552fae667808e0b0bbd",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
@@ -80,11 +80,11 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "9129a95e9abb367fca6c8bcd120706ca3ee50dab21b6dd2aca4118d5de00cc02",
+      "sha256": "24a40c2c9360d21fe1e7b47e6e870c017208560e22d5db3a6d74b3edeb218544",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
-      "sha256": "12be0253dcd46d86e9497343a9dca394c636bfd6005e13f41906fcb167c58756",
+      "sha256": "91e64cf92372f33bb7ff1e00214f26b37c5a9a41628d00b43471f0f369a060dd",
       "mode": "0644"
     },
     "skills/review/SKILL.md": {

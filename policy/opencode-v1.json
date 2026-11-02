@@ -131,12 +131,6 @@
     }
   ],
   "pathTextReplacements": {
-    "skills/handoff/SKILL.md": [
-      {
-        "from": "fresh session",
-        "to": "fresh OpenCode session"
-      }
-    ],
     "skills/design-prototype/references/visual-companion.md": [
       {
         "from": "lokal Copilot CLI/app-kjøring",
