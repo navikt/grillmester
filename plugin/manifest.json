@@ -67,7 +67,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "db0efcd80b018f276a8a7f83aa7181e132fffa43c112fffcee0e7dbda39ef38c",
+      "sha256": "c0e815a244211caeabf04da70f0a2a0c83d4a942b002e381054f1171f8702e21",
       "mode": "0644"
     },
     "agents/designer.agent.md": {
@@ -79,7 +79,7 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "b2db21f16367c3f321d14d73614059c2d3f48c51a6c1f29ab1f80a3239eed0de",
+      "sha256": "3f6533a2560dfd7ca03754b6f91eb86cc7c8b00f2a71568408ea6508fe2db493",
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
@@ -583,7 +583,11 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "2a000417200825431675659fc0db33ea7751387ce2d50427f705c2cbd213271a",
+      "sha256": "80bbb3f103dea395ade51ffd8ea6990822a4bfdcce14f55bd3f0263b8e1a1538",
+      "mode": "0644"
+    },
+    "skills/diagnosing-bugs/references/data-access.md": {
+      "sha256": "fb5814efdbed2997731a1ec80318967c5d6e453290c9d99662dc3fd52b313aab",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
@@ -807,7 +811,11 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "e825d25ea19e58111629bf30ebc249742f5bad97951392cd7087bb264b94cfa7",
+      "sha256": "6ea601cdf05f5b8de264aa4b46347f3e2bda0fcd681b76faa51804394c79f1ef",
+      "mode": "0644"
+    },
+    "skills/review/references/smells.md": {
+      "sha256": "4cc59d31d4a27a1c7c31c5a3bdca34b40b01b85cb2ffe601cb9b7c39023381d6",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
