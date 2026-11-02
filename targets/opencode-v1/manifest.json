@@ -9,7 +9,7 @@
     "plugin": "grillmester",
     "pluginManifest": "plugin/plugin.json",
     "policy": "policy/opencode-v1.json",
-    "policySha256": "c813c02e9ae23e53c2f9f79f7a264c544a4dfd5a3d7296151921eedc38bcd62d"
+    "policySha256": "c8e27c18345ec96f5336c615a915f22e713009f696cf2d625181567e81f7f91e"
   },
   "modelSelection": "inherit-provider-or-session",
   "skillInvocation": {
@@ -695,7 +695,7 @@
       "mode": "0644"
     },
     "skills/handoff/SKILL.md": {
-      "sha256": "5e6ff43de8506ea684dbe6cfc3550a65dc9edee3ed4fcd3ee8431ce79fd482b2",
+      "sha256": "ee4473ee893ec8e1bef119c02bac0b525ec43256b562a5b65d47e580b34f187c",
       "mode": "0644"
     },
     "skills/improve-codebase-architecture/HTML-REPORT.md": {
@@ -707,7 +707,7 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "c4e341429a40e3e8fe0b4f5a154e9fe142f5013f9bd809d67eb08f90084acdd8",
+      "sha256": "373c1aad7fca8ae626ac6b7726be380fd6c8577f2e442d4f6c7d0a8f1460de55",
       "mode": "0644"
     },
     "skills/kafka-topic/SKILL.md": {
@@ -855,7 +855,7 @@
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
-      "sha256": "4d2e48e503343c239ff7afcfeca8ad2d45d33809df22a15d4abe9ea9f9e54a2f",
+      "sha256": "e52a11a49a75130dc8bc853d9466a27264502e4c6844fb7a1aebaa62169ef336",
       "mode": "0644"
     },
     "skills/readme-update/SKILL.md": {
@@ -915,7 +915,7 @@
       "mode": "0644"
     },
     "skills/to-issues/SKILL.md": {
-      "sha256": "63d5f0c8a33bcf84a3b70390a315ca81e57adaadd0f93e961f01209e746c757e",
+      "sha256": "3bbb0738418e36e55ce8a56f4ae11267fcdee3b2812d0103ec487013a1774da1",
       "mode": "0644"
     },
     "skills/to-spec/SKILL.md": {

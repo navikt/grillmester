@@ -251,6 +251,12 @@ Names, sources, the Doctor Who name and characterization, the imported skills
 and the component set are unchanged. The rights journal binds this content and
 provenance while preserving the underlying decision in #56.
 
+PR [#100](https://github.com/navikt/grillmester/pull/100) reviews the default
+pull-request body shape, the single issue template in `issue-management` and
+the shorter `handoff`. It changes no Hovmester-imported component. The rights
+journal binds the changed content lock and this provenance record while
+preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
@@ -411,6 +417,17 @@ as the default and uses the same lenses for its independent reviewer. It also
 adopts the red, deterministic loop criteria, 3–5 ranked hypotheses and the
 forced-mutation diff check in `diagnosing-bugs`, while keeping Nav's
 operational data-access rules and bounded analysis when no loop is possible.
+
+The delivery review at the same revision adapts the `pr` body shape into
+`pull-request` as the default when a repository has no template: a summary
+with the smallest useful visual, before-and-after evidence, and the merge
+danger as a one-way or two-way door with its blast radius. A repository
+template still wins. Upstream credits its menu of summary visuals to Dex
+Horthy's `show-me` skill from Humanlayer. Grillmester reproduces none of that
+menu and names the kinds of visual in its own words; only the section headings
+and the Door and Blast radius labels follow `pr`. `handoff` keeps
+Grillmester's private temporary directory, redaction and verified/unverified
+split, and adds suggested skills and tailoring to the next session's purpose.
 
 The observability review at `navikt/copilot` revision
 `ce9abd567a89eb72f1b8f95447435fd16fe805d3` adapts the

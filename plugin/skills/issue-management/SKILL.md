@@ -35,13 +35,18 @@ list of links in prose.
 Use the repository's issue template and documented language when they exist.
 Otherwise ask when language affects the result, then keep the issue
 self-contained and concise. Give it a functional title that says what changes,
-not which file or mechanism will be touched. Make the opening useful to a
-non-technical teammate:
+not which file or mechanism will be touched. Without a repository template or a
+body that the calling skill defines, use this one; make the opening useful to a
+non-technical teammate and omit a section that adds nothing:
 
 ```markdown
 ## In short
 
 <one or two sentences: who or what benefits, what changes, and why it matters>
+
+## What to build
+
+<the end-to-end behavior this issue makes work, not a layer-by-layer walkthrough>
 
 ## Acceptance criteria
 
@@ -50,6 +55,10 @@ non-technical teammate:
 ## Implementation context and proof
 
 <relevant current state, constraints, risks, test seams, and evidence>
+
+## Out of scope
+
+<the nearest tempting work this issue deliberately leaves out>
 ```
 
 Retain the context, non-goals, dependency rationale, rollback conditions, risk,
@@ -59,7 +68,16 @@ inventory, or implementation walkthrough into every child issue.
 Use a user story only when a real actor and value are clearer in that form; it
 is not a required wrapper for technical work.
 Keep parent and dependency graph state in native relationships rather than
-duplicating it in body sections.
+duplicating it in body sections; add dependency prose only when a non-obvious
+rationale helps the implementer.
+
+Avoid speculative paths, exhaustive file inventories and snippets that merely
+prescribe an implementation.
+Keep verified anchors such as a symbol, path, failing test, query or command
+when they are evidence or the clearest test seam. When a prototype produced a
+snippet that encodes a decision more precisely than prose, such as a state
+machine, reducer, schema or type shape, inline only its decision-rich parts and
+mark it as prototype output.
 
 Select only issue types, labels, assignees, parents, dependencies, and project
 fields that consumer evidence or live metadata establishes. Present those proposed metadata values

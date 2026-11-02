@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "bda492953979218304aa3c8ef98f6606c1d48e0bff6fbc87897da7eee5873cee",
+    "targetManifestSha256": "e645dbff2f838ac88f1d7626cfad71355cb9107b211cdca615af6ce23ed4f68e",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -108,11 +108,11 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "e54abea4e00889a36f2f61c12d9a89c746fde1b5233f0a3b0cf5cdd970750609",
+      "sha256": "b3fe82a0e3105773d4607a80fe82a486d9843c56eccff75c30ff3838ae1a30a5",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
-      "sha256": "4d2e48e503343c239ff7afcfeca8ad2d45d33809df22a15d4abe9ea9f9e54a2f",
+      "sha256": "e52a11a49a75130dc8bc853d9466a27264502e4c6844fb7a1aebaa62169ef336",
       "mode": "0644"
     },
     "skills/review/SKILL.md": {

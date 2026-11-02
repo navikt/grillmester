@@ -6,61 +6,45 @@ disable-model-invocation: true
 
 # Handoff
 
-Create a handoff only for a user-requested transfer. Let the client manage
-ordinary compaction; a long conversation, high context usage, or phase change
-does not trigger a handoff or require a fresh session. Use the client's native
-delegation with a bounded task brief for work within the same session.
+Write a handoff only when the user asks for a transfer. A long conversation,
+high context usage or a phase change is not a reason; the client handles
+ordinary compaction, and work inside the session uses its native delegation.
+When the user says what the next session is for, tailor the document to that.
 
-1. Create a private directory under the user's OS temporary directory, for
-   example with `mktemp -d` on Unix-like systems. Do not write the handoff to
-   the repository or directly to a predictable shared temporary path.
-2. Record the goal, current state, decisions and their rationale, remaining
-   actions, blockers, and existing authorization. Focus the brief on the
-   receiving task. If a skill recommendation helps, have the recipient resolve
-   it against its active catalog rather than assume the same installation.
-   Identify the repository by its known project identity or a safe canonical
-   URL as well as the sender's local path; never print credential-bearing remotes.
-3. Reference existing specs, plans, ADRs, context documents, issues, commits,
-   diffs, and pull requests by canonical path or URL. Do not duplicate their
-   contents; durable team state belongs in those artifacts.
-4. Use separate `Verified now` and `Unverified or pending` sections. Include
-   the command, path, or link that supports each important verified claim;
-   put assumptions, stale reports, and unfinished checks in the latter.
-5. Redact secrets and personally identifiable or sensitive information,
-   including tokens, passwords, names, national identity numbers, and health
-   information.
+Save the document in a new private directory under the OS temporary directory,
+for example from `mktemp -d`, never in the repository or at a predictable
+shared path. Include:
 
-When inside a Git worktree with an existing `HEAD`, capture fresh output for
-the canonical repository path, branch or detached state, full commit ID, and
-complete status including untracked paths:
+- the goal, current state, decisions with their reasons, remaining steps,
+  blockers and the authorization already given;
+- the repository's identity as owner/name or a safe canonical URL, plus the
+  local path for a transfer on the same machine; never print or record a remote
+  with credentials;
+- fresh output of `git rev-parse HEAD` and
+  `git status --short --branch --untracked-files=all`, which also shows the
+  branch or a detached `HEAD`; outside a Git worktree or before the first
+  commit, the working directory and relevant artifact paths instead;
+- links or paths to existing specs, plans, ADRs, issues, commits, diffs and
+  pull requests instead of copies of their content;
+- separate `Verified now` and `Unverified or pending` sections: each verified
+  claim with the command, path or link that supports it, and assumptions, stale
+  reports and unfinished checks in the second;
+- suggested skills for the next session when they help, for the recipient to
+  resolve against its own skill catalog.
 
-```bash
-set -euo pipefail
-repository_root=$(git rev-parse --show-toplevel)
-(cd "$repository_root" && pwd -P)
-git -C "$repository_root" symbolic-ref --quiet --short HEAD || printf '%s\n' DETACHED
-git -C "$repository_root" rev-parse HEAD
-git -C "$repository_root" status --short --branch --untracked-files=all
-```
+Redact secrets and personal or sensitive data, including tokens, passwords,
+names, national identity numbers and health information.
 
-On the same machine, the recipient can reuse the repository path. Elsewhere,
-locate the corresponding checkout by repository identity; sender-local paths
-are not instructions to create a matching directory. Rerun the commands and
-compare the branch, commit, and status before continuing. Reassess changed
-state before relying on old conclusions; ask the user only when the intended
-workspace or remaining authority cannot be inferred. If no Git worktree or
-`HEAD` exists, record the canonical working directory and relevant artifact
-paths instead.
+In the document, tell the recipient to rerun those Git commands and compare
+before continuing, and to reread the complete diff, including staged and
+untracked files, and rerun the relevant checks before relying on earlier
+results: the status shows the shape of the working tree, not its uncommitted
+content. The recipient asks the user only when the intended workspace or the
+remaining authority cannot be inferred. A local path from another machine is
+not an instruction to recreate it.
 
-This preflight verifies repository identity and the shape of the working tree,
-not byte-for-byte equality of uncommitted content. Treat claims about modified
-or untracked content and previous test results as unverified after the handoff:
-reread the complete current diff and rerun the relevant checks before relying
-on them.
-
-After writing the document, reopen it and confirm it is readable and non-empty.
-Return the absolute path for a same-machine transfer. For a colleague or another
-machine, also provide the redacted brief as copyable content and identify any
-referenced files or uncommitted changes that must travel with it. Do not imply
-that private temporary files are remotely accessible or durable. Sending,
-publishing, or starting a new session is outside this skill's task.
+Read the document back to confirm it is complete, then return its absolute
+path. For a colleague or another machine, also give the redacted text to copy
+and name the files or uncommitted changes that must travel with it. Do not
+imply that a private temporary file is shared or durable. Sending, publishing
+or starting a new session is outside this skill.

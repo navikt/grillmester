@@ -67,7 +67,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "c0e815a244211caeabf04da70f0a2a0c83d4a942b002e381054f1171f8702e21",
+      "sha256": "e051f6cc571f833a609d029377b8369c29538b59042f6552fae667808e0b0bbd",
       "mode": "0644"
     },
     "agents/designer.agent.md": {
@@ -643,7 +643,7 @@
       "mode": "0644"
     },
     "skills/handoff/SKILL.md": {
-      "sha256": "e811346ec2bd6a353516798ef871cb7f87e406f056d405871a2517e232f3826c",
+      "sha256": "2f4170c2439c3792d355626f4c500f918f26999b258759436c2d6d98f38cd301",
       "mode": "0644"
     },
     "skills/improve-codebase-architecture/HTML-REPORT.md": {
@@ -655,7 +655,7 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "8fa29696db0bf69b2780e8c818e2ba89845c79093bee1f0f3a681ad94681c3ca",
+      "sha256": "c1a2548b278d9be2f88b057ee887a836cf83b830208407979c964eaa5c633bc8",
       "mode": "0644"
     },
     "skills/kafka-topic/SKILL.md": {
@@ -803,7 +803,7 @@
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
-      "sha256": "12be0253dcd46d86e9497343a9dca394c636bfd6005e13f41906fcb167c58756",
+      "sha256": "91e64cf92372f33bb7ff1e00214f26b37c5a9a41628d00b43471f0f369a060dd",
       "mode": "0644"
     },
     "skills/readme-update/SKILL.md": {
@@ -863,7 +863,7 @@
       "mode": "0644"
     },
     "skills/to-issues/SKILL.md": {
-      "sha256": "2104e2496c71766811e7831a7624d50596e6a76e9c21ea888aa434e66c7753c7",
+      "sha256": "bb8ee0005db430b2fa57c6f5e7e95ea38813fcd819093f0985b1cb6862fc5787",
       "mode": "0644"
     },
     "skills/to-spec/SKILL.md": {

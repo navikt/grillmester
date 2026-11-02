@@ -51,6 +51,11 @@
       "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
       "note": "Adapted round-based grilling over the decision frontier, thin grill-me and grill-with-docs entries, and the GLOSSARY.md convention with CONTEXT.md as a fallback; documentation writes stay behind an explicit request or acceptance."
     },
+    "matt-delivery": {
+      "repository": "mattpocock/skills",
+      "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+      "note": "Adapted the pull-request body shape (a summary with the smallest useful visual, before-and-after evidence, and the merge danger as a one-way or two-way door with its blast radius) as the default when a repository has no template, and suggested skills in a handoff; the menu of summary visuals that upstream credits to Humanlayer's show-me is not reproduced."
+    },
     "nav-observability": {
       "repository": "navikt/copilot",
       "revision": "ce9abd567a89eb72f1b8f95447435fd16fe805d3",
@@ -192,7 +197,15 @@
       "disposition": "adapted"
     },
     "guided-review": {"source": "pilot", "sourcePath": ".github/skills/review", "disposition": "adapted", "disable-model-invocation": true},
-    "handoff": {"source": "pilot", "sourcePath": ".github/skills/handoff", "disposition": "adapted", "disable-model-invocation": true},
+    "handoff": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/handoff",
+      "lineage": [
+        {"source": "matt-delivery", "sourcePath": "skills/productivity/handoff"}
+      ],
+      "disposition": "adapted",
+      "disable-model-invocation": true
+    },
     "improve-codebase-architecture": {
       "source": "pilot",
       "sourcePath": ".github/skills/improve-codebase-architecture",
@@ -202,7 +215,14 @@
       ],
       "disposition": "adapted"
     },
-    "issue-management": {"source": "pilot", "sourcePath": ".github/skills/issue-management", "disposition": "adapted"},
+    "issue-management": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/issue-management",
+      "lineage": [
+        {"source": "pilot", "sourcePath": ".github/skills/to-issues"}
+      ],
+      "disposition": "adapted"
+    },
     "kafka-topic": {"source": "pilot", "sourcePath": ".github/skills/kafka-topic", "disposition": "adapted"},
     "klarsprak": {"source": "pilot", "sourcePath": ".github/skills/klarsprak", "disposition": "adapted"},
     "kotlin-ktor": {"source": "pilot", "sourcePath": ".github/skills/kotlin-ktor", "disposition": "adapted"},
@@ -221,7 +241,14 @@
     "postgresql-review": {"source": "pilot", "sourcePath": ".github/skills/postgresql-review", "disposition": "adapted"},
     "produktledelse": {"source": "hovmester", "sourcePath": ".github/skills/produktledelse", "disposition": "adapted"},
     "prototype": {"source": "pilot", "sourcePath": ".github/skills/prototype", "disposition": "adapted"},
-    "pull-request": {"source": "pilot", "sourcePath": ".github/skills/pull-request", "disposition": "adapted"},
+    "pull-request": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/pull-request",
+      "lineage": [
+        {"source": "matt-delivery", "sourcePath": "skills/engineering/pr"}
+      ],
+      "disposition": "adapted"
+    },
     "readme-update": {"source": "pilot", "sourcePath": ".github/skills/readme-update", "disposition": "adapted"},
     "review": {
       "source": "pilot",

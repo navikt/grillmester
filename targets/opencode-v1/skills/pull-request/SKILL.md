@@ -27,15 +27,42 @@ itself authorization to publish it.
 
 ## Draft before publishing
 
-Prepare a concise title and body containing:
+Write a concise title and a body that a reviewer can take in quickly: no
+preamble, short prose, and the domain language of the repository's glossary.
+When the repository has no template, use this shape in the repository's
+language, translating headings and labels idiomatically:
 
-- the observable outcome and why it matters;
-- the material changes and deliberate non-goals;
-- issue or task links using the repository's established closing semantics;
-- fresh verification evidence;
-- risk, rollout or rollback notes, and focused reviewer guidance;
-- any accepted concern, waived review, or unverified behavior required by
-  repository policy.
+```markdown
+## Summary
+
+<what changes and why it matters, where to look first, and a small visual when
+prose is not enough>
+
+## Evidence
+
+<before and after when there is a before state: the failing and then passing
+test, command output or screenshot, with commands, results and exit codes>
+
+## Merge danger
+
+**Door:** <one-way or two-way>
+
+**Blast radius:** <one word, then what could break, for whom, and any rollout
+or rollback step>
+```
+
+Use a visual only when it makes the change clearer, and at most one or two:
+a call tree for changed control flow or a file tree for a restructure, each in
+a fenced `text` block, a short `diff` sketch of a changed shape, or a Mermaid
+diagram for interaction between parts. A two-way door can be rolled back
+cheaply; a one-way door, such as a destructive migration or a published
+contract change, cannot.
+
+With a template, put the evidence and the merge danger in its matching or
+nearest sections instead of adding headings. Either way, the body also carries
+issue links with the repository's closing semantics, deliberate non-goals, and
+any accepted concern, waived review or unverified behavior that repository
+policy requires.
 
 Avoid implementation diaries, generated filler, copied secrets or personal
 data, and claims that exceed the supplied evidence. Present the complete draft
