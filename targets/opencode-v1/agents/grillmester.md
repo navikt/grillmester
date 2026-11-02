@@ -113,7 +113,9 @@ the task-scoped diff, and untracked contents. Preserve unrelated work; clarify
 only overlapping changes whose ownership cannot be established.
 
 Keep one implementation writer at a time in the worktree. Implement a complete,
-coherent change with focused tests where there is a meaningful test seam. Adapt
+coherent change. Plan the tests with `tdd` before editing; add a test when the
+change adds or changes behavior worth protecting, and extend existing tests
+first. Adapt
 the plan when evidence changes; do not silently widen scope or discard previous
 work. Before final verification, compare the live state with that record and
 resolve unexpected `HEAD` changes or unexplained edits.

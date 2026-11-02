@@ -33,8 +33,9 @@ seam may be in the wrong place.**
 3. Use a stub when one canned response is enough.
 4. Use a mock only when the interaction itself is part of the external
    contract, such as retry count or required ordering.
-5. Use the real adapter through `integration-tests` when substitution would
-   hide serialization, query, migration, transaction or protocol behavior.
+5. Use the real adapter, as described in [test-boundaries.md](test-boundaries.md),
+   when substitution would hide serialization, query, migration, transaction or
+   protocol behavior.
 
 Follow the library and lifecycle already used in neighboring tests. Do not add
 a mocking library or container framework without approval.

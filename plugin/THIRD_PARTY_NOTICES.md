@@ -5,8 +5,8 @@
 Test-outcome and architecture-method guidance was also adapted from revision
 `3cca18b368ae95cdbdebbff572ccafa662551015`.
 
-Round-based grilling and the glossary convention were also adapted from revision
-`4ae2317ddb22b046e26455e4f9c9b3aaaf62212d`.
+Round-based grilling, the glossary convention and the seam-first test plan were
+also adapted from revision `4ae2317ddb22b046e26455e4f9c9b3aaaf62212d`.
 
 Portions of the agent skills in this package are copied or adapted from [`mattpocock/skills`](https://github.com/mattpocock/skills) at the original reviewed revision `2ab958093e83e0ec752e6c1c5932da465bf23e0c`. Narrow diagnostic-redaction and skill-authoring deltas were later reviewed at `8b78b531ab965735c5dc74f6f7a219e1e37326df`. Exact paths and reviewed source lineage are recorded in the [Grillmester provenance record](https://github.com/navikt/grillmester/blob/main/PROVENANCE.md).
 

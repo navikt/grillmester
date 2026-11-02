@@ -90,6 +90,8 @@ do not replace it with shell-network commands or memory; return
    in your context.
 6. Check that verification evidence is relevant, fresh, and sufficient for the
    claims made.
+7. Check the tests against the keep rule in `tdd`: flag a missing test for a
+   real risk, and flag test bloat as a minor finding.
 
 When the `security-review` description matches, invoke it and follow its
 read-only reviewer path. Inspect the supplied diff independently, but do not

@@ -5,8 +5,9 @@ description: "Inspect, create, update, link or close GitHub issues for work that
 
 # Issue Management
 
-Apply GitHub issue mechanics to work that is already understood. The caller owns problem shaping, planning, specifications, and ticket
-decomposition; this skill owns the resulting tracker mutations.
+Apply GitHub issue mechanics to work that is already understood. The caller owns
+`grilling`, planning, specifications, and ticket decomposition;
+this skill owns the resulting tracker mutations.
 
 ## 1. Discover tracker context
 

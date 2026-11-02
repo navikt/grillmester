@@ -10,9 +10,9 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "432058f3ebda78fc41f16f4356998650305b1a1bf34c993fe8bee39db7110117",
+    "payloadManifestSha256": "be23677bb0171680654757254b0e9ee755bbeba191e7fae5851d1f01c5d6b505",
     "policy": "policy/focused-context-v1.json",
-    "policySha256": "a3b007cc7f247c2d75fc3230a7935858c1f89fd345f63c6d1be0a8d93b501cf8"
+    "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
   "modelSelection": "inherit-provider-or-session",
   "transformations": {
@@ -35,7 +35,7 @@
   ],
   "skills": [
     "diagnosing-bugs",
-    "integration-tests",
+    "grilling",
     "issue-management",
     "pull-request",
     "review",
@@ -48,15 +48,15 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "56fce476fbb933a03068cbb1531ed6e9ae1357cea9a8f765b6fb8123899e3a99",
+      "sha256": "db0efcd80b018f276a8a7f83aa7181e132fffa43c112fffcee0e7dbda39ef38c",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "dc6d2eb782b2c60845c109ea1b61b704ae254731d2b4f1de596f0a018f10d7b3",
+      "sha256": "a31c635b97252d95cc8fd2a15e54d2a9ac4c1ee85c9177ce66c8318e3bccd16c",
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "70668a701671d6a223750ec083cfc1e9ce22cdc83dc46bd1aea72162ffb25745",
+      "sha256": "e8e640847114f4b89d97b7c0a9952143752d27f5ddb9900ac349b8418916ea8c",
       "mode": "0644"
     },
     "plugin.json": {
@@ -64,19 +64,19 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "7797b3e5c49fd576162448cb82ba115a54ba313b54022b5bb01edf8850b709d5",
+      "sha256": "04e3b4dad3001342434591d8f3f9095803a8744678ad90e0b54c2e5caa35e1a3",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
       "sha256": "a4a1a26c4cc69cad1b4148b78979e2d0e4d0a38350cc25d8c55b2c15d1ec38d3",
       "mode": "0755"
     },
-    "skills/integration-tests/SKILL.md": {
-      "sha256": "3c7a23d6b22e059e80cb88178d8659025cff70026dfc811b2ed96b13e6ac715a",
+    "skills/grilling/SKILL.md": {
+      "sha256": "3b10ac9e4a9ada0be92c13ae979b96478c0678226f05a912ddeae845ff0bd689",
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "b31fe83326d0acde7f5689c7a1ded29cd231b71e7784922795b53cc3b84cfbea",
+      "sha256": "aaf12ae1a2529c10cff560dbcddbf435c4effbc55361afc4529003fdff3e8d10",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
@@ -84,7 +84,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "f858155791e15cf3d3b1b569b55806031fedb2ac3d26c98156f09164d499f4a4",
+      "sha256": "1cc500e2b060ecd91ec7c3005aed837cab6da6d7608e42323fc3aed9eb2199fb",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -100,19 +100,23 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "394fd2b563db7043330d04cdaeab1b25a4d5f4c2ce42f081680337966c1e9236",
+      "sha256": "6994617e355d995fd8c2c7a61436c3dd451096b750182a8c20c055d5a64958ef",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
-      "sha256": "f0f865cce8f85e9b520d4396121234f46aa9a19f01529eb1d19476f635c3e883",
+      "sha256": "e97614726acef3958b8b5236758d01c1e41e1919418005dd532c07015a3c381a",
       "mode": "0644"
     },
     "skills/tdd/refactoring.md": {
       "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
+    "skills/tdd/test-boundaries.md": {
+      "sha256": "cfee2884f0dddd5af1f020f674df946c1ddffce8d3fbb43720bd05a7e0ae3395",
+      "mode": "0644"
+    },
     "skills/tdd/tests.md": {
-      "sha256": "9fa718b4d69d868a8f47f71aee29dcc69fb5bd40b876c81ea31ad763ad76b50e",
+      "sha256": "ce570f378f822b0205296d7189eb727c2dd6e9710162a90f7c20119c321fbe6d",
       "mode": "0644"
     }
   }

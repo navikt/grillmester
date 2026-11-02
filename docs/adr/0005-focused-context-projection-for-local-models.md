@@ -6,7 +6,9 @@ date: 2026-08-23
 # Bruk en fokusert kontekstprojeksjon for lokale modeller
 
 > Agentutvalget og delegeringen av implementering er delvis erstattet av
-> [ADR 0026](0026-grillmester-eier-hele-leveransen.md).
+> [ADR 0026](0026-grillmester-eier-hele-leveransen.md). I den fokuserte
+> skillisten har `grilling` tatt plassen til `integration-tests`, som nå er en
+> del av `tdd`.
 
 ## Kontekst
 

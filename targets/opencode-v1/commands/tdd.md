@@ -1,5 +1,5 @@
 ---
-description: "Develop behavior in small red-green-refactor cycles through public interfaces. Use for requested test-first development or a confirmed bug requiring a failing regression test; use `diagnosing-bugs` to find an unclear cause and `integration-tests` or `e2e-tests` to choose the test boundary."
+description: "Build or fix behavior test-first with few, well-placed tests. Use when writing or adding unit, integration, end-to-end (e2e) or regression tests, or building a feature or fixing a bug test-first; use `diagnosing-bugs` when the cause is unclear."
 ---
 
 Use the `skill` tool to load `tdd`, then follow that skill for this request.

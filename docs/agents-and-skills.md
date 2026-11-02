@@ -180,7 +180,7 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | **Avklaring og beslutninger** | Planen må grilles, domeneord avklares eller en beslutning dokumenteres. | Grilling, Grill with docs, Domain modeling, To spec, Architecture review, Prototype |
 | **Beslutningskart og oppdeling** | Avhengige, uavklarte beslutninger trenger et varig kart, eller avklart arbeid skal deles i selvstendige leveranser. | Wayfinder, To issues, Issue management |
 | **Overlevering** | Brukeren ber om å flytte pågående arbeid til en annen sesjon, klient eller kollega. | Handoff (manuell) |
-| **Implementasjon og kvalitet** | Feilsøking, teststrategi, review eller sikkerhet/personvern. | Diagnosing bugs, TDD, Integration tests, E2E tests, Review, Guided review, Security review |
+| **Implementasjon og kvalitet** | Feilsøking, teststrategi, review eller sikkerhet/personvern. | Diagnosing bugs, TDD, Review, Guided review, Security review |
 | **Kodebase og levering** | Arkitekturforbedring, README, PR eller skillvedlikehold. | Improve codebase architecture, README update, Pull request, Create a skill |
 | **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel design, Accessibility review, Design prototype, Figma workflow |
 | **Produkt og tjeneste** | Mål, discovery, teamarbeid, workshop, klarspråk eller ansvarlig atferdsdesign. | OKR, Produktledelse, Team status, Workshop design, Klarspråk, Dulting |
@@ -193,13 +193,13 @@ ikke gjette detaljer fra minnet.
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 44 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 42 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-De 44 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
+De 42 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
 `design-prototype` og `review`. Nav-pilot eier valg og distribusjon av
 agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som
@@ -244,7 +244,7 @@ Disse grensene gjør overlappende metoder enklere å velge:
 | Vurdere tjenester, systemgrenser eller kostbare arkitekturvalg | `architecture-review` | Gir funn og beslutningskandidater; `domain-modeling` eier ADR-vurderingen. |
 | Prøve datamodell, tilstandsmaskin eller feiloppførsel | `prototype` | Kjørbart eksperiment med avgrenset spørsmål. |
 | Se layout, hierarki eller en brukerflyt | `design-prototype` | Visuell skisse; `figma-workflow` bruker et eksisterende design som grunnlag. |
-| Bevise en ekte adapterkontrakt eller en hel applikasjonsflyt | `integration-tests` / `e2e-tests` | Førstnevnte holder grensen smal; sistnevnte starter hele appen. `tdd` styrer arbeidsrekkefølgen. |
+| Bestemme hvor testene skal ligge, også integrasjons- og e2e-tester | `tdd` | Lager en kort testplan og holder testene få og plassert så høyt som det fortsatt er raskt. |
 | Kontrollere en ferdig diff eller forstå den sammen | `review` / `guided-review` | Egenkontroll versus interaktiv gjennomgang; `security-review` brukes ved relevante sikkerhets- og personvernspørsmål. |
 
 Skillvalg krever ikke at brukeren kan navnene. En forespørsel om en spec eller

@@ -8,9 +8,9 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "accea5d7820dbb84ddaa8d72d1ec72f84e13b7d851b12237b967aa4d2d223e41",
+    "targetManifestSha256": "584cee447a00660bd32536cdf8581fcb06c98a710d944fc8d82cf363dc3894e0",
     "policy": "policy/focused-context-v1.json",
-    "policySha256": "a3b007cc7f247c2d75fc3230a7935858c1f89fd345f63c6d1be0a8d93b501cf8"
+    "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
   "modelSelection": "inherit-provider-or-session",
   "transformations": {
@@ -39,7 +39,7 @@
   ],
   "skills": [
     "diagnosing-bugs",
-    "integration-tests",
+    "grilling",
     "issue-management",
     "pull-request",
     "review",
@@ -52,19 +52,19 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "541ce87b5375dd988c6d662ae89aec6d9f8b1a1e8f000cf53a36745ca388b50d",
+      "sha256": "f50a78b36d794dbc27d3ad3666bf59e439f0de564c1ddd99165a91cc44dc9b50",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "99b158fd261f58d88e8e536f0fa62da0ce3108dbc4f28209f2657c8863d5a259",
+      "sha256": "7f48bc2075aa0757ed8dbf65bc8ee38120b406b08d41957421bb76131d09f8d6",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
       "sha256": "436fcb5c601e56834bd9fc76813e72d0cc3c8fa2de3810836c7ba4ef9493e589",
       "mode": "0644"
     },
-    "commands/integration-tests.md": {
-      "sha256": "e2e9677f4bccd38e0fb90f825aafcb8b86a73778a96c1c0d9a40ec9d7ebcdc3d",
+    "commands/grilling.md": {
+      "sha256": "43c7e1c17b2256474657570c615a1fb367e07497967be28cd5d70d94593022a7",
       "mode": "0644"
     },
     "commands/issue-management.md": {
@@ -84,7 +84,7 @@
       "mode": "0644"
     },
     "commands/tdd.md": {
-      "sha256": "94bd62d77d00654e765402d0ee6a36d844f2f18e9c89fc438fc24c92dca2985b",
+      "sha256": "f777fa4b0ffa7be5de5623324fa9844bb2c10f723de503138680d481154cc1f3",
       "mode": "0644"
     },
     "opencode.json": {
@@ -92,19 +92,19 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "2fff76f2802538988b911de90963d830c11e3377a16756aa9e9f005265bc9570",
+      "sha256": "d222d66b8d611934ca78f426228568c9a51a770bdbb4226a413751ad8e079614",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
       "sha256": "a4a1a26c4cc69cad1b4148b78979e2d0e4d0a38350cc25d8c55b2c15d1ec38d3",
       "mode": "0755"
     },
-    "skills/integration-tests/SKILL.md": {
-      "sha256": "d2c3a5c0b5eb91bbbfc06c1b535ae2420779d95e733fbe1e5349436e959fe7a8",
+    "skills/grilling/SKILL.md": {
+      "sha256": "ee97cce46a5cacf22d15b51dde6a89d2fdf6edb97a4ad6fd3fa634efaaf4d53a",
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "a90b7c84910db3a49a83ecc1beb131c897f2ba3ec72d584fe7cbe75aa2820118",
+      "sha256": "eaaed215c4b915ad322fb4bb93fca2f6d9114b5ab2b42fb24f9b624654c2fe68",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
@@ -112,7 +112,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "6c61c80a2855eb8eee9ac15fde3af2bd4299e560215d7eb7ba91ccf7328613d7",
+      "sha256": "cf6ae3b5b6d0597ad9c58f93f936b8f27dd54146641957fba644d90cb5c9e0e8",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -128,19 +128,23 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "0e8a0f827a41ca007a98a0da1a9eadacf8b35d4c3fb40383d5a82529926cffa2",
+      "sha256": "90961505fe7e9ea3773c99c3c75a6463cf0e471c80c5bb3dcd637b1bbc17c70d",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
-      "sha256": "f0f865cce8f85e9b520d4396121234f46aa9a19f01529eb1d19476f635c3e883",
+      "sha256": "e97614726acef3958b8b5236758d01c1e41e1919418005dd532c07015a3c381a",
       "mode": "0644"
     },
     "skills/tdd/refactoring.md": {
       "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
+    "skills/tdd/test-boundaries.md": {
+      "sha256": "cfee2884f0dddd5af1f020f674df946c1ddffce8d3fbb43720bd05a7e0ae3395",
+      "mode": "0644"
+    },
     "skills/tdd/tests.md": {
-      "sha256": "9fa718b4d69d868a8f47f71aee29dcc69fb5bd40b876c81ea31ad763ad76b50e",
+      "sha256": "ce570f378f822b0205296d7189eb727c2dd6e9710162a90f7c20119c321fbe6d",
       "mode": "0644"
     }
   }

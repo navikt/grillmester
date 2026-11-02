@@ -213,13 +213,13 @@ den starter ingen modellklient og inngår ikke i pluginpayloaden. Se
 [canvas-protokollen](testing/visual-companion-canvas.md) og
 [kjøreinstruksjonene](../experiments/canvas-review/README.md).
 
-Plugin-smoken skal bekrefte 6 agenter, 44 skills og byte-eksakt installasjon,
+Plugin-smoken skal bekrefte 6 agenter, 42 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
 minimumsklienten Copilot CLI `1.0.79` annonserer hele flaggrosteren som local-run
 eier i `--help`, uten modell- eller nettverkskall. Den eksakte local-smoken
 kjører flaggene med release-testklienten. OpenCode-smoken bruker
 OpenCode `1.18.20`, kopierer targetet til en skrivbar tempmappe og bekrefter native
-discovery av 6 agenter, 44 skills, 44 commands, fravær av modellpin,
+discovery av 6 agenter, 42 skills, 42 commands, fravær av modellpin,
 deklarerte permissionregler og at native `read` løser consumerens `AGENTS.md`
 fra riktig repo uten å kontakte en modell. Den beviser derfor ikke
 at `AGENTS.md` faktisk påvirker et modellsvar, modelldrevet skillbruk,

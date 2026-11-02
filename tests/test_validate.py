@@ -833,7 +833,7 @@ class PackageValidationTest(unittest.TestCase):
             path.parent.name
             for path in (self.root / "plugin/skills").glob("*/SKILL.md")
         }
-        self.assertEqual(44, len(locked))
+        self.assertEqual(42, len(locked))
         self.assertEqual(locked, installed)
 
     def test_nav_specialist_skill_is_part_of_the_single_plugin(self) -> None:

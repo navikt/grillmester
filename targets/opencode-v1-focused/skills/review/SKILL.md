@@ -32,8 +32,8 @@ memory of the intended change.
    transitions, cleanup, concurrency, and failure handling.
 2. **Regression** — find affected callers, contracts, shared defaults,
    migrations, and behavior outside the immediate edit.
-3. **Edge cases** — test relevant empty, missing, malformed, repeated,
-   concurrent, timeout, retry, and partial-failure cases.
+3. **Edge cases** — check that the code handles relevant empty, missing,
+   malformed, repeated, concurrent, timeout, retry, and partial-failure cases.
 4. **Requirement coverage** — map every acceptance criterion and locked
    decision to concrete code or test evidence.
 5. **Repository standards** — check established architecture, naming,
