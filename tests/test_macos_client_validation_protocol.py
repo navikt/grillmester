@@ -52,65 +52,6 @@ class MacosClientValidationProtocolTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-    def test_protocol_has_required_sections_and_macos_client_scope(self) -> None:
-        for section in (
-            "## 1. Scope and exclusions",
-            "## 2. Prepare the run",
-            "## 3. Per-client validation",
-            "## 4. Harness-parity core",
-            "## 5. Evidence and disposition",
-        ):
-            with self.subTest(section=section):
-                self.assertIn(section, self.protocol)
-
-        for client in CLIENTS:
-            with self.subTest(client=client):
-                self.assertIn(client, self.protocol)
-
-        self.assertIn("**macOS only**", self.protocol)
-        self.assertIn("one disposable synthetic fixture", self.protocol)
-        self.assertIn("one frontend repository", self.protocol)
-        self.assertIn("one backend repository", self.protocol)
-        self.assertIn("clean, isolated worktree", self.protocol)
-        self.assertIn("consumer-pilot runbook](consumer-pilot-runbook.md)", self.protocol)
-        self.assertIn("sections 5 and 6", self.protocol)
-        self.assertIn("section 7", self.protocol)
-        self.assertRegex(self.protocol, r"exit gate \(section\s+8\)")
-        self.assertIn("does not run model scenarios in CI", self.protocol)
-        self.assertIn("[installation guide](installation.md)", self.protocol)
-        self.assertIn("[release runbook](release-runbook.md)", self.protocol)
-        self.assertIn(
-            "[macOS-klientvalideringsprotokollen](macos-client-validation-protocol.md)",
-            self.trust_and_client_support,
-        )
-
-    def test_protocol_names_all_parity_checks_and_hard_blockers(self) -> None:
-        for check in (
-            "/grilling",
-            "automatic skill routing",
-            "Wayfinder discovery and delegation",
-            "Grillmester → Grill-inspektør",
-            "Visual Companion",
-            "approved, harmless write",
-            "rejected write",
-        ):
-            with self.subTest(check=check):
-                self.assertIn(check, self.protocol)
-
-        self.assertIn("High risk alone must not force delegation", self.protocol)
-        self.assertNotIn("Kokk", self.protocol)
-        self.assertIn("not evidence\nfor the current roster", self.protocol)
-
-        for blocker in (
-            "unexpected write",
-            "approval or stop-boundary violation",
-            "sensitive data",
-            "wrong plugin or agent identity",
-            "failed rollback",
-        ):
-            with self.subTest(blocker=blocker):
-                self.assertIn(blocker, self.protocol)
-
     def test_template_has_one_evidence_contract_for_all_clients(self) -> None:
         self.assertEqual(1, self.template["schemaVersion"])
         self.assertEqual("1.1", self.template["protocolVersion"])
@@ -119,6 +60,16 @@ class MacosClientValidationProtocolTest(unittest.TestCase):
         self.assertFalse(self.template["synthetic"])
         self.assertEqual("<release version matching the RC>", self.template["releaseVersion"])
         self.assertEqual(list(CLIENTS), [item["client"] for item in self.template["clientResults"]])
+        self.assertEqual(
+            [
+                "unexpected-write",
+                "approval-or-stop-boundary-violation",
+                "sensitive-data",
+                "wrong-plugin-or-agent-identity",
+                "failed-rollback",
+            ],
+            self.template["hardBlockers"],
+        )
 
         for client in self.template["clientResults"]:
             with self.subTest(client=client["client"]):

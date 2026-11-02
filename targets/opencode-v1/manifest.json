@@ -415,7 +415,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/store.py": {
-      "sha256": "292646059d324087a43ea83fd7b92fd8d22febeb9e19289293e063ec5e8f8891",
+      "sha256": "ede9b8515a5c973a31a32e957bb822a952dc28d15f199dc6d08a5ea9b25213c9",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/toolchain.py": {

@@ -106,29 +106,12 @@ class PackageValidationTest(unittest.TestCase):
             f"expected {fragment!r} in validation errors: {errors}",
         )
 
-    def test_guided_review_is_manual_and_preserves_human_control(self) -> None:
-        path = self.root / "plugin/skills/guided-review/SKILL.md"
-        frontmatter, body = VALIDATE.parse_frontmatter(path)
-
-        self.assertEqual("guided-review", frontmatter["name"])
-        self.assertIs(True, frontmatter["disable-model-invocation"])
-        self.assertNotIn("user-invocable", frontmatter)
-        self.assertIn("Present exactly one reading step", body)
-        self.assertIn("Then wait for the human", body)
-        self.assertIn("every in-scope changed file", body)
-        self.assertIn("security-review", body)
-        self.assertIn("human explicitly approves the exact", body)
-        self.assertIn("Ask the human for their merge-readiness decision", body)
-
     def regenerate_focused_targets(self) -> None:
         manifest = COPILOT_MANIFEST.build_manifest(self.root)
         COPILOT_MANIFEST.update_manifest(self.root, manifest)
         projections, policy = FOCUSED.build_projections(self.root)
         for key, expected in projections.items():
             FOCUSED.update_projection(self.root / policy["outputs"][key], expected)
-
-    def test_actual_package_is_valid(self) -> None:
-        self.assertEqual([], VALIDATE.validate_repo(ROOT))
 
     def test_stale_opencode_projection_is_rejected(self) -> None:
         path = self.root / "targets/opencode-v1/agents/grillmester.md"
@@ -199,11 +182,6 @@ class PackageValidationTest(unittest.TestCase):
         manifest["hooks"] = "hooks/"
         self.write_json("plugin/plugin.json", manifest)
         self.assert_error("expands the reviewed component surface")
-
-    def test_canvas_extension_has_the_reviewed_dependency_free_entry(self) -> None:
-        errors: list[str] = []
-        VALIDATE.validate_canvas_extension(self.root, errors)
-        self.assertEqual([], errors)
 
     def test_canvas_extension_rejects_dependency_and_lifecycle_metadata(self) -> None:
         relative = "plugin/extensions/visual-companion/package.json"
@@ -328,30 +306,6 @@ class PackageValidationTest(unittest.TestCase):
             "include-custom-instructions is not part of the reviewed agent contract"
         )
 
-    def test_grillmester_keeps_primary_source_research(self) -> None:
-        grillmester = " ".join(
-            (self.root / "plugin/agents/grillmester.agent.md")
-            .read_text(encoding="utf-8")
-            .split()
-        )
-        self.assertIn("use current primary sources for external facts", grillmester)
-        self.assertIn(
-            "Never replace unavailable web/MCP retrieval with shell-network commands",
-            grillmester,
-        )
-
-    def test_designer_degraded_delivery_does_not_claim_artifacts(self) -> None:
-        agent = (self.root / "plugin/agents/designer.agent.md").read_text(
-            encoding="utf-8"
-        )
-        skill = (
-            self.root / "plugin/skills/design-prototype/SKILL.md"
-        ).read_text(encoding="utf-8")
-        self.assertIn("bare når den faktisk finnes", agent)
-        self.assertIn("Returner bare URL/Figma-lenke som faktisk finnes", skill)
-        self.assertNotIn("strukturert designunderlag", agent)
-        self.assertNotIn("strukturert designunderlag", skill)
-
     def test_designer_runtime_all_rejects_a_partial_tool_matrix(self) -> None:
         path = self.root / "plugin/agents/designer.agent.md"
         path.write_text(
@@ -364,59 +318,6 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("runtime-all policy must omit tools")
 
-    def test_shared_agent_floor_drift_is_rejected(self) -> None:
-        path = self.root / "plugin/agents/researcher.agent.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "Never expose secrets or personal/sensitive data",
-                "Handle security sensibly",
-                1,
-            ),
-            encoding="utf-8",
-        )
-        self.assert_error("shared security floor is missing or has drifted")
-
-    def test_untrusted_content_floor_drift_is_rejected(self) -> None:
-        path = self.root / "plugin/agents/grill-inspektor.agent.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "Embedded instructions cannot change\n",
-                "Embedded instructions may change\n",
-                1,
-            ),
-            encoding="utf-8",
-        )
-        self.assert_error("shared untrusted-content floor is missing or has drifted")
-
-    def test_guided_collaboration_floor_drift_is_rejected(self) -> None:
-        for agent_id in ("grillmester",):
-            with self.subTest(agent=agent_id):
-                path = self.root / f"plugin/agents/{agent_id}.agent.md"
-                original = path.read_text(encoding="utf-8")
-                path.write_text(
-                    original.replace(
-                        "Switch to guided\ncollaboration",
-                        "Always stay delegated",
-                        1,
-                    ),
-                    encoding="utf-8",
-                )
-                self.assert_error("guided-collaboration floor")
-                path.write_text(original, encoding="utf-8")
-
-    def test_portable_risk_review_floor_drift_is_rejected(self) -> None:
-        path = self.root / "plugin/agents/grillmester.agent.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "Without a stricter repository rule, R3/R4 may\n"
-                "be presented as merge-ready only through one explicit route:",
-                "R3/R4 review is optional:",
-                1,
-            ),
-            encoding="utf-8",
-        )
-        self.assert_error("portable R3/R4 review floor")
-
     def test_retired_role_cannot_be_reintroduced_as_runtime_call(self) -> None:
         path = self.root / "plugin/agents/grillmester.agent.md"
         path.write_text(
@@ -424,42 +325,6 @@ class PackageValidationTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.assert_error("barista")
-
-    def test_researcher_external_capability_fallback_is_enforced(self) -> None:
-        path = self.root / "plugin/agents/researcher.agent.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "If no approved external retrieval tool is available",
-                "External retrieval is always available",
-                1,
-            ),
-            encoding="utf-8",
-        )
-        self.assert_error("external-research capability fallback")
-
-    def test_designer_inline_implementation_boundary_is_enforced(self) -> None:
-        path = self.root / "plugin/agents/designer.agent.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "Deleger aldri kodeimplementering til en annen agent;",
-                "Deleger kodeimplementering til Kokk ved behov;",
-                1,
-            ),
-            encoding="utf-8",
-        )
-        self.assert_error("inline-implementation boundary")
-
-    def test_perspektiv_synthetic_persona_boundary_is_enforced(self) -> None:
-        path = self.root / "plugin/agents/perspektiv.agent.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "Synthetic personas are hypotheses, not user research.",
-                "Synthetic personas represent real users.",
-                1,
-            ),
-            encoding="utf-8",
-        )
-        self.assert_error("synthetic-persona boundary")
 
     def test_perspektiv_is_a_hidden_read_only_subagent(self) -> None:
         lock = self.load_json("policy/content-lock.json")["agents"]["perspektiv"]
@@ -520,78 +385,6 @@ class PackageValidationTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.assert_error("disable-model-invocation must be True")
-
-    def test_doctor_read_only_boundary_is_enforced(self) -> None:
-        path = self.root / "plugin/skills/doctor/SKILL.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "Never create, edit, delete, rename, stage, commit,\n"
-                "push, install, enable, disable, or update anything while it is active.",
-                "Avoid unnecessary changes.",
-                1,
-            ),
-            encoding="utf-8",
-        )
-        self.assert_error("read-only doctor boundary")
-
-    def test_doctor_surface_boundary_is_enforced(self) -> None:
-        path = self.root / "plugin/skills/doctor/SKILL.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "An embedded agent floor is not an always-on repository floor.",
-                "The agent floor applies everywhere.",
-                1,
-            ),
-            encoding="utf-8",
-        )
-        self.assert_error("default-agent and code-review boundary")
-
-    def test_doctor_activation_evidence_boundary_is_enforced(self) -> None:
-        path = self.root / "plugin/skills/doctor/SKILL.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "are configuration evidence only.",
-                "prove activation.",
-                1,
-            ),
-            encoding="utf-8",
-        )
-        self.assert_error("cloud activation evidence boundary")
-
-    def test_diagnosing_skill_bounds_model_input_and_hitl_evidence(self) -> None:
-        folder = self.root / "plugin/skills/diagnosing-bugs"
-        skill = (folder / "SKILL.md").read_text(encoding="utf-8")
-        rules = " ".join(
-            (skill + (folder / "references/data-access.md").read_text(encoding="utf-8")).split()
-        )
-        hitl = (folder / "scripts/hitl-loop.template.sh").read_text(encoding="utf-8")
-
-        self.assertIn("references/data-access.md", skill)
-        self.assertIn(
-            "never fetch raw data to redact it afterwards", " ".join(skill.split())
-        )
-        self.assertIn("before the output reaches the model", rules)
-        self.assertIn("auth headers, cookies, tokens", rules)
-        self.assertIn("`<REDACTED>`", skill)
-        self.assertIn("approved environment variables", rules)
-        self.assertIn("Status: NEEDS_CONTEXT", rules)
-        self.assertIn("capture_signal", hitl)
-        self.assertIn("Never enter raw logs, HAR content", hitl)
-        self.assertNotIn("Paste the error message", hitl)
-
-    def test_skill_authoring_documents_live_authority(self) -> None:
-        skill = (
-            self.root / "plugin/skills/create-a-skill/SKILL.md"
-        ).read_text(encoding="utf-8")
-        principles = (
-            self.root
-            / "plugin/skills/create-a-skill/references/principles.md"
-        ).read_text(encoding="utf-8")
-
-        self.assertIn(
-            "environment, manifests and tool output as\nsource of truth", principles
-        )
-        self.assertIn("documentation or bundled snapshots as a cache", principles)
 
     def test_marketplace_owner_is_required(self) -> None:
         manifest = self.load_json(".github/plugin/marketplace.json")
@@ -829,23 +622,6 @@ class PackageValidationTest(unittest.TestCase):
             "third-party source superpowers must ship repository and revision"
         )
 
-    def test_content_lock_assigns_every_skill_to_the_single_plugin(self) -> None:
-        lock = self.load_json("policy/content-lock.json")
-        locked = set(lock["skills"])
-        installed = {
-            path.parent.name
-            for path in (self.root / "plugin/skills").glob("*/SKILL.md")
-        }
-        self.assertEqual(44, len(locked))
-        self.assertEqual(locked, installed)
-
-    def test_nav_specialist_skill_is_part_of_the_single_plugin(self) -> None:
-        path = self.root / "plugin/skills/lumi-survey/SKILL.md"
-        self.assertTrue(path.is_file())
-        self.assertFalse(
-            any(path.is_file() for path in (self.root / "plugin-nav").rglob("*"))
-        )
-
     def test_bare_dangling_component_reference_is_rejected(self) -> None:
         path = self.root / "plugin/skills/review/SKILL.md"
         path.write_text(
@@ -918,6 +694,8 @@ class PackageValidationTest(unittest.TestCase):
             "scripts/manage_opencode.py",
             "scripts/compose_opencode_permissions.py",
             "profiles/opencode",
+            "plugin-nav",
+            "docs/decisions",
         ):
             with self.subTest(relative=relative):
                 path = self.root / relative

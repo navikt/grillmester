@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import tempfile
 import textwrap
@@ -11,6 +12,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILL_COUNT = json.loads(
+    (ROOT / "package-manifest.json").read_text(encoding="utf-8")
+)["packages"][0]["skills"]
 SPEC = importlib.util.spec_from_file_location(
     "grillmester_smoke_opencode", ROOT / "scripts/smoke_opencode.py"
 )
@@ -248,7 +252,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
             target = self.create_target(Path(temp))
             (target / "commands/grillmester-fixture-00.md").unlink()
 
-            with self.assertRaisesRegex(SMOKE.SmokeError, "44 commands"):
+            with self.assertRaisesRegex(SMOKE.SmokeError, f"{SKILL_COUNT} commands"):
                 SMOKE.target_inventory(target)
 
     def test_missing_binary_skips_unless_required(self) -> None:
@@ -429,8 +433,8 @@ class OpenCodeSmokeTest(unittest.TestCase):
         self.assertEqual(SMOKE.EXPECTED_OPENCODE_VERSION, report.version)
         self.assertEqual(3, report.primary_agents)
         self.assertEqual(3, report.subagents)
-        self.assertEqual(44, report.skills)
-        self.assertEqual(44, report.commands)
+        self.assertEqual(SKILL_COUNT, report.skills)
+        self.assertEqual(SKILL_COUNT, report.commands)
 
 
 if __name__ == "__main__":

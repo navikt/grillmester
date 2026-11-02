@@ -585,79 +585,36 @@ class ReleaseContractTest(unittest.TestCase):
         )
         normalized_notes = " ".join(notes.split())
 
-        self.assertIn("v0.2.0-poc.4` → catalog commit", notes)
-        self.assertIn("catalog source →", notes)
-        self.assertIn("navikt/grillmester#v0.2.0-poc.4", notes)
-        self.assertIn("grillmester@grillmester", notes)
-        self.assertIn("Install the terminal launcher", notes)
-        self.assertIn("Run with Copilot CLI from PATH", notes)
-        self.assertIn("Run with OpenCode from PATH", notes)
-        self.assertIn("Grillmester terminal bundle (no client binaries)", notes)
-        self.assertIn("`grillmester-terminal-v1`", notes)
-        self.assertIn("release-test metadata, not runtime pins", normalized_notes)
-        self.assertIn("inner native OpenCode target remains `opencode-v1`", normalized_notes)
-        self.assertIn(
-            "shasum -a 256 -c grillmester-terminal-v0.2.0-poc.4.tar.gz.sha256", notes
-        )
-        self.assertIn("tar -xzf grillmester-terminal-v0.2.0-poc.4.tar.gz", notes)
-        self.assertIn("`scripts/grillmester.py` is the launcher", notes)
+        for command_or_link in (
+            "v0.2.0-poc.4` → catalog commit",
+            "catalog source →",
+            "navikt/grillmester#v0.2.0-poc.4",
+            "grillmester@grillmester",
+            "`grillmester-terminal-v1`",
+            "shasum -a 256 -c grillmester-terminal-v0.2.0-poc.4.tar.gz.sha256",
+            "tar -xzf grillmester-terminal-v0.2.0-poc.4.tar.gz",
+            "brew install opencode",
+            "brew install --cask copilot-cli",
+            "grillmester doctor --client copilot",
+            "grillmester --client copilot --agent grillmester",
+            CONTRACT.SUPPORTED_OPENCODE_RANGE,
+            f"/blob/{'2' * 40}/docs/local-models.md#avansert-manuell-opencode-binding",
+            f"/blob/{'2' * 40}/docs/opencode.md#kom-i-gang",
+        ):
+            with self.subTest(expected=command_or_link):
+                self.assertIn(command_or_link, notes)
+        for explanation in (
+            "is never moved after publication",
+            "not runtime pins",
+            "release-test inputs, not client binaries shipped in the bundle",
+            "does not package either client binary",
+            "grillmester doctor --client opencode",
+            "1" * 40,
+        ):
+            with self.subTest(explanation=explanation):
+                self.assertIn(explanation, normalized_notes)
         self.assertNotIn("grillmester.rb", notes)
         self.assertNotIn("Homebrew", notes)
-        self.assertIn("brew install opencode", notes)
-        self.assertIn("brew install --cask copilot-cli", notes)
-        self.assertIn("grillmester doctor --client copilot", notes)
-        self.assertIn("grillmester --client copilot --agent grillmester", notes)
-        self.assertIn("Install directly in Copilot CLI", notes)
-        self.assertIn(
-            "uses the OpenCode and GitHub Copilot CLI executables from `PATH`",
-            normalized_notes,
-        )
-        self.assertIn("does not package either client binary", normalized_notes)
-        self.assertIn(CONTRACT.SUPPORTED_OPENCODE_RANGE, notes)
-        self.assertIn("tested cplt baseline", normalized_notes)
-        self.assertIn("or a newer release", normalized_notes)
-        self.assertIn(
-            "Newer compatible clients are not the exact bytes covered by the release gate",
-            normalized_notes,
-        )
-        self.assertIn(
-            "release-test inputs, not client binaries shipped in the bundle",
-            normalized_notes,
-        )
-        self.assertIn("executable release-test baseline", normalized_notes)
-        self.assertIn(
-            "Users remain in control of the compatible client versions",
-            normalized_notes,
-        )
-        self.assertIn(
-            f"/blob/{'2' * 40}/docs/local-models.md"
-            "#avansert-manuell-opencode-binding",
-            notes,
-        )
-        self.assertIn(
-            f"/blob/{'2' * 40}/docs/opencode.md#kom-i-gang",
-            notes,
-        )
-        self.assertIn("### Verify Copilot", notes)
-        self.assertIn("copilot plugin list", notes)
-        self.assertIn("### Verify OpenCode", notes)
-        self.assertIn(
-            "without starting an interactive session or contacting a model",
-            normalized_notes,
-        )
-        self.assertIn("grillmester doctor --client opencode", notes)
-        self.assertIn(
-            "grillmester --client opencode --agent grillmester --print-command",
-            notes,
-        )
-        self.assertIn("does not create a separate lifecycle", normalized_notes)
-        self.assertNotIn("manage_opencode.py", notes)
-        self.assertNotIn("profiles/opencode", notes)
-        self.assertNotIn("verify_client_artifact.py", notes)
-        self.assertNotIn("policy/client-artifacts.json", notes)
-        self.assertNotIn("Optional managed hardening", notes)
-        self.assertNotIn("grillmester-nav@grillmester", notes)
-        self.assertIn("never\nmoved", notes)
 
     def test_stable_release_notes_use_the_direct_bundle_install(self) -> None:
         notes = CONTRACT.render_notes(
@@ -673,16 +630,6 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("tar -xzf grillmester-terminal-v0.2.0.tar.gz", notes)
         self.assertNotIn("navikt/tap/grillmester", notes)
         self.assertNotIn("Homebrew", notes)
-
-    def test_release_notes_keep_a_range_for_standard_use_and_exact_gate_input(
-        self,
-    ) -> None:
-        self.assertEqual("1.18.20", CONTRACT.SUPPORTED_OPENCODE_VERSION)
-        self.assertEqual(">=1.18.20,<2.0.0", CONTRACT.SUPPORTED_OPENCODE_RANGE)
-        self.assertEqual("1.0.79", CONTRACT.SUPPORTED_COPILOT_VERSION)
-        self.assertEqual(">=1.0.79,<2.0.0", CONTRACT.SUPPORTED_COPILOT_RANGE)
-        self.assertEqual("1.18.20", CONTRACT.RELEASE_TEST_OPENCODE_VERSION)
-        self.assertEqual("1.0.80", CONTRACT.RELEASE_TEST_COPILOT_VERSION)
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, NamedTuple
 
 
 # Release checks use -I -S, which excludes the script directory from sys.path.
@@ -180,6 +180,443 @@ DOCTOR_ACTIVATION_EVIDENCE_FLOOR = (
     "matching `enabledPlugins` and `extraKnownMarketplaces` declarations are "
     "configuration evidence only."
 )
+
+
+class Guardrail(NamedTuple):
+    """Phrases a file must keep or must not regain, compared with normalized
+    whitespace so that rewrapping a paragraph never breaks the check."""
+
+    name: str
+    paths: tuple[str, ...]
+    required: tuple[str, ...]
+    forbidden: tuple[str, ...] = ()
+
+
+ISSUE_MANAGEMENT_PATHS = (
+    "plugin/skills/issue-management/SKILL.md",
+    "targets/opencode-v1-focused/skills/issue-management/SKILL.md",
+)
+NO_EXECUTION_BRANCH = (
+    "When your role forbids command execution or the runtime lacks explicit "
+    "command-execution capability"
+)
+GUARDRAILS: tuple[Guardrail, ...] = (
+    Guardrail(
+        "doctor-who-no-shell",
+        ("plugin/agents/doctor-who.agent.md",),
+        (
+            "Your role forbids command execution and delegation.",
+            "never use them, and never route around this boundary",
+            "never replace it with shell or network commands",
+        ),
+    ),
+    Guardrail(
+        "issue-management-semantic-tools",
+        ISSUE_MANAGEMENT_PATHS,
+        (
+            NO_EXECUTION_BRANCH,
+            "Never fall back to `gh`, shell, raw HTTP",
+            "cplt-guarded `gh issue` commands",
+            "Outside that explicit cplt context",
+            "Never use raw HTTP for a tracker mutation",
+            "Status: NEEDS_INPUT",
+            "original `local run` prompt",
+            "exact, bounded mutation",
+            "no second client tool dialog",
+            "repository scope",
+            "never inspect or print the token",
+        ),
+        (
+            "Doctor Who",
+            "never bypass cplt's repository scope, GitHub guard, approval prompt",
+        ),
+    ),
+    Guardrail(
+        "security-review-evidence",
+        ("plugin/skills/security-review/SKILL.md",),
+        (
+            NO_EXECUTION_BRANCH,
+            "Never invoke or prescribe shell, `gh`, raw HTTP",
+            "Status: NEEDS_INPUT",
+            "Trace values through validation and diagnostic wrappers",
+            "`validatedValue`",
+            "can still contain the original sensitive input",
+        ),
+        ("Doctor Who",),
+    ),
+    Guardrail(
+        "nav-security-review-evidence",
+        ("plugin/skills/security-review/references/nav-security-review.md",),
+        (
+            "In a workflow without command execution",
+            "never invoke or prescribe shell, `gh`, raw HTTP",
+            "Status: NEEDS_INPUT",
+        ),
+    ),
+    Guardrail(
+        "team-status-semantic-tools",
+        ("plugin/skills/team-status/SKILL.md",),
+        ("Never use `gh`, shell, raw HTTP", "Status: NEEDS_INPUT"),
+    ),
+    Guardrail(
+        "projects-v2-no-cli-fallback",
+        ("plugin/skills/team-status/references/projects-v2.md",),
+        ("Status: NEEDS_INPUT", "lime inn eller eksportere"),
+        ("gh project", "gh api", "```bash"),
+    ),
+    Guardrail(
+        "pod-evidence-approval",
+        ("plugin/skills/nav-troubleshoot/references/pod-diagnose.md",),
+        (
+            "Read-only is not a safety classification",
+            "exact cluster/context, namespace",
+            "obtain explicit approval",
+            "--since=<verified-window>",
+            "before the model receives output",
+        ),
+    ),
+    Guardrail(
+        "auth-status-producer",
+        ("plugin/skills/nav-troubleshoot/references/auth-diagnose.md",),
+        (
+            "verified producer of the HTTP response",
+            "Neither is generally the producer of an HTTP 401 or 403",
+            "blocked network path normally means",
+        ),
+        ("whether 401/403 comes from ingress/network policy",),
+    ),
+    Guardrail(
+        "auth-overview-status-producer",
+        ("plugin/skills/auth-overview/SKILL.md",),
+        (
+            "verified producer of the HTTP response",
+            "Do not presume that either produced",
+        ),
+    ),
+    Guardrail(
+        "architecture-report-inert-html",
+        ("plugin/skills/improve-codebase-architecture/HTML-REPORT.md",),
+        (
+            "`&amp;`",
+            "`&lt;`",
+            "`&gt;`",
+            "`&quot;`",
+            "`&#39;`",
+            "only into text nodes",
+            "Never insert dynamic content into tag names, attributes",
+            "Generate candidate IDs from their ordinal position",
+            "Do not include source snippets",
+            "secure OS temp API (`mktemp -d` on POSIX)",
+            "mode `0700`",
+            "following symlinks",
+            "mode `0600`",
+        ),
+    ),
+    Guardrail(
+        "architecture-report-no-auto-open",
+        ("plugin/skills/improve-codebase-architecture/SKILL.md",),
+        (
+            "offline, self-contained, script-free HTML file",
+            "fresh private OS temporary directory",
+            "safe-write",
+            "Do not run `open` or `xdg-open`",
+            "only if the user explicitly asks",
+        ),
+        ("architecture-candidates-<timestamp>", "Open it for the user"),
+    ),
+    Guardrail(
+        "guided-review-human-control",
+        ("plugin/skills/guided-review/SKILL.md",),
+        (
+            "Present exactly one reading step",
+            "Then wait for the human",
+            "every in-scope changed file",
+            "human explicitly approves the exact",
+            "Ask the human for their merge-readiness decision",
+            "another security boundary, invoke `security-review`",
+        ),
+    ),
+    Guardrail(
+        "grillmester-proof-and-sources",
+        ("plugin/agents/grillmester.agent.md",),
+        (
+            "use current primary sources for external facts",
+            "Never replace unavailable web/MCP retrieval with shell-network commands",
+            "do not install or invoke a substitute to bypass the required proof.",
+            "use `/pull-request` and preserve the repository template.",
+        ),
+    ),
+    Guardrail(
+        "grillmester-proof-copilot-focused",
+        ("targets/copilot-cli-focused-v1/agents/grillmester.agent.md",),
+        (
+            "do not install or invoke a substitute to bypass the required proof.",
+            "use `/pull-request` and preserve the repository template.",
+        ),
+    ),
+    Guardrail(
+        "grillmester-proof-opencode",
+        (
+            "targets/opencode-v1/agents/grillmester.md",
+            "targets/opencode-v1-focused/agents/grillmester.md",
+        ),
+        (
+            "do not install or invoke a substitute to bypass the required proof.",
+            "use `pull-request` and preserve the repository template.",
+        ),
+    ),
+    Guardrail(
+        "pull-request-template-contract",
+        (
+            "plugin/skills/pull-request/SKILL.md",
+            "targets/opencode-v1/skills/pull-request/SKILL.md",
+            "targets/opencode-v1-focused/skills/pull-request/SKILL.md",
+            "targets/copilot-cli-focused-v1/skills/pull-request/SKILL.md",
+        ),
+        (
+            "Preserve the template's headings, order, and checklist; fill its "
+            "sections instead of replacing them with a custom structure.",
+        ),
+    ),
+    Guardrail(
+        "designer-delivers-real-artifacts",
+        ("plugin/agents/designer.agent.md",),
+        ("bare når den faktisk finnes",),
+        ("strukturert designunderlag",),
+    ),
+    Guardrail(
+        "design-prototype-delivers-real-artifacts",
+        ("plugin/skills/design-prototype/SKILL.md",),
+        ("Returner bare URL/Figma-lenke som faktisk finnes",),
+        ("strukturert designunderlag",),
+    ),
+    Guardrail(
+        "diagnosing-bugs-redaction",
+        ("plugin/skills/diagnosing-bugs/SKILL.md",),
+        (
+            "references/data-access.md",
+            "never fetch raw data to redact it afterwards",
+            "`<REDACTED>`",
+        ),
+    ),
+    Guardrail(
+        "diagnosing-bugs-data-access",
+        ("plugin/skills/diagnosing-bugs/references/data-access.md",),
+        (
+            "before the output reaches the model",
+            "auth headers, cookies, tokens",
+            "approved environment variables",
+            "Status: NEEDS_CONTEXT",
+        ),
+    ),
+    Guardrail(
+        "diagnosing-bugs-hitl-evidence",
+        ("plugin/skills/diagnosing-bugs/scripts/hitl-loop.template.sh",),
+        ("capture_signal", "Never enter raw logs, HAR content"),
+        ("Paste the error message",),
+    ),
+    Guardrail(
+        "skill-authoring-live-authority",
+        ("plugin/skills/create-a-skill/references/principles.md",),
+        (
+            "environment, manifests and tool output as source of truth",
+            "documentation or bundled snapshots as a cache",
+        ),
+    ),
+    Guardrail(
+        "adr-user-installed-clients",
+        ("docs/adr/0004-use-user-installed-terminal-clients.md",),
+        (
+            "OpenCode og Copilot CLI er valgfrie systemklienter",
+            "Launcheren resolver `cplt`, `opencode` og `copilot` fra `PATH`",
+            "cplt er fortsatt en hard runtimegrense",
+            "det finnes ingen direkte eller stille fallback",
+            "OpenCode `>=1.18.20,<2`",
+            "Copilot CLI `>=1.0.79,<2`",
+            "installert Copilot CLI uten OpenCode",
+        ),
+    ),
+    Guardrail(
+        "adr-cplt-owns-runtime-boundary",
+        ("docs/adr/0007-remove-the-lifecycle-manager.md",),
+        ("cplt eier runtimegrensen",),
+    ),
+    Guardrail(
+        "adr-local-model-trust-boundary",
+        ("docs/adr/0006-local-model-launcher-and-trust-boundary.md",),
+        (
+            "lover derfor ikke samme garanti",
+            "parent-side Git-audit",
+            "tom, session-eid `GH_CONFIG_DIR`",
+            "`--github-access`",
+            "uten å starte",
+            "`--npm-access`",
+            ".npmrc",
+            "user- og globalconfig",
+            "separat capability",
+            "søketeksten forlater maskinen",
+            "ingen offlinegaranti",
+            "cplt er eneste runtimeeier",
+        ),
+    ),
+    Guardrail(
+        "installation-client-and-issue-boundary",
+        ("docs/installation.md",),
+        (
+            "brukereide systemklienter",
+            "Grillmester installerer, erstatter eller skygger dem aldri",
+            "cplt-guardede `gh issue`-kommandoer",
+            "Det krever ikke en egen write-MCP",
+            "repo-scope og `gh`-guard",
+            "gjelder ikke automatisk Copilot app, cloud agent",
+            "`--npm-access`",
+            ".npmrc",
+            "NPM_AUTH_TOKEN",
+            "NODE_AUTH_TOKEN",
+            "NPM_TOKEN",
+        ),
+    ),
+    Guardrail(
+        "opencode-guide-client-boundary",
+        ("docs/opencode.md",),
+        (
+            "resolver `opencode` fra `PATH`",
+            "installerer, erstatter eller skygger aldri klienten",
+            "starter alltid OpenCode gjennom cplt",
+            "lokal inference, ikke offline",
+        ),
+    ),
+    Guardrail(
+        "trust-boundaries",
+        ("docs/trust-and-client-support.md",),
+        (
+            "Standardlauncheren bruker OpenCode og Copilot CLI fra brukerens `PATH`",
+            "lover derfor ikke hard ambient-kontoisolasjon",
+            "rå credentialstore",
+            "eksplisitte cplt `--deny-path`",
+            "Ingen av klientene får GitHub-token",
+            "`--github-access`",
+            "uten å starte",
+            "`--npm-access`",
+            ".npmrc",
+            "`--npm-token-env NAME`",
+            "`grillmester local run`",
+            "`shell(gh:*)`",
+            "rent, dedikert worktree",
+            "direkte API-kall",
+            "bundle-checksum binder Grillmester-bundle-en, ikke disse klientbinærene",
+            "Websearch, dokumentasjon og GitHub",
+            "mottar Exa den oppgaveavledede søketeksten",
+            "Dette er en tredjeparts datagrense",
+            "`--no-audit`",
+        ),
+    ),
+    Guardrail(
+        "local-models-github-and-run-boundary",
+        ("docs/local-models.md",),
+        (
+            "Launcheren skriver ikke tokenet til config, sessionstate eller preview",
+            "innebygde GitHub MCP er av",
+            "Git push går gjennom Git-guard",
+            "`git_guard.protect_default_branch_only=true`",
+            "best-effort-kommandogrense",
+            "`local run` auto-godkjenner",
+            "hard isolasjon",
+            "`--github-access`",
+            "uten å starte",
+            "`--npm-access`",
+            ".npmrc",
+            "`--npm-token-env NAME`",
+            "NPM_AUTH_TOKEN",
+            "NODE_AUTH_TOKEN",
+            "NPM_TOKEN",
+            "dedikert token",
+            "package-read-rettigheter",
+            "redigerer verdien fra egne previews",
+            "Modellen og godkjente subprocesser kan lese tokenet",
+            "rent, dedikert worktree",
+            "én `run` per worktree",
+            "cplt beskytter ikke prosjektfilene",
+            "ikke at oppgaven er semantisk løst",
+            "dedikert, fine-grained token",
+            "myk grense",
+            "GitHub-skrivinger som er eksplisitt autorisert i prompten",
+        ),
+        (
+            "`cloud-open-weight`",
+            "grillmester local --client opencode --agent grillmester -- run",
+        ),
+    ),
+    Guardrail(
+        "local-models-egress-disclosure",
+        ("docs/local-models.md",),
+        (
+            "Local-flyten har ingen cloudmodell-fallback, men den kan være tilkoblet",
+            "OpenCodes websearch er aktiv",
+            "sendes søketeksten til Exa",
+            "lokal inference betyr derfor ikke at søketeksten forblir på maskinen",
+            "interaktiv launch krever klientgodkjenning",
+        ),
+    ),
+    Guardrail(
+        "local-models-byok-cplt-path",
+        ("docs/local-models.md",),
+        (
+            "grillmester --client copilot --agent grillmester",
+            "--allow-localhost 1234",
+            "--pass-env COPILOT_PROVIDER_API_KEY",
+            "--disable-builtin-mcps",
+            "--secret-env-vars=COPILOT_PROVIDER_API_KEY",
+            "den starter aldri `copilot` direkte",
+        ),
+        ("COPILOT_OFFLINE",),
+    ),
+    Guardrail(
+        "autoupdate-reviewed-channel",
+        ("README.md", "docs/installation.md"),
+        (
+            '"repo": "navikt/grillmester"',
+            '"ref": "marketplace"',
+            '"autoUpdate": true',
+            '"grillmester@grillmester": true',
+        ),
+    ),
+    Guardrail(
+        "macos-protocol-gates",
+        ("docs/macos-client-validation-protocol.md",),
+        (
+            "unexpected write",
+            "approval or stop-boundary violation",
+            "sensitive data",
+            "wrong plugin or agent identity",
+            "failed rollback",
+            "clean, isolated worktree",
+            "Never run a write scenario in an active developer worktree",
+        ),
+        ("Kokk",),
+    ),
+    Guardrail(
+        "release-runbook-test-evidence",
+        ("docs/release-runbook.md",),
+        (
+            "Apple Silicon and Intel",
+            "exact two-asset roster",
+            "reproducible release-test input, not local-launcher runtime pins",
+        ),
+        ("upstream-client-watch", "watch_upstream_clients.py"),
+    ),
+    Guardrail(
+        "bug-template-safe-evidence",
+        (".github/ISSUE_TEMPLATE/bug.yml",),
+        (
+            "- VS Code",
+            "Sladdet evidens",
+            "Jeg har fjernet secrets, personopplysninger",
+            "Dette er ikke en sårbarhetsrapport som bør sendes privat.",
+        ),
+    ),
+)
+
 REQUIRED_ASSETS = {
     "docs/assets/grillmester-hero.jpg": (
         b"\xff\xd8\xff",
@@ -916,7 +1353,19 @@ def validate_content(
     errors: list[str],
 ) -> None:
     known_ids = agent_ids | skill_ids
-    legacy_skill_ids = {LEGACY_SKILL_PREFIX + skill_id for skill_id in skill_ids}
+    legacy_skill_ids = sorted(
+        (LEGACY_SKILL_PREFIX + skill_id for skill_id in skill_ids),
+        key=lambda skill_id: (-len(skill_id), skill_id),
+    )
+    legacy_reference = (
+        re.compile(
+            r"(?<![\w-])("
+            + "|".join(re.escape(skill_id) for skill_id in legacy_skill_ids)
+            + r")(?![\w-])"
+        )
+        if legacy_skill_ids
+        else None
+    )
     for path in runtime_markdown(plugin_root):
         text = path.read_text(encoding="utf-8")
         formatted_component_ids = set(COMPONENT_ID.findall(text))
@@ -940,8 +1389,11 @@ def validate_content(
             errors.append(
                 f"{path}: unfinished skill scaffold is not allowed: {scaffold.group(0)}"
             )
-        for legacy_skill_id in sorted(legacy_skill_ids, key=len, reverse=True):
-            if re.search(rf"(?<![\w-]){re.escape(legacy_skill_id)}(?![\w-])", text):
+        found_legacy_ids = (
+            set(legacy_reference.findall(text)) if legacy_reference else set()
+        )
+        for legacy_skill_id in legacy_skill_ids:
+            if legacy_skill_id in found_legacy_ids:
                 errors.append(
                     f"{path}: obsolete prefixed skill reference: {legacy_skill_id}"
                 )
@@ -1007,6 +1459,35 @@ def validate_content(
             errors.append(f"{path}: contains an 11-digit value that looks like a national ID")
 
 
+def guardrail_errors(guardrail: Guardrail, label: str, text: str) -> list[str]:
+    """Return the guardrail violations in ``text`` for one file."""
+
+    normalized = " ".join(text.split())
+    errors = [
+        f"{label}: guardrail {guardrail.name} is missing: {phrase}"
+        for phrase in guardrail.required
+        if " ".join(phrase.split()) not in normalized
+    ]
+    errors.extend(
+        f"{label}: guardrail {guardrail.name} forbids: {phrase}"
+        for phrase in guardrail.forbidden
+        if " ".join(phrase.split()) in normalized
+    )
+    return errors
+
+
+def validate_guardrails(root: Path, errors: list[str]) -> None:
+    for guardrail in GUARDRAILS:
+        for relative in guardrail.paths:
+            path = root / relative
+            if not path.is_file():
+                errors.append(f"{path}: guardrail {guardrail.name} file is missing")
+                continue
+            errors.extend(
+                guardrail_errors(guardrail, str(path), path.read_text(encoding="utf-8"))
+            )
+
+
 def validate_plugin_symlinks(root: Path, errors: list[str]) -> bool:
     found = False
     for package_path in PACKAGE_PATHS.values():
@@ -1043,6 +1524,8 @@ def validate_layout(root: Path, errors: list[str]) -> None:
         root / "scripts/manage_opencode.py",
         root / "scripts/compose_opencode_permissions.py",
         root / "dist",
+        root / "plugin-nav",
+        root / "docs/decisions",
     ]
     for path in forbidden:
         if path.exists():
@@ -1257,6 +1740,7 @@ def validate_repo(root: Path) -> list[str]:
     )
     validate_package_rosters(agent_ids, skill_ids, errors)
     validate_discovery_budget(plugin_root, errors)
+    validate_guardrails(root, errors)
     validate_content(
         root,
         plugin_root,

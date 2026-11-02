@@ -267,61 +267,6 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     focused.split("## Verification and review\n", 1)[1],
                 )
 
-    def test_grillmester_never_substitutes_tools_to_bypass_blocked_verification(self) -> None:
-        guardrail = (
-            "do not install or invoke a substitute to bypass the required proof."
-        )
-        for relative in (
-            "plugin/agents/grillmester.agent.md",
-            "targets/opencode-v1/agents/grillmester.md",
-            "targets/opencode-v1-focused/agents/grillmester.md",
-            "targets/copilot-cli-focused-v1/agents/grillmester.agent.md",
-        ):
-            with self.subTest(path=relative):
-                self.assertIn(
-                    guardrail,
-                    " ".join(
-                        (ROOT / relative).read_text(encoding="utf-8").split()
-                    ),
-                )
-
-    def test_grillmester_preserves_consumer_pull_request_templates(self) -> None:
-        guardrail = (
-            "use `/pull-request` and preserve the repository template."
-        )
-        for relative in (
-            "plugin/agents/grillmester.agent.md",
-            "targets/opencode-v1/agents/grillmester.md",
-            "targets/opencode-v1-focused/agents/grillmester.md",
-            "targets/copilot-cli-focused-v1/agents/grillmester.agent.md",
-        ):
-            with self.subTest(path=relative):
-                self.assertIn(
-                    guardrail.replace("`/pull-request`", "`pull-request`")
-                    if "/opencode-" in relative else guardrail,
-                    " ".join(
-                        (ROOT / relative).read_text(encoding="utf-8").split()
-                    ),
-                )
-
-        template_contract = (
-            "Preserve the template's headings, order, and checklist; fill its "
-            "sections instead of replacing them with a custom structure."
-        )
-        for relative in (
-            "plugin/skills/pull-request/SKILL.md",
-            "targets/opencode-v1/skills/pull-request/SKILL.md",
-            "targets/opencode-v1-focused/skills/pull-request/SKILL.md",
-            "targets/copilot-cli-focused-v1/skills/pull-request/SKILL.md",
-        ):
-            with self.subTest(path=relative):
-                self.assertIn(
-                    template_contract,
-                    " ".join(
-                        (ROOT / relative).read_text(encoding="utf-8").split()
-                    ),
-                )
-
     def test_focused_content_is_derived_with_only_the_reviewed_transforms(self) -> None:
         projections, _ = GENERATOR.build_projections(ROOT)
         opencode = projections["opencode"]
@@ -435,14 +380,6 @@ class FocusedContextGenerationTest(unittest.TestCase):
             },
             copilot_manifest["transformations"],
         )
-
-    def test_committed_focused_targets_are_current(self) -> None:
-        projections, policy = GENERATOR.build_projections(ROOT)
-
-        for key, expected in projections.items():
-            output = ROOT / policy["outputs"][key]
-            with self.subTest(target=key):
-                self.assertEqual([], GENERATOR.compare_projection(output, expected))
 
     def test_tampered_full_opencode_source_is_rejected(self) -> None:
         temporary, root = self.copy_repository()

@@ -14,6 +14,8 @@ from typing import Any, Optional
 from .paths import Info, SetupError, canonical, changed_projects, display, home_relative, schema_error
 
 
+# How long a write waits for another connection's lock before reporting busy.
+BUSY_TIMEOUT_SECONDS = 30.0
 SQL_IDENTIFIER = r"""(?:"(?:[^"]|"")*"|`(?:[^`]|``)*`|\[[^\]]*\]|'(?:[^']|'')*'|[a-z_][a-z0-9_$]*)"""
 TRIGGER_HEADER = re.compile(
     rf"\A\s*CREATE\s+(?:TEMP(?:ORARY)?\s+)?TRIGGER\s+"
@@ -44,7 +46,7 @@ def open_db(path: Path, writable: bool = False) -> sqlite3.Connection:
             raise PermissionError()
         connection = sqlite3.connect(
             path.resolve().as_uri() + "?mode=rw",
-            uri=True, timeout=30,
+            uri=True, timeout=BUSY_TIMEOUT_SECONDS,
         )
         if not writable:
             connection.execute("PRAGMA query_only=ON")
@@ -67,7 +69,11 @@ def db_error(error: Exception) -> SetupError:
     if isinstance(error, sqlite3.Error) and (
         "locked" in str(error).lower() or "busy" in str(error).lower()
     ):
-        return SetupError(5, "DB busy/locked after waiting up to 30 seconds; close competing operations and retry.")
+        return SetupError(
+            5,
+            f"DB busy/locked after waiting up to {BUSY_TIMEOUT_SECONDS:g} seconds; "
+            "close competing operations and retry.",
+        )
     return SetupError(2, "DB unreadable or access denied: sandbox is ON in this session: approve "
                       "'Run outside the sandbox' once, or /sandbox off, or use a normal terminal.")
 
