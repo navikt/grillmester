@@ -91,10 +91,8 @@ eksempler.
 
 Når Designverksted er valgt, hold app, forslag og innspillsarbeid i samme eide
 canvas. Bruk etablerte publiserings- og lagringshandlinger; ikke opprett en ekstra
-synlig nettleser eller et ekstra canvas for kontroll. Skillen beskriver støttet
-vert, alternativene uten canvas og nødvendig opprydding. Midlertidig arbeid er
-ikke en varig leveranse. Bevar lagrede redigeringer og historikk; frigiv aldri
-vernede felt på designerens vegne.
+synlig nettleser eller et ekstra canvas for kontroll. Bevar lagrede
+redigeringer og historikk; frigi aldri vernede felt på designerens vegne.
 
 Lag det minste sammenhengende resultatet som lar designeren ta stilling til
 oppgaven. Flere retninger er nyttige ved et åpent retningsvalg; bevar valgt
@@ -125,10 +123,10 @@ etter et avvist kall. Last bare metoden som trengs nå.
 | Personopplysninger, identitet, tilgang eller nye tillitsgrenser | `/security-review` |
 
 `design-prototype` eier valg av visningsflate og referansene for appoppstart,
-innspill, skissepublisering, lagring, visuell kontroll og avslutning. Les den
-relevante referansen før handling. Ved overlevering fra et lagret rom, bruk
-skillens lesende overleveringsflyt før du konkluderer om underlaget; ikke åpne
-canvas eller endre rommet for å lese det.
+innspill, skissepublisering, lagring, visuell kontroll og avslutning; last den
+før slike handlinger. Ved overlevering fra et lagret rom, bruk skillens lesende
+overleveringsflyt før du konkluderer om underlaget; ikke åpne canvas eller endre
+rommet for å lese det.
 
 Bruk ikke `wayfinder` i designflyten; den lager varige beslutningskart. Velg skills etter formål, ikke ordlikhet:
 `workshop-design` handler om menneskelige samlinger, ikke Designverksted.
@@ -136,7 +134,7 @@ Bruk ikke `wayfinder` i designflyten; den lager varige beslutningskart. Velg ski
 Ved manglende eller avvist kapabilitet, oppgi faktisk ID, synlig kilde og feil;
 skill ukjent status fra bekreftet fravær. Ikke lat som handlingen ble utført.
 Fortsett uavhengig arbeid. Tilby eventuelt manuell bruk av `/doctor`, men start
-den ikke automatisk eller reparer oppsettet mens den er aktiv.
+den ikke automatisk.
 Bruk bare tilgjengelige, godkjente web-/MCP-verktøy for eksterne oppslag; ikke
 erstatt dem med shellnettverk eller hukommelse. Manglende Figma-write kan gi
 et avtalt utkast, ikke en påstått opprettet fil.
@@ -156,16 +154,15 @@ bruk bare syntetiske detaljer og gjør begrensningen tydelig. Syntetiser enighet
 uenighet og anbefaling selv. Merk om perspektivene ikke ble kjørt uavhengig.
 
 Kontrollene følger påstanden: bekreftet åpning er ikke visuell vurdering, og en
-skisse er ikke verifisert implementering. Kontroller relevant gjengivelse før
-du melder et forslag klart. Merk manglende visuell kontroll som et ukontrollert
-utkast, og fortsett arbeid som ikke avhenger av den. Sammenlign endret innhold i
-sammenlignbar kontekst. Prøv berørte tilstander, smale flater, tastatur og fokus;
-ikke gjenta full kontroll av uendret flyt uten grunn.
+skisse er ikke verifisert implementering. Merk manglende visuell kontroll som et
+ukontrollert utkast, og fortsett arbeid som ikke avhenger av den. Sammenlign
+endret innhold i sammenlignbar kontekst. Prøv berørte tilstander, smale flater,
+tastatur og fokus; ikke gjenta full kontroll av uendret flyt uten grunn.
 
 Vurder kontrast, klarspråk, komponentbruk og hierarki. Mål kontrast når den
 vurderes: 4.5:1 for brødtekst og 3:1 for stor tekst. En designmessig forhåndssjekk
 er ikke full UU-godkjenning; oppgi «Krever live UU-review før release» ved
-designoverlevering. Full kontroll av implementert UI følger `/accessibility-review`.
+designoverlevering.
 
 Ved relevante personvern- eller sikkerhetsspørsmål, bruk `/security-review`
 før designoverlevering for konsept og dataflyt; ved implementering vurderes
