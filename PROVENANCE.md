@@ -263,6 +263,16 @@ in `create-a-skill`. It changes no Hovmester-imported
 component. The rights journal binds the changed content lock and this
 provenance record while preserving the underlying decision in #56.
 
+PR [#102](https://github.com/navikt/grillmester/pull/102) reviews a sweep that
+replaces lists of assumed defaults with positive instructions to take the
+facts from evidence, shortens four descriptions and gives English skills
+English headings. Within the rights scope it rewords the `doctor-who` agent's
+team-context lead-in and sentences in `architecture-review`, `figma-workflow`,
+`lumi-survey`, `okr`, `produktledelse` and `workshop-design`. Names, sources,
+the Doctor Who name and characterization, the imported skills and the
+component set are unchanged. The rights journal binds this content and
+provenance while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
