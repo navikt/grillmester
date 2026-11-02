@@ -268,7 +268,8 @@ a later conversation and is written to a folder such as `designs/<name>` in the
 repository. A temporary sketch disappears with its feedback when the
 conversation ends or after four hours without use. Do not say
 «prosjektlagring» or «designrom» to the designer. If they leave it open, start
-temporary and say once that it can be saved later.
+temporary and say once that it cannot be saved afterwards; a new saved sketch can
+start from the same design, but without its feedback.
 
 - For a temporary sketch, omit workspace input.
 - When the designer has requested project storage, create with
