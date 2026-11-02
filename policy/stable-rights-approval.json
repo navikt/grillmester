@@ -41,11 +41,11 @@
         "workshop-design": "0418cfc368605512456838621833a375ffda1f0bbdff939491d6c0271ed2af7d"
       }
     },
-    "contentLockSha256": "9259e537c963106f08ac3b7f6d8c739ca9cd36e8bfe08493a7279af181246d29",
+    "contentLockSha256": "c73a5c35c7fa911fef9d9ca54b7dae545496b2e7547d7cda278af2b3cc54b686",
     "hovmester": {
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "3d229604bfc9fd97f88237aef84961b1e13afd1368be2eb11ae365300cc7d939"
+    "provenanceSha256": "773a7d1a7eb5edaa00c3a778f9e3ffea1d4b23f08848f70d160277d62d16f7c8"
   }
 }
