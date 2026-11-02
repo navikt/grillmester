@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: eight agents and 44 skills. The sources below record attribution
+`plugin/`: six agents and 44 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -79,6 +79,10 @@ Imported agents:
 
 - `grillmester`, `barista`, `kokk`, `grill-inspektor`, `researcher`
 
+`barista` and `kokk` are retained here as historical source provenance. Neither
+is shipped as a runtime role; Grillmester now owns the unified development
+flow, including implementation at every risk level.
+
 Imported skills:
 
 - `api-design`, `architecture-review`, `auth-overview`, `create-a-skill`,
@@ -94,8 +98,8 @@ Imported skills:
 keeps complete diff coverage and deterministic evidence while adding a
 manual-only, one-step-at-a-time walkthrough and explicit human merge decision.
 
-The portable adaptation preserves the pilot's role split, risk routing,
-one-writer boundary, specification and ADR workflows, deterministic evidence,
+The portable adaptation preserves the pilot's risk routing, one-writer
+boundary, specification and ADR workflows, deterministic evidence,
 independent review, and progressive skill resources. It removes
 Budstikka-specific package names, file paths, build commands, runtime facts,
 data classifications, repository instructions, issue routing, and deployment
@@ -234,7 +238,7 @@ described above. It removes ambient
 repository synchronization, fixed Team eSyfo repositories or project boards,
 template placeholders, and automatic external writes. Figma, GitHub, and
 delivery side effects require an explicit
-preview and approval. All four public roles intentionally inherit the
+preview and approval. All three public roles intentionally inherit the
 runtime's broad tool surface, matching the piloted Hovmester/Budstikka model
 and avoiding a drifting matrix of client-specific aliases. Their behavioral
 contracts remain narrower: Doctor Who neither delegates nor uses shell

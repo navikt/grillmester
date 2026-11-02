@@ -98,9 +98,9 @@ def native_skill_messages(scenario: SMOKE.Scenario) -> list[dict[str, object]]:
 
 def copilot_provider_state(context: str) -> SMOKE.ProviderState:
     scenario = SMOKE.Scenario("copilot", context)
-    prompt = "# Barista ☕\n" + (
+    prompt = "# Grillmester 🔥\n" + (
         "Status: NEEDS_FULL_CONTEXT\nResume with: grillmester local --full"
-        if context == "focused" else "Select grillmester:grillmester for complex work"
+        if context == "focused" else "## Delegation\nOptional grillmester:researcher"
     ) + f"\n{SMOKE.LOCAL._bound_run_prompt(SMOKE.PROMPT)}"
     payloads = [
         {
@@ -160,7 +160,7 @@ class LoopbackProviderTests(unittest.TestCase):
                         {
                             "role": "system",
                             "content": (
-                                "# Barista ☕\nStatus: NEEDS_FULL_CONTEXT\n"
+                                "# Grillmester 🔥\nStatus: NEEDS_FULL_CONTEXT\n"
                                 "Resume with: grillmester local --full"
                             ),
                         }
@@ -189,7 +189,7 @@ class LoopbackProviderTests(unittest.TestCase):
                     {
                         "model": "wrong-model",
                         "stream": True,
-                        "messages": [{"role": "system", "content": "# Barista ☕"}],
+                        "messages": [{"role": "system", "content": "# Grillmester 🔥"}],
                     },
                 )
             self.assertEqual(400, wrong.exception.code)
@@ -298,7 +298,7 @@ class MatrixTests(unittest.TestCase):
                 ).open(f"{base_url}/models", timeout=5) as response:
                     self.assertEqual(200, response.status)
                 scenario = SMOKE.Scenario(client, context)
-                prompt = "# Barista ☕\n"
+                prompt = "# Grillmester 🔥\n"
                 if context == "focused":
                     prompt += (
                         "Status: NEEDS_FULL_CONTEXT\n"
@@ -306,9 +306,9 @@ class MatrixTests(unittest.TestCase):
                     )
                 else:
                     prompt += (
-                        "Select grillmester:grillmester for complex work"
+                        "## Delegation\nOptional grillmester:researcher"
                         if client == "copilot"
-                        else "Select Grillmester (`grillmester`) for complex work"
+                        else "## Delegation\nOptional `researcher`"
                     )
                 prompt += f"\n{SMOKE.LOCAL._bound_run_prompt(SMOKE.PROMPT)}"
                 stream = post_completion(
@@ -485,7 +485,7 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(("gh", "issue", "delete", "1"), observed[2])
         self.assertEqual(("gh", "auth", "token"), observed[3])
 
-    def test_npm_access_matrix_covers_default_deny_and_explicit_access_per_client(
+    def test_npm_access_matrix_preserves_reviewed_clients_with_shadow_npm_directory(
         self,
     ) -> None:
         observed: list[tuple[str, bool]] = []
@@ -561,7 +561,7 @@ class MatrixTests(unittest.TestCase):
                             {
                                 "role": "system",
                                 "content": (
-                                    "# Barista ☕\n"
+                                    "# Grillmester 🔥\n"
                                     + SMOKE.LOCAL._bound_run_prompt(
                                         SMOKE.PROMPT, npm_access=npm_access
                                     )
@@ -613,10 +613,27 @@ class MatrixTests(unittest.TestCase):
     def test_provider_validation_rejects_the_wrong_context_projection(self) -> None:
         state = copilot_provider_state("focused")
         state.completions[0].payload["messages"][0]["content"] = (
-            "# Barista ☕\nSelect grillmester:grillmester"
+            "# Grillmester 🔥\n## Delegation\nOptional grillmester:researcher"
         )
         with self.assertRaisesRegex(SMOKE.LocalSmokeError, "focused handoff"):
             SMOKE.validate_provider_state(state)
+
+    def test_focused_provider_rejects_unavailable_optional_agents(self) -> None:
+        for marker in ("grillmester:researcher",):
+            with self.subTest(marker=marker):
+                state = copilot_provider_state("focused")
+                state.completions[0].payload["messages"][0]["content"] += f"\n{marker}"
+                with self.assertRaisesRegex(SMOKE.LocalSmokeError, "unavailable full agent"):
+                    SMOKE.validate_provider_state(state)
+
+    def test_full_provider_requires_complete_grillmester_delegation_contract(self) -> None:
+        for marker in ("## Delegation", "grillmester:researcher"):
+            with self.subTest(marker=marker):
+                state = copilot_provider_state("full")
+                message = state.completions[0].payload["messages"][0]
+                message["content"] = message["content"].replace(marker, "")
+                with self.assertRaisesRegex(SMOKE.LocalSmokeError, "full Grillmester"):
+                    SMOKE.validate_provider_state(state)
 
     def test_provider_validation_rejects_a_delegated_cloud_model(self) -> None:
         state = copilot_provider_state("full")
@@ -712,7 +729,7 @@ class MatrixTests(unittest.TestCase):
                             {
                                 "role": "system",
                                 "content": (
-                                    "# Barista ☕\nStatus: NEEDS_FULL_CONTEXT\n"
+                                    "# Grillmester 🔥\nStatus: NEEDS_FULL_CONTEXT\n"
                                     "Resume with: grillmester local --full"
                                 ),
                             }
@@ -768,7 +785,7 @@ class MatrixTests(unittest.TestCase):
                 payload={
                     "model": SMOKE.MODEL_ID,
                     "stream": True,
-                    "messages": [{"role": "system", "content": "# Barista ☕"}],
+                    "messages": [{"role": "system", "content": "# Grillmester 🔥"}],
                     "tools": [
                         {"type": "function", "function": {"name": "shell"}},
                         {"type": "function", "function": {"name": "read"}},
@@ -892,8 +909,8 @@ class MatrixTests(unittest.TestCase):
                         {
                             "role": "system",
                             "content": (
-                                "# Barista ☕\n"
-                                "Select Grillmester (`grillmester`) for complex work\n"
+                                "# Grillmester 🔥\n"
+                                "## Delegation\nOptional `researcher`\n"
                                 f"{SMOKE.PROMPT}"
                             ),
                         }

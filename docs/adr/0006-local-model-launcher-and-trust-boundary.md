@@ -5,6 +5,9 @@ date: 2026-08-23
 
 # Bind lokal inference, og la cplt eie runtimegrensen
 
+> Agentutvalget og delegeringen av implementering er delvis erstattet av
+> [ADR 0026](0026-grillmester-eier-hele-leveransen.md).
+
 ## Kontekst
 
 Grillmester skal kunne bruke samme agentteam i OpenCode og Copilot CLI med en

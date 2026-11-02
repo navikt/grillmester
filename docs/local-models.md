@@ -21,7 +21,7 @@ organisasjonens runtimepolicy.
 | Kjør Grillmester i et uavhengig, modellnøytralt harness | Det native OpenCode 1-targetet |
 | Bruk lokal modell med web og GitHub | `grillmester local` med OpenCode eller Copilot CLI på macOS |
 | Eksperimenter med provider/modell per session | OpenCode; targetet arver valgt sessionmodell |
-| Behold primary-agenten i skyen, men kjør Kokk lokalt | OpenCode med bruker-eid `agent.kokk.model`-override |
+| Behold primary-agenten i skyen, men kjør Grill-inspektør lokalt | OpenCode med bruker-eid `agent.grill-inspektor.model`-override |
 
 Modellvalg endrer ikke data-, tool- eller godkjenningspolicy. Kontroller fortsatt
 Navs gjeldende regler for modellartefakt, lisens, data, logging, oppdatering,
@@ -143,8 +143,9 @@ subprosesser arve provider-miljøet og godtar derfor bare en nøkkelfri loopback
 server i local-flyten. Dette feiler lukket i `setup`; bruk Copilot CLI når
 lokalserveren krever autentisering.
 
-Hver launch bruker focused Barista med sju utviklingsskills. Bytt klient eller
-be om full 8-agent/44-skill-kontekst for én sesjon uten å endre defaulten:
+Hver launch bruker focused Grillmester og Grill-inspektør med sju
+utviklingsskills. Bytt klient eller be om full 6-agent/44-skill-kontekst for én
+sesjon uten å endre defaulten:
 
 ```bash
 grillmester local --client copilot
@@ -162,6 +163,16 @@ nøkkelen, skrive sessionstate eller kjøre klientprober. Previewen er bevisst
 ikke en copy/paste-kommando fordi kortlivede policyfiler og secret-miljø ikke
 materialiseres. Kjør `setup` på nytt for å endre lagret default.
 
+Lagrede oppsett med agenten `barista` leses som `grillmester`, med klient,
+provider og eksplisitt modellvalg beholdt. Barista distribueres ikke lenger;
+bytt et eksplisitt `--agent barista` i egne kommandoer til `--agent grillmester`.
+Focused bruker samme hovedrolle, men en mindre skillkatalog. Høy risiko alene
+krever ikke full kontekst. Når agenten faktisk trenger en skill eller rolle som
+bare finnes i fullversjonen, returnerer den `NEEDS_FULL_CONTEXT` og oppgir hva
+den trenger. Manglende runtimeverktøy
+skal navngis som en kapabilitetsmangel, ikke fremstilles som noe fullversjonen
+nødvendigvis løser.
+
 Vanlig `grillmester local` er en direkte, interaktiv klientreise: du snakker
 med den valgte agenten i OpenCode- eller Copilot-TUI-en, og modellen svarer
 normalt etter eget skjønn. Launcheren krever eller tolker ingen strukturert
@@ -170,7 +181,7 @@ sluttstatus.
 ### Avgrenset kjøring
 
 `run` kjører én prompt non-interaktivt med lagret klient og modell, focused
-Barista som default og automatiske tool-godkjenninger:
+Grillmester som default og automatiske tool-godkjenninger:
 
 ```bash
 cd /path/to/clean-dedicated-worktree
@@ -206,7 +217,8 @@ Copilot-/OpenCode-bruk får ingen ekstra promptstøy.
 `run` er derfor for små til middels store oppgaver med tydelig mål, scope og
 verifikasjon. En exitkode `0` betyr at klientprosessen fullførte, ikke at
 oppgaven er semantisk løst. Modellen kan fortsatt avslutte med
-`Status: NEEDS_INPUT` eller `Status: NEEDS_FULL_CONTEXT`. Les sluttsvaret og
+`Status: NEEDS_INPUT`, `Status: NEEDS_CONTEXT`, `Status: NEEDS_DECISION` eller
+`Status: NEEDS_FULL_CONTEXT`. Les sluttsvaret og
 kontroller minst `git status`, hele diffen og avtalte tester før du bruker
 resultatet. Statusene er menneskelesbare agent-signaler, ikke en protokoll som
 launcheren parser eller bruker til å stoppe prosessen; en vanlig oppgave trenger
@@ -235,13 +247,13 @@ permissions, ikke et bredt personlig standardtoken. Tokenet er en myk grense:
 child-klienten kan lese det, og direkte API-kall kan omgå cplts best-effort
 `gh`-guard. Ikke behandle flagget som hard repository-scoping. Hvis eksakt
 issueinnhold eller annen bruker-eid beslutning ikke allerede er autorisert, skal
-Barista returnere et utkast med `Status: NEEDS_INPUT` i stedet for å skrive.
+Grillmester returnere et utkast med `Status: NEEDS_INPUT` i stedet for å skrive.
 
 Oppgaver som må installere eller verifisere private npm-pakker bruker
 `--npm-access` i tillegg. `--github-access` og `--npm-access` er separate fordi
 GitHub API-/CLI-tilgang og package registry-tilgang kan ha ulike tokens og
 rettigheter. Hvis repoets deklarerte verifikasjon stopper på manglende
-credentials, dependencies eller eksakt verktøy, skal Barista rapportere den
+credentials, dependencies eller eksakt verktøy, skal Grillmester rapportere den
 blokkerte kommandoen. Den skal ikke hente en navnelik erstatningspakke med
 `npx` eller på annen måte svekke verifikasjonen.
 
@@ -330,13 +342,13 @@ ikke-kolliderende innhold synket av nav-pilot. Standard/pluginflyten kan fortsat
 sameksistere med slikt innhold; for local bruker du OpenCode eller en eksplisitt
 pilotbranch/fixture uten røttene.
 
-En reell Qwen3.8-27B Q6-pilot med samme korte oppgave målte 8 024 mot 13 667
+En historisk Qwen3.8-27B Q6-pilot med Barista og samme korte oppgave målte 8 024 mot 13 667
 inputtokens i OpenCode focused/full og 15 841 mot 20 117 i Copilot CLI. Det er
 henholdsvis 41,3 og 21,3 prosent mindre inputkontekst. Piloten brukte den
 opprinnelige focused-rosteren med seks skills, før issue management ble lagt
 til. Alle fire kjedene gikk gjennom cplt til loopback, og Copilot rapporterte
 null premium requests. Tallene er historisk runtime-evidens, ikke en måling av
-dagens sju-skill-roster eller generell kvalitetsparitet.
+dagens Grillmester-profil med sju skills eller generell kvalitetsparitet.
 
 Vanlig `grillmester` beholder hele agentteamet og klientens normale
 modellregler. Den eksplisitte local-flyten binder i stedet valgt
@@ -397,7 +409,7 @@ ikke at totalarbeidet blir tilsvarende raskere. De deler samme båndbredde og
 øker samtidig KV-/contexttrykket. Ved omtrent 9–10 genererte tokens/s bør
 avgrensede kjøringer derfor være små, godt briefet og uavhengig verifiserbare.
 Parallelliser gjerne menneskelig arbeid, repo-research eller oppgaver på en
-annen provider; kø tunge lokale Kokk-oppdrag sekvensielt.
+annen provider; kø tunge lokale agentoppdrag sekvensielt.
 
 ## Start modellserver: LM Studio
 
@@ -560,13 +572,13 @@ grillmester --client opencode --agent grillmester \
 Bruk `--allow-localhost 8080` for `llama-server`. Dette er nok for vanlig
 kompatibilitet; ingen annen runtime eller `nav-pilot-agent` er nødvendig.
 
-OpenCode-agentene har ingen modellpin. Når Grillmester delegerer til Kokk,
+OpenCode-agentene har ingen modellpin. Når Grillmester delegerer til
 Grill-inspektør eller Researcher, arver subagenten primary-agentens valgte
 lokalmodell.
 
-## Hybrid: cloud-primary og lokal Kokk
+## Hybrid: cloud-primary og lokal inspektør
 
-Du kan beholde Grillmester eller Barista på sessionens valgte cloudmodell og
+Du kan beholde Grillmester på sessionens valgte cloudmodell og
 bare pinne en intern rolle til den lokale provideren. Legg dette ved siden av
 provideroppsettet i den bruker-eide `~/.config/opencode/opencode.json`:
 
@@ -574,30 +586,30 @@ provideroppsettet i den bruker-eide `~/.config/opencode/opencode.json`:
 {
   "$schema": "https://opencode.ai/config.json",
   "agent": {
-    "kokk": {
+    "grill-inspektor": {
       "model": "lmstudio/replace-with-id-from-v1-models"
     }
   }
 }
 ```
 
-OpenCode merger configkildene. Den genererte Kokk-filen definerer rolle og
+OpenCode merger configkildene. Den genererte inspektørfilen definerer rolle og
 permissions, men utelater `model`, så denne ikke-konfliktende brukeroverriden
-bevares. Grillmester bruker fortsatt sessionmodellen, også for små R0–R2-slices
-den implementerer selv; en delegert Kokk-oppgave bruker den pinnede
-lokalmodellen. Det er en bruker-/maskinprofil, ikke noe som
+bevares. Grillmester bruker fortsatt sessionmodellen for all implementering;
+den uavhengige reviewen bruker den pinnede lokalmodellen, slik at kode og
+review kommer fra ulike modeller. Det er en bruker-/maskinprofil, ikke noe som
 skal committes inn i Grillmester-targetet. Se OpenCodes dokumenterte
 [config-merge](https://opencode.ai/docs/config#locations) og
 [agentmodell-override](https://opencode.ai/docs/agents#model).
 
-Legg eventuelt samme override på `researcher` eller `grill-inspektor` først
-etter at hver rolle har bestått capability- og kvalitetssmoken. På én M4 Pro
+Lås inspektøren til en lokal modell først når modellen har bestått
+capability- og kvalitetssmoken for review. Samme override kan legges på `researcher`. På én M4 Pro
 bør serveren fortsatt ha én slot; parallelle delegeringer må køes for å unngå
 at modellene konkurrerer om samme minnebåndbredde og KV-cache.
 
 Når du vil starte en eksplisitt avgrenset kjøring, bruk en offentlig
-primary-agent i en egen worktree i stedet for å behandle Kokk som en generell
-startagent:
+primary-agent i en egen worktree i stedet for å behandle en intern rolle som
+en generell startagent:
 
 ```bash
 cd /path/to/dedicated-worktree
@@ -606,8 +618,9 @@ grillmester local run --client opencode \
 ```
 
 OpenCode dokumenterer `--agent` og `--model provider/model` for
-[`opencode run`](https://opencode.ai/docs/cli#run). Kokk er en skjult subagent
-som brukes gjennom Grillmester-delegering. Barista er riktig direkte inngang
+[`opencode run`](https://opencode.ai/docs/cli#run). Grill-inspektør og
+Researcher er skjulte subagenter som brukes gjennom Grillmester-delegering.
+Grillmester er direkte inngang
 for en ferdig spesifisert avgrenset kjøring. Start bare én tung lokal
 agentoppgave om gangen med denne laptopbaselinen.
 
@@ -641,7 +654,7 @@ export COPILOT_AUTO_UPDATE=false
 export COPILOT_OTEL_ENABLED=false
 export NO_PROXY=127.0.0.1,localhost
 
-grillmester --client copilot --agent barista \
+grillmester --client copilot --agent grillmester \
   --allow-localhost 1234 \
   --pass-env COPILOT_PROVIDER_TYPE \
   --pass-env COPILOT_PROVIDER_BASE_URL \
@@ -679,10 +692,8 @@ fallback. Merge derfor en eksplisitt, bruker-eid override i
   "subagents": {
     "agents": {
       "grillmester:grillmester": { "model": "inherit" },
-      "grillmester:barista": { "model": "inherit" },
       "grillmester:designer": { "model": "inherit" },
       "grillmester:doctor-who": { "model": "inherit" },
-      "grillmester:kokk": { "model": "inherit" },
       "grillmester:grill-inspektor": { "model": "inherit" },
       "grillmester:researcher": { "model": "inherit" },
       "grillmester:perspektiv": { "model": "inherit" }
@@ -743,15 +754,16 @@ serveren, contextprofilen og harnesset sammen i et disponibelt repo:
    ingen fil- eller Git-sideeffekt.
 4. **Skill:** én Grillmester-skill lastes progressivt og følger en relativ
    reference eller et bundled script korrekt.
-5. **Delegering:** gi Grillmester en R3/R4-slice, eller be eksplisitt om Kokk
-   og inspektørreview, slik at den gir én avgrenset brief til Kokk og får en
-   uavhengig Grill-inspektør-vurdering. En liten R0–R2-slice implementerer Grillmester
-   selv.
+5. **Uavhengig review:** gi Grillmester en avklart R3/R4-slice. Bekreft at
+   hovedagenten implementerer og verifiserer selv, og deretter bruker
+   Grill-inspektør på den stabile diffen. Begge skal bruke eksakt lokal modell.
+   Høy risiko skal ikke alene utløse delegering av implementeringen.
 6. **Lang oppgave:** kjør en representativ vertical slice med tester og mål
    tool-call-feil, context/compaction, hastighet og memory pressure.
 7. **Kvalitet:** sammenlign diff og reviewfunn mot teamets nåværende referanse-
    modell før modellen får uovervåket arbeid.
 
-Start med Barista på små, tydelige oppgaver. Bruk Grillmester/Kokk først når
-delegeringssmoken er stabil. På en enkelt M4 Pro bør Kokk-oppgaver normalt
-køes, mens menneskelig arbeid kan fortsette i en annen worktree eller session.
+Start med focused Grillmester på små, tydelige oppgaver. Vent med oppgaver som
+krever uavhengig review til inspektørsmoken er stabil. På en enkelt M4 Pro bør
+tunge lokale oppgaver normalt køes, mens menneskelig arbeid kan fortsette i en
+annen worktree eller session.

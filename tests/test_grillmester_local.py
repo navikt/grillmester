@@ -173,7 +173,7 @@ class LocalModeTests(unittest.TestCase):
     def _config(**overrides: object) -> LOCAL.LocalConfig:
         values: dict[str, object] = {
             "client": "opencode",
-            "agent": "barista",
+            "agent": "grillmester",
             "context": "focused",
             "provider_id": "llamacpp",
             "base_url": "http://127.0.0.1:8080/v1",
@@ -219,6 +219,42 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(0o700, stat.S_IMODE(path.parent.stat().st_mode))
         self.assertNotIn("super-secret-value", path.read_text(encoding="utf-8"))
         self.assertFalse(list(path.parent.glob(f".{path.name}.*")))
+
+    def test_saved_barista_config_migrates_preserving_all_model_choices(self) -> None:
+        for client in ("opencode", "copilot"):
+            for context in ("focused", "full"):
+                with self.subTest(client=client, context=context):
+                    config = self._config(
+                        client=client, context=context,
+                        context_window=65_536, max_output_tokens=16_384,
+                        api_key_env="LOCAL_MODEL_TOKEN" if client == "copilot" else None,
+                    )
+                    path = LOCAL.save_config(config, environment=self.environment)
+                    original = json.loads(path.read_text(encoding="utf-8"))
+                    original["agent"] = "barista"
+                    content = json.dumps(original)
+                    path.write_text(content, encoding="utf-8")
+
+                    migrated = LOCAL.load_config(environment=self.environment)
+
+                    self.assertEqual(config, migrated)
+                    self.assertEqual(content, path.read_text(encoding="utf-8"))
+                    LOCAL.save_config(migrated, environment=self.environment)
+                    self.assertEqual("grillmester", json.loads(path.read_text())["agent"])
+
+    def test_explicit_barista_is_retired_for_all_local_commands(self) -> None:
+        for command in ("setup", "doctor", "launch", "run"):
+            stderr = io.StringIO()
+            with self.subTest(command=command), redirect_stderr(stderr), self.assertRaises(
+                SystemExit
+            ) as exc:
+                LOCAL._parser().parse_args([command, "--agent", "barista"])
+            self.assertEqual(2, exc.exception.code)
+            self.assertIn("Barista has been retired; use --agent grillmester", stderr.getvalue())
+        self.assertNotIn("barista", LOCAL.PUBLIC_AGENTS)
+        self.assertNotIn("grillmester:barista", LOCAL.COPILOT_INHERIT_AGENTS)
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "unsupported public agent"):
+            LOCAL.save_config(self._config(agent="barista"), environment=self.environment)
 
     def test_config_persists_model_context_contract(self) -> None:
         config = self._config(context_window=65_536, max_output_tokens=16_384)
@@ -277,9 +313,9 @@ class LocalModeTests(unittest.TestCase):
             ):
                 LOCAL.load_config(environment=self.environment)
 
-    def test_focused_context_is_barista_only_but_full_keeps_public_agents(self) -> None:
-        with self.assertRaisesRegex(LOCAL.LocalModeError, "only the barista"):
-            LOCAL.validate_config(self._config(agent="grillmester"))
+    def test_focused_context_is_grillmester_only_but_full_keeps_public_agents(self) -> None:
+        with self.assertRaisesRegex(LOCAL.LocalModeError, "only the grillmester"):
+            LOCAL.validate_config(self._config(agent="designer"))
         observed = LOCAL.validate_config(
             self._config(agent="doctor-who", context="full")
         )
@@ -487,7 +523,7 @@ class LocalModeTests(unittest.TestCase):
             self.assertNotIn(forbidden, command[:separator])
         self.assertEqual("8080", command[command.index("--allow-localhost") + 1])
         self.assertEqual(
-            ["--agent", "barista", "--model", "llamacpp/qwen3.8-local"],
+            ["--agent", "grillmester", "--model", "llamacpp/qwen3.8-local"],
             command[separator + 1 :],
         )
         self.assertEqual(
@@ -1347,7 +1383,7 @@ class LocalModeTests(unittest.TestCase):
             [
                 "run",
                 "--agent",
-                "barista",
+                "grillmester",
                 "--model",
                 "llamacpp/qwen3.8-local",
                 "--auto",
@@ -1398,7 +1434,7 @@ class LocalModeTests(unittest.TestCase):
             launch.payload,
         )
         self.assertIn("--plugin-dir", client)
-        self.assertIn("grillmester:barista", client)
+        self.assertIn("grillmester:grillmester", client)
         self.assertIn("--no-auto-update", client)
         self.assertIn("--no-experimental", client)
         self.assertIn("--no-remote", client)
@@ -2657,7 +2693,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual("local", config.provider_id)
         self.assertEqual("qwen3.8-local", config.model_id)
         self.assertEqual("focused", config.context)
-        self.assertEqual("barista", config.agent)
+        self.assertEqual("grillmester", config.agent)
         self.assertEqual(57_344, config.context_window)
         self.assertEqual(8_192, config.max_output_tokens)
         self.assertEqual(
@@ -2784,10 +2820,10 @@ class LocalModeTests(unittest.TestCase):
         persisted = LOCAL.load_config(environment=self.environment)
         self.assertEqual("focused", persisted.context)
         self.assertEqual("opencode", persisted.client)
-        self.assertEqual("barista", persisted.agent)
+        self.assertEqual("grillmester", persisted.agent)
 
     @mock.patch.object(LOCAL.sys, "platform", "darwin")
-    def test_run_preview_maps_saved_opencode_to_focused_barista_auto_mode(self) -> None:
+    def test_run_preview_maps_saved_opencode_to_focused_grillmester_auto_mode(self) -> None:
         LOCAL.save_config(
             self._config(context="full", agent="grillmester"),
             environment=self.environment,
@@ -2824,7 +2860,7 @@ class LocalModeTests(unittest.TestCase):
             [
                 "run",
                 "--agent",
-                "barista",
+                "grillmester",
                 "--model",
                 "llamacpp/qwen3.8-local",
                 "--auto",
@@ -2871,7 +2907,7 @@ class LocalModeTests(unittest.TestCase):
             f"ok  client opencode {self.opencode.resolve()} (1.18.20)", output
         )
         self.assertIn(f"ok  project {self.project.resolve()}", output)
-        self.assertIn("ok  agent barista", output)
+        self.assertIn("ok  agent grillmester", output)
         self.assertIn("ok  context focused", output)
         self.assertIn(f"ok  endpoint {server.base_url}", output)
         self.assertIn("ok  model qwen3.8-local", output)
@@ -3175,7 +3211,7 @@ class LocalModeTests(unittest.TestCase):
                     "/tmp/project",
                     "--client=opencode",
                     "--agent",
-                    "barista",
+                    "grillmester",
                     "--full",
                     "--print-command",
                     "--github-access",
@@ -3189,7 +3225,7 @@ class LocalModeTests(unittest.TestCase):
                     "/tmp/project",
                     "--client=opencode",
                     "--agent",
-                    "barista",
+                    "grillmester",
                     "--full",
                     "--print-command",
                     "--github-access",
@@ -3282,7 +3318,7 @@ class LocalModeTests(unittest.TestCase):
                 ]
             )
         self.assertEqual(2, result)
-        self.assertIn("only the barista", stderr.getvalue())
+        self.assertIn("only the grillmester", stderr.getvalue())
         self.assertNotIn("Traceback", stderr.getvalue())
 
 

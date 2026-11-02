@@ -9,7 +9,7 @@
     "plugin": "grillmester",
     "pluginManifest": "plugin/plugin.json",
     "policy": "policy/opencode-v1.json",
-    "policySha256": "f9ba139ce192931c07a0acc638d747939dbefbd52fad21e8c323a1e294fcdf46"
+    "policySha256": "c813c02e9ae23e53c2f9f79f7a264c544a4dfd5a3d7296151921eedc38bcd62d"
   },
   "modelSelection": "inherit-provider-or-session",
   "skillInvocation": {
@@ -17,9 +17,9 @@
     "user": "commands/<skill-id>.md"
   },
   "counts": {
-    "agents": 8,
-    "primaryAgents": 4,
-    "subagents": 4,
+    "agents": 6,
+    "primaryAgents": 3,
+    "subagents": 3,
     "skills": 44,
     "commands": 44
   },
@@ -87,10 +87,6 @@
       "sha256": "2112e764c5bff9772492998e8ef894845f4208681f9a3a6d29fc6ff71ec2050e",
       "mode": "0644"
     },
-    "agents/barista.md": {
-      "sha256": "cc26d4d5d1586276b8b84b81717714daf5ede4782746190e062a9f07eee4ebdc",
-      "mode": "0644"
-    },
     "agents/designer.md": {
       "sha256": "013ad5e1849a9d890b1c332daa0d7c6c936f0c4e01679c880cce9dc09abc829a",
       "mode": "0644"
@@ -100,15 +96,11 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "5848f6ee9b2e4d5bd3f754b4cd96db4ad11fcd648e67e0974b1829691f8b07b8",
+      "sha256": "d334e3a2e86da98055271aa30a0bf26a9169958a28f8b99ca623f9945fbff5c6",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "9c9705feaf09af24a4c37eb0a1c81a1335a121b8de451dbcab51fac428d9380a",
-      "mode": "0644"
-    },
-    "agents/kokk.md": {
-      "sha256": "fb36a5a0b19decca5001c89c7a62441498a4b77422f2a3f1a872b43630b20a15",
+      "sha256": "7ef6357dcedf82d125e8c4403c9f26568f4895085f60a05b2835c696441a2e1c",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
@@ -660,7 +652,7 @@
       "mode": "0755"
     },
     "skills/doctor/SKILL.md": {
-      "sha256": "abfa302e99758cc172454e80006faedf17130a91dac1f833909447447c7959e0",
+      "sha256": "3e8cf470e6cefdad71aa8cc8989280d203261e9106dc0c6ccbf2a4784a6ff301",
       "mode": "0644"
     },
     "skills/domain-modeling/ADR-FORMAT.md": {
@@ -884,7 +876,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "e4d5e162fb941fa49b061013062f5a0777fe7185d5ad86b1a9b636f7c99168e9",
+      "sha256": "0c18ff2fc0b054256407257aaf9ba1d65ced8986f699f69d34d456e92726d60b",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {

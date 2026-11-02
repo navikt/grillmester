@@ -162,7 +162,7 @@ Grillmester publiserer `.nav-pilot/agentpakke.json` som en Tier 2-kontrakt over
 de fire deterministiske payloadene Copilot CLI/OpenCode × full/fokusert.
 Kontrakten lar `nav-pilot` validere samme innhold uten en ny sync eller en
 nav-pilot-spesifikk innholdskopi. Hver payload oppgir sin faktiske agentroster:
-full har de fire offentlige agentene, mens focused har Barista som standard og
+full har de tre offentlige agentene, mens focused har Grillmester som standard og
 Grill-inspektør som underagent. Manifestet krever første nav-pilot-release som
 støtter denne kontrakten og installert, revisjonspinnet Tier 2-materialisering.
 

@@ -33,7 +33,7 @@ SUPPORTED_OPENCODE_MAJOR = MINIMUM_OPENCODE_VERSION[0]
 MINIMUM_COPILOT_VERSION = (1, 0, 79)
 SUPPORTED_COPILOT_MAJOR = MINIMUM_COPILOT_VERSION[0]
 CLIENTS = ("copilot", "opencode")
-PUBLIC_AGENTS = ("grillmester", "barista", "designer", "doctor-who")
+PUBLIC_AGENTS = ("grillmester", "designer", "doctor-who")
 OPENCODE_COMMANDS = frozenset(
     {
         "acp",
@@ -103,8 +103,7 @@ OPENCODE_RUNTIME_GITIGNORE = (
     b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n"
 )
 AGENT_LABELS = {
-    "grillmester": "Grillmester – uklare, viktige eller tverrgående oppgaver",
-    "barista": "Barista – tydelige utviklingsoppgaver",
+    "grillmester": "Grillmester – utvikling, fra små endringer til komplekse oppgaver",
     "designer": "Designer – design, prototyper og brukerflyt",
     "doctor-who": "Doctor Who – discovery, produkt og arkitektur",
 }
@@ -222,6 +221,25 @@ def load_distribution(root: Path | None = None) -> Distribution:
         if not path.is_dir() or path.is_symlink():
             raise LauncherError(f"distribution has no regular {label}: {path}")
 
+    # Extracting a tarball over an older bundle does not remove retired files.
+    # Refuse the mixed payload before either client discovers the obsolete role;
+    # cleanup belongs to the installation owner, not this launcher.
+    for role, payload, filename in (
+        ("Barista", plugin, "barista.agent.md"),
+        ("Barista", target, "barista.md"),
+        ("Barista", focused_opencode, "barista.md"),
+        ("Barista", focused_copilot, "barista.agent.md"),
+        ("Kokk", plugin, "kokk.agent.md"),
+        ("Kokk", target, "kokk.md"),
+    ):
+        retired = payload / "agents" / filename
+        if retired.exists() or retired.is_symlink():
+            raise LauncherError(
+                f"mixed installation contains retired {role} file: {retired}; "
+                "extract the release bundle into a new empty directory and point "
+                "the launcher at it; keep your saved configuration"
+            )
+
     plugin_manifest = _read_json_object(
         plugin / "plugin.json", label="Copilot plugin manifest"
     )
@@ -237,10 +255,10 @@ def load_distribution(root: Path | None = None) -> Distribution:
     if target_manifest.get("target") != "opencode-v1":
         raise LauncherError("OpenCode target manifest does not name opencode-v1")
     counts = target_manifest.get("counts")
-    if not isinstance(counts, dict) or counts.get("agents") != 8 or counts.get(
+    if not isinstance(counts, dict) or counts.get("agents") != 6 or counts.get(
         "skills"
     ) != 44:
-        raise LauncherError("OpenCode target manifest does not contain 8 agents and 44 skills")
+        raise LauncherError("OpenCode target manifest does not contain 6 agents and 44 skills")
     focused_contracts = (
         (
             focused_opencode / "manifest.json",
@@ -262,7 +280,7 @@ def load_distribution(root: Path | None = None) -> Distribution:
             or manifest.get("target") != expected_target
             or manifest.get("projection") != "focused-context-v1"
             or manifest.get("counts") != expected_counts
-            or manifest.get("agents") != ["barista", "grill-inspektor"]
+            or manifest.get("agents") != ["grill-inspektor", "grillmester"]
         ):
             raise LauncherError(f"{label} differs from the reviewed focused contract")
     return Distribution(
@@ -344,6 +362,10 @@ def load_preferences(path: Path | None = None) -> Preferences | None:
         raise invalid("Grillmester preferences use an unsupported schema")
     client = value.get("client")
     agent = value.get("agent")
+    # Retire the saved role without losing the user's selected client. Reading
+    # preferences remains side-effect free; the next save writes the new ID.
+    if agent == "barista":
+        agent = "grillmester"
     if client not in CLIENTS or agent not in PUBLIC_AGENTS:
         raise invalid("Grillmester preferences contain an unsupported client or agent")
     assert isinstance(client, str) and isinstance(agent, str)
@@ -522,6 +544,15 @@ def _split_separator(arguments: Sequence[str]) -> tuple[list[str], list[str]]:
     return list(arguments[:separator]), list(arguments[separator + 1 :])
 
 
+def _public_agent(value: str) -> str:
+    if value == "barista":
+        raise argparse.ArgumentTypeError(
+            "Barista has been retired; use --agent grillmester "
+            "with your preferred model"
+        )
+    return value
+
+
 def parse_invocation(
     arguments: Sequence[str],
     *,
@@ -544,7 +575,7 @@ def parse_invocation(
             "Examples:\n"
             "  grillmester\n"
             "  grillmester doctor --client opencode\n"
-            "  grillmester --client opencode --agent barista\n"
+            "  grillmester --client opencode --agent grillmester\n"
             "  grillmester local setup\n"
             "  grillmester local\n"
             "  grillmester local --full\n"
@@ -561,6 +592,7 @@ def parse_invocation(
         "--agent",
         "--role",
         dest="agent",
+        type=_public_agent,
         choices=PUBLIC_AGENTS,
         help="public Grillmester agent (--role remains a compatible alias)",
     )
@@ -1283,7 +1315,7 @@ def _explicit_selection(arguments: Sequence[str]) -> tuple[str | None, str | Non
     parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
     parser.add_argument("--client", choices=CLIENTS)
     parser.add_argument(
-        "--agent", "--role", dest="agent", choices=PUBLIC_AGENTS
+        "--agent", "--role", dest="agent", type=_public_agent, choices=PUBLIC_AGENTS
     )
     options, _ = parser.parse_known_args(wrapper)
     if options.client and positional_client and options.client != positional_client:
@@ -1436,7 +1468,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
         if arguments[:1] in (["update"], ["upgrade"]):
             raise LauncherError(
                 f"grillmester {arguments[0]} is no longer a command; Grillmester "
-                "is updated by extracting a newer release bundle over this one"
+                "is updated by extracting a newer release bundle into a new empty "
+                "directory and pointing the launcher at it; keep your saved configuration"
             )
         if arguments[:1] == ["choose"]:
             if len(arguments) != 1:

@@ -58,7 +58,7 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py \
 
 `setup` bruker `http://127.0.0.1:8080/v1` som default og leser modellene fra
 `/v1/models`; oppgi `--base-url http://127.0.0.1:1234/v1` for LM Studio.
-Focused Barista er default. Engangsvalg endrer ikke lagret default.
+Focused Grillmester er default. Engangsvalg endrer ikke lagret default.
 `local run` kjører én foreground, non-interaktiv prompt og auto-godkjenner
 OpenCodes tools; bruk et rent, dedikert worktree og kontroller diff og tester
 etterpå. Se [kontrakten for avgrenset kjøring](local-models.md#avgrenset-kjøring).
@@ -187,9 +187,27 @@ installasjonsartefaktet:
 ```bash
 tag=vREPLACE_WITH_VERSION
 asset="grillmester-terminal-${tag}.tar.gz"
-shasum -a 256 -c "${asset}.sha256"
-tar -xzf "$asset" -C /path/to/user-owned/extraction
+release_dir="/path/to/user-owned/releases/$tag"
+shasum -a 256 -c "${asset}.sha256" &&
+  mkdir "$release_dir" &&
+  tar -xzf "$asset" -C "$release_dir"
 ```
+
+Foreldrekatalogen `/path/to/user-owned/releases` må finnes. `mkdir` skal
+opprette en **ny, tom, versjonert katalog** og feile dersom den allerede finnes;
+ikke erstatt kommandoen med `mkdir -p` eller pakk ut over en eldre installasjon.
+Arkivet har roten `grillmester-terminal-v1`. Bruk den nye launcheren direkte:
+
+```bash
+python3 "$release_dir/grillmester-terminal-v1/scripts/grillmester.py" doctor
+```
+
+Oppdater eventuelt din eksisterende launcherlenke eller snarvei på `PATH`
+til den nye absolutte scriptpathen. Behold tidligere versjonskatalog for
+rollback og `~/.config/grillmester` for lagrede valg. `tar` fjerner ikke
+utgåtte filer ved utpakking over en gammel katalog; for eksempel vil en gammel
+Barista-fil gjøre den nye payloadens manifest ugyldig. Repo- eller brukereide
+agent-/skillkopier endres ikke av denne installasjonen.
 
 For vanlig, native cplt-bruk er bundle-en nå klar. Den inneholder Grillmester-
 payloadene og launcheren, men ingen OpenCode-, Copilot- eller cplt-binær.
@@ -215,15 +233,15 @@ etter flere kjøringer.
 
 ## Agenter, commands og forwarding
 
-OpenCode-targetet har åtte native agenter. De fire offentlige velges direkte;
-Kokk, Grill-inspektør, Researcher og Perspektiv brukes gjennom delegering. Skills lastes
+OpenCode-targetet har seks native agenter. De tre offentlige velges direkte;
+Grill-inspektør, Researcher og Perspektiv brukes gjennom delegering. Skills lastes
 progressivt med OpenCodes native `skill`-tool, og de 44 commands speiler
 skillinngangene.
 
 For `run` plasserer launcheren valgt agent etter subkommandoen:
 
 ```bash
-grillmester --client opencode --agent barista -- run "Fiks den avgrensede oppgaven"
+grillmester --client opencode --agent grillmester -- run "Fiks den avgrensede oppgaven"
 ```
 
 Argumenter før `--` går til cplt; argumenter etter `--` går til OpenCode.

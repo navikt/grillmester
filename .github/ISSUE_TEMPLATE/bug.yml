@@ -44,7 +44,7 @@ body:
     id: component
     attributes:
       label: Agent eller skill
-      placeholder: grillmester:barista / security-review
+      placeholder: grillmester:grillmester / security-review
   - type: textarea
     id: reproduction
     attributes:

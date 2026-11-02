@@ -352,7 +352,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "grillmester local --client copilot",
             "grillmester local --client opencode",
             "grillmester local --full --agent grillmester",
-            "focused Barista",
+            "focused Grillmester",
             "grillmester local doctor",
             "OpenCode og Copilot CLI på `PATH`",
             "--context-window 57344",
@@ -389,7 +389,8 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "cplt beskytter ikke prosjektfilene",
             "exitkode `0`",
             "ikke at oppgaven er semantisk løst",
-            "`Status: NEEDS_INPUT`",
+            "`Status: NEEDS_CONTEXT`",
+            "`Status: NEEDS_DECISION`",
             "`Status: NEEDS_FULL_CONTEXT`",
             "direkte, interaktiv klientreise",
             "krever eller tolker ingen strukturert sluttstatus",
@@ -411,7 +412,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
                 self.assertIn("local run", normalized(document))
 
         self.assertNotIn(
-            "grillmester local --client opencode --agent barista -- run",
+            "grillmester local --client opencode --agent grillmester -- run",
             value,
         )
         self.assertNotIn("bakgrunn", value.casefold())
@@ -499,6 +500,9 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "opprinnelige focused-rosteren med seks skills",
             normalized(self.local_models),
         )
+        self.assertIn("historisk Qwen3.8-27B Q6-pilot med Barista", normalized(self.local_models))
+        self.assertIn("ikke en måling av dagens Grillmester-profil", normalized(self.local_models))
+        self.assertIn("Høy risiko alene krever ikke full kontekst", normalized(self.local_models))
 
     def test_local_launcher_keeps_host_home_and_isolates_client_state(self) -> None:
         for name, document in (
@@ -530,7 +534,7 @@ class OpenCodeDocumentationContractTest(unittest.TestCase):
             "## Avansert: manuell Copilot CLI BYOK", 1
         )[1].split("## Copilot app med lokal provider", 1)[0]
         for marker in (
-            "grillmester --client copilot --agent barista",
+            "grillmester --client copilot --agent grillmester",
             "--allow-localhost 1234",
             "--pass-env COPILOT_PROVIDER_API_KEY",
             "--disable-builtin-mcps",

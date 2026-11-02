@@ -59,7 +59,7 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 8, 44, True),
+    PackageSpec("grillmester", "plugin", 6, 44, True),
 )
 LEGACY_CORE = PackageSpec("grillmester", "plugin", 8, 34, False)
 LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10, False)
@@ -81,6 +81,7 @@ SAME_PACKAGE_REMOVED_SKILLS = ("grillmester-nav-architecture-review",)
 HISTORICAL_REMOVED_SKILLS = ("grillmester-kotlin-spring",)
 CURRENT_ONLY_SKILLS = ("app-sandbox-setup", "guided-review")
 REMOVED_SKILLS = SAME_PACKAGE_REMOVED_SKILLS + HISTORICAL_REMOVED_SKILLS
+REMOVED_AGENTS = ("barista", "kokk")
 PACKAGE_BY_NAME = {package.name: package for package in PACKAGES}
 PLUGIN_NAME = PACKAGES[0].name
 PLUGIN_SPEC = PACKAGES[0].qualified_name
@@ -301,6 +302,28 @@ def add_removed_skill_fixtures(plugin: Path, skill_ids: Sequence[str]) -> None:
         )
 
 
+def add_removed_agent_fixtures(plugin: Path) -> None:
+    """Preserve the historical eight-agent roster in disposable upgrade sources."""
+
+    for agent_id in REMOVED_AGENTS:
+        agent = plugin / "agents" / f"{agent_id}.agent.md"
+        if agent.exists():
+            raise RuntimeError(
+                f"removed agent is present in the current payload: {agent_id}"
+            )
+        agent.parent.mkdir(parents=True, exist_ok=True)
+        agent.write_text(
+            "---\n"
+            f"name: {agent_id}\n"
+            "description: Historical migration fixture; never ship this agent.\n"
+            "user-invocable: true\n"
+            "tools:\n  - read\n"
+            "---\n\n"
+            "# Historical migration fixture\n",
+            encoding="utf-8",
+        )
+
+
 def prepare_upgrade_marketplace(
     catalog_path: Path,
     source_root: Path,
@@ -352,6 +375,7 @@ def prepare_upgrade_marketplace(
             shutil.copytree(source_package, staged_marketplace / package.path)
 
     previous_core = previous_plugins[PLUGIN_NAME]
+    add_removed_agent_fixtures(previous_core)
     for skill_id in CURRENT_ONLY_SKILLS:
         current_only_skill = previous_core / "skills" / skill_id
         if not current_only_skill.is_dir():
@@ -549,6 +573,14 @@ def assert_removed_skills_absent(installed: Path) -> None:
             )
 
 
+def assert_removed_agents_absent(installed: Path) -> None:
+    for agent_id in REMOVED_AGENTS:
+        if (installed / "agents" / f"{agent_id}.agent.md").exists():
+            raise RuntimeError(
+                f"current installation retained removed agent: {agent_id}"
+            )
+
+
 def assert_same_package_removed_skills_present(installed: Path) -> None:
     for skill_id in SAME_PACKAGE_REMOVED_SKILLS:
         if not (installed / "skills" / skill_id).is_dir():
@@ -570,6 +602,9 @@ def verify_installed_package(
     manifest = load_json_object(manifest_path)
     if manifest.get("name") != package.name:
         raise RuntimeError("installed plugin manifest has the wrong name")
+
+    if package.is_current_payload:
+        assert_removed_agents_absent(installed)
 
     agent_count = len(list((installed / "agents").glob("*.agent.md")))
     skill_count = len(list((installed / "skills").glob("*/SKILL.md")))
@@ -1257,7 +1292,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         source_label = f"release {release_sha}" if release_sha else "development source"
         print(
             f"Verified {source_label}: {agent_count} agents, {skill_count} skills, "
-            "same-package removed-skill cleanup and rollback, legacy add-on removal, "
+            "same-package retired-agent and removed-skill cleanup and rollback, "
+            "legacy add-on removal, "
             "byte-exact forward upgrade, explicit rollback, repeatable update, "
             f"advertised local-run CLI surface, and uninstall using {version}"
         )

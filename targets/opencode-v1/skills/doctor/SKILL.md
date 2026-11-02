@@ -77,12 +77,11 @@ Verify these dimensions separately:
 1. **Target integrity** — generated file counts and hashes agree with
    `manifest.json`; no runtime dependency artifact is treated as Grillmester
    source.
-2. **Agent discovery** — four primary agents and three hidden subagents are
+2. **Agent discovery** — three primary agents and three hidden subagents are
    present under `agents/`; agent frontmatter has `mode`, `hidden`, and native
    permissions, and omits `model` so the session/provider choice is inherited.
-3. **Delegation** — Grillmester can use `task` only for `kokk`,
-   `grill-inspektor`, and `researcher`; other roles preserve their narrower
-   task boundary.
+3. **Delegation** — Grillmester can use `task` only for `grill-inspektor`
+   and `researcher`; other roles preserve their narrower task boundary.
 4. **Skills and commands** — all manifest skills exist under `skills/`, each
    command wrapper resolves the same skill ID, and manual-only source skills
    require approval through ordered `permission.skill` rules.

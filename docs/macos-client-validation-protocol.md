@@ -1,7 +1,7 @@
-# macOS client validation protocol v1.0
+# macOS client validation protocol v1.1
 
-This protocol is the narrow runtime and client entry point for a `0.3.0`
-release. It is for **macOS only** and covers **Copilot CLI**, **Copilot App**,
+This protocol is the narrow runtime and client entry point for a reviewed
+release candidate. It is for **macOS only** and covers **Copilot CLI**, **Copilot App**,
 and **VS Code**. It does not run model scenarios in CI.
 
 Use [the consumer-pilot runbook](consumer-pilot-runbook.md) as the authority
@@ -53,8 +53,7 @@ Do not infer one client's result from another.
 | Update | The client reaches the selected RC and its resolved identity is recorded. |
 | Rollback | The client returns to the previous reviewed version without moving an immutable tag. |
 | Restart after rollback | A newly started session resolves the rolled-back version. |
-| Grillmester | Complete the bounded role scenario from consumer-pilot runbook section 5. |
-| Barista | Complete the bounded role scenario from consumer-pilot runbook section 5. |
+| Grillmester | Complete both the settled-work and decision/risk scenarios from consumer-pilot runbook section 5. |
 | Designer | Complete the frontend design scenario from consumer-pilot runbook section 5. |
 | Doctor Who | Complete the read-only product scenario from consumer-pilot runbook section 5. |
 
@@ -71,11 +70,15 @@ covers all of the following:
 1. `/grilling`;
 2. automatic skill routing;
 3. Wayfinder discovery and delegation;
-4. the handoff `Grillmester → Kokk → Grill-inspektør`, triggered by an R3/R4 slice,
-   or by an explicit request for Kokk and Inspector review;
+4. `Grillmester → Grill-inspektør` for an agreed R3/R4 change: the main agent
+   implements and verifies it before independent review of the stable diff;
 5. Visual Companion;
 6. one approved, harmless write in the disposable fixture; and
 7. one rejected write with no file, Git ref, or external-resource side effect.
+
+High risk alone must not force delegation. Self-review or passing tests
+alone must not satisfy the R3/R4 independent-review gate. Record a missing
+review capability honestly rather than treating direct implementation as a waiver.
 
 Use the role and write constraints in consumer-pilot runbook sections 5 and 6.
 Record the observed tools, approval decisions, and side effects rather than
@@ -84,13 +87,15 @@ prompts or transcripts.
 ## 5. Evidence and disposition
 
 Copy `docs/release-evidence-template.json`, fill one `clientResults` entry for
-each client, and aggregate them into one `releaseVersion: "0.3.0"` evidence
-file. `protocolVersion: "1.0"` and `schemaVersion: 1` are part of the contract.
+each client, and aggregate them into one evidence file whose `releaseVersion`
+matches the RC. `protocolVersion: "1.1"` and `schemaVersion: 1` are part of the contract.
 Each client entry records its version and resolved release identity. Each
 scenario records its result, observed tools and approvals, side effects, and
 deviations. See
-`docs/release-evidence-0.3.0-dry-run.json` for synthetic, non-sensitive
-example data only.
+`docs/release-evidence-0.3.0-dry-run.json` for historical synthetic,
+non-sensitive example data only. That file preserves protocol v1.0, including
+Barista and the former mandatory implementation handoff. It is not evidence
+for the current roster or routing and must not be relabelled as v1.1 evidence.
 
 Never store prompts, transcripts, secrets, personal data, or sensitive
 diagnostics in release evidence. Use terse synthetic scenario labels and

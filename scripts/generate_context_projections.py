@@ -47,7 +47,7 @@ POLICY_FIELDS = frozenset(
         "copilotCli",
     }
 )
-EXPECTED_AGENTS = ("barista", "grill-inspektor")
+EXPECTED_AGENTS = ("grill-inspektor", "grillmester")
 EXPECTED_SKILLS = (
     "diagnosing-bugs",
     "integration-tests",
@@ -87,6 +87,7 @@ OPENCODE_ABSENT_PERMISSION_SKILLS = (
     "guided-review",
     "handoff",
 )
+OPENCODE_ABSENT_PERMISSION_AGENTS = ("researcher",)
 QUALIFIED_AGENT_REFERENCE = re.compile(
     r"(?<![a-z0-9-])grillmester:([a-z][a-z0-9-]*)"
 )
@@ -393,6 +394,60 @@ def replace_section(
     return text[:begin] + new + text[finish:]
 
 
+def apply_grillmester_focused_overlay(text: str, *, client: str, path: str) -> str:
+    """Narrow capability discovery without changing the shared delivery loop."""
+    text = replace_section(
+        text,
+        start="## Available capabilities",
+        end="\n## Implement and prove",
+        new=(
+            "## Available capabilities\n\n"
+            "This focused payload provides `diagnosing-bugs`, `integration-tests`,\n"
+            "`issue-management`, `pull-request`, `review`, `security-review`, and `tdd`.\n"
+            "Load a skill from the active catalog only when the task needs its method;\n"
+            "use its exact advertised identity and source through the native loading\n"
+            "mechanism. Skill names are never shell commands. Do not preload the roster.\n"
+            "Report a conflicting or shadowed skill source before relying on it.\n"
+            "Repository instructions and evidence still govern\n"
+            "the work. Model choice does not change your role or the review requirements.\n\n"
+            "Task size, complexity, and risk alone do not require full context. Continue\n"
+            "the same implementation and review loop when available capabilities suffice.\n"
+            "If a required specialist method or reference is absent from the active catalog\n"
+            "and repository, complete independent work and stop only the dependent work.\n"
+            "Name the missing capability, summarize criteria, decisions, edits, verification,\n"
+            "and the next step, then return:\n\n"
+            "```text\n"
+            "Status: NEEDS_FULL_CONTEXT\n"
+            "Resume with: grillmester local --full\n"
+            "```\n\n"
+            "Full context supplies additional methods; it does not grant permissions,\n"
+            "account access, or a capable model. Report a missing tool, authority, or model\n"
+            "capability as a concrete blocker and never imply that this command resolves it.\n"
+        ),
+        path=path,
+    )
+    inspector = "grill-inspektor" if client == "opencode" else "grillmester:grill-inspektor"
+    text = replace_section(
+        text,
+        start="## Delegation",
+        end="\n## Verification and review",
+        new=(
+            "## Delegation\n\n"
+            "Implement and investigate in this context. The only bundled subagent is\n"
+            f"`{inspector}` for independent review. Give it the complete scoped diff,\n"
+            "acceptance criteria, relevant decisions, and fresh verification evidence.\n"
+            "Do not invent or invoke absent agent IDs. Missing optional delegation is not\n"
+            "a blocker; missing required independent review must remain explicit and may\n"
+            "not be replaced by self-review.\n"
+        ),
+        path=path,
+    )
+    if client == "opencode":
+        for agent in OPENCODE_ABSENT_PERMISSION_AGENTS:
+            text = replace_once(text, f"    {agent}: allow\n", "", path=path)
+    return text
+
+
 def apply_diagnosing_focused_overlay(text: str, *, path: str) -> str:
     text = replace_section(
         text,
@@ -489,91 +544,8 @@ def apply_focused_text_overlay(
                 "decomposition; this skill owns the resulting tracker mutations.",
                 path=relative,
             )
-        if relative in {"agents/barista.md", "agents/barista.agent.md"}:
-            qualified = (
-                "`grillmester`" if client == "opencode" else "`grillmester:grillmester`"
-            )
-            old = (
-                "- When repository exploration still leaves coupled product or architecture\n"
-                "  decisions with material user-owned trade-offs, or a repository-defined\n"
-                "  high-risk signal, stop before editing. Recommend that the user select\n"
-                f"  Grillmester ({qualified}) and summarize the outcome, criteria,\n"
-                "  facts, open choices, risk, verified state, and next step. Never invoke\n"
-                "  Grillmester or Kokk.\n"
-            )
-            new = (
-                "- When repository exploration still leaves coupled product or architecture\n"
-                "  decisions with material user-owned trade-offs, or a repository-defined\n"
-                "  high-risk signal, stop before editing and return a full-context handoff:\n"
-                "  `Status: NEEDS_FULL_CONTEXT`. Summarize the outcome, criteria, facts, open\n"
-                "  choices, risk, verified state, and next step, then state\n"
-                "  `Resume with: grillmester local --full`. Do not continue in focused mode.\n"
-            )
-            text = replace_once(text, old, new, path=relative)
-            text = replace_once(
-                text,
-                "Recommend\n"
-                "Grillmester when this threshold is met or the review exposes unresolved\n"
-                "user-owned trade-offs or risk outside a bounded solo change.",
-                "When this threshold is met or review exposes unresolved user-owned\n"
-                "trade-offs or risk outside a bounded solo change,\n"
-                "return `Status: NEEDS_FULL_CONTEXT` with the full-context handoff\n"
-                "defined in the Route step.",
-                path=relative,
-            )
-            text = replace_once(
-                text,
-                "For a saved design room, read its chosen registered HTML/descriptor pair through\n"
-                "`design-prototype`'s `references/design-handoff.md` when available; otherwise\n"
-                "recommend the full Grillmester payload before dependent work.",
-                "For a saved design room, the handoff reference is outside this focused payload.\n"
-                "Before dependent work, return `Status: NEEDS_FULL_CONTEXT` with the\n"
-                "full-context handoff defined in the Route step.",
-                path=relative,
-            )
-            text = replace_once(
-                text,
-                "Task size and file count alone do not change the route. If later evidence\n"
-                "crosses the solo boundary, stop at a safe point, report what changed and "
-                "what\n"
-                "remains verified, and recommend Grillmester.",
-                "Task size and file count alone do not change the route. If later evidence\n"
-                "crosses the solo boundary, stop at a safe point, report what changed and "
-                "what\n"
-                "remains verified, then return `Status: NEEDS_FULL_CONTEXT` with the\n"
-                "full-context handoff defined in the Route step.",
-                path=relative,
-            )
-        if relative in {
-            "agents/grill-inspektor.md",
-            "agents/grill-inspektor.agent.md",
-        }:
-            text = replace_once(
-                text,
-                "the Kokk brief",
-                "the implementer's brief",
-                path=relative,
-            )
-        if relative == "skills/review/SKILL.md":
-            delegated = (
-                "`kokk`" if client == "opencode" else "`grillmester:kokk`"
-            )
-            text = replace_once(
-                text,
-                "If the active caller is the writer, fix in-scope findings before "
-                "returning. If\n"
-                f"Grillmester is reviewing work from {delegated}, do not edit the\n"
-                "implementation in the orchestration context; send Kokk the smallest "
-                "bounded\n"
-                "correction instead.",
-                "If the active caller is the writer, fix in-scope findings before "
-                "returning. When\n"
-                "reviewing delegated work, do not edit the implementation in the "
-                "review\n"
-                "context; return the smallest bounded correction to the active writer "
-                "instead.",
-                path=relative,
-            )
+        if relative in {"agents/grillmester.md", "agents/grillmester.agent.md"}:
+            text = apply_grillmester_focused_overlay(text, client=client, path=relative)
         transformed[relative] = (text.encode("utf-8"), mode)
     validate_focused_references(transformed, client=client, source_skills=source_skills)
     return transformed
@@ -603,9 +575,13 @@ def validate_focused_references(
                 f"focused {client} file references absent skills in {relative}: "
                 + ", ".join(sorted(missing_skills))
             )
-        if re.search(r"\bKokk\b|`kokk`", text):
+        if re.search(
+            r"\b(?:Kokk|Researcher|Perspektiv|Barista)\b|"
+            r"`(?:kokk|researcher|perspektiv|barista|designer|doctor-who)`",
+            text,
+        ):
             raise ProjectionError(
-                f"focused {client} file references absent Kokk in {relative}"
+                f"focused {client} file references an absent role in {relative}"
             )
 
 
@@ -681,8 +657,8 @@ def validate_copilot_full_manifest(
         raise ProjectionError("Copilot full payload manifest generator is invalid")
     agents = string_list(manifest["agents"], label="Copilot full payload agents")
     skills = string_list(manifest["skills"], label="Copilot full payload skills")
-    if len(agents) != 8 or len(skills) != 44:
-        raise ProjectionError("Copilot full payload is not the complete 8/44 target")
+    if len(agents) != 6 or len(skills) != 44:
+        raise ProjectionError("Copilot full payload is not the complete 6/44 target")
     if manifest["counts"] != {"agents": len(agents), "skills": len(skills)}:
         raise ProjectionError("Copilot full payload counts are invalid")
     observed_agents = tuple(
@@ -732,10 +708,10 @@ def build_opencode_projection(
     if source_manifest.get("target") != "opencode-v1":
         raise ProjectionError("focused OpenCode source must be target opencode-v1")
     counts = source_manifest.get("counts")
-    if not isinstance(counts, dict) or counts.get("agents") != 8 or counts.get(
+    if not isinstance(counts, dict) or counts.get("agents") != 6 or counts.get(
         "skills"
     ) != 44 or counts.get("commands") != 44:
-        raise ProjectionError("focused OpenCode source is not the complete 8/44 target")
+        raise ProjectionError("focused OpenCode source is not the complete 6/44 target")
     files: dict[str, GeneratedFile] = {}
     for relative in (".gitignore", "opencode.json"):
         add_file(
@@ -785,8 +761,9 @@ def build_opencode_projection(
         },
         "modelSelection": "inherit-provider-or-session",
         "transformations": {
-            "agentEscalation": "full-context-handoff",
+            "agentEscalation": "missing-capability-handoff",
             "excludedSkillReferences": "full-context-guidance",
+            "agentPermissionEntriesRemoved": list(OPENCODE_ABSENT_PERMISSION_AGENTS),
             "skillPermissionEntriesRemoved": list(
                 OPENCODE_ABSENT_PERMISSION_SKILLS
             ),
@@ -901,7 +878,7 @@ def build_copilot_projection(
         "transformations": {
             "agentFrontmatterRemoved": ["model"],
             "pluginManifestFieldsRemoved": ["extensions"],
-            "agentEscalation": "full-context-handoff",
+            "agentEscalation": "missing-capability-handoff",
             "excludedSkillReferences": "full-context-guidance",
         },
         "counts": {

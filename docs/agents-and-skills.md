@@ -1,9 +1,9 @@
 # Agenter og skills
 
-Grillmester kombinerer fire brukerinnganger med fire interne roller. Du velger
-inngangen; agentteamet bruker interne roller og relevante skills etter behov.
+Grillmester kombinerer tre brukerinnganger med tre interne roller. Du velger
+inngangen; hovedagenten bruker relevante skills og interne roller etter behov.
 Start gjerne med Grillmester for utvikling og Designer for visuell utforsking.
-Barista gir et eksplisitt soloalternativ; Doctor Who retter seg mot produktarbeid.
+Doctor Who retter seg mot produktarbeid.
 
 ## Offentlige agenter
 
@@ -17,7 +17,7 @@ Se [lokale modeller](local-models.md) for eksplisitt valg og capability-smoke.
 ### Grillmester 🔥
 
 **Bruk når:** Du vil få en utviklingsoppgave undersøkt, gjennomført og verifisert,
-med avklaring og arbeidsdeling tilpasset oppgaven. Også små, presise endringer
+med avklaring tilpasset oppgaven og review tilpasset risikoen. Også små, presise endringer
 kan starte her.
 
 **Prøv:**
@@ -43,39 +43,29 @@ grilling, dokumentert grilling, research eller prototyper inne i hvert
 spørsmål. Størrelsen på den senere implementasjonen er ikke alene grunn til
 å opprette et kart.
 
-For R0–R2 gjennomfører Grillmester avklart arbeid selv eller bruker Kokk når en
-avgrenset implementeringsoppgave har konkret nytte av en separat utfører.
-Mange filer eller lang testtid utløser ikke delegering alene. R3/R4 går til Kokk,
-slik at koden og den uavhengige reviewen kommer fra ulike forfattere. Det er én
-skriver per leveransedel; review skjer på en stabil diff. Grillmester sier
-hvorfor den velger utfører. Du kan overstyre valget; for R3/R4 forklares først
-konsekvensen for skillet mellom implementering og review.
+Grillmester eier plan, implementering, tester og leveranse på alle risikonivåer
+og skriver koden selv. Høy risiko, mange filer eller lang testtid utløser ikke
+en egen implementeringsagent. Review skjer på en stabil diff; for R3/R4 gir
+Grill-inspektør en uavhengig vurdering i egen kontekst.
+
+Før en R3/R4-endring kan kalles klar til merge, må Grill-inspektør ha godkjent
+den, et menneske uttrykkelig ha godtatt alle navngitte bekymringer, eller et
+menneske uttrykkelig ha frafalt review for det aktuelle omfanget. Egen
+gjennomgang og beståtte tester erstatter ikke dette kravet. Nye endringer
+krever fersk verifikasjon og review når review brukes som leveransegrunnlag.
 
 Dette er en anbefalt arbeidsflyt, ikke et løfte om kortere svartid eller lavere
-modellkostnad. Barista, modellvalg og lagrede standardvalg beholdes.
+modellkostnad. Den nye flyten må kvalitetsvurderes i hver klient og modellprofil.
 
-### Barista ☕
+### Fra Barista til Grillmester
 
-**Bruk når:** Målet og akseptansekriteriene er tydelige, og du ønsker at samme
-rolle undersøker, implementerer og verifiserer solo. Størrelse og filantall
-alene utløser ikke rollebytte.
-
-**Prøv:**
-
-> Legg til valideringen som er beskrevet i issue #123. Hold scope til denne
-> flyten, følg repoets mønstre og kjør relevante tester.
-
-**Forventet leveranse:** En avgrenset, reviewbar diff med forklaring av hva som ble
-endret og hvilke verifikasjoner som faktisk ble kjørt. Uavhengig review kan
-velges eksplisitt; kodeimplementeringen delegeres ikke til Kokk.
-
-**Ikke bruk når:** Oppgaven skjuler et uløst produktvalg, bryter en offentlig
-kontrakt eller krever en reverserings-/migreringsbeslutning.
-
-**Forskjell fra Grillmester:** Barista implementerer selv og kan bare tilkalle
-Grill-inspektør for uavhengig review. Den bruker en annen standardmodell, har
-kortere instruksjoner og er med i de fokuserte nyttelastene for lokale
-modeller. Å fjerne rollen er en egen beslutning (ADR 0024).
+Barista distribueres ikke lenger. Velg Grillmester for den samme sammenhengende
+utviklingsflyten, også for små og avklarte oppgaver. Lagrede launchervalg med
+`barista` leses som `grillmester`; klient, provider og eksplisitt modellvalg
+beholdes. Et eksplisitt `--agent barista` gir veiledning om å bruke
+`--agent grillmester`. Oppdater egne snarveier og klientkonfigurasjoner som
+viser til `grillmester:barista`. De fokuserte nyttelastene for lokale modeller
+inneholder Grillmester og Grill-inspektør med sju utviklingsskills.
 
 ### Designer 🎨
 
@@ -130,8 +120,8 @@ innholdsdesigner, UU-ekspert eller syntetiske personas, og syntetisere dem.
 Personas er hypoteser, ikke brukerinnsikt. Designer kan også hjelpe med oppsett
 av verktøy og implementere et valgt design når du ber om det.
 
-**Ikke bruk når:** Oppgaven er ren kode uten designspørsmål. Da passer Barista
-eller Grillmester bedre.
+**Ikke bruk når:** Oppgaven er ren kode uten designspørsmål. Da passer
+Grillmester bedre.
 
 Designer bruker tilgjengelige og tillatte verktøy til visuell kontroll av
 den avtalte arbeidsflaten. Et native verksted krever ikke en ekstra kontrollfane.
@@ -155,14 +145,13 @@ workshops, teamhelse eller Nav-spesifikk arkitektur.
 **Forventet leveranse:** Kildebevisst syntese, alternativer, anbefaling og et
 konkret neste steg. Eksterne writes skal forhåndsvises og godkjennes.
 
-**Ikke bruk når:** Målet primært er å endre kode. Bruk Barista eller
-Grillmester og trekk inn relevante produkt-/Nav-skills der.
+**Ikke bruk når:** Målet primært er å endre kode. Bruk Grillmester og trekk inn
+relevante produkt-/Nav-skills der.
 
 ## Interne roller
 
 | Rolle | Oppdrag | Viktig grense |
 | --- | --- | --- |
-| **Kokk** 👨‍🍳 | Implementerer én komplett, uavhengig testbar vertical slice fra en tydelig brief når Grillmester delegerer. | Utvider ikke scope og finner ikke på manglende beslutninger. |
 | **Grill-inspektør** 🔎 | Leser hele task-diffen, akseptansekriteriene og fersk evidens; kan bruke read-only shellkommandoer som `git diff` for å verifisere. | Endrer ikke implementasjonen og løser ikke produktvalg. |
 | **Researcher** | Besvarer ett avgrenset faktaspørsmål fra repo og autoritative kilder, med valgfri kobling til et Wayfinder-kart. | Ingen writes og ingen produkt-/arkitekturbeslutning. |
 | **Perspektiv** 🔭 | Tar ett fagperspektiv eller én syntetisk persona som Designer gir i briefen, og vurderer design, flyt eller tekst fra det ståstedet. Designer kan kjøre flere parallelt. | Ingen writes og ingen designbeslutning; personas presenteres aldri som brukerinnsikt. |

@@ -47,9 +47,8 @@ deployment permissions, or another security boundary, invoke and apply
 
 ## Correct and verify
 
-If the active caller is the writer, fix in-scope findings before returning. When
-reviewing delegated work, do not edit the implementation in the review
-context; return the smallest bounded correction to the active writer instead.
+Fix in-scope findings before returning; a read-only reviewer reports them
+instead. Never silently widen scope.
 
 Discover deterministic gates from repository instructions, build files, test
 configuration, and CI rather than assuming a toolchain. Run the smallest

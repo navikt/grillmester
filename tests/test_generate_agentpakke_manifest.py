@@ -46,7 +46,6 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
                 "path": "plugin",
                 "primaryAgents": [
                     "grillmester",
-                    "barista",
                     "designer",
                     "doctor-who",
                 ],
@@ -65,14 +64,13 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
                     "path": "plugin",
                     "primaryAgents": [
                         "grillmester",
-                        "barista",
                         "designer",
                         "doctor-who",
                     ],
                 },
                 "focused": {
                     "path": "targets/copilot-cli-focused-v1",
-                    "primaryAgents": ["barista", "grill-inspektor"],
+                    "primaryAgents": ["grillmester"],
                 },
             },
             manifest["clients"]["copilot"]["payloads"],
@@ -83,14 +81,13 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
                     "path": "targets/opencode-v1",
                     "primaryAgents": [
                         "grillmester",
-                        "barista",
                         "designer",
                         "doctor-who",
                     ],
                 },
                 "focused": {
                     "path": "targets/opencode-v1-focused",
-                    "primaryAgents": ["barista", "grill-inspektor"],
+                    "primaryAgents": ["grillmester"],
                 },
             },
             manifest["clients"]["opencode"]["payloads"],
@@ -105,7 +102,7 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
         try:
             policy_path = root / "policy/focused-context-v1.json"
             policy = json.loads(policy_path.read_text(encoding="utf-8"))
-            policy["agents"] = ["grill-inspektor", "barista"]
+            policy["agents"] = ["grillmester", "grill-inspektor"]
             policy_path.write_text(
                 json.dumps(policy, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",
@@ -141,7 +138,7 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
         try:
             manifest_path = root / "targets/opencode-v1-focused/manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            manifest["agents"] = ["barista", "not-in-payload"]
+            manifest["agents"] = ["grillmester", "not-in-payload"]
             manifest_path.write_text(
                 json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",
@@ -180,7 +177,7 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
         try:
             content_lock_path = root / "policy/content-lock.json"
             content_lock = json.loads(content_lock_path.read_text(encoding="utf-8"))
-            content_lock["agents"]["barista"]["user-invocable"] = False
+            content_lock["agents"]["grillmester"]["user-invocable"] = False
             content_lock_path.write_text(
                 json.dumps(content_lock, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",

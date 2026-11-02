@@ -74,7 +74,8 @@ class RuntimeSmokeError(RuntimeError):
 @dataclass(frozen=True)
 class Scenario:
     name: str
-    subagent: str
+    # None makes the primary agent perform the action itself.
+    subagent: str | None
     action: str
     target: Path
     auto: bool = False
@@ -238,9 +239,9 @@ def provider_response(state: ProviderState, request: dict[str, Any]) -> bytes:
     called = message_tool_names(request)
     requested = state.requested_tool_names()
     is_primary = "# Grillmester" in prompt
-    is_subagent = "# Kokk" in prompt or "# Grill-inspekt" in prompt
+    is_subagent = "# Grill-inspekt" in prompt
 
-    if is_primary:
+    if is_primary and state.scenario.subagent is not None:
         if "task" not in called and "task" not in requested:
             state.record_requested_tool("task")
             return completion_chunks(
@@ -253,7 +254,7 @@ def provider_response(state: ProviderState, request: dict[str, Any]) -> bytes:
             )
         return completion_chunks()
 
-    if not is_subagent:
+    if not is_subagent and not is_primary:
         return completion_chunks()
 
     action = state.scenario.action
@@ -588,7 +589,13 @@ def run_scenario(
             f"{scenario.name} failed with exit {result.returncode}: {result.stdout[-4000:]}"
         )
     state.runtime_output = result.stdout
-    if "task" not in state.called_tools():
+    called = state.called_tools()
+    if scenario.subagent is None:
+        if "task" in called:
+            raise RuntimeSmokeError(
+                f"{scenario.name} delegated instead of acting as the primary agent"
+            )
+    elif "task" not in called:
         raise RuntimeSmokeError(f"{scenario.name} did not exercise native task delegation")
     return state
 
@@ -661,7 +668,7 @@ def smoke(*, binary: Path, source_target: Path, cplt: Path | None = None) -> Non
                 cplt=cplt,
                 target=target,
                 sandbox=sandbox,
-                scenario=Scenario("env-deny", "kokk", "read-env", env_path),
+                scenario=Scenario("env-deny", "grill-inspektor", "read-env", env_path),
             )
             env_results = "\n".join(env_state.tool_results())
             if "read" not in env_state.requested_tool_names():
@@ -675,7 +682,7 @@ def smoke(*, binary: Path, source_target: Path, cplt: Path | None = None) -> Non
             if "user rejected permission" not in env_state.runtime_output:
                 raise RuntimeSmokeError(".env read lacked explicit permission rejection evidence")
             if ENV_SENTINEL in env_results:
-                raise RuntimeSmokeError("Kokk read .env contents without approval")
+                raise RuntimeSmokeError("Grill-inspektor read .env contents without approval")
             primary_prompts = [
                 system_text(request)
                 for request in env_state.requests
@@ -702,14 +709,16 @@ def smoke(*, binary: Path, source_target: Path, cplt: Path | None = None) -> Non
                 target=target,
                 sandbox=sandbox,
                 scenario=Scenario(
-                    "skill-reference", "kokk", "skill-reference", reference
+                    "skill-reference", "grill-inspektor", "skill-reference", reference
                 ),
             )
             skill_results = "\n".join(skill_state.tool_results())
             if not {"skill", "read"}.issubset(skill_state.called_tools()):
                 raise RuntimeSmokeError("skill scenario did not exercise skill then read")
             if SKILL_MARKER not in skill_results:
-                raise RuntimeSmokeError("Kokk could not read a bundled skill reference")
+                raise RuntimeSmokeError(
+                    "Grill-inspektor could not read a bundled skill reference"
+                )
 
             denied_path = consumer / "inspector-must-not-write.txt"
             denied_state = run_scenario(
@@ -740,20 +749,20 @@ def smoke(*, binary: Path, source_target: Path, cplt: Path | None = None) -> Non
             if denied_path.exists():
                 raise RuntimeSmokeError("Grill-inspektor bypassed edit: deny")
 
-            allowed_path = consumer / "kokk-approved-write.txt"
+            allowed_path = consumer / "grillmester-approved-write.txt"
             allowed_state = run_scenario(
                 binary=binary,
                 cplt=cplt,
                 target=target,
                 sandbox=sandbox,
                 scenario=Scenario(
-                    "approved-write", "kokk", "allow-write", allowed_path, auto=True
+                    "approved-write", None, "allow-write", allowed_path, auto=True
                 ),
             )
             if "write" not in allowed_state.called_tools():
                 raise RuntimeSmokeError("approved-write scenario did not request native write")
             if not allowed_path.is_file() or allowed_path.read_text() != WRITE_CONTENT:
-                raise RuntimeSmokeError("Kokk's approved write did not complete")
+                raise RuntimeSmokeError("Grillmester's approved write did not complete")
             if not plugin_marker.exists():
                 raise RuntimeSmokeError(
                     "pinned OpenCode no longer reproduced the project-plugin "

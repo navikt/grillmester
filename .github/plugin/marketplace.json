@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "grillmester",
-      "description": "A Copilot agent team for clarified software delivery, design, and product work with portable progressive skills.",
+      "description": "Software delivery, design, and product work with one task owner, on-demand skills, and optional independent specialists.",
       "version": "0.11.0",
       "source": "plugin"
     }

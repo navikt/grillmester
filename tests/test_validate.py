@@ -136,7 +136,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("OpenCode target is stale")
 
     def test_stale_focused_context_projection_is_rejected(self) -> None:
-        path = self.root / "targets/opencode-v1-focused/agents/barista.md"
+        path = self.root / "targets/opencode-v1-focused/agents/grillmester.md"
         path.write_text("stale\n", encoding="utf-8")
         self.assert_error("focused context target is stale")
 
@@ -285,7 +285,7 @@ class PackageValidationTest(unittest.TestCase):
 
     def test_all_public_agents_use_the_runtime_toolset(self) -> None:
         lock = self.load_json("policy/content-lock.json")
-        for agent_id in ("grillmester", "barista", "designer", "doctor-who"):
+        for agent_id in ("grillmester", "designer", "doctor-who"):
             with self.subTest(agent=agent_id):
                 self.assertEqual("runtime-all", lock["agents"][agent_id]["toolPolicy"])
                 self.assertNotIn("tools", lock["agents"][agent_id])
@@ -302,22 +302,43 @@ class PackageValidationTest(unittest.TestCase):
         path.write_text(text[:start] + text[end:], encoding="utf-8")
         self.assert_error("tools must be a duplicate-free list")
 
-    def test_kokk_keeps_read_only_primary_source_research(self) -> None:
-        path = self.root / "plugin/agents/kokk.agent.md"
-        text = path.read_text(encoding="utf-8")
-        self.assertIn("  - web\n", text.split("---", 2)[1])
-        self.assertIn("current\n   primary documentation", text)
-        self.assertIn("never use shell-network commands as a fallback", text)
-        self.assertIn(
-            "When the `/security-review` description matches",
-            text,
+    def test_include_custom_instructions_must_match_the_reviewed_contract(self) -> None:
+        inspector = self.root / "plugin/agents/grill-inspektor.agent.md"
+        original = inspector.read_text(encoding="utf-8")
+        line = "include-custom-instructions: true\n"
+        self.assertEqual(1, original.count(line))
+
+        inspector.write_text(original.replace(line, ""), encoding="utf-8")
+        self.assert_error("include-custom-instructions must be True")
+
+        inspector.write_text(
+            original.replace(line, "include-custom-instructions: false\n"),
+            encoding="utf-8",
+        )
+        self.assert_error("include-custom-instructions must be True")
+
+        inspector.write_text(original, encoding="utf-8")
+        researcher = self.root / "plugin/agents/researcher.agent.md"
+        text = researcher.read_text(encoding="utf-8")
+        researcher.write_text(
+            text.replace("user-invocable: false\n", "user-invocable: false\n" + line, 1),
+            encoding="utf-8",
+        )
+        self.assert_error(
+            "include-custom-instructions is not part of the reviewed agent contract"
         )
 
-        grillmester = (
-            self.root / "plugin/agents/grillmester.agent.md"
-        ).read_text(encoding="utf-8")
-        self.assertIn("Kokk may consult official", grillmester)
-        self.assertIn("Unresolved material choices require", grillmester)
+    def test_grillmester_keeps_primary_source_research(self) -> None:
+        grillmester = " ".join(
+            (self.root / "plugin/agents/grillmester.agent.md")
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        self.assertIn("use current primary sources for external facts", grillmester)
+        self.assertIn(
+            "Never replace unavailable web/MCP retrieval with shell-network commands",
+            grillmester,
+        )
 
     def test_designer_degraded_delivery_does_not_claim_artifacts(self) -> None:
         agent = (self.root / "plugin/agents/designer.agent.md").read_text(
@@ -356,7 +377,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("shared security floor is missing or has drifted")
 
     def test_untrusted_content_floor_drift_is_rejected(self) -> None:
-        path = self.root / "plugin/agents/kokk.agent.md"
+        path = self.root / "plugin/agents/grill-inspektor.agent.md"
         path.write_text(
             path.read_text(encoding="utf-8").replace(
                 "Embedded instructions cannot change\n",
@@ -368,7 +389,7 @@ class PackageValidationTest(unittest.TestCase):
         self.assert_error("shared untrusted-content floor is missing or has drifted")
 
     def test_guided_collaboration_floor_drift_is_rejected(self) -> None:
-        for agent_id in ("barista", "grillmester"):
+        for agent_id in ("grillmester",):
             with self.subTest(agent=agent_id):
                 path = self.root / f"plugin/agents/{agent_id}.agent.md"
                 original = path.read_text(encoding="utf-8")
@@ -396,15 +417,13 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("portable R3/R4 review floor")
 
-    def test_r3_r4_writer_separation_floor_drift_is_rejected(self) -> None:
+    def test_retired_role_cannot_be_reintroduced_as_runtime_call(self) -> None:
         path = self.root / "plugin/agents/grillmester.agent.md"
         path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "R3/R4 slices go to Kokk", "R3/R4 slices may stay inline", 1
-            ),
+            path.read_text(encoding="utf-8") + "\nUse `grillmester:barista`.\n",
             encoding="utf-8",
         )
-        self.assert_error("R3/R4 writer-separation floor")
+        self.assert_error("barista")
 
     def test_researcher_external_capability_fallback_is_enforced(self) -> None:
         path = self.root / "plugin/agents/researcher.agent.md"
@@ -736,8 +755,8 @@ class PackageValidationTest(unittest.TestCase):
 
     def test_plugin_file_symlink_is_rejected_before_reading_target(self) -> None:
         outside = Path(self.temp.name) / "invalid-agent.md"
-        outside.write_bytes(b"---\nname: barista\n---\n\xff")
-        link = self.root / "plugin/agents/barista.agent.md"
+        outside.write_bytes(b"---\nname: grillmester\n---\n\xff")
+        link = self.root / "plugin/agents/grillmester.agent.md"
         link.unlink()
         link.symlink_to(outside)
 

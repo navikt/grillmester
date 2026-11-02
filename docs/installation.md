@@ -36,7 +36,7 @@ installasjonen skal være reproduserbar.
 
 ## Innhold
 
-`grillmester@grillmester` er hele produktet: fire offentlige agenter, fire
+`grillmester@grillmester` er hele produktet: tre offentlige agenter, tre
 interne roller og 44 kuraterte skills for metode, design, produktarbeid,
 levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
@@ -184,9 +184,22 @@ en installert eller immutable release.
 
 Fra en publisert release henter du i stedet den deterministiske
 terminal-`tar.gz`-en, verifiserer den detached `.sha256`-filen og pakker ut
-arkivet. Den utpakkede `scripts/grillmester.py` er launcheren. Bundle-en
-inneholder Copilot-pluginen og det genererte OpenCode-targetet, og oppdateres
-ved å pakke ut en nyere release. OpenCode og Copilot CLI er brukereide
+arkivet i en **ny, tom, versjonert katalog**. Den utpakkede
+`grillmester-terminal-v1/scripts/grillmester.py` er launcheren. Bundle-en
+inneholder Copilot-pluginen og de genererte targetene.
+
+Ved oppgradering oppretter du en ny katalog for den nye versjonen og følger
+[bundle-eksempelet](opencode.md#hent-og-verifiser-en-grillmester-bundle).
+Ikke pakk ut over en eksisterende installasjon: `tar` fjerner ikke filer som
+er tatt ut av den nye releasen. En gammel Barista-fil vil da bli liggende og
+gjøre den manifesterte payloaden ugyldig. Bruk den nye launcherens absolutte
+path, eller oppdater din eksisterende launcherlenke eller snarvei på `PATH`
+til denne pathen. Behold den forrige versjonskatalogen for rollback; bytt
+tilbake til den gamle launcheren dersom det trengs.
+
+Behold `~/.config/grillmester` med lagrede klient-, modell- og providervalg.
+Oppgraderingen skal ikke rydde repo- eller brukereide agent-/skillkopier; slike
+kopier hører til den separate consumer-migreringen. OpenCode og Copilot CLI er brukereide
 systemklienter: Grillmester installerer, erstatter eller skygger dem aldri, og
 cplt installeres separat.
 
@@ -291,7 +304,7 @@ modellserver med 65 536 context. Bruk `grillmester local setup --context-window
 57344 --max-output-tokens 8192` for å angi den eksplisitt. OpenCode bruker
 kontrakten til native auto-compaction, og Grillmester injiserer ikke egne
 context-hints.
-Kjør `setup` på nytt hvis serverinnstillingen endres. Focused Barista er
+Kjør `setup` på nytt hvis serverinnstillingen endres. Focused Grillmester er
 default. Bruk `--client copilot`,
 `--client opencode` eller `--full --agent grillmester` som engangsvalg.
 OpenCode-local krever en nøkkelfri loopback-server fordi klientens tool-
@@ -601,7 +614,7 @@ ikke skal påvirke resultatet.
 ## OpenCode
 
 Grillmester har et deterministisk generert, native target for OpenCode 1.x fra
-`1.18.20`. Det gir hele flaten med 8 agenter, 44 skills, 44 slash commands,
+`1.18.20`. Det gir hele flaten med 6 agenter, 44 skills, 44 slash commands,
 native delegering og native permissions. `1.18.20` er den eksakte
 release-testbaselinen; standardlauncheren godtar nyere 1.x-versjoner, mens
 OpenCode 2 er en separat, ikke-verifisert flate. Installer og oppdater OpenCode

@@ -283,8 +283,8 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )[1]
 
         self.assertEqual(3, gate.count('"${launcher[@]}" local run'))
-        self.assertIn('--client copilot --agent barista', gate)
-        self.assertIn('--client opencode --agent barista', gate)
+        self.assertIn('--client copilot --agent grillmester', gate)
+        self.assertIn('--client opencode --agent grillmester', gate)
         self.assertNotIn("-- \\\n            -p 'FOCUSED-GATE:", gate)
         self.assertNotIn("-- \\\n            -p 'FULL-GATE:", gate)
 
@@ -1566,10 +1566,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertNotIn('path: "plugin-nav"', text)
         self.assertIn(
-            '{name: "grillmester", path: "plugin", agents: 8, skills: 44}',
+            '{name: "grillmester", path: "plugin", agents: 6, skills: 44}',
             text,
         )
-        self.assertNotRegex(text, r"agents: (?!8\b)\d+, skills: 44")
+        self.assertNotRegex(text, r"agents: (?!6\b)\d+, skills: 44")
         self.assertIn(
             '(keys | sort) == ["marketplace", "packages", "schemaVersion"]',
             text,

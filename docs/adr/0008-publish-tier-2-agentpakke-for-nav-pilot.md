@@ -5,6 +5,9 @@ date: 2026-08-25
 
 # Publiser en Tier 2-agentpakke for nav-pilot
 
+> Agentutvalget og delegeringen av implementering er delvis erstattet av
+> [ADR 0026](0026-grillmester-eier-hele-leveransen.md).
+
 ## Kontekst
 
 Grillmester har allerede fire deterministiske klientpayloads: full og fokusert

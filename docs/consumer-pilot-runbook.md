@@ -165,7 +165,7 @@ python3 scripts/preflight_consumer_pilot.py /tmp/consumer-pilot \
   --json
 ```
 
-Preflighten auditerer den komplette pluginen med 8 agenter og 44 skills.
+Preflighten auditerer den komplette pluginen med 6 agenter og 44 skills.
 Releasebinding, kollisjonssøk og tillatte fjerninger bruker alltid samme
 roster.
 
@@ -299,7 +299,7 @@ hver klient som testes:
    prefiksede pluginskillen er tilgjengelig i sesjonen, men ikke alene at
    installasjonen er global, fersk eller aktiv i en annen klient.
 
-Hvis klienten viser en personlig `barista`, `grillmester`, `designer` eller
+Hvis klienten viser en personlig `grillmester`, `designer` eller
 `doctor-who` med samme ID, stopp. Flytt eller gi den nytt navn kun etter
 eksplisitt godkjenning, start en ny sesjon og gjenta identitetskjeden.
 
@@ -310,8 +310,8 @@ Alle writes skjer i pilotbranchen eller en disponibel fixture.
 
 | Rolle | Representativ oppgave | Må observeres | Feil som stopper piloten |
 | --- | --- | --- | --- |
-| **Grillmester** | En viktig eller uklar endring som trenger spec, domenemodellering eller ADR. Be først om beslutningsgrunnlag uten implementering. | Skiller fakta, antakelser og beslutninger; avklarer reelle valg; venter på godkjenning; sier hvem som implementerer og hvorfor, og delegerer en R3/R4-slice, eller en slice der du eksplisitt ber om Kokk og inspektørreview, til Kokk med komplett brief og uavhengig review. | Implementerer før retningen er godkjent, hopper over repository instructions eller presenterer review uten fersk evidens. |
-| **Barista** | En liten, ferdigspesifisert endring med klare akseptansekriterier. | Jobber solo-first, bruker eksisterende repo-kommandoer og leverer en liten verifisert diff uten tung orkestrering. | Starter Grillmester-flyt eller spesialister uten behov, finner på kommandoer eller utvider scope. |
+| **Grillmester, avklart arbeid** | En liten, ferdigspesifisert endring med klare akseptansekriterier. | Undersøker, implementerer og verifiserer selv med repoets verktøy, uten unødvendig intervju eller overlevering. | Delegerer uten konkret gevinst, finner på kommandoer eller utvider scope. |
+| **Grillmester, valg og risiko** | En viktig eller uklar endring som trenger beslutningsgrunnlag. Be først om avklaring uten implementering, deretter om den avklarte endringen med en eksplisitt R3-fixture. | Skiller fakta, antakelser og beslutninger; avklarer reelle valg før avhengig arbeid. Implementerer den avklarte R3-endringen selv og følger den uavhengige inspektørgaten. | Implementerer før bestilling eller nødvendig valg, delegerer implementeringen bare på grunn av risiko, eller presenterer merge-ready uten gjeldende reviewgrunnlag. |
 | **Doctor Who** | Et produktspørsmål om mål, prioritering, discovery eller neste eksperiment basert på vedlikeholdte repo-/GitHub-kilder. | Utforsker alternativer og anbefaler neste steg; preview før ekstern write; bruker ikke shell/execute og delegerer ikke. | Forsøker kodeimplementering, shell/execute, delegering eller ekstern write uten eksplisitt godkjenning. |
 | **Designer** | En designoppgave i et representativt frontend-repo: Aksel/Figma, flyt eller Visual Companion. | Leverer designarbeid, beskriver fallback når Figma-verktøy mangler og implementerer bare når brukeren ber om det. | Endrer produktkode uten bestilling, delegerer implementering, presenterer personas som brukerinnsikt eller hevder at en Figma-write skjedde uten verktøyevidens. |
 
@@ -387,7 +387,7 @@ Consumer-piloten er grønn først når:
 
 - postflight er `MIGRATION_PREFLIGHT_PASSED` på en ren pilotcommit;
 - pluginidentitetskjeden er komplett og user-scope-shadowing er avklart;
-- Grillmester-, Barista- og Doctor Who-scenariene er grønne i første consumer;
+- begge Grillmester-scenariene og Doctor Who er grønne i første consumer;
 - Designer er grønn i en representativ frontend-consumer eller fixture;
 - kontrollert og avvist write er bevist uten uventede sideeffekter;
 - rollback er gjennomført eller tørrkjørt med deterministisk diff;

@@ -69,7 +69,7 @@ ARTIFACT_HEX_DIGEST = re.compile(
 )
 MAX_DISCOVERY_TEXT_BYTES = 13 * 1024
 FORBIDDEN_RUNTIME_IDS = re.compile(
-    r"\b(?:hovmester|souschef|konditor|inspektor-claude|inspektor-gpt)\b",
+    r"\b(?:barista|kokk|hovmester|souschef|konditor|inspektor-claude|inspektor-gpt)\b",
     re.IGNORECASE,
 )
 FORBIDDEN_CONSUMER_MARKERS = {
@@ -100,6 +100,7 @@ AGENT_FRONTMATTER_KEYS = {
     "user-invocable",
     "disable-model-invocation",
     "deferred-tool-loading",
+    "include-custom-instructions",
     "infer",
     "tools",
 }
@@ -135,7 +136,7 @@ UNTRUSTED_CONTENT_FLOOR = (
     "data."
 )
 GUIDED_COLLABORATION_FLOOR = (
-    "Use delegated collaboration for familiar, settled work. Switch to guided "
+    "Work autonomously on familiar, settled work. Switch to guided "
     "collaboration when the user identifies as junior, asks to learn, works in "
     "unfamiliar technology, or the work carries significant uncertainty, hidden "
     "edge cases, or a repository-defined high-risk signal: explain the why, "
@@ -146,12 +147,8 @@ GUIDED_COLLABORATION_FLOOR = (
 GRILLMESTER_RISK_REVIEW_FLOOR = (
     "Without a stricter repository rule, R3/R4 may be presented as merge-ready "
     "only through one explicit route: Inspector returns `APPROVED`; Inspector "
-    "returns `CONCERNS` and a human accepts every named concern; or a human "
+    "returns `CONCERNS` and a human accepts every named material concern; or a human "
     "explicitly waives Inspector for the current scope."
-)
-GRILLMESTER_WRITER_SEPARATION_FLOOR = (
-    "R3/R4 slices go to Kokk so that the code's author and the independent "
-    "reviewer differ."
 )
 RESEARCHER_EXTERNAL_FALLBACK = (
     "Before external research, inspect the tools actually available in this "
@@ -430,7 +427,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
         errors.append("package-manifest.json must contain exactly one package")
         return None
     expected_definitions = [
-        {"name": "grillmester", "path": "plugin", "agents": 8, "skills": 44},
+        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 44},
     ]
     if package_definitions != expected_definitions:
         errors.append("package-manifest.json package roster or counts have drifted")
@@ -579,7 +576,7 @@ def validate_agents(
                 f"{path}: shared untrusted-content floor is missing or has drifted"
             )
         if (
-            agent_id in {"barista", "grillmester"}
+            agent_id == "grillmester"
             and GUIDED_COLLABORATION_FLOOR not in normalized_body
         ):
             errors.append(
@@ -591,13 +588,6 @@ def validate_agents(
         ):
             errors.append(
                 f"{path}: portable R3/R4 review floor is missing or has drifted"
-            )
-        if (
-            agent_id == "grillmester"
-            and GRILLMESTER_WRITER_SEPARATION_FLOOR not in normalized_body
-        ):
-            errors.append(
-                f"{path}: R3/R4 writer-separation floor is missing or has drifted"
             )
         if (
             agent_id == "researcher"
@@ -634,12 +624,20 @@ def validate_agents(
             "user-invocable",
             "disable-model-invocation",
             "deferred-tool-loading",
+            "include-custom-instructions",
             "infer",
         ):
             if key not in expected:
                 continue
             if frontmatter.get(key) != expected[key]:
                 errors.append(f"{path}: {key} must be {expected[key]!r}")
+        if (
+            "include-custom-instructions" in frontmatter
+            and "include-custom-instructions" not in expected
+        ):
+            errors.append(
+                f"{path}: include-custom-instructions is not part of the reviewed agent contract"
+            )
         expected_tools = expected.get("tools")
         tool_policy = expected.get("toolPolicy", "explicit")
         tools = frontmatter.get("tools")
@@ -1055,8 +1053,8 @@ def validate_package_rosters(
     skill_ids: set[str],
     errors: list[str],
 ) -> None:
-    if len(agent_ids) != 8:
-        errors.append(f"plugin must contain 8 agents, found {len(agent_ids)}")
+    if len(agent_ids) != 6:
+        errors.append(f"plugin must contain 6 agents, found {len(agent_ids)}")
     if len(skill_ids) != 44:
         errors.append(f"plugin must contain 44 skills, found {len(skill_ids)}")
 
