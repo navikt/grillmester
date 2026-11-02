@@ -242,6 +242,15 @@ tightened feedback loop in `diagnosing-bugs`. It changes no Hovmester-imported
 component. The rights journal binds the changed content lock and this
 provenance record while preserving the underlying decision in #56.
 
+PR [#99](https://github.com/navikt/grillmester/pull/99) reviews thinner role
+agents. Within the rights scope it condenses the imported `doctor-who` agent:
+it loads `grilling` as a skill, its capability boundary states that the role
+forbids command execution and delegation and stays behavioral rather than a
+`tools` list, and its working contract absorbs the former Boundaries section.
+Names, sources, the Doctor Who name and characterization, the imported skills
+and the component set are unchanged. The rights journal binds this content and
+provenance while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,

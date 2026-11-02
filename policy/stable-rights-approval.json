@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-02",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#98",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#99",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-02",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#98",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#99",
       "status": "approved"
     }
   },
@@ -24,7 +24,7 @@
     "components": {
       "agents": {
         "designer": "12a9a1d10b43465e2b41ac89fa9b85323ddd0441479ea45065a7604574ea76f7",
-        "doctor-who": "5f9592dbd48f1d5138dd960c1ed17b02ed3d16d086b49709ac8850e4d790a4e1"
+        "doctor-who": "c490a6047b87bf8da67de7411573dbf0d48cdcc6ed324e2915be0b892df83d42"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
@@ -46,6 +46,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "a847264c2ee0565e83f2fb7d06314bc36f0d63dbe63fc0bc34cf134479b6d7c8"
+    "provenanceSha256": "7acb967d238f0e814484881c662acb3e2cf7ee6be2f6bc40b59e1a003e07b67b"
   }
 }
