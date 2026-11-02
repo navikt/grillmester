@@ -18,6 +18,9 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILL_COUNT = json.loads(
+    (ROOT / "package-manifest.json").read_text(encoding="utf-8")
+)["packages"][0]["skills"]
 SPEC = importlib.util.spec_from_file_location(
     "grillmester_build_opencode_bundle",
     ROOT / "scripts/build_opencode_bundle.py",
@@ -119,8 +122,8 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 "agents": 6,
                 "primaryAgents": 3,
                 "subagents": 3,
-                "skills": 44,
-                "commands": 44,
+                "skills": SKILL_COUNT,
+                "commands": SKILL_COUNT,
             },
             "skillCapabilities": {
                 skill_id: (
@@ -864,7 +867,9 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         content_lock = json.loads(content_lock_path.read_text(encoding="utf-8"))
         content_lock["agents"].pop(next(iter(content_lock["agents"])))
         content_lock_path.write_text(json.dumps(content_lock), encoding="utf-8")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "complete 6-agent/44-skill"):
+        with self.assertRaisesRegex(
+            BUILDER.BundleBuildError, f"complete 6-agent/{SKILL_COUNT}-skill"
+        ):
             BUILDER.build_bundle(
                 incomplete_bom,
                 SOURCE_SHA,

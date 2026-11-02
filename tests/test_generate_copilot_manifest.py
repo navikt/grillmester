@@ -10,6 +10,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILL_COUNT = json.loads(
+    (ROOT / "package-manifest.json").read_text(encoding="utf-8")
+)["packages"][0]["skills"]
 SPEC = importlib.util.spec_from_file_location(
     "grillmester_generate_copilot_manifest",
     ROOT / "scripts/generate_copilot_manifest.py",
@@ -37,7 +40,7 @@ class CopilotManifestGenerationTest(unittest.TestCase):
         actual = GENERATOR.collect_payload_files(ROOT / "plugin")
 
         self.assertEqual("copilot-full-v1", manifest["target"])
-        self.assertEqual({"agents": 6, "skills": 44}, manifest["counts"])
+        self.assertEqual({"agents": 6, "skills": SKILL_COUNT}, manifest["counts"])
         self.assertNotIn("manifest.json", manifest["files"])
         self.assertEqual(set(actual), set(manifest["files"]))
         for relative, (content, mode) in actual.items():

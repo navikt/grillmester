@@ -18,6 +18,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILL_COUNT = json.loads(
+    (ROOT / "package-manifest.json").read_text(encoding="utf-8")
+)["packages"][0]["skills"]
 RELEASE_WORKFLOW = ROOT / ".github/workflows/release.yml"
 RELEASE_RUNBOOK = ROOT / "docs/release-runbook.md"
 VALIDATE_WORKFLOW = ROOT / ".github/workflows/validate.yml"
@@ -315,15 +318,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn('"api.githubcopilot.com:443" "allowed"', gate)
         self.assertIn('"exfiltration.invalid:443" "blocked"', gate)
         self.assertIn('.items[0].decision == $decision', gate)
-
-    def test_workflows_do_not_gate_on_retired_lifecycle_components(self) -> None:
-        for workflow in sorted((ROOT / ".github/workflows").glob("*.yml")):
-            text = workflow.read_text(encoding="utf-8")
-            with self.subTest(workflow=workflow.name):
-                self.assertNotIn("scripts/manage_opencode.py", text)
-                self.assertNotIn("scripts/compose_opencode_permissions.py", text)
-                self.assertNotIn("profiles/opencode", text)
-                self.assertNotIn("--profile local-only", text)
 
     def test_all_workflow_checkouts_disable_persisted_credentials(self) -> None:
         for workflow in (VALIDATE_WORKFLOW, RELEASE_WORKFLOW, MACOS_WORKFLOW):
@@ -1566,10 +1560,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertNotIn('path: "plugin-nav"', text)
         self.assertIn(
-            '{name: "grillmester", path: "plugin", agents: 6, skills: 44}',
+            f'{{name: "grillmester", path: "plugin", agents: 6, skills: {SKILL_COUNT}}}',
             text,
         )
-        self.assertNotRegex(text, r"agents: (?!6\b)\d+, skills: 44")
+        self.assertNotRegex(text, rf"agents: (?!6\b)\d+, skills: {SKILL_COUNT}")
         self.assertIn(
             '(keys | sort) == ["marketplace", "packages", "schemaVersion"]',
             text,

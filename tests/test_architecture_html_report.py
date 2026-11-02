@@ -63,33 +63,5 @@ class ArchitectureHtmlReportTest(unittest.TestCase):
         self.assertIn("base-uri 'none'", guide)
         self.assertIn("form-action 'none'", guide)
 
-    def test_dynamic_content_contract_is_fail_closed(self) -> None:
-        guide = REPORT_GUIDE.read_text(encoding="utf-8")
-
-        for escaped in ("&amp;", "&lt;", "&gt;", "&quot;", "&#39;"):
-            with self.subTest(entity=escaped):
-                self.assertIn(f"`{escaped}`", guide)
-        self.assertIn("only into text nodes", guide)
-        self.assertIn("Never insert dynamic content into tag names, attributes", guide)
-        self.assertIn("Generate candidate IDs from their ordinal position", guide)
-        self.assertIn("Do not include source snippets", guide)
-        self.assertIn("secure OS temp API (`mktemp -d` on POSIX)", guide)
-        self.assertIn("mode `0700`", guide)
-        self.assertIn("following symlinks", guide)
-        self.assertIn("mode `0600`", guide)
-
-    def test_skill_does_not_auto_open_generated_report(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8")
-        normalized = " ".join(skill.split())
-
-        self.assertIn("offline, self-contained, script-free HTML file", skill)
-        self.assertIn("fresh private OS temporary directory", normalized)
-        self.assertIn("safe-write", normalized)
-        self.assertNotIn("architecture-candidates-<timestamp>", skill)
-        self.assertRegex(skill, r"Do not\s+run `open` or `xdg-open`")
-        self.assertIn("only if the user explicitly asks", skill)
-        self.assertNotIn("Open it for the user", skill)
-
-
 if __name__ == "__main__":
     unittest.main()

@@ -66,7 +66,11 @@ class ProbeServer:
         ProbeHandler.authorization = None
         ProbeHandler.redirect = None
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), ProbeHandler)
-        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread = threading.Thread(
+            target=self.server.serve_forever,
+            kwargs={"poll_interval": 0.01},
+            daemon=True,
+        )
 
     def __enter__(self) -> "ProbeServer":
         self.thread.start()

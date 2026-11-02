@@ -1027,10 +1027,13 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertIn("Run outside the sandbox", output)
 
     def test_busy_db_returns_5(self) -> None:
+        from app_sandbox import store
+
         connection = sqlite3.connect(str(self.db))
         self.addCleanup(connection.close)
         connection.execute("BEGIN IMMEDIATE")
-        code, output = self.run_cli("apply", "--confirm", "0" * 64)
+        with mock.patch.object(store, "BUSY_TIMEOUT_SECONDS", 0.05):
+            code, output = self.run_cli("apply", "--confirm", "0" * 64)
         self.assertEqual(5, code, output)
         self.assertIn("busy", output)
 
