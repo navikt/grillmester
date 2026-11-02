@@ -20,8 +20,8 @@
     "agents": 6,
     "primaryAgents": 3,
     "subagents": 3,
-    "skills": 45,
-    "commands": 45
+    "skills": 44,
+    "commands": 44
   },
   "skillCapabilities": {
     "accessibility-review": "native",
@@ -63,7 +63,6 @@
     "tdd": "native",
     "team-status": "native",
     "to-issues": "native",
-    "to-questionnaire": "native",
     "to-spec": "native",
     "triage": "native",
     "wait-what": "native",
@@ -83,7 +82,6 @@
       "grill-with-docs",
       "guided-review",
       "handoff",
-      "to-questionnaire",
       "wait-what"
     ]
   },
@@ -93,23 +91,23 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "10ac0ef4a44bda447cda92775e780e9decfcc90504ac7a245aec1bc54ea71d7b",
+      "sha256": "3f1aab5ef1226a9a382bfd932c6c19863e5012b2195d4b0b7a5bba9ef85f304c",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
-      "sha256": "7930f28a65b35a02a302d5b569188e3c54b4fa1a0dfb71b0d613be5cd054f523",
+      "sha256": "a3d47a925df68cf12f6fedfb8850eb7dcd930dae39072375b9e14353355288d0",
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "9a526b40ee812a48fa425b84c3345b53adeb787e6cb3c3d38598feb49ee309b4",
+      "sha256": "1e4aa69a411e2273467e33236c229427074fabcafc932851fb5b62557e646f82",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "20bfd18ddf7e175f8e8b236a231576849a48cb41f91964e906499c520b1ac195",
+      "sha256": "9dc701e2e8e5ba15001515288efed0cbdb68c963bc611147b9e8d66fdd2d9501",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
-      "sha256": "946b415dbd4a730c3ff4a6734c475a0bf5f1d926416f9a125eedd5494e105a65",
+      "sha256": "d4bebaff5d3c0d341063a5c1ec25caa395c6a2d9e97647e6f33bdc8decbbc809",
       "mode": "0644"
     },
     "agents/researcher.md": {
@@ -270,10 +268,6 @@
     },
     "commands/to-issues.md": {
       "sha256": "111f6f3c372c7f680632dedd9816b7a609a3c613bb4f3d0be3347862525ff7ca",
-      "mode": "0644"
-    },
-    "commands/to-questionnaire.md": {
-      "sha256": "4a5a7d27c15449ca5f5d9e392822a2d80718c3fe7af9094e89f85df890c224b7",
       "mode": "0644"
     },
     "commands/to-spec.md": {
@@ -938,10 +932,6 @@
     },
     "skills/to-issues/SKILL.md": {
       "sha256": "3bbb0738418e36e55ce8a56f4ae11267fcdee3b2812d0103ec487013a1774da1",
-      "mode": "0644"
-    },
-    "skills/to-questionnaire/SKILL.md": {
-      "sha256": "d5e9f97f4714d952f5a6394044aa4db9aeb0a4dc9a8c39dc7b7862f47d571946",
       "mode": "0644"
     },
     "skills/to-spec/SKILL.md": {

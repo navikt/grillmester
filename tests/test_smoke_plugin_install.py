@@ -427,7 +427,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 installed = Path(temp) / "installed"
                 shutil.copytree(ROOT / "plugin", installed)
                 self.assertEqual(
-                    (6, 45), SMOKE.verify_installed_package(ROOT / "plugin", installed)
+                    (6, 44), SMOKE.verify_installed_package(ROOT / "plugin", installed)
                 )
                 (installed / "agents/grillmester.agent.md").rename(
                     installed / "agents" / f"{agent_id}.agent.md"
@@ -549,7 +549,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
         ) as run, mock.patch.object(
             SMOKE,
             "verify_installed_package",
-            return_value=(6, 45),
+            return_value=(6, 44),
         ) as verify, mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled") as uninstalled:
@@ -563,7 +563,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 source_root=Path("/tmp/source"),
             )
 
-        self.assertEqual((6, 45), result)
+        self.assertEqual((6, 44), result)
         self.assertEqual(
             [
                 "copilot",
@@ -607,7 +607,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             "run",
             side_effect=["", "", "grillmester@grillmester", ""],
         ), mock.patch.object(
-            SMOKE, "verify_installed_package", return_value=(6, 45)
+            SMOKE, "verify_installed_package", return_value=(6, 44)
         ), mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled"):
@@ -622,7 +622,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 allow_floating_marketplace=True,
             )
 
-        self.assertEqual((6, 45), result)
+        self.assertEqual((6, 44), result)
 
     def test_remote_install_rejects_floating_marketplace_without_explicit_opt_in(
         self,

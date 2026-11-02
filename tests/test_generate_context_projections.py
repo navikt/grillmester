@@ -405,7 +405,6 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     "grill-with-docs",
                     "guided-review",
                     "handoff",
-                    "to-questionnaire",
                     "wait-what",
                 ],
             },

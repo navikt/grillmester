@@ -18,7 +18,6 @@ permission:
     grill-with-docs: ask
     guided-review: ask
     handoff: ask
-    to-questionnaire: ask
     wait-what: ask
   task: deny
 ---

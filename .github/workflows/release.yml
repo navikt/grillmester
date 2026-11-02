@@ -196,7 +196,7 @@ jobs:
             (.marketplace.name | type == "string" and length > 0) and
             (.marketplace.description | type == "string" and length > 0) and
             (.marketplace.owner | type == "string" and length > 0) and
-            .packages == [{name: "grillmester", path: "plugin", agents: 6, skills: 45}]
+            .packages == [{name: "grillmester", path: "plugin", agents: 6, skills: 44}]
           ' "${package_manifest}" >/dev/null
           owner="$(jq -er '.marketplace.owner' "${package_manifest}")"
           jq -e --arg owner "${owner}" '
@@ -699,7 +699,7 @@ jobs:
             (.marketplace.name | type == "string" and length > 0) and
             (.marketplace.description | type == "string" and length > 0) and
             (.marketplace.owner | type == "string" and length > 0) and
-            .packages == [{name: "grillmester", path: "plugin", agents: 6, skills: 45}]
+            .packages == [{name: "grillmester", path: "plugin", agents: 6, skills: 44}]
           ' "${source_package_manifest}" >/dev/null
           source_owner="$(jq -er '.marketplace.owner' "${source_package_manifest}")"
           jq -e --arg owner "${source_owner}" '
@@ -1701,11 +1701,11 @@ jobs:
               or manifest.get("generator") != {
                   "path": "scripts/generate_copilot_manifest.py", "version": 1,
               }
-              or manifest.get("counts") != {"agents": 6, "skills": 45}
+              or manifest.get("counts") != {"agents": 6, "skills": 44}
               or not isinstance(manifest.get("agents"), list)
               or len(manifest["agents"]) != 6
               or not isinstance(manifest.get("skills"), list)
-              or len(manifest["skills"]) != 45
+              or len(manifest["skills"]) != 44
           ):
               fail("manifest identity or roster is invalid")
           contracts = manifest.get("files")
@@ -2173,7 +2173,7 @@ jobs:
             .marketplace.owner == "Team eSyfo" and
             (.marketplace.description | type == "string" and length > 0) and
             .packages == [
-              {name: "grillmester", path: "plugin", agents: 6, skills: 45}
+              {name: "grillmester", path: "plugin", agents: 6, skills: 44}
             ]
           ' "${package_manifest_file}" >/dev/null
           jq -e \

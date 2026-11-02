@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "a0dc947ce6e29ad7b0cdbbf5855716873c4bd04aeb440d5c316299438fbf64bd",
+    "targetManifestSha256": "b254c56c2078c3f44594b511a46f8b2e2f33d65df4f36789be451884fca7a0a2",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -27,7 +27,6 @@
       "grill-with-docs",
       "guided-review",
       "handoff",
-      "to-questionnaire",
       "wait-what"
     ]
   },

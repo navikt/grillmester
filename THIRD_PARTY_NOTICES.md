@@ -7,10 +7,9 @@ Test-outcome and architecture-method guidance was also adapted from revision
 
 Round-based grilling, the glossary convention, the seam-first test plan, the
 review lenses with their smell baseline, the diagnosis loop criteria, the
-pull-request body shape, suggested skills in a handoff, the `agent-retro`,
-`wait-what` and `to-questionnaire` skills and the context-pointer rules for
-skill descriptions were also adapted from revision
-`4ae2317ddb22b046e26455e4f9c9b3aaaf62212d`.
+pull-request body shape, suggested skills in a handoff, the `agent-retro` and
+`wait-what` skills and the context-pointer rules for skill descriptions were
+also adapted from revision `4ae2317ddb22b046e26455e4f9c9b3aaaf62212d`.
 
 Portions of the agent skills in this repository are copied or adapted from [`mattpocock/skills`](https://github.com/mattpocock/skills) at the original reviewed revision `2ab958093e83e0ec752e6c1c5932da465bf23e0c`. Narrow diagnostic-redaction and skill-authoring deltas were later reviewed at `8b78b531ab965735c5dc74f6f7a219e1e37326df`. Exact local paths and reviewed source lineage are recorded in [PROVENANCE.md](PROVENANCE.md).
 

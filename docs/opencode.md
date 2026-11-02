@@ -1,7 +1,7 @@
 # Bruke Grillmester i OpenCode
 
 Grillmester har et komplett, native target for OpenCode 1.x fra `1.18.20`: 6
-agenter, 45 skills og 45 slash commands. Agentmodus, toolnavn, delegering og
+agenter, 44 skills og 44 slash commands. Agentmodus, toolnavn, delegering og
 permissions er oversatt til OpenCodes egne kontrakter; det er ikke
 Copilot-pluginen pakket inn på nytt. `1.18.20` er release-testbaselinen, mens
 launcheren godtar kompatible nyere 1.x-versjoner.
@@ -235,7 +235,7 @@ etter flere kjøringer.
 
 OpenCode-targetet har seks native agenter. De tre offentlige velges direkte;
 Grill-inspektør, Researcher og Perspektiv brukes gjennom delegering. Skills lastes
-progressivt med OpenCodes native `skill`-tool, og de 45 commands speiler
+progressivt med OpenCodes native `skill`-tool, og de 44 commands speiler
 skillinngangene.
 
 For `run` plasserer launcheren valgt agent etter subkommandoen:

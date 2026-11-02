@@ -7,7 +7,7 @@
   },
   "counts": {
     "agents": 6,
-    "skills": 45
+    "skills": 44
   },
   "agents": [
     "designer",
@@ -57,7 +57,6 @@
     "tdd",
     "team-status",
     "to-issues",
-    "to-questionnaire",
     "to-spec",
     "triage",
     "wait-what",
@@ -70,7 +69,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "7191ee6e9c325471643aeb03d403ed43eee8dea29d9bd6aaaeae37703b854874",
+      "sha256": "3d7cb47af2af9f6b9f3c2657d592eca466369956f28a4cdf08bd9f2adc709fbe",
       "mode": "0644"
     },
     "agents/designer.agent.md": {
@@ -871,10 +870,6 @@
     },
     "skills/to-issues/SKILL.md": {
       "sha256": "bb8ee0005db430b2fa57c6f5e7e95ea38813fcd819093f0985b1cb6862fc5787",
-      "mode": "0644"
-    },
-    "skills/to-questionnaire/SKILL.md": {
-      "sha256": "f380ac10e72e1d5bf5be7cf9a33d95899bb11f488f34ab1fe05d0eb3fa6f599c",
       "mode": "0644"
     },
     "skills/to-spec/SKILL.md": {

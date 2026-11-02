@@ -54,7 +54,7 @@
     "matt-additions": {
       "repository": "mattpocock/skills",
       "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
-      "note": "Adapted three user-invoked skills, retro as agent-retro, wait-what and to-questionnaire, and the context-pointer rules for descriptions from writing-for-agents in create-a-skill's principles."
+      "note": "Adapted two user-invoked skills, retro as agent-retro and wait-what, and the context-pointer rules for descriptions from writing-for-agents in create-a-skill's principles."
     },
     "matt-delivery": {
       "repository": "mattpocock/skills",
@@ -279,7 +279,6 @@
     },
     "team-status": {"source": "hovmester", "sourcePath": ".github/skills/team-status", "disposition": "adapted"},
     "to-issues": {"source": "pilot", "sourcePath": ".github/skills/to-issues", "disposition": "adapted"},
-    "to-questionnaire": {"source": "matt-additions", "sourcePath": "skills/productivity/to-questionnaire", "disposition": "adapted", "disable-model-invocation": true},
     "to-spec": {"source": "pilot", "sourcePath": ".github/skills/to-spec", "disposition": "adapted"},
     "triage": {"source": "pilot", "sourcePath": ".github/skills/triage", "disposition": "adapted"},
     "wait-what": {"source": "matt-additions", "sourcePath": "skills/productivity/wait-what", "disposition": "adapted", "disable-model-invocation": true},

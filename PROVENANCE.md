@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 45 skills. The sources below record attribution
+`plugin/`: six agents and 44 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -258,8 +258,8 @@ journal binds the changed content lock and this provenance record while
 preserving the underlying decision in #56.
 
 PR [#101](https://github.com/navikt/grillmester/pull/101) reviews the
-user-invoked `agent-retro`, `wait-what` and `to-questionnaire` skills and the
-context-pointer rules in `create-a-skill`. It changes no Hovmester-imported
+user-invoked `agent-retro` and `wait-what` skills and the context-pointer rules
+in `create-a-skill`. It changes no Hovmester-imported
 component. The rights journal binds the changed content lock and this
 provenance record while preserving the underlying decision in #56.
 
@@ -435,14 +435,12 @@ and the Door and Blast radius labels follow `pr`. `handoff` keeps
 Grillmester's private temporary directory, redaction and verified/unverified
 split, and adds suggested skills and tailoring to the next session's purpose.
 
-The additions review at the same revision adapts three user-invoked skills.
+The additions review at the same revision adapts two user-invoked skills.
 `retro` becomes `agent-retro`, so it is not confused with the team
 retrospectives in `workshop-design`; it proposes environment changes and makes
 only the ones the user accepts. `wait-what` re-explains in plain language in
-the user's language, and `to-questionnaire` returns its questionnaire in the
-conversation without personal data instead of writing a file. The
-context-pointer rules for descriptions from `writing-for-agents` extend
-`create-a-skill`'s principles.
+the user's language. The context-pointer rules for descriptions from
+`writing-for-agents` extend `create-a-skill`'s principles.
 
 The observability review at `navikt/copilot` revision
 `ce9abd567a89eb72f1b8f95447435fd16fe805d3` adapts the

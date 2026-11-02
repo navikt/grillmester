@@ -271,9 +271,9 @@ def _distribution_support_files(source_root: Path) -> list[BundleFile]:
         or not isinstance(content_lock.get("agents"), dict)
         or len(content_lock["agents"]) != 6
         or not isinstance(content_lock.get("skills"), dict)
-        or len(content_lock["skills"]) != 45
+        or len(content_lock["skills"]) != 44
     ):
-        raise BundleBuildError("content lock must be the complete 6-agent/45-skill BOM")
+        raise BundleBuildError("content lock must be the complete 6-agent/44-skill BOM")
 
     result = [BundleFile(CONTENT_LOCK_PATH, content_lock_content, 0o644)]
     for source_path, distribution_path, label in (
@@ -478,11 +478,11 @@ def _target_files(
         "agents": 6,
         "primaryAgents": 3,
         "subagents": 3,
-        "skills": 45,
-        "commands": 45,
+        "skills": 44,
+        "commands": 44,
     }
     if manifest.get("counts") != expected_counts:
-        raise BundleBuildError("OpenCode target manifest has the wrong 6/45/45 counts")
+        raise BundleBuildError("OpenCode target manifest has the wrong 6/44/44 counts")
     capabilities = manifest.get("skillCapabilities")
     expected_capabilities = {
         skill_id: (
@@ -622,7 +622,6 @@ def _focused_target_files(
                 "grill-with-docs",
                 "guided-review",
                 "handoff",
-                "to-questionnaire",
                 "wait-what",
             ],
         }
