@@ -8,23 +8,6 @@
     "skills": "plugin/skills"
   },
   "agents": {
-    "barista": {
-      "mode": "primary",
-      "hidden": false,
-      "skillAccess": "allow-with-manual-ask",
-      "permission": {
-        "edit": "ask",
-        "bash": "ask",
-        "webfetch": "ask",
-        "websearch": "ask",
-        "todowrite": "ask",
-        "question": "allow",
-        "task": {
-          "*": "deny",
-          "grill-inspektor": "allow"
-        }
-      }
-    },
     "designer": {
       "mode": "primary",
       "hidden": false,
@@ -89,23 +72,9 @@
         "question": "allow",
         "task": {
           "*": "deny",
-          "kokk": "allow",
           "grill-inspektor": "allow",
           "researcher": "allow"
         }
-      }
-    },
-    "kokk": {
-      "mode": "subagent",
-      "hidden": true,
-      "skillAccess": "allow-with-manual-ask",
-      "permission": {
-        "doom_loop": "deny",
-        "todowrite": "deny",
-        "edit": "ask",
-        "bash": "ask",
-        "question": "deny",
-        "task": "deny"
       }
     },
     "perspektiv": {
@@ -141,20 +110,12 @@
       "to": "`task` tool"
     },
     {
-      "from": "`agent` tool",
-      "to": "`task` tool"
-    },
-    {
       "from": "`ask_user`",
       "to": "`question`"
     },
     {
       "from": "`execute`",
       "to": "`bash`"
-    },
-    {
-      "from": "`web`",
-      "to": "`webfetch` or `websearch`"
     },
     {
       "from": "built-in search tool",

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "protocolVersion": "1.0",
+  "protocolVersion": "1.1",
   "evidenceType": "macos-client-validation",
   "platform": "macOS",
   "synthetic": false,
-  "releaseVersion": "0.3.0",
+  "releaseVersion": "<release version matching the RC>",
   "release": {
     "rcTag": "<immutable RC tag>",
     "catalogSha": "<exact 40-character catalog SHA>",
@@ -76,7 +76,82 @@
           "deviations": []
         },
         {
-          "scenario": "role-barista",
+          "scenario": "role-designer",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "role-doctor-who",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "harness-parity",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": [],
+          "parityChecks": [
+            "/grilling",
+            "automatic-skill-routing",
+            "wayfinder-delegation",
+            "grillmester-grill-inspektor",
+            "visual-companion",
+            "approved-write",
+            "rejected-write"
+          ]
+        }
+      ]
+    },
+    {
+      "client": "Copilot App",
+      "clientVersion": "<recorded client version>",
+      "rcTag": "<immutable RC tag>",
+      "catalogSha": "<exact 40-character catalog SHA>",
+      "sourceSha": "<exact 40-character source SHA>",
+      "resolvedModel": "<client-resolved model>",
+      "scenarioResults": [
+        {
+          "scenario": "installation-discovery",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "update",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "rollback",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "restart-after-rollback",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "role-grillmester",
           "result": "<PASS|FAIL|UNVERIFIED>",
           "observedTools": [],
           "observedApprovals": [],
@@ -110,31 +185,12 @@
             "/grilling",
             "automatic-skill-routing",
             "wayfinder-delegation",
-            "grillmester-kokk-grill-inspektor",
+            "grillmester-grill-inspektor",
             "visual-companion",
             "approved-write",
             "rejected-write"
           ]
         }
-      ]
-    },
-    {
-      "client": "Copilot App",
-      "clientVersion": "<recorded client version>",
-      "rcTag": "<immutable RC tag>",
-      "catalogSha": "<exact 40-character catalog SHA>",
-      "sourceSha": "<exact 40-character source SHA>",
-      "resolvedModel": "<client-resolved model>",
-      "scenarioResults": [
-        {"scenario": "installation-discovery", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "update", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "rollback", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "restart-after-rollback", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "role-grillmester", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "role-barista", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "role-designer", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "role-doctor-who", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "harness-parity", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": [], "parityChecks": ["/grilling", "automatic-skill-routing", "wayfinder-delegation", "grillmester-kokk-grill-inspektor", "visual-companion", "approved-write", "rejected-write"]}
       ]
     },
     {
@@ -145,15 +201,79 @@
       "sourceSha": "<exact 40-character source SHA>",
       "resolvedModel": "<client-resolved model>",
       "scenarioResults": [
-        {"scenario": "installation-discovery", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "update", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "rollback", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "restart-after-rollback", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "role-grillmester", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "role-barista", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "role-designer", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "role-doctor-who", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": []},
-        {"scenario": "harness-parity", "result": "<PASS|FAIL|UNVERIFIED>", "observedTools": [], "observedApprovals": [], "sideEffects": [], "deviations": [], "parityChecks": ["/grilling", "automatic-skill-routing", "wayfinder-delegation", "grillmester-kokk-grill-inspektor", "visual-companion", "approved-write", "rejected-write"]}
+        {
+          "scenario": "installation-discovery",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "update",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "rollback",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "restart-after-rollback",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "role-grillmester",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "role-designer",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "role-doctor-who",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": []
+        },
+        {
+          "scenario": "harness-parity",
+          "result": "<PASS|FAIL|UNVERIFIED>",
+          "observedTools": [],
+          "observedApprovals": [],
+          "sideEffects": [],
+          "deviations": [],
+          "parityChecks": [
+            "/grilling",
+            "automatic-skill-routing",
+            "wayfinder-delegation",
+            "grillmester-grill-inspektor",
+            "visual-companion",
+            "approved-write",
+            "rejected-write"
+          ]
+        }
       ]
     }
   ],

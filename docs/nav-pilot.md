@@ -55,7 +55,7 @@ installert eller immutable release. Fra repoet du vil arbeide i:
 ```bash
 cd /path/to/consumer-repo
 python3 /absolute/path/to/grillmester/scripts/grillmester.py doctor
-python3 /absolute/path/to/grillmester/scripts/grillmester.py --client opencode --agent barista
+python3 /absolute/path/to/grillmester/scripts/grillmester.py --client opencode --agent grillmester
 ```
 
 For en lokal modell starter du først en OpenAI-kompatibel modellserver på

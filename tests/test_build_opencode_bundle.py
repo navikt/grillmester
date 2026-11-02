@@ -85,7 +85,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         target_files = {
             "opencode.json": (b'{"$schema":"https://opencode.ai/config.json"}\n', 0o644),
         }
-        primary_agents = {"barista", "designer", "doctor-who", "grillmester"}
+        primary_agents = {"designer", "doctor-who", "grillmester"}
         for agent_id in AGENT_IDS:
             mode = "primary" if agent_id in primary_agents else "subagent"
             target_files[f"agents/{agent_id}.md"] = (
@@ -116,9 +116,9 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             "schemaVersion": 1,
             "target": "opencode-v1",
             "counts": {
-                "agents": 8,
-                "primaryAgents": 4,
-                "subagents": 4,
+                "agents": 6,
+                "primaryAgents": 3,
+                "subagents": 3,
                 "skills": 44,
                 "commands": 44,
             },
@@ -864,7 +864,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         content_lock = json.loads(content_lock_path.read_text(encoding="utf-8"))
         content_lock["agents"].pop(next(iter(content_lock["agents"])))
         content_lock_path.write_text(json.dumps(content_lock), encoding="utf-8")
-        with self.assertRaisesRegex(BUILDER.BundleBuildError, "complete 8-agent/44-skill"):
+        with self.assertRaisesRegex(BUILDER.BundleBuildError, "complete 6-agent/44-skill"):
             BUILDER.build_bundle(
                 incomplete_bom,
                 SOURCE_SHA,

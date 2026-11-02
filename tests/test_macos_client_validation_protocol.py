@@ -18,7 +18,6 @@ SCENARIOS = {
     "rollback",
     "restart-after-rollback",
     "role-grillmester",
-    "role-barista",
     "role-designer",
     "role-doctor-who",
     "harness-parity",
@@ -27,7 +26,7 @@ PARITY_CHECKS = {
     "/grilling",
     "automatic-skill-routing",
     "wayfinder-delegation",
-    "grillmester-kokk-grill-inspektor",
+    "grillmester-grill-inspektor",
     "visual-companion",
     "approved-write",
     "rejected-write",
@@ -40,6 +39,7 @@ SCENARIO_FIELDS = {
     "sideEffects",
     "deviations",
 }
+HISTORICAL_SCENARIOS = SCENARIOS | {"role-barista"}
 
 
 class MacosClientValidationProtocolTest(unittest.TestCase):
@@ -89,13 +89,17 @@ class MacosClientValidationProtocolTest(unittest.TestCase):
             "/grilling",
             "automatic skill routing",
             "Wayfinder discovery and delegation",
-            "Grillmester → Kokk → Grill-inspektør",
+            "Grillmester → Grill-inspektør",
             "Visual Companion",
             "approved, harmless write",
             "rejected write",
         ):
             with self.subTest(check=check):
                 self.assertIn(check, self.protocol)
+
+        self.assertIn("High risk alone must not force delegation", self.protocol)
+        self.assertNotIn("Kokk", self.protocol)
+        self.assertIn("not evidence\nfor the current roster", self.protocol)
 
         for blocker in (
             "unexpected write",
@@ -109,11 +113,11 @@ class MacosClientValidationProtocolTest(unittest.TestCase):
 
     def test_template_has_one_evidence_contract_for_all_clients(self) -> None:
         self.assertEqual(1, self.template["schemaVersion"])
-        self.assertEqual("1.0", self.template["protocolVersion"])
+        self.assertEqual("1.1", self.template["protocolVersion"])
         self.assertEqual("macos-client-validation", self.template["evidenceType"])
         self.assertEqual("macOS", self.template["platform"])
         self.assertFalse(self.template["synthetic"])
-        self.assertEqual("0.3.0", self.template["releaseVersion"])
+        self.assertEqual("<release version matching the RC>", self.template["releaseVersion"])
         self.assertEqual(list(CLIENTS), [item["client"] for item in self.template["clientResults"]])
 
         for client in self.template["clientResults"]:
@@ -171,7 +175,7 @@ class MacosClientValidationProtocolTest(unittest.TestCase):
                     self.dry_run["release"]["sourceSha"], client["sourceSha"]
                 )
                 self.assertEqual(
-                    SCENARIOS,
+                    HISTORICAL_SCENARIOS,
                     {item["scenario"] for item in client["scenarioResults"]},
                 )
                 for scenario in client["scenarioResults"]:

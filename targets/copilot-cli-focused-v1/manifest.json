@@ -10,9 +10,9 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "11e8209401e2de1276cb9e4143d2d27dd1485dc8432076d16b71141f06345c8e",
+    "payloadManifestSha256": "7c19f470431f327ebd8139360addd27fcd88cfb4130c1464cbef54bbc2a6ccca",
     "policy": "policy/focused-context-v1.json",
-    "policySha256": "26cf8b53327435b97d35e95cc15d2b74fc4d579bb6746970ded622fa39441fae"
+    "policySha256": "a3b007cc7f247c2d75fc3230a7935858c1f89fd345f63c6d1be0a8d93b501cf8"
   },
   "modelSelection": "inherit-provider-or-session",
   "transformations": {
@@ -22,7 +22,7 @@
     "pluginManifestFieldsRemoved": [
       "extensions"
     ],
-    "agentEscalation": "full-context-handoff",
+    "agentEscalation": "missing-capability-handoff",
     "excludedSkillReferences": "full-context-guidance"
   },
   "counts": {
@@ -30,8 +30,8 @@
     "skills": 7
   },
   "agents": [
-    "barista",
-    "grill-inspektor"
+    "grill-inspektor",
+    "grillmester"
   ],
   "skills": [
     "diagnosing-bugs",
@@ -51,16 +51,16 @@
       "sha256": "557a82dbcb5254009e1f52f170fc587306e442e3cb9183d9ce261a29ff299f52",
       "mode": "0644"
     },
-    "agents/barista.agent.md": {
-      "sha256": "2661af0c357474b1bed64f4f0ab54cb8087dc1ab4c98b05f109b2455873e1451",
+    "agents/grill-inspektor.agent.md": {
+      "sha256": "dc6d2eb782b2c60845c109ea1b61b704ae254731d2b4f1de596f0a018f10d7b3",
       "mode": "0644"
     },
-    "agents/grill-inspektor.agent.md": {
-      "sha256": "9ae0eac49139f7199c2ab66789caad1605661a783a259b5107e87ed11d5e7167",
+    "agents/grillmester.agent.md": {
+      "sha256": "58149a292e1b982a8dc05f58e19f173772189057f8d38c80925286a9637caf1e",
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "1e331fb0bc5a6e1e22de5a276c7dc4a9501060a08482904ffbc70c16f2f10ca8",
+      "sha256": "ec1505398bf0c4e2fa6f711c3ee4b01f9cedaaab6b8ce20a160a3376b3a6c54e",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
@@ -84,7 +84,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "fe74cac3834d3373170ef78bb1c2c35c907ec1a549258edd46d0cdbb51733586",
+      "sha256": "f858155791e15cf3d3b1b569b55806031fedb2ac3d26c98156f09164d499f4a4",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {

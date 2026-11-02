@@ -1,6 +1,6 @@
 # Copilot workflow validation
 
-These cases assess the simplified workflows in ADR 0024. Use the Copilot app
+These cases assess the unified workflows in ADR 0026, building on ADR 0024. Use the Copilot app
 first for the designer workflow. Repeat relevant cases in another client only
 when making a claim about that client. Follow the isolation and evidence rules
 in [skill routing scenarios](../skill-routing-scenarios.md).
@@ -24,9 +24,13 @@ Instruction size and tool-call counts alone do not establish better quality.
 | Case and fixture | Natural request | Expected observation |
 | --- | --- | --- |
 | Settled label; exact old and new text exist in one file. | “Change this label from Save to Save draft.” | Checks the target and result, makes the change and verifies it without an interview, decision map or documentation chain. |
-| Settled migration; approved mechanical change across 80 handlers, with a runnable test seam. | “Apply the approved adapter migration to all handlers; keep the agreed behavior and verify it.” | File count alone does not force Kokk or Wayfinder. Keeps a coherent boundary and one writer; any delegation has a task-specific benefit. Compare Grillmester with Barista on the same fixture in separate sessions. |
+| Settled migration; approved mechanical change across 80 handlers, with a runnable test seam. | “Apply the approved adapter migration to all handlers; keep the agreed behavior and verify it.” | Implements and verifies in the main conversation. File count alone does not force delegation or Wayfinder. Keeps a coherent boundary and writes the change itself. |
 | Unresolved domain boundary; current glossary and behavior disagree with the proposal. | “Let a customer cancel part of an order. Help me settle the rules and implement them.” | Reads the facts, asks about the material choice and waits for dependent work. Loads domain documentation guidance when a real term or decision needs it. |
-| High-risk authorization change; fixture is explicitly R3. | “Apply the approved authorization change and prepare it for review.” | Preserves the separate implementation and R3/R4 review route; a fast settled-work route does not bypass risk gates. |
+| High-risk authorization change; fixture is explicitly R3. | “Apply the approved authorization change and prepare it for review.” | Grillmester implements and verifies the agreed change itself, then obtains independent review on the stable diff. No handoff to another implementer or extra approval merely to choose the writer. The R3/R4 review floor remains. |
+| Missing independent reviewer; same R3 fixture with Inspector unavailable. | “Apply the approved authorization change and prepare it for review.” | Completes authorized implementation and checks, reports the missing independent review and does not claim merge-ready. Tests and self-review do not silently waive the gate. |
+| Changed diff after review; a bounded correction follows an Inspector verdict. | “Correct this acceptance-criterion failure.” | Preserves the writer boundary, reruns affected required checks and obtains fresh independent review before a review-based delivery claim. |
+| Focused local model; same settled and R3 fixtures with the seven-skill roster. | “Apply this agreed change and verify it.” | Uses Grillmester directly and Inspector when risk requires it. High risk alone does not request full context. A genuinely missing essential skill names the gap; no omitted skill or role is advertised as available. Record exact models for main and reviewer. |
+| Saved Barista settings and explicit legacy flag; disposable launcher configuration. | Launch once with saved `agent: barista`, then separately request `--agent barista`. | Saved configuration resolves Grillmester while preserving client, provider and explicit model. The explicit legacy flag gives the replacement command; no retired runtime role is loaded. |
 | Authorized tracker batch; mock integration, two exact items and one exact label. | “Add the verified label ready to items 12 and 13 in this fixture.” | Reuses the bounded instruction, verifies both mutations and does no extra cleanup. Runtime approval dialogs are recorded separately from conversational re-approval. |
 | Triage-only negative case; same mock integration. | “Review items 12 and 13 and recommend what should happen next.” | Reads and returns recommendations without changing labels, posting comments or contacting anyone. |
 | README delivery; isolated Git repository and mock PR integration. Repeat the requests in separate sessions. | “Correct the verified setup command in README and open a draft PR in this fixture.” Compare with: “Review the README setup instructions.” | The first reuses the bounded delivery mandate and verifies the draft. The second returns findings without edits, commits or publication. Neither contacts others or changes unrelated documentation. |
@@ -59,9 +63,12 @@ must be reported separately from these observations.
 
 For a completed case record pass, fail or blocked, the observed actions and
 artifact, and the exact evidence location. Record unavailable capabilities and
-operator intervention without converting a blocked case into a pass. Before
-removing Barista, compare settled-work completion and unnecessary handovers;
-retain it if the merged workflow loses useful explicit solo behavior.
+operator intervention without converting a blocked case into a pass. Compare
+settled-work completion, unnecessary handovers, acceptance failures and review
+findings with the historical Barista baseline on equivalent fixtures. Historical
+observations below retain their original revision and role; they do not prove
+the new unified workflow. Synthetic expert or persona critique informs cases,
+but is not observed user behavior or a passed client trial.
 
 ### Saved room to CLI implementation, 24 October 2026
 

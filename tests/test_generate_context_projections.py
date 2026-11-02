@@ -24,6 +24,62 @@ SPEC.loader.exec_module(GENERATOR)
 
 
 class FocusedContextGenerationTest(unittest.TestCase):
+    def test_focused_grillmester_preserves_review_floor_and_narrows_delegation(self) -> None:
+        review_floor = (
+            "## Verification and review\n\n"
+            "R3 and R4 require independent review before delivery.\n"
+        )
+        source = (
+            "---\npermission:\n  task:\n    '*': deny\n"
+            "    grill-inspektor: allow\n    researcher: allow\n"
+            "---\n# Grillmester\n\n"
+            "## Available capabilities\n\nFull specialist skill catalog.\n\n"
+            "## Implement and prove\n\nKeep the shared implementation loop.\n\n"
+            "## Delegation\n\nOptional Researcher.\n\n"
+            + review_floor
+        )
+        for client in ("opencode", "copilotCli"):
+            with self.subTest(client=client):
+                focused = GENERATOR.apply_grillmester_focused_overlay(
+                    source, client=client, path="agents/grillmester.md"
+                )
+                self.assertTrue(focused.endswith(review_floor))
+                self.assertIn("Keep the shared implementation loop.", focused)
+                self.assertIn(
+                    "Task size, complexity, and risk alone do not require full context.",
+                    focused,
+                )
+                self.assertIn("Status: NEEDS_FULL_CONTEXT", focused)
+                self.assertIn("missing tool, authority, or model", focused)
+                self.assertNotIn("Optional Researcher", focused)
+                if client == "opencode":
+                    self.assertNotIn("    researcher: allow", focused)
+                    self.assertIn("    grill-inspektor: allow", focused)
+                else:
+                    self.assertIn("`grillmester:grill-inspektor`", focused)
+
+    def test_focused_grillmester_rejects_missing_shared_review_boundary(self) -> None:
+        source = (
+            "## Available capabilities\n\nFull catalog.\n\n"
+            "## Implement and prove\n\nShared loop.\n\n"
+            "## Delegation\n\nDelegation details.\n"
+        )
+        with self.assertRaisesRegex(GENERATOR.ProjectionError, "Verification and review"):
+            GENERATOR.apply_grillmester_focused_overlay(
+                source, client="copilotCli", path="agents/grillmester.agent.md"
+            )
+
+    def test_focused_references_reject_absent_roles_for_both_clients(self) -> None:
+        for reference in ("Kokk", "`researcher`", "`grillmester:designer`", "Barista"):
+            for client in ("opencode", "copilotCli"):
+                with self.subTest(client=client, reference=reference):
+                    with self.assertRaisesRegex(GENERATOR.ProjectionError, "absent"):
+                        GENERATOR.validate_focused_references(
+                            {"skills/review/SKILL.md": (reference.encode(), 0o644)},
+                            client=client,
+                            source_skills=set(GENERATOR.EXPECTED_SKILLS),
+                        )
+
     def test_isolated_cli_check_loads_its_own_sibling_helper(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             working_directory = Path(temporary)
@@ -126,7 +182,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "agents/barista.md",
+                "agents/grillmester.md",
                 "agents/grill-inspektor.md",
             },
             {path for path in opencode if path.startswith("agents/")},
@@ -145,7 +201,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "agents/barista.agent.md",
+                "agents/grillmester.agent.md",
                 "agents/grill-inspektor.agent.md",
             },
             {path for path in copilot if path.startswith("agents/")},
@@ -170,16 +226,33 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     },
                 )
 
-    def test_barista_never_substitutes_tools_to_bypass_blocked_verification(self) -> None:
+    def test_focused_grillmester_keeps_canonical_implementation_and_review_contract(self) -> None:
+        projections, _ = GENERATOR.build_projections(ROOT)
+        for client, source_root, relative in (
+            ("opencode", "targets/opencode-v1", "agents/grillmester.md"),
+            ("copilotCli", "plugin", "agents/grillmester.agent.md"),
+        ):
+            with self.subTest(client=client):
+                source = (ROOT / source_root / relative).read_text(encoding="utf-8")
+                focused = projections[client][relative][0].decode("utf-8")
+                self.assertEqual(
+                    source.split("## Implement and prove\n", 1)[1].split("## Delegation\n", 1)[0],
+                    focused.split("## Implement and prove\n", 1)[1].split("## Delegation\n", 1)[0],
+                )
+                self.assertEqual(
+                    source.split("## Verification and review\n", 1)[1],
+                    focused.split("## Verification and review\n", 1)[1],
+                )
+
+    def test_grillmester_never_substitutes_tools_to_bypass_blocked_verification(self) -> None:
         guardrail = (
-            "Never install or invoke a substitute package or tool to bypass "
-            "unavailable repository verification."
+            "do not install or invoke a substitute to bypass the required proof."
         )
         for relative in (
-            "plugin/agents/barista.agent.md",
-            "targets/opencode-v1/agents/barista.md",
-            "targets/opencode-v1-focused/agents/barista.md",
-            "targets/copilot-cli-focused-v1/agents/barista.agent.md",
+            "plugin/agents/grillmester.agent.md",
+            "targets/opencode-v1/agents/grillmester.md",
+            "targets/opencode-v1-focused/agents/grillmester.md",
+            "targets/copilot-cli-focused-v1/agents/grillmester.agent.md",
         ):
             with self.subTest(path=relative):
                 self.assertIn(
@@ -189,20 +262,20 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     ),
                 )
 
-    def test_barista_preserves_consumer_pull_request_templates(self) -> None:
+    def test_grillmester_preserves_consumer_pull_request_templates(self) -> None:
         guardrail = (
-            "Before drafting or publishing a pull request, read and preserve "
-            "the repository's pull-request template structure."
+            "use `/pull-request` and preserve the repository template."
         )
         for relative in (
-            "plugin/agents/barista.agent.md",
-            "targets/opencode-v1/agents/barista.md",
-            "targets/opencode-v1-focused/agents/barista.md",
-            "targets/copilot-cli-focused-v1/agents/barista.agent.md",
+            "plugin/agents/grillmester.agent.md",
+            "targets/opencode-v1/agents/grillmester.md",
+            "targets/opencode-v1-focused/agents/grillmester.md",
+            "targets/copilot-cli-focused-v1/agents/grillmester.agent.md",
         ):
             with self.subTest(path=relative):
                 self.assertIn(
-                    guardrail,
+                    guardrail.replace("`/pull-request`", "`pull-request`")
+                    if "/opencode-" in relative else guardrail,
                     " ".join(
                         (ROOT / relative).read_text(encoding="utf-8").split()
                     ),
@@ -242,7 +315,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     changed_opencode.add(relative)
         self.assertEqual(
             {
-                "agents/barista.md",
+                "agents/grillmester.md",
                 "agents/grill-inspektor.md",
                 "commands/diagnosing-bugs.md",
                 "commands/integration-tests.md",
@@ -281,7 +354,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
         self.assertEqual(
             {
                 "plugin.json",
-                "agents/barista.agent.md",
+                "agents/grillmester.agent.md",
                 "agents/grill-inspektor.agent.md",
                 "skills/diagnosing-bugs/SKILL.md",
                 "skills/integration-tests/SKILL.md",
@@ -294,7 +367,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
             changed_copilot,
         )
 
-        for agent in ("barista", "grill-inspektor"):
+        for agent in ("grillmester", "grill-inspektor"):
             relative = f"agents/{agent}.agent.md"
             source = (ROOT / "plugin" / relative).read_text(encoding="utf-8")
             focused = copilot[relative][0].decode("utf-8")
@@ -304,8 +377,9 @@ class FocusedContextGenerationTest(unittest.TestCase):
         opencode_manifest = json.loads(opencode["manifest.json"][0])
         self.assertEqual(
             {
-                "agentEscalation": "full-context-handoff",
+                "agentEscalation": "missing-capability-handoff",
                 "excludedSkillReferences": "full-context-guidance",
+                "agentPermissionEntriesRemoved": ["researcher"],
                 "skillPermissionEntriesRemoved": [
                     "app-sandbox-setup",
                     "doctor",
@@ -336,7 +410,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
             {
                 "agentFrontmatterRemoved": ["model"],
                 "pluginManifestFieldsRemoved": ["extensions"],
-                "agentEscalation": "full-context-handoff",
+                "agentEscalation": "missing-capability-handoff",
                 "excludedSkillReferences": "full-context-guidance",
             },
             copilot_manifest["transformations"],
@@ -353,12 +427,12 @@ class FocusedContextGenerationTest(unittest.TestCase):
     def test_tampered_full_opencode_source_is_rejected(self) -> None:
         temporary, root = self.copy_repository()
         try:
-            source = root / "targets/opencode-v1/agents/barista.md"
+            source = root / "targets/opencode-v1/agents/grillmester.md"
             source.write_text(source.read_text(encoding="utf-8") + "tampered\n")
 
             with self.assertRaisesRegex(
                 GENERATOR.ProjectionError,
-                "OpenCode source differs from its manifest.*agents/barista.md",
+                "OpenCode source differs from its manifest.*agents/grillmester.md",
             ):
                 GENERATOR.build_projections(root)
         finally:
@@ -424,7 +498,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
 
     def test_focused_references_resolve_inside_the_focused_roster(self) -> None:
         projections, _ = GENERATOR.build_projections(ROOT)
-        allowed_agents = {"barista", "grill-inspektor"}
+        allowed_agents = {"grillmester", "grill-inspektor"}
         allowed_skills = {
             "diagnosing-bugs",
             "integration-tests",
@@ -454,8 +528,8 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     )
 
         for target, relative in (
-            ("opencode", "agents/barista.md"),
-            ("copilotCli", "agents/barista.agent.md"),
+            ("opencode", "agents/grillmester.md"),
+            ("copilotCli", "agents/grillmester.agent.md"),
         ):
             body = projections[target][relative][0].decode("utf-8")
             self.assertIn("Status: NEEDS_FULL_CONTEXT", body)

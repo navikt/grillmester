@@ -31,9 +31,12 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             len([p for p in (ROOT / "plugin" / "skills").iterdir() if p.is_dir()]),
             package.skills,
         )
-        # Upgrade fixtures are copied from the current source and keep its agents.
-        self.assertEqual(package.agents, SMOKE.PREVIOUS_UNIFIED_PACKAGE.agents)
-        self.assertEqual(package.agents, SMOKE.LEGACY_CORE.agents)
+        # Historical payloads retain Barista and Kokk to exercise eight-to-six upgrades.
+        self.assertEqual(6, package.agents)
+        self.assertEqual(8, SMOKE.PREVIOUS_UNIFIED_PACKAGE.agents)
+        self.assertEqual(8, SMOKE.LEGACY_CORE.agents)
+        for agent_id in SMOKE.REMOVED_AGENTS:
+            self.assertFalse((ROOT / f"plugin/agents/{agent_id}.agent.md").exists())
 
     def test_local_help_requires_the_complete_minimum_copilot_flag_roster(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -164,6 +167,11 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 (plugin / "THIRD_PARTY_NOTICES.md").write_text(
                     "fixture notices\n", encoding="utf-8"
                 )
+                (plugin / "agents").mkdir()
+                for index in range(package.agents):
+                    (plugin / "agents" / f"agent-{index}.agent.md").write_text(
+                        f"---\nname: agent-{index}\n---\n", encoding="utf-8"
+                    )
                 skill_ids = [
                     *(
                         f"fixture-skill-{index}"
@@ -233,6 +241,13 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 SMOKE.PREVIOUS_UNIFIED_PACKAGE.skills,
                 len(list((previous_unified_plugin / "skills").glob("*/SKILL.md"))),
             )
+            self.assertEqual(
+                8, len(list((previous_unified_plugin / "agents").glob("*.agent.md")))
+            )
+            self.assertIn(
+                "Historical migration fixture",
+                (previous_unified_plugin / "agents/barista.agent.md").read_text(),
+            )
             for package, previous_entry in zip(
                 SMOKE.PREVIOUS_PACKAGES, previous_catalog["plugins"], strict=True
             ):
@@ -247,6 +262,10 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                     package.skills,
                     len(list((previous_plugin / "skills").glob("*/SKILL.md"))),
                 )
+                self.assertEqual(
+                    package.agents,
+                    len(list((previous_plugin / "agents").glob("*.agent.md"))),
+                )
             self.assertTrue(
                 (previous_plugins[SMOKE.PLUGIN_NAME] / SMOKE.UPGRADE_SENTINEL).is_file()
             )
@@ -256,6 +275,11 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 SMOKE.tree_manifest(root / "plugin"),
                 SMOKE.tree_manifest(staged / "plugin"),
             )
+            self.assertTrue(
+                (previous_plugins[SMOKE.PLUGIN_NAME] / "agents/barista.agent.md").is_file()
+            )
+            self.assertFalse((root / "plugin/agents/barista.agent.md").exists())
+            self.assertFalse((staged / "plugin/agents/barista.agent.md").exists())
             core_skills = previous_plugins[SMOKE.LEGACY_CORE.name] / "skills"
             add_on_skills = previous_plugins[SMOKE.LEGACY_ADD_ON.name] / "skills"
             for skill_id in SMOKE.LEGACY_ADD_ON_SKILLS:
@@ -397,6 +421,22 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "retained removed skill"):
                     SMOKE.assert_removed_skills_absent(installed)
 
+    def test_current_installed_roster_rejects_removed_agents_even_with_six_agents(self) -> None:
+        for agent_id in SMOKE.REMOVED_AGENTS:
+            with self.subTest(agent=agent_id), tempfile.TemporaryDirectory() as temp:
+                installed = Path(temp) / "installed"
+                shutil.copytree(ROOT / "plugin", installed)
+                self.assertEqual(
+                    (6, 44), SMOKE.verify_installed_package(ROOT / "plugin", installed)
+                )
+                (installed / "agents/grillmester.agent.md").rename(
+                    installed / "agents" / f"{agent_id}.agent.md"
+                )
+                with self.assertRaisesRegex(
+                    RuntimeError, f"retained removed agent: {agent_id}"
+                ):
+                    SMOKE.verify_installed_package(ROOT / "plugin", installed)
+
     def test_removed_skill_check_only_applies_to_current_payload(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             installed = Path(temp)
@@ -407,6 +447,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             for index in range(SMOKE.PACKAGES[0].agents):
                 (installed / "agents").mkdir(exist_ok=True)
                 (installed / "agents" / f"agent-{index}.agent.md").touch()
+            SMOKE.add_removed_agent_fixtures(installed)
             for index in range(SMOKE.PREVIOUS_UNIFIED_PACKAGE.skills):
                 skill = installed / "skills" / f"skill-{index}" / "SKILL.md"
                 skill.parent.mkdir(parents=True)
@@ -424,6 +465,8 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 )
                 removed.assert_not_called()
 
+                for agent_id in SMOKE.REMOVED_AGENTS:
+                    (installed / "agents" / f"{agent_id}.agent.md").unlink()
                 for index in range(SMOKE.PREVIOUS_UNIFIED_PACKAGE.skills, SMOKE.PACKAGES[0].skills):
                     skill = installed / "skills" / f"skill-{index}" / "SKILL.md"
                     skill.parent.mkdir(parents=True)
@@ -504,7 +547,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
         ) as run, mock.patch.object(
             SMOKE,
             "verify_installed_package",
-            return_value=(8, 44),
+            return_value=(6, 44),
         ) as verify, mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled") as uninstalled:
@@ -518,7 +561,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 source_root=Path("/tmp/source"),
             )
 
-        self.assertEqual((8, 44), result)
+        self.assertEqual((6, 44), result)
         self.assertEqual(
             [
                 "copilot",
@@ -562,7 +605,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
             "run",
             side_effect=["", "", "grillmester@grillmester", ""],
         ), mock.patch.object(
-            SMOKE, "verify_installed_package", return_value=(8, 44)
+            SMOKE, "verify_installed_package", return_value=(6, 44)
         ), mock.patch.object(
             SMOKE, "enabled_setting", return_value=True
         ), mock.patch.object(SMOKE, "verify_uninstalled"):
@@ -577,7 +620,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 allow_floating_marketplace=True,
             )
 
-        self.assertEqual((8, 44), result)
+        self.assertEqual((6, 44), result)
 
     def test_remote_install_rejects_floating_marketplace_without_explicit_opt_in(
         self,

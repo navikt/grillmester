@@ -5,6 +5,9 @@ date: 2026-10-24
 
 # Proportionate workflows in Copilot
 
+> Agentutvalget og delegeringen av implementering er delvis erstattet av
+> [ADR 0026](0026-grillmester-eier-hele-leveransen.md).
+
 ## Context
 
 Choosing between Grillmester and Barista asks users to classify an assignment

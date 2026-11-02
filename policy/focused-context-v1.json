@@ -10,8 +10,8 @@
     "copilotCli": "targets/copilot-cli-focused-v1"
   },
   "agents": [
-    "barista",
-    "grill-inspektor"
+    "grill-inspektor",
+    "grillmester"
   ],
   "skills": [
     "diagnosing-bugs",

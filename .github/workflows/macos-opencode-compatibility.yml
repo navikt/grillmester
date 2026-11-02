@@ -731,10 +731,10 @@ jobs:
           ambient_agents="${host_home}/.copilot/agents"
           ambient_plugin="${host_home}/.copilot/installed-plugins/_direct/full-grillmester"
           mkdir -p "${ambient_agents}" "$(dirname "${ambient_plugin}")"
-          cp "${BUNDLE_ROOT}/plugin/agents/barista.agent.md" \
-            "${ambient_agents}/barista.agent.md"
+          cp "${BUNDLE_ROOT}/plugin/agents/grillmester.agent.md" \
+            "${ambient_agents}/grillmester.agent.md"
           printf '\nAMBIENT_FULL_PLUGIN_MUST_NOT_LOAD\n' \
-            >> "${ambient_agents}/barista.agent.md"
+            >> "${ambient_agents}/grillmester.agent.md"
           cp -R "${BUNDLE_ROOT}/plugin" "${ambient_plugin}"
           local_environment=(
             "HOME=${host_home}"
@@ -746,21 +746,21 @@ jobs:
           )
           launcher=("${python_bin}" -I -S "${BUNDLE_ROOT}/scripts/grillmester.py")
           local_setup="$(env "${local_environment[@]}" "${launcher[@]}" local setup \
-            --client copilot --agent barista --context focused \
+            --client copilot --agent grillmester --context focused \
             --provider-id ci-local \
             --base-url "http://127.0.0.1:${provider_port}/v1" \
             --model-id ci-grillmester-local)"
-          grep -F 'Selected copilot with ci-grillmester-local (focused barista)' \
+          grep -F 'Selected copilot with ci-grillmester-local (focused grillmester)' \
             <<<"${local_setup}"
 
           focused_doctor="$(env "${local_environment[@]}" "${launcher[@]}" \
-            local doctor --client copilot --agent barista \
+            local doctor --client copilot --agent grillmester \
             --project-dir "${MACOS_CONSUMER}")"
           grep -F 'ok  model ci-grillmester-local' <<<"${focused_doctor}"
           grep -F "ok  payload ${BUNDLE_ROOT}/targets/copilot-cli-focused-v1" \
             <<<"${focused_doctor}"
           focused_command="$(env "${local_environment[@]}" "${launcher[@]}" \
-            local launch --client copilot --agent barista \
+            local launch --client copilot --agent grillmester \
             --project-dir "${MACOS_CONSUMER}" --print-command)"
           grep -F -- "${BUNDLE_ROOT}/targets/copilot-cli-focused-v1" \
             <<<"${focused_command}"
@@ -771,24 +771,24 @@ jobs:
           fi
           focused_output="${local_root}/focused.stdout"
           env "${local_environment[@]}" "${launcher[@]}" local run \
-            --client copilot --agent barista --project-dir "${MACOS_CONSUMER}" \
+            --client copilot --agent grillmester --project-dir "${MACOS_CONSUMER}" \
             'FOCUSED-GATE: return the provider sentinel without using tools.' \
             > "${focused_output}"
           grep -F 'GRILLMESTER_LOCAL_GATE_OK' "${focused_output}"
 
           full_doctor="$(env "${local_environment[@]}" "${launcher[@]}" \
-            local doctor --client copilot --agent barista --full \
+            local doctor --client copilot --agent grillmester --full \
             --project-dir "${MACOS_CONSUMER}")"
           grep -F 'ok  model ci-grillmester-local' <<<"${full_doctor}"
           grep -F "ok  payload ${BUNDLE_ROOT}/plugin" <<<"${full_doctor}"
           full_command="$(env "${local_environment[@]}" "${launcher[@]}" \
-            local launch --client copilot --agent barista --full \
+            local launch --client copilot --agent grillmester --full \
             --project-dir "${MACOS_CONSUMER}" --print-command)"
           grep -F -- "${BUNDLE_ROOT}/plugin" <<<"${full_command}"
           grep -F -- '--model ci-grillmester-local' <<<"${full_command}"
           full_output="${local_root}/full.stdout"
           env "${local_environment[@]}" "${launcher[@]}" local run \
-            --client copilot --agent barista --full \
+            --client copilot --agent grillmester --full \
             --project-dir "${MACOS_CONSUMER}" \
             'FULL-GATE: return the provider sentinel without using tools.' \
             > "${full_output}"
@@ -845,14 +845,14 @@ jobs:
             "PATH=${RUNNER_TEMP}/verified-darwin-bin:/usr/bin:/bin:/usr/sbin:/sbin"
           )
           opencode_setup="$(env "${opencode_environment[@]}" "${launcher[@]}" \
-            local setup --client opencode --agent barista --context focused \
+            local setup --client opencode --agent grillmester --context focused \
             --provider-id ci-local \
             --base-url "http://127.0.0.1:${provider_port}/v1" \
             --model-id ci-grillmester-local)"
-          grep -F 'Selected opencode with ci-grillmester-local (focused barista)' \
+          grep -F 'Selected opencode with ci-grillmester-local (focused grillmester)' \
             <<<"${opencode_setup}"
           opencode_doctor="$(env "${opencode_environment[@]}" "${launcher[@]}" \
-            local doctor --client opencode --agent barista \
+            local doctor --client opencode --agent grillmester \
             --project-dir "${MACOS_CONSUMER}")"
           grep -F 'ok  client opencode ' <<<"${opencode_doctor}"
           grep -F 'ok  model ci-grillmester-local' <<<"${opencode_doctor}"
@@ -860,7 +860,7 @@ jobs:
             <<<"${opencode_doctor}"
           opencode_output="${opencode_root}/focused.stdout"
           env "${opencode_environment[@]}" "${launcher[@]}" local run \
-            --client opencode --agent barista \
+            --client opencode --agent grillmester \
             --project-dir "${MACOS_CONSUMER}" \
             'OPENCODE-LOCAL-GATE: return the provider sentinel without using tools.' \
             > "${opencode_output}"

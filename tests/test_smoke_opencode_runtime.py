@@ -3,12 +3,14 @@ from __future__ import annotations
 import importlib.util
 import os
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,10 +48,10 @@ def response_text(body: bytes) -> str:
 
 
 class OpenCodeRuntimeSmokeTest(unittest.TestCase):
-    def state(self, action: str) -> object:
+    def state(self, action: str, subagent: str | None = "grill-inspektor") -> object:
         scenario = RUNTIME.Scenario(
             name="fixture",
-            subagent="kokk",
+            subagent=subagent,
             action=action,
             target=Path("/tmp/runtime-smoke-fixture"),
         )
@@ -61,7 +63,7 @@ class OpenCodeRuntimeSmokeTest(unittest.TestCase):
             RUNTIME.provider_response(state, request(system="# Grillmester"))
         )
         self.assertIn('"name":"task"', first)
-        self.assertIn('\\"subagent_type\\":\\"kokk\\"', first)
+        self.assertIn('\\"subagent_type\\":\\"grill-inspektor\\"', first)
         self.assertEqual({"task"}, state.requested_tool_names())
 
         final = response_text(
@@ -74,14 +76,14 @@ class OpenCodeRuntimeSmokeTest(unittest.TestCase):
 
     def test_skill_reference_scenario_loads_skill_before_reading_reference(self) -> None:
         state = self.state("skill-reference")
-        load = response_text(RUNTIME.provider_response(state, request(system="# Kokk")))
+        load = response_text(RUNTIME.provider_response(state, request(system="# Grill-inspektor")))
         self.assertIn('"name":"skill"', load)
         self.assertIn("create-a-skill", load)
         self.assertEqual({"skill"}, state.requested_tool_names())
 
         read = response_text(
             RUNTIME.provider_response(
-                state, request(system="# Kokk", called=("skill",))
+                state, request(system="# Grill-inspektor", called=("skill",))
             )
         )
         self.assertIn('"name":"read"', read)
@@ -90,7 +92,7 @@ class OpenCodeRuntimeSmokeTest(unittest.TestCase):
 
         final = response_text(
             RUNTIME.provider_response(
-                state, request(system="# Kokk", called=("skill", "read"))
+                state, request(system="# Grill-inspektor", called=("skill", "read"))
             )
         )
         self.assertNotIn("tool_calls", final)
@@ -104,14 +106,74 @@ class OpenCodeRuntimeSmokeTest(unittest.TestCase):
         for action, tool in cases.items():
             with self.subTest(action=action):
                 body = response_text(
-                    RUNTIME.provider_response(self.state(action), request(system="# Kokk"))
+                    RUNTIME.provider_response(self.state(action), request(system="# Grill-inspektor"))
                 )
                 self.assertIn(f'"name":"{tool}"', body)
 
+    def test_primary_performs_an_undelegated_action_itself(self) -> None:
+        state = self.state("allow-write", subagent=None)
+        body = response_text(
+            RUNTIME.provider_response(state, request(system="# Grillmester"))
+        )
+        self.assertIn('"name":"write"', body)
+        self.assertNotIn('"name":"task"', body)
+        self.assertEqual({"write"}, state.requested_tool_names())
+
+    def test_primary_finishes_after_its_own_write(self) -> None:
+        state = self.state("allow-write", subagent=None)
+        body = response_text(
+            RUNTIME.provider_response(
+                state, request(system="# Grillmester", called=("write",))
+            )
+        )
+        self.assertNotIn("tool_calls", body)
+
+    def test_prompt_without_a_known_role_gets_a_final_reply(self) -> None:
+        body = response_text(
+            RUNTIME.provider_response(self.state("read-env"), request(system="# Other"))
+        )
+        self.assertNotIn("tool_calls", body)
+
+    def run_scenario_with(self, scenario: object, called: set[str]) -> object:
+        with tempfile.TemporaryDirectory() as temp:
+            sandbox = Path(temp)
+            (sandbox / "consumer").mkdir()
+            completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok")
+            with mock.patch.object(
+                RUNTIME.subprocess, "run", return_value=completed
+            ), mock.patch.object(
+                RUNTIME.ProviderState, "called_tools", return_value=set(called)
+            ):
+                return RUNTIME.run_scenario(
+                    binary=Path("/nonexistent/opencode"),
+                    cplt=None,
+                    target=sandbox / "target",
+                    sandbox=sandbox,
+                    scenario=scenario,
+                )
+
+    def test_run_scenario_requires_delegation_only_when_a_subagent_is_named(self) -> None:
+        target = Path("/tmp/runtime-smoke-fixture")
+        delegated = RUNTIME.Scenario("env-deny", "grill-inspektor", "read-env", target)
+        primary = RUNTIME.Scenario(
+            "approved-write", None, "allow-write", target, auto=True
+        )
+
+        self.run_scenario_with(delegated, {"task", "read"})
+        self.run_scenario_with(primary, {"write"})
+        with self.assertRaisesRegex(
+            RUNTIME.RuntimeSmokeError, "did not exercise native task delegation"
+        ):
+            self.run_scenario_with(delegated, {"read"})
+        with self.assertRaisesRegex(
+            RUNTIME.RuntimeSmokeError, "delegated instead of acting as the primary agent"
+        ):
+            self.run_scenario_with(primary, {"task", "write"})
+
     def test_rejected_tool_is_not_requested_twice_or_counted_as_executed(self) -> None:
         state = self.state("deny-write")
-        first = response_text(RUNTIME.provider_response(state, request(system="# Kokk")))
-        second = response_text(RUNTIME.provider_response(state, request(system="# Kokk")))
+        first = response_text(RUNTIME.provider_response(state, request(system="# Grill-inspektor")))
+        second = response_text(RUNTIME.provider_response(state, request(system="# Grill-inspektor")))
 
         self.assertIn('"name":"write"', first)
         self.assertNotIn("tool_calls", second)

@@ -9,7 +9,7 @@
     {
       "name": "grillmester",
       "path": "plugin",
-      "agents": 8,
+      "agents": 6,
       "skills": 44
     }
   ]

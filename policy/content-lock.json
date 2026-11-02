@@ -43,15 +43,6 @@
     }
   },
   "agents": {
-    "barista": {
-      "source": "pilot",
-      "sourcePath": ".github/agents/barista.agent.md",
-      "disposition": "adapted",
-      "model": "gpt-6.1-sol",
-      "user-invocable": true,
-      "disable-model-invocation": true,
-      "toolPolicy": "runtime-all"
-    },
     "designer": {
       "source": "hovmester",
       "sourcePath": ".github/agents/designer.agent.md",
@@ -77,6 +68,7 @@
       "model": "claude-sonnet-5.5",
       "user-invocable": false,
       "disable-model-invocation": false,
+      "include-custom-instructions": true,
       "tools": ["read", "search", "execute", "skill"]
     },
     "grillmester": {
@@ -87,15 +79,6 @@
       "user-invocable": true,
       "disable-model-invocation": true,
       "toolPolicy": "runtime-all"
-    },
-    "kokk": {
-      "source": "pilot",
-      "sourcePath": ".github/agents/kokk.agent.md",
-      "disposition": "adapted",
-      "model": "gpt-6.1-sol",
-      "user-invocable": false,
-      "disable-model-invocation": false,
-      "tools": ["read", "search", "edit", "execute", "skill", "web"]
     },
     "perspektiv": {
       "source": "pilot",

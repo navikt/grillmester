@@ -35,7 +35,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         cls.opencode_version = baseline.CONTRACT["releaseTest"]["opencodeVersion"]
         cls.cplt_release = baseline.CONTRACT["releaseTest"]["cpltRelease"]
 
-    def test_readme_is_a_short_four_agent_onboarding(self) -> None:
+    def test_readme_is_a_short_three_agent_onboarding(self) -> None:
         # Keep onboarding compact; experimental installation paths live in guides.
         self.assertLessEqual(len(self.text.splitlines()), 125)
         self.assertLessEqual(len(self.text.split()), 605)
@@ -52,13 +52,13 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertNotIn("\n## Bruk\n", self.text)
         self.assertNotIn("\n## Klientstatus\n", self.text)
 
-        for agent in ("Grillmester", "Barista", "Designer", "Doctor Who"):
+        for agent in ("Grillmester", "Designer", "Doctor Who"):
             with self.subTest(agent=agent):
                 self.assertIn(f"| **{agent}**", self.text)
-        self.assertIn(
-            "Kokk, Grill-inspektør, Researcher og Perspektiv er interne roller",
-            " ".join(self.text.split()),
-        )
+        self.assertNotIn("| **Barista**", self.text)
+        self.assertIn("Barista og Kokk er erstattet av Grillmester", self.text)
+        for role in ("Grill-inspektør", "Researcher", "Perspektiv"):
+            self.assertIn(role, self.text)
 
         self.assertNotIn("Status: POC", self.text)
         self.assertNotIn("Copilot app — to bekreftelser", self.text)
@@ -87,7 +87,7 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
             "brew install navikt/tap/cplt opencode",
             "brew install --cask copilot-cli",
             "OpenCode",
-            "--client opencode --agent barista",
+            "--client opencode --agent grillmester",
             "python3 /absolute/path/to/grillmester/scripts/grillmester.py local setup",
             "python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch",
             "starter du først en OpenAI-kompatibel modellserver",
@@ -161,8 +161,8 @@ class ReadmeOnboardingContractTest(unittest.TestCase):
         self.assertIn("--pass-env MODEL_PROVIDER_API_KEY", self.opencode_guide)
 
     def test_readme_distinguishes_roles_and_support_compactly(self) -> None:
-        self.assertIn("avklarer valg og risiko", self.text)
-        self.assertIn("Målet er tydelig", self.text)
+        self.assertIn("Avklarer vesentlige valg", self.text)
+        self.assertIn("implementerer og verifiserer", self.text)
         self.assertIn(
             "Tilgang og tillatt bruk styres av Navs gjeldende policy.",
             " ".join(self.text.splitlines()),

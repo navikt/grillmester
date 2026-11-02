@@ -152,12 +152,12 @@ class OpenCodeGenerationTest(unittest.TestCase):
             },
             json.loads(files["opencode.json"][0]),
         )
-        self.assertEqual(8, manifest["counts"]["agents"])
-        self.assertEqual(4, manifest["counts"]["primaryAgents"])
-        self.assertEqual(4, manifest["counts"]["subagents"])
+        self.assertEqual(6, manifest["counts"]["agents"])
+        self.assertEqual(3, manifest["counts"]["primaryAgents"])
+        self.assertEqual(3, manifest["counts"]["subagents"])
         self.assertEqual(44, manifest["counts"]["skills"])
         self.assertEqual(44, manifest["counts"]["commands"])
-        self.assertEqual(8, sum(path.startswith("agents/") for path in files))
+        self.assertEqual(6, sum(path.startswith("agents/") for path in files))
         self.assertEqual(44, sum(path.startswith("commands/") for path in files))
         self.assertEqual(
             44,
@@ -174,19 +174,18 @@ class OpenCodeGenerationTest(unittest.TestCase):
 
     def test_agents_use_native_frontmatter_and_inherit_the_selected_model(self) -> None:
         grillmester = self.expected("agents/grillmester.md")
-        kokk = self.expected("agents/kokk.md")
         inspector = self.expected("agents/grill-inspektor.md")
         researcher = self.expected("agents/researcher.md")
 
         self.assertIn("mode: primary\nhidden: false", grillmester)
-        self.assertIn("mode: subagent\nhidden: true", kokk)
         self.assertNotRegex(grillmester.split("---", 2)[1], r"(?m)^model:")
-        self.assertNotRegex(kokk.split("---", 2)[1], r"(?m)^model:")
-        self.assertIn("  edit: ask\n  bash: ask", kokk)
+        self.assertIn("  edit: ask\n  bash: ask", grillmester)
+        self.assertIn("mode: subagent\nhidden: true", inspector)
+        self.assertNotRegex(inspector.split("---", 2)[1], r"(?m)^model:")
         self.assertIn("  bash: ask\n  edit: deny", inspector)
         self.assertNotRegex(researcher.split("---", 2)[1], r"(?m)^  webfetch:")
         self.assertNotRegex(researcher.split("---", 2)[1], r"(?m)^  websearch:")
-        self.assertIn("    kokk: allow", grillmester)
+        self.assertNotIn("kokk", grillmester)
         self.assertIn("    grill-inspektor: allow", grillmester)
         self.assertIn("    researcher: allow", grillmester)
 
@@ -201,7 +200,6 @@ class OpenCodeGenerationTest(unittest.TestCase):
         self.assertNotIn("  bash: allow", designer)
         self.assertIn("    perspektiv: allow", designer)
         self.assertIn("    researcher: allow", designer)
-        self.assertNotIn("    kokk: allow", designer)
         self.assertIn("mode: subagent\nhidden: true", perspektiv)
         self.assertNotRegex(perspektiv.split("---", 2)[1], r"(?m)^model:")
         self.assertIn("  edit: deny", perspektiv)
@@ -211,12 +209,10 @@ class OpenCodeGenerationTest(unittest.TestCase):
         files, _ = GENERATOR.build_projection(ROOT)
 
         for agent_id in (
-            "barista",
             "designer",
             "doctor-who",
             "grill-inspektor",
             "grillmester",
-            "kokk",
             "perspektiv",
             "researcher",
         ):
@@ -233,7 +229,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
         try:
             policy_path = root / "policy/opencode-v1.json"
             policy = json.loads(policy_path.read_text(encoding="utf-8"))
-            policy["agents"]["barista"]["permission"]["read"] = "allow"
+            policy["agents"]["grillmester"]["permission"]["read"] = "allow"
             policy_path.write_text(
                 json.dumps(policy, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",
@@ -251,7 +247,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
         try:
             policy_path = root / "policy/opencode-v1.json"
             policy = json.loads(policy_path.read_text(encoding="utf-8"))
-            policy["agents"]["kokk"]["permission"]["*"] = "deny"
+            policy["agents"]["grill-inspektor"]["permission"]["*"] = "deny"
             policy_path.write_text(
                 json.dumps(policy, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",
@@ -291,7 +287,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
         try:
             policy_path = root / "policy/opencode-v1.json"
             policy = json.loads(policy_path.read_text(encoding="utf-8"))
-            policy["agents"]["barista"]["permission"]["bash"] = {
+            policy["agents"]["grillmester"]["permission"]["bash"] = {
                 "git *": {"status": "allow"}
             }
             policy_path.write_text(
@@ -317,7 +313,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
             ):
                 with self.subTest(tool=tool):
                     policy = json.loads(json.dumps(original))
-                    policy["agents"]["barista"]["permission"][tool] = "allow"
+                    policy["agents"]["grillmester"]["permission"][tool] = "allow"
                     policy_path.write_text(
                         json.dumps(policy, indent=2) + "\n", encoding="utf-8"
                     )
@@ -347,7 +343,6 @@ class OpenCodeGenerationTest(unittest.TestCase):
         self.assertIsNone(GENERATOR.slash_skill_reference(set(json.loads((ROOT / "policy/content-lock.json").read_text())["skills"])).search(text))
         self.assertIn("`question`", text)
         self.assertIn("`task` tool", text)
-        self.assertIn("`webfetch` or `websearch`", text)
         self.assertIn("Load them with the native `skill` tool", text)
 
         grillmester = files["agents/grillmester.md"][0].decode("utf-8")
@@ -515,9 +510,9 @@ class OpenCodeGenerationTest(unittest.TestCase):
     def test_casefolded_target_collision_is_rejected(self) -> None:
         files: dict[str, tuple[bytes, int]] = {}
         casefolded: dict[str, str] = {}
-        GENERATOR.add_file(files, casefolded, "agents/Kokk.md", b"one")
+        GENERATOR.add_file(files, casefolded, "agents/Example.md", b"one")
         with self.assertRaisesRegex(GENERATOR.ProjectionError, "collision"):
-            GENERATOR.add_file(files, casefolded, "agents/kokk.md", b"two")
+            GENERATOR.add_file(files, casefolded, "agents/example.md", b"two")
 
     def test_unicode_normalized_target_collision_is_rejected(self) -> None:
         files: dict[str, tuple[bytes, int]] = {}

@@ -181,7 +181,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
                         "native": False,
                         "tools": {{"read": True, "skill": True}},
                     }}
-                    if name == "kokk" and user_config.is_file():
+                    if name == "grill-inspektor" and user_config.is_file():
                         payload["model"] = {{
                             "providerID": {SMOKE.HYBRID_PROVIDER_ID!r},
                             "modelID": {SMOKE.HYBRID_MODEL_ID!r},
@@ -311,7 +311,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
             }
         }
         detail = {
-            "name": "kokk",
+            "name": "grill-inspektor",
             "mode": "subagent",
             "native": False,
             "permission": [
@@ -339,7 +339,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
         ):
             SMOKE.validate_agent_detail(
                 detail,
-                agent_id="kokk",
+                agent_id="grill-inspektor",
                 config_agent=config_agent,
                 config_dir=config_dir,
                 skill_ids=frozenset({"doctor"}),
@@ -386,7 +386,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
             "pattern": "*.user-denied",
             "action": "deny",
         }
-        kokk = {
+        inspector = {
             "model": {
                 "providerID": SMOKE.HYBRID_PROVIDER_ID,
                 "modelID": SMOKE.HYBRID_MODEL_ID,
@@ -407,7 +407,7 @@ class OpenCodeSmokeTest(unittest.TestCase):
         with self.assertRaisesRegex(
             SMOKE.SmokeError, "top-level read deny was expanded"
         ):
-            SMOKE.validate_hybrid_override(kokk, grillmester)
+            SMOKE.validate_hybrid_override(inspector, grillmester)
 
     @unittest.skipUnless(os.name == "posix", "fake executable fixture is POSIX-only")
     def test_full_offline_discovery_with_fake_binary(self) -> None:
@@ -427,8 +427,8 @@ class OpenCodeSmokeTest(unittest.TestCase):
             )
 
         self.assertEqual(SMOKE.EXPECTED_OPENCODE_VERSION, report.version)
-        self.assertEqual(4, report.primary_agents)
-        self.assertEqual(4, report.subagents)
+        self.assertEqual(3, report.primary_agents)
+        self.assertEqual(3, report.subagents)
         self.assertEqual(44, report.skills)
         self.assertEqual(44, report.commands)
 

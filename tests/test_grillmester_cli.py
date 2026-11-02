@@ -48,6 +48,26 @@ class GrillmesterCliTests(unittest.TestCase):
         binary.chmod(0o700)
         return binary
 
+    def test_overlaid_old_bundle_fails_before_client_launch(self) -> None:
+        payloads = (
+            ("plugin", "barista.agent.md"),
+            ("targets/opencode-v1", "barista.md"),
+            ("targets/opencode-v1-focused", "barista.md"),
+            ("targets/copilot-cli-focused-v1", "barista.agent.md"),
+            ("plugin", "kokk.agent.md"),
+            ("targets/opencode-v1", "kokk.md"),
+        )
+        for relative, filename in payloads:
+            with self.subTest(payload=relative, file=filename), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                for directory in {directory for directory, _ in payloads}:
+                    (root / directory / "agents").mkdir(parents=True)
+                old_file = root / relative / "agents" / filename
+                old_file.write_text("retired role", encoding="utf-8")
+                with self.assertRaisesRegex(CLI.LauncherError, "new empty directory"):
+                    CLI.load_distribution(root)
+                self.assertEqual("retired role", old_file.read_text())
+
     def test_default_is_copilot_through_cplt_with_reviewed_plugin(self) -> None:
         invocation = CLI.parse_invocation([], cwd=ROOT)
         command, environment = CLI.build_launch_command(
@@ -81,7 +101,7 @@ class GrillmesterCliTests(unittest.TestCase):
                 "--client",
                 "opencode",
                 "--agent",
-                "barista",
+                "grillmester",
                 "--allow-localhost",
                 "1234",
                 "--pass-env",
@@ -100,7 +120,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual(command[1:4], ["--no-audit", "--agent", "opencode"])
         self.assertEqual(
             command[separator + 1 :],
-            ["--agent", "barista", "--model", "lmstudio/qwen"],
+            ["--agent", "grillmester", "--model", "lmstudio/qwen"],
         )
         self.assertIn("--allow-localhost", command[:separator])
         self.assertIn("LOCAL_MODEL_KEY", command[:separator])
@@ -116,7 +136,7 @@ class GrillmesterCliTests(unittest.TestCase):
                 "--client",
                 "opencode",
                 "--agent",
-                "barista",
+                "grillmester",
                 "--",
                 "run",
                 "inspect this repository",
@@ -130,7 +150,7 @@ class GrillmesterCliTests(unittest.TestCase):
 
         separator = command.index("--")
         self.assertEqual(
-            ["run", "--agent", "barista", "inspect this repository"],
+            ["run", "--agent", "grillmester", "inspect this repository"],
             command[separator + 1 :],
         )
 
@@ -140,7 +160,7 @@ class GrillmesterCliTests(unittest.TestCase):
                 "--client",
                 "opencode",
                 "--agent",
-                "barista",
+                "grillmester",
                 "--",
                 "models",
                 "llamacpp",
@@ -227,17 +247,17 @@ class GrillmesterCliTests(unittest.TestCase):
 
     def test_explicit_selection_overrides_saved_defaults_for_one_launch(self) -> None:
         invocation = CLI.parse_invocation(
-            ["--client", "copilot", "--agent", "barista"],
+            ["--client", "copilot", "--agent", "grillmester"],
             cwd=ROOT,
             defaults=CLI.Preferences("opencode", "designer"),
         )
-        self.assertEqual(("copilot", "barista"), (invocation.client, invocation.agent))
+        self.assertEqual(("copilot", "grillmester"), (invocation.client, invocation.agent))
 
     def test_agent_is_the_canonical_public_selector(self) -> None:
         invocation = CLI.parse_invocation(
-            ["--client", "opencode", "--agent", "barista"], cwd=ROOT
+            ["--client", "opencode", "--agent", "grillmester"], cwd=ROOT
         )
-        self.assertEqual(("opencode", "barista"), (invocation.client, invocation.agent))
+        self.assertEqual(("opencode", "grillmester"), (invocation.client, invocation.agent))
 
     def test_role_remains_a_compatible_agent_alias(self) -> None:
         invocation = CLI.parse_invocation(
@@ -250,7 +270,7 @@ class GrillmesterCliTests(unittest.TestCase):
         with mock.patch.object(CLI.sys.stdin, "isatty", return_value=True), mock.patch.object(
             CLI.sys.stdout, "isatty", return_value=True
         ), mock.patch.object(
-            CLI, "input", side_effect=["2", "3"], create=True
+            CLI, "input", side_effect=["2", "2"], create=True
         ), mock.patch.object(
             CLI, "save_preferences", return_value=saved_path
         ) as save, mock.patch.object(
@@ -276,7 +296,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(CLI, "save_preferences") as save:
             with self.assertRaisesRegex(CLI.LauncherError, "sandboxed probe failed"):
                 CLI.choose_preferences(
-                    fixed_agent="barista", available_clients=CLI.CLIENTS
+                    fixed_agent="grillmester", available_clients=CLI.CLIENTS
                 )
 
         save.assert_not_called()
@@ -297,7 +317,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(CLI.sys, "stdout", stdout), mock.patch.object(
             CLI, "_resolve_binary", side_effect=resolve
         ), mock.patch.object(
-            CLI, "input", side_effect=["2"], create=True
+            CLI, "input", side_effect=["1"], create=True
         ), mock.patch.object(
             CLI, "save_preferences", return_value=saved_path
         ) as save, mock.patch.object(CLI, "check_client_runtime") as runtime:
@@ -307,7 +327,7 @@ class GrillmesterCliTests(unittest.TestCase):
             )
             selected = CLI.interactive_defaults()
 
-        expected = CLI.Preferences("copilot", "barista")
+        expected = CLI.Preferences("copilot", "grillmester")
         self.assertEqual(expected, selected)
         save.assert_called_once_with(expected)
         runtime.assert_called_once_with("copilot")
@@ -409,7 +429,7 @@ class GrillmesterCliTests(unittest.TestCase):
                     "--client",
                     "opencode",
                     "--agent",
-                    "barista",
+                    "grillmester",
                     "--print-command",
                     "--project-dir",
                     str(ROOT),
@@ -481,7 +501,7 @@ class GrillmesterCliTests(unittest.TestCase):
                     "--client",
                     "opencode",
                     "--agent",
-                    "barista",
+                    "grillmester",
                     "--project-dir",
                     str(ROOT),
                     "--print-command",
@@ -522,7 +542,7 @@ class GrillmesterCliTests(unittest.TestCase):
                     "--client",
                     "opencode",
                     "--agent",
-                    "barista",
+                    "grillmester",
                     "--project-dir",
                     str(ROOT),
                     "--print-command",
@@ -712,7 +732,7 @@ class GrillmesterCliTests(unittest.TestCase):
 
     def test_help_after_separator_remains_a_client_argument(self) -> None:
         invocation = CLI.parse_invocation(
-            ["--client", "opencode", "--agent", "barista", "--", "--help"],
+            ["--client", "opencode", "--agent", "grillmester", "--", "--help"],
             cwd=ROOT,
         )
         self.assertEqual(("--help",), invocation.client_args)
@@ -775,7 +795,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(
             CLI.sys, "stdout", stdout
         ), mock.patch.object(
-            CLI, "input", side_effect=["2", "3"], create=True
+            CLI, "input", side_effect=["2", "2"], create=True
         ), mock.patch.object(
             CLI, "save_preferences", return_value=saved_path
         ) as save, mock.patch.object(
@@ -810,7 +830,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(
             CLI.sys, "stdout", stdout
         ), mock.patch.object(
-            CLI, "input", side_effect=["3"], create=True
+            CLI, "input", side_effect=["2"], create=True
         ), mock.patch.object(
             CLI, "save_preferences", return_value=saved_path
         ) as save, mock.patch.object(
@@ -894,7 +914,7 @@ class GrillmesterCliTests(unittest.TestCase):
             result = CLI.main(
                 [
                     "--agent",
-                    "barista",
+                    "grillmester",
                     "--print-command",
                     "--project-dir",
                     str(ROOT),
@@ -904,7 +924,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual(0, result)
         save.assert_not_called()
         runtime.assert_not_called()
-        self.assertIn("Barista – tydelige utviklingsoppgaver (fra kommandoen)", stdout.getvalue())
+        self.assertIn("Grillmester – utvikling, fra små endringer til komplekse oppgaver (fra kommandoen)", stdout.getvalue())
         self.assertIn("ble ikke lagret", stdout.getvalue())
         self.assertIn("--agent opencode", stdout.getvalue())
 
@@ -921,7 +941,7 @@ class GrillmesterCliTests(unittest.TestCase):
             ), mock.patch.object(
                 CLI.sys, "stdout", TtyBuffer()
             ), mock.patch.object(
-                CLI, "input", side_effect=["2"], create=True
+                CLI, "input", side_effect=["1"], create=True
             ), mock.patch.object(
                 CLI, "discover_clients", return_value=("copilot",)
             ), mock.patch.object(
@@ -937,7 +957,7 @@ class GrillmesterCliTests(unittest.TestCase):
 
             self.assertEqual(0, result)
             self.assertEqual(
-                CLI.Preferences("copilot", "barista"),
+                CLI.Preferences("copilot", "grillmester"),
                 CLI.load_preferences(preferences),
             )
             check_client.assert_not_called()
@@ -960,7 +980,7 @@ class GrillmesterCliTests(unittest.TestCase):
             ), mock.patch.object(
                 CLI.sys, "stdout", TtyBuffer()
             ), mock.patch.object(
-                CLI, "input", side_effect=["2", "4"], create=True
+                CLI, "input", side_effect=["2", "3"], create=True
             ), mock.patch.object(
                 CLI, "discover_clients", return_value=CLI.CLIENTS
             ), mock.patch.object(
@@ -993,7 +1013,7 @@ class GrillmesterCliTests(unittest.TestCase):
             ), mock.patch.object(
                 CLI.sys, "stdout", TtyBuffer()
             ), mock.patch.object(
-                CLI, "input", side_effect=["2", "3"], create=True
+                CLI, "input", side_effect=["2", "2"], create=True
             ), mock.patch.object(
                 CLI, "discover_clients", return_value=CLI.CLIENTS
             ), mock.patch.object(
@@ -1028,6 +1048,36 @@ class GrillmesterCliTests(unittest.TestCase):
 
         self.assertEqual(2, result)
         self.assertIn("grillmester choose", stderr.getvalue())
+
+    def test_saved_barista_preferences_migrate_without_changing_client_or_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "preferences.json"
+            for client in CLI.CLIENTS:
+                with self.subTest(client=client):
+                    original = json.dumps(
+                        {"schemaVersion": 1, "client": client, "agent": "barista"}
+                    )
+                    path.write_text(original, encoding="utf-8")
+                    preferences = CLI.load_preferences(path)
+                    self.assertEqual(CLI.Preferences(client, "grillmester"), preferences)
+                    self.assertEqual(original, path.read_text(encoding="utf-8"))
+                    invocation = CLI.parse_invocation([], cwd=ROOT, defaults=preferences)
+                    self.assertEqual((client, "grillmester"), (invocation.client, invocation.agent))
+                    CLI.save_preferences(preferences, path)
+                    self.assertEqual("grillmester", json.loads(path.read_text())["agent"])
+
+    def test_explicit_retired_agent_explains_replacement_before_reading_preferences(self) -> None:
+        for option in ("--agent", "--role"):
+            for parse in (CLI.parse_invocation, CLI.defaults_for_arguments):
+                stderr = io.StringIO()
+                with self.subTest(option=option, parser=parse.__name__), mock.patch.object(
+                    CLI, "load_preferences"
+                ) as load, redirect_stderr(stderr), self.assertRaises(SystemExit) as exc:
+                    parse([option, "barista"])
+                self.assertEqual(2, exc.exception.code)
+                self.assertIn("Barista has been retired; use --agent grillmester", stderr.getvalue())
+                load.assert_not_called()
+        self.assertNotIn("barista", CLI.PUBLIC_AGENTS)
 
     def test_preferences_round_trip_with_private_permissions(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1521,7 +1571,7 @@ class GrillmesterCliTests(unittest.TestCase):
                     "--client",
                     "opencode",
                     "--agent",
-                    "barista",
+                    "grillmester",
                     "--project-dir",
                     str(ROOT),
                     "--print-command",
@@ -1563,7 +1613,7 @@ class GrillmesterCliTests(unittest.TestCase):
                     "--client",
                     "copilot",
                     "--agent",
-                    "barista",
+                    "grillmester",
                     "--project-dir",
                     str(ROOT),
                     "--print-command",
@@ -1579,7 +1629,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual("", result.stderr)
         self.assertIn(resolved_cplt, result.stdout)
         self.assertIn("--agent copilot", result.stdout)
-        self.assertIn("--agent grillmester:barista", result.stdout)
+        self.assertIn("--agent grillmester:grillmester", result.stdout)
         self.assertNotIn("opencode", shlex.split(result.stdout))
 
     def test_local_print_command_locates_binaries_without_executing_version_probes(self) -> None:

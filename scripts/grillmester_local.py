@@ -38,8 +38,8 @@ CONFIG_SCHEMA_VERSION = 2
 CONFIG_FILE = "local.json"
 CLIENTS = frozenset({"copilot", "opencode"})
 CONTEXTS = frozenset({"focused", "full"})
-PUBLIC_AGENTS = frozenset({"grillmester", "barista", "designer", "doctor-who"})
-FOCUSED_AGENT = "barista"
+PUBLIC_AGENTS = frozenset({"grillmester", "designer", "doctor-who"})
+FOCUSED_AGENT = "grillmester"
 OPENCODE_SAFE_META_ARGUMENTS = frozenset(
     {("-h",), ("--help",), ("-v",), ("--version",)}
 )
@@ -207,10 +207,8 @@ OPENCODE_LOCAL_ENVIRONMENT = {
 
 COPILOT_INHERIT_AGENTS = (
     "grillmester:grillmester",
-    "grillmester:barista",
     "grillmester:designer",
     "grillmester:doctor-who",
-    "grillmester:kokk",
     "grillmester:grill-inspektor",
     "grillmester:researcher",
     "grillmester:perspektiv",
@@ -628,7 +626,7 @@ def validate_config(config: LocalConfig, *, check_key_file: bool = True) -> Loca
         raise LocalModeError(f"unsupported public agent: {config.agent!r}")
     if config.context == "focused" and config.agent != FOCUSED_AGENT:
         raise LocalModeError(
-            "focused context supports only the barista agent; use --full for "
+            "focused context supports only the grillmester agent; use --full for "
             "another agent"
         )
     if not PROVIDER_ID_PATTERN.fullmatch(config.provider_id):
@@ -771,7 +769,9 @@ def load_config(
         raise LocalModeError("apiKeyFile must be a string path")
     config = LocalConfig(
         client=raw["client"],
-        agent=raw["agent"],
+        # Saved Barista choices upgrade without changing the model, provider,
+        # client, credentials or context. Only explicit saves rewrite the file.
+        agent="grillmester" if raw["agent"] == "barista" else raw["agent"],
         context=raw["context"],
         provider_id=raw["providerId"],
         base_url=raw["baseUrl"],
@@ -3493,6 +3493,15 @@ def _setup_config(
     return validate_config(replace(provisional, model_id=model_id))
 
 
+def _public_agent(value: str) -> str:
+    if value == "barista":
+        raise argparse.ArgumentTypeError(
+            "Barista has been retired; use --agent grillmester "
+            "with your preferred model"
+        )
+    return value
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="grillmester local",
@@ -3530,9 +3539,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     setup.add_argument(
         "--agent",
+        type=_public_agent,
         choices=sorted(PUBLIC_AGENTS),
         default=FOCUSED_AGENT,
-        help="default public agent (focused supports only barista)",
+        help="default public agent (focused supports only grillmester)",
     )
     setup_context = setup.add_mutually_exclusive_group()
     setup_context.add_argument(
@@ -3546,7 +3556,7 @@ def _parser() -> argparse.ArgumentParser:
         action="store_const",
         const="full",
         dest="context",
-        help="save full 8-agent/44-skill context",
+        help="save full 6-agent/44-skill context",
     )
     setup.add_argument(
         "--provider-id",
@@ -3615,7 +3625,8 @@ def _parser() -> argparse.ArgumentParser:
         "--client", choices=sorted(CLIENTS), help="one-shot client override"
     )
     doctor.add_argument(
-        "--agent", choices=sorted(PUBLIC_AGENTS), help="one-shot agent override"
+        "--agent", type=_public_agent, choices=sorted(PUBLIC_AGENTS),
+        help="one-shot agent override",
     )
     doctor.add_argument(
         "--full", action="store_true", help="validate the full context payload"
@@ -3650,7 +3661,8 @@ def _parser() -> argparse.ArgumentParser:
         "--client", choices=sorted(CLIENTS), help="one-shot client override"
     )
     launch.add_argument(
-        "--agent", choices=sorted(PUBLIC_AGENTS), help="one-shot agent override"
+        "--agent", type=_public_agent, choices=sorted(PUBLIC_AGENTS),
+        help="one-shot agent override",
     )
     launch.add_argument(
         "--full",
@@ -3710,7 +3722,8 @@ def _parser() -> argparse.ArgumentParser:
         "--client", choices=sorted(CLIENTS), help="one-shot client override"
     )
     run.add_argument(
-        "--agent", choices=sorted(PUBLIC_AGENTS), help="one-shot agent override"
+        "--agent", type=_public_agent, choices=sorted(PUBLIC_AGENTS),
+        help="one-shot agent override",
     )
     run.add_argument(
         "--full",

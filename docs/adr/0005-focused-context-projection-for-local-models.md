@@ -5,6 +5,9 @@ date: 2026-08-23
 
 # Bruk en fokusert kontekstprojeksjon for lokale modeller
 
+> Agentutvalget og delegeringen av implementering er delvis erstattet av
+> [ADR 0026](0026-grillmester-eier-hele-leveransen.md).
+
 ## Kontekst
 
 Den kanoniske pluginen og det fulle OpenCode 1-targetet gir hele Grillmester-

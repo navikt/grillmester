@@ -47,10 +47,8 @@ deployment permissions, or another security boundary, invoke and apply
 
 ## Correct and verify
 
-If the active caller is the writer, fix in-scope findings before returning. If
-Grillmester is reviewing work from `grillmester:kokk`, do not edit the
-implementation in the orchestration context; send Kokk the smallest bounded
-correction instead.
+Fix in-scope findings before returning; a read-only reviewer reports them
+instead. Never silently widen scope.
 
 Discover deterministic gates from repository instructions, build files, test
 configuration, and CI rather than assuming a toolchain. Run the smallest

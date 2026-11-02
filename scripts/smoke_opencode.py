@@ -32,8 +32,8 @@ _BASELINE_SPEC.loader.exec_module(_BASELINE_MODULE)
 EXPECTED_OPENCODE_VERSION = _BASELINE_MODULE.CONTRACT["releaseTest"][
     "opencodeVersion"
 ]
-PRIMARY_AGENTS = frozenset({"grillmester", "barista", "designer", "doctor-who"})
-SUBAGENTS = frozenset({"kokk", "grill-inspektor", "researcher", "perspektiv"})
+PRIMARY_AGENTS = frozenset({"grillmester", "designer", "doctor-who"})
+SUBAGENTS = frozenset({"grill-inspektor", "researcher", "perspektiv"})
 EXPECTED_AGENTS = PRIMARY_AGENTS | SUBAGENTS
 EXPECTED_SKILLS = 44
 EXPECTED_COMMANDS = 44
@@ -247,7 +247,7 @@ def target_inventory(target: Path) -> TargetInventory:
 
     if agents != EXPECTED_AGENTS:
         raise SmokeError(
-            "OpenCode target agent roster differs from the reviewed seven roles: "
+            "OpenCode target agent roster differs from the reviewed six roles: "
             f"{sorted(agents)}"
         )
     if len(skills) != EXPECTED_SKILLS:
@@ -436,7 +436,7 @@ def validate_resolved_config(
     agents = value.get("agent")
     commands = value.get("command")
     if not isinstance(agents, dict) or set(agents) != inventory.agents:
-        raise SmokeError("resolved config did not discover exactly seven Grillmester agents")
+        raise SmokeError("resolved config did not discover exactly six Grillmester agents")
     if not isinstance(commands, dict) or set(commands) != inventory.commands:
         raise SmokeError("resolved config did not discover exactly 44 Grillmester commands")
     if value.get("plugin") != []:
@@ -649,21 +649,25 @@ def hybrid_user_config() -> dict[str, Any]:
             }
         },
         "agent": {
-            "kokk": {"model": f"{HYBRID_PROVIDER_ID}/{HYBRID_MODEL_ID}"}
+            "grill-inspektor": {"model": f"{HYBRID_PROVIDER_ID}/{HYBRID_MODEL_ID}"}
         },
         "permission": {"read": {USER_DENIED_READ_PATTERN: "deny"}},
     }
 
 
-def validate_hybrid_override(kokk: Any, grillmester: Any) -> None:
-    if not isinstance(kokk, dict) or kokk.get("model") != {
+def validate_hybrid_override(inspector: Any, grillmester: Any) -> None:
+    if not isinstance(inspector, dict) or inspector.get("model") != {
         "providerID": HYBRID_PROVIDER_ID,
         "modelID": HYBRID_MODEL_ID,
     }:
-        raise SmokeError("user config did not apply the local model override to Kokk")
+        raise SmokeError(
+            "user config did not apply the local model override to Grill-inspektor"
+        )
     if nested_key_paths(grillmester, "model"):
-        raise SmokeError("Kokk's user-owned model override leaked into Grillmester")
-    for agent_id, value in (("kokk", kokk), ("grillmester", grillmester)):
+        raise SmokeError(
+            "Grill-inspektor's user-owned model override leaked into Grillmester"
+        )
+    for agent_id, value in (("grill-inspektor", inspector), ("grillmester", grillmester)):
         rules = resolved_permission_rules(value, label=f"hybrid agent {agent_id}")
         if (
             effective_permission_action(
@@ -814,8 +818,8 @@ def smoke(
         user_config.write_text(
             json.dumps(hybrid_user_config(), indent=2) + "\n", encoding="utf-8"
         )
-        hybrid_kokk = run_json(
-            [str(binary), "debug", "agent", "kokk", "--pure"],
+        hybrid_inspector = run_json(
+            [str(binary), "debug", "agent", "grill-inspektor", "--pure"],
             env=env,
             cwd=consumer,
             timeout_seconds=timeout_seconds,
@@ -826,7 +830,7 @@ def smoke(
             cwd=consumer,
             timeout_seconds=timeout_seconds,
         )
-        validate_hybrid_override(hybrid_kokk, hybrid_grillmester)
+        validate_hybrid_override(hybrid_inspector, hybrid_grillmester)
 
     return SmokeReport(
         version=version,
@@ -895,7 +899,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"{report.primary_agents} primary agents, "
         f"{report.subagents} subagents, {report.skills} skills, "
         f"{report.commands} commands, inherited model, native permissions, "
-        "native consumer AGENTS.md resolution, and an isolated hybrid Kokk "
+        "native consumer AGENTS.md resolution, and an isolated hybrid Grill-inspektor "
         "model override"
     )
     return 0

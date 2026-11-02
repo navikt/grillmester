@@ -12,7 +12,15 @@ generated source archive for the release therefore contains only
 `.github/plugin/marketplace.json`; it is not an installation artifact. Install
 the Copilot plugin through the Grillmester marketplace. The same GitHub Release
 also attaches a deterministic terminal bundle and detached `.sha256`. Verify
-the checksum and extract the archive to install it. OpenCode, Copilot CLI and
+the checksum and extract the archive into a **new, empty, versioned directory**
+to install it. Never extract a new release over an existing installation: tar
+retains removed files, including retired agents, and leaves an invalid manifested
+payload. Use the new `grillmester-terminal-v1/scripts/grillmester.py` path, or
+retarget the user's existing launcher link or PATH shortcut to that path.
+Keep the old version directory for rollback and preserve `~/.config/grillmester`
+preferences. Do not remove consumer- or user-owned component copies as part of
+a bundle update. See the [bundle example](opencode.md#hent-og-verifiser-en-grillmester-bundle).
+OpenCode, Copilot CLI and
 cplt remain separately installed system clients resolved from `PATH`.
 Never move, replace, delete, or force-update a release tag or replace an
 existing release asset. Each release has exactly two maintained assets: the
@@ -379,7 +387,7 @@ byte-verifies both staged assets before publishing the draft (`prerelease` and
 `latest=false` for a prerelease). Published assets are never replaced. The
 following read-only `release-smoke` job peels the published tag back to the
 expected catalog commit, installs from `navikt/grillmester#v<version>`,
-byte-verifies the 8-agent/44-skill Copilot payload, downloads the exact
+byte-verifies the 6-agent/44-skill Copilot payload, downloads the exact
 two-asset roster, verifies the detached checksum before safe extraction, and
 exercises the launcher's install contract. A failed post-publication smoke
 stops promotion and requires a new corrective version; tags and assets are

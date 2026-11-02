@@ -976,8 +976,8 @@ def validate_provider_state(
                 f"diagnostic={diagnostic}"
             )
     text = _request_text(record.payload)
-    if "# Barista" not in text:
-        raise LocalSmokeError(f"{state.scenario.name} did not load the Barista agent")
+    if "# Grillmester" not in text:
+        raise LocalSmokeError(f"{state.scenario.name} did not load the Grillmester agent")
     if state.scenario.client == "copilot":
         leaked_builtin = next(
             (
@@ -992,12 +992,12 @@ def validate_provider_state(
                 f"{state.scenario.name} loaded disabled built-in skill {leaked_builtin!r}"
             )
     handoff = "Status: NEEDS_FULL_CONTEXT" in text and "grillmester local --full" in text
-    full_marker = (
-        "grillmester:grillmester"
+    full_markers = (
+        ("grillmester:researcher",)
         if state.scenario.client == "copilot"
-        else "Grillmester (`grillmester`)"
+        else ("`researcher`",)
     )
-    full_reference = full_marker in text
+    full_reference = any(marker in text for marker in full_markers)
     if state.scenario.context == "focused":
         if not handoff:
             raise LocalSmokeError(
@@ -1005,16 +1005,18 @@ def validate_provider_state(
             )
         if full_reference:
             raise LocalSmokeError(
-                f"{state.scenario.name} retained the unavailable full agent reference"
+                f"{state.scenario.name} retained an unavailable full agent reference"
             )
     else:
         if handoff:
             raise LocalSmokeError(
                 f"{state.scenario.name} unexpectedly loaded the focused handoff contract"
             )
-        if not full_reference:
+        if "## Delegation" not in text or not all(
+            marker in text for marker in full_markers
+        ):
             raise LocalSmokeError(
-                f"{state.scenario.name} did not load the full Barista projection"
+                f"{state.scenario.name} did not load the full Grillmester delegation contract"
             )
     if LOCAL._bound_run_prompt(PROMPT) not in text:
         raise LocalSmokeError(
@@ -1308,7 +1310,7 @@ def _run_scenario(
     with LoopbackProvider(scenario, distribution_root=distribution_root) as provider:
         config = LOCAL.LocalConfig(
             client=scenario.client,
-            agent="barista",
+            agent="grillmester",
             context=scenario.context,
             provider_id=PROVIDER_ID,
             base_url=provider.base_url,
@@ -1347,7 +1349,7 @@ def _run_scenario(
             "--client",
             scenario.client,
             "--agent",
-            "barista",
+            "grillmester",
             "--project-dir",
             str(consumer),
         ]
@@ -1570,7 +1572,7 @@ def run_npm_access_matrix(
                     before = _tree_snapshot(consumer)
                     config = LOCAL.LocalConfig(
                         client=client_name,
-                        agent="barista",
+                        agent="grillmester",
                         context="focused",
                         provider_id=PROVIDER_ID,
                         base_url=provider.base_url,
@@ -1614,7 +1616,7 @@ def run_npm_access_matrix(
                         "--client",
                         client_name,
                         "--agent",
-                        "barista",
+                        "grillmester",
                         "--project-dir",
                         str(consumer),
                     ]
@@ -1763,7 +1765,7 @@ def run_github_guard_matrix(
         )
         config = LOCAL.LocalConfig(
             client="opencode",
-            agent="barista",
+            agent="grillmester",
             context="focused",
             provider_id=PROVIDER_ID,
             base_url="http://127.0.0.1:9/v1",

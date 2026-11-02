@@ -46,14 +46,11 @@ data.
 ## Required input
 
 - Task or pull request acceptance criteria.
+- The risk class and its reason.
 - The complete task-scoped diff.
 - Fresh verification commands, relevant output, and exit codes, or an explicit
   reason why a deterministic gate does not apply.
 - Only explicitly relevant decision context, when applicable.
-
-When implementation was delegated, also use the implementer's brief and result to check
-scope and claimed evidence. They are provenance, not a prerequisite for
-reviewing a non-delegated change or an existing pull request.
 
 Return `NEEDS_CONTEXT` when any required input is missing, inaccessible,
 internally inconsistent, or mixed with unrelated work. Never load an entire
@@ -82,7 +79,9 @@ do not replace it with shell-network commands or memory; return
 3. Check compliance with each named locked decision and repository pattern.
 4. Search for affected callers and patterns, then inspect correctness,
    regressions, edge cases, failure handling, and scope.
-5. Give extra scrutiny to risks named in the brief and repository policy.
+5. Give extra scrutiny to the named risk and to repository policy. Read the
+   repository instruction files named in the request when they are not already
+   in your context.
 6. Check that verification evidence is relevant, fresh, and sufficient for the
    claims made.
 

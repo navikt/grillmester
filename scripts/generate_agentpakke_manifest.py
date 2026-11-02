@@ -265,6 +265,13 @@ def build_manifest(root: Path) -> dict[str, Any]:
     copilot_compatibility, opencode_compatibility = _compatibility_ranges(root)
     payload_agents = _validate_payloads(root)
     focused_agents = _focused_agents(root, payload_agents)
+    focused_primary_agents = [
+        agent for agent in public_agents if agent in focused_agents
+    ]
+    if not focused_primary_agents:
+        raise AgentpakkeManifestError(
+            "focused payload must contain a user-invocable primary agent"
+        )
     for relative in ("plugin", "targets/opencode-v1"):
         missing = [
             agent for agent in public_agents if agent not in payload_agents[relative]
@@ -301,7 +308,7 @@ def build_manifest(root: Path) -> dict[str, Any]:
                     },
                     "focused": {
                         "path": "targets/copilot-cli-focused-v1",
-                        "primaryAgents": list(focused_agents),
+                        "primaryAgents": list(focused_primary_agents),
                     },
                 },
             },
@@ -316,7 +323,7 @@ def build_manifest(root: Path) -> dict[str, Any]:
                     },
                     "focused": {
                         "path": "targets/opencode-v1-focused",
-                        "primaryAgents": list(focused_agents),
+                        "primaryAgents": list(focused_primary_agents),
                     },
                 },
             },
