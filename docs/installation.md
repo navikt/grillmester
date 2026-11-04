@@ -224,6 +224,10 @@ i macOS Launchpad eller `/Applications`. Bruk tapen: `brew install opencode` gir
 OpenCode 2, som launcheren ikke støtter ennå. Har du `opencode` fra Homebrew fra
 før, kjør `brew uninstall opencode` først.
 
+Tapen krever oppdatert Xcode. Nekter Homebrew, virker også
+`npm install --global opencode-ai@1`. cplts standardprofil dekker npm-installasjoner
+fra nvm og Homebrew, men ikke fra mise.
+
 Standardlauncheren støtter OpenCode 1.x fra `1.18.20`, Copilot CLI 1.x fra
 `1.0.100` og cplt fra den testede baselinen eller en nyere, datostemplet release.
 Eksakte klientversjoner brukes bare som reproduserbart release-testinput.

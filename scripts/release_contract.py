@@ -834,6 +834,9 @@ brew install anomalyco/tap/opencode
 brew install --cask copilot-cli
 ```
 
+The OpenCode tap needs a current Xcode. If `brew` refuses, run
+`npm install --global opencode-ai@1` instead.
+
 {update_commands}
 
 The standard launcher accepts OpenCode `{SUPPORTED_OPENCODE_RANGE}`, GitHub

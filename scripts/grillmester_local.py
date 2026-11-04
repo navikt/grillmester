@@ -1626,7 +1626,7 @@ LOCAL_CPLT_HARDENING_FLAGS = (
 CLIENT_INSTALL_HINTS = {
     "copilot": "brew install --cask copilot-cli",
     "cplt": "brew install navikt/tap/cplt",
-    "opencode": "brew install anomalyco/tap/opencode",
+    "opencode": "brew install anomalyco/tap/opencode or npm install --global opencode-ai@1",
 }
 RIPGREP_HINT = (
     "rg was not found on PATH; OpenCode's Glob and Grep tools will be "

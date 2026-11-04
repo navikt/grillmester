@@ -1310,7 +1310,8 @@ class GrillmesterCliTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(
                 CLI.LauncherError,
-                "supported 1.x range.*brew install anomalyco/tap/opencode",
+                "supported 1.x range.*brew install anomalyco/tap/opencode "
+                "or npm install --global opencode-ai@1",
             ):
                 CLI.check_client_runtime(
                     "opencode",
@@ -1593,6 +1594,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual("", result.stdout)
         self.assertIn("OpenCode was not found on PATH", result.stderr)
         self.assertIn("brew install anomalyco/tap/opencode", result.stderr)
+        self.assertIn("npm install --global opencode-ai@1", result.stderr)
 
     def test_installed_copilot_cli_works_without_opencode(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
