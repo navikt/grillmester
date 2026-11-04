@@ -293,6 +293,13 @@ sources, imported skills and the component set are unchanged. The rights journal
 binds this content and provenance while preserving the underlying decision in
 #56.
 
+PR [#112](https://github.com/navikt/grillmester/pull/112) reviews a correction
+in the imported `team-status` skill and its Projects reference. The ban on `gh`
+now applies to roles without command execution, such as Doctor Who, and other
+roles may use `gh` as the fallback. Names, sources, imported skills and the
+component set are unchanged. The rights journal binds this content and
+provenance while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
