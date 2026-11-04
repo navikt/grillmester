@@ -754,10 +754,7 @@ class MatrixTests(unittest.TestCase):
                                             "name": "bash",
                                             "arguments": json.dumps(
                                                 {
-                                                    "command": (
-                                                        "/usr/bin/printf "
-                                                        f"{SMOKE.TOOL_SENTINEL}"
-                                                    )
+                                                    "command": SMOKE.TOOL_PROBE_COMMAND
                                                 }
                                             ),
                                         }

@@ -58,6 +58,9 @@ PROMPT = "Return the deterministic Grillmester local smoke sentinel only."
 SUBAGENT_PROMPT = "Return SUBAGENT_LOCAL_ONLY and do not use tools."
 SKILL_CALL_ID = "call_local_skill_probe"
 TOOL_SENTINEL = "GRILLMESTER_LOCAL_TOOL_OK"
+# OpenCode 1.x reads tool output in the background and stops at process exit,
+# so a command that exits at once can report "(no output)".
+TOOL_PROBE_COMMAND = f"/usr/bin/printf {TOOL_SENTINEL}; /bin/sleep 1"
 NPM_ACCESS_SENTINEL = "GRILLMESTER_LOCAL_NPM_ACCESS_OK"
 NPM_ACCESS_ENVIRONMENT = "NODE_AUTH_TOKEN"
 MAX_REQUEST_BYTES = 2 * 1024 * 1024
@@ -351,7 +354,7 @@ def _bash_stream_body(scenario: Scenario, command: str | None = None) -> bytes:
     return _tool_stream_body(
         scenario,
         tool_name="bash",
-        arguments={"command": command or f"/usr/bin/printf {TOOL_SENTINEL}"},
+        arguments={"command": command or TOOL_PROBE_COMMAND},
         call_id="call_local_tool_probe",
     )
 
