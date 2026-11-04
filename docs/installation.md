@@ -22,7 +22,8 @@ repoaktivering og enterprise-policy.
   Utvidelsen støtter Node.js 18 eller nyere; bruk helst gjeldende LTS.
   Start appen på nytt etter at Node.js er gjort tilgjengelig. Prosjektlagrede
   designrom støttes bare på Unix-verter som macOS og Linux. Forhåndsvisningen
-  bruker en privat lokal loopback-server, også inne i appens canvas.
+  bruker en privat lokal loopback-server, også inne i appens canvas. Kjørende
+  apper vises i appens nettleserfane og trenger bare det appen selv krever.
 
 Bruk `marketplace`-branchen for løpende native Copilot-oppdateringer, eller velg
 en reviewet tag fra

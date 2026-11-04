@@ -5,6 +5,8 @@ date: 2026-10-31
 
 # Samme nettsted for lokal appvisning
 
+> Foreslått erstattet for kjørende apper av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 ## Kontekst
 
 Transporten i ADR 0027 brukte `127.0.0.1` for kontrollflaten og `localhost`

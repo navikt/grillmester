@@ -1,5 +1,10 @@
 # Designverksted: grunnlag for native levering
 
+> Kjørende apper er foreslått flyttet til appens nettleserfane i
+> [ADR 0034](../adr/0034-kjorende-apper-i-appens-nettleserfane.md). Resultatene for
+> «Appen nå» under gjelder den fjernede flyten og er bevart som historikk.
+> Skisseresultatene gjelder fortsatt. Den nye flyten er ikke prøvd i appen ennå.
+
 Status 28. oktober 2026: Den samlede flyten er prøvd i **Copilot app 1.1.33
 på macOS**. Resultatene gjelder kandidatene som faktisk ble prøvd. Senere
 rettelser må verifiseres mot endelig kilderevisjon før utrulling.

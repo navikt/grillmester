@@ -1,108 +1,69 @@
 # Developer handoff from a design room
 
-Use this reference when the agreed deliverable is a saved design room and a
-developer will continue from repository files. A room path and chosen sketch
-version or submitted app round identify the source; the handoff also needs the selected direction, relevant
-decisions, state coverage and remaining acceptance criteria. This can be part
-of an existing task or an authorized issue. Saving a room does not publish its
-files or authorize a new issue, Git action or product-code change.
+Use this reference when the agreed deliverable is a saved design room or a
+running proposal, and a developer will continue from repository files. A room
+path and chosen sketch version, or a saved patch, identify the source. The
+handoff also needs the selected direction, relevant decisions, state coverage
+and remaining acceptance criteria. This can be part of an existing task or an
+authorized issue. Saving a room does not publish its files or authorize a new
+issue, Git action or product-code change.
 
-Check the workspace shape before selecting the procedure. App rooms have
-`workspace.source.kind: "application"` and contain feedback about an observed
-app. Existing HTML rooms have `workspace.version` and `workspace.revisions`,
-with no `workspace.source`; they contain a registered sketch pair. A local preview URL is not a shared artifact.
+Check the workspace shape before selecting the procedure. HTML rooms have
+`workspace.version` and `workspace.revisions`, with no `workspace.source`; they
+contain a registered sketch pair. Rooms with `workspace.source.kind:
+"application"` come from an earlier release and hold feedback about an observed
+app. A local preview URL is not a shared artifact.
 
-## Read saved app feedback without opening canvas
+## Hand off a running proposal
 
-Read `<room>/workspace.json` once as ordinary JSON. Do not start a server, open
-canvas, construct a writer store or save the file from an editor. A supported
-app room has `workspace.mode: "feedback"` and
-`workspace.source.kind: "application"`. Its source records the descriptive
-`name`, `startPath` and optional `resourceQueryKeys`; `workspace.checkpoint`
-is an opaque feedback identifier, not a code snapshot or Git revision.
-Unreleased rooms with source journals or source-change proposals need their matching tooling;
-do not reinterpret them as feedback-only rooms or migrate them during handoff.
+A running proposal lives in an explicitly owned copy of the app. The Browser tab,
+its local URL and the picks in the conversation are not deliverables. When the
+designer wants to keep the result, do this before the demo and copy go away:
 
-1. Identify the exact room and agreed submitted rounds in `submissions` by
-   `submission`. Read their immutable `comments`; match each `comment.screen`
-   to `screens[].screen`. The screen's `source.route` and the comment's
-   `applicationContext` preserve the observed page, target and viewport.
-   Never replace them with the app's current route or imply code identity.
-2. Read each round's current `review` and `reply` from `canvas.rounds`, and
-   distinguish submitted observations from unsent `comments`. Preserve unresolved
-   questions and do not treat `answered` as proof of a working implementation.
-3. Include the actual app/repository reference and synthetic scenario only when
-   independently known, along with observed runtime evidence and remaining checks.
-   This room contains no source files, code versions, reference images or undo
-   records. Restarting the app and verifying its current state are separate work.
+1. Read the diff from the copy's private baseline. Check that it holds only the
+   agreed proposal, with no generated files, lockfile churn, secrets or demo data.
+2. With agreed storage, save it as a patch with a short brief in the agreed design
+   area of the conversation's project. Without agreed storage, keep the copy and
+   say that the result is temporary.
+3. Let the brief record the design question, app and safe route, synthetic
+   scenario, the original's revision when known, what changed and why, the states
+   tried and not tried, accessibility findings and remaining acceptance criteria.
 
-A concrete design-change request may already have produced an interactive
-HTML proposal under Forslag in the same workshop. Name the actual sketch and its chosen version, then use the
-verified sketch-pair procedure below. Do not create a proposal as part of a
-read-only handoff. An answered round alone proves neither that a proposal exists
-nor that the app was changed. Verify any registered link as below; do not infer
-one from reply text or claim that synthetic interactions establish live app behavior.
+Applying the patch to the original is implementation. It needs an explicit order
+and follows the role's ordinary workflow in a location the user chose, with its
+own verification. Prototype source is not automatically production-ready.
 
-A feedback handoff authorizes neither product edits nor publication. Separately
-agreed implementation follows the active role's ordinary workflow outside
-canvas, using the explicitly owned copy and verified server/source relationship.
-A Git worktree alone does not establish that unrelated work can be overwritten.
-
-## Connect app feedback to a sketch proposal
-
-A saved app room can contain `workspace.sketch` when both feedback and the
-proposal were saved by request. An explicit request to save the workshop includes
-both within the agreed design area; saving only feedback does not. This is a portable relationship, not a source
-snapshot. Read its `id`, `title`, `workspacePath`, `workspaceId` and `source`.
-An `app-feedback` source also records exact `sourceSubmission` and `commentIds`;
-a `conversation` source has no submitted round. Do not invent one. `requestHash`
-identifies the initial publication request; it is not the current HTML hash.
-
-`workspace.pendingSketchSave` is an unfinished save intent, not a confirmed
-proposal link. Do not complete it by editing JSON, initialize its target, or
-claim the whole workshop is saved. The owning canvas must confirm the same
-pending save before a durable handoff. A proposal saved later keeps its original
-identity, source and full feedback history; its verified saved versions follow
-the same procedure below.
-
-Before following the link, validate its bounded project-relative path, reject
-symlinks or escapes, read the target `workspace.json` as ordinary data, and match
-its exact `workspace.id` to `workspaceId`. For an HTML proposal it must have
-`version`/`revisions`, not an application source. If the link instead contains
-`application`, its target must be an app feedback room with the same startPath
-and resourceQueryKeys. Read that room with the app-feedback procedure above;
-never interpret its checkpoint as a source version. Missing or replaced files make
-the link unavailable; never initialize a writer store or create a replacement.
-The relationship does not pick a historical version for implementation. Resolve
-the agreed revision and verify its registered pair using the procedure below.
-
-For an agreed durable handoff, record the app's name and safe route, relative
-feedback workspace, applicable round/comment references, and the proposal
-workspace plus chosen `revisionId` in the existing handoff file. Example:
-
-> Møtedemo, `/demo?mode=mock`; app feedback in `designs/meeting`, round 2,
-> comment `<id>` → proposal in `designs/meeting-proposal`, revision 3.
-> The confirmation and error states are simulated; live validation is untested.
-
-These exact identifiers belong in technical handoff or tool calls, not in the
-normal designer-facing reply. The workshop's **Vis forslag** action opens the
-registered proposal. Temporary proposals have no saved link or revision history;
-use their current state in the owning conversation and do not claim later
-recovery. Do not create a project note unless that deliverable was requested.
-Never write relation fields or revision files directly; only the owning canvas
-may update its managed state. A portable link does not authorize product edits.
-
-## Handoff from a running proposal
-
-A running proposal uses an explicitly owned source copy. Preserve the selected
-copy and its actual source revision or reviewed diff, safe route, synthetic
-scenario and feedback-room relationship. The canvas stores neither source
-snapshots nor backend state. A local URL alone is not a durable deliverable.
 For Figma, use the selected full page and agreed relevant states as the visual
 reference, with the active Aksel library, and verify the resulting editable
 frames against that page. Do not substitute a small HTML reconstruction or
-claim lossless code-to-Figma conversion. Implementation remains a separately
-agreed delivery; prototype source is not automatically production-ready.
+claim lossless code-to-Figma conversion.
+
+## Read a saved app feedback room from an earlier release
+
+These rooms cannot be opened in Designverksted any more, but their files stay
+readable. Read `<room>/workspace.json` once as ordinary JSON. Do not start a
+server, open canvas, construct a writer store or save the file from an editor.
+The room has `workspace.mode: "feedback"` and `workspace.source.kind:
+"application"`. Its source records the descriptive `name`, `startPath` and
+optional `resourceQueryKeys`; `workspace.checkpoint` is an opaque feedback
+identifier, not a code snapshot or Git revision.
+
+1. Identify the agreed submitted rounds in `submissions` by `submission`. Read
+   their immutable `comments`; match each `comment.screen` to `screens[].screen`.
+   The screen's `source.route` and the comment's `applicationContext` preserve the
+   observed page, target and viewport. Never imply code identity.
+2. Read each round's current `review` and `reply` from `canvas.rounds`, and
+   distinguish submitted observations from unsent `comments`. Do not treat
+   `answered` as proof of a working implementation.
+3. `workspace.sketch` can link a saved HTML proposal. Validate its bounded
+   project-relative path, reject symlinks or escapes, read the target
+   `workspace.json` as data and match its `workspace.id` to `workspaceId`. Then
+   use the sketch pair procedure below. Missing or replaced files make the link
+   unavailable. `workspace.pendingSketchSave` is an unfinished intent, not a link.
+
+Never edit these files or recreate a link. The room holds no source files, code
+versions or undo records, and a handoff authorizes neither product edits nor
+publication.
 
 ## Choose the HTML sketch pair
 

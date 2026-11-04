@@ -138,6 +138,25 @@ test("invalid existing state is never reset, and failed construction releases it
   assert.deepEqual(restored.load(), initial());
 });
 
+test("a legacy application room stays closed, unchanged and undeleted whatever else it holds", t => {
+  const { open, projectDir } = fixture(t);
+  const room = path.join(projectDir, "designs/example"), filename = path.join(room, "workspace.json");
+  const message = "Dette rommet inneholder innspill til en kjørende app. Slike rom åpnes ikke lenger i Designverksted, men filene kan fortsatt leses. Ingen filer er endret.";
+  const source = { kind: "application", name: "Møtedemo", startPath: "/demo" };
+  fs.mkdirSync(room, { recursive: true });
+  for (const workspace of [{ mode: "feedback", source, checkpoint: "c".repeat(64) }, { source, version: 1, proposals: [] }, { mode: "feedback", source, sketch: { id: "a".repeat(24) } }]) {
+    const bytes = Buffer.from(`${JSON.stringify({ ...initial(), workspace })}\n`);
+    fs.writeFileSync(filename, bytes);
+    assert.throws(() => open(), error => error.status === 409 && error.message === message && error.errorCode === "legacy-application-room");
+    assert.deepEqual(fs.readFileSync(filename), bytes);
+    assert.deepEqual(fs.readdirSync(room), ["workspace.json"], "Opening creates no revisions directory.");
+  }
+  assert.throws(() => open({ create: true }), error => error.status === 409 && /requires an empty/.test(error.message));
+  assert.deepEqual(fs.readdirSync(room), ["workspace.json"]);
+  fs.writeFileSync(filename, `${JSON.stringify({ ...initial(), workspace: { revisions: [], source: { kind: "other" } } })}\n`);
+  assert.throws(() => open(), error => error.errorCode !== "legacy-application-room");
+});
+
 test("external byte changes and replaced directories fail closed without overwriting", t => {
   const { open } = fixture(t);
   const store = open({ create: true }); store.persist(initial());

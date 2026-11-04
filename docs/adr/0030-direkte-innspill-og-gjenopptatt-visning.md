@@ -5,6 +5,8 @@ date: 2026-10-29
 
 # Direkte innspill og gjenopptatt visning
 
+> Foreslått erstattet for kjørende apper av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 ## Bakgrunn
 
 En enkelt kommentar krever unødvendige steg når den først må lagres i en kurv.

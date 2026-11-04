@@ -29,14 +29,13 @@ Node.js 18 eller nyere, og gjeldende LTS anbefales. Prosjektlagrede designrom
 støttes bare på Unix-verter som macOS og Linux. Forhåndsvisningen bruker en
 privat lokal loopback-server. Se [forutsetninger](docs/installation.md#før-du-begynner).
 
-Designverksted samler **Appen nå**, innspill og **Forslag** i samme canvas
-ved samtalen. Bruk lokale demoer med syntetiske data; forslag kan bestilles
-direkte. Forslaget kan være en HTML-skisse eller en avtalt separat appkopi.
-Appinnspill er midlertidige som standard. Avtalt lagring bevarer arbeidet,
-uten å endre appkode. Et lukket appverksted åpnes som en ny instans.
-Nativeflyten er prøvd i Copilot app på macOS; se
-[støtteomfang og leveringsporter](docs/testing/designverksted-release-readiness.md)
-og [arbeidsflyten](plugin/skills/design-prototype/references/design-workspace.md#running-application).
+Kjørende apper vises i Copilot-appens nettleserfane. Designeren peker med
+**Pick & Polish** (⌘⇧C) og skriver ønsket i samtalen, og forslag lages i en eid
+kopi av appen med ekte komponenter. Bruk lokale demoer med syntetiske data, fordi
+sidens tekst, HTML og adresse går til modellen. Designverksted er for HTML-skisser
+med varianter, innspillsrunder og versjoner. Se
+[flyten for kjørende apper](plugin/skills/design-prototype/references/application-opening.md)
+og [skisseflyten](plugin/skills/design-prototype/references/design-workspace.md).
 
 ### Copilot CLI
 

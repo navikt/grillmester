@@ -5,6 +5,8 @@ date: 2026-10-27
 
 # Ett designverksted for skisser og kjørende apper
 
+> Foreslått erstattet for kjørende apper av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 ## Kontekst
 
 Designverksted publiserer avgrensede HTML-skisser med deklarerte tilstander.

@@ -215,4 +215,4 @@ class WorkspaceState {
   }
 }
 
-module.exports = { WorkspaceState, validWorkspaceState, screenIdentity };
+module.exports = { WorkspaceState, validWorkspaceState };

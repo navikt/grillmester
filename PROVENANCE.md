@@ -351,25 +351,19 @@ alive—without copying remote binds, repository state, generic file serving,
 external assets or raw event text. See the full MIT notice in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The running-app code in `design-prototype/scripts/application-*`, its HTML
-proposal integration (including running proposal copies and bounded app
-observations) and the owned-demo helper
-`design-prototype/scripts/app-runtime.js` are original Grillmester
-implementation. The existing sketch path retains its
-lineage above; no new imported component or synchronization relationship is
-introduced.
+The owned-demo helper `design-prototype/scripts/app-runtime.js` is original
+Grillmester implementation. The existing sketch path retains its lineage above;
+no new imported component or synchronization relationship is introduced.
 
-Architectural references are `navikt/agentic-ui-canvas` at
-`ce79929f5d2b27cc5610690bca19c4450dd530b6` and
-`b18e313a6f0eb8e5b6fc74ac671ee0490a437aa3`: loopback proxying, visual selection,
-native-host transport, annotation navigation and deliberate handoff. No source
-files from either revision are imported or redistributed; no reuse licence was
+An earlier running-app canvas, proposed removed in
+[ADR 0034](docs/adr/0034-kjorende-apper-i-appens-nettleserfane.md), used
+`navikt/agentic-ui-canvas` at `ce79929f5d2b27cc5610690bca19c4450dd530b6` and
+`b18e313a6f0eb8e5b6fc74ac671ee0490a437aa3` as architectural references. No source
+files from either revision were imported or redistributed; no reuse licence was
 identified for either reviewed revision. The installed host SDK and observed
 first-party extension behavior also informed the canvas contract, without
-importing their implementation source.
-
-The app and proposal boundaries are documented in
-[ADR 0027](docs/adr/0027-designverksted-for-kjorende-apper.md).
+importing their implementation source. Running apps now use the client's own
+Browser.
 The owned-demo helper and its process regressions use Node's standard APIs,
 without an imported supervisor or daemon. Its lifecycle is documented in
 [ADR 0028](docs/adr/0028-eid-livslop-for-lokale-demoer.md).

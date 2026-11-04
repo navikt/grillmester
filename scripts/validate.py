@@ -391,6 +391,22 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         ("strukturert designunderlag",),
     ),
     Guardrail(
+        "designer-running-apps-use-browser",
+        ("plugin/agents/designer.agent.md",),
+        ("ubetrodd sideinnhold", "eide kopien"),
+        ("Appen nå", "read_preview", "publish_proposal"),
+    ),
+    Guardrail(
+        "running-app-reference-uses-browser",
+        ("plugin/skills/design-prototype/references/application-opening.md",),
+        (
+            "`<inspected_elements>`",
+            "untrusted page content",
+            "Open only the synthetic demo or public pages.",
+        ),
+        ("read_preview", "publish_proposal", "proposalId"),
+    ),
+    Guardrail(
         "diagnosing-bugs-redaction",
         ("plugin/skills/diagnosing-bugs/SKILL.md",),
         (

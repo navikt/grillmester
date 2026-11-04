@@ -327,25 +327,12 @@ jobs:
           node --check "${source_root}/plugin/skills/design-prototype/scripts/feedback-store.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/canvas-state.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/workspace-store.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/workspace-promotion.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/workspace-state.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/editor-contract.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/editor-bindings.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/editor.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/app-runtime.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-connection-state.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-connection-view.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-contract.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-error.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-inspector.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-proxy.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/local-ports.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-server.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-shell.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-workspace.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-proposals.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/application-proposal-view.js"
-          node --check "${source_root}/plugin/skills/design-prototype/scripts/html-embedding.js"
           node --check "${source_root}/plugin/skills/design-prototype/scripts/html-inspection.js"
           node --test "${source_root}"/plugin/skills/design-prototype/tests/*.test.js
 
@@ -360,13 +347,10 @@ jobs:
           node --check "${source_root}/plugin/extensions/visual-companion/runtime.mjs"
           node --check "${source_root}/plugin/extensions/visual-companion/tests/sdk-smoke.mjs"
           node --check "${source_root}/scripts/smoke_visual_canvas.cjs"
-          node --check "${source_root}/scripts/smoke_visual_application.cjs"
-          node --check "${source_root}/scripts/smoke_visual_workbench.cjs"
-          node --check "${source_root}/scripts/visual-smoke-workers.cjs"
           node --check "${source_root}/scripts/visual-smoke-controls.cjs"
           node --test "${source_root}"/plugin/extensions/visual-companion/tests/*.test.mjs
 
-      - name: Smoke-test application feedback in Chromium
+      - name: Smoke-test sketch feedback in Chromium
         env:
           SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
         shell: bash
@@ -375,14 +359,10 @@ jobs:
           browser_tools="${RUNNER_TEMP}/design-browser"
           npm install --prefix "${browser_tools}" --ignore-scripts --no-audit --no-fund playwright@1.62.1
           node "${browser_tools}/node_modules/playwright/cli.js" install --with-deps chromium
-          node "${SOURCE_ROOT}/scripts/smoke_visual_application.cjs" \
+          node "${SOURCE_ROOT}/scripts/smoke_visual_companion.cjs" \
             --playwright-module "${browser_tools}/node_modules/playwright" \
             --browser-channel chromium \
-            --evidence-dir "${RUNNER_TEMP}/application-feedback-evidence"
-          node "${SOURCE_ROOT}/scripts/smoke_visual_workbench.cjs" \
-            --playwright-module "${browser_tools}/node_modules/playwright" \
-            --browser-channel chromium \
-            --evidence-dir "${RUNNER_TEMP}/workbench-feedback-evidence"
+            --evidence-dir "${RUNNER_TEMP}/sketch-feedback-evidence"
 
       - name: Install exact OpenCode release-test baseline
         shell: bash

@@ -5,9 +5,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { FeedbackStore, FeedbackMutationReceipts, MAX_COMMENTS, MAX_SUBMISSIONS, MAX_STORE_BYTES, validPersistedFeedback } = require("../scripts/feedback-store.js");
+const { FeedbackStore, FeedbackMutationReceipts, MAX_COMMENTS, MAX_SUBMISSIONS, MAX_STORE_BYTES, validCreate, validPersistedFeedback } = require("../scripts/feedback-store.js");
 const { CanvasState } = require("../scripts/canvas-state.js");
-const { screenIdentity } = require("../scripts/application-contract.js");
 
 const SCREEN = "a".repeat(32);
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -32,12 +31,6 @@ function unchanged(store, action, expected) {
   assert.deepEqual(store.state, before);
   assert.equal(fs.readFileSync(store.filename, "utf8"), disk);
 }
-function applicationNote(route = "/next") {
-  const checkpoint = "b".repeat(64), screen = screenIdentity(checkpoint, route);
-  return { comment: note({ screen, applicationContext: { route, target: { tag: "button", role: "button", name: "Neste", text: "Neste", path: "main:nth-of-type(1) > button:nth-of-type(1)" }, viewport: { width: 390, height: 844, scrollX: 0, scrollY: 0 } } }),
-    screen: { screen, source: { kind: "application", checkpoint, route } } };
-}
-
 test("direct sending commits one composer comment, immutable round and delivery together", t => {
   const store = fixture(t), value = input(store), persist = store.persist.bind(store);
   let writes = 0;
@@ -117,24 +110,11 @@ test("pending delivery prevents direct sends while acknowledged processing permi
   assert(validPersistedFeedback(store.state));
 });
 
-test("application page registration shares the direct-send commit and rejects mismatched evidence", t => {
-  const store = fixture(t), app = applicationNote();
-  const value = input(store, app.comment);
-  unchanged(store, () => store.submitDraft(value, { ...app.screen, source: { ...app.screen.source, route: "/other" } }), rejects(400));
-  unchanged(store, () => store.submitDraft(input(store, { ...app.comment, applicationContext: { ...app.comment.applicationContext, route: "/other" } }), app.screen), rejects(400));
-  const revision = store.state.revision;
-  store.submitDraft(value, app.screen);
-  assert.equal(store.state.revision, revision + 1);
-  assert.deepEqual(store.state.screens.find(item => item.screen === app.screen.screen), app.screen);
-  assert.deepEqual(store.nextSubmission(0).screens, [app.screen]);
-  assert(validPersistedFeedback(store.state));
-});
-
-test("failed commit leaves no composer, page or round, and a lost reply retry commits only once", t => {
-  const store = fixture(t), app = applicationNote(), receipts = new FeedbackMutationReceipts(), id = "e".repeat(32);
+test("failed commit leaves no composer or round, and a lost reply retry commits only once", t => {
+  const store = fixture(t), receipts = new FeedbackMutationReceipts(), id = "e".repeat(32);
   store.create(note({ text: "Et lagret innspill." }));
-  const value = input(store, app.comment), persist = store.persist.bind(store);
-  const send = body => receipts.run(id, "POST", "/comments/submit-draft", body, current => store.submitDraft(current, app.screen));
+  const value = input(store), persist = store.persist.bind(store);
+  const send = body => receipts.run(id, "POST", "/comments/submit-draft", body, current => store.submitDraft(current));
   store.persist = () => { throw new Error("Controlled precommit failure"); };
   unchanged(store, () => send(value), /precommit/);
   store.persist = persist;
@@ -179,6 +159,32 @@ test("comment and round limits reject direct sending before adding the composer"
   }
   unchanged(store, () => store.submitDraft(input(store)), error => error.status === 429 && /Submission limit/.test(error.message));
   assert(validPersistedFeedback(store.state));
+});
+
+test("saved HTML feedback keeps its exact schema and bytes on hydration", t => {
+  const store = fixture(t);
+  store.create(note()); store.submit({});
+  const bytes = fs.readFileSync(store.filename, "utf8"), saved = JSON.parse(bytes);
+  assert.deepEqual(saved.screens, [{ screen: SCREEN, filename: "initial.html" }]);
+  const reopened = new FeedbackStore(store.directory, { canvas: true, persistence: { load: () => clone(saved), persist: () => assert.fail("Opening saved feedback must not rewrite it.") } });
+  assert.equal(JSON.stringify(reopened.state) + "\n", bytes);
+  assert.equal(fs.readFileSync(store.filename, "utf8"), bytes);
+});
+
+test("comments and saved state stay bound to a recorded HTML screen and carry no app evidence", t => {
+  const store = fixture(t);
+  store.create(note()); store.submit({});
+  const saved = clone(store.state), page = { route: "/demo", target: { tag: "button", role: "button", name: "Neste", text: "Neste", path: "button:nth-of-type(1)" }, viewport: { width: 390, height: 844, scrollX: 0, scrollY: 0 } };
+  assert.equal(validCreate(note({ applicationContext: page })), false);
+  unchanged(store, () => store.create(note({ applicationContext: page })), rejects(400));
+  assert(validPersistedFeedback(saved));
+  const changes = [
+    value => { value.comments[0].screen = value.submissions[0].comments[0].screen = "c".repeat(32); },
+    value => { value.screens[0] = { screen: SCREEN, source: { kind: "application", checkpoint: "b".repeat(64), route: "/demo" } }; },
+    value => { value.comments[0].applicationContext = page; },
+    value => { value.submissions[0].comments[0].applicationContext = page; },
+  ];
+  for (const change of changes) { const value = clone(saved); change(value); assert.equal(validPersistedFeedback(value), false, change.toString()); }
 });
 
 test("storage exhaustion cannot leave a saved composer outside its intended round", t => {

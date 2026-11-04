@@ -45,7 +45,7 @@ function createHtmlInspection({ ttlMs = INSPECTION_TTL_MS } = {}) {
       entry.server.requestTimeout = 3000; entry.server.headersTimeout = 3000;
       entry.server.keepAliveTimeout = 1000; entry.server.maxHeadersCount = 24; entry.server.maxConnections = 8;
       try {
-        try { await listenLocal(entry.server, { role: "control" }); }
+        try { await listenLocal(entry.server); }
         catch { throw new FeedbackError(503, "The inspection could not be opened."); }
         entry.host = `127.0.0.1:${entry.server.address().port}`;
         if (epoch !== openingEpoch) throw new FeedbackError(410, "The inspection was closed while opening.");

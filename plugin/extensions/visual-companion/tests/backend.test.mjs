@@ -8,12 +8,10 @@ import http from 'node:http';
 import { EventEmitter } from 'node:events';
 import { runInNewContext } from 'node:vm';
 import { createServerBackend } from '../backend.mjs';
-import { createCanvasAdapter } from '../adapter.mjs';
+import { CANVAS_ID, createCanvasAdapter } from '../adapter.mjs';
 import feedbackApi from '../../../skills/design-prototype/scripts/feedback-store.js';
 import workspaceApi from '../../../skills/design-prototype/scripts/workspace-store.js';
 import workspaceStateApi from '../../../skills/design-prototype/scripts/workspace-state.js';
-import applicationWorkspaceApi from '../../../skills/design-prototype/scripts/application-workspace.js';
-import applicationProposalsApi from '../../../skills/design-prototype/scripts/application-proposals.js';
 
 const waitFor = async read => { for (let index = 0; index < 100; index++) { if (await read()) return; await new Promise(resolve => setTimeout(resolve, 20)); } assert.fail('Timed out waiting for the owned backend.'); };
 async function fixture(run) {
@@ -153,104 +151,6 @@ test('another process cannot write an owned workspace, and a stopped startup can
     next = await createServerBackend(options);
     assert.equal((await next.readState({})).workspace.id, original.workspace.id);
   } finally { await owner?.retire({}); await next?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
-});
-
-test('later save preserves all temporary versions, immutable rounds and unsent feedback without restarting the view', async () => {
-  const projectDir = await mkdtemp(join(tmpdir(), 'visual-canvas-later-save-')), deliveries = [];
-  let backend;
-  try {
-    backend = await createServerBackend({ projectDir, onSubmitted: value => deliveries.push(value) });
-    const view = await backend.openView({});
-    const first = await backend.publishRevision({ expectedScreen: '', filename: 'first.html', html: '<h1>Første valg</h1>', design: { version: 1, targets: [], variants: [] } });
-    const created = await request(view, '/comments', 'POST', note(first.screen)); assert.equal(created.status, 200);
-    assert.equal((await request(view, '/comments/submit', 'POST', { revision: created.value.revision })).status, 200);
-    await waitFor(() => deliveries.length === 1);
-    await backend.markDelivery({ submission: 1, status: 'queued' });
-    await backend.reviewSubmission({ submission: 1, status: 'answered', reply: 'Et tydeligere valg vises i forslaget.' });
-    const second = await backend.publishRevision({ expectedScreen: first.screen, filename: 'second.html', html: '<h1>Andre valg</h1>' });
-    const unsent = await request(view, '/comments', 'POST', { ...note(second.screen), text: 'Dette er ikke sendt ennå.' }); assert.equal(unsent.status, 200);
-    const before = await backend.readState({}), immutable = await backend.readSubmission({ submission: 1 });
-    const input = { workspacePath: 'designs/proposal', workspaceId: 'c'.repeat(24), title: 'Valg', expectedScreen: before.screen, expectedRevision: before.revision };
-    await assert.rejects(backend.saveWorkspace({ ...input, expectedRevision: before.revision - 1 }), error => error.status === 409);
-    assert.equal(fs.existsSync(join(projectDir, input.workspacePath)), false);
-    const saved = await backend.saveWorkspace(input);
-    assert.equal(saved.screen, second.screen); assert.equal(saved.workspace.version, 2); assert.equal(saved.workspace.id, input.workspaceId);
-    assert.equal(saved.revision, before.revision + 1); assert.equal(saved.submission, 1);
-    assert.deepEqual(await backend.readSubmission({ submission: 1 }), immutable);
-    assert.equal((await request(view, '/comments')).value.comments.some(comment => comment.text === 'Dette er ikke sendt ennå.' && !comment.submitted), true);
-    assert.deepEqual(deliveries, [1]);
-    assert.deepEqual(await backend.saveWorkspace(input), saved, 'Exact retry must neither increment state nor replace the renderer.');
-    const disk = JSON.parse(fs.readFileSync(join(projectDir, input.workspacePath, 'workspace.json')));
-    assert.equal(disk.submissions.length, 1); assert.equal(disk.screens.length, 2); assert.equal(disk.canvas.rounds[0].review, 'answered');
-    assert.equal((await backend.listHistory({})).items.length, 2);
-    assert.equal((await backend.readRevision({ revisionId: 1, part: 'html' })).content, '<h1>Første valg</h1>');
-    const third = await backend.publishRevision({ expectedScreen: saved.screen, filename: 'third.html', html: '<h1>Tredje valg</h1>' });
-    assert.equal(third.workspace.version, 3); assert.equal((await request(view, '/comments')).status, 200);
-    await backend.retire({}); backend = undefined;
-    backend = await createServerBackend({ projectDir, workspacePath: input.workspacePath, onSubmitted: value => deliveries.push(value) });
-    const reopened = await backend.readState({});
-    assert.equal(reopened.screen, third.screen); assert.equal(reopened.workspace.id, input.workspaceId); assert.equal(reopened.workspace.version, 3);
-    assert.equal(reopened.canvas.rounds[0].review, 'answered'); assert.deepEqual(deliveries, [1]);
-    assert.equal((await backend.readSubmission({ submission: 1 })).items.find(item => item.type === 'comment').value.screen, first.screen);
-  } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
-});
-
-test('later save through the app backend retains one proposal and reopens its exact saved identity', async () => {
-  const projectDir = await mkdtemp(join(tmpdir(), 'visual-app-later-save-')), deliveries = [];
-  const options = { projectDir, workspacePath: 'designs/app', application: { name: 'Møtedemo', url: 'http://localhost:32100/demo' }, onSubmitted: (...value) => deliveries.push(value) };
-  let backend;
-  try {
-    backend = await createServerBackend({ ...options, create: true });
-    const first = await backend.publishProposal({ source: 'conversation', title: 'Forslag', filename: 'one.html', html: '<h1>Første</h1>' });
-    const second = await backend.publishRevision({ proposalId: first.id, expectedScreen: first.screen, filename: 'two.html', html: '<h1>Andre</h1>' });
-    const input = { proposalId: first.id, workspacePath: 'designs/proposal', expectedScreen: second.screen, expectedRevision: second.revision };
-    const saved = await backend.saveProposal(input); assert.equal(saved.id, first.id); assert.equal(saved.storage, 'project'); assert.equal(saved.revisionId, 2);
-    assert.deepEqual(await backend.saveProposal(input), saved);
-    const binding = JSON.parse(fs.readFileSync(join(projectDir, 'designs/app/workspace.json'))).workspace.sketch;
-    assert.equal(binding.id, first.id); assert.equal(binding.source, 'conversation');
-    assert.equal((await backend.listHistory({ proposalId: first.id })).items.length, 2);
-    await backend.retire({}); backend = undefined;
-    const before = fs.readFileSync(join(projectDir, 'designs/app/workspace.json'));
-    backend = await createServerBackend(options);
-    const state = await backend.readState({}); assert.equal(state.proposals[0].id, first.id); assert.equal(state.proposals[0].storage, 'project');
-    assert.deepEqual(fs.readFileSync(join(projectDir, 'designs/app/workspace.json')), before, 'Opening the saved link does not rewrite its parent.');
-    const proposal = await backend.readState({ proposalId: first.id }); assert.equal(proposal.workspace.id, binding.workspaceId); assert.equal(proposal.screen, second.screen);
-    assert.equal((await backend.readRevision({ proposalId: first.id, revisionId: 1, part: 'html' })).content, '<h1>Første</h1>');
-    assert.deepEqual(deliveries, []);
-  } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
-});
-
-test('later save recovers an actual child commit after parent binding failed, without recreating or silently adopting it', async () => {
-  const projectDir = fs.realpathSync(await mkdtemp(join(tmpdir(), 'visual-save-recovery-'))), deliveries = [];
-  const { ApplicationWorkspace } = applicationWorkspaceApi, { ApplicationProposals } = applicationProposalsApi;
-  const options = { projectDir, workspacePath: 'designs/app', application: { name: 'Møtedemo', url: 'http://localhost:32100/demo' } };
-  let workspace, proposals;
-  const open = create => {
-    const stateDir = fs.mkdtempSync(join(projectDir, 'runtime-')); fs.chmodSync(stateDir, 0o700);
-    workspace = new ApplicationWorkspace({ ...options, stateDir, ...(create ? { create: true } : {}) });
-    proposals = new ApplicationProposals({ workspace, projectDir, backendFactory: createServerBackend, onSubmitted: (...value) => deliveries.push(value) });
-  };
-  try {
-    open(true);
-    const first = await proposals.publish({ source: 'conversation', title: 'Forslag', filename: 'first.html', html: '<h1>Første forslag</h1>' });
-    const current = await proposals.action('readState', { proposalId: first.id });
-    const input = { proposalId: first.id, workspacePath: 'designs/proposal', expectedScreen: current.screen, expectedRevision: current.revision };
-    workspace.finishSketchSave = () => { throw new Error('Controlled binding failure'); };
-    await assert.rejects(proposals.action('saveProposal', input), error => error.status === 503);
-    const pending = structuredClone(workspace.feedback.state.workspace.pendingSketchSave);
-    const target = join(projectDir, input.workspacePath, 'workspace.json'), child = fs.readFileSync(target);
-    assert.equal(JSON.parse(child).workspace.id, pending.binding.workspaceId);
-    await proposals.close(); workspace.close(); open(false);
-    const parentBefore = fs.readFileSync(workspace.store.filename);
-    const summary = await proposals.summary(); assert.equal(summary[0].id, first.id); assert.equal(summary[0].storage, 'temporary'); assert(summary[0].pendingSave);
-    assert.deepEqual(fs.readFileSync(workspace.store.filename), parentBefore, 'A read never completes the pending binding.');
-    assert.deepEqual(fs.readFileSync(target), child, 'Opening does not rewrite or recreate the saved child.');
-    const saved = await proposals.action('saveProposal', input);
-    assert.equal(saved.id, first.id); assert.equal(saved.storage, 'project'); assert.equal(saved.screen, first.screen);
-    assert.equal(workspace.feedback.state.workspace.sketch.workspaceId, pending.binding.workspaceId);
-    assert.equal(workspace.feedback.state.workspace.pendingSketchSave, undefined);
-    assert.deepEqual(fs.readdirSync(join(projectDir, 'designs')), ['app', 'proposal']); assert.deepEqual(deliveries, []);
-  } finally { await proposals?.close(); workspace?.close(); await rm(projectDir, { recursive: true, force: true }); }
 });
 
 test('a room survives repository formatting and Finder files, and one damaged older file stays local to its version', async () => {
@@ -506,103 +406,67 @@ test('a stored version is shown read-only through the token-protected preview, a
   } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
 });
 
-const removedAppMethods = ['readSource', 'readSourceChanges', 'prepareSourceChange', 'applySourceChange', 'restoreSourceChange', 'abandonSourceChange', 'registerReference', 'listReferences'];
-async function appControl(backend) {
-  const opened = await backend.openView({}), html = await (await fetch(opened.url)).text();
-  const config = JSON.parse(html.match(/window\.__designApplication\s*=\s*(\{.*?\});/s)[1]);
-  const origin = new URL(opened.url).origin;
-  const activation = await fetch(origin + '/renderer/activate', { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Designverksted-Token': config.token }, body: '{}' });
-  assert.equal(activation.status, 200);
-  return { opened, async request(pathname, method = 'GET', value, mutationId) {
-    const response = await fetch(origin + pathname, { method, signal: AbortSignal.timeout(3000),
-      headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Designverksted-Token': config.token,
-        ...(mutationId ? { 'X-Feedback-Mutation': mutationId } : {}) }, ...(value ? { body: JSON.stringify(value) } : {}) });
-    return { status: response.status, value: await response.json() };
-  } };
-}
-function appNote(state) {
-  return { screen: state.screen, kind: 'point', text: 'Er neste steg tydelig nok?',
-    anchor: { path: 'button:nth-of-type(1)', role: 'button', rect: { x: 12, y: 40, width: 100, height: 40 }, viewport: { width: 375, height: 812 } },
-    applicationContext: { route: state.application.route, target: { tag: 'button', role: 'button', name: 'Neste', text: 'Neste', path: 'button:nth-of-type(1)' },
-      viewport: { width: 375, height: 812, scrollX: 0, scrollY: 0 } } };
-}
-async function withApp(run) {
-  const upstream = http.createServer((_req, res) => { res.setHeader('Content-Type', 'text/html'); res.end('<!doctype html><title>Møtedemo</title><button>Neste</button>'); });
-  await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
-  try { await run({ name: 'Møtedemo', url: `http://127.0.0.1:${upstream.address().port}/demo?mode=mock` }); }
-  finally { await new Promise(resolve => { upstream.close(resolve); upstream.closeAllConnections(); }); }
-}
+test('a standalone canvas keeps its header, frame rules and connection status without any app surface', () => fixture(async ({ backend }) => {
+  for (const method of ['readPreview', 'publishProposal', 'saveProposal', 'saveWorkspace']) assert.equal(backend[method], undefined);
+  await backend.publishRevision({ expectedScreen: '', filename: 'standalone.html', html: '<h1>Selvstendig skisse</h1>' });
+  const view = await backend.openView({});
+  assert.deepEqual(Object.keys(view).sort(), ['status', 'title', 'url']);
+  await assert.rejects(backend.openView({ embedding: { parentOrigin: 'http://127.0.0.1:45678', leaseId: 'a'.repeat(32) } }), error => error.status === 400);
+  const shell = await fetch(view.url), shellHtml = await shell.text();
+  assert.match(shell.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.doesNotMatch(shellHtml, /data-connected|design-workshop-embed/);
+  const preview = new URL(view.url); preview.pathname = '/preview';
+  const response = await fetch(preview), html = await response.text();
+  assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'self'(?:;|$)/);
+  assert.match(html, /class="vc-header"/);
+  assert.doesNotMatch(html, /__grillmesterVisualCompanionEmbedded|data-embedded|body > main\.vc-content \{ margin: 0 auto; padding: 16px/);
+  const embedded = new URL(view.url); embedded.pathname = '/embedded';
+  assert.equal((await fetch(embedded)).status, 404);
+  embedded.searchParams.delete('token');
+  assert.equal((await fetch(embedded)).status, 403);
+}));
 
-test('real temporary app feedback uses no project files and retains one round only within its native view lifetime', () => withApp(async application => {
-  const projectDir = await mkdtemp(join(tmpdir(), 'visual-app-feedback-')); let backend;
-  const submitted = [], original = 'export const heading = "Uendret";\n';
+test('closing a view while a feedback body is pending does not mutate the sketch', () => fixture(async ({ backend }) => {
+  const state = await backend.publishRevision({ expectedScreen: '', filename: 'first.html', html: '<h1>Skisse</h1>' });
+  const view = await backend.openView({}), target = new URL(view.url); target.pathname = '/comments';
+  const before = await backend.readState({});
+  const body = JSON.stringify(note(state.screen));
+  let settled;
+  const ended = new Promise(resolve => { settled = resolve; });
+  const req = http.request(target, { method: 'POST', headers: { Origin: target.origin, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, res => { res.resume(); res.once('end', () => settled(res.statusCode)); });
+  req.on('error', () => settled('closed')); req.write(body.slice(0, -1));
+  await new Promise(resolve => setTimeout(resolve, 25));
+  await backend.closeView({}); req.end(body.slice(-1)); await ended;
+  const after = await backend.readState({}); assert.equal(after.revision, before.revision); assert.equal(after.submission, 0);
+}));
+
+test('a saved room from an earlier release with running-app feedback is refused with its own message and left untouched', async () => {
+  const projectDir = await mkdtemp(join(tmpdir(), 'visual-canvas-legacy-'));
+  const workspacePath = 'designs/meeting', room = join(projectDir, workspacePath), filename = join(room, 'workspace.json');
+  const legacy = 'Dette rommet inneholder innspill til en kjørende app. Slike rom åpnes ikke lenger i Designverksted, men filene kan fortsatt leses. Ingen filer er endret.';
+  const checkpoint = 'c'.repeat(64), screen = 'd'.repeat(32), route = '/demo?mode=mock', at = '2026-10-01T10:00:00.000Z';
+  const comment = { ...note(screen), id: 'e'.repeat(24), status: 'open', reply: '', createdAt: at, updatedAt: at, submission: 1, lastSubmission: 1,
+    applicationContext: { route, target: { tag: 'button', role: 'button', name: 'Neste', text: 'Neste', path: 'button:nth-of-type(1)' }, viewport: { width: 375, height: 812, scrollX: 0, scrollY: 0 } } };
+  const saved = { schemaVersion: 1, revision: 2, submission: 1, screens: [{ screen, source: { kind: 'application', checkpoint, route } }], comments: [comment],
+    submissions: [{ submission: 1, revision: 2, submittedAt: at, comments: [comment] }], canvas: { rounds: [{ submission: 1, delivery: 'queued', review: 'answered', reply: 'Vurdert.', previousSession: false }] },
+    workspace: { id: 'a'.repeat(24), title: 'Møtevalg', mode: 'feedback', source: { kind: 'application', name: 'Møtedemo', startPath: route }, checkpoint } };
+  const adapter = createCanvasAdapter({ sessionId: 'legacy-room', projectDir });
   try {
-    fs.writeFileSync(join(projectDir, 'view.js'), original);
-    backend = await createServerBackend({ projectDir, application, onSubmitted: round => submitted.push(round) });
-    const initial = await backend.readState({});
-    assert.equal(initial.workspace.storage, 'temporary'); assert.equal(initial.workspace.mode, 'feedback');
-    assert.equal(initial.workspace.path, undefined); assert.equal(initial.workspace.version, undefined);
-    for (const method of removedAppMethods) assert.equal(backend[method], undefined);
-    for (const method of ['publishRevision', 'listHistory', 'readRevision', 'restoreRevision']) {
-      await assert.rejects(backend[method]({}), error => error.status === 409 && /HTML/.test(error.message));
+    // A checked-out room is ordinary project files with no revisions directory.
+    fs.mkdirSync(room, { recursive: true });
+    fs.writeFileSync(filename, `${JSON.stringify(saved)}\n`);
+    const bytes = fs.readFileSync(filename), modified = fs.statSync(filename).mtimeMs;
+    await assert.rejects(createServerBackend({ projectDir, workspacePath }), error => error.status === 409 && error.message === legacy
+      && error.backendStopped === true && error.backendWasReady === false);
+    adapter.attachSession({ sessionId: 'legacy-room', capabilities: { ui: {} }, send: async () => assert.fail('A refused room delivers nothing.') });
+    const ctx = { sessionId: 'legacy-room', extensionId: 'project:visual-companion', canvasId: CANVAS_ID, instanceId: 'legacy-instance' };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await assert.rejects(adapter.canvas.open({ ...ctx, input: { workspacePath } }), error => error.status === 409 && error.message === legacy);
     }
-    const control = await appControl(backend);
-    const moved = await control.request('/view', 'POST', { route: '/demo/details?mode=mock', expectedCheckpoint: initial.application.checkpoint });
-    assert.equal(moved.status, 200); assert.equal(moved.value.screens.length, 0);
-    const created = await control.request('/comments', 'POST', appNote(moved.value), 'a'.repeat(32));
-    assert.equal(created.status, 200); assert.equal(created.value.comments.length, 1); assert.equal(created.value.screens.length, 1);
-    const repeated = await control.request('/comments', 'POST', appNote(moved.value), 'a'.repeat(32));
-    assert.equal(repeated.status, 200); assert.equal(repeated.value.comments.length, 1);
-    const sending = { revision: created.value.revision };
-    assert.equal((await control.request('/submit', 'POST', sending, 'b'.repeat(32))).status, 200);
-    assert.equal((await control.request('/submit', 'POST', sending, 'b'.repeat(32))).status, 200);
-    await waitFor(() => submitted.length === 1); assert.deepEqual(submitted, [1]);
-    await backend.reviewSubmission({ submission: 1, status: 'answered', reply: 'Innspillet er vurdert. Ingen kode er endret.' });
-    const round = await backend.readSubmission({ submission: 1 });
-    assert.equal(round.round.review, 'answered');
-    assert.equal(round.items.find(item => item.type === 'comment').value.applicationContext.route, '/demo/details?mode=mock');
-    assert.deepEqual(await backend.openView({}), control.opened, 'Focusing retains the same native view');
-    await backend.closeView({});
-    await assert.rejects(backend.openView({}), error => error.status === 410);
-    await assert.rejects(control.request('/state'));
-    assert.equal((await backend.readState({})).submission, 1);
-    assert.deepEqual(fs.readdirSync(projectDir), ['view.js']); assert.equal(fs.readFileSync(join(projectDir, 'view.js'), 'utf8'), original);
-    await backend.retire({}); backend = null;
-    assert.deepEqual(fs.readdirSync(projectDir), ['view.js']);
-  } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); }
-}));
-
-test('saved app feedback reopens from a copied checkout with a new descriptive name and no app history', () => withApp(async application => {
-  const projectDir = await mkdtemp(join(tmpdir(), 'visual-saved-feedback-'));
-  const nextProject = await mkdtemp(join(tmpdir(), 'visual-copied-feedback-')); let backend;
-  try {
-    const workspacePath = 'designs/meeting';
-    backend = await createServerBackend({ projectDir, workspacePath, create: true, title: 'Møtevalg', application });
-    const initial = await backend.readState({}), control = await appControl(backend);
-    assert.equal(initial.workspace.storage, 'project');
-    const created = await control.request('/comments', 'POST', appNote(initial), 'c'.repeat(32)); assert.equal(created.status, 200);
-    assert.equal((await control.request('/submit', 'POST', { revision: created.value.revision }, 'd'.repeat(32))).status, 200);
-    await backend.reviewSubmission({ submission: 1, status: 'answered', reply: 'Spørsmålet er avklart; ingen filendring.' });
-    const originalRound = await backend.readSubmission({ submission: 1 });
-    const room = join(projectDir, workspacePath), savedPath = join(room, 'workspace.json');
-    const saved = fs.readFileSync(savedPath), parsed = JSON.parse(saved);
-    assert.equal(parsed.workspace.mode, 'feedback');
-    assert.deepEqual(Object.keys(parsed.workspace).sort(), ['checkpoint', 'id', 'mode', 'source', 'title']);
-    assert.equal(parsed.workspace.source.projectIdentity, undefined);
-    for (const name of ['revisions', 'changes', 'references']) assert.equal(fs.existsSync(join(room, name)), false);
-    await backend.retire({}); backend = null;
-    fs.cpSync(join(projectDir, 'designs'), join(nextProject, 'designs'), { recursive: true });
-    const replayed = [];
-    backend = await createServerBackend({ projectDir: nextProject, workspacePath, application: { ...application, name: 'Ny beskrivelse' }, onSubmitted: round => replayed.push(round) });
-    const reopened = await backend.readState({});
-    assert.equal(reopened.workspace.id, initial.workspace.id); assert.equal(reopened.workspace.recovered, true);
-    assert.equal(reopened.application.name, 'Ny beskrivelse');
-    const round = await backend.readSubmission({ submission: 1 });
-    assert.equal(round.round.previousSession, true); assert.equal(round.round.reply, originalRound.round.reply);
-    assert.deepEqual(round.items, originalRound.items); assert.deepEqual(replayed, []);
-    assert.deepEqual(fs.readFileSync(join(nextProject, workspacePath, 'workspace.json')), saved, 'Opening and reading do not rewrite saved feedback.');
-    await backend.retire({}); backend = null;
-    await assert.rejects(createServerBackend({ projectDir: nextProject, workspacePath, application: { ...application, url: application.url.replace('/demo?', '/other?') } }), error => error.status === 409);
-    assert.deepEqual(fs.readFileSync(join(nextProject, workspacePath, 'workspace.json')), saved);
-  } finally { await backend?.retire({}); await rm(projectDir, { recursive: true, force: true }); await rm(nextProject, { recursive: true, force: true }); }
-}));
+    await assert.rejects(createServerBackend({ projectDir, workspacePath, create: true, title: 'Ny' }), error => error.status === 409 && /ikke tom/.test(error.message));
+    assert.deepEqual(fs.readFileSync(filename), bytes);
+    assert.equal(fs.statSync(filename).mtimeMs, modified);
+    assert.deepEqual(fs.readdirSync(room), ['workspace.json']);
+    assert.equal(JSON.parse(bytes).comments[0].applicationContext.route, route, 'The saved feedback stays readable as a file.');
+  } finally { await adapter.close(); await rm(projectDir, { recursive: true, force: true }); }
+});
