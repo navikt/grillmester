@@ -159,11 +159,13 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
     })
     user_denied = [path for path in after["deniedPaths"] if path not in retired_denies]
     history = home / rules["SESSION_HISTORY_PATH"]
-    history_denied = any(same_history(facts, path, history) for path in after["deniedPaths"])
+    history_denied = not options.no_session_history and any(
+        same_history(facts, path, part)
+        for path in after["deniedPaths"] for part in (history, *history.parents))
     for field in PATH_FIELDS:
         # Spellings and aliases of the shared history grant follow the same opt-out and cleanup
-        # rules. A deny keeps its own path, and a denied root keeps its aliases, so normalizing
-        # never moves a grant onto a path that a deny alias protects.
+        # rules. A deny keeps its own path. While a deny covers the root or a parent, grant aliases
+        # stay as they are, so normalizing does not move a grant past it; opt-out still removes them.
         existing = list(dict.fromkeys(
             str(history) if Path(path) == history
             or field != "deniedPaths" and not history_denied and same_history(facts, path, history)

@@ -418,6 +418,37 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertNotIn(str(history), readonly.get("added", []))
         self.assertNotIn(str(grant), readonly.get("removed", []))
 
+    def test_a_history_root_denied_through_a_parent_alias_keeps_grant_aliases(self) -> None:
+        history, before = self.history_fixture()
+        grant, parent = self.home / "grant-alias", self.home / "copilot-alias"
+        grant.symlink_to(history, target_is_directory=True)
+        parent.symlink_to(history.parent, target_is_directory=True)
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + [str(grant)],
+                   "deniedPaths": before["deniedPaths"] + [str(parent)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        readonly = json.loads(output)["projects"][0]["diff"].get("readonlyPaths", {})
+        self.assertNotIn(str(history), readonly.get("added", []))
+        self.assertNotIn(str(grant), readonly.get("removed", []))
+
+    def test_opt_out_removes_the_aliases_of_a_denied_history_root(self) -> None:
+        history, before = self.history_fixture()
+        grant, deny = self.home / "grant-alias", self.home / "deny-alias"
+        grant.symlink_to(history, target_is_directory=True)
+        deny.symlink_to(history, target_is_directory=True)
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + [str(grant)],
+                   "readwritePaths": before["readwritePaths"] + [str(grant)],
+                   "deniedPaths": before["deniedPaths"] + [str(deny)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        diff = json.loads(output)["projects"][0]["diff"]
+        self.assertIn(str(grant), diff["readonlyPaths"]["removed"])
+        self.assertIn(str(grant), diff["readwritePaths"]["removed"])
+
     def test_a_deny_spelling_of_the_history_root_is_still_normalized(self) -> None:
         history, before = self.history_fixture()
         current = {**before, "deniedPaths": before["deniedPaths"] + [f"{history}/"]}
