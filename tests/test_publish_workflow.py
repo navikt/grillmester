@@ -110,15 +110,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
     def test_opencode_smokes_recheck_absolute_verified_clients(self) -> None:
         for workflow in (VALIDATE_WORKFLOW, RELEASE_WORKFLOW):
             text = workflow.read_text(encoding="utf-8")
-            self.assertGreaterEqual(text.count('stat -c \'%a:%u\' "${OPENCODE_BIN}"'), 2)
-            self.assertGreaterEqual(text.count('stat -c \'%a:%u\' "${CPLT_BIN}"'), 2)
-            self.assertGreaterEqual(text.count('--opencode "${OPENCODE_BIN}"'), 2)
-            self.assertIn('--cplt "${CPLT_BIN}"', text)
-            self.assertIn(
-                "PATH: ${{ runner.temp }}/opencode-bin:${{ runner.temp }}/cplt-bin:"
-                "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                text,
-            )
+            self.assertGreaterEqual(text.count('stat -c \'%a:%u\' "${OPENCODE_BIN}"'), 1)
+            self.assertNotIn("CPLT_BIN", text)
+            self.assertGreaterEqual(text.count('--opencode "${OPENCODE_BIN}"'), 1)
             self.assertNotIn('echo "${binary_dir}" >> "${GITHUB_PATH}"', text)
 
     def test_macos_gate_verifies_and_runs_pinned_native_clients(self) -> None:
@@ -148,7 +142,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertIn("${RELEASE_TEST_COPILOT_VERSION}", verifier)
 
         self.assertIn("scripts/smoke_opencode.py", text)
-        self.assertIn("scripts/smoke_opencode_runtime.py", text)
+        self.assertIn('--opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"', text)
         self.assertIn('cmp -s "${bundle}" "${repeated}"', text)
 
     def test_native_macos_gate_exercises_focused_and_full_copilot_against_loopback_model(
@@ -369,14 +363,14 @@ class PublishWorkflowContractTest(unittest.TestCase):
         )
         self.assertIn(
             "https://github.com/navikt/copilot/releases/download/"
-            "nav-pilot/2026.08.28-091813-dc3e4ff/nav-pilot-linux-amd64",
+            "nav-pilot/2026.10.29-065631-a3ed31e/nav-pilot-linux-amd64",
             text,
         )
         self.assertIn(
-            "4be22c75be1424eb2691c00eae0a287facbd0afa95fd9249cb9c00e3071dcb72",
+            "928763c5f53e3b6e7e096aaf6668228d5ad10803d7c711626b2813fe743a59fc",
             text,
         )
-        self.assertIn("18395298", text)
+        self.assertIn("23330978", text)
         self.assertIn(
             'validate --source "${GITHUB_WORKSPACE}" --json',
             step,
@@ -404,7 +398,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             '"manifest: .nav-pilot/agentpakke.json"',
             '"agentpakke: grillmester (contract version 1)"',
             '"clients: copilot (tier 2), opencode (tier 2)"',
-            '"minNavPilotVersion: 2026.08.28-091813-dc3e4ff"',
+            '"minNavPilotVersion: 2026.10.29-065631-a3ed31e"',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, step)
@@ -493,8 +487,8 @@ class PublishWorkflowContractTest(unittest.TestCase):
         }
         for label, text in workflows.items():
             with self.subTest(workflow=label):
-                self.assertNotIn("npm install --global opencode-ai@1.18.20", text)
-                self.assertNotIn("npm install -g opencode-ai@1.18.20", text)
+                self.assertNotIn("npm install --global opencode-ai", text)
+                self.assertNotIn("npm install --global @opencode/cli", text)
                 self.assertIn(
                     "scripts/release_test_baseline.py\" install"
                     if "${SOURCE_ROOT}" in text
@@ -502,9 +496,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
                     text,
                 )
                 self.assertIn("--client opencode --platform linux", text)
-                self.assertIn("--client cplt --platform linux", text)
+                self.assertNotIn("--client cplt --platform linux", text)
                 self.assertIn("smoke_opencode.py", text)
-                self.assertIn("smoke_opencode_runtime.py", text)
+                self.assertNotIn("smoke_opencode_runtime.py", text)
                 self.assertIn("--require-binary", text)
 
         jobs = workflow_jobs(RELEASE_WORKFLOW)
@@ -512,10 +506,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
             with self.subTest(job=job):
                 self.assertIn(
                     'python3 "${SOURCE_ROOT}/scripts/smoke_opencode.py"', jobs[job]
-                )
-                self.assertIn(
-                    'python3 "${SOURCE_ROOT}/scripts/smoke_opencode_runtime.py"',
-                    jobs[job],
                 )
 
     def test_write_credentials_exist_only_in_final_publish_step(self) -> None:

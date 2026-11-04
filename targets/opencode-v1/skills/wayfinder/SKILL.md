@@ -4,7 +4,7 @@ description: "Map several unresolved, dependent decisions as a shared issue map 
 ---
 # Wayfinder
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Chart a shared map of **decision tickets**: questions whose resolution clears
 the route to a destination, not implementation slices. Use an existing relevant
@@ -31,7 +31,7 @@ Choose the method that answers the current question:
 
 - **Grilling** is the default for a design decision: use `grilling`.
 - **Research** establishes a fact a decision depends on. Delegate a bounded,
-  sourced question to `researcher` through the `task` tool.
+  sourced question to `researcher` through the `subagent` tool.
   Independent investigations may run in parallel. The caller owns tracker
   state and decisions; the researcher supplies evidence.
 - **Prototype** makes uncertainty concrete. Use `design-prototype` for visual

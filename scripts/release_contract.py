@@ -60,7 +60,7 @@ _STANDARD_SUPPORT = _BASELINE_MODULE.CONTRACT["standardSupport"]
 _RELEASE_TEST = _BASELINE_MODULE.CONTRACT["releaseTest"]
 
 SUPPORTED_OPENCODE_VERSION = _STANDARD_SUPPORT["opencodeMinimum"]
-SUPPORTED_OPENCODE_RANGE = f">={SUPPORTED_OPENCODE_VERSION},<2.0.0"
+SUPPORTED_OPENCODE_RANGE = f">={SUPPORTED_OPENCODE_VERSION},<3.0.0"
 SUPPORTED_COPILOT_VERSION = _STANDARD_SUPPORT["copilotMinimum"]
 SUPPORTED_COPILOT_RANGE = f">={SUPPORTED_COPILOT_VERSION},<2.0.0"
 SUPPORTED_CPLT_RELEASE = _STANDARD_SUPPORT["cpltMinimum"]
@@ -799,7 +799,9 @@ tar -xzf grillmester-terminal-{tag}.tar.gz
 The extracted `scripts/grillmester.py` is the launcher. Put it on `PATH` as
 `grillmester`, or invoke it by path. It uses the OpenCode and GitHub Copilot CLI
 executables from `PATH` and does not package either client binary. cplt is
-installed and updated separately.
+optional and installed separately. With cplt on `PATH` the launcher starts the
+client inside its sandbox; without cplt, or with `--no-cplt`, the client starts
+directly with no sandbox around it.
 """
     update_commands = """Grillmester, cplt, OpenCode, and GitHub Copilot CLI keep
 separate update lifecycles. Replace the extracted bundle with a newer release to
@@ -807,7 +809,7 @@ update Grillmester, and update each client with its own installer:
 
 ```bash
 brew upgrade navikt/tap/cplt
-brew upgrade anomalyco/tap/opencode
+brew upgrade opencode
 brew upgrade --cask copilot-cli
 ```"""
     return f"""## Grillmester {tag}
@@ -830,12 +832,9 @@ not runtime pins. The inner native OpenCode target remains `opencode-v1`.
 Install only the client or clients you want to use:
 
 ```bash
-brew install anomalyco/tap/opencode
+brew install opencode
 brew install --cask copilot-cli
 ```
-
-The OpenCode tap needs a current Xcode. If `brew` refuses, run
-`npm install --global opencode-ai@1` instead.
 
 {update_commands}
 
@@ -854,7 +853,7 @@ grillmester --client copilot --agent grillmester
 ```
 
 The launcher supplies the reviewed plugin directory and starts the installed
-GitHub Copilot CLI through cplt.
+GitHub Copilot CLI.
 
 ### Install directly in Copilot CLI
 
@@ -871,13 +870,13 @@ copilot --agent=grillmester:grillmester
 
 ```bash
 grillmester doctor --client opencode
-grillmester --client opencode --agent grillmester \\
-  --allow-localhost 1234 -- --model lmstudio/replace-with-local-model-id
+grillmester --client opencode --agent grillmester
 ```
 
 The launcher binds the installed Grillmester target and starts the PATH-resolved
-OpenCode through cplt. Declare the provider and model in the user's normal
-OpenCode config before launch. This source-pinned
+OpenCode. Declare the provider and model in the user's normal OpenCode config
+before launch. Under cplt OpenCode loads only the target's config, so use
+`/connect` or `grillmester local` there. This source-pinned
 [local-provider example](https://github.com/navikt/grillmester/blob/{source_sha}/docs/local-models.md#avansert-manuell-opencode-binding)
 shows the complete OpenAI-compatible shape; OpenCode's built-in GitHub Copilot
 provider instead uses its normal `/connect` flow. The source-pinned
@@ -901,7 +900,7 @@ copilot plugin list
 
 `doctor` validates the PATH-selected clients and the reviewed target without
 starting an interactive session or contacting a model. `--print-command` then
-previews the exact cplt invocation; it is a rendering aid and performs no
+previews the exact launch command; it is a rendering aid and performs no
 client or version validation of its own:
 
 ```bash

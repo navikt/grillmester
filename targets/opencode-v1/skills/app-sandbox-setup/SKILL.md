@@ -4,7 +4,7 @@ description: "Configure the GitHub Copilot desktop app's local sandbox on macOS 
 ---
 # App sandbox setup
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Use explicitly for the **GitHub Copilot desktop app on macOS**, not CLI sandbox
 configuration; the CLI keeps its own settings and the two never sync. The app

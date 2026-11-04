@@ -4,7 +4,7 @@ description: "Find refactoring opportunities that simplify module boundaries and
 ---
 # improve-codebase-architecture
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Uncover architectural friction in this repository and propose **deepening opportunities** — refactorings that make shallow modules deep. The goal is testability, and that both humans and AI can navigate the code easily.
 

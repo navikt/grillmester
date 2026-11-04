@@ -4,7 +4,7 @@ description: "Design or change a published API or event contract using consumer 
 ---
 # Design an API contract
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 ## Establish repository evidence first
 

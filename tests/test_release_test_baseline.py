@@ -48,9 +48,9 @@ class ReleaseTestBaselineTest(unittest.TestCase):
     def test_contract_separates_runtime_support_from_exact_test_clients(self) -> None:
         contract = BASELINE.CONTRACT
         self.assertEqual(1, contract["schemaVersion"])
-        self.assertEqual("1.18.20", contract["standardSupport"]["opencodeMinimum"])
+        self.assertEqual("2.2.5", contract["standardSupport"]["opencodeMinimum"])
         self.assertEqual("1.0.100", contract["standardSupport"]["copilotMinimum"])
-        self.assertEqual("1.18.20", contract["releaseTest"]["opencodeVersion"])
+        self.assertEqual("2.2.5", contract["releaseTest"]["opencodeVersion"])
         self.assertEqual("1.0.100", contract["releaseTest"]["copilotVersion"])
         for client in ("opencode", "copilot", "cplt"):
             self.assertTrue(
@@ -63,7 +63,7 @@ class ReleaseTestBaselineTest(unittest.TestCase):
         with redirect_stdout(output):
             self.assertEqual(0, BASELINE.main(["github-env"]))
         values = dict(line.split("=", 1) for line in output.getvalue().splitlines())
-        self.assertEqual("1.18.20", values["RELEASE_TEST_OPENCODE_VERSION"])
+        self.assertEqual("2.2.5", values["RELEASE_TEST_OPENCODE_VERSION"])
         self.assertEqual("1.0.100", values["RELEASE_TEST_COPILOT_MINIMUM"])
 
         output = io.StringIO()

@@ -17,7 +17,7 @@ permission:
 ---
 # Grillmester 🔥
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Own the task from investigation through implementation, tests and verified
 delivery in the same conversation. Write the code yourself at every risk level,

@@ -27,11 +27,11 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
         self.assertIn("--preset", command)
 
     def test_ready_requires_the_selected_version_and_tui_markers(self) -> None:
-        marker = SMOKE._version_marker("1.19.3")
+        marker = SMOKE._version_marker("2.3.1")
 
         self.assertTrue(
             SMOKE._is_ready(
-                b"Ask anything Grillmester 1.19.3", opencode_version=marker
+                b"Ask anything Grillmester 2.3.1", opencode_version=marker
             )
         )
         self.assertFalse(
@@ -39,7 +39,7 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
         )
         self.assertFalse(
             SMOKE._is_ready(
-                b"Ask anything Grillmester 1.18.20", opencode_version=marker
+                b"Ask anything Grillmester 2.2.5", opencode_version=marker
             )
         )
         self.assertFalse(
@@ -54,7 +54,7 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             launcher_bin = root / "launcher-bin"
-            cellar_bin = root / "Cellar/opencode/1.18.20/libexec/bin"
+            cellar_bin = root / "Cellar/opencode/2.2.5/libexec/bin"
             cplt_bin = root / "Cellar/cplt/2026/bin"
             state = root / "state"
             launcher_bin.mkdir()
@@ -87,7 +87,7 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
                 cplt.resolve(), SMOKE._resolved_on_path("cplt", environment)
             )
 
-    def test_pty_smoke_stops_a_ready_session_and_checks_runtime_support(self) -> None:
+    def test_pty_smoke_stops_a_ready_session(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             binaries = root / "bin"
@@ -105,22 +105,15 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
                 textwrap.dedent(
                     """\
                     #!/usr/bin/env python3
-                    import os
                     import signal
                     import time
-                    from pathlib import Path
 
-                    config = Path(os.environ["XDG_CONFIG_HOME"]) / "opencode"
-                    config.mkdir(parents=True)
-                    (config / ".gitignore").write_bytes(
-                        b"node_modules\\npackage.json\\npackage-lock.json\\nbun.lock\\n.gitignore\\n"
-                    )
                     signal.signal(signal.SIGINT, lambda *_arguments: raise_exit())
 
                     def raise_exit():
                         raise SystemExit(0)
 
-                    print("Ask anything Grillmester 1.18.20", flush=True)
+                    print("Ask anything Grillmester 2.2.5", flush=True)
                     while True:
                         time.sleep(0.1)
                     """
@@ -132,7 +125,7 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
             SMOKE.run_tui_smoke(
                 launcher=launcher,
                 opencode=binaries / "opencode",
-                opencode_version="1.18.20",
+                opencode_version="2.2.5",
                 cplt=binaries / "cplt",
                 project_dir=project,
                 state_parent=state,

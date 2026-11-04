@@ -78,13 +78,25 @@ POLICY_PERMISSION_TOOLS = frozenset(
 TARGET_CONFIG = {
     "$schema": "https://opencode.ai/config.json",
     "autoupdate": False,
+    "permission": {
+        # OpenCode 2 reads outside the project without asking, and it treats
+        # our bundled skills as outside too. Ask for everything else.
+        "external_directory": {
+            "*": "ask",
+            "{env:OPENCODE_CONFIG_DIR}/skills/*": "allow",
+        },
+        # Code Mode can make HTTP requests that `webfetch: deny` does not stop,
+        # and OpenCode's session and worktree tools have no reviewed role.
+        "execute": "deny",
+        "opencode_*": "deny",
+    },
     "share": "disabled",
 }
 OPENCODE_RUNTIME_GITIGNORE = (
     b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n"
 )
 TARGET_INVOCATION_NOTE = (
-    "> **OpenCode v1:** Skill names below are exact IDs from the active catalog, "
+    "> **OpenCode:** Skill names below are exact IDs from the active catalog, "
     "not slash commands. Load them with the native `skill` tool. Slash commands "
     "are direct user entry points only."
 )
@@ -277,8 +289,8 @@ def load_policy(root: Path, policy_path: Path = DEFAULT_POLICY) -> dict[str, Any
             )
         if "external_directory" in permissions:
             raise ProjectionError(
-                f"policy agent {agent_id} must leave external_directory to "
-                "OpenCode dynamic skill-directory guards"
+                f"policy agent {agent_id} must leave external_directory to the "
+                "target configuration, which allows the bundled skills"
             )
         if "skill" in permissions:
             raise ProjectionError(

@@ -526,10 +526,7 @@ class LocalModeTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, command[:separator])
         self.assertEqual("8080", command[command.index("--allow-localhost") + 1])
-        self.assertEqual(
-            ["--agent", "grillmester", "--model", "llamacpp/qwen3.8-local"],
-            command[separator + 1 :],
-        )
+        self.assertEqual([], command[separator + 1 :])
         self.assertEqual(
             (self.distribution / "targets/opencode-v1-focused").resolve(strict=True),
             launch.payload,
@@ -563,7 +560,7 @@ class LocalModeTests(unittest.TestCase):
         )
 
     def test_homebrew_opencode_alias_may_resolve_to_opencode_exe(self) -> None:
-        cellar = self.root / "Cellar/opencode/1.18.20/libexec"
+        cellar = self.root / "Cellar/opencode/2.2.5/libexec"
         cellar.mkdir(parents=True)
         executable = cellar / "opencode.exe"
         executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
@@ -879,8 +876,8 @@ class LocalModeTests(unittest.TestCase):
             model["limit"],
         )
         self.assertEqual({"auto": True}, config_content["compaction"])
-        self.assertEqual("{}", launch.environment["OPENCODE_AUTH_CONTENT"])
-        self.assertEqual("true", launch.environment["OPENCODE_ENABLE_EXA"])
+        self.assertEqual("grillmester", config_content["default_agent"])
+        self.assertEqual("llamacpp/qwen3.8-local", config_content["model"])
 
     def test_both_clients_use_the_saved_context_contract(self) -> None:
         config = self._config(context_window=65_536, max_output_tokens=16_384)
@@ -1330,10 +1327,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(
             (self.distribution / "targets/opencode-v1").resolve(strict=True), full.payload
         )
-        self.assertEqual(
-            ["--agent", "grillmester", "--model", "llamacpp/qwen3.8-local"],
-            command[command.index("--") + 1 :],
-        )
+        self.assertEqual([], command[command.index("--") + 1 :])
 
         run = LOCAL.build_local_launch(
             config,
@@ -2031,7 +2025,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(
             "true", launch.environment["OPENCODE_DISABLE_PROJECT_CONFIG"]
         )
-        self.assertEqual("true", launch.environment["OPENCODE_PURE"])
+        self.assertEqual("true", launch.environment["OPENCODE_DISABLE_CLAUDE_CODE"])
 
     def test_opencode_alternate_project_cannot_bypass_extension_scan(self) -> None:
         alternate = self.project / "subdir"
@@ -2300,10 +2294,10 @@ class LocalModeTests(unittest.TestCase):
         for arguments in (
             ("--print-logs", "serve"),
             ("--print-logs", "upgrade"),
-            ("--mini", "../outside"),
+            ("--print-logs", "../outside"),
             ("--",),
             ("--", "serve"),
-            ("--replay-limit", "10", "acp"),
+            ("--log-level", "warn", "acp"),
         ):
             with self.subTest(arguments=arguments), self.assertRaisesRegex(
                 LOCAL.LocalModeError, "grillmester local run"
@@ -2333,7 +2327,7 @@ class LocalModeTests(unittest.TestCase):
 
     def test_opencode_reviewed_tui_options_remain_available(self) -> None:
         for arguments in (
-            ("--mini", "--no-replay", "--replay-limit", "10"),
+            ("--print-logs", "--log-level", "warn"),
         ):
             with self.subTest(arguments=arguments):
                 launch = self._launch(arguments=arguments)
@@ -2892,7 +2886,7 @@ class LocalModeTests(unittest.TestCase):
                 self.assertTrue(checked)
                 return (
                     SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
-                    SimpleNamespace(path=str(self.opencode), version="1.18.20"),
+                    SimpleNamespace(path=str(self.opencode), version="2.2.5"),
                 )
 
             stdout = io.StringIO()
@@ -2908,7 +2902,7 @@ class LocalModeTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn(f"ok  cplt {self.cplt.resolve()} (cplt reviewed)", output)
         self.assertIn(
-            f"ok  client opencode {self.opencode.resolve()} (1.18.20)", output
+            f"ok  client opencode {self.opencode.resolve()} (2.2.5)", output
         )
         self.assertIn(f"ok  project {self.project.resolve()}", output)
         self.assertIn("ok  agent grillmester", output)
@@ -2919,7 +2913,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("ok  max-output-tokens 8192", output)
         self.assertIn("targets/opencode-v1-focused", output)
         self.assertIn(
-            "info websearch OpenCode sends approved search queries to Exa "
+            "info websearch OpenCode sends approved search queries to your chosen provider "
             "when cplt network policy permits",
             output,
         )
@@ -2986,7 +2980,7 @@ class LocalModeTests(unittest.TestCase):
                     self.assertTrue(checked)
                     return (
                         SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
-                        SimpleNamespace(path=str(self.opencode), version="1.18.20"),
+                        SimpleNamespace(path=str(self.opencode), version="2.2.5"),
                     )
 
                 stdout = io.StringIO()
@@ -3037,7 +3031,7 @@ class LocalModeTests(unittest.TestCase):
                 self.assertTrue(checked)
                 return (
                     SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
-                    SimpleNamespace(path=str(self.opencode), version="1.18.20"),
+                    SimpleNamespace(path=str(self.opencode), version="2.2.5"),
                 )
 
             stdout = io.StringIO()
@@ -3077,7 +3071,7 @@ class LocalModeTests(unittest.TestCase):
                 self.assertTrue(checked)
                 return (
                     SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
-                    SimpleNamespace(path=str(self.opencode), version="1.18.20"),
+                    SimpleNamespace(path=str(self.opencode), version="2.2.5"),
                 )
 
             stdout = io.StringIO()

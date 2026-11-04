@@ -16,7 +16,7 @@ from typing import Any, Mapping, Sequence
 
 OUTPUT = Path(".nav-pilot/agentpakke.json")
 MAX_JSON_BYTES = 4 * 1024 * 1024
-MIN_NAV_PILOT_VERSION = "2026.08.28-091813-dc3e4ff"
+MIN_NAV_PILOT_VERSION = "2026.10.29-065631-a3ed31e"
 EXPECTED_PAYLOAD_TARGETS = {
     "plugin": "copilot-full-v1",
     "targets/copilot-cli-focused-v1": "copilot-cli-focused-v1",
@@ -157,9 +157,9 @@ def _compatibility_ranges(root: Path) -> tuple[str, str]:
         raise AgentpakkeManifestError("release-test standardSupport must be an object")
     opencode_minimum = support.get("opencodeMinimum")
     copilot_minimum = support.get("copilotMinimum")
-    for label, value in (
-        ("opencodeMinimum", opencode_minimum),
-        ("copilotMinimum", copilot_minimum),
+    for label, value, reviewed_major in (
+        ("opencodeMinimum", opencode_minimum, 2),
+        ("copilotMinimum", copilot_minimum, 1),
     ):
         if (
             not isinstance(value, str)
@@ -172,12 +172,12 @@ def _compatibility_ranges(root: Path) -> tuple[str, str]:
             raise AgentpakkeManifestError(
                 f"standardSupport.{label} must be a semantic version"
             )
-        parts = tuple(int(part) for part in value.split("."))
-        if parts[0] != 1:
+        if int(value.split(".")[0]) != reviewed_major:
             raise AgentpakkeManifestError(
-                f"standardSupport.{label} must stay within reviewed major version 1"
+                f"standardSupport.{label} must stay within reviewed major "
+                f"version {reviewed_major}"
             )
-    return f">={copilot_minimum},<2", f">={opencode_minimum},<2"
+    return f">={copilot_minimum},<2", f">={opencode_minimum},<3"
 
 
 def _manifest_agent_ids(manifest: Mapping[str, Any], relative: str) -> list[str]:

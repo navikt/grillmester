@@ -6,7 +6,7 @@
     "repo": "navikt/grillmester",
     "team": "Team eSyfo"
   },
-  "minNavPilotVersion": "2026.08.28-091813-dc3e4ff",
+  "minNavPilotVersion": "2026.10.29-065631-a3ed31e",
   "clients": {
     "copilot": {
       "compatibility": ">=1.0.100,<2",
@@ -30,7 +30,7 @@
       }
     },
     "opencode": {
-      "compatibility": ">=1.18.20,<2",
+      "compatibility": ">=2.2.5,<3",
       "defaultModel": "inherit",
       "defaultContext": "full",
       "payloads": {

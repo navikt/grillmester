@@ -4,7 +4,7 @@ description: "Summarize team status, goal progress and priorities from confirmed
 ---
 # Team status
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Build a traceable status report from the sources the team actually uses.
 GitHub Projects is one possible source, not a prerequisite. The default mode is

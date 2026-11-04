@@ -22,9 +22,6 @@ from typing import Mapping, Sequence
 
 
 MAX_OUTPUT_BYTES = 2 * 1024 * 1024
-OPENCODE_RUNTIME_GITIGNORE = (
-    b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n"
-)
 READY_MARKERS = (b"Ask anything", b"Grillmester")
 OPENCODE_VERSION = re.compile(
     r"^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
@@ -174,10 +171,6 @@ def _launcher_command(*, launcher: Path, project_dir: Path) -> list[str]:
         "--quiet",
         "--preset",
         "strict",
-        "--",
-        "--print-logs",
-        "--log-level",
-        "INFO",
     ]
 
 
@@ -275,13 +268,6 @@ def _run_tui_smoke_in_state(
     exit_code = os.waitstatus_to_exitcode(child_status)
     if exit_code != 0:
         raise TuiSmokeError(f"OpenCode TUI exited with {exit_code}")
-    support = Path(environment["XDG_CONFIG_HOME"]) / "opencode/.gitignore"
-    try:
-        content = support.read_bytes()
-    except OSError as exc:
-        raise TuiSmokeError(f"launcher did not pre-seed OpenCode runtime support: {exc}") from exc
-    if content != OPENCODE_RUNTIME_GITIGNORE or support.is_symlink():
-        raise TuiSmokeError("OpenCode runtime support file is not the reviewed regular payload")
 
 
 def run_tui_smoke(

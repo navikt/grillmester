@@ -4,7 +4,7 @@ description: "Add or improve service metrics, structured logs, traces, health si
 ---
 # Observability setup
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Build from actual runtime: metrics show change, logs give event context, and
 traces show where time and failures occur.

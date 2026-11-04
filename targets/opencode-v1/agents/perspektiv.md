@@ -22,7 +22,7 @@ permission:
 ---
 # Perspektiv 🔭
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Answer one perspective brief. The brief names exactly one perspective, the
 design question, and the material to assess. A perspective is either an expert

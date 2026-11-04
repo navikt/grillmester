@@ -4,7 +4,7 @@ description: "Review a Nav frontend flow for accessibility using keyboard, scree
 ---
 # Tilgjengelighet-review
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Review-prosess for universell utforming (UU) i Nav-flater. Offentlig sektor er
 omfattet av norske krav til universell utforming av ikt; gjeldende standard og

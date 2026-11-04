@@ -4,7 +4,7 @@ description: "Create or update a README from verified implementation and operati
 ---
 # README update
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Describe current behavior, never a desired future presented as current state.
 Edit only the requested README unless the user names other documentation to

@@ -24,7 +24,7 @@ permission:
 ---
 # Grill-inspektor 🔎
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Review independently from the actual diff and repository files. Do not trust
 the implementer's summary where primary evidence is available. Never edit the
@@ -64,7 +64,7 @@ Return `NEEDS_CONTEXT` when any required input is missing, inaccessible,
 internally inconsistent, or mixed with unrelated work. Never load an entire
 umbrella context document or decision register as background context.
 
-This is a non-interactive, read-only role. Use `bash` only for local
+This is a non-interactive, read-only role. Use `shell` only for local
 inspection. Disable optional locks and repository hooks/helpers. Allowed
 shapes are `git --no-optional-locks -c core.fsmonitor=false status`, `git
 --no-optional-locks -c core.fsmonitor=false --no-pager diff --no-ext-diff
