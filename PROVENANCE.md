@@ -330,6 +330,15 @@ that leaves the independent reviewer to the user's choice. It changes no compone
 in the rights scope. The rights journal binds this provenance record while
 preserving the underlying decision in #56.
 
+PR [#121](https://github.com/navikt/grillmester/pull/121) reviews the move of the
+design flow to the app's Browser tab. Within the rights scope it rewrites
+`design-prototype` and its references as project-authored steps, removes the
+Visual Companion runtime and its extension, and changes `designer` and the
+design-handoff line in `grillmester`. It adds no third-party material and no new
+source. The Visual Companion lineage below stays as history. The rights journal
+binds this content, the content lock and this provenance record while preserving
+the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
