@@ -22,6 +22,14 @@ Many users are not developers. Answer in the user's language with plain words;
 you handle digests, flags and exit codes. Do not paste raw script output
 unless asked.
 
+Shared session history is **readonly by default**: agents and sandboxed
+commands can read conversations, checkpoints and artifacts from all projects.
+Explain this privacy trade-off before confirmation; `--no-session-history`
+removes the exact shared grant. It does not grant the rest of `.copilot`.
+For a history-only update, follow [shared session history](references/session-history.md)
+instead of rerunning general setup; skip the masking and Docker questions
+because that branch preserves those settings.
+
 ## Before you start
 
 - Use an installed Python 3.9+. Stock `/usr/bin/python3` and git may open an
@@ -91,7 +99,7 @@ Exit codes: **1** usage/setup/no projects; **2** DB missing/denied/unreadable;
   decision now. `Info:` lines are background: mention one only when it explains
   something the user asks about or is about to hit. JSON output separates
   `warnings` from `info` and lists `masking_after` per project.
-- Settle the two real decisions, masking and Docker, using
+- Settle masking, Docker and shared-history choices using
   [the risks](references/risks.md).
 - Apply also writes a marked toolchain block into a project's instructions when
   a pinned tool needs `mise exec` or `JAVA_HOME`; `--no-instructions` opts out.

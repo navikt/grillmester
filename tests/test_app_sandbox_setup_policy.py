@@ -24,8 +24,8 @@ with mock.patch.object(sys, "dont_write_bytecode", True):
     from app_sandbox.facts import Facts, Options, PathFact
 
 
-# Legacy constants copied verbatim from e69e97b; never derive expectations from
-# RULES or import the differential oracle.
+# Baseline constants from e69e97b, updated for the shared-history decision.
+# Never derive expectations from RULES or import the differential oracle.
 RW_PATHS = (
     ".gradle", ".m2", ".npm", ".cache", ".config", ".local/share", ".local/state",
     "Library/Caches", "Library/pnpm", ".bun", ".nvm", ".rd", ".docker",
@@ -51,7 +51,7 @@ DOCKER_PATHS = (".docker", ".rd", ".colima", ".orbstack", ".lima", ".testcontain
 APP_CACHE_WRITABLE: set[str] = set()
 RETIRED_GRANTS = {
     "readwritePaths": {
-        ".copilot/session-state": "the app grants its own session files",
+        ".copilot/session-state": "shared history is readonly; the app manages its own session writes",
         "Library/Application Support/Google/Chrome for Testing":
             "Chromium needs denied macOS IPC; no path grant helps",
     },
@@ -98,7 +98,7 @@ class RulesTest(unittest.TestCase):
                   if row.status == "active" and row.group == "docker"]
         self.assertEqual(len(orders), len(set(orders)))
 
-    def test_derived_views_equal_legacy_constants_in_order(self):
+    def test_derived_views_equal_declared_constants_in_order(self):
         for name in (
             "RW_PATHS", "RO_PATHS", "HARDENING_READONLY", "DOCKER_PATHS",
             "APP_CACHE_WRITABLE", "RETIRED_GRANTS", "DENIED_PATHS",
@@ -112,7 +112,8 @@ class RulesTest(unittest.TestCase):
                     for field in RETIRED_GRANTS:
                         self.assertEqual(list(RETIRED_GRANTS[field].items()),
                                          list(rules.RETIRED_GRANTS[field].items()))
-        self.assertEqual(len(rules.RULES), len({row.path for row in rules.RULES}))
+        self.assertEqual(len(rules.RULES), len({(row.path, row.access) for row in rules.RULES}))
+        self.assertEqual(".copilot/session-state", rules.SESSION_HISTORY_PATH)
 
 
 class DiscoveryFactsTest(unittest.TestCase):

@@ -251,7 +251,7 @@ def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any
     # Preserve the oracle's unguarded profile/deny checks, but not for arbitrary
     # policy entries or their ancestors. The backup rule is unconditional, and
     # --no-docker skips profile checks beneath Docker grants.
-    for relative in rules.RW_PATHS + rules.RO_PATHS + rules.HARDENING_READONLY:
+    for relative in rules.RW_PATHS + rules.RO_PATHS + rules.HARDENING_READONLY + (rules.SESSION_HISTORY_PATH,):
         path = home / relative
         if no_docker and any(under(path, Path(parent)) for parent in docker):
             continue
@@ -268,7 +268,7 @@ def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any
         else:
             path.is_dir()
 
-    paths = {home, home / ".copilot", Path("/Users")}
+    paths = {home, home / ".copilot", home / rules.SESSION_HISTORY_PATH, Path("/Users")}
     paths.update(Path(area) for area in rules.SYSTEM_AREAS)
     paths.update(home / relative for relative in
                  rules.RW_PATHS + rules.RO_PATHS + rules.HARDENING_READONLY + rules.DENIED_PATHS)

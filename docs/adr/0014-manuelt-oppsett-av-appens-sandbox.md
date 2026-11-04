@@ -48,8 +48,25 @@ Gradle init-filer stenger de verste «plant nå, kjør usandboxet senere»-ruten
 Hardening-stier listes alltid, også når de ikke finnes ennå, men readonly
 gjelder først når stien finnes; verktøygrants hoppes over når stiene mangler.
 Smalere readonly vinner over bredere readwrite. Tool-installasjoner forblir
-skrivbare. `~/.copilot/session-state` gis **ikke lenger** readwrite; rerun
-fjerner den gamle granten, og appen gir nødvendig tilgang til egen økt.
+skrivbare. `~/.copilot/session-state` gis **ikke** readwrite; rerun
+fjerner den gamle skrivegranten.
+
+Presisering 2026-11-04: Oppsettet gir nå felles **readonly** tilgang til
+`~/.copilot/session-state` som standard, også for nye økt-ID-er. Bakgrunnen er
+gjentatte nektelser når appens egne grants mangler `checkpoints/`. Vi velger
+tilgang på tvers av prosjekter fremfor isolert samtalehistorikk: agenter og
+sandboxede prosesser kan lese samtaler, oppsummeringer og artefakter fra alle
+prosjekter, også eventuelt sensitivt innhold lagret der. Denne avveiningen
+skal forklares før bekreftelse. `--no-session-history` fjerner den eksakte
+felles granten; app-eide og andre brukergrants beholdes. Resten av `.copilot`
+åpnes ikke. Appens skrivetilgang til egne øktfiler må fortsatt fungere og
+kontrolleres sammen med checkpoint-lesing i en sandboxet økt.
+
+`history plan/apply` endrer bare historikkgranten for valgte prosjekter, med
+samme bekreftelse, skjemasjekk, transaksjon og backup som vanlig oppsett.
+Andre policyvalg og sandbox-standarder bevares. Det legges ikke til en ny
+automatisk livssyklus; nye prosjekter må fortsatt settes opp med skillen.
+
 Rerun er idempotent og nødvendig etter nye prosjekter, verktøy og appoppdateringer
 som lager nye versjonsnavngitte cachemapper.
 
