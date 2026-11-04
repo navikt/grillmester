@@ -30,7 +30,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
         files, _ = GENERATOR.build_projection(ROOT)
         prefix = "skills/design-prototype/"
         self.assertEqual(
-            {prefix + "scripts/app-runtime.js", prefix + "tests/app-runtime.test.js"},
+            {prefix + "scripts/app-runtime.js"},
             {name for name in files if name.startswith((prefix + "scripts/", prefix + "tests/"))},
         )
 

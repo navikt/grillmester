@@ -101,7 +101,7 @@ SOFTWARE.
 
 ## obra/superpowers
 
-The Visual Companion workflow in this package is derived from
+The Visual Companion workflow in earlier releases of this package was derived from
 [`obra/superpowers`](https://github.com/obra/superpowers), reviewed at revision
 `44c9b2d6e889982ac18c27d05a19fefe335194e1`. Exact paths and the hardened
 implementation boundary are recorded in the

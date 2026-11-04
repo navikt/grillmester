@@ -596,6 +596,16 @@ class PackageValidationTest(unittest.TestCase):
             "third-party source superpowers must ship repository and revision"
         )
 
+    def test_preloaded_skill_must_exist(self) -> None:
+        path = self.root / "plugin/agents/designer.agent.md"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "skills:\n  - design-prototype", "skills:\n  - missing-skill"
+            ),
+            encoding="utf-8",
+        )
+        self.assert_error("preloaded skill 'missing-skill' does not exist")
+
     def test_bare_dangling_component_reference_is_rejected(self) -> None:
         path = self.root / "plugin/skills/review/SKILL.md"
         path.write_text(

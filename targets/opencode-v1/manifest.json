@@ -9,7 +9,7 @@
     "plugin": "grillmester",
     "pluginManifest": "plugin/plugin.json",
     "policy": "policy/opencode-v1.json",
-    "policySha256": "f358979ed4da255849ca9af7a93d1470794c5b09168f6073aba13191b3b89e11"
+    "policySha256": "7354d88dfbc2d6a769794200a51f2629d111f726a854fc777c0233222e5d0b95"
   },
   "modelSelection": "inherit-provider-or-session",
   "skillInvocation": {
@@ -428,7 +428,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "93a3c27ec2bc660558dd91fc2f97af82572becc124c301c31e61b3b38d22b0aa",
+      "sha256": "6b0015083a67fec63ddc8216e12fc081a8e3117233c0ff907e5836a0063675a3",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -456,11 +456,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/app-runtime.js": {
-      "sha256": "8f725a9bc60d5b8a220339254dd1c7bceeb38347cf9a3f00539dded1a6d7dcb6",
-      "mode": "0644"
-    },
-    "skills/design-prototype/tests/app-runtime.test.js": {
-      "sha256": "8adb1f535349241bdd479ecfe9238246f347be97eb253a90d714f6394d157e3b",
+      "sha256": "11aa1fd1f7ec4a372e630124a89998e777630666efb62636726956c675ed675c",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {

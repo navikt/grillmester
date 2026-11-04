@@ -1,11 +1,11 @@
 ---
-status: accepted
+status: superseded by ADR-0036
 date: 2026-10-27
 ---
 
 # Ett designverksted for skisser og kjørende apper
 
-> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+> Erstattet av [ADR 0036](0036-kjorende-apper-i-appens-nettleserfane.md).
 
 ## Kontekst
 

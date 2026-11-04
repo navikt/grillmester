@@ -39,30 +39,32 @@ stopper arbeidet.
 1. **Lag den eide kopien.** Kjør fra prosjektets rot, og velg et kort navn:
 
    ```bash
-   COPY="$TMPDIR/<kort-navn>"; mkdir -p "$COPY"
+   COPY="$(mktemp -d "${TMPDIR:-/tmp}/<kort-navn>.XXXXXX")"; echo "$COPY"
    git ls-files -z | rsync -a --from0 --exclude=.cplt.toml --files-from=- ./ "$COPY/"
-   cd "$COPY" && git init -q && git add -A
-   git -c user.name=Designer -c user.email=designer@example.invalid commit -qm Utgangspunkt --no-verify
+   cd "$COPY" && git init -q && git config user.name Designer
+   git config user.email designer@example.invalid && git config commit.gpgsign false
+   git add -A && git commit -qm Utgangspunkt --no-verify
    ```
 
-   Ferdig når kopien har sin første commit. Den private historikken er angre- og
+   Ferdig når kopien har sin første commit. Skriv den fulle stien i senere kommandoer,
+   for variabler overlever ikke alltid mellom dem. Den private historikken er angre- og
    overleveringskilden.
 
 2. **Start demoen.** Finn appens demo- eller mockoppsett med syntetiske data i repoets
    instruksjoner, `.env.example`, `.env.development` og `package.json`. Installer i
    kopien med låst lockfile, for eksempel `CI=true pnpm install --frozen-lockfile`, og
    bygg workspace-pakker appen trenger. Start så prosjektets vanlige kommando gjennom
-   hjelperen, med demoflagg som `--env`:
+   hjelperen, med demoflagg som `--env`. Bruk alltid hjelperen, aldri `nohup` eller `&`,
+   for ellers kan demoen verken følges eller stoppes:
 
    ```bash
-   node <skill-dir>/scripts/app-runtime.js start --project-dir "$COPY" --session <navn> --env NAVN=verdi -- pnpm dev
+   node <skill-dir>/scripts/app-runtime.js start --project-dir <kopien> --session <navn> --env NAVN=verdi -- pnpm dev
    ```
 
    Installasjon og oppstart tar vanligvis under et minutt, så ta dem også ved små
-   endringer: designeren vurderer det som kjører. Ferdig når `status` med de samme
-   argumentene sier `running`, og adressen fra demoens egen logg viser innhold fra denne
-   appen. En annen app kan allerede bruke porten.
-   Får du en feil, følg
+   endringer: designeren vurderer det som kjører. Ferdig når `status --project-dir <kopien>
+   --session <navn>` sier `running`, og adressen fra demoens egen logg viser innhold fra
+   denne appen. En annen app kan allerede bruke porten. Får du en feil, følg
    [Keep the demo running](references/application-opening.md#keep-the-demo-running).
 
 3. **Åpne demoen i nettleserfanen.** Bruk adressen serveren oppgir, med sti:
@@ -100,7 +102,7 @@ stopper arbeidet.
 6. **Commit steget** i kopiens historikk, slik at designeren kan gå tilbake.
 
 7. **Svar kort.** Har du ingen adresse som svarer, er forslaget ikke ferdig: gå tilbake
-   til steg 2. Beskriv hva designeren ser nå, hva som kan prøves og hva det er verdt å
+   til steg 2, eller navngi hindringen hvis demoen ikke kan startes. Beskriv hva designeren ser nå, hva som kan prøves og hva det er verdt å
    vurdere, og oppgi vesentlige begrensninger. Si én gang at dette er et forslag og at
    appen er uendret, uten ordene kopi og commit. Uten nettleserfane gir du også adressen.
    Returner bare URL/Figma-lenke som faktisk finnes.

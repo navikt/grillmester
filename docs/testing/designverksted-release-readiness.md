@@ -1,7 +1,7 @@
 # Designverksted: grunnlag for native levering
 
 > Designverksted er foreslått fjernet i
-> [ADR 0034](../adr/0034-kjorende-apper-i-appens-nettleserfane.md). Dette dokumentet
+> [ADR 0036](../adr/0036-kjorende-apper-i-appens-nettleserfane.md). Dette dokumentet
 > og de andre prøvenotatene her er bevart som historikk.
 
 Status 28. oktober 2026: Den samlede flyten er prøvd i **Copilot app 1.1.33

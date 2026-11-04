@@ -77,7 +77,7 @@ Kjørende apper vises i Copilot-appens innebygde nettleserfane, som vanlig webvi
 proxy fra Grillmester. Designeren velger elementer eller områder med Pick & Polish, og
 agenten leser og tar skjermbilder av samme fane. Dette er lest ut av koden i app 1.1.34,
 prøvd på én app og ikke dokumentert av GitHub; se
-[ADR 0034](adr/0034-kjorende-apper-i-appens-nettleserfane.md). Et valg sender tag,
+[ADR 0036](adr/0036-kjorende-apper-i-appens-nettleserfane.md). Et valg sender tag,
 adresse, attributter, synlig tekst, ytre HTML, stiler og CSS-regler til modellen. Bare
 attributtene `value`, `password`, `token`, `secret` og `key` fjernes. Tekst i
 tekstområder og alt synlig innhold følger med, så fanen skal bare brukes med syntetiske

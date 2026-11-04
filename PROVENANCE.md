@@ -370,8 +370,8 @@ and enterprise-owned.
 
 ### Visual Companion lineage
 
-The Visual Companion runtime is proposed removed in
-[ADR 0034](docs/adr/0034-kjorende-apper-i-appens-nettleserfane.md). This lineage is
+The Visual Companion runtime was removed by
+[ADR 0036](docs/adr/0036-kjorende-apper-i-appens-nettleserfane.md). This lineage is
 kept as history.
 
 Hovmester's Visual Companion was derived from the brainstorming workflow in

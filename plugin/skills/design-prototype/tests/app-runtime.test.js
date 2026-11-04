@@ -75,6 +75,9 @@ function privateReadRace(t, replace) {
   return { file, opened, readLinks, assertClosed() { for (const fd of opened) assert.throws(() => fs.fstatSync(fd), { code: "EBADF" }); } };
 }
 
+test("an empty project path is refused instead of falling back to the working directory", async () => {
+  await assert.rejects(run(process.execPath, [helper, "start", "--project-dir", "", "--session", "test", "--", "true"]), /project directory is empty/);
+});
 test("private record reads reopen after an atomic replacement without reading the detached inode", { skip: !supported }, t => {
   const f = privateReadRace(t, ({ file, attempt }) => {
     if (attempt !== 1) return;

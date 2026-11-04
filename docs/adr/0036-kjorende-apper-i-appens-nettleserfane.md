@@ -1,11 +1,11 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-04
 ---
 
 # Designflyt i appens nettleserfane
 
-Foreslår å erstatte Designverksted og Visual Companion, altså ADR 0017, 0019,
+Erstatter Designverksted og Visual Companion, altså ADR 0017, 0019,
 0021–0023, 0025, 0027 og 0029–0032. ADR 0028 om eid demolivsløp gjelder videre.
 
 Vi bygde et eget canvas for skisser og kjørende apper, med proxy, innspillsrunder,
@@ -55,8 +55,5 @@ samme fane, ikke en egen motor eller skill.
   holder det bare noen kjøringer trenger.
 - Lagrede rom kan fortsatt leses som filer, men ikke åpnes.
 - Pick & Polish er udokumentert, og appen er i technical preview. Flyten er lest ut av
-  koden i app 1.1.34 og prøvd på én app. Uten plukkeren virker flyten fortsatt med ord og
+  koden i app 1.1.34 og prøvd i appen på én app. Uten plukkeren virker flyten fortsatt med ord og
   skjermbilder.
-
-Beslutningen er foreslått til flere reelle oppgaver, helst med en designer som ikke kjenner
-flyten, har bekreftet den.

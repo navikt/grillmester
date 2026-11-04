@@ -108,7 +108,7 @@ python3 scripts/smoke_grillmester_local.py \
 ```
 
 Kjørende apper vises i appens nettleserfane; se
-[ADR 0034](adr/0034-kjorende-apper-i-appens-nettleserfane.md). Den flyten kan ikke
+[ADR 0036](adr/0036-kjorende-apper-i-appens-nettleserfane.md). Den flyten kan ikke
 prøves uten appen selv.
 `app-runtime.test.js` starter bare eide syntetiske prosesser og prøver kort retur,
 privat kontroll, gjenbruk, avbrudd, utløp og opprydding av vanlige barn. Se

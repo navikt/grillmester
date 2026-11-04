@@ -1095,6 +1095,9 @@ def validate_agents(
         unknown_keys = set(frontmatter) - AGENT_FRONTMATTER_KEYS
         if unknown_keys:
             errors.append(f"{path}: unsupported frontmatter keys: {sorted(unknown_keys)}")
+        for skill_id in frontmatter.get("skills", []):
+            if not (root / "skills" / skill_id / "SKILL.md").is_file():
+                errors.append(f"{path}: preloaded skill {skill_id!r} does not exist")
 
         expected = contracts.get(agent_id)
         if expected is None:

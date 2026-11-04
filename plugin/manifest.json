@@ -62,7 +62,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "3d7cb47af2af9f6b9f3c2657d592eca466369956f28a4cdf08bd9f2adc709fbe",
+      "sha256": "8677ba9dc0eda941959223ad30fe49b6eecb4998b12d4540d536830ae978bfda",
       "mode": "0644"
     },
     "agents/designer.agent.md": {
@@ -262,7 +262,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "d8447e118094f3c7ec34e43c129b9c8115b07fe079a28812530391a737dc2780",
+      "sha256": "816cd56e6d4f01b233924f4de7db8af4f1ca71bd04f2ff3f88c7fed101ed9435",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -290,11 +290,11 @@
       "mode": "0644"
     },
     "skills/design-prototype/scripts/app-runtime.js": {
-      "sha256": "8f725a9bc60d5b8a220339254dd1c7bceeb38347cf9a3f00539dded1a6d7dcb6",
+      "sha256": "11aa1fd1f7ec4a372e630124a89998e777630666efb62636726956c675ed675c",
       "mode": "0644"
     },
     "skills/design-prototype/tests/app-runtime.test.js": {
-      "sha256": "8adb1f535349241bdd479ecfe9238246f347be97eb253a90d714f6394d157e3b",
+      "sha256": "14427e6d8cf2a73809ca634813ca314ab5f3f8f122afdf54d01b293fb3b507b5",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {

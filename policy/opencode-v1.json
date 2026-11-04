@@ -154,7 +154,8 @@
     "skills/create-a-skill/references/opencode-validation.md": "policy/opencode-v1/overlays/skills/create-a-skill/references/opencode-validation.md"
   },
   "remove": [
-    "skills/create-a-skill/references/copilot-cli-validation.md"
+    "skills/create-a-skill/references/copilot-cli-validation.md",
+    "skills/design-prototype/tests/app-runtime.test.js"
   ],
   "skillCapabilities": {
     "default": "native",
