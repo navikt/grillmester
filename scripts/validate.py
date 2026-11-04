@@ -145,7 +145,7 @@ GUIDED_COLLABORATION_FLOOR = (
     "ordinary syntax, or encourage blind copy-paste."
 )
 GRILLMESTER_RISK_REVIEW_FLOOR = (
-    "Without a stricter repository rule, R3/R4 may be presented as merge-ready "
+    "Without a stricter repository rule, R2–R4 may be presented as merge-ready "
     "only through one explicit route: Inspector returns `APPROVED`; Inspector "
     "returns `CONCERNS` and a human accepts every named material concern; or a human "
     "explicitly waives Inspector for the current scope."
@@ -1036,7 +1036,7 @@ def validate_agents(
             and GRILLMESTER_RISK_REVIEW_FLOOR not in normalized_body
         ):
             errors.append(
-                f"{path}: portable R3/R4 review floor is missing or has drifted"
+                f"{path}: portable R2–R4 review floor is missing or has drifted"
             )
         if (
             agent_id == "researcher"

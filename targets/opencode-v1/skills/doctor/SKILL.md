@@ -96,6 +96,12 @@ Verify these dimensions separately:
    widen a role's denied task, shell, edit, web, or skill boundaries.
 8. **Shadowing** — no higher-precedence agent, command, or skill with the same
    ID silently replaces a Grillmester component.
+9. **Size gate** — the build or CI fails on oversized or overly complex code,
+   for example detekt `LongMethod`, `CyclomaticComplexMethod` and
+   `NestedBlockDepth`, or Biome `noExcessiveLinesPerFunction` and
+   `noExcessiveCognitiveComplexity`. Report a missing gate as `GAP`, and suggest
+   a baseline so it stops only new code, with limits generous enough not to push
+   code into thin helpers.
 
 Treat the OpenCode target as generated output. Recommend changing its canonical
 plugin source, adapter policy, or overlay and regenerating it; never recommend

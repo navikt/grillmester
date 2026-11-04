@@ -162,6 +162,12 @@ Check these dimensions separately:
    surfaces; do not count a Grillmester agent prompt as coverage.
 8. **Shadowing** — no repo-local agent ID or skill name silently overrides a
    same-named Grillmester component on the requested client surface.
+9. **Size gate** — the build or CI fails on oversized or overly complex code,
+   for example detekt `LongMethod`, `CyclomaticComplexMethod` and
+   `NestedBlockDepth`, or Biome `noExcessiveLinesPerFunction` and
+   `noExcessiveCognitiveComplexity`. Report a missing gate as `GAP`, and suggest
+   a baseline so it stops only new code, with limits generous enough not to push
+   code into thin helpers.
 
 Classify each finding:
 

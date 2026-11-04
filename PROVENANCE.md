@@ -450,13 +450,15 @@ The testing review at `mattpocock/skills` revision
 `4ae2317ddb22b046e26455e4f9c9b3aaaf62212d` adds a seam-first test plan in which
 each kept test states what it catches and misses. Grillmester states the plan
 and continues, asks only when the seam or the tests to keep are an unsettled
-material choice, keeps refactoring inside the loop, and separates throwaway
-feedback checks from the tests it keeps.
+material choice, and separates throwaway feedback checks from the tests it
+keeps. Refactoring has since moved out of the loop and into `review`, as
+upstream does, so all refactoring guidance sits with the smells.
 
 The quality review at the same revision adapts the standards and spec axes of
 `code-review`, with a Fowler smell baseline reported as judgement calls, into
 `review`. Grillmester adds a correctness lens, keeps self-review by the writer
-as the default and uses the same lenses for its independent reviewer. It also
+for low-risk work, makes the independent reviewer the default from R2 and uses
+the same lenses for both. It also
 adopts the red, deterministic loop criteria, 3–5 ranked hypotheses and the
 forced-mutation diff check in `diagnosing-bugs`, while keeping Nav's
 operational data-access rules and bounded analysis when no loop is possible.

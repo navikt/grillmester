@@ -72,8 +72,8 @@ Avoid:
   that each new test can fail, for example by briefly breaking the code, before
   trusting it.
 - **One slice at a time.** One behavior, one test, one minimal change.
-- **Refactor only when green**, using [refactoring.md](refactoring.md), and
-  rerun the focused tests after each step.
+- **Never refactor on red.** The loop ends at green; cleanup belongs to
+  `review`.
 - **Bug fixes start red.** Reproduce the bug in one test at the seam where it
   actually happens, then fix it.
 

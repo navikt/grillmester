@@ -27,7 +27,7 @@ kan starte her.
 > et vesentlig valg fortsatt står åpent.
 
 **Forventet leveranse:** En avgrenset endring med fersk verifikasjon og selvreview.
-Uavhengig review følger oppgavens risiko og repoets regler; for R0–R2 er den
+Uavhengig review følger oppgavens risiko og repoets regler; for R0 og R1 er den
 valgfri. Beslutningsgrunnlag, ordliste eller ADR foreslås i én linje når
 arbeidet trenger det, og skrives når du ber om det, sier ja eller repoets
 policy krever det.
@@ -47,14 +47,30 @@ hvert spørsmål. Størrelsen på den senere implementasjonen er ikke alene grun
 
 Grillmester eier plan, implementering, tester og leveranse på alle risikonivåer
 og skriver koden selv. Høy risiko, mange filer eller lang testtid utløser ikke
-en egen implementeringsagent. Review skjer på en stabil diff; for R3/R4 gir
+en egen implementeringsagent. Review skjer på en stabil diff; fra R2 gir
 Grill-inspektør en uavhengig vurdering i egen kontekst.
 
-Før en R3/R4-endring kan kalles klar til merge, må Grill-inspektør ha godkjent
+Før en endring fra R2 og oppover kan kalles klar til merge, må Grill-inspektør ha godkjent
 den, et menneske uttrykkelig ha godtatt alle navngitte bekymringer, eller et
 menneske uttrykkelig ha frafalt review for det aktuelle omfanget. Egen
 gjennomgang og beståtte tester erstatter ikke dette kravet. Nye endringer
 krever fersk verifikasjon og review når review brukes som leveransegrunnlag.
+
+Arbeidet går gjennom fem faser, og Grillmester-prompten nevner skillene i hver
+fase. En fase som ikke trengs, hoppes over.
+
+| Fase | Skills | Når |
+| --- | --- | --- |
+| Avklare | `grilling`, `domain-modeling`, `wayfinder` | Målet eller et viktig valg er uklart |
+| Bygge | `tdd` | Før oppførsel endres |
+| Feilsøke | `diagnosing-bugs` | Noe er galt og årsaken er uklar |
+| Kontrollere | `review`, `security-review` | Etter siste endring, og når sikkerhet berøres |
+| Levere | `pull-request` | Når PR er bestilt |
+
+Regler som gjelder all kode, står i prompten, så de virker uten at en skill er
+lastet. Før den sier seg ferdig, leser Grillmester diffen som en reviewer og
+retter smells i egen kode. Lange funksjoner stoppes best av en sperre i repoet;
+`/doctor` melder fra når den mangler.
 
 Dette er en anbefalt arbeidsflyt, ikke et løfte om kortere svartid eller lavere
 modellkostnad. Den nye flyten må kvalitetsvurderes i hver klient og modellprofil.

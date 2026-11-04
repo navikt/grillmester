@@ -103,7 +103,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "3b7689595177202977801dce5b2fd41def67432a95ae4121ba301b31a135cf84",
+      "sha256": "df2ca43b9bcea5f0e39b33f8cb9fb0217d34b69c60bd03c06d91b857b4360684",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
@@ -671,7 +671,7 @@
       "mode": "0755"
     },
     "skills/doctor/SKILL.md": {
-      "sha256": "a28d17b4d25450496c062bda14b806e777c08b453cd13eb6db907ea6250a9781",
+      "sha256": "1d048332596b84392e7cda4c5cb78a212cd6f2cae7126abbc3d47c9e6d498a54",
       "mode": "0644"
     },
     "skills/domain-modeling/ADR-FORMAT.md": {
@@ -887,11 +887,11 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "62dbc71c6dd70ffdfc102fb1ed744055817624d1e323afca7026590b76940990",
+      "sha256": "1860f61fcf93f51486534b6c1ef6a50de35f28669e0b5bb45ac09860207f9f52",
       "mode": "0644"
     },
     "skills/review/references/smells.md": {
-      "sha256": "4cc59d31d4a27a1c7c31c5a3bdca34b40b01b85cb2ffe601cb9b7c39023381d6",
+      "sha256": "af5e300b51acdda268fb46c863d3dba7c036fa13aaae2adc7f96e4145599fed1",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -907,15 +907,11 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "a784019b3b18d3e4ef10822a18090d440008aa59e5b7cc7e1ce194e0af8b5607",
+      "sha256": "1db9c4954de5a28f5e278bc44264649d489dd94b73c37af5443fa0d827692137",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
       "sha256": "e97614726acef3958b8b5236758d01c1e41e1919418005dd532c07015a3c381a",
-      "mode": "0644"
-    },
-    "skills/tdd/refactoring.md": {
-      "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
     "skills/tdd/test-boundaries.md": {

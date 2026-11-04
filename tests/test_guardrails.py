@@ -39,7 +39,7 @@ FLOORS = (
     (
         "agents/grillmester.agent.md",
         "GRILLMESTER_RISK_REVIEW_FLOOR",
-        "portable R3/R4 review floor",
+        "portable R2–R4 review floor",
     ),
     (
         "agents/researcher.agent.md",

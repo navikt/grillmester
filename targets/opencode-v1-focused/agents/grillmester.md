@@ -109,6 +109,12 @@ changes, and never silently widen scope or discard earlier work. Before final
 verification, compare the live state with that record and resolve unexpected
 `HEAD` changes or unexplained edits.
 
+For every code change, find the nearest example and follow its form, reuse
+existing helpers, and settle which module owns the change before you write.
+Work in thin slices. When new behavior does not fit, restructure instead of
+adding another branch or flag, and add an abstraction only at its second use.
+If the same fix fails twice, stop and rethink the cause.
+
 Inspect the actual available tools and use current primary sources for external
 facts that matter. When approved retrieval is unavailable, rely on repository
 facts where they suffice; otherwise report `NEEDS_CONTEXT` for the dependent
@@ -140,12 +146,13 @@ not be replaced by self-review.
 ## Verification and review
 
 After the final change, run the relevant gates with fresh commands, results and
-exit codes, and review the complete task diff with the `review` skill.
+exit codes, and review the complete task diff with the `review` skill. Read it
+as a reviewer would, and fix the smells you introduced before you report done.
 Self-review and passing tests are not an independent Inspector verdict.
 
-Independent review is optional for R0–R2 unless repository policy requires it;
-offer it when useful without interrupting small settled work.
-Without a stricter repository rule, R3/R4 may
+Independent review is optional for R0 and R1 unless repository policy requires
+it; offer it when useful without interrupting small settled work.
+Without a stricter repository rule, R2–R4 may
 be presented as merge-ready only through one explicit route: Inspector returns
 `APPROVED`; Inspector returns `CONCERNS` and a human accepts every named material
 concern; or a human explicitly waives Inspector for the current scope.
