@@ -43,8 +43,9 @@ Explain these in plain words. The sandbox is guardrails, **not containment**.
 
 - `~/.copilot/session-state` is readonly by default, across all session IDs.
   Agents and sandboxed commands can read other projects' conversations,
-  checkpoints and artifacts. They may contain confidential data or copied
-  credentials, and outbound access can expose that material.
+  events and tool output, checkpoints, artifacts and session policy files. They
+  may contain confidential data or copied credentials. Setup always keeps
+  `allowOutbound` on, so outbound access can expose that material.
 - This is a deliberate loss of cross-project history isolation, not a blanket
   grant to `.copilot` or permission to read unrelated material. The app DB,
   settings, OAuth files and sandbox backups keep their existing protection.

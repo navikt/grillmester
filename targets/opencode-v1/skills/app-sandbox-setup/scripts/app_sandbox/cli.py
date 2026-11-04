@@ -86,7 +86,7 @@ def public_plan(plan: dict[str, Any]) -> dict[str, Any]:
         "changed": bool(changed_projects(plan) or plan.get("placeholder_removals") or plan.get("backup_moves")),
     }
     result["unchanged_projects"] = len(plan["projects"]) - len(projects)
-    if plan.get("operation") != "rollback":
+    if plan.get("operation") not in ("rollback", "history"):
         result["masking_after"] = {state.lower(): names for state, names in masking_after(plan).items()}
     result["toolchain_decisions"] = [{"name": project["name"], "decisions": project.get("toolchain", [])}
                                     for project in changed_projects(plan)]
@@ -176,7 +176,7 @@ def print_plan(plan: dict[str, Any], json_mode: bool = False, summary: Optional[
                 for line in instructions_diff(before["instructions"], after["instructions"])[key].splitlines():
                     print(f"  {prefix} instructions: {line}")
     print(f'{len(plan["projects"]) - len(projects)} projects unchanged')
-    masking = masking_line(plan) if plan.get("operation") != "rollback" else None
+    masking = masking_line(plan) if plan.get("operation") not in ("rollback", "history") else None
     if masking:
         print(masking)
     if summary is None:

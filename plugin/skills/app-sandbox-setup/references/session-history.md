@@ -29,8 +29,12 @@ confirm the changed scope. `history apply` preserves sandbox defaults,
 credentials, network, Docker, instructions and other path entries. It uses
 the existing schema, transaction, digest and protected-backup safeguards.
 No history contents are read, directories created, loose backups moved or
-placeholder directories removed. An existing deny is preserved and reported;
-never remove it implicitly. Redirected history roots are refused.
+placeholder directories removed; the protected backup directory is created on
+the first apply that writes. An existing deny is preserved and reported; never
+remove it implicitly. Writable history grants are still removed under a deny.
+Projects without a sandbox policy are skipped; run normal setup for them first.
+Redirected or unreadable history roots are refused; fix the directory or use
+`--no-session-history`.
 
 Normal setup includes this default for projects configured later. There is no
 new automatic hook: adding a project in the app still requires a setup run.

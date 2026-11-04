@@ -49,19 +49,20 @@ def plan(connection: sqlite3.Connection, home: Path, project: Optional[Path],
             skipped.append(row["id"])
             warnings.append(f'{display(row["name"])}: corrupt policy skipped; repair it with guide.')
             continue
-        after = dict(before or {})
-        if grants and any(facts.under(target, Path(path)) for path in after.get("deniedPaths", [])):
+        if before is None:
             skipped.append(row["id"])
-            warnings.append(f'{display(row["name"])}: history grant skipped under an existing denied path.')
+            warnings.append(f'{display(row["name"])}: no sandbox policy; run normal plan/apply first.')
             continue
+        after = dict(before)
         for field in ("readwritePaths", "readonlyPaths"):
             if field in after and (field == "readwritePaths" or no_session_history):
                 after[field] = [path for path in after[field] if not facts.same(Path(path), target)]
-        if grants:
+        if grants and any(facts.under(target, Path(path)) for path in after.get("deniedPaths", [])):
+            warnings.append(f'{display(row["name"])}: history grant skipped under an existing denied path.')
+        elif grants:
             readonly = after.get("readonlyPaths", [])
-            after["readonlyPaths"] = readonly + [path for path in grants if path not in readonly]
-        if before is None and not after:
-            after = None
+            after["readonlyPaths"] = readonly + [path for path in grants
+                                                 if not any(facts.same(Path(path), Path(item)) for item in readonly)]
         changes.append({
             "id": row["id"], "name": row["name"],
             "before": {"sandbox_enabled": row["sandbox_enabled"], "policy": before},

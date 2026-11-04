@@ -210,12 +210,12 @@ def backup_warnings(home: Path) -> list[str]:
 
 
 def path_fact(path: Path) -> PathFact:
-    exists = file = directory = symlink = False
+    exists = file = directory = symlink = unreadable = False
     inode = None
     try:
         exists = path.exists()
     except OSError:
-        pass
+        unreadable = True
     else:
         if exists:
             try:
@@ -242,8 +242,10 @@ def path_fact(path: Path) -> PathFact:
     except (OSError, RuntimeError):
         resolved = str(path).casefold()
         failed = True
+    if directory and not symlink and not os.access(path, os.R_OK | os.X_OK):
+        unreadable = True
     return PathFact(resolved, inode, exists, file, directory,
-                    symlink, empty_directory(path), failed)
+                    symlink, empty_directory(path), failed, unreadable)
 
 
 def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any],

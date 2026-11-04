@@ -52,7 +52,11 @@ def session_history_paths(rules: dict[str, Any], facts: Facts, options: Options,
     state = facts.path(path)
     if (state.symlink or state.resolution_failed or facts.path(home / ".copilot").symlink
             or state.exists and not state.directory):
-        raise SetupError(1, "Shared history requires an existing non-symlink session-state directory.")
+        raise SetupError(1, "Shared history requires an existing non-symlink session-state directory; "
+                            "or rerun with --no-session-history.")
+    if state.unreadable:
+        raise SetupError(1, "Shared history requires a readable session-state directory; fix its permissions "
+                            "or rerun with --no-session-history.")
     if not state.exists:
         warnings.append(Info("Session history directory is missing; grant skipped. Rerun after the app creates it."))
         return []
@@ -144,8 +148,11 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
         for path in rules["DENIED_PATHS"] if str(home / path) not in denied
     })
     user_denied = [path for path in after["deniedPaths"] if path not in retired_denies]
+    history = home / rules["SESSION_HISTORY_PATH"]
     for field in PATH_FIELDS:
-        existing = list(dict.fromkeys(after.get(field, [])))
+        # Spelling variants of the shared history grant follow the same opt-out and cleanup rules.
+        existing = list(dict.fromkeys(str(history) if Path(path) == history else path
+                                      for path in after.get(field, [])))
         retired = {str(home / path): reason
                    for path, reason in rules["RETIRED_GRANTS"].get(field, {}).items()}
         if field == "deniedPaths":

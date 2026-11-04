@@ -21,6 +21,7 @@ class PathFact:
     symlink: bool = False
     empty: bool = False
     resolution_failed: bool = False
+    unreadable: bool = False
 
 
 @dataclass(frozen=True)

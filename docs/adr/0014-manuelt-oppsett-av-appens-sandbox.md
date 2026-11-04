@@ -112,6 +112,13 @@ eller ny økt. `verify` i en ny sandboxet økt er avsluttende port:
 adferdsprober, ingen lesing av DB-innhold eller session-state-policyfiler.
 Enterprise managed settings kan gi avvik.
 
+Felles historikkgrant gir lesetilgang til samtaler, hendelser og verktøyutdata,
+checkpoints, artefakter og policyfiler fra alle prosjekter. Siden oppsettet
+alltid beholder `allowOutbound`, er isolasjonen mot eksfiltrering bare så
+sterk som agentens og brukerens vurderinger. `history` hopper over prosjekter
+uten policy, fjerner skrivegranter også under deny, og avviser uleselige eller
+omdirigerte historikkmapper.
+
 Sandbox er guardrails, ikke containment. Skrivetilgang til kode, `~/.config`,
 `~/.nvm`, `~/.local/share`, `~/.bun` og lignende lar sandboxet kode plante
 git hooks, shell-sourced scripts eller toolchain-binærer som senere kjører
