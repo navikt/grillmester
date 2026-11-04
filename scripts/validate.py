@@ -146,7 +146,7 @@ GUIDED_COLLABORATION_FLOOR = (
     "ordinary syntax, or encourage blind copy-paste."
 )
 GRILLMESTER_RISK_REVIEW_FLOOR = (
-    "Without a stricter repository rule, R3/R4 may be presented as merge-ready "
+    "Without a stricter repository rule, R2–R4 may be presented as merge-ready "
     "only through one explicit route: Inspector returns `APPROVED`; Inspector "
     "returns `CONCERNS` and a human accepts every named material concern; or a human "
     "explicitly waives Inspector for the current scope."
@@ -217,9 +217,9 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         (
             NO_EXECUTION_BRANCH,
             "Never fall back to `gh`, shell, raw HTTP",
-            "cplt-guarded `gh issue` commands",
-            "Outside that explicit cplt context",
-            "Never use raw HTTP for a tracker mutation",
+            "use `gh` for what it lacks",
+            "never bypass cplt's repository scope",
+            "Never use raw HTTP outside `gh` for a tracker mutation",
             "Status: NEEDS_INPUT",
             "original `local run` prompt",
             "exact, bounded mutation",
@@ -257,7 +257,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
     Guardrail(
         "team-status-semantic-tools",
         ("plugin/skills/team-status/SKILL.md",),
-        ("Never use `gh`, shell, raw HTTP", "Status: NEEDS_INPUT"),
+        ("never use `gh`, shell, raw HTTP", "Status: NEEDS_INPUT"),
     ),
     Guardrail(
         "projects-v2-no-cli-fallback",
@@ -267,7 +267,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
     ),
     Guardrail(
         "pod-evidence-approval",
-        ("plugin/skills/nav-troubleshoot/references/pod-diagnose.md",),
+        ("plugin/skills/nav-platform/references/nais.md",),
         (
             "Read-only is not a safety classification",
             "exact cluster/context, namespace",
@@ -278,21 +278,14 @@ GUARDRAILS: tuple[Guardrail, ...] = (
     ),
     Guardrail(
         "auth-status-producer",
-        ("plugin/skills/nav-troubleshoot/references/auth-diagnose.md",),
+        ("plugin/skills/nav-platform/references/auth.md",),
         (
             "verified producer of the HTTP response",
+            "Do not presume that either produced",
             "Neither is generally the producer of an HTTP 401 or 403",
             "blocked network path normally means",
         ),
         ("whether 401/403 comes from ingress/network policy",),
-    ),
-    Guardrail(
-        "auth-overview-status-producer",
-        ("plugin/skills/auth-overview/SKILL.md",),
-        (
-            "verified producer of the HTTP response",
-            "Do not presume that either produced",
-        ),
     ),
     Guardrail(
         "architecture-report-inert-html",
@@ -345,6 +338,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "Never replace unavailable web/MCP retrieval with shell-network commands",
             "do not install or invoke a substitute to bypass the required proof.",
             "use `/pull-request` and preserve the repository template.",
+            "Never start Inspector unasked.",
         ),
     ),
     Guardrail(
@@ -469,11 +463,22 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         (
             "OpenCode og Copilot CLI er valgfrie systemklienter",
             "Launcheren resolver `cplt`, `opencode` og `copilot` fra `PATH`",
-            "cplt er fortsatt en hard runtimegrense",
-            "det finnes ingen direkte eller stille fallback",
-            "OpenCode `>=1.18.20,<2`",
             "Copilot CLI `>=1.0.100,<2`",
             "installert Copilot CLI uten OpenCode",
+        ),
+    ),
+    Guardrail(
+        "adr-opencode-2-and-optional-cplt",
+        ("docs/adr/0034-opencode-2-og-valgfri-cplt.md",),
+        (
+            "OpenCode `>=2.2.5,<3`",
+            "cplt er valgfri for standardlauncheren",
+            "`--no-cplt`",
+            "stopper launch",
+            "krever fortsatt cplt",
+            "`--standalone`",
+            "`external_directory` spør",
+            "`execute` er avslått",
         ),
     ),
     Guardrail(
@@ -508,7 +513,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "cplt-guardede `gh issue`-kommandoer",
             "Det krever ikke en egen write-MCP",
             "repo-scope og `gh`-guard",
-            "gjelder ikke automatisk Copilot app, cloud agent",
+            "bruker Grillmester `gh`",
             "`--npm-access`",
             ".npmrc",
             "NPM_AUTH_TOKEN",
@@ -522,7 +527,8 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         (
             "resolver `opencode` fra `PATH`",
             "installerer, erstatter eller skygger aldri klienten",
-            "starter alltid OpenCode gjennom cplt",
+            "starter OpenCode gjennom cplt\nnår cplt er installert",
+            "droppe sandboxen",
             "lokal inference, ikke offline",
         ),
     ),
@@ -546,7 +552,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "direkte API-kall",
             "bundle-checksum binder Grillmester-bundle-en, ikke disse klientbinærene",
             "Websearch, dokumentasjon og GitHub",
-            "mottar Exa den oppgaveavledede søketeksten",
+            "mottar søkeleverandøren den oppgaveavledede søketeksten",
             "Dette er en tredjeparts datagrense",
             "`--no-audit`",
         ),
@@ -593,7 +599,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         (
             "Local-flyten har ingen cloudmodell-fallback, men den kan være tilkoblet",
             "OpenCodes websearch er aktiv",
-            "sendes søketeksten til Exa",
+            "sendes søketeksten til\nsøkeleverandøren",
             "lokal inference betyr derfor ikke at søketeksten forblir på maskinen",
             "interaktiv launch krever klientgodkjenning",
         ),
@@ -904,7 +910,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
         errors.append("package-manifest.json must contain exactly one package")
         return None
     expected_definitions = [
-        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 44},
+        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 37},
     ]
     if package_definitions != expected_definitions:
         errors.append("package-manifest.json package roster or counts have drifted")
@@ -1062,7 +1068,7 @@ def validate_agents(
             and GRILLMESTER_RISK_REVIEW_FLOOR not in normalized_body
         ):
             errors.append(
-                f"{path}: portable R3/R4 review floor is missing or has drifted"
+                f"{path}: portable R2–R4 review floor is missing or has drifted"
             )
         if (
             agent_id == "researcher"
@@ -1574,8 +1580,8 @@ def validate_package_rosters(
 ) -> None:
     if len(agent_ids) != 6:
         errors.append(f"plugin must contain 6 agents, found {len(agent_ids)}")
-    if len(skill_ids) != 44:
-        errors.append(f"plugin must contain 44 skills, found {len(skill_ids)}")
+    if len(skill_ids) != 37:
+        errors.append(f"plugin must contain 37 skills, found {len(skill_ids)}")
 
 
 def validate_assets(root: Path, errors: list[str]) -> None:

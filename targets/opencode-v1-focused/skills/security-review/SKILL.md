@@ -1,10 +1,10 @@
 ---
 name: security-review
-description: "Assess a design or change for security and privacy risks. Use for sensitive data, identity, authorization, trust boundaries, privileged operations or a requested security review; use the full-context identity implementation workflow to implement an authentication mechanism and the full-context architecture assessment workflow for broader design trade-offs."
+description: "Assess a design or change for security and privacy risks. Use for sensitive data, identity, authorization, trust boundaries, privileged operations or a requested security review; use the repository's platform workflow to implement an authentication mechanism and the full-context architecture assessment workflow for broader design trade-offs."
 ---
 # Review security and privacy
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 ## Establish facts and boundaries
 

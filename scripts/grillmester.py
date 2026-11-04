@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch a reviewed Grillmester client through cplt."""
+"""Launch a Grillmester client, inside cplt's sandbox when cplt is installed."""
 
 from __future__ import annotations
 
@@ -24,8 +24,8 @@ from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
 
-SUPPORTED_CPLT_RELEASE = "2026.08.17-062831-1008a92"
-MINIMUM_OPENCODE_VERSION_TEXT = "1.18.20"
+SUPPORTED_CPLT_RELEASE = "2026.11.02-225238-10a2882"
+MINIMUM_OPENCODE_VERSION_TEXT = "2.2.5"
 MINIMUM_OPENCODE_VERSION = tuple(
     int(part) for part in MINIMUM_OPENCODE_VERSION_TEXT.split(".")
 )
@@ -34,33 +34,6 @@ MINIMUM_COPILOT_VERSION = (1, 0, 100)
 SUPPORTED_COPILOT_MAJOR = MINIMUM_COPILOT_VERSION[0]
 CLIENTS = ("copilot", "opencode")
 PUBLIC_AGENTS = ("grillmester", "designer", "doctor-who")
-OPENCODE_COMMANDS = frozenset(
-    {
-        "acp",
-        "agent",
-        "attach",
-        "auth",
-        "completion",
-        "db",
-        "debug",
-        "export",
-        "github",
-        "import",
-        "mcp",
-        "models",
-        "plugin",
-        "plug",
-        "pr",
-        "providers",
-        "run",
-        "serve",
-        "session",
-        "stats",
-        "uninstall",
-        "upgrade",
-        "web",
-    }
-)
 CPLT_SUBCOMMANDS = frozenset(
     {
         "check",
@@ -69,10 +42,13 @@ CPLT_SUBCOMMANDS = frozenset(
         "exec",
         "help",
         "init",
+        "link",
+        "mcp",
         "settings",
         "trust",
         "update",
         "update-lists",
+        "worktree",
     }
 )
 SEMVER_PATTERN = (
@@ -83,7 +59,7 @@ SEMVER_PATTERN = (
     r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
 )
 OPENCODE_VERSION_PATTERN = re.compile(
-    rf"^(?:OpenCode(?: version)? )?{SEMVER_PATTERN}$",
+    rf"^(?:OpenCode(?: version)? )?v?{SEMVER_PATTERN}$",
     re.IGNORECASE,
 )
 COPILOT_VERSION_PATTERN = re.compile(
@@ -99,9 +75,6 @@ MINIMUM_CPLT_STAMP = dt.datetime.strptime(
 )
 PREFERENCE_FILE = "preferences.json"
 PREFERENCE_SCHEMA_VERSION = 1
-OPENCODE_RUNTIME_GITIGNORE = (
-    b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n"
-)
 AGENT_LABELS = {
     "grillmester": "Grillmester – utvikling, fra små endringer til komplekse oppgaver",
     "designer": "Designer – design, prototyper og brukerflyt",
@@ -111,9 +84,20 @@ CLIENT_LABELS = {
     "copilot": "GitHub Copilot CLI",
     "opencode": "OpenCode",
 }
+OPENCODE_LAUNCH_ENVIRONMENT = (
+    "OPENCODE_CONFIG_DIR",
+    "OPENCODE_CONFIG_CONTENT",
+    "OPENCODE_DISABLE_FREE_MODELS",
+)
+OPENCODE_USER_CONFIG_NAMES = ("opencode.json", "opencode.jsonc")
+# These reject --standalone, and they start no agent session.
+OPENCODE_SERVER_COMMANDS = frozenset(
+    {"acp", "pair", "serve", "service", "uninstall", "update", "upgrade"}
+)
 LAUNCHER_LONG_OPTIONS = (
     "--agent",
     "--client",
+    "--no-cplt",
     "--print-command",
     "--project-dir",
     "--role",
@@ -140,6 +124,7 @@ class Invocation:
     cplt_args: tuple[str, ...]
     client_args: tuple[str, ...]
     print_command: bool
+    no_cplt: bool = False
 
 
 @dataclass(frozen=True)
@@ -173,7 +158,7 @@ class CheckedBinary:
 
 @dataclass(frozen=True)
 class LaunchChecks:
-    cplt: CheckedBinary
+    cplt: CheckedBinary | None
     client: CheckedBinary
 
 
@@ -257,8 +242,8 @@ def load_distribution(root: Path | None = None) -> Distribution:
     counts = target_manifest.get("counts")
     if not isinstance(counts, dict) or counts.get("agents") != 6 or counts.get(
         "skills"
-    ) != 44:
-        raise LauncherError("OpenCode target manifest does not contain 6 agents and 44 skills")
+    ) != 37:
+        raise LauncherError("OpenCode target manifest does not contain 6 agents and 37 skills")
     focused_contracts = (
         (
             focused_opencode / "manifest.json",
@@ -449,93 +434,6 @@ def save_preferences(preferences: Preferences, path: Path | None = None) -> Path
     return path
 
 
-def ensure_opencode_runtime_support(
-    distribution: Distribution,
-    environment: Mapping[str, str] | None = None,
-) -> Path:
-    """Pre-seed OpenCode's two write-if-absent config markers for cplt."""
-
-    bundled = distribution.opencode_target / ".gitignore"
-    try:
-        bundled_stat = bundled.lstat()
-        bundled_content = bundled.read_bytes()
-    except OSError as exc:
-        raise LauncherError(
-            f"could not inspect distributed OpenCode runtime support: {exc}"
-        ) from exc
-    if stat.S_ISLNK(bundled_stat.st_mode) or not stat.S_ISREG(bundled_stat.st_mode):
-        raise LauncherError(
-            f"distributed OpenCode runtime support must be a regular file: {bundled}"
-        )
-    if bundled_content != OPENCODE_RUNTIME_GITIGNORE:
-        raise LauncherError("distributed OpenCode runtime support content differs")
-
-    support = config_home(environment) / "opencode/.gitignore"
-    try:
-        observed = support.lstat()
-    except FileNotFoundError:
-        observed = None
-    except OSError as exc:
-        raise LauncherError(
-            f"could not inspect OpenCode runtime support at {support}: {exc}"
-        ) from exc
-    if observed is None:
-        parent = support.parent
-        try:
-            parent.mkdir(parents=True, mode=0o700, exist_ok=True)
-            parent_stat = parent.lstat()
-        except OSError as exc:
-            raise LauncherError(
-                f"could not prepare OpenCode config directory {parent}: {exc}"
-            ) from exc
-        if stat.S_ISLNK(parent_stat.st_mode) or not stat.S_ISDIR(parent_stat.st_mode):
-            raise LauncherError(
-                f"OpenCode config parent must be a regular directory: {parent}"
-            )
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
-        flags |= getattr(os, "O_NOFOLLOW", 0)
-        try:
-            descriptor = os.open(support, flags, 0o600)
-        except FileExistsError:
-            descriptor = -1
-        except OSError as exc:
-            raise LauncherError(
-                f"could not create OpenCode runtime support at {support}: {exc}"
-            ) from exc
-        if descriptor >= 0:
-            created = True
-            try:
-                with os.fdopen(descriptor, "wb", closefd=True) as output:
-                    descriptor = -1
-                    output.write(OPENCODE_RUNTIME_GITIGNORE)
-                    output.flush()
-                    os.fsync(output.fileno())
-                _fsync_directory(parent)
-            except OSError as exc:
-                if created:
-                    try:
-                        support.unlink(missing_ok=True)
-                    except OSError:
-                        pass
-                raise LauncherError(
-                    f"could not write OpenCode runtime support at {support}: {exc}"
-                ) from exc
-            finally:
-                if descriptor >= 0:
-                    os.close(descriptor)
-        try:
-            observed = support.lstat()
-        except OSError as exc:
-            raise LauncherError(
-                f"could not verify OpenCode runtime support at {support}: {exc}"
-            ) from exc
-    if stat.S_ISLNK(observed.st_mode) or not stat.S_ISREG(observed.st_mode):
-        raise LauncherError(
-            f"OpenCode runtime support must be a regular, non-symlink file: {support}"
-        )
-    return support
-
-
 def _split_separator(arguments: Sequence[str]) -> tuple[list[str], list[str]]:
     try:
         separator = arguments.index("--")
@@ -563,7 +461,10 @@ def parse_invocation(
     parser = argparse.ArgumentParser(
         prog="grillmester",
         allow_abbrev=False,
-        description="Launch Grillmester in Copilot CLI or OpenCode through cplt.",
+        description=(
+            "Launch Grillmester in Copilot CLI or OpenCode, inside cplt's sandbox "
+            "when cplt is installed."
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Commands:\n"
@@ -581,12 +482,13 @@ def parse_invocation(
             "  grillmester local --full\n"
             "  grillmester --client copilot --agent designer --print-command\n\n"
             "Arguments unknown to Grillmester are forwarded to cplt. Arguments "
-            "after -- go to the selected client."
+            "after -- go to the selected client. Without cplt the client starts "
+            "directly, with no sandbox around it."
         ),
     )
     client_name = wrapper.pop(0) if wrapper[:1] and wrapper[0] in CLIENTS else None
     parser.add_argument(
-        "--client", choices=CLIENTS, help="terminal client to start through cplt"
+        "--client", choices=CLIENTS, help="terminal client to start"
     )
     parser.add_argument(
         "--agent",
@@ -600,12 +502,17 @@ def parse_invocation(
         "--project-dir",
         type=Path,
         default=cwd or Path.cwd(),
-        help="consumer repository for the sandbox (default: current directory)",
+        help="consumer repository to work in (default: current directory)",
     )
     parser.add_argument(
         "--print-command",
         action="store_true",
-        help="print the exact cplt command without starting a client",
+        help="print the exact launch command without starting a client",
+    )
+    parser.add_argument(
+        "--no-cplt",
+        action="store_true",
+        help="start the client directly, even when cplt is installed",
     )
     options, cplt_args = parser.parse_known_args(wrapper)
     if options.client and client_name and options.client != client_name:
@@ -627,6 +534,7 @@ def parse_invocation(
         cplt_args=tuple(cplt_args),
         client_args=tuple(client_args),
         print_command=options.print_command,
+        no_cplt=options.no_cplt,
     )
 
 
@@ -669,10 +577,64 @@ def _reject_reserved_arguments(
         raise LauncherError(
             "client --project-dir is owned by Grillmester; put it before --"
         )
+    if client == "opencode" and _contains_option(client_args, "--standalone"):
+        raise LauncherError(
+            "OpenCode --standalone is owned by Grillmester, which sets it when "
+            "the client starts without cplt"
+        )
     if client == "copilot" and _contains_option(client_args, "--plugin-dir"):
         raise LauncherError(
             "Copilot --plugin-dir is owned by Grillmester's reviewed distribution"
         )
+
+
+def _opencode_config_content(agent: str, current: str | None) -> str:
+    """Select the agent in the only place OpenCode 2's TUI reads it from."""
+
+    try:
+        content = json.loads(current) if current else {}
+    except ValueError as exc:
+        raise LauncherError(f"OPENCODE_CONFIG_CONTENT is not valid JSON: {exc}") from exc
+    if not isinstance(content, dict):
+        raise LauncherError("OPENCODE_CONFIG_CONTENT must be a JSON object")
+    content["default_agent"] = agent
+    return json.dumps(content, sort_keys=True, separators=(",", ":"))
+
+
+def _user_opencode_config(environment: Mapping[str, str]) -> Path | None:
+    """Find the file OpenCode 2 stops reading once OPENCODE_CONFIG_DIR is set."""
+
+    directory = config_home(environment) / "opencode"
+    for name in OPENCODE_USER_CONFIG_NAMES:
+        if (directory / name).is_file():
+            return directory / name
+    return None
+
+
+def _client_launch(
+    invocation: Invocation, distribution: Distribution
+) -> tuple[list[str], dict[str, str]]:
+    """Return the client arguments and environment both launch modes share."""
+
+    environment = dict(os.environ)
+    if invocation.client == "copilot":
+        return [
+            "--plugin-dir",
+            str(distribution.plugin),
+            "--agent",
+            f"grillmester:{invocation.agent}",
+            *invocation.client_args,
+        ], environment
+    environment["OPENCODE_CONFIG_DIR"] = str(distribution.opencode_target)
+    environment["OPENCODE_CONFIG_CONTENT"] = _opencode_config_content(
+        invocation.agent, environment.get("OPENCODE_CONFIG_CONTENT")
+    )
+    # With no provider, OpenCode would otherwise send the code to a free cloud model.
+    environment.setdefault("OPENCODE_DISABLE_FREE_MODELS", "true")
+    forwarded = list(invocation.client_args)
+    if forwarded[:1] == ["run"]:
+        return ["run", "--agent", invocation.agent, *forwarded[1:]], environment
+    return forwarded, environment
 
 
 def build_launch_command(
@@ -686,6 +648,7 @@ def build_launch_command(
         if invocation.client == "copilot"
         else distribution.opencode_target
     )
+    client_arguments, environment = _client_launch(invocation, distribution)
     command = [
         cplt,
         # cplt's current parent-side audit may execute repository-configured
@@ -699,47 +662,78 @@ def build_launch_command(
         "--allow-read",
         str(payload),
     ]
-    environment = dict(os.environ)
     if invocation.client == "opencode":
-        environment["OPENCODE_CONFIG_DIR"] = str(distribution.opencode_target)
-        command.extend(("--pass-env", "OPENCODE_CONFIG_DIR"))
-        client_arguments = _opencode_client_arguments(
-            invocation.agent, invocation.client_args
-        )
-    else:
-        client_arguments = [
-            "--plugin-dir",
-            str(distribution.plugin),
-            "--agent",
-            f"grillmester:{invocation.agent}",
-            *invocation.client_args,
-        ]
+        for name in OPENCODE_LAUNCH_ENVIRONMENT:
+            command.extend(("--pass-env", name))
     command.extend(invocation.cplt_args)
     command.append("--")
     command.extend(client_arguments)
     return command, environment
 
 
-def _opencode_client_arguments(
-    agent: str, arguments: Sequence[str]
-) -> list[str]:
-    """Bind agents only to OpenCode session entry points that accept them."""
+def build_direct_command(
+    invocation: Invocation,
+    distribution: Distribution,
+    *,
+    client: str,
+) -> tuple[list[str], dict[str, str]]:
+    """Start the client in the project directory, without a sandbox."""
 
-    forwarded = list(arguments)
-    if not forwarded:
-        return ["--agent", agent]
-    if forwarded[0] == "run":
-        return ["run", "--agent", agent, *forwarded[1:]]
-    if forwarded[0] in OPENCODE_COMMANDS:
-        return forwarded
-    return ["--agent", agent, *forwarded]
+    client_arguments, environment = _client_launch(invocation, distribution)
+    # OpenCode's `run` trusts PWD over the real working directory.
+    environment["PWD"] = str(invocation.project_dir)
+    if invocation.client == "copilot":
+        # cplt adds this flag itself.
+        client_arguments.insert(0, "--no-auto-update")
+    else:
+        if client_arguments[:1] and client_arguments[0] in OPENCODE_SERVER_COMMANDS:
+            raise LauncherError(
+                f"'opencode {client_arguments[0]}' starts no agent session; "
+                "run it yourself without Grillmester"
+            )
+        # OpenCode 2 otherwise starts a shared background service and stores
+        # its password in OPENCODE_CONFIG_DIR, which is our distributed target.
+        # cplt runs its own service for each session and rejects this flag.
+        client_arguments.insert(0, "--standalone")
+        user_config = _user_opencode_config(environment)
+        if user_config is not None:
+            environment.setdefault("OPENCODE_CONFIG", str(user_config))
+    return [client, *client_arguments], environment
+
+
+def _printable_command(
+    invocation: Invocation,
+    command: Sequence[str],
+    environment: Mapping[str, str],
+    *,
+    direct: bool,
+) -> str:
+    assignments: list[str] = []
+    if invocation.client == "opencode":
+        for name in (*OPENCODE_LAUNCH_ENVIRONMENT, "OPENCODE_CONFIG"):
+            if name in environment:
+                assignments.append(f"{name}={_printable_value(name, environment)}")
+    printed = shlex.join(["env", *assignments, *command] if assignments else command)
+    if direct:
+        return f"cd {shlex.quote(str(invocation.project_dir))} && {printed}"
+    return printed
+
+
+def _printable_value(name: str, environment: Mapping[str, str]) -> str:
+    """Keep provider keys in inline configuration out of terminal scrollback."""
+
+    value = environment[name]
+    if name == "OPENCODE_CONFIG_CONTENT" and set(json.loads(value)) != {"default_agent"}:
+        return "<your OPENCODE_CONFIG_CONTENT with default_agent set>"
+    return value
 
 
 CLIENT_INSTALL_HINTS = {
     "copilot": "brew install --cask copilot-cli",
     "cplt": "brew install navikt/tap/cplt",
-    "opencode": "brew install anomalyco/tap/opencode or npm install --global opencode-ai@1",
+    "opencode": "brew install opencode",
 }
+CPLT_UPDATE_HINT = "brew upgrade navikt/tap/cplt"
 
 
 def _resolve_binary(name: str) -> str:
@@ -760,7 +754,7 @@ def _resolve_binary(name: str) -> str:
 def _trusted_cplt_version_output(
     binary: str, *, environment: Mapping[str, str] | None = None
 ) -> str:
-    """Inspect the required sandbox binary before it becomes the trust boundary."""
+    """Inspect cplt before it becomes the trust boundary."""
 
     try:
         result = subprocess.run(
@@ -798,10 +792,11 @@ def _bounded_command_output(
     command: Sequence[str],
     *,
     environment: Mapping[str, str],
+    cwd: Path | None = None,
     timeout: float = 30,
     max_output_bytes: int = 64 * 1024,
 ) -> tuple[int, str, str]:
-    """Run one sandbox probe with bounded output and whole-group timeout cleanup."""
+    """Run one client probe with bounded output and whole-group timeout cleanup."""
 
     try:
         process = subprocess.Popen(
@@ -810,10 +805,11 @@ def _bounded_command_output(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=dict(environment),
+            cwd=cwd,
             start_new_session=True,
         )
     except OSError as exc:
-        raise LauncherError(f"could not start sandboxed client probe: {exc}") from exc
+        raise LauncherError(f"could not start client probe: {exc}") from exc
     assert process.stdout is not None and process.stderr is not None
     selector = selectors.DefaultSelector()
     streams = {
@@ -830,7 +826,7 @@ def _bounded_command_output(
                 _terminate_process_group(process)
                 process.wait()
                 raise LauncherError(
-                    f"sandboxed client version probe timed out after {timeout:g} seconds"
+                    f"client version probe timed out after {timeout:g} seconds"
                 )
             events = selector.select(remaining)
             if not events:
@@ -848,7 +844,7 @@ def _bounded_command_output(
                     _terminate_process_group(process)
                     process.wait()
                     raise LauncherError(
-                        "sandboxed client version probe exceeded the "
+                        "client version probe exceeded the "
                         f"{max_output_bytes}-byte output limit"
                     )
         try:
@@ -857,7 +853,7 @@ def _bounded_command_output(
             _terminate_process_group(process)
             process.wait()
             raise LauncherError(
-                f"sandboxed client version probe timed out after {timeout:g} seconds"
+                f"client version probe timed out after {timeout:g} seconds"
             ) from None
     finally:
         selector.close()
@@ -873,7 +869,7 @@ def _bounded_command_output(
         stderr = bytes(streams[process.stderr]).decode("utf-8")
     except UnicodeDecodeError as exc:
         raise LauncherError(
-            "sandboxed client version probe did not return UTF-8 output"
+            "client version probe did not return UTF-8 output"
         ) from exc
     return returncode, stdout, stderr
 
@@ -937,6 +933,16 @@ def _sandboxed_client_version(
     return _strict_client_version_output(client, returncode, stdout, stderr)
 
 
+def _direct_client_version(client: str, *, binary: str) -> str:
+    with tempfile.TemporaryDirectory(prefix="grillmester-client-probe-") as directory:
+        returncode, stdout, stderr = _bounded_command_output(
+            [binary, "--version"],
+            environment=os.environ,
+            cwd=Path(directory),
+        )
+    return _strict_client_version_output(client, returncode, stdout, stderr)
+
+
 def _strict_client_version_output(
     client: str, returncode: int, stdout: str, stderr: str
 ) -> str:
@@ -945,7 +951,7 @@ def _strict_client_version_output(
         diagnostic = " ".join(stderr.split())[:500]
         suffix = f": {diagnostic}" if diagnostic else ""
         raise LauncherError(
-            f"sandboxed {CLIENT_LABELS[client]} version probe failed with "
+            f"{CLIENT_LABELS[client]} version probe failed with "
             f"exit {returncode}{suffix}"
         )
     if client == "copilot":
@@ -961,11 +967,11 @@ def _strict_client_version_output(
         return lines[0]
     if len(lines) != 1:
         raise LauncherError(
-            f"sandboxed {CLIENT_LABELS[client]} version probe returned "
+            f"{CLIENT_LABELS[client]} version probe returned "
             f"unexpected stdout; expected one strict version line"
         )
     raise LauncherError(
-        f"sandboxed {CLIENT_LABELS[client]} version probe returned an "
+        f"{CLIENT_LABELS[client]} version probe returned an "
         "unexpected stdout line"
     )
 
@@ -1030,30 +1036,62 @@ def check_cplt(
     if release != SUPPORTED_CPLT_RELEASE and stamp <= MINIMUM_CPLT_STAMP:
         raise LauncherError(
             "cplt must be the tested baseline "
-            f"{SUPPORTED_CPLT_RELEASE} or a newer release; found {cplt_version!r}"
+            f"{SUPPORTED_CPLT_RELEASE} or a newer release; found {cplt_version!r}; "
+            f"update it with: {CPLT_UPDATE_HINT} (a standard launch can also "
+            "start without it with --no-cplt)"
         )
     return CheckedBinary("cplt", cplt, cplt_version)
+
+
+def resolve_cplt(*, disabled: bool = False) -> CheckedBinary | None:
+    """Return the sandbox to launch through, or None to start the client directly.
+
+    An installed cplt that fails its check stays an error, so nobody loses the
+    sandbox they chose without saying so.
+    """
+
+    if disabled:
+        return None
+    cplt = _find_cplt()
+    return None if cplt is None else check_cplt(binary=cplt)
+
+
+def _find_cplt() -> str | None:
+    """Tell an absent cplt from a broken one, which `which` also skips."""
+
+    try:
+        return _resolve_binary("cplt")
+    except MissingBinaryError:
+        for directory in os.environ.get("PATH", "").split(os.pathsep):
+            candidate = Path(directory or os.curdir) / "cplt"
+            if os.path.lexists(candidate) and not candidate.is_dir():
+                raise LauncherError(
+                    f"{candidate} is not a working cplt; fix it, or start without "
+                    "its sandbox with --no-cplt"
+                ) from None
+        return None
 
 
 def check_client_runtime(
     client: str,
     *,
-    cplt: CheckedBinary | None = None,
-    distribution: Distribution | None = None,
+    cplt: CheckedBinary | None,
+    distribution: Distribution,
     binary: str | None = None,
     probe_environment: Mapping[str, str] | None = None,
     probe_cplt_arguments: Sequence[str] = (),
 ) -> CheckedBinary:
     binary = _resolve_binary(client) if binary is None else binary
-    cplt = check_cplt() if cplt is None else cplt
-    distribution = load_distribution() if distribution is None else distribution
-    version = _sandboxed_client_version(
-        client,
-        cplt=cplt,
-        distribution=distribution,
-        environment=probe_environment,
-        cplt_arguments=probe_cplt_arguments,
-    )
+    if cplt is None:
+        version = _direct_client_version(client, binary=binary)
+    else:
+        version = _sandboxed_client_version(
+            client,
+            cplt=cplt,
+            distribution=distribution,
+            environment=probe_environment,
+            cplt_arguments=probe_cplt_arguments,
+        )
     if client == "opencode":
         observed = _opencode_semver(version)
         if (
@@ -1061,7 +1099,8 @@ def check_client_runtime(
             or observed[0] != SUPPORTED_OPENCODE_MAJOR
         ):
             raise LauncherError(
-                "OpenCode must be in the supported 1.x range, starting at "
+                f"OpenCode must be in the supported {SUPPORTED_OPENCODE_MAJOR}.x "
+                "range, starting at "
                 f"{MINIMUM_OPENCODE_VERSION_TEXT}; found {version!r}; "
                 f"install it with: {CLIENT_INSTALL_HINTS['opencode']}"
             )
@@ -1084,9 +1123,10 @@ def check_client(
     client: str,
     *,
     distribution: Distribution | None = None,
+    no_cplt: bool = False,
 ) -> LaunchChecks:
     distribution = load_distribution() if distribution is None else distribution
-    cplt = check_cplt()
+    cplt = resolve_cplt(disabled=no_cplt)
     runtime = check_client_runtime(
         client,
         cplt=cplt,
@@ -1109,14 +1149,15 @@ def discover_clients(candidates: Sequence[str] = CLIENTS) -> tuple[str, ...]:
     if not available:
         raise LauncherError(
             "no supported terminal client was found on PATH; install OpenCode "
-            "with 'brew install anomalyco/tap/opencode' or "
-            "'npm install --global opencode-ai@1', or GitHub Copilot CLI with "
-            "'brew install --cask copilot-cli'"
+            f"with '{CLIENT_INSTALL_HINTS['opencode']}', or GitHub Copilot CLI "
+            f"with '{CLIENT_INSTALL_HINTS['copilot']}'"
         )
     return tuple(available)
 
 
-def doctor(client: str | None, *, root: Path | None = None) -> int:
+def doctor(
+    client: str | None, *, root: Path | None = None, no_cplt: bool = False
+) -> int:
     distribution = load_distribution(root)
     print(f"ok  distribution {distribution.root} (v{distribution.version})")
     print(f"ok  copilot plugin {distribution.plugin}")
@@ -1124,11 +1165,19 @@ def doctor(client: str | None, *, root: Path | None = None) -> int:
     print(f"ok  focused Copilot CLI target {distribution.focused_copilot_target}")
     print(f"ok  focused OpenCode target {distribution.focused_opencode_target}")
     try:
-        cplt_check = check_cplt()
+        cplt_check = resolve_cplt(disabled=no_cplt)
     except LauncherError as exc:
         print(f"error  cplt: {exc}", file=sys.stderr)
         return 1
-    print(f"ok  {cplt_check.label} {cplt_check.detail}")
+    if cplt_check is not None:
+        print(f"ok  {cplt_check.label} {cplt_check.detail}")
+    elif no_cplt:
+        print("skip  cplt (--no-cplt)")
+    else:
+        print(
+            "skip  cplt not installed (optional; clients start without its "
+            f"sandbox; install it with: {CLIENT_INSTALL_HINTS['cplt']})"
+        )
 
     selected = CLIENTS if client is None else (client,)
     failed = False
@@ -1200,6 +1249,7 @@ def choose_preferences(
     validate: bool = True,
     persist: bool = True,
     validation_cache: dict[str, LaunchChecks] | None = None,
+    no_cplt: bool = False,
 ) -> Preferences:
     if persist and not validate:
         raise LauncherError("preferences cannot be saved before client validation")
@@ -1241,10 +1291,9 @@ def choose_preferences(
         client = fixed_client
         print(f"Klient\n  {CLIENT_LABELS[client]} (fra kommandoen)")
     if validate:
-        if validation_cache is None:
-            check_client_runtime(client)
-        else:
-            validation_cache[client] = check_client(client)
+        checks = check_client(client, no_cplt=no_cplt)
+        if validation_cache is not None:
+            validation_cache[client] = checks
     print()
     if fixed_agent is None:
         agent = _read_choice("Agent", PUBLIC_AGENTS, AGENT_LABELS, default_agent)
@@ -1276,9 +1325,10 @@ def interactive_defaults(
         return current
     if current is None:
         return choose_preferences(validation_cache=validation_cache)
+    sandbox = "gjennom cplt" if _find_cplt() else "uten sandbox"
     prompt = (
         f"Start {CLIENT_LABELS[current.client]} med "
-        f"{AGENT_LABELS[current.agent].split(' – ', 1)[0]} gjennom cplt? "
+        f"{AGENT_LABELS[current.agent].split(' – ', 1)[0]} {sandbox}? "
         "[Enter = start, c = endre, q = avslutt]: "
     )
     while True:
@@ -1337,13 +1387,15 @@ def defaults_for_arguments(
     if current is not None:
         return current
     if sys.stdin.isatty() and sys.stdout.isatty():
-        print_only = _contains_option(_split_separator(arguments)[0], "--print-command")
+        wrapper = _split_separator(arguments)[0]
+        print_only = _contains_option(wrapper, "--print-command")
         return choose_preferences(
             fixed_client=explicit_client,
             fixed_agent=explicit_agent,
             validate=not print_only,
             persist=not print_only,
             validation_cache=validation_cache,
+            no_cplt=_contains_option(wrapper, "--no-cplt"),
         )
     raise LauncherError(
         "no saved default in a non-interactive terminal; use --client and --agent"
@@ -1357,6 +1409,11 @@ def _doctor_arguments(arguments: Sequence[str]) -> argparse.Namespace:
         description="Check the Grillmester payload and terminal clients without launching.",
     )
     parser.add_argument("--client", choices=CLIENTS)
+    parser.add_argument(
+        "--no-cplt",
+        action="store_true",
+        help="check the clients as they start without cplt",
+    )
     return parser.parse_args(arguments)
 
 
@@ -1460,7 +1517,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
             return _run_local_mode(arguments[1:])
         if arguments[:1] == ["doctor"]:
             options = _doctor_arguments(arguments[1:])
-            return doctor(options.client)
+            return doctor(options.client, no_cplt=options.no_cplt)
         if arguments in (["--help"], ["-h"], ["help"]):
             parse_invocation(["--help"])
             return 0
@@ -1475,14 +1532,14 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 "directory and pointing the launcher at it; keep your saved configuration"
             )
         if arguments[:1] == ["choose"]:
-            if len(arguments) != 1:
-                raise LauncherError("grillmester choose takes no arguments")
+            if arguments[1:] not in ([], ["--no-cplt"]):
+                raise LauncherError("grillmester choose takes only --no-cplt")
             try:
                 current = load_preferences()
             except InvalidPreferencesError as exc:
                 print(f"Advarsel: {exc}", file=sys.stderr)
                 current = None
-            choose_preferences(current)
+            choose_preferences(current, no_cplt=len(arguments) == 2)
             return 0
         wrapper, _ = _split_separator(arguments)
         if any(argument in ("-h", "--help") for argument in wrapper):
@@ -1500,29 +1557,63 @@ def main(arguments: Sequence[str] | None = None) -> int:
             )
         distribution = load_distribution()
         if invocation.print_command:
-            cplt = _resolve_binary("cplt")
-            _resolve_binary(invocation.client)
+            client = _resolve_binary(invocation.client)
+            cplt = None if invocation.no_cplt else _find_cplt()
         else:
             checks = validation_cache.get(invocation.client)
             if checks is None:
                 checks = check_client(
                     invocation.client,
                     distribution=distribution,
+                    no_cplt=invocation.no_cplt,
                 )
-            cplt = checks.cplt.path
-        command, environment = build_launch_command(
-            invocation, distribution, cplt=cplt
-        )
+            client = checks.client.path
+            cplt = None if checks.cplt is None else checks.cplt.path
+        if cplt is None:
+            if invocation.cplt_args:
+                raise LauncherError(
+                    "these arguments need cplt, which is not in use: "
+                    f"{shlex.join(invocation.cplt_args)}; arguments for the "
+                    "client go after --"
+                )
+            command, environment = build_direct_command(
+                invocation, distribution, client=client
+            )
+        else:
+            command, environment = build_launch_command(
+                invocation, distribution, cplt=cplt
+            )
         if invocation.print_command:
-            print(shlex.join(command))
+            print(
+                _printable_command(
+                    invocation, command, environment, direct=cplt is None
+                )
+            )
             return 0
-        if invocation.client == "opencode":
-            ensure_opencode_runtime_support(distribution, environment)
-        print(
-            f"Launching Grillmester ({invocation.agent}) in {invocation.client} "
-            "through cplt...",
-            file=sys.stderr,
-        )
+        if cplt is None:
+            print(
+                f"Launching Grillmester ({invocation.agent}) in "
+                f"{invocation.client} without the cplt sandbox...",
+                file=sys.stderr,
+            )
+            os.chdir(invocation.project_dir)
+        else:
+            print(
+                f"Launching Grillmester ({invocation.agent}) in "
+                f"{invocation.client} through cplt...",
+                file=sys.stderr,
+            )
+            if invocation.client == "opencode":
+                user_config = environment.get(
+                    "OPENCODE_CONFIG"
+                ) or _user_opencode_config(environment)
+                if user_config is not None:
+                    print(
+                        f"cplt does not load {user_config} for this target; "
+                        "use /connect, OPENCODE_CONFIG_CONTENT or --no-cplt "
+                        "for your own providers",
+                        file=sys.stderr,
+                    )
         os.execvpe(command[0], command, environment)
     except (LauncherError, OSError) as exc:
         print(f"grillmester: {exc}", file=sys.stderr)

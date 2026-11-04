@@ -4,7 +4,7 @@ description: "Prepare a portable handoff when the user requests transferring wor
 ---
 # Handoff
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Write a handoff only when the user asks for a transfer. A long conversation,
 high context usage or a phase change is not a reason; the client handles

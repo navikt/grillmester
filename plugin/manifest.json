@@ -7,7 +7,7 @@
   },
   "counts": {
     "agents": 6,
-    "skills": 44
+    "skills": 37
   },
   "agents": [
     "designer",
@@ -21,10 +21,8 @@
     "accessibility-review",
     "agent-retro",
     "aksel-design",
-    "api-design",
     "app-sandbox-setup",
     "architecture-review",
-    "auth-overview",
     "create-a-skill",
     "design-prototype",
     "diagnosing-bugs",
@@ -39,15 +37,10 @@
     "handoff",
     "improve-codebase-architecture",
     "issue-management",
-    "kafka-topic",
     "klarsprak",
-    "kotlin-ktor",
     "lumi-survey",
-    "nais-manifest",
-    "nav-troubleshoot",
-    "observability-setup",
+    "nav-platform",
     "okr",
-    "postgresql-review",
     "produktledelse",
     "prototype",
     "pull-request",
@@ -85,7 +78,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "c76a609c9d2aec12565986bcfd93ec79a646920c7e0574384001dc072de46297",
+      "sha256": "a2cb755761c8649197b3cfd4fbe93356c4df15568b96baff567c6d17d79af0c8",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
@@ -132,24 +125,20 @@
       "sha256": "8e3b1e6f018dd0d3047b6b01b9774eb960f60d7526b1573997b6c41a7f151fac",
       "mode": "0644"
     },
-    "skills/api-design/SKILL.md": {
-      "sha256": "36a820c07166d88167c81d1b8d8e42122a6083d729146ffd2c224e4a66ea4f8f",
-      "mode": "0644"
-    },
     "skills/app-sandbox-setup/SKILL.md": {
-      "sha256": "7854b80d524e4cde51bc24cb8244948761da08224615db2acd9f6300ddb48316",
+      "sha256": "69781753faf53280dde048b6594462e2d010e3ee1a976d9f97ec055f8e39257b",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/references/maintenance.md": {
-      "sha256": "940c844764bc92491721e5fde5ccc2da5d3f5098359f3ac91d5273a58a04042f",
+      "sha256": "827c33acbf41c8641a31d19078d9852593737896ea013b6f804549b5134607a6",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/references/risks.md": {
-      "sha256": "07bb84da424ed291679d6e0f10611184e8eb38847eda506f1c86607317d0fb07",
+      "sha256": "a70e84b906fec25bc7a47975be6c160d3f3c9c8d350d646f831c96ea139f76a4",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/references/session-history.md": {
-      "sha256": "edf4544297e1c757a81853859a25a641198448b979ef9bcee7fdf35f5b8ea8c2",
+      "sha256": "c48a18a9fa7809f4f0967221dc33bc1a4fdce03c4250436617de4182dd82a507",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/references/toolchain.md": {
@@ -169,11 +158,11 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/discovery.py": {
-      "sha256": "7985639daf8799400208508ae4a3a360b62e28657e762425848994bf38f14d54",
+      "sha256": "54b94c2b329b7a931a13e654adad18560e3ab2179297e38e8322aedf0a3819bd",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/facts.py": {
-      "sha256": "38c9d364b0b27b94ebb425e77f8bbe4624213664cf5995a028b2a517a6a586cf",
+      "sha256": "17b09e2c8ae6050d80580ef18f832e007b2f607d908c7e86b5e5dd2bbd7d4ed8",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/gradle_repair.py": {
@@ -181,7 +170,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/history.py": {
-      "sha256": "624a5ee29a84e885bc45a84bf5d3b1c4a7a7d10ad089c5a644de4f994d66649e",
+      "sha256": "e0f4fd54adfdd0966490644c3a28ea2ed885b0c99b5b41598754ef299c9b4eb3",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/instructions.py": {
@@ -197,7 +186,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/policy.py": {
-      "sha256": "80c29b98d15b88e9be37ab57f9f840989d297ffda001fcea7c28b20804d80d27",
+      "sha256": "d64ffd484be3e4f8d467e838c1df0adb4a76e453d2ffff38bf982a061c236ca1",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/probes.py": {
@@ -225,7 +214,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/rules.py": {
-      "sha256": "9996f71fc35ad232a04cbbe8e4ce75083cc0a1247ffde8e02e574a70eafb4887",
+      "sha256": "c0c515a34d1df1aa86196c9a43fa19399dbbefaf6ba702bfd4aeb07de6520577",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/store.py": {
@@ -249,23 +238,11 @@
       "mode": "0644"
     },
     "skills/architecture-review/references/nav-context.md": {
-      "sha256": "690fb1aba81e4e674ea69623d332dfac882feb04b4b9f64fd8f9288fa78973cf",
+      "sha256": "0810575aab3039e6ae2444cf1e667d9248b977cae234daec86452e8115799dad",
       "mode": "0644"
     },
     "skills/architecture-review/references/review-checklist.md": {
       "sha256": "197e962df49d8518b638da9274ace7ca07e9557eff34a89285c5436b8cf581fa",
-      "mode": "0644"
-    },
-    "skills/auth-overview/SKILL.md": {
-      "sha256": "ed718f61938e31939ee5508e9bec5c6288e8edc55a27c79e902ba94226aeae15",
-      "mode": "0644"
-    },
-    "skills/auth-overview/references/decision-tree.md": {
-      "sha256": "dc91f40f35aed6b4041658ab230cc5b684a7074f11b5778cf657f87d2006fa58",
-      "mode": "0644"
-    },
-    "skills/auth-overview/references/local-auth-mock.md": {
-      "sha256": "84d337c070b4bbb170ab89dd0a96bffda95f0f6b14ebbd517aa5a5947f737dc5",
       "mode": "0644"
     },
     "skills/create-a-skill/SKILL.md": {
@@ -321,7 +298,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "80bbb3f103dea395ade51ffd8ea6990822a4bfdcce14f55bd3f0263b8e1a1538",
+      "sha256": "674deb9367aca26ebb17783dbdf711baf260c55955046876af33f333c5e95dbb",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/references/data-access.md": {
@@ -333,7 +310,7 @@
       "mode": "0755"
     },
     "skills/doctor/SKILL.md": {
-      "sha256": "6011b6de8fa000e989205201276297a5e3f63e5968fc0809de4332493209a3d1",
+      "sha256": "d6c121b273a61352b220b541570438f84741a5c3ecd77952fd4b86529708f385",
       "mode": "0644"
     },
     "skills/domain-modeling/ADR-FORMAT.md": {
@@ -393,15 +370,7 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "7487b2ab03f2f848b42c0c41fdf726749688e7a54da63453eb61d60f66f6a5f7",
-      "mode": "0644"
-    },
-    "skills/kafka-topic/SKILL.md": {
-      "sha256": "ad983b0d4ca07e385b1e9daa231e850f4ae86cb20b9cded4ec0d951b5a6d5661",
-      "mode": "0644"
-    },
-    "skills/kafka-topic/references/plain-kafka.md": {
-      "sha256": "0d8bea362affc972ce9e911e16435e1e9cc2ca464da892f65c31402b5b29e489",
+      "sha256": "6c06108912a41cde8e9c128fa6bbc273727170fbc35b26347ba662b6dbfa13dd",
       "mode": "0644"
     },
     "skills/klarsprak/SKILL.md": {
@@ -420,24 +389,8 @@
       "sha256": "34029a5acdb95920b382812674b30f28b9597c9edaab2d47d2bcc86c1e591433",
       "mode": "0644"
     },
-    "skills/kotlin-ktor/SKILL.md": {
-      "sha256": "16c8f095f3495455180560ce02b5999d6fa64b1e31b9271ba930f72f7bbf4397",
-      "mode": "0644"
-    },
-    "skills/kotlin-ktor/references/error-handling.md": {
-      "sha256": "f682701bd6163a46f44e77cbb0ad648c833fa8ea3f063d1e63fce937127620ad",
-      "mode": "0644"
-    },
-    "skills/kotlin-ktor/references/http-client.md": {
-      "sha256": "6fded34bbdb05800f7a076a2c98d9bd279de49c0932f615e4951be880b83727d",
-      "mode": "0644"
-    },
-    "skills/kotlin-ktor/references/pagination-validation.md": {
-      "sha256": "0816a322b6bbadb1956bfc3c7079618e5bfeeb69fe5ece51ffe4935ae3b9d460",
-      "mode": "0644"
-    },
     "skills/lumi-survey/SKILL.md": {
-      "sha256": "d6d66e0b0c910bf86d006a57ea67c59c296f231acbddf2bc2fd1b68ef327b14d",
+      "sha256": "61ea319378542affecd551518897f07fccadbdf515890b97a2f57f824dc2733a",
       "mode": "0644"
     },
     "skills/lumi-survey/references/backend-transport.md": {
@@ -452,56 +405,52 @@
       "sha256": "fa6ba1abc26594fa5a1325b177554946435814d49262d0117f8ff6fc00e9252b",
       "mode": "0644"
     },
-    "skills/nais-manifest/SKILL.md": {
-      "sha256": "4fb77f3bd1c4d8587d5ae9c5667638d90c4e1d475d44b5777cd50cc8347e232c",
+    "skills/nav-platform/SKILL.md": {
+      "sha256": "e8a9a5b328131b8e480a8562d6a604e85278dac8555b030daf0dad1dd93421e9",
       "mode": "0644"
     },
-    "skills/nais-manifest/references/naisjob-example.md": {
+    "skills/nav-platform/references/api.md": {
+      "sha256": "84b759e9d8db847944bf0641b7451ce9f152f76fdb78658d507e3ec85a782170",
+      "mode": "0644"
+    },
+    "skills/nav-platform/references/auth.md": {
+      "sha256": "a5e7fb9be238acf9e43147ea3c69508538fe9862401ebedef6393fe7b5d61373",
+      "mode": "0644"
+    },
+    "skills/nav-platform/references/database.md": {
+      "sha256": "6cc0969e4a6720ef46155a337abdd7ee3b7efe9296fc3e2172836f8735e08799",
+      "mode": "0644"
+    },
+    "skills/nav-platform/references/diagnosis.md": {
+      "sha256": "f0f85fafd28c9888ac236f9858954e67b7b658d353fd00a59a9728e86e35c423",
+      "mode": "0644"
+    },
+    "skills/nav-platform/references/kafka.md": {
+      "sha256": "dbe99f743c6cfae8ed72af4473e59b42ab46f82fc53f7a54c5d34458ae9a6a9a",
+      "mode": "0644"
+    },
+    "skills/nav-platform/references/ktor.md": {
+      "sha256": "5bdc50e9442672a0adf0807091882df28595bb1ceeddd006d9d8bb2ba19c84b7",
+      "mode": "0644"
+    },
+    "skills/nav-platform/references/local-auth-mock.md": {
+      "sha256": "84d337c070b4bbb170ab89dd0a96bffda95f0f6b14ebbd517aa5a5947f737dc5",
+      "mode": "0644"
+    },
+    "skills/nav-platform/references/nais.md": {
+      "sha256": "39c38016d0a8eef0515d1dbe236422d114a0dd4b93450bca8d294824a4dd4930",
+      "mode": "0644"
+    },
+    "skills/nav-platform/references/naisjob-example.md": {
       "sha256": "35a3bb0beaeca5f461731170dad50e17f4af30cef6c02aa9238b5af51a12fc58",
       "mode": "0644"
     },
-    "skills/nais-manifest/references/pod-lifecycle.md": {
-      "sha256": "b6b99088c7df59be1db697a3373fdd9f4405f76d10ba2cf2b6f9a560b9c64232",
+    "skills/nav-platform/references/observability.md": {
+      "sha256": "7c17691313e2ffc0d53fe318df34845dddf100d0a067c6e3e509eac0b681d8dd",
       "mode": "0644"
     },
-    "skills/nav-troubleshoot/SKILL.md": {
-      "sha256": "23ae29c8a55aea5fd230aa2b383d3e36870085c939c4aaf8b80258b884be4de9",
-      "mode": "0644"
-    },
-    "skills/nav-troubleshoot/references/auth-diagnose.md": {
-      "sha256": "e853bc042cc07dc7f10d437ddaf8314f05fcd977f626e3fc77fd45927724fcee",
-      "mode": "0644"
-    },
-    "skills/nav-troubleshoot/references/database-diagnose.md": {
-      "sha256": "d3b9643cbd0d012de110a7bf3e526a35e7c4b7bcdb69d4853954eb43d7c7e27a",
-      "mode": "0644"
-    },
-    "skills/nav-troubleshoot/references/kafka-diagnose.md": {
-      "sha256": "50a5787160136d7c0f5b23525c720291e20797eeb59a686d216489ec6690d63a",
-      "mode": "0644"
-    },
-    "skills/nav-troubleshoot/references/observability-diagnose.md": {
-      "sha256": "3c5b00cd74bed13238d6b2871897fc6c551286a1bcb94e601252485149da179d",
-      "mode": "0644"
-    },
-    "skills/nav-troubleshoot/references/pod-diagnose.md": {
-      "sha256": "af47faf70302b82b4933b1225334dfa80059d1c144b9e883ee39cf99a1c0030d",
-      "mode": "0644"
-    },
-    "skills/observability-setup/SKILL.md": {
-      "sha256": "fbb4cf4d7b48ed2d6f88bf50d94b522e5cf7200e444f18c1925658f13bad9fb7",
-      "mode": "0644"
-    },
-    "skills/observability-setup/references/alerting.md": {
-      "sha256": "c7236bd86d47ca15d345805563b6db8422bb4f66af9a83d1e06bdf9ff1988be7",
-      "mode": "0644"
-    },
-    "skills/observability-setup/references/micrometer.md": {
-      "sha256": "658821b9a21bb59b7df47ef161953b89fb085224a00cde5d542de9e8ffb8cf7c",
-      "mode": "0644"
-    },
-    "skills/observability-setup/references/promql-logql.md": {
-      "sha256": "eec59a2b8577b49a089d69f8efe52a39576a23346378eb32e8d4faf5f1bc562c",
+    "skills/nav-platform/references/plain-kafka.md": {
+      "sha256": "3a2e4188ccae6f258e48ab420d3ed943c3bcb6010515769664e99cc97629f941",
       "mode": "0644"
     },
     "skills/okr/SKILL.md": {
@@ -510,18 +459,6 @@
     },
     "skills/okr/references/eksempler.md": {
       "sha256": "78e152651db66bdb5eeb30bd1adafb7fe08272164bfdc5fdd353bb6558b7386f",
-      "mode": "0644"
-    },
-    "skills/postgresql-review/SKILL.md": {
-      "sha256": "b61c485622dacff9aeeebcaec56f5596c2e5caca349ef327a271538b2da4d3ba",
-      "mode": "0644"
-    },
-    "skills/postgresql-review/references/migration-flyway.md": {
-      "sha256": "1656eacfafbffce929b46c4b78b44f11f1265ac7560f2ce62e90ed2f88b45a4f",
-      "mode": "0644"
-    },
-    "skills/postgresql-review/references/sql-patterns.md": {
-      "sha256": "b9746c3d3896dc5726880a1db39c934d1c6b83c33f408afb00406e5618cc7ad3",
       "mode": "0644"
     },
     "skills/produktledelse/SKILL.md": {
@@ -549,15 +486,15 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "6ea601cdf05f5b8de264aa4b46347f3e2bda0fcd681b76faa51804394c79f1ef",
+      "sha256": "8b9cb6db1aa8379720748d57f45c5e142ff36a194b6224d82c777fa37e9a0e7c",
       "mode": "0644"
     },
     "skills/review/references/smells.md": {
-      "sha256": "4cc59d31d4a27a1c7c31c5a3bdca34b40b01b85cb2ffe601cb9b7c39023381d6",
+      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "fa56646bf2ec07a60543487879c5ba9b61272e930855344e73220ffb294a97cc",
+      "sha256": "1eb7cfccafa93c1763763a1953ded90986c25f49b64488685de2f65a851388ba",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
@@ -569,15 +506,11 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "6994617e355d995fd8c2c7a61436c3dd451096b750182a8c20c055d5a64958ef",
+      "sha256": "581b3ffb851e60e34db06ba9ee0cc80755dfe3f1bbff6861ccff7f0fdbddbe33",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
       "sha256": "e97614726acef3958b8b5236758d01c1e41e1919418005dd532c07015a3c381a",
-      "mode": "0644"
-    },
-    "skills/tdd/refactoring.md": {
-      "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
     "skills/tdd/test-boundaries.md": {
@@ -589,11 +522,11 @@
       "mode": "0644"
     },
     "skills/team-status/SKILL.md": {
-      "sha256": "230fe8bb7c671e62fb6ef52dd9d8adf83a7c2da4da1174bf5ea934dbbf9075bb",
+      "sha256": "8e925f9898c73eab4ed818d308cdec570f1a85e96f21426afea9ecb53a3ce1cb",
       "mode": "0644"
     },
     "skills/team-status/references/projects-v2.md": {
-      "sha256": "daf04a8387f830b85eb30c8f84a33152119fd7f2e59a6f29a3898d0fe6b78b07",
+      "sha256": "ad0b28e9fec9aa9a00569d3023407f5a8629f5e0eec2c7ce62a183d64ac25f81",
       "mode": "0644"
     },
     "skills/team-status/references/rapportmaler.md": {

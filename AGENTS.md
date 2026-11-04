@@ -1,7 +1,7 @@
 # Repository contract
 
 This repository owns the portable Grillmester Copilot plugin in `plugin/`,
-the generated full OpenCode 1 target in `targets/opencode-v1/`, and the focused
+the generated full OpenCode target in `targets/opencode-v1/`, and the focused
 local-model projections in `targets/opencode-v1-focused/` and
 `targets/copilot-cli-focused-v1/`. The Copilot source and target-neutral prompt
 bodies remain canonical; regenerate `plugin/manifest.json` through
@@ -51,8 +51,7 @@ python3 -m unittest discover -s tests -v
 node --check plugin/skills/design-prototype/scripts/app-runtime.js
 node --test plugin/skills/design-prototype/tests/*.test.js
 python3 scripts/smoke_plugin_install.py
-python3 scripts/smoke_opencode.py --require-binary
-python3 scripts/smoke_opencode_runtime.py --require-binary --cplt cplt
+python3 scripts/smoke_opencode.py --require-binary --cplt cplt
 python3 scripts/smoke_grillmester_local.py --require-binaries --cplt cplt --opencode opencode --copilot copilot
 ```
 
@@ -64,11 +63,12 @@ repository, pass Copilot's `--plugin-dir plugin` through according to the
 current `cplt` documentation, and select the agent with `/agent`.
 Never use a consumer repository as a write target for a smoke test.
 The OpenCode smoke test must likewise use its disposable consumer repository,
-isolated home/config directories, and exactly OpenCode `1.18.20`. Every
+isolated home/config directories, and exactly OpenCode `2.2.5`. Every
 cplt-backed release smoke is gated with exactly cplt
-`2026.08.17-062831-1008a92`; the runtime smoke must exercise that wrapper and
-use only its deterministic loopback provider. It must not contact a real model
-or reuse an ambient provider credential. Build release bundles only through
+`2026.11.02-225238-10a2882`; the macOS gate must run the OpenCode smoke through
+that wrapper as well as directly. It uses only its deterministic loopback
+provider and must not contact a real model or reuse an ambient provider
+credential. Build release bundles only through
 the deterministic bundle builder, and publish the resulting `tar.gz` together
 with its detached SHA-256.
 
@@ -79,7 +79,8 @@ model in every request. It must not use a GitHub Copilot cloud model.
 
 Treat those exact versions only as release-test inputs, not as runtime pins or
 client binaries shipped in the release bundle. The launchers resolve
-user-installed OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.100,<2`, and cplt at
-the tested baseline or a newer dated release from `PATH`. Launcher tests must
-prove missing-client diagnostics, Copilot-only operation, and the absence of
-private `libexec/clients` copies.
+user-installed OpenCode `>=2.2.5,<3`, Copilot CLI `>=1.0.100,<2`, and cplt at
+the tested baseline or a newer dated release from `PATH`. cplt is optional for
+the standard launcher and required by `grillmester local`. Launcher tests must
+prove missing-client diagnostics, Copilot-only operation, launch without cplt,
+and the absence of private `libexec/clients` copies.

@@ -136,6 +136,14 @@ class OpenCodeGenerationTest(unittest.TestCase):
             {
                 "$schema": "https://opencode.ai/config.json",
                 "autoupdate": False,
+                "permission": {
+                    "execute": "deny",
+                    "external_directory": {
+                        "*": "ask",
+                        "{env:OPENCODE_CONFIG_DIR}/skills/*": "allow",
+                    },
+                    "opencode_*": "deny",
+                },
                 "share": "disabled",
             },
             json.loads(files["opencode.json"][0]),
@@ -260,7 +268,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 GENERATOR.ProjectionError,
-                "must leave external_directory to OpenCode",
+                "must leave external_directory to the target configuration",
             ):
                 GENERATOR.build_projection(root)
         finally:
@@ -326,7 +334,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
             self.assertNotIn(token, text)
         self.assertIsNone(GENERATOR.slash_skill_reference(set(json.loads((ROOT / "policy/content-lock.json").read_text())["skills"])).search(text))
         self.assertIn("`question`", text)
-        self.assertIn("`task` tool", text)
+        self.assertIn("`subagent` tool", text)
         self.assertIn("Load them with the native `skill` tool", text)
 
         grillmester = files["agents/grillmester.md"][0].decode("utf-8")
@@ -380,7 +388,7 @@ class OpenCodeGenerationTest(unittest.TestCase):
         self.assertEqual(
             "overlay", manifest["skillCapabilities"]["create-a-skill"]
         )
-        self.assertIn("Grillmester Doctor for OpenCode v1", doctor)
+        self.assertIn("Grillmester Doctor for OpenCode", doctor)
         self.assertIn("OpenCode-compatible Agent Skill", creator)
         self.assertNotIn("Copilot", doctor)
         self.assertNotIn("Copilot", creator)

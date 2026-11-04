@@ -107,8 +107,7 @@ class GrillmesterCliTests(unittest.TestCase):
                 "--pass-env",
                 "LOCAL_MODEL_KEY",
                 "--",
-                "--model",
-                "lmstudio/qwen",
+                "--continue",
             ],
             cwd=ROOT,
         )
@@ -118,17 +117,22 @@ class GrillmesterCliTests(unittest.TestCase):
 
         separator = command.index("--")
         self.assertEqual(command[1:4], ["--no-audit", "--agent", "opencode"])
-        self.assertEqual(
-            command[separator + 1 :],
-            ["--agent", "grillmester", "--model", "lmstudio/qwen"],
-        )
+        self.assertEqual(["--continue"], command[separator + 1 :])
         self.assertIn("--allow-localhost", command[:separator])
         self.assertIn("LOCAL_MODEL_KEY", command[:separator])
         self.assertEqual(
             str(ROOT / "targets/opencode-v1"),
             environment["OPENCODE_CONFIG_DIR"],
         )
+        self.assertEqual(
+            {"default_agent": "grillmester"},
+            json.loads(environment["OPENCODE_CONFIG_CONTENT"]),
+        )
+        self.assertEqual("true", environment["OPENCODE_DISABLE_FREE_MODELS"])
         self.assertIn("OPENCODE_CONFIG_DIR", command[:separator])
+        self.assertIn("OPENCODE_CONFIG_CONTENT", command[:separator])
+        self.assertIn("OPENCODE_DISABLE_FREE_MODELS", command[:separator])
+        self.assertNotIn("--standalone", command)
 
     def test_opencode_run_places_the_selected_agent_after_the_subcommand(self) -> None:
         invocation = CLI.parse_invocation(
@@ -175,65 +179,395 @@ class GrillmesterCliTests(unittest.TestCase):
         separator = command.index("--")
         self.assertEqual(["models", "llamacpp"], command[separator + 1 :])
 
-    def test_opencode_runtime_support_is_preseeded_without_a_write_grant(self) -> None:
+    def test_opencode_without_cplt_runs_standalone_with_the_same_agent_and_target(
+        self,
+    ) -> None:
+        invocation = CLI.parse_invocation(
+            ["--client", "opencode", "--agent", "designer", "--no-cplt"], cwd=ROOT
+        )
+
+        command, environment = CLI.build_direct_command(
+            invocation, self.distribution, client="/trusted/opencode"
+        )
+
+        self.assertTrue(invocation.no_cplt)
+        self.assertEqual(["/trusted/opencode", "--standalone"], command)
+        self.assertEqual(str(ROOT), environment["PWD"])
+        self.assertEqual(
+            str(ROOT / "targets/opencode-v1"), environment["OPENCODE_CONFIG_DIR"]
+        )
+        self.assertEqual(
+            {"default_agent": "designer"},
+            json.loads(environment["OPENCODE_CONFIG_CONTENT"]),
+        )
+
+    def test_opencode_run_without_cplt_keeps_standalone_before_the_subcommand(
+        self,
+    ) -> None:
+        invocation = CLI.parse_invocation(
+            [
+                "--client",
+                "opencode",
+                "--agent",
+                "grillmester",
+                "--",
+                "run",
+                "inspect this repository",
+            ],
+            cwd=ROOT,
+        )
+
+        command, _ = CLI.build_direct_command(
+            invocation, self.distribution, client="/trusted/opencode"
+        )
+
+        self.assertEqual(
+            [
+                "/trusted/opencode",
+                "--standalone",
+                "run",
+                "--agent",
+                "grillmester",
+                "inspect this repository",
+            ],
+            command,
+        )
+
+    def test_opencode_without_cplt_keeps_the_user_config_file(self) -> None:
+        invocation = CLI.parse_invocation(
+            ["--client", "opencode", "--agent", "grillmester"], cwd=ROOT
+        )
+        for name in ("opencode.json", "opencode.jsonc"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                user_config = Path(directory) / "opencode" / name
+                user_config.parent.mkdir()
+                user_config.write_text("{}\n", encoding="utf-8")
+                with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": directory}):
+                    os.environ.pop("OPENCODE_CONFIG", None)
+                    _, environment = CLI.build_direct_command(
+                        invocation, self.distribution, client="/trusted/opencode"
+                    )
+
+                self.assertEqual(str(user_config), environment["OPENCODE_CONFIG"])
+
+    def test_opencode_without_cplt_respects_an_explicit_config_file(self) -> None:
+        invocation = CLI.parse_invocation(
+            ["--client", "opencode", "--agent", "grillmester"], cwd=ROOT
+        )
         with tempfile.TemporaryDirectory() as directory:
-            config_home = Path(directory) / "config"
-            support = CLI.ensure_opencode_runtime_support(
-                self.distribution, {"XDG_CONFIG_HOME": str(config_home)}
-            )
-
-            self.assertEqual(
-                CLI.OPENCODE_RUNTIME_GITIGNORE,
-                support.read_bytes(),
-            )
-            self.assertEqual(0o600, support.stat().st_mode & 0o777)
-            self.assertEqual(
-                CLI.OPENCODE_RUNTIME_GITIGNORE,
-                (self.distribution.opencode_target / ".gitignore").read_bytes(),
-            )
-
-    def test_existing_opencode_runtime_support_is_never_rewritten(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            config_home = Path(directory) / "config"
-            support = config_home / "opencode/.gitignore"
-            support.parent.mkdir(parents=True)
-            support.write_text("user-owned\n", encoding="utf-8")
-
-            resolved = CLI.ensure_opencode_runtime_support(
-                self.distribution, {"XDG_CONFIG_HOME": str(config_home)}
-            )
-
-            self.assertEqual(support, resolved)
-            self.assertEqual("user-owned\n", support.read_text(encoding="utf-8"))
-
-    def test_symlinked_opencode_runtime_support_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            config_home = Path(directory) / "config"
-            support = config_home / "opencode/.gitignore"
-            support.parent.mkdir(parents=True)
-            target = config_home / "other"
-            target.write_text("untouched\n", encoding="utf-8")
-            support.symlink_to(target)
-
-            with self.assertRaisesRegex(CLI.LauncherError, "non-symlink"):
-                CLI.ensure_opencode_runtime_support(
-                    self.distribution, {"XDG_CONFIG_HOME": str(config_home)}
+            user_config = Path(directory) / "opencode/opencode.json"
+            user_config.parent.mkdir()
+            user_config.write_text("{}\n", encoding="utf-8")
+            with mock.patch.dict(
+                os.environ,
+                {"XDG_CONFIG_HOME": directory, "OPENCODE_CONFIG": "/chosen.json"},
+            ):
+                _, environment = CLI.build_direct_command(
+                    invocation, self.distribution, client="/trusted/opencode"
                 )
-            self.assertEqual("untouched\n", target.read_text(encoding="utf-8"))
 
-    def test_failed_runtime_support_write_removes_its_partial_file(self) -> None:
+        self.assertEqual("/chosen.json", environment["OPENCODE_CONFIG"])
+
+    def test_cplt_launch_says_when_it_cannot_load_the_user_config(self) -> None:
+        checks = CLI.LaunchChecks(
+            CLI.CheckedBinary(
+                "cplt", "/trusted/cplt", f"cplt {CLI.SUPPORTED_CPLT_RELEASE}"
+            ),
+            CLI.CheckedBinary("opencode", "/trusted/opencode", "opencode v2.2.5"),
+        )
+        arguments = [
+            "--client",
+            "opencode",
+            "--agent",
+            "grillmester",
+            "--project-dir",
+            str(ROOT),
+        ]
         with tempfile.TemporaryDirectory() as directory:
-            config_home = Path(directory) / "config"
-            support = config_home / "opencode/.gitignore"
+            user_config = Path(directory) / "opencode/opencode.json"
+            user_config.parent.mkdir()
+            for present in (False, True):
+                if present:
+                    user_config.write_text("{}\n", encoding="utf-8")
+                stderr = io.StringIO()
+                with self.subTest(present=present), mock.patch.dict(
+                    os.environ, {"XDG_CONFIG_HOME": directory}
+                ), mock.patch.object(
+                    CLI, "check_client", return_value=checks
+                ), mock.patch.object(CLI.os, "execvpe"), redirect_stderr(stderr):
+                    self.assertEqual(0, CLI.main(arguments))
+                    self.assertEqual(
+                        present, f"cplt does not load {user_config}" in stderr.getvalue()
+                    )
 
-            with mock.patch.object(
-                CLI.os, "fsync", side_effect=OSError("simulated write failure")
-            ), self.assertRaisesRegex(CLI.LauncherError, "could not write"):
-                CLI.ensure_opencode_runtime_support(
-                    self.distribution, {"XDG_CONFIG_HOME": str(config_home)}
+    def test_copilot_without_cplt_loads_the_reviewed_plugin(self) -> None:
+        invocation = CLI.parse_invocation(
+            ["--client", "copilot", "--agent", "grillmester"], cwd=ROOT
+        )
+
+        command, _ = CLI.build_direct_command(
+            invocation, self.distribution, client="/trusted/copilot"
+        )
+
+        self.assertEqual(
+            [
+                "/trusted/copilot",
+                "--no-auto-update",
+                "--plugin-dir",
+                str(ROOT / "plugin"),
+                "--agent",
+                "grillmester:grillmester",
+            ],
+            command,
+        )
+
+    def test_opencode_server_commands_are_refused_without_cplt(self) -> None:
+        for command in sorted(CLI.OPENCODE_SERVER_COMMANDS):
+            invocation = CLI.parse_invocation(
+                ["--client", "opencode", "--agent", "grillmester", "--", command],
+                cwd=ROOT,
+            )
+            with self.subTest(command=command), self.assertRaisesRegex(
+                CLI.LauncherError, "starts no agent session"
+            ):
+                CLI.build_direct_command(
+                    invocation, self.distribution, client="/trusted/opencode"
                 )
 
-            self.assertFalse(support.exists())
+    def test_print_command_hides_inline_opencode_configuration(self) -> None:
+        invocation = CLI.parse_invocation(
+            ["--client", "opencode", "--agent", "grillmester"], cwd=ROOT
+        )
+        secret = json.dumps({"provider": {"key": "must-not-be-printed"}})
+        with mock.patch.dict(os.environ, {"OPENCODE_CONFIG_CONTENT": secret}):
+            command, environment = CLI.build_direct_command(
+                invocation, self.distribution, client="/trusted/opencode"
+            )
+
+        printed = CLI._printable_command(
+            invocation, command, environment, direct=True
+        )
+
+        self.assertNotIn("must-not-be-printed", printed)
+        self.assertIn("default_agent set", printed)
+        self.assertEqual(["cd", str(ROOT), "&&", "env"], shlex.split(printed)[:4])
+
+    def test_opencode_agent_selection_keeps_existing_inline_configuration(self) -> None:
+        invocation = CLI.parse_invocation(
+            ["--client", "opencode", "--agent", "grillmester"], cwd=ROOT
+        )
+        current = json.dumps({"model": "local/qwen", "default_agent": "build"})
+
+        with mock.patch.dict(os.environ, {"OPENCODE_CONFIG_CONTENT": current}):
+            _, environment = CLI.build_launch_command(invocation, self.distribution)
+
+        self.assertEqual(
+            {"model": "local/qwen", "default_agent": "grillmester"},
+            json.loads(environment["OPENCODE_CONFIG_CONTENT"]),
+        )
+
+    def test_unusable_inline_opencode_configuration_stops_the_launch(self) -> None:
+        invocation = CLI.parse_invocation(
+            ["--client", "opencode", "--agent", "grillmester"], cwd=ROOT
+        )
+        for content, message in (("{broken", "not valid JSON"), ("[]", "JSON object")):
+            with self.subTest(content=content), mock.patch.dict(
+                os.environ, {"OPENCODE_CONFIG_CONTENT": content}
+            ), self.assertRaisesRegex(CLI.LauncherError, message):
+                CLI.build_launch_command(invocation, self.distribution)
+
+    def test_opencode_standalone_is_owned_by_the_launcher(self) -> None:
+        with self.assertRaisesRegex(CLI.LauncherError, "--standalone is owned"):
+            CLI.parse_invocation(
+                ["--client", "opencode", "--agent", "grillmester", "--", "--standalone"],
+                cwd=ROOT,
+            )
+
+    def test_missing_cplt_starts_the_client_directly_in_the_project(self) -> None:
+        checks = CLI.LaunchChecks(
+            None,
+            CLI.CheckedBinary(
+                "copilot", "/trusted/copilot", "GitHub Copilot CLI 1.0.100."
+            ),
+        )
+        stderr = io.StringIO()
+        with mock.patch.object(
+            CLI, "check_client", return_value=checks
+        ) as check_client, mock.patch.object(
+            CLI.os, "chdir"
+        ) as chdir, mock.patch.object(
+            CLI.os, "execvpe"
+        ) as execvpe, redirect_stderr(stderr):
+            result = CLI.main(
+                [
+                    "--client",
+                    "copilot",
+                    "--agent",
+                    "grillmester",
+                    "--project-dir",
+                    str(ROOT),
+                ]
+            )
+
+        self.assertEqual(0, result)
+        check_client.assert_called_once_with(
+            "copilot", distribution=mock.ANY, no_cplt=False
+        )
+        chdir.assert_called_once_with(ROOT)
+        self.assertEqual("/trusted/copilot", execvpe.call_args.args[0])
+        self.assertNotIn("/trusted/cplt", execvpe.call_args.args[1])
+        self.assertIn("without the cplt sandbox", stderr.getvalue())
+
+    def test_installed_cplt_owns_the_working_directory(self) -> None:
+        checks = CLI.LaunchChecks(
+            CLI.CheckedBinary(
+                "cplt", "/trusted/cplt", f"cplt {CLI.SUPPORTED_CPLT_RELEASE}"
+            ),
+            CLI.CheckedBinary(
+                "copilot", "/trusted/copilot", "GitHub Copilot CLI 1.0.100."
+            ),
+        )
+        stderr = io.StringIO()
+        with mock.patch.object(
+            CLI, "check_client", return_value=checks
+        ), mock.patch.object(CLI.os, "chdir") as chdir, mock.patch.object(
+            CLI.os, "execvpe"
+        ) as execvpe, redirect_stderr(stderr):
+            result = CLI.main(
+                [
+                    "--client",
+                    "copilot",
+                    "--agent",
+                    "grillmester",
+                    "--project-dir",
+                    str(ROOT),
+                ]
+            )
+
+        self.assertEqual(0, result)
+        chdir.assert_not_called()
+        self.assertEqual("/trusted/cplt", execvpe.call_args.args[0])
+        self.assertIn("through cplt", stderr.getvalue())
+
+    def test_no_cplt_never_inspects_an_installed_cplt(self) -> None:
+        with mock.patch.object(CLI, "check_cplt") as check_cplt:
+            self.assertIsNone(CLI.resolve_cplt(disabled=True))
+
+        check_cplt.assert_not_called()
+
+    def test_missing_cplt_selects_a_direct_launch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, mock.patch.dict(
+            os.environ, {"PATH": directory}
+        ):
+            self.assertIsNone(CLI.resolve_cplt())
+
+    def test_broken_cplt_on_path_stops_the_launch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            binaries = Path(directory)
+            (binaries / "cplt").symlink_to(binaries / "gone")
+            with mock.patch.dict(
+                os.environ, {"PATH": str(binaries)}
+            ), self.assertRaisesRegex(CLI.LauncherError, "not a working cplt"):
+                CLI.resolve_cplt()
+
+    def test_a_directory_named_cplt_is_not_a_broken_install(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "cplt").mkdir()
+            with mock.patch.dict(os.environ, {"PATH": directory}):
+                self.assertIsNone(CLI.resolve_cplt())
+
+    def test_saved_default_prompt_says_whether_a_sandbox_is_in_use(self) -> None:
+        preferences = CLI.Preferences("opencode", "grillmester")
+        for found, text in (("/bin/cplt", "gjennom cplt"), (None, "uten sandbox")):
+            with self.subTest(found=found), mock.patch.object(
+                CLI, "load_preferences", return_value=preferences
+            ), mock.patch.object(
+                CLI, "_find_cplt", return_value=found
+            ), mock.patch.object(
+                CLI.sys, "stdin", TtyBuffer()
+            ), mock.patch.object(
+                CLI.sys, "stdout", TtyBuffer()
+            ), mock.patch.object(
+                CLI, "input", return_value="", create=True
+            ) as prompt:
+                self.assertEqual(preferences, CLI.interactive_defaults())
+
+            self.assertIn(text, prompt.call_args.args[0])
+
+    def test_choose_accepts_no_cplt_and_nothing_else(self) -> None:
+        with mock.patch.object(
+            CLI, "load_preferences", return_value=None
+        ), mock.patch.object(CLI, "choose_preferences") as choose:
+            self.assertEqual(0, CLI.main(["choose", "--no-cplt"]))
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(2, CLI.main(["choose", "--other"]))
+
+        choose.assert_called_once_with(None, no_cplt=True)
+
+    def test_outdated_cplt_stops_the_launch_instead_of_dropping_the_sandbox(self) -> None:
+        with mock.patch.object(
+            CLI, "_resolve_binary", return_value="/bin/cplt"
+        ), mock.patch.object(
+            CLI,
+            "_trusted_cplt_version_output",
+            return_value="cplt 2026.08.17-062831-1008a92",
+        ), self.assertRaisesRegex(
+            CLI.LauncherError, "brew upgrade navikt/tap/cplt.*--no-cplt"
+        ):
+            CLI.resolve_cplt()
+
+    def test_cplt_arguments_fail_when_cplt_is_not_in_use(self) -> None:
+        checks = CLI.LaunchChecks(
+            None,
+            CLI.CheckedBinary(
+                "copilot", "/trusted/copilot", "GitHub Copilot CLI 1.0.100."
+            ),
+        )
+        stderr = io.StringIO()
+        with mock.patch.object(
+            CLI, "check_client", return_value=checks
+        ), mock.patch.object(CLI.os, "execvpe") as execvpe, redirect_stderr(stderr):
+            result = CLI.main(
+                [
+                    "--client",
+                    "copilot",
+                    "--agent",
+                    "grillmester",
+                    "--no-cplt",
+                    "--allow-localhost",
+                    "1234",
+                ]
+            )
+
+        self.assertEqual(2, result)
+        execvpe.assert_not_called()
+        self.assertIn("need cplt", stderr.getvalue())
+        self.assertIn("--allow-localhost 1234", stderr.getvalue())
+
+    def test_direct_version_probe_runs_outside_the_project(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            observed = root / "probe-directory"
+            client = root / "opencode"
+            client.write_text(
+                "#!/bin/sh\n"
+                f"pwd > '{observed}'\n"
+                "printf '%s\\n' 'opencode v2.2.5'\n",
+                encoding="utf-8",
+            )
+            client.chmod(0o700)
+
+            checked = CLI.check_client_runtime(
+                "opencode",
+                cplt=None,
+                distribution=self.distribution,
+                binary=str(client),
+            )
+
+            self.assertEqual("opencode v2.2.5", checked.version)
+            probe_directory = Path(observed.read_text(encoding="utf-8").strip())
+            self.assertNotEqual(ROOT, probe_directory)
+            self.assertFalse(probe_directory.exists())
 
     def test_positional_client_is_supported(self) -> None:
         invocation = CLI.parse_invocation(["opencode"], cwd=ROOT)
@@ -274,13 +608,13 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(
             CLI, "save_preferences", return_value=saved_path
         ) as save, mock.patch.object(
-            CLI, "check_client_runtime", return_value=("opencode", "/bin/opencode (1.18.20)")
-        ) as runtime, mock.patch.object(CLI, "print", create=True):
+            CLI, "check_client"
+        ) as check_client, mock.patch.object(CLI, "print", create=True):
             selected = CLI.choose_preferences(available_clients=CLI.CLIENTS)
 
         self.assertEqual(CLI.Preferences("opencode", "designer"), selected)
         save.assert_called_once_with(selected)
-        runtime.assert_called_once_with("opencode")
+        check_client.assert_called_once_with("opencode", no_cplt=False)
 
     def test_interactive_picker_never_saves_before_sandboxed_validation(self) -> None:
         with mock.patch.object(
@@ -291,7 +625,7 @@ class GrillmesterCliTests(unittest.TestCase):
             CLI, "input", side_effect=["2"], create=True
         ), mock.patch.object(
             CLI,
-            "check_client_runtime",
+            "check_client",
             side_effect=CLI.LauncherError("sandboxed probe failed"),
         ), mock.patch.object(CLI, "save_preferences") as save:
             with self.assertRaisesRegex(CLI.LauncherError, "sandboxed probe failed"):
@@ -308,7 +642,7 @@ class GrillmesterCliTests(unittest.TestCase):
         def resolve(client: str) -> str:
             if client == "opencode":
                 raise CLI.MissingBinaryError(
-                    "OpenCode was not found on PATH; install it with: brew install anomalyco/tap/opencode"
+                    "OpenCode was not found on PATH; install it with: brew install opencode"
                 )
             return "/opt/homebrew/bin/copilot"
 
@@ -320,17 +654,13 @@ class GrillmesterCliTests(unittest.TestCase):
             CLI, "input", side_effect=["1"], create=True
         ), mock.patch.object(
             CLI, "save_preferences", return_value=saved_path
-        ) as save, mock.patch.object(CLI, "check_client_runtime") as runtime:
-            runtime.return_value = (
-                "copilot",
-                "/opt/homebrew/bin/copilot (GitHub Copilot CLI 1.0.100.)",
-            )
+        ) as save, mock.patch.object(CLI, "check_client") as check_client:
             selected = CLI.interactive_defaults()
 
         expected = CLI.Preferences("copilot", "grillmester")
         self.assertEqual(expected, selected)
         save.assert_called_once_with(expected)
-        runtime.assert_called_once_with("copilot")
+        check_client.assert_called_once_with("copilot", no_cplt=False)
         self.assertIn("OpenCode was not found on PATH", stdout.getvalue())
         self.assertIn("eneste tilgjengelige", stdout.getvalue())
 
@@ -361,7 +691,7 @@ class GrillmesterCliTests(unittest.TestCase):
 
         self.assertEqual(CLI.Preferences("opencode", "grillmester"), selected)
         self.assertIs(checks, validation_cache["opencode"])
-        check_client.assert_called_once_with("opencode")
+        check_client.assert_called_once_with("opencode", no_cplt=False)
 
     def test_client_discovery_never_executes_ambient_clients(self) -> None:
         with mock.patch.object(
@@ -388,7 +718,7 @@ class GrillmesterCliTests(unittest.TestCase):
         def resolve(client: str) -> str:
             if client == "opencode":
                 raise CLI.MissingBinaryError(
-                    "OpenCode was not found on PATH; install it with: brew install anomalyco/tap/opencode"
+                    "OpenCode was not found on PATH; install it with: brew install opencode"
                 )
             return "/opt/homebrew/bin/copilot"
 
@@ -401,12 +731,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(
             CLI, "_resolve_binary", side_effect=resolve
         ), mock.patch.object(
-            CLI,
-            "check_client_runtime",
-            return_value=(
-                "copilot",
-                "/opt/homebrew/bin/copilot (GitHub Copilot CLI 1.0.100.)",
-            ),
+            CLI, "check_client"
         ), mock.patch.object(
             CLI, "input", side_effect=["c", ""], create=True
         ), mock.patch.object(
@@ -438,31 +763,6 @@ class GrillmesterCliTests(unittest.TestCase):
 
         self.assertEqual(0, result)
         load.assert_not_called()
-
-    def test_print_command_does_not_seed_opencode_runtime_support(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            config_home = Path(directory) / "config"
-            with mock.patch.dict(
-                os.environ, {"XDG_CONFIG_HOME": str(config_home)}
-            ), mock.patch.object(
-                CLI,
-                "_resolve_binary",
-                side_effect=lambda name: f"/trusted/{name}",
-            ), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                result = CLI.main(
-                    [
-                        "--client",
-                        "opencode",
-                        "--agent",
-                        "grillmester",
-                        "--print-command",
-                        "--project-dir",
-                        str(ROOT),
-                    ]
-                )
-
-            self.assertEqual(0, result)
-            self.assertFalse((config_home / "opencode/.gitignore").exists())
 
     def test_print_command_never_executes_cplt_or_the_selected_client(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -555,7 +855,12 @@ class GrillmesterCliTests(unittest.TestCase):
             )
 
             self.assertEqual(0, result.returncode, result.stderr)
-            self.assertEqual(str(cplt.resolve(strict=True)), shlex.split(result.stdout)[0])
+            printed = shlex.split(result.stdout)
+            self.assertEqual("env", printed[0])
+            self.assertIn(str(cplt.resolve(strict=True)), printed)
+            self.assertIn(
+                f"OPENCODE_CONFIG_DIR={ROOT / 'targets/opencode-v1'}", printed
+            )
 
     @unittest.skipUnless(hasattr(os, "fork"), "requires POSIX process groups")
     def test_probe_timeout_kills_child_after_the_group_leader_exits(self) -> None:
@@ -616,7 +921,7 @@ class GrillmesterCliTests(unittest.TestCase):
                 "    os.close(1); os.close(2); time.sleep(60)\n"
                 "else:\n"
                 "    pathlib.Path(sys.argv[1]).write_text(str(child))\n"
-                "    print('1.18.20', flush=True)\n"
+                "    print('2.2.5', flush=True)\n"
                 "    os._exit(0)\n"
             )
 
@@ -625,7 +930,7 @@ class GrillmesterCliTests(unittest.TestCase):
                 environment=os.environ,
             )
 
-            self.assertEqual((0, "1.18.20\n", ""), result)
+            self.assertEqual((0, "2.2.5\n", ""), result)
             child_pid = int(child_pid_path.read_text(encoding="utf-8"))
             deadline = time.monotonic() + 2
             while True:
@@ -640,47 +945,6 @@ class GrillmesterCliTests(unittest.TestCase):
                         pass
                     self.fail("probe descendant survived successful cleanup")
                 time.sleep(0.02)
-
-    def test_opencode_launch_seeds_runtime_support_before_exec(self) -> None:
-        checks = CLI.LaunchChecks(
-            CLI.CheckedBinary(
-                "cplt", "/trusted/cplt", f"cplt {CLI.SUPPORTED_CPLT_RELEASE}"
-            ),
-            CLI.CheckedBinary(
-                "opencode",
-                "/trusted/opencode",
-                CLI.MINIMUM_OPENCODE_VERSION_TEXT,
-            ),
-        )
-        with tempfile.TemporaryDirectory() as directory:
-            config_home = Path(directory) / "config"
-
-            def execute(_binary: str, _command: list[str], _environment: dict[str, str]) -> None:
-                self.assertEqual(
-                    CLI.OPENCODE_RUNTIME_GITIGNORE,
-                    (config_home / "opencode/.gitignore").read_bytes(),
-                )
-
-            with mock.patch.dict(
-                os.environ, {"XDG_CONFIG_HOME": str(config_home)}
-            ), mock.patch.object(
-                CLI, "check_client", return_value=checks
-            ), mock.patch.object(
-                CLI.os, "execvpe", side_effect=execute
-            ) as execvpe, redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                result = CLI.main(
-                    [
-                        "--client",
-                        "opencode",
-                        "--agent",
-                        "grillmester",
-                        "--project-dir",
-                        str(ROOT),
-                    ]
-                )
-
-            self.assertEqual(0, result)
-            execvpe.assert_called_once()
 
     def test_help_does_not_require_saved_preferences(self) -> None:
         stdout = io.StringIO()
@@ -871,7 +1135,7 @@ class GrillmesterCliTests(unittest.TestCase):
             CLI,
             "_resolve_binary",
             side_effect=CLI.MissingBinaryError(
-                "OpenCode was not found on PATH; install it with: brew install anomalyco/tap/opencode"
+                "OpenCode was not found on PATH; install it with: brew install opencode"
             ),
         ), mock.patch.object(
             CLI, "input", create=True
@@ -945,10 +1209,6 @@ class GrillmesterCliTests(unittest.TestCase):
             ), mock.patch.object(
                 CLI, "discover_clients", return_value=("copilot",)
             ), mock.patch.object(
-                CLI,
-                "check_client_runtime",
-                return_value=("copilot", "/bin/copilot (GitHub Copilot CLI 1.0.100.)"),
-            ), mock.patch.object(
                 CLI, "check_client"
             ) as check_client, mock.patch.object(
                 CLI.os, "execvpe"
@@ -960,7 +1220,7 @@ class GrillmesterCliTests(unittest.TestCase):
                 CLI.Preferences("copilot", "grillmester"),
                 CLI.load_preferences(preferences),
             )
-            check_client.assert_not_called()
+            check_client.assert_called_once_with("copilot", no_cplt=False)
             execvpe.assert_not_called()
 
     def test_choose_repairs_preferences_with_unexpected_fields(self) -> None:
@@ -983,11 +1243,7 @@ class GrillmesterCliTests(unittest.TestCase):
                 CLI, "input", side_effect=["2", "3"], create=True
             ), mock.patch.object(
                 CLI, "discover_clients", return_value=CLI.CLIENTS
-            ), mock.patch.object(
-                CLI,
-                "check_client_runtime",
-                return_value=("opencode", "/bin/opencode (1.18.20)"),
-            ), redirect_stderr(io.StringIO()):
+            ), mock.patch.object(CLI, "check_client"), redirect_stderr(io.StringIO()):
                 result = CLI.main(["choose"])
 
             self.assertEqual(0, result)
@@ -1016,11 +1272,7 @@ class GrillmesterCliTests(unittest.TestCase):
                 CLI, "input", side_effect=["2", "2"], create=True
             ), mock.patch.object(
                 CLI, "discover_clients", return_value=CLI.CLIENTS
-            ), mock.patch.object(
-                CLI,
-                "check_client_runtime",
-                return_value=("opencode", "/bin/opencode (1.18.20)"),
-            ), redirect_stderr(stderr):
+            ), mock.patch.object(CLI, "check_client"), redirect_stderr(stderr):
                 result = CLI.main(["choose"])
 
             self.assertEqual(0, result)
@@ -1206,10 +1458,7 @@ class GrillmesterCliTests(unittest.TestCase):
             self.assertNotEqual(ROOT, probe_dir)
             self.assertFalse(probe_dir.exists())
             separator = probe_argv.index("--")
-            self.assertEqual(
-                ["--agent", "grillmester", "--version"],
-                probe_argv[separator + 1 :],
-            )
+            self.assertEqual(["--version"], probe_argv[separator + 1 :])
 
     def test_sandboxed_probe_rejects_extra_stdout_lines(self) -> None:
         cplt = CLI.CheckedBinary(
@@ -1218,7 +1467,7 @@ class GrillmesterCliTests(unittest.TestCase):
         with mock.patch.object(
             CLI,
             "_bounded_command_output",
-            return_value=(0, "cplt summary\n1.18.20\n", ""),
+            return_value=(0, "cplt summary\n2.2.5\n", ""),
         ):
             with self.assertRaisesRegex(CLI.LauncherError, "unexpected stdout"):
                 CLI._sandboxed_client_version(
@@ -1283,35 +1532,34 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual("opencode", checks.client.label)
         probe.assert_called_once()
 
-    def test_supported_opencode_v1_range_accepts_newer_minor(self) -> None:
+    def test_supported_opencode_range_accepts_newer_minor(self) -> None:
         cplt = CLI.CheckedBinary(
             "cplt", "/bin/cplt", f"cplt {CLI.SUPPORTED_CPLT_RELEASE}"
         )
         with mock.patch.object(
             CLI, "_resolve_binary", return_value="/bin/opencode"
         ), mock.patch.object(
-            CLI, "_sandboxed_client_version", return_value="1.19.3"
+            CLI, "_sandboxed_client_version", return_value="2.3.1"
         ):
             checked = CLI.check_client_runtime(
                 "opencode", cplt=cplt, distribution=self.distribution
             )
 
         self.assertEqual("opencode", checked.label)
-        self.assertIn("1.19.3", checked.detail)
+        self.assertIn("2.3.1", checked.detail)
 
-    def test_supported_opencode_v1_range_rejects_next_major(self) -> None:
+    def test_supported_opencode_range_rejects_next_major(self) -> None:
         cplt = CLI.CheckedBinary(
             "cplt", "/bin/cplt", f"cplt {CLI.SUPPORTED_CPLT_RELEASE}"
         )
         with mock.patch.object(
             CLI, "_resolve_binary", return_value="/bin/opencode"
         ), mock.patch.object(
-            CLI, "_sandboxed_client_version", return_value="2.0.0"
+            CLI, "_sandboxed_client_version", return_value="3.0.0"
         ):
             with self.assertRaisesRegex(
                 CLI.LauncherError,
-                "supported 1.x range.*brew install anomalyco/tap/opencode "
-                "or npm install --global opencode-ai@1",
+                "supported 2.x range.*brew install opencode",
             ):
                 CLI.check_client_runtime(
                     "opencode",
@@ -1319,21 +1567,24 @@ class GrillmesterCliTests(unittest.TestCase):
                     distribution=self.distribution,
                 )
 
-    def test_supported_opencode_v1_range_rejects_older_version(self) -> None:
+    def test_supported_opencode_range_rejects_older_version(self) -> None:
         cplt = CLI.CheckedBinary(
             "cplt", "/bin/cplt", f"cplt {CLI.SUPPORTED_CPLT_RELEASE}"
         )
         with mock.patch.object(
             CLI, "_resolve_binary", return_value="/bin/opencode"
         ), mock.patch.object(
-            CLI, "_sandboxed_client_version", return_value="1.18.19"
+            CLI, "_sandboxed_client_version", return_value="2.2.4"
         ):
-            with self.assertRaisesRegex(CLI.LauncherError, "starting at 1.18.20"):
+            with self.assertRaisesRegex(CLI.LauncherError, "starting at 2.2.5"):
                 CLI.check_client_runtime(
                     "opencode",
                     cplt=cplt,
                     distribution=self.distribution,
                 )
+
+    def test_opencode_version_parser_accepts_the_version_line_of_opencode_2(self) -> None:
+        self.assertEqual((2, 2, 5), CLI._opencode_semver("opencode v2.2.5"))
 
     def test_opencode_version_parser_rejects_prereleases(self) -> None:
         cplt = CLI.CheckedBinary(
@@ -1342,7 +1593,7 @@ class GrillmesterCliTests(unittest.TestCase):
         with mock.patch.object(
             CLI, "_resolve_binary", return_value="/bin/opencode"
         ), mock.patch.object(
-            CLI, "_sandboxed_client_version", return_value="1.18.20-beta.1"
+            CLI, "_sandboxed_client_version", return_value="2.2.5-beta.1"
         ):
             with self.assertRaisesRegex(CLI.LauncherError, "prerelease"):
                 CLI.check_client_runtime(
@@ -1360,7 +1611,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(
             CLI,
             "_sandboxed_client_version",
-            return_value="bun 1.19.3 opencode 1.17.0",
+            return_value="bun 2.3.1 opencode 1.17.0",
         ):
             with self.assertRaisesRegex(CLI.LauncherError, "could not parse OpenCode"):
                 CLI.check_client_runtime(
@@ -1373,14 +1624,14 @@ class GrillmesterCliTests(unittest.TestCase):
         with mock.patch.object(CLI, "_resolve_binary", return_value="/bin/cplt"), mock.patch.object(
             CLI,
             "_trusted_cplt_version_output",
-            return_value="cplt 2026.08.16-235959-deadbee",
+            return_value="cplt 2026.11.01-235959-deadbee",
         ) as version:
             with self.assertRaisesRegex(CLI.LauncherError, "baseline.*or a newer"):
                 CLI.check_client("copilot")
         version.assert_called_once_with("/bin/cplt")
 
     def test_supported_cplt_range_accepts_newer_release(self) -> None:
-        newer = "cplt 2026.08.24-120000-deadbee"
+        newer = "cplt 2026.11.09-120000-deadbee"
         with mock.patch.object(
             CLI, "_resolve_binary", return_value="/bin/cplt"
         ), mock.patch.object(CLI, "_trusted_cplt_version_output", return_value=newer):
@@ -1390,7 +1641,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertIn(newer, checked.detail)
 
     def test_cplt_same_timestamp_with_different_hash_is_rejected(self) -> None:
-        same_stamp = "cplt 2026.08.17-062831-deadbee"
+        same_stamp = "cplt 2026.11.02-225238-deadbee"
         with mock.patch.object(
             CLI, "_resolve_binary", return_value="/bin/cplt"
         ), mock.patch.object(
@@ -1514,6 +1765,63 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertIn("ok  opencode", stdout.getvalue())
         cplt_version.assert_called_once()
 
+    def test_doctor_reports_missing_cplt_as_optional_and_checks_clients_directly(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            binaries = Path(directory)
+            client = self._write_version_binary(
+                binaries, "opencode", "opencode v2.2.5"
+            )
+
+            def which(name: str) -> str | None:
+                return str(client) if name == "opencode" else None
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with mock.patch.dict(
+                os.environ, {"PATH": directory}
+            ), mock.patch.object(
+                CLI.shutil, "which", side_effect=which
+            ), redirect_stdout(stdout), redirect_stderr(stderr):
+                result = CLI.doctor(None, root=ROOT)
+
+        self.assertEqual(0, result, stderr.getvalue())
+        self.assertIn("skip  cplt not installed (optional", stdout.getvalue())
+        self.assertIn("ok  opencode", stdout.getvalue())
+
+    def test_doctor_no_cplt_skips_an_installed_cplt(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            binaries = Path(directory)
+            client = self._write_version_binary(
+                binaries, "opencode", "opencode v2.2.5"
+            )
+            stdout = io.StringIO()
+            with mock.patch.object(
+                CLI, "_resolve_binary", return_value=str(client)
+            ), mock.patch.object(
+                CLI, "check_cplt"
+            ) as check_cplt, redirect_stdout(stdout), redirect_stderr(io.StringIO()):
+                result = CLI.doctor("opencode", root=ROOT, no_cplt=True)
+
+        self.assertEqual(0, result)
+        check_cplt.assert_not_called()
+        self.assertIn("skip  cplt (--no-cplt)", stdout.getvalue())
+
+    def test_doctor_fails_on_an_outdated_cplt(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch.object(
+            CLI, "_resolve_binary", return_value="/bin/cplt"
+        ), mock.patch.object(
+            CLI,
+            "_trusted_cplt_version_output",
+            return_value="cplt 2026.08.17-062831-1008a92",
+        ), redirect_stdout(io.StringIO()), redirect_stderr(stderr):
+            result = CLI.doctor(None, root=ROOT)
+
+        self.assertEqual(1, result)
+        self.assertIn("brew upgrade navikt/tap/cplt", stderr.getvalue())
+
     def test_doctor_requires_an_explicitly_selected_client(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             cplt = Path(directory) / "cplt"
@@ -1593,8 +1901,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertEqual("", result.stdout)
         self.assertIn("OpenCode was not found on PATH", result.stderr)
-        self.assertIn("brew install anomalyco/tap/opencode", result.stderr)
-        self.assertIn("npm install --global opencode-ai@1", result.stderr)
+        self.assertIn("brew install opencode", result.stderr)
 
     def test_installed_copilot_cli_works_without_opencode(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1639,6 +1946,44 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertIn("--agent copilot", result.stdout)
         self.assertIn("--agent grillmester:grillmester", result.stdout)
         self.assertNotIn("opencode", shlex.split(result.stdout))
+
+    def test_copilot_cli_works_without_cplt(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binaries = root / "bin"
+            binaries.mkdir()
+            copilot = self._write_version_binary(
+                binaries, "copilot", "GitHub Copilot CLI 1.0.100."
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts/grillmester.py"),
+                    "--client",
+                    "copilot",
+                    "--agent",
+                    "grillmester",
+                    "--project-dir",
+                    str(ROOT),
+                    "--print-command",
+                ],
+                env={
+                    **os.environ,
+                    "HOME": str(root / "home"),
+                    "PATH": str(binaries),
+                    "XDG_CONFIG_HOME": str(root / "config"),
+                },
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            printed = shlex.split(result.stdout)
+            self.assertEqual(["cd", str(ROOT), "&&"], printed[:3])
+            self.assertEqual(str(copilot.resolve(strict=True)), printed[3])
+            self.assertEqual("grillmester:grillmester", printed[printed.index("--agent") + 1])
 
     def test_local_print_command_locates_binaries_without_executing_version_probes(self) -> None:
         observed: dict[str, object] = {}

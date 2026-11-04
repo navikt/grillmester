@@ -329,9 +329,9 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
             self.assertEqual(
                 distribution["releaseTest"],
                 {
-                    "opencodeVersion": "1.18.20",
+                    "opencodeVersion": "2.2.5",
                     "copilotVersion": "1.0.100",
-                    "cpltRelease": "2026.08.17-062831-1008a92",
+                    "cpltRelease": "2026.11.02-225238-10a2882",
                 },
             )
             self.assertEqual(
@@ -473,8 +473,8 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         launcher = source / "scripts/grillmester.py"
         launcher.write_text(
             launcher.read_text(encoding="utf-8").replace(
-                'MINIMUM_OPENCODE_VERSION_TEXT = "1.18.20"',
-                'MINIMUM_OPENCODE_VERSION_TEXT = "1.18.21"',
+                'MINIMUM_OPENCODE_VERSION_TEXT = "2.2.5"',
+                'MINIMUM_OPENCODE_VERSION_TEXT = "2.2.6"',
             ),
             encoding="utf-8",
         )
@@ -493,7 +493,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         source = self.make_source("independent-opencode-baselines")
         original_contract = BUILDER._release_test_contract(source)
         changed_contract = json.loads(json.dumps(original_contract))
-        changed_contract["releaseTest"]["opencodeVersion"] = "1.99.0"
+        changed_contract["releaseTest"]["opencodeVersion"] = "2.99.0"
 
         with mock.patch.object(
             BUILDER, "_release_test_contract", return_value=changed_contract
@@ -507,13 +507,13 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 if entry.path == BUILDER.OUTER_MANIFEST
             )
         )
-        self.assertEqual("1.99.0", manifest["releaseTest"]["opencodeVersion"])
+        self.assertEqual("2.99.0", manifest["releaseTest"]["opencodeVersion"])
         launcher = next(
             entry.content.decode("utf-8")
             for entry in files
             if entry.path == BUILDER.LAUNCHER_PATH
         )
-        self.assertIn('MINIMUM_OPENCODE_VERSION_TEXT = "1.18.20"', launcher)
+        self.assertIn('MINIMUM_OPENCODE_VERSION_TEXT = "2.2.5"', launcher)
 
     def test_rejects_launcher_copilot_minimum_drift(self) -> None:
         source = self.make_source("launcher-copilot-pin-drift")

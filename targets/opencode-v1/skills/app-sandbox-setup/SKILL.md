@@ -4,7 +4,7 @@ description: "Configure the GitHub Copilot desktop app's local sandbox on macOS 
 ---
 # App sandbox setup
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Use explicitly for the **GitHub Copilot desktop app on macOS**, not CLI sandbox
 configuration; the CLI keeps its own settings and the two never sync. The app
@@ -25,7 +25,7 @@ unless asked.
 Shared session history is **readonly by default**: agents and sandboxed
 commands can read conversations, checkpoints and artifacts from all projects.
 Explain this privacy trade-off before confirmation; `--no-session-history`
-removes the exact shared grant. It does not grant the rest of `.copilot`.
+removes the shared grant and its aliases. It does not grant the rest of `.copilot`.
 For a history-only update, follow [shared session history](references/session-history.md)
 instead of rerunning general setup; skip the masking and Docker questions
 because that branch preserves those settings.

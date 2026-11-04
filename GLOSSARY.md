@@ -17,9 +17,9 @@ _Avoid_: source-target, Copilot-only plugin
 En klientspesifikk representasjon av den kanoniske pluginen.
 _Avoid_: plugin-kopi, consumer-config
 
-**OpenCode 1-target**:
-Det deterministisk genererte klienttargetet for den støttede OpenCode 1-flaten,
-med `1.18.20` som første testbaseline.
+**OpenCode-target**:
+Det deterministisk genererte klienttargetet i formatet `opencode-v1`, som OpenCode 2 leser,
+med `2.2.5` som testbaseline.
 _Avoid_: OpenCode-plugin, håndskrevet target
 
 **Fokusert kontekstprojeksjon**:
@@ -38,7 +38,7 @@ _Avoid_: distro, ny plugin, innholdssync, nav-pilot-fork
 
 **Release-bundle**:
 Det immutable, checksumverifiserbare sluttbrukerartefaktet som pakker den
-kanoniske pluginen, OpenCode 1-targetet og terminal-launcheren.
+kanoniske pluginen, OpenCode-targetet og terminal-launcheren.
 _Avoid_: source-arkiv, checkout
 
 ### Ownership
@@ -92,7 +92,8 @@ _Avoid_: direkte klientstart, Grillmester-sandbox
 
 **Terminal-launcher**:
 Den tynne `grillmester`-adapteren som velger Copilot CLI eller OpenCode, binder
-riktig klientpayload og starter en kompatibel systemklient gjennom cplt. Den
+riktig klientpayload og starter en kompatibel systemklient, gjennom cplt når cplt
+er installert. Den
 installerer, oppdaterer eller skygger aldri OpenCode eller Copilot CLI.
 _Avoid_: agentruntime, universell app-installer, cplt-erstatning
 
@@ -134,7 +135,6 @@ inneholder aldri provider, modell, credentials, consumer-path eller policy.
 _Avoid_: runtimeprofil, managed config
 
 **OpenCode runtime-støttefil**:
-Den eksakte `.gitignore`-markøren fra OpenCode 1.18.20-testbaselinen. Targetet
-inkluderer den, og terminal-launcheren oppretter bare den manglende brukerfilen
-før cplt gjør OpenCode-configen read-only.
+`.gitignore`-filen i targetet. Den holder filer OpenCode kan lage i config-mappen
+utenfor Git.
 _Avoid_: configsynk, managed OpenCode-config

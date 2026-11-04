@@ -7,9 +7,9 @@ Web, dokumentasjon og GitHub kan være tilgjengelig når cplt-policyen tillater
 det; kommandoen er ikke en offlineprofil.
 
 Local-flyten bruker brukerinstallerte systemklienter med samme
-kompatibilitetsgrense som standardlauncheren: OpenCode `>=1.18.20,<2`, Copilot
+kompatibilitetsgrense som standardlauncheren: OpenCode `>=2.2.5,<3`, Copilot
 CLI `>=1.0.100,<2` og cplt fra testbaselinen eller en nyere, gyldig datostemplet
-release. De eksakte versjonene i CI er release-testinput, ikke pinner som gjør
+release. Her er cplt påkrevd, også om standardlauncheren kan klare seg uten. De eksakte versjonene i CI er release-testinput, ikke pinner som gjør
 hver klientoppgradering til en Grillmester-release. Grillmester tilbyr ingen
 egen offlineprofil; strengere egress må konfigureres og eies i cplt eller
 organisasjonens runtimepolicy.
@@ -18,7 +18,7 @@ organisasjonens runtimepolicy.
 | --- | --- |
 | Behold Copilot-pluginen og kjent CLI-flyt | Copilot CLI med BYOK mot LM Studio eller `llama-server` |
 | Behold Copilot-appens UI | Copilot app BYOK i public preview; verifiser Grillmester-agent og modellvalg eksplisitt |
-| Kjør Grillmester i et uavhengig, modellnøytralt harness | Det native OpenCode 1-targetet |
+| Kjør Grillmester i et uavhengig, modellnøytralt harness | Det native OpenCode-targetet |
 | Bruk lokal modell med web og GitHub | `grillmester local` med OpenCode eller Copilot CLI på macOS |
 | Eksperimenter med provider/modell per session | OpenCode; targetet arver valgt sessionmodell |
 | Behold primary-agenten i skyen, men kjør Grill-inspektør lokalt | OpenCode med bruker-eid `agent.grill-inspektor.model`-override |
@@ -138,13 +138,13 @@ En API-nøkkel lagres aldri; bruk eventuelt
 CLI. Miljøvariabelen må være dedikert og kan ikke være en bevart terminal-
 variabel som `LANG` eller `TERM`. Nøkkelfilen må være bruker-eid, 0600, uten
 hardlinks og utenfor prosjektet;
-originalpathen deny-es også eksplisitt i cplt. OpenCode 1.18.20 lar tool-
+originalpathen deny-es også eksplisitt i cplt. OpenCode lar tool-
 subprosesser arve provider-miljøet og godtar derfor bare en nøkkelfri loopback-
 server i local-flyten. Dette feiler lukket i `setup`; bruk Copilot CLI når
 lokalserveren krever autentisering.
 
 Hver launch bruker focused Grillmester og Grill-inspektør med sju
-utviklingsskills. Bytt klient eller be om full 6-agent/44-skill-kontekst for én
+utviklingsskills. Bytt klient eller be om full 6-agent/37-skill-kontekst for én
 sesjon uten å endre defaulten:
 
 ```bash
@@ -310,10 +310,10 @@ brukeren. Kontroller effektiv verdi med
 `cplt config get git_guard.protect_default_branch_only`. Grillmester sender
 fortsatt alltid `--git-guard` og tilbyr ingen `--no-git-guard`-omvei.
 
-OpenCodes websearch er aktiv,
-og Grillmester velger Exa som provider. Når websearch brukes, sendes
-søketeksten til Exa: interaktiv launch krever klientgodkjenning, mens `local
-run` auto-godkjenner tool-et. Trafikken går gjennom den effektive cplt-
+OpenCodes websearch er aktiv, og OpenCode 2 spør ved første søk hvilken
+søkeleverandør du vil bruke. Når websearch brukes, sendes søketeksten til
+søkeleverandøren: interaktiv launch krever klientgodkjenning, mens `local run`
+auto-godkjenner tool-et. Trafikken går gjennom den effektive cplt-
 nettverkspolicyen; lokal inference betyr derfor ikke at søketeksten forblir på
 maskinen.
 
@@ -322,9 +322,9 @@ isolert XDG-, provider- og klientstate og den
 distribuerte payloaden. OpenCode får en byteidentisk, sessioneid kopi etter at
 manifest og digester er verifisert, slik at klientens runtime-packagefiler ikke
 kan forsøple release-targetet. Copilot leser pluginpayloaden direkte.
-Ambient OpenCode- og Copilot-komponenter som kan skygge agentteamet avvises;
-repoets vanlige `AGENTS.md` kan fortsatt gi stående prosjektkontekst. Dette er
-payloadisolasjon, ikke en egen runtime-sandbox. Bare de to nyeste avsluttede
+Ambient OpenCode- og Copilot-komponenter som kan skygge agentteamet avvises.
+OpenCode-local leser heller ikke repoets `AGENTS.md`, fordi prosjektconfigen er
+slått av. Dette er payloadisolasjon, ikke en egen runtime-sandbox. Bare de to nyeste avsluttede
 sessionmappene beholdes ved sekvensiell bruk; `doctor` og preview oppretter ingen
 sessionmappe.
 
@@ -332,9 +332,7 @@ For OpenCode kan prosjektets `.opencode/` fortsatt inneholde vanlig, inert
 metadata som `.gitignore`, packagefiler og `node_modules`, samt andre filer som
 ikke er en lastbar klientkomponent. Prosjektets `opencode.json` og lastbare
 agent-, command-, mode-, plugin-, skill-, theme- og toolrøtter avvises fortsatt.
-Legg stående prosjektinstrukser i `AGENTS.md` i repo-roten; en
-`.opencode/AGENTS.md` kan eksistere, men er ikke OpenCodes dokumenterte
-prosjektregelsti og bindes ikke av Grillmester.
+En `.opencode/AGENTS.md` kan eksistere, men bindes ikke av Grillmester.
 
 Copilot-local feiler konservativt på enhver ikke-tom repo-lokal agent- eller
 skillrot fordi klienten ikke tilbyr full discovery-disable. Det omfatter også
@@ -559,18 +557,17 @@ python3 /absolute/path/to/grillmester/scripts/probe_local_model.py \
   --model qwen3.8-27b-local
 ```
 
-Start deretter den normale native cplt-veien og velg `lmstudio/<model-id>` eller
+Start deretter OpenCode uten cplt og velg `lmstudio/<model-id>` eller
 `llamacpp/qwen3.8-27b-local` i `/models`:
 
 ```bash
 cd /path/to/consumer-repo
-grillmester --client opencode --agent grillmester \
-  --allow-localhost 1234 \
-  -- --model lmstudio/replace-with-id-from-v1-models
+grillmester --client opencode --agent grillmester --no-cplt
 ```
 
-Bruk `--allow-localhost 8080` for `llama-server`. Dette er nok for vanlig
-kompatibilitet; ingen annen runtime eller `nav-pilot-agent` er nødvendig.
+Under cplt leser OpenCode ikke denne filen. Vil du ha sandbox rundt en lokal
+modell, bruk `grillmester local`. Ingen annen
+runtime eller `nav-pilot-agent` er nødvendig.
 
 OpenCode-agentene har ingen modellpin. Når Grillmester delegerer til
 Grill-inspektør eller Researcher, arver subagenten primary-agentens valgte
@@ -580,7 +577,8 @@ lokalmodell.
 
 Du kan beholde Grillmester på sessionens valgte cloudmodell og
 bare pinne en intern rolle til den lokale provideren. Legg dette ved siden av
-provideroppsettet i den bruker-eide `~/.config/opencode/opencode.json`:
+provideroppsettet i den bruker-eide `~/.config/opencode/opencode.json`, og start
+med `--no-cplt`, siden cplt ikke laster filen:
 
 ```json
 {
@@ -754,9 +752,9 @@ serveren, contextprofilen og harnesset sammen i et disponibelt repo:
    ingen fil- eller Git-sideeffekt.
 4. **Skill:** én Grillmester-skill lastes progressivt og følger en relativ
    reference eller et bundled script korrekt.
-5. **Uavhengig review:** gi Grillmester en avklart R3/R4-slice. Bekreft at
-   hovedagenten implementerer og verifiserer selv, og deretter bruker
-   Grill-inspektør på den stabile diffen. Begge skal bruke eksakt lokal modell.
+5. **Uavhengig review:** gi Grillmester en avklart slice fra R2 og oppover. Bekreft at
+   hovedagenten implementerer og verifiserer selv, spør om du vil ha
+   Grill-inspektør, og bruker den på den stabile diffen når du sier ja. Begge skal bruke eksakt lokal modell.
    Høy risiko skal ikke alene utløse delegering av implementeringen.
 6. **Lang oppgave:** kjør en representativ vertical slice med tester og mål
    tool-call-feil, context/compaction, hastighet og memory pressure.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import re
@@ -209,11 +210,26 @@ def backup_warnings(home: Path) -> list[str]:
     return backups.observe(home)[0]
 
 
+def path_exists(path: Path) -> bool:
+    """Path.exists(), except that a denied stat raises on every supported Python."""
+    if path.exists():
+        return True
+    try:
+        os.stat(path)
+    except OSError as error:
+        if error.errno in (errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP):
+            return False
+        raise
+    except ValueError:
+        return False
+    return True
+
+
 def path_fact(path: Path) -> PathFact:
     exists = file = directory = symlink = unreadable = False
     inode = None
     try:
-        exists = path.exists()
+        exists = path_exists(path)
     except OSError:
         unreadable = True
     else:
@@ -252,8 +268,9 @@ def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any
                   docker: Sequence[str] = (), no_docker: bool = False) -> dict[str, PathFact]:
     # Preserve the oracle's unguarded profile/deny checks, but not for arbitrary
     # policy entries or their ancestors. The backup rule is unconditional, and
-    # --no-docker skips profile checks beneath Docker grants.
-    for relative in rules.RW_PATHS + rules.RO_PATHS + rules.HARDENING_READONLY + (rules.SESSION_HISTORY_PATH,):
+    # --no-docker skips profile checks beneath Docker grants. The session-history
+    # root is captured only through path_fact so an unreadable root is reported.
+    for relative in rules.RW_PATHS + rules.RO_PATHS + rules.HARDENING_READONLY:
         path = home / relative
         if no_docker and any(under(path, Path(parent)) for parent in docker):
             continue

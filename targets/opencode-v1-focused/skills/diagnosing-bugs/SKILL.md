@@ -1,10 +1,10 @@
 ---
 name: diagnosing-bugs
-description: "Diagnose hard bugs, flakes and performance regressions with a tight feedback loop that goes red before any fix. Use when something is broken, failing or slow and the cause is unclear; use `tdd` for an established fix and the repository's platform diagnostic workflow when the evidence is in a deployed Nais environment."
+description: "Diagnose hard bugs, flakes and performance regressions with a tight feedback loop that goes red before any fix. Use when something is broken, failing or slow and the cause is unclear; use `tdd` for an established fix and the repository's platform workflow when the evidence is in a deployed Nais environment."
 ---
 # Diagnosing Bugs
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 A discipline for bugs whose cause is unclear: build a loop that goes red on
 this bug, shrink it, test ranked hypotheses, then fix it with a regression

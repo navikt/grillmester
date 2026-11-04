@@ -4,7 +4,7 @@ description: "Build or fix behavior test-first with few, well-placed tests. Use 
 ---
 # Test-driven development
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 TDD is the red → green loop: a failing test, then the least code that makes it
 pass. This skill keeps the loop tight and the kept tests few and well placed.
@@ -72,8 +72,8 @@ Avoid:
   that each new test can fail, for example by briefly breaking the code, before
   trusting it.
 - **One slice at a time.** One behavior, one test, one minimal change.
-- **Refactor only when green**, using [refactoring.md](refactoring.md), and
-  rerun the focused tests after each step.
+- **Never refactor on red.** The loop ends at green; cleanup belongs to
+  `review`.
 - **Bug fixes start red.** Reproduce the bug in one test at the seam where it
   actually happens, then fix it.
 

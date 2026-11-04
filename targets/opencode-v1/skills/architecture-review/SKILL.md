@@ -4,7 +4,7 @@ description: "Evaluate a consequential architecture proposal. Use for new servic
 ---
 # Review architecture
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Review the proposal; do not author the decision. This skill produces findings
 and decision candidates. `domain-modeling` alone decides whether a

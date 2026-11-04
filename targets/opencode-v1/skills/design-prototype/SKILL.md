@@ -4,7 +4,7 @@ description: "Explore and change running local apps with real components in the 
 ---
 # Fra designønske til forslag som kjører
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Et **forslag** er en endring i en **eid kopi** av appen, laget med appens ekte
 komponenter, som designeren ser kjøre i nettleserfanen. Prosjektet står urørt til

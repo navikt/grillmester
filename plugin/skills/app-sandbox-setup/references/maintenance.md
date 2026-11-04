@@ -16,7 +16,7 @@ sandbox defaults and performs no placeholder or loose-backup cleanup.
 - Rerun plan/apply to change masking or use Settings → Projects → Sandbox.
   Default apply re-enables valid projects; profile apply preserves their toggle.
 - Shared session history is readonly by default. Use `--no-session-history`
-  on plan and apply to remove that exact shared grant; narrower/broader user
+  on plan and apply to remove that shared grant and its aliases; narrower/broader user
   grants and app-owned session grants remain.
 - `rollback --from <backup>` previews; confirm with the same command plus
   `--confirm <digest>`. It restores shared project policies/toggles and **only

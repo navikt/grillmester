@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    # Keep the cplt runtime gate on its reviewed Linux host baseline.
+    # Keep the OpenCode gate on its reviewed Linux host baseline.
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -36,10 +36,10 @@ jobs:
       - name: Validate agentpakke with released nav-pilot contract
         shell: bash
         env:
-          NAV_PILOT_CONTRACT_BASELINE_VERSION: 2026.08.28-091813-dc3e4ff
-          NAV_PILOT_CONTRACT_BASELINE_URL: https://github.com/navikt/copilot/releases/download/nav-pilot/2026.08.28-091813-dc3e4ff/nav-pilot-linux-amd64
-          NAV_PILOT_CONTRACT_BASELINE_SHA256: 4be22c75be1424eb2691c00eae0a287facbd0afa95fd9249cb9c00e3071dcb72
-          NAV_PILOT_CONTRACT_BASELINE_SIZE: "18395298"
+          NAV_PILOT_CONTRACT_BASELINE_VERSION: 2026.10.29-065631-a3ed31e
+          NAV_PILOT_CONTRACT_BASELINE_URL: https://github.com/navikt/copilot/releases/download/nav-pilot/2026.10.29-065631-a3ed31e/nav-pilot-linux-amd64
+          NAV_PILOT_CONTRACT_BASELINE_SHA256: 928763c5f53e3b6e7e096aaf6668228d5ad10803d7c711626b2813fe743a59fc
+          NAV_PILOT_CONTRACT_BASELINE_SIZE: "23330978"
           NAV_PILOT_TELEMETRY_ENABLED: "0"
         run: |
           set -euo pipefail
@@ -75,7 +75,7 @@ jobs:
               "manifest: .nav-pilot/agentpakke.json",
               "agentpakke: grillmester (contract version 1)",
               "clients: copilot (tier 2), opencode (tier 2)",
-              "minNavPilotVersion: 2026.08.28-091813-dc3e4ff",
+              "minNavPilotVersion: 2026.10.29-065631-a3ed31e",
           ]
           if result.get("command") != "validate":
               raise SystemExit("nav-pilot returned an unexpected command")
@@ -116,42 +116,14 @@ jobs:
             --output "${binary_dir}/opencode"
           echo "OPENCODE_BIN=${binary_dir}/opencode" >> "${GITHUB_ENV}"
 
-      - name: Install exact cplt release-test baseline
-        shell: bash
-        run: |
-          set -euo pipefail
-          binary_dir="${RUNNER_TEMP}/cplt-bin"
-          python3 -I -S scripts/release_test_baseline.py install \
-            --client cplt --platform linux --architecture x86_64 \
-            --output "${binary_dir}/cplt"
-          echo "CPLT_BIN=${binary_dir}/cplt" >> "${GITHUB_ENV}"
-
-      - name: Smoke-test OpenCode target discovery
+      - name: Smoke-test the OpenCode target
         shell: bash
         run: |
           set -euo pipefail
           [[ "${OPENCODE_BIN}" == "${RUNNER_TEMP}/opencode-bin/opencode" ]]
-          [[ "${CPLT_BIN}" == "${RUNNER_TEMP}/cplt-bin/cplt" ]]
           [[ -f "${OPENCODE_BIN}" && -x "${OPENCODE_BIN}" && ! -L "${OPENCODE_BIN}" ]]
-          [[ -f "${CPLT_BIN}" && -x "${CPLT_BIN}" && ! -L "${CPLT_BIN}" ]]
           [[ "$(stat -c '%a:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
-          [[ "$(stat -c '%a:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
           python3 scripts/smoke_opencode.py --require-binary --opencode "${OPENCODE_BIN}"
-
-      - name: Smoke-test OpenCode runtime contracts
-        shell: bash
-        env:
-          PATH: ${{ runner.temp }}/opencode-bin:${{ runner.temp }}/cplt-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-        run: |
-          set -euo pipefail
-          [[ "${OPENCODE_BIN}" == "${RUNNER_TEMP}/opencode-bin/opencode" ]]
-          [[ "${CPLT_BIN}" == "${RUNNER_TEMP}/cplt-bin/cplt" ]]
-          [[ -f "${OPENCODE_BIN}" && -x "${OPENCODE_BIN}" && ! -L "${OPENCODE_BIN}" ]]
-          [[ -f "${CPLT_BIN}" && -x "${CPLT_BIN}" && ! -L "${CPLT_BIN}" ]]
-          [[ "$(stat -c '%a:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
-          [[ "$(stat -c '%a:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
-          python3 scripts/smoke_opencode_runtime.py \
-            --require-binary --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"
 
   copilot-compatibility:
     runs-on: ubuntu-24.04
@@ -174,6 +146,13 @@ jobs:
 
       - name: Smoke-test marketplace installation
         run: python3 scripts/smoke_plugin_install.py
+
+      - name: Smoke-test release catalog
+        run: |
+          catalog="${RUNNER_TEMP}/marketplace.json"
+          source_sha="$(git rev-parse HEAD)"
+          python3 scripts/generate_marketplace.py --mode release --sha "${source_sha}" --output "${catalog}"
+          python3 scripts/smoke_plugin_install.py --catalog "${catalog}" --expect-release-sha "${source_sha}"
 
   macos-live-compatibility:
     uses: ./.github/workflows/macos-opencode-compatibility.yml

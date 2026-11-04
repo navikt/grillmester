@@ -4,7 +4,7 @@ description: "Re-explain the last message more simply when it did not land."
 ---
 # Wait, What?
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 The user did not follow your last message. Pitch it again:
 

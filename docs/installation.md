@@ -6,18 +6,20 @@ repoaktivering og enterprise-policy.
 
 ## Før du begynner
 
-- Installer Grillmester som native plugin i Copilot CLI eller Copilot app for
-  den tilgjengelige brukerreisen nå.
+- Teamets hovedvei er Copilot app med lokal sandbox. Installer Grillmester som
+  native plugin der, eller i Copilot CLI.
 - OpenCode og lokale modeller kan foreløpig piloteres fra checkout; videre
   terminaldistribusjon samordnes med nav-pilot.
 - For checkout-launcheren er OpenCode og GitHub Copilot CLI separate, valgfrie
   klienter. Installer minst én av dem; launcheren bruker den installerte
   binæren fra `PATH`.
-- cplt er alltid påkrevd når du bruker Grillmesters terminal-launcher, og
-  installeres separat. Grillmester pakker den aldri som en privat binær. Native
-  pluginbruk i Copilot CLI følger klientens egen runtime og krever ikke
-  Grillmester-launcheren.
-- Copilot app bruker sin egen Plugins-UI og startes ikke gjennom cplt.
+- cplt er valgfritt for Grillmesters terminal-launcher og installeres separat.
+  Med cplt på `PATH` starter klienten i cplts sandbox. Uten cplt starter den
+  direkte, uten sandbox rundt seg. `grillmester local` krever cplt. Grillmester
+  pakker aldri cplt som en privat binær. Native pluginbruk i Copilot CLI følger
+  klientens egen runtime og krever ikke Grillmester-launcheren.
+- Copilot app bruker sin egen Plugins-UI og sin egen sandbox, og startes ikke
+  gjennom cplt.
 - Demoer i designflyten krever Node.js 18 eller nyere på appens `PATH`; bruk helst
   gjeldende LTS. Start appen på nytt etter at Node.js er gjort tilgjengelig.
   Kjørende apper vises i appens nettleserfane.
@@ -35,7 +37,7 @@ installasjonen skal være reproduserbar.
 ## Innhold
 
 `grillmester@grillmester` er hele produktet: tre offentlige agenter, tre
-interne roller og 44 kuraterte skills for metode, design, produktarbeid,
+interne roller og 37 kuraterte skills for metode, design, produktarbeid,
 levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
 ## Installer i Copilot CLI
@@ -157,7 +159,7 @@ manifestet ligger i samme repo som payloaden og er skrevet av samme part. Se
 [ADR 0008](adr/0008-publish-tier-2-agentpakke-for-nav-pilot.md) for hva
 kontrakten binder og hvor grensen går.
 
-Krever nav-pilot `2026.08.28-091813-dc3e4ff` eller nyere. Veien er under
+Krever nav-pilot `2026.10.29-065631-a3ed31e` eller nyere. Veien er under
 utrulling; den native plugininstallasjonen er fortsatt den anbefalte.
 
 ## Terminal-launcher på macOS
@@ -167,8 +169,8 @@ OpenCode kan valideres fra en checkout
 eller releaseverifiseres gjennom den manuelle bundle-en i
 [OpenCode-guiden](opencode.md#hent-og-verifiser-en-grillmester-bundle).
 
-En checkout installerer ikke shellkommandoen `grillmester`. Med cplt og minst
-én klient på `PATH` bruker du standardlauncheren fra repoet du vil arbeide i:
+En checkout installerer ikke shellkommandoen `grillmester`. Med minst én klient
+på `PATH` bruker du standardlauncheren fra repoet du vil arbeide i:
 
 ```bash
 cd /path/to/consumer-repo
@@ -213,20 +215,21 @@ Installer minst én terminalklient. Du kan ha begge samtidig og oppdatere dem
 uavhengig av Grillmester:
 
 ```bash
-brew install anomalyco/tap/opencode
+brew install opencode
 brew install --cask copilot-cli
 ```
 
 `opencode` her er terminalklienten. Den forventes ikke å vises som en egen app
-i macOS Launchpad eller `/Applications`. Bruk tapen: `brew install opencode` gir
-OpenCode 2, som launcheren ikke støtter ennå. Har du `opencode` fra Homebrew fra
-før, kjør `brew uninstall opencode` først.
+i macOS Launchpad eller `/Applications`. Har du OpenCode 1 fra før, se
+[Bytte fra OpenCode 1](opencode.md#bytte-fra-opencode-1).
 
-Tapen krever oppdatert Xcode. Nekter Homebrew, virker også
-`npm install --global opencode-ai@1`. cplts standardprofil dekker npm-installasjoner
-fra nvm og Homebrew, men ikke fra mise.
+Vil du ha en sandbox rundt klienten, installerer du cplt:
 
-Standardlauncheren støtter OpenCode 1.x fra `1.18.20`, Copilot CLI 1.x fra
+```bash
+brew install navikt/tap/cplt
+```
+
+Standardlauncheren støtter OpenCode 2.x fra `2.2.5`, Copilot CLI 1.x fra
 `1.0.100` og cplt fra den testede baselinen eller en nyere, datostemplet release.
 Eksakte klientversjoner brukes bare som reproduserbart release-testinput.
 Launcheren slår av Copilot CLIs egen oppdatering, så det er casken som teller.
@@ -241,7 +244,7 @@ grillmester
 
 Første gang finner launcheren installerte klienter på `PATH` uten å kjøre dem og
 viser bare de tilgjengelige valgene. Du velger klient og offentlig agent; bare
-den valgte klienten versjonssjekkes gjennom cplt mot en tom 0700-mappe før
+den valgte klienten versjonssjekkes, gjennom cplt hvis den er installert, før
 valget lagres i
 `~/.config/grillmester/preferences.json` eller under `XDG_CONFIG_HOME`, og
 neste kjøring tilbyr samme kombinasjon som default. Filen inneholder bare
@@ -255,8 +258,12 @@ grillmester --client copilot --agent designer
 grillmester --client opencode --agent doctor-who
 ```
 
-Begge kommandoene starter den valgte terminalklienten gjennom cplt. Manglende
-cplt er en hard feil; launcheren faller aldri tilbake til direkte kjøring.
+Begge kommandoene starter den valgte terminalklienten gjennom cplt når cplt er
+installert. Mangler cplt, starter klienten direkte, og launcheren sier fra om at
+det ikke er noen sandbox rundt den. `--no-cplt` gjør det samme selv om cplt er
+installert. Er cplt installert, men for gammel, stopper launcheren. Da vet du at
+du ikke mister sandboxen uten å ha valgt det.
+
 Kontroller installasjonen uten å starte en agentsesjon:
 
 ```bash
@@ -265,20 +272,13 @@ grillmester doctor --client opencode
 ```
 
 Uten `--client` sjekker `doctor` cplt én gang og begge klienttypene; en valgfri
-klient som ikke er installert rapporteres som `skip`. Et eksplisitt klientvalg
-gjør fravær eller inkompatibel versjon til en feil med en handlingsrettet
-installasjonskommando. Hvis ingen støttet klient finnes, feiler den samlede
-sjekken. Klientens `--version` kjøres alltid inne i cplt med avgrenset output,
-timeout og en disposable prosjektmappe; `doctor` gir aldri klienten
-skriverettigheter i consumer-repoet.
-
-OpenCode 1.18.20-testbaselinen forsøker å opprette `.gitignore` i både targetet
-og brukerens OpenCode-config ved første TUI-start, mens cplt med vilje holder
-configen read-only. Distribusjonen inneholder derfor den eksakte støttefilen,
-som er den eksakte targetfilen fra testbaselinen, og launcheren oppretter
-`~/.config/opencode/.gitignore` (eller tilsvarende under
-`XDG_CONFIG_HOME`) bare når filen mangler. En eksisterende regulær fil blir
-aldri endret, og ingen generell write-tilgang gis til OpenCode-configen.
+klient som ikke er installert rapporteres som `skip`, og det samme gjør manglende
+cplt. Et eksplisitt klientvalg gjør fravær eller inkompatibel versjon til en feil
+med en handlingsrettet installasjonskommando. Hvis ingen støttet klient finnes,
+feiler den samlede sjekken. `grillmester doctor --no-cplt` sjekker klientene slik
+de starter uten cplt. Klientens `--version` kjøres med avgrenset output og timeout
+i en midlertidig mappe, inne i cplt når den er i bruk; `doctor` kjører aldri
+klienten i consumer-repoet.
 
 ### Lokal modell i OpenCode eller Copilot CLI
 
@@ -323,10 +323,11 @@ hardlinks og utenfor consumer-prosjektet; den kanoniske pathen deny-es også i
 cplt.
 
 Local-flyten bruker de samme kompatible systemklientene som standardlauncheren:
-OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.100,<2` og cplt fra testbaselinen
-eller en nyere, gyldig datostemplet release. De eksakte CI-versjonene er
-testinput, ikke runtimepinner; en vanlig 1.x-oppgradering krever derfor ikke en
-ny Grillmester-release.
+OpenCode `>=2.2.5,<3`, Copilot CLI `>=1.0.100,<2` og cplt fra testbaselinen
+eller en nyere, gyldig datostemplet release. Her er cplt påkrevd, fordi det er
+cplt som holder modellrequestene på loopback. De eksakte CI-versjonene er
+testinput, ikke runtimepinner; en vanlig oppgradering innenfor samme hovedversjon
+krever derfor ikke en ny Grillmester-release.
 
 `local run` er den klientnøytrale formen for én non-interaktiv oppgave. Den
 auto-godkjenner tools, prosjektwrites og nettverk innenfor cplt-policyen. Kjør
@@ -411,16 +412,15 @@ local-modellflyten](local-models.md#anbefalt-flyt-ett-lokalt-oppsett-begge-termi
 separat installerte OpenCode- eller Copilot CLI-klienten, og heller ikke cplt.
 Fjerningen bevarer det
 brukereide `preferences.json`, `local.json`, privat local-sessionstate (eller
-tilsvarende XDG-stier som ennå ikke er automatisk prunet) og en eventuell
-OpenCode-`.gitignore` som allerede kan være i bruk. Slett disse eksplisitt hvis
-du også vil nullstille brukerstate.
+tilsvarende XDG-stier som ennå ikke er automatisk prunet). Slett disse
+eksplisitt hvis du også vil nullstille brukerstate.
 
 Flagg før `--` videresendes til cplt, mens flagg etter `--` videresendes til
-klienten. `--client`, `--agent`, `--project-dir` og klientens agent-/pluginbinding
-eies av launcheren og kan ikke overstyres gjennom passthrough. `--role` er et
-kompatibelt alias for `--agent`. Bruk `--print-command` for å se den eksakte
-cplt-kommandoen uten å starte cplt eller klienten, versjonssjekke dem eller
-endre runtime-støttefiler. Hvis en interaktiv `--print-command` trenger et
+klienten. Uten cplt gir slike cplt-flagg en feilmelding. `--client`, `--agent`,
+`--project-dir` og klientens agent-/pluginbinding eies av launcheren og kan ikke
+overstyres gjennom passthrough. `--role` er et kompatibelt alias for `--agent`.
+Bruk `--print-command` for å se den eksakte kommandoen uten å starte cplt eller
+klienten eller versjonssjekke dem. Hvis en interaktiv `--print-command` trenger et
 midlertidig klient-/agentvalg, brukes det bare i utskriften og lagres ikke.
 
 ## Valgfritt: automatisk oppdatering i Copilot CLI
@@ -483,21 +483,22 @@ Plugininstallasjon installerer ikke en write-capable GitHub MCP og gir ingen
 OAuth-scopes. Copilot CLIs innebygde GitHub MCP er read-only som standard, og
 Projects er ikke del av standardverktøysettet.
 
-En implementasjonsagent i en terminalsesjon som brukeren eksplisitt har startet
-gjennom Grillmester og cplt, kan bruke cplt-guardede `gh issue`-kommandoer etter
-bekreftelse av repo og konto. Interaktiv launch bruker klientgodkjenning. I
-`local run` kan den opprinnelige prompten være den menneskelige autorisasjonen
-for én eksakt, avgrenset endring, uten en ny tool-dialog. Det krever ikke en
-egen write-MCP. Begge local-klientene krever eksplisitt `--github-access` med
-caller-supplied `GH_TOKEN`; cplts repo-scope og `gh`-guard reduserer risiko, men
-er myke grenser og kan omgås med direkte tokenbruk. Denne veien gjelder ikke
-automatisk Copilot app, cloud agent eller en annen runtime uten cplt.
+Der klienten kan kjøre kommandoer, bruker Grillmester `gh` med brukerens egen
+innlogging for det et semantisk verktøy mangler, også relasjoner og prosjektfelt,
+etter bekreftelse av repo og konto. Det krever ikke en egen write-MCP. Projects
+krever `project`-scope på innloggingen.
 
-Hvis den aktuelle runtime-en mangler både en godkjent semantisk integrasjon og
-den eksplisitte cplt-guardede `gh issue`-veien, skal Grillmester bevare et
-reviewbart utkast og returnere `NEEDS_INPUT`/`NEEDS_CONTEXT`; den skal ikke
-bytte til shell eller rå API-kall. Projects og native parent-/dependency-
-relasjoner krever fortsatt en konkret capability med riktig project-scope.
+I en terminalsesjon som brukeren eksplisitt har startet gjennom Grillmester og
+cplt, er dette cplt-guardede `gh issue`-kommandoer. Interaktiv launch bruker
+klientgodkjenning. I `local run` kan den opprinnelige prompten være den
+menneskelige autorisasjonen for én eksakt, avgrenset endring, uten en ny
+tool-dialog. Begge local-klientene krever eksplisitt `--github-access` med
+caller-supplied `GH_TOKEN`; cplts repo-scope og `gh`-guard reduserer risiko, men
+er myke grenser og kan omgås med direkte tokenbruk.
+
+Hvis rollen forbyr kommandokjøring, eller runtime-en mangler både en godkjent
+semantisk integrasjon og `gh`, skal Grillmester bevare et reviewbart utkast og
+returnere `NEEDS_INPUT`/`NEEDS_CONTEXT`; den skal ikke bytte til rå API-kall.
 Oppsett av en write-capable MCP er enterprise-/teameid og reviewes separat fra
 plugininstallasjonen.
 
@@ -620,13 +621,12 @@ ikke skal påvirke resultatet.
 
 ## OpenCode
 
-Grillmester har et deterministisk generert, native target for OpenCode 1.x fra
-`1.18.20`. Det gir hele flaten med 6 agenter, 44 skills, 44 slash commands,
-native delegering og native permissions. `1.18.20` er den eksakte
-release-testbaselinen; standardlauncheren godtar nyere 1.x-versjoner, mens
-OpenCode 2 er en separat, ikke-verifisert flate. Installer og oppdater OpenCode
-selv med `brew install anomalyco/tap/opencode`. Grillmester verken installerer
-eller skygger klienten. Start den lagrede defaulten eller oppgi
+Grillmester har et deterministisk generert, native target for OpenCode 2.x fra
+`2.2.5`. Det gir hele flaten med 6 agenter, 37 skills, 37 slash commands,
+native delegering og native permissions. `2.2.5` er den eksakte
+release-testbaselinen; standardlauncheren godtar nyere 2.x-versjoner. Installer
+og oppdater OpenCode selv med `brew install opencode`. Grillmester verken
+installerer eller skygger klienten. Start den lagrede defaulten eller oppgi
 OpenCode eksplisitt:
 
 ```bash
@@ -634,13 +634,10 @@ grillmester
 grillmester --client opencode --agent grillmester
 ```
 
-Launcheren setter targetpath og cplt-binding automatisk. For en lokal provider
-på port `1234`:
-
-```bash
-grillmester --client opencode --allow-localhost 1234 \
-  -- --model lmstudio/replace-with-id-from-v1-models
-```
+Launcheren setter targetpath og cplt-binding automatisk. Velg modell i
+OpenCode-configen eller med `/models`. Under cplt leser OpenCode ikke din egen
+config, så bruk `/connect` for provideren der, eller `grillmester local` for en
+lokal modell.
 
 Se [OpenCode-guiden](opencode.md#kom-i-gang) for lokal provider,
 cloud-provider, GitHub Copilot via OpenCodes `/connect` og manuell binding for

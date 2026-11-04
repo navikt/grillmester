@@ -105,7 +105,7 @@
   "runtimeTextReplacements": [
     {
       "from": "agent task tool",
-      "to": "`task` tool"
+      "to": "`subagent` tool"
     },
     {
       "from": "`ask_user`",
@@ -113,7 +113,7 @@
     },
     {
       "from": "`execute`",
-      "to": "`bash`"
+      "to": "`shell`"
     },
     {
       "from": "built-in search tool",
@@ -129,6 +129,12 @@
     }
   ],
   "pathTextReplacements": {
+    "agents/doctor-who.md": [
+      {
+        "from": "shell, `shell` or delegation tools",
+        "to": "`shell` or delegation tools"
+      }
+    ],
     "skills/create-a-skill/references/principles.md": [
       {
         "from": "Use GitHub Copilot's supported invocation fields rather than encoding policy\nin prose.",

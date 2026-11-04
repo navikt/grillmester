@@ -1,10 +1,10 @@
 ---
 name: diagnosing-bugs
-description: "Diagnose hard bugs, flakes and performance regressions with a tight feedback loop that goes red before any fix. Use when something is broken, failing or slow and the cause is unclear; use `tdd` for an established fix and `nav-troubleshoot` when the evidence is in a deployed Nais environment."
+description: "Diagnose hard bugs, flakes and performance regressions with a tight feedback loop that goes red before any fix. Use when something is broken, failing or slow and the cause is unclear; use `tdd` for an established fix and `nav-platform` when the evidence is in a deployed Nais environment."
 ---
 # Diagnosing Bugs
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 A discipline for bugs whose cause is unclear: build a loop that goes red on
 this bug, shrink it, test ranked hypotheses, then fix it with a regression
@@ -25,7 +25,7 @@ operational output, follow [the data-access rules](references/data-access.md).
 If the symptom is a runtime/platform problem in production, use the platform's
 approved diagnostic tooling to establish the failing boundary, then return here
 for the reproduction and fix discipline. When the app runs on NAIS,
-`nav-troubleshoot` can supply Nav-specific diagnostic trees.
+`nav-platform` can supply Nav-specific diagnostic trees.
 
 ## Phase 1 — Build a feedback loop
 
@@ -168,7 +168,7 @@ Always propose the least invasive fix first. Production configuration changes,
 workload restarts and managed-resource changes require explicit authorization;
 reuse it when the user already approved the same concrete action.
 
-`nav-troubleshoot` gives deeper NAIS trees for pod startup, Nav
+`nav-platform` gives deeper NAIS trees for pod startup, Nav
 identity, Kafka, Cloud SQL and observability. If required live platform evidence
 is unavailable, name the missing capability or owner documentation instead of
 inventing Nav behavior.
@@ -177,7 +177,7 @@ inventing Nav behavior.
 
 - `grilling` — stress-test the design when the bug exposes a design gap;
   propose records through `domain-modeling` when needed
-- `auth-overview` — Azure AD / TokenX /
+- `nav-platform` — runtime problems on NAIS, and Azure AD / TokenX /
   ID-porten / Maskinporten / Texas when those mechanisms are involved
 - `architecture-review` — review architectural changes that would
   have prevented the bug

@@ -4,7 +4,7 @@ description: "Assess incoming issues or pull requests, verify claims and prepare
 ---
 # Triage
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Classify, verify, clarify, recommend and prepare;
 issue-management owns approved mutations.

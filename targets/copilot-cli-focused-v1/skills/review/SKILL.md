@@ -7,8 +7,9 @@ description: "Review a complete diff for correctness, fit to the requirements an
 
 Review the complete task diff in three passes, one per lens, and report the
 findings per lens so one kind of finding does not hide another. The writer runs
-it as a self-review before delivery and fixes in-scope findings; an
-independent reviewer runs the same lenses read-only and reports them.
+it as a self-review before delivery and fixes in-scope findings, including
+smells in its own code; an independent reviewer runs the same lenses read-only
+and reports them.
 
 When the user wants a walkthrough rather than a review, suggest
 the full-context guided human review workflow.
@@ -41,9 +42,9 @@ for.
 
 Check the repository's documented rules: its instruction files, coding
 standards or contributing guide, and conventions its linters do not enforce.
-Then check the change against the [smell baseline](./references/smells.md); a
-smell is a judgement call, never a hard violation, and a documented repository
-rule overrides it. Check the tests against the keep rule in `tdd`: flag a
+Then check the change against the [smells](./references/smells.md); a smell is
+a judgement call, never a hard violation, and a documented repository rule
+overrides it. Check the tests against the keep rule in `tdd`: flag a
 missing test for a real risk, and flag test bloat.
 
 When the change touches personal or confidential data, authentication or

@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "89e4d409f8b83684ebddf33f8e45b657cccfa5a8a68965f1fe02c0639e9a62c4",
+    "targetManifestSha256": "1a79fb5de1083aff4725b71f695fcbfbf25623fab34c2c7ec4c612b9c68d2f13",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -54,15 +54,15 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "aea5f57d1f23372ba4b0c03c2f059bd7010bd309947b05653938821a3c3b3244",
+      "sha256": "83a628f9126a29060e60b45b3f64a523ce14c96eef67fbe47c923df5503efda1",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "5ce1a02b671bbb469f1d7fc06f470f4241d73f6b99d69027b951a0c5000f4fb6",
+      "sha256": "98830a0f0fc8bc93a5cc53e4462cf4406826df8f2b0715d58cae584241aa52e6",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
-      "sha256": "34fde6e8b64f8e13c0d70d8c3592a660d3dbdc0c7cf483cae24c6555f736d45f",
+      "sha256": "502ed1357920ccd7ce1855704cf972f455c2a375e3b024a60cffacfb59e06840",
       "mode": "0644"
     },
     "commands/grilling.md": {
@@ -82,7 +82,7 @@
       "mode": "0644"
     },
     "commands/security-review.md": {
-      "sha256": "c313609e8ddfa087fe52ae54bee9fde687927e33d39df7880d388dbb8f00d83b",
+      "sha256": "d0cb4339878258c8493e0202bd3770ed0bca44452309351d7a2beb1937e3e7a5",
       "mode": "0644"
     },
     "commands/tdd.md": {
@@ -90,11 +90,11 @@
       "mode": "0644"
     },
     "opencode.json": {
-      "sha256": "6a6d8464b2388ff645fc32d343ae82aa446df9ca459aac6081bdd418c6fa0cd6",
+      "sha256": "173c40fdd87926b3e3b36e654e9a2ca7962ced0b6c7e639cc42ed72c771aa336",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "04d479af374235dc938877d2a7d82ae9fa3a2cf9e66bb968c5c001e7044135b7",
+      "sha256": "8fa41e81299125abb6cf057c4028925b321870a08f5551df2afd8a49c0f7982b",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/references/data-access.md": {
@@ -106,27 +106,27 @@
       "mode": "0755"
     },
     "skills/grilling/SKILL.md": {
-      "sha256": "ee97cce46a5cacf22d15b51dde6a89d2fdf6edb97a4ad6fd3fa634efaaf4d53a",
+      "sha256": "cd7c26d7b8fc31a9421439c3af9cd3908eb7507f9185ab3c3b22672d618699cd",
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "6c00998fd115ebb66cdf12fac992de108510dbb44a5ef2a67d1095cc08f8be2d",
+      "sha256": "e26d99db380e23a7d7e9540cf2b1170e35711a433d9d5d14655b4d3958a7c168",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
-      "sha256": "5ee94e9723eca23fa018fdb448b3161d7c6a3a50fd315a0b2b0c2f820d8b0ed3",
+      "sha256": "5e05d3bc7df9990708d30eacac44fa0a5101170bef269a1bd5e61c2e7a62bdc0",
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "f6c50e568de74946fe84646ba5fe7a097e01ff879c91dbc82a5fbd2320ef798e",
+      "sha256": "3ee7fc55f1d603342e0794db6dd5fc156e2146d11a9e8f37def3c1d29de78520",
       "mode": "0644"
     },
     "skills/review/references/smells.md": {
-      "sha256": "4cc59d31d4a27a1c7c31c5a3bdca34b40b01b85cb2ffe601cb9b7c39023381d6",
+      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "6b0991f4e06e09035f332b2a24d7c3c0636b00946f9d9b1627b577863ba5e88a",
+      "sha256": "d8afd5859b3670766e63cc98eec01d347f7c2d4970d3c3d4601b602bb0762fc8",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
@@ -138,15 +138,11 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "90961505fe7e9ea3773c99c3c75a6463cf0e471c80c5bb3dcd637b1bbc17c70d",
+      "sha256": "1db9c4954de5a28f5e278bc44264649d489dd94b73c37af5443fa0d827692137",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
       "sha256": "e97614726acef3958b8b5236758d01c1e41e1919418005dd532c07015a3c381a",
-      "mode": "0644"
-    },
-    "skills/tdd/refactoring.md": {
-      "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
     "skills/tdd/test-boundaries.md": {

@@ -73,12 +73,11 @@ COPILOT_FULL_GENERATOR = {
 }
 EXCLUDED_SKILL_REPLACEMENTS = {
     "domain-modeling": "the full-context domain documentation workflow",
-    "nav-troubleshoot": "the repository's platform diagnostic workflow",
+    "nav-platform": "the repository's platform workflow",
     "to-issues": "the full-context plan decomposition workflow",
     "triage": "the full-context issue assessment workflow",
     "guided-review": "the full-context guided human review workflow",
     "architecture-review": "the full-context architecture assessment workflow",
-    "auth-overview": "the full-context identity implementation workflow",
 }
 OPENCODE_ABSENT_PERMISSION_SKILLS = (
     "agent-retro",
@@ -407,7 +406,7 @@ def replace_section(
 
 
 def apply_grillmester_focused_overlay(text: str, *, client: str, path: str) -> str:
-    """Narrow capability discovery without changing the shared delivery loop."""
+    """Narrow the skills to the focused roster and keep the delivery loop."""
     text = replace_section(
         text,
         start="## Available capabilities",
@@ -416,6 +415,10 @@ def apply_grillmester_focused_overlay(text: str, *, client: str, path: str) -> s
             "## Available capabilities\n\n"
             "This focused payload provides `diagnosing-bugs`, `grilling`,\n"
             "`issue-management`, `pull-request`, `review`, `security-review`, and `tdd`.\n"
+            "Clarify an unresolved goal with `grilling`, load `tdd` before you change\n"
+            "behavior, debug an unclear cause with `diagnosing-bugs` before you change code,\n"
+            "check with `review` and, when the risk rules say so, `security-review`, and use\n"
+            "`pull-request` for an authorized pull request.\n"
             "Load a skill from the active catalog only when the task needs its method;\n"
             "use its exact advertised identity and source through the native loading\n"
             "mechanism. Skill names are never shell commands. Do not preload the roster.\n"
@@ -661,8 +664,8 @@ def validate_copilot_full_manifest(
         raise ProjectionError("Copilot full payload manifest generator is invalid")
     agents = string_list(manifest["agents"], label="Copilot full payload agents")
     skills = string_list(manifest["skills"], label="Copilot full payload skills")
-    if len(agents) != 6 or len(skills) != 44:
-        raise ProjectionError("Copilot full payload is not the complete 6/44 target")
+    if len(agents) != 6 or len(skills) != 37:
+        raise ProjectionError("Copilot full payload is not the complete 6/37 target")
     if manifest["counts"] != {"agents": len(agents), "skills": len(skills)}:
         raise ProjectionError("Copilot full payload counts are invalid")
     observed_agents = tuple(
@@ -714,8 +717,8 @@ def build_opencode_projection(
     counts = source_manifest.get("counts")
     if not isinstance(counts, dict) or counts.get("agents") != 6 or counts.get(
         "skills"
-    ) != 44 or counts.get("commands") != 44:
-        raise ProjectionError("focused OpenCode source is not the complete 6/44 target")
+    ) != 37 or counts.get("commands") != 37:
+        raise ProjectionError("focused OpenCode source is not the complete 6/37 target")
     files: dict[str, GeneratedFile] = {}
     for relative in (".gitignore", "opencode.json"):
         add_file(

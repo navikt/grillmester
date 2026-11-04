@@ -24,8 +24,8 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py \
   --client opencode --agent grillmester --print-command
 ```
 
-Kommandoen skriver den eksakte cplt-invokasjonen og endrer ingen OpenCode-
-runtimefiler.
+Kommandoen skriver den eksakte kommandoen med miljøvariabler og endrer ingen
+OpenCode-runtimefiler.
 
 ## Verifikasjon
 
@@ -43,7 +43,7 @@ På macOS har focused OpenCode-smoken sporadisk manglet resultater fra
 shellverktøyet. Årsaken er fortsatt uavklart; en vellykket omkjøring forklarer
 ikke feilen eller erstatter resultatet fra den opprinnelige kjøringen.
 
-Releasekatalogen genereres fra pluginmanifestene. Det native OpenCode 1-
+Releasekatalogen genereres fra pluginmanifestene. Det native OpenCode-
 targetet genereres fra samme reviewede plugininnhold og den eksplisitte
 policyen i `policy/opencode-v1.json`. De fokuserte lokalmodelltargetene avledes
 deretter fra den kanoniske pluginen og det fulle OpenCode-targetet gjennom
@@ -102,8 +102,7 @@ python3 -m unittest discover -s tests -v
 node --check plugin/skills/design-prototype/scripts/app-runtime.js
 node --test plugin/skills/design-prototype/tests/*.test.js
 python3 scripts/smoke_plugin_install.py
-python3 scripts/smoke_opencode.py
-python3 scripts/smoke_opencode_runtime.py --cplt cplt
+python3 scripts/smoke_opencode.py --cplt cplt
 python3 scripts/smoke_grillmester_local.py \
   --cplt cplt --opencode opencode --copilot copilot
 ```
@@ -115,31 +114,27 @@ prøves uten appen selv.
 privat kontroll, gjenbruk, avbrudd, utløp og opprydding av vanlige barn. Se
 [beslutningen om demolivsløp](adr/0028-eid-livslop-for-lokale-demoer.md).
 
-Plugin-smoken skal bekrefte 6 agenter, 44 skills og byte-eksakt installasjon,
+Plugin-smoken skal bekrefte 6 agenter, 37 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
 minimumsklienten Copilot CLI `1.0.100` annonserer hele flaggrosteren som local-run
 eier i `--help`, uten modell- eller nettverkskall. Den eksakte local-smoken
-kjører flaggene med release-testklienten. OpenCode-smoken bruker
-OpenCode `1.18.20`, kopierer targetet til en skrivbar tempmappe og bekrefter native
-discovery av 6 agenter, 44 skills, 44 commands, fravær av modellpin,
-deklarerte permissionregler og at native `read` løser consumerens `AGENTS.md`
-fra riktig repo uten å kontakte en modell. Den beviser derfor ikke
-at `AGENTS.md` faktisk påvirker et modellsvar, modelldrevet skillbruk,
-delegering, write-godkjenning eller kvalitet. Den separate runtime-smoken bruker
-en deterministisk loopback-provider gjennom ekte OpenCode og bekrefter native
-delegering, blokkert `.env`, progressiv skill-reference, avvist write og en
-eksplisitt auto-godkjent write uten å kontakte en modell. Begge smokene hopper
-kontrollert over når binæren mangler. Den eksakte release-testbaselinen er
-OpenCode `1.18.20`, Copilot CLI `1.0.100` og cplt
-`2026.08.17-062831-1008a92`. De er testinput, ikke runtimepinner;
-standardlauncheren støtter kompatible 1.x-klienter og nyere datostemplede
+kjører flaggene med release-testklienten. OpenCode-smoken bruker OpenCode
+`2.2.5` og en deterministisk loopback-provider, og starter øktene gjennom
+launcheren: direkte, og gjennom cplt med `--cplt`. Den bekrefter de 6 agentene med
+riktig modus og permissions, Grillmester-prompten, consumerens `AGENTS.md`,
+skillkatalogen, tool-flaten uten Code Mode, lasting av en skill og lesing av
+referansefilen den peker på, stoppet lesing utenfor prosjektet og stoppet write
+uten godkjenning. Den hopper kontrollert over når binæren mangler. Den beviser
+ikke modelldrevet skillbruk eller kvalitet. Linux-CI kjører den uten cplt, fordi
+cplt krever bubblewrap for OpenCode 2 på Linux; macOS-gaten kjører begge.
+
+Den eksakte release-testbaselinen er OpenCode `2.2.5`, Copilot CLI `1.0.100` og
+cplt `2026.11.02-225238-10a2882`. De er testinput, ikke runtimepinner;
+standardlauncheren støtter kompatible 2.x-klienter og nyere datostemplede
 cplt-releaser. Releasegaten skal kjøre de eksakte smokene:
 
 ```bash
 python3 scripts/smoke_opencode.py \
-  --opencode /absolute/path/to/opencode \
-  --require-binary
-python3 scripts/smoke_opencode_runtime.py \
   --opencode /absolute/path/to/opencode \
   --require-binary \
   --cplt cplt
@@ -150,8 +145,8 @@ python3 scripts/smoke_grillmester_local.py \
   --require-binaries
 ```
 
-Runtime-smoken bruker en deterministisk provider og beviser ikke kvaliteten til
-en lokal eller ekstern modell. Local-smoken kjører focused/full i begge
+OpenCode-smoken beviser ikke kvaliteten til en lokal eller ekstern modell.
+Local-smoken kjører focused/full i begge
 klienter gjennom den offentlige `local run`-flaten, krever eksakt lokal modell
 i hvert request, tester syntetiske ambient credentials og caller-PATH-verktøy,
 og tvinger normal Copilot-delegering til Grill-inspektøren. En separat fake-`gh`
@@ -163,8 +158,9 @@ konkrete lokale modellen. Agentpakkemanifestet er en kildekontrakt for
 avhengighet til `nav-pilot` eller en installert Copilot-agent.
 
 Launcher- og formeltestene skal i tillegg bevise systemklientkontrakten: en
-manglende OpenCode-installasjon gir `brew install anomalyco/tap/opencode`,
-installert Copilot CLI virker uten OpenCode, `doctor` skiller `skip` fra
+manglende OpenCode-installasjon gir `brew install opencode`, installert Copilot
+CLI virker uten OpenCode og uten cplt, en utdatert cplt stopper launch, `doctor`
+skiller `skip` fra
 eksplisitt feil, ingen klienter gir en samlet feil, og formelen oppretter aldri
 `libexec/clients` eller legger en privat klientkatalog først på `PATH`.
 

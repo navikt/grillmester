@@ -1,10 +1,10 @@
 ---
 name: lumi-survey
-description: "Integrate or review @navikt/lumi-survey from frontend configuration through verified feedback submission. Use for Lumi widgets, survey choices, transport or privacy-safe context; use `auth-overview` for shared authentication design beyond the Lumi integration."
+description: "Integrate or review @navikt/lumi-survey from frontend configuration through verified feedback submission. Use for Lumi widgets, survey choices, transport or privacy-safe context; use `nav-platform` for shared authentication design beyond the Lumi integration."
 ---
 # Integrate Lumi Survey from current evidence
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Treat the installed package types, current Lumi owner contract, repository
 patterns, and environment manifests as the source of truth. Package exports,

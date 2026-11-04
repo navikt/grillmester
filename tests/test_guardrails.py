@@ -39,7 +39,7 @@ FLOORS = (
     (
         "agents/grillmester.agent.md",
         "GRILLMESTER_RISK_REVIEW_FLOOR",
-        "portable R3/R4 review floor",
+        "portable R2–R4 review floor",
     ),
     (
         "agents/researcher.agent.md",
@@ -149,7 +149,7 @@ class DocumentedCommandTest(unittest.TestCase):
         spec.loader.exec_module(baseline)
         release_test = baseline.CONTRACT["releaseTest"]
         guide = (ROOT / "docs/opencode.md").read_text(encoding="utf-8")
-        self.assertIn(f"opencode-ai@{release_test['opencodeVersion']}", guide)
+        self.assertIn(f"@opencode/cli@{release_test['opencodeVersion']}", guide)
         self.assertIn(release_test["cpltRelease"], guide)
 
 

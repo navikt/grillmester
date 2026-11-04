@@ -41,11 +41,11 @@ denne kjeden kan automatiseres.
 
 OpenCode laster ikke Copilot-plugins. OpenCode og lokale modeller kan
 foreløpig piloteres fra en checkout på macOS.
-Videre terminaldistribusjon samordnes med nav-pilot. Installer cplt og ønsket
-klient:
+Videre terminaldistribusjon samordnes med nav-pilot. Installer ønsket klient, og
+cplt hvis du vil ha sandbox rundt den. Lokale modeller krever cplt.
 
 ```bash
-brew install navikt/tap/cplt anomalyco/tap/opencode
+brew install opencode navikt/tap/cplt
 # eller for Copilot CLI: brew install --cask copilot-cli
 ```
 
@@ -67,8 +67,9 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py local doctor
 python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
 ```
 
-Launcheren lager isolert OpenCode-config og kjører terminalsesjonen gjennom
-cplt. Den støtter OpenCode 1.x fra `1.18.20`, Copilot CLI 1.x fra `1.0.100`
-og cplt fra testbaselinen. Hver modell må kvalitetsvalideres separat.
+For lokale modeller lager launcheren isolert OpenCode-config og kjører
+terminalsesjonen gjennom cplt. Den støtter OpenCode 2.x fra `2.2.5`, Copilot CLI
+1.x fra `1.0.100` og cplt fra testbaselinen. Hver modell må kvalitetsvalideres
+separat.
 Se [OpenCode-guiden](opencode.md), [guiden for lokale modeller](local-models.md)
 og [klientstatus og releasegater](trust-and-client-support.md).

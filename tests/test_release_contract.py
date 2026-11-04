@@ -67,7 +67,6 @@ def write_opencode_distribution_inputs(root: Path, content: str = "reviewed\n") 
         "smoke_grillmester_local.py",
         "smoke_plugin_install.py",
         "smoke_opencode.py",
-        "smoke_opencode_runtime.py",
     ):
         (scripts / name).write_text(content)
 
@@ -593,9 +592,8 @@ class ReleaseContractTest(unittest.TestCase):
             "`grillmester-terminal-v1`",
             "shasum -a 256 -c grillmester-terminal-v0.2.0-poc.4.tar.gz.sha256",
             "tar -xzf grillmester-terminal-v0.2.0-poc.4.tar.gz",
-            "brew install anomalyco/tap/opencode",
-            "npm install --global opencode-ai@1",
-            "brew upgrade anomalyco/tap/opencode",
+            "brew install opencode",
+            "brew upgrade opencode",
             "brew install --cask copilot-cli",
             "grillmester doctor --client copilot",
             "grillmester --client copilot --agent grillmester",

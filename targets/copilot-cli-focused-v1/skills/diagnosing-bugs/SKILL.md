@@ -1,6 +1,6 @@
 ---
 name: diagnosing-bugs
-description: "Diagnose hard bugs, flakes and performance regressions with a tight feedback loop that goes red before any fix. Use when something is broken, failing or slow and the cause is unclear; use `tdd` for an established fix and the repository's platform diagnostic workflow when the evidence is in a deployed Nais environment."
+description: "Diagnose hard bugs, flakes and performance regressions with a tight feedback loop that goes red before any fix. Use when something is broken, failing or slow and the cause is unclear; use `tdd` for an established fix and the repository's platform workflow when the evidence is in a deployed Nais environment."
 ---
 
 # Diagnosing Bugs

@@ -40,9 +40,6 @@ CLIENTS = frozenset({"copilot", "opencode"})
 CONTEXTS = frozenset({"focused", "full"})
 PUBLIC_AGENTS = frozenset({"grillmester", "designer", "doctor-who"})
 FOCUSED_AGENT = "grillmester"
-OPENCODE_SAFE_META_ARGUMENTS = frozenset(
-    {("-h",), ("--help",), ("-v",), ("--version",)}
-)
 COPILOT_SAFE_META_ARGUMENTS = frozenset(
     {("help",), ("version",)}
 )
@@ -91,17 +88,13 @@ COPILOT_SAFE_OPTIONAL_VALUE_OPTIONS = frozenset(
 OPENCODE_SAFE_BOOLEAN_OPTIONS = frozenset(
     {
         "--help",
-        "--mini",
-        "--no-replay",
         "--print-logs",
-        "--pure",
         "--version",
     }
 )
 OPENCODE_SAFE_VALUE_OPTIONS = frozenset(
     {
         "--log-level",
-        "--replay-limit",
     }
 )
 COPILOT_SECRET_ENV = "COPILOT_PROVIDER_API_KEY"
@@ -188,21 +181,13 @@ ENVIRONMENT_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
 
 OPENCODE_LOCAL_ENVIRONMENT = {
     "OPENCODE_DISABLE_AUTOUPDATE": "true",
-    "OPENCODE_DISABLE_CLAUDE_CODE_PROMPT": "true",
+    "OPENCODE_DISABLE_CLAUDE_CODE": "true",
     "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "true",
-    "OPENCODE_DISABLE_DEFAULT_PLUGINS": "true",
-    "OPENCODE_DISABLE_EXTERNAL_SKILLS": "true",
-    "OPENCODE_DISABLE_LSP_DOWNLOAD": "true",
+    "OPENCODE_DISABLE_FILEWATCHER": "true",
+    "OPENCODE_DISABLE_FREE_MODELS": "true",
     "OPENCODE_DISABLE_MODELS_FETCH": "true",
     "OPENCODE_DISABLE_PROJECT_CONFIG": "true",
-    "OPENCODE_DISABLE_SHARE": "true",
-    "OPENCODE_EXPERIMENTAL": "false",
-    "OPENCODE_EXPERIMENTAL_CODE_MODE": "false",
-    "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER": "true",
-    "OPENCODE_AUTO_SHARE": "false",
-    "OPENCODE_ENABLE_EXA": "true",
     "OPENCODE_DB": ":memory:",
-    "OPENCODE_PURE": "true",
 }
 
 COPILOT_INHERIT_AGENTS = (
@@ -1533,14 +1518,12 @@ def prepare_client_version_probe(
                         sort_keys=True,
                         separators=(",", ":"),
                     ),
-                    "OPENCODE_AUTH_CONTENT": "{}",
                 }
             )
             passed_environment.extend(
                 [
                     "OPENCODE_CONFIG_DIR",
                     "OPENCODE_CONFIG_CONTENT",
-                    "OPENCODE_AUTH_CONTENT",
                     *sorted(OPENCODE_LOCAL_ENVIRONMENT),
                 ]
             )
@@ -1626,7 +1609,7 @@ LOCAL_CPLT_HARDENING_FLAGS = (
 CLIENT_INSTALL_HINTS = {
     "copilot": "brew install --cask copilot-cli",
     "cplt": "brew install navikt/tap/cplt",
-    "opencode": "brew install anomalyco/tap/opencode or npm install --global opencode-ai@1",
+    "opencode": "brew install opencode",
 }
 RIPGREP_HINT = (
     "rg was not found on PATH; OpenCode's Glob and Grep tools will be "
@@ -2366,6 +2349,8 @@ def _opencode_config_content(config: LocalConfig) -> str:
     value = {
         "autoupdate": False,
         "compaction": {"auto": True},
+        "default_agent": config.agent,
+        "model": config.qualified_model,
         "share": "disabled",
         "provider": {
             config.provider_id: {
@@ -2677,7 +2662,7 @@ def _validate_client_arguments(client: str, arguments: Sequence[str]) -> None:
 
 
 def _validate_opencode_option_allowlist(arguments: Sequence[str]) -> None:
-    """Allow only the reviewed OpenCode 1.18.20 interactive option surface."""
+    """Allow only the reviewed OpenCode 2 interactive option surface."""
 
     index = 0
     while index < len(arguments):
@@ -2864,7 +2849,6 @@ def _copilot_binding_arguments(
         DEFAULT_COPILOT_REASONING_EFFORT,
         "--no-auto-update",
         "--no-experimental",
-        "--no-remote",
         "--no-remote-export",
         "--disable-builtin-mcps",
         f"--secret-env-vars={','.join(secret_environment)}",
@@ -2940,18 +2924,9 @@ def _client_arguments(
         ]
     _validate_client_arguments(config.client, arguments)
     if config.client == "opencode":
-        binding = ["--agent", config.agent, "--model", config.qualified_model]
-        if not arguments:
-            return binding
-        if tuple(arguments) in OPENCODE_SAFE_META_ARGUMENTS:
-            return list(arguments)
-        if arguments[0].startswith("-"):
-            return [*binding, *arguments]
-        raise LocalModeError(
-            "local OpenCode launch accepts the TUI, --help, or --version; use "
-            "'grillmester local run' for an auto-approved task, or the system "
-            "OpenCode command for admin commands or another project"
-        )
+        # OpenCode 2's TUI has no --agent or --model; the generated
+        # configuration selects both.
+        return list(arguments)
     return [
         *_copilot_binding_arguments(
             config,
@@ -3117,12 +3092,10 @@ def build_local_launch(
         child_environment.update(OPENCODE_LOCAL_ENVIRONMENT)
         child_environment["OPENCODE_CONFIG_DIR"] = str(opencode_config)
         child_environment["OPENCODE_CONFIG_CONTENT"] = _opencode_config_content(config)
-        child_environment["OPENCODE_AUTH_CONTENT"] = "{}"
         passed_environment.extend(
             [
                 "OPENCODE_CONFIG_DIR",
                 "OPENCODE_CONFIG_CONTENT",
-                "OPENCODE_AUTH_CONTENT",
                 *sorted(OPENCODE_LOCAL_ENVIRONMENT),
             ]
         )
@@ -3556,7 +3529,7 @@ def _parser() -> argparse.ArgumentParser:
         action="store_const",
         const="full",
         dest="context",
-        help="save full 6-agent/44-skill context",
+        help="save full 6-agent/37-skill context",
     )
     setup.add_argument(
         "--provider-id",
@@ -3960,7 +3933,7 @@ def main(
                     print(f"{level} npm {message}")
             if config.client == "opencode":
                 print(
-                    "info websearch OpenCode sends approved search queries to Exa "
+                    "info websearch OpenCode sends approved search queries to your chosen provider "
                     "when cplt network policy permits"
                 )
                 ripgrep = _resolve_ripgrep(environment)

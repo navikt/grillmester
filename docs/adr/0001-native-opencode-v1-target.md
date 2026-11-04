@@ -5,6 +5,9 @@ date: 2026-08-21
 
 # Generer et eget, native OpenCode 1-target
 
+> Grensen mot OpenCode 2 og kravet om cplt er erstattet av
+> [ADR 0034](0034-opencode-2-og-valgfri-cplt.md).
+
 Installasjons- og aktiveringsdelen er supersedert av
 [ADR 0002](0002-install-and-launch-opencode-bundles.md) og deretter
 [ADR 0003](0003-one-terminal-entrypoint-through-cplt.md). Standardflytens

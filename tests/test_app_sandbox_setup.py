@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -375,6 +376,165 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual(code, 0, output)
         removed = json.loads(output)["projects"][0]["diff"]["readonlyPaths"]["removed"]
         self.assertTrue(any(Path(path) == history for path in removed), removed)
+
+    def test_setup_treats_case_and_symlink_history_aliases_as_the_shared_grant(self) -> None:
+        history, before = self.history_fixture()
+        alias = self.home / "history-alias"
+        alias.symlink_to(history, target_is_directory=True)
+        variants = [str(history.with_name("Session-State")), str(alias)]
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + variants,
+                   "readwritePaths": before["readwritePaths"] + [str(alias)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        diff = json.loads(output)["projects"][0]["diff"]
+        self.assertEqual(sorted(diff["readonlyPaths"]["removed"]), sorted(variants))
+        self.assertIn(str(alias), diff["readwritePaths"]["removed"])
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        code, output = self.run_cli("apply", "--no-instructions", "--confirm", json.loads(output)["digest"])
+        self.assertEqual(code, 0, output)
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
+            after = json.loads(connection.execute(
+                "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p1'"
+            ).fetchone()[0])
+        shared = variants + [str(history)]
+        self.assertEqual([path for path in after["readonlyPaths"] if path in shared], [str(history)])
+        self.assertFalse([path for path in after["readwritePaths"] if path in shared])
+
+    def test_a_history_root_denied_through_an_alias_keeps_grant_aliases(self) -> None:
+        history, before = self.history_fixture()
+        grant, deny = self.home / "grant-alias", self.home / "deny-alias"
+        grant.symlink_to(history, target_is_directory=True)
+        deny.symlink_to(history, target_is_directory=True)
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + [str(grant)],
+                   "deniedPaths": before["deniedPaths"] + [str(deny)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        readonly = json.loads(output)["projects"][0]["diff"].get("readonlyPaths", {})
+        self.assertNotIn(str(history), readonly.get("added", []))
+        self.assertNotIn(str(grant), readonly.get("removed", []))
+
+    def test_a_history_root_denied_through_a_parent_alias_keeps_grant_aliases(self) -> None:
+        history, before = self.history_fixture()
+        grant, parent = self.home / "grant-alias", self.home / "copilot-alias"
+        grant.symlink_to(history, target_is_directory=True)
+        parent.symlink_to(history.parent, target_is_directory=True)
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + [str(grant)],
+                   "deniedPaths": before["deniedPaths"] + [str(parent)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        readonly = json.loads(output)["projects"][0]["diff"].get("readonlyPaths", {})
+        self.assertNotIn(str(history), readonly.get("added", []))
+        self.assertNotIn(str(grant), readonly.get("removed", []))
+
+    def test_opt_out_removes_the_aliases_of_a_denied_history_root(self) -> None:
+        history, before = self.history_fixture()
+        grant, deny = self.home / "grant-alias", self.home / "deny-alias"
+        grant.symlink_to(history, target_is_directory=True)
+        deny.symlink_to(history, target_is_directory=True)
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + [str(grant)],
+                   "readwritePaths": before["readwritePaths"] + [str(grant)],
+                   "deniedPaths": before["deniedPaths"] + [str(deny)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        diff = json.loads(output)["projects"][0]["diff"]
+        self.assertIn(str(grant), diff["readonlyPaths"]["removed"])
+        self.assertIn(str(grant), diff["readwritePaths"]["removed"])
+
+    def test_a_deny_spelling_of_the_history_root_is_still_normalized(self) -> None:
+        history, before = self.history_fixture()
+        current = {**before, "deniedPaths": before["deniedPaths"] + [f"{history}/"]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        denied = json.loads(output)["projects"][0]["diff"]["deniedPaths"]
+        self.assertIn(str(history), denied["added"])
+        self.assertEqual(denied["removed"], [f"{history}/"])
+
+    def test_opt_out_keeps_a_deny_on_the_real_history_target(self) -> None:
+        history, before = self.history_fixture()
+        real = self.home / "real-history"
+        history.rename(real)
+        history.symlink_to(real, target_is_directory=True)
+        current = {**before, "deniedPaths": before["deniedPaths"] + [str(real)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        denied = json.loads(output)["projects"][0]["diff"].get("deniedPaths", {})
+        self.assertNotIn(str(real), denied.get("removed", []))
+        self.assertNotIn(str(history), denied.get("added", []))
+
+    def test_history_root_failures_are_skipped_or_refused_in_plans(self) -> None:
+        history, _ = self.history_fixture()
+        copilot = history.parent
+        original_exists = Path.exists
+        original_stat = os.stat
+
+        def unreadable_stat(path, *args, **kwargs):
+            if isinstance(path, (str, os.PathLike)) and Path(path) == history:
+                raise PermissionError(errno.EACCES, "synthetic")
+            return original_stat(path, *args, **kwargs)
+
+        def hidden_denial(path, *args, **kwargs):
+            # From Python 3.14, Path.exists() reports a denied stat as missing.
+            return False if path == history else original_exists(path, *args, **kwargs)
+
+        def denied_stat():
+            stack = contextlib.ExitStack()
+            stack.enter_context(mock.patch.object(Path, "exists", hidden_denial))
+            stack.enter_context(mock.patch.object(os, "stat", unreadable_stat))
+            return stack
+
+        def redirected_copilot():
+            history.unlink()
+            real = self.home / "real-copilot"
+            copilot.rename(real)
+            copilot.symlink_to(real, target_is_directory=True)
+
+        # Ordered so each arrangement builds on the previous filesystem state.
+        cases = (
+            ("unreadable", lambda: None, denied_stat, 1, "readable"),
+            ("missing", lambda: shutil.rmtree(history), contextlib.nullcontext, 0, "missing; grant skipped"),
+            ("regular file", lambda: history.write_text("", encoding="utf-8"), contextlib.nullcontext, 1, "non-symlink"),
+            ("redirected .copilot", redirected_copilot, contextlib.nullcontext, 1, "non-symlink"),
+        )
+        for name, arrange, patch, expected, message in cases:
+            arrange()
+            for command, options in (("plan", ("--no-instructions",)), ("history", ("plan",))):
+                with self.subTest(case=name, command=command):
+                    with patch():
+                        code, output = self.run_cli(command, *options)
+                    self.assertEqual(code, expected, output)
+                    self.assertIn(message, output)
+                    self.assertNotIn(str(history), output)
+
+    def test_unresolvable_history_root_still_allows_the_optout(self) -> None:
+        history, _ = self.history_fixture()
+        original_resolve = Path.resolve
+
+        def unresolvable(path, *args, **kwargs):
+            if path == history:
+                raise RuntimeError("synthetic symlink loop")
+            return original_resolve(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "resolve", unresolvable):
+            for command, options in (("plan", ("--no-instructions",)), ("history", ("plan",))):
+                with self.subTest(command=command):
+                    code, output = self.run_cli(command, *options)
+                    self.assertEqual(code, 1, output)
+                    self.assertIn("non-symlink", output)
+                    code, output = self.run_cli(command, *options, "--no-session-history")
+                    self.assertEqual(code, 0, output)
 
     def test_history_apply_requires_fresh_policy_and_directory_confirmation(self) -> None:
         history, before = self.history_fixture()

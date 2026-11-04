@@ -4,7 +4,7 @@ description: "Choose Aksel components, semantic tokens and responsive patterns f
 ---
 # Aksel Design System
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Bruk denne skillen når du jobber i Nav-frontend med `@navikt/ds-react`, layout i Aksel-primitives og responsiv UI. Hovedregler ligger her; detaljer ligger i `references/`.
 

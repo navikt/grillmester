@@ -27,42 +27,52 @@ from typing import Any, Mapping, Sequence
 CONTRACT: dict[str, Any] = {
     "schemaVersion": 1,
     "standardSupport": {
-        "opencodeMinimum": "1.18.20",
+        "opencodeMinimum": "2.2.5",
         "copilotMinimum": "1.0.100",
-        "cpltMinimum": "2026.08.17-062831-1008a92",
+        "cpltMinimum": "2026.11.02-225238-10a2882",
     },
     "releaseTest": {
-        "opencodeVersion": "1.18.20",
+        "opencodeVersion": "2.2.5",
         "copilotVersion": "1.0.100",
-        "cpltRelease": "2026.08.17-062831-1008a92",
+        "cpltRelease": "2026.11.02-225238-10a2882",
     },
     "artifacts": {
         "opencode:darwin:arm64": {
-            "url": "https://registry.npmjs.org/opencode-darwin-arm64/-/opencode-darwin-arm64-1.18.20.tgz",
-            "archiveSize": 45912069,
-            "archiveDigest": "sha512:7e010126cc31f75380b44989cbb8934f6da262c69d0b29f8629eeb574f60fae7f9968c995e49f238b62620b6080ebbc43fa16b50bacf6160635a65aa22beae80",
-            "roster": ["package/package.json", "package/bin/opencode"],
+            "url": "https://registry.npmjs.org/@opencode/cli-darwin-arm64/-/cli-darwin-arm64-2.2.5.tgz",
+            "archiveSize": 105814595,
+            "archiveDigest": "sha512:53019bd8c209a8b4a1e307eb92fa8d880a211b559fe6df7a371ef5d7742f9ad0a7e4b1a29a65d83744dbd5c843d2631145d3ef9d482e7af291770334b71658d5",
+            "roster": [
+                "package",
+                "package/bin",
+                "package/package.json",
+                "package/bin/opencode",
+            ],
             "executablePath": "package/bin/opencode",
-            "executableSize": 143925602,
-            "executableSha256": "9598c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952",
+            "executableSize": 226703008,
+            "executableSha256": "abe4d88594bffb12b364375b8a6732d2d1f7a977195ed1a35c5c76f8e89c9e0e",
         },
         "opencode:darwin:x86_64": {
-            "url": "https://registry.npmjs.org/opencode-darwin-x64/-/opencode-darwin-x64-1.18.20.tgz",
-            "archiveSize": 48089366,
-            "archiveDigest": "sha512:cbade5db7d9d2cf3175a66155aba13c5b77bc1f602b1178f05a5ec8bb9f77983cd7bb29ea3aacc97170db266c187173c3a609eaf4c83f4391a492e7230b83dc1",
-            "roster": ["package/package.json", "package/bin/opencode"],
+            "url": "https://registry.npmjs.org/@opencode/cli-darwin-x64/-/cli-darwin-x64-2.2.5.tgz",
+            "archiveSize": 111044366,
+            "archiveDigest": "sha512:cfec2a2015e4e435705d57724091cec309e73a514ec742df025c773f3b9b26313fddaf78f0a3c1909aee179ce6eb2ca09491b33604778e2ee80ff07f1ce303fb",
+            "roster": [
+                "package",
+                "package/bin",
+                "package/package.json",
+                "package/bin/opencode",
+            ],
             "executablePath": "package/bin/opencode",
-            "executableSize": 149405776,
-            "executableSha256": "96e4a9ecd931a059515fb2126cf59a4a3b56d9a66f9d4dbdf1361d1b4cd5ef60",
+            "executableSize": 240617312,
+            "executableSha256": "5e0cf9c94ee0fd4a4635807534e9ca4bf51ffe1c83260ada3510bf60e7333173",
         },
         "opencode:linux:x86_64": {
-            "url": "https://registry.npmjs.org/opencode-linux-x64/-/opencode-linux-x64-1.18.20.tgz",
-            "archiveSize": 60135211,
-            "archiveDigest": "sha512:1fe5e153b35b7d306df98135cdab1876e9637ef79941b6adc3bda00d485629f9c4f3781df4a67cbb96e209fed364472c8bd40979b1606b6513ade6ec8afcd0ba",
+            "url": "https://registry.npmjs.org/@opencode/cli-linux-x64/-/cli-linux-x64-2.2.5.tgz",
+            "archiveSize": 118637290,
+            "archiveDigest": "sha512:0641c07d3a8db20feaa61c8736b9c7f831a43b166c1a36a63693390efc2812fcfb6403cdc3c9846cc5c64c20ce007fbffb8d04a9e89ee8a359059650c0f0a368",
             "roster": ["package/package.json", "package/bin/opencode"],
             "executablePath": "package/bin/opencode",
-            "executableSize": 184490112,
-            "executableSha256": "5dce99ea079d925736e332b20f5bf869fe9a1fa67dc0a09027156b0ed8e41b16",
+            "executableSize": 252713136,
+            "executableSha256": "8d060e1d2fbb9bb44cf09ae6ed1f3f6a7cff070b5227e2f90970132b23a92050",
         },
         "copilot:darwin:arm64": {
             "url": "https://github.com/github/copilot-cli/releases/download/v1.0.100/copilot-darwin-arm64.tar.gz",
@@ -83,31 +93,31 @@ CONTRACT: dict[str, Any] = {
             "executableSha256": "7febb1274d53b6b2b9d9aa76af02c9780c5fbf9973cd3874397e51e648ee136c",
         },
         "cplt:darwin:arm64": {
-            "url": "https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-aarch64-apple-darwin.tar.gz",
-            "archiveSize": 1480572,
-            "archiveDigest": "sha256:fb1fd69f5ff42deb1cf2e510d97a58ff5f7ddf913e1cd4f7533815a16588eeda",
+            "url": "https://github.com/navikt/cplt/releases/download/2026.11.02-225238-10a2882/cplt-aarch64-apple-darwin.tar.gz",
+            "archiveSize": 3459234,
+            "archiveDigest": "sha256:023a19657110fa382a447fef683c1b6966700b75bcccf94440f701a85671a607",
             "roster": ["cplt"],
             "executablePath": "cplt",
-            "executableSize": 3122208,
-            "executableSha256": "423af2ce6166b0ddc1939d2e4d1340837daa23a29ccc58024ec0a849051becb2",
+            "executableSize": 7028784,
+            "executableSha256": "b975395752f8185c2bf4800d4c41eb17d55091c5c43908ff40836925009fb0a3",
         },
         "cplt:darwin:x86_64": {
-            "url": "https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-x86_64-apple-darwin.tar.gz",
-            "archiveSize": 1613282,
-            "archiveDigest": "sha256:e60687724df8a2fdb6f99654cc80f1a0dccb215263c2d984c222ff99ce56f8ea",
+            "url": "https://github.com/navikt/cplt/releases/download/2026.11.02-225238-10a2882/cplt-x86_64-apple-darwin.tar.gz",
+            "archiveSize": 3772457,
+            "archiveDigest": "sha256:e578f27ba9a6eb318606a50c60d55e5a022a867792647e6878f76d42e0096689",
             "roster": ["cplt"],
             "executablePath": "cplt",
-            "executableSize": 3546896,
-            "executableSha256": "36592c1b2bcfd7ab2d9083842b0aa7f51737cdf12ec1752d351bd9467dab5c02",
+            "executableSize": 8146536,
+            "executableSha256": "8fefc0b45667978da9b6d2c52e95b048cec248718f98651577a0a3929efff515",
         },
         "cplt:linux:x86_64": {
-            "url": "https://github.com/navikt/cplt/releases/download/2026.08.17-062831-1008a92/cplt-x86_64-unknown-linux-gnu.tar.gz",
-            "archiveSize": 1680011,
-            "archiveDigest": "sha256:3e6607db8ed2f361bb4e8a43246d38acc7e63e5d956de96c3319fffbd3be3eb4",
+            "url": "https://github.com/navikt/cplt/releases/download/2026.11.02-225238-10a2882/cplt-x86_64-unknown-linux-gnu.tar.gz",
+            "archiveSize": 3960152,
+            "archiveDigest": "sha256:65c4e2d39c1f49a7e0018002c8bb0bcfef08965aee85676759b591ee84fdbc46",
             "roster": ["cplt"],
             "executablePath": "cplt",
-            "executableSize": 3807496,
-            "executableSha256": "115fff00248f0c170388e11f2a05cc9914f5ba589f2ca87817ed96de2c6eedb5",
+            "executableSize": 8823232,
+            "executableSha256": "9d473289d1e74c8519ce47cadf986b3cbc97db4a09ec5383e3bd696d713fe59e",
         },
     },
 }
@@ -271,7 +281,7 @@ def verify_and_extract(record: Mapping[str, Any], archive: Path, output: Path) -
         selected = None
         for member in members:
             if (
-                member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}
+                member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE, tarfile.DIRTYPE}
                 or member.pax_headers
                 or member.linkname
                 or member.devmajor != 0
@@ -281,7 +291,11 @@ def verify_and_extract(record: Mapping[str, Any], archive: Path, output: Path) -
                 raise BaselineError("archive contains a link or special member")
             if member.name == record["executablePath"]:
                 selected = member
-        if selected is None or selected.size != record["executableSize"]:
+        if (
+            selected is None
+            or not selected.isfile()
+            or selected.size != record["executableSize"]
+        ):
             raise BaselineError("executable size differs from the baseline")
         extracted = package.extractfile(selected)
         if extracted is None:

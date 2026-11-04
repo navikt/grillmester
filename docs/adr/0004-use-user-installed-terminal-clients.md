@@ -5,6 +5,9 @@ date: 2026-08-23
 
 # Bruk systeminstallerte terminalklienter i standardflyten
 
+> Grensen mot OpenCode 2 og kravet om cplt er erstattet av
+> [ADR 0034](0034-opencode-2-og-valgfri-cplt.md).
+
 ## Kontekst
 
 [ADR 0003](0003-one-terminal-entrypoint-through-cplt.md) ga Copilot CLI og

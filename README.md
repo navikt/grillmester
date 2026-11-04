@@ -4,7 +4,7 @@
   <img src="docs/assets/grillmester-hero.jpg" alt="En retro robotgrillmester ved en kullgrill i et norsk landskap" width="100%">
 </p>
 
-Grillmester er Navs plugin for GitHub Copilot: én hovedagent for utvikling, egne innganger for design og produktarbeid, tre interne roller og 44 skills. Tilgang og tillatt bruk styres av Navs gjeldende policy.
+Grillmester er Navs plugin for GitHub Copilot: én hovedagent for utvikling, egne innganger for design og produktarbeid, tre interne roller og 37 skills. Tilgang og tillatt bruk styres av Navs gjeldende policy.
 
 ## Kom i gang
 
@@ -79,13 +79,14 @@ eller [manuell oppdatering, pinning og rollback](docs/installation.md#oppdatere-
 | **Doctor Who** 🕰️ | Du trenger støtte til discovery, mål, prioritering, workshops, teamhelse, produktfag eller Nav-arkitektur. |
 
 Beskriv ønsket resultat, kontekst og avgrensninger. Agenten laster normalt
-riktige skills selv. Grill-inspektør gir uavhengig review; Researcher og
+riktige skills selv. Grill-inspektør gir uavhengig review hvis du vil; Researcher og
 Perspektiv brukes ved behov. Barista og Kokk er erstattet av Grillmester.
 [Se alle agenter og skills](docs/agents-and-skills.md).
 
 ## Støtte og avgrensninger
 
-GitHub Copilot CLI er referanseklienten; Copilot app har egen plugininstallasjon.
+Copilot app med lokal sandbox er teamets hovedvei; GitHub Copilot CLI er
+referanseklienten. OpenCode 2 og cplt er støttet for dem som vil bruke dem.
 Linux og VS Code er utenfor release-løftet. Hver modell må kvalitetsvalideres
 separat. Se [klientstatus og
 releasegater](docs/trust-and-client-support.md).

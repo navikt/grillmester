@@ -4,7 +4,7 @@ description: "Summarize team status, goal progress and priorities from confirmed
 ---
 # Team status
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Build a traceable status report from the sources the team actually uses.
 GitHub Projects is one possible source, not a prerequisite. The default mode is
@@ -43,8 +43,9 @@ relevant excerpt and note the limitation in the report.
 For GitHub Projects:
 
 1. Check whether an approved semantic GitHub or Projects integration is
-   actually available at runtime. Never use `gh`, shell, raw HTTP, or other
-   network commands as a fallback in this product workflow.
+   actually available at runtime. When your role forbids command execution,
+   never use `gh`, shell, raw HTTP, or other network commands as a fallback in
+   this product workflow; otherwise `gh` is the fallback.
 2. Obtain the owner and project number from a confirmed link or team source.
 3. Retrieve fields, options, and items dynamically through the integration.
 4. Find the team's explanation of columns and fields. Do not infer "active",

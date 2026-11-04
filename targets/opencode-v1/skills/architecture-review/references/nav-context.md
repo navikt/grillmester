@@ -31,15 +31,12 @@ reason to run a special review merely because the repository is in Nav.
 ## Route depth
 
 Keep this skill responsible for cross-cutting architecture trade-offs. Use
-`security-review` for a focused security/privacy or threat review,
-`auth-overview` for concrete identity mechanisms,
-`nais-manifest` for manifest work,
-`api-design` or `kafka-topic` for concrete contracts,
-`observability-setup` for telemetry and alerts, and
-`nav-troubleshoot` for incident diagnosis. These deep dives are
+`security-review` for a focused security/privacy or threat review and
+`nav-platform` for concrete identity mechanisms, manifest work, API exposure,
+Kafka topics, telemetry and alerts, and incident diagnosis. These deep dives are
 not prerequisites; finish the architecture review and report missing evidence
 when one is unavailable.
 
 When the open choice is whether to replace REST with Kafka, keep the transport
-trade-off here. After that direction is chosen, route the concrete event flow
-and contract to `kafka-topic`.
+trade-off here. After that direction is chosen, route the concrete topic, pool
+and ACLs to `nav-platform`. The event contract belongs in the owning repository.

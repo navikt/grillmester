@@ -4,7 +4,7 @@ description: "Turn a resolved plan or specification into independently useful im
 ---
 # To Issues
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Break a plan, spec, or conversation into **GitHub issues** — tracer-bullet
 vertical slices that remain understandable and useful on their own.

@@ -4,7 +4,7 @@ description: "Grill a plan and write agreed glossary terms and qualifying short 
 ---
 # Grill with Docs
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Load the `grilling` skill and the `domain-modeling` skill. When the user typed
 `grill-with-docs` or asked to document as you go, add each resolved term to

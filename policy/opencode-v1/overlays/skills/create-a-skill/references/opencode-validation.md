@@ -1,4 +1,4 @@
-# OpenCode v1 Skill Validation
+# OpenCode Skill Validation
 
 Load this checklist immediately before validating a created, revised, or
 diagnosed skill. Work from a disposable repository or copied config directory
@@ -20,7 +20,7 @@ when OpenCode may bootstrap provider or plugin dependencies.
 
 ## Runtime discovery and behavior
 
-Use the installed OpenCode v1 client and its current official CLI contract.
+Use the installed OpenCode client and its current official CLI contract.
 Do not invent an undocumented listing command. In an isolated session:
 
 1. Start OpenCode with the intended config directory and a harmless temporary

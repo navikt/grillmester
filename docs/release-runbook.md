@@ -21,7 +21,8 @@ Keep the old version directory for rollback and preserve `~/.config/grillmester`
 preferences. Do not remove consumer- or user-owned component copies as part of
 a bundle update. See the [bundle example](opencode.md#hent-og-verifiser-en-grillmester-bundle).
 OpenCode, Copilot CLI and
-cplt remain separately installed system clients resolved from `PATH`.
+the optional cplt remain separately installed system clients resolved from
+`PATH`.
 Never move, replace, delete, or force-update a release tag or replace an
 existing release asset. Each release has exactly two maintained assets: the
 terminal bundle and its detached checksum.
@@ -43,13 +44,16 @@ changes the version in `plugin/plugin.json`, and it can be dispatched from
 - **Catalog validation** binds the planned source SHA, regenerates and seals the
   one-package catalog before any selected-source tooling runs, and executes the
   selected source's own tooling and tests only in that read-only job. Copilot
-  compatibility runs trusted smoke tooling from `main` and installs the sealed
-  catalog and the source payload from a worktree with the supported minimum
-  Copilot CLI 1.0.100, which must advertise the complete local-run flag surface in
-  `--help` without authentication or a model request. The native macOS matrix
+  compatibility runs trusted smoke tooling from `main`, checks the sealed catalog
+  against the source, and runs the plugin lifecycle on the source payload from a
+  worktree with the supported minimum Copilot CLI 1.0.100, which must advertise the
+  complete local-run flag surface in `--help` without authentication or a model
+  request. The remote smokes after publication install the pinned GitHub source
+  itself; `validate.yml` runs the same release-catalog smoke on every pull request.
+  The native macOS matrix
   runs on Apple Silicon and hosted Intel. It verifies the exact OpenCode,
   Copilot CLI and cplt release-test artifacts before their first execution,
-  runs the native and cplt runtime smokes, and launches all four local-model
+  runs the OpenCode smoke directly and through cplt, and launches all four local-model
   combinations (OpenCode/Copilot CLI × focused/full) through cplt. Copilot
   scenarios force normal delegation to Grill-inspektøren and require the exact
   loopback model in the primary, subagent and return requests. Those exact
@@ -107,7 +111,7 @@ as `grillmester-terminal-v1` and bind the selected source SHA, the exact client
 test baseline under `releaseTest`, the inner target manifests (including the
 `opencode-v1` target), the canonical Copilot full-payload manifest, the common
 launcher, and the complete distribution inventory. Standard and local launch
-accept OpenCode 1.x from the supported minimum, Copilot CLI 1.x from its
+accept OpenCode 2.x from the supported minimum, Copilot CLI 1.x from its
 minimum and newer dated cplt releases. `scripts/release_test_baseline.py` is the single
 executable source contract for exact release-test versions, URLs, sizes,
 archive rosters and digests; it is not a shipped client or runtime pin. Passing
@@ -387,7 +391,7 @@ byte-verifies both staged assets before publishing the draft (`prerelease` and
 `latest=false` for a prerelease). Published assets are never replaced. The
 following read-only `release-smoke` job peels the published tag back to the
 expected catalog commit, installs from `navikt/grillmester#v<version>`,
-byte-verifies the 6-agent/44-skill Copilot payload, downloads the exact
+byte-verifies the 6-agent/37-skill Copilot payload, downloads the exact
 two-asset roster, verifies the detached checksum before safe extraction, and
 exercises the launcher's install contract. A failed post-publication smoke
 stops promotion and requires a new corrective version; tags and assets are

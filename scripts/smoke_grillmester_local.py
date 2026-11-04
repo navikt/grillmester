@@ -58,8 +58,8 @@ PROMPT = "Return the deterministic Grillmester local smoke sentinel only."
 SUBAGENT_PROMPT = "Return SUBAGENT_LOCAL_ONLY and do not use tools."
 SKILL_CALL_ID = "call_local_skill_probe"
 TOOL_SENTINEL = "GRILLMESTER_LOCAL_TOOL_OK"
-# OpenCode 1.x reads tool output in the background and stops at process exit,
-# so a command that exits at once can report "(no output)".
+# OpenCode 1 read tool output in the background and stopped at process exit, so
+# a command that exited at once could report "(no output)". Keep the margin.
 TOOL_PROBE_COMMAND = f"/usr/bin/printf {TOOL_SENTINEL}; /bin/sleep 1"
 NPM_ACCESS_SENTINEL = "GRILLMESTER_LOCAL_NPM_ACCESS_OK"
 NPM_ACCESS_ENVIRONMENT = "NODE_AUTH_TOKEN"
@@ -350,10 +350,14 @@ def _tool_stream_body(
     ) + b"data: [DONE]\n\n"
 
 
-def _bash_stream_body(scenario: Scenario, command: str | None = None) -> bytes:
+def _shell_tool(scenario: Scenario) -> str:
+    return "shell" if scenario.client == "opencode" else "bash"
+
+
+def _shell_stream_body(scenario: Scenario, command: str | None = None) -> bytes:
     return _tool_stream_body(
         scenario,
-        tool_name="bash",
+        tool_name=_shell_tool(scenario),
         arguments={"command": command or TOOL_PROBE_COMMAND},
         call_id="call_local_tool_probe",
     )
@@ -416,9 +420,9 @@ def _stream_body(state: ProviderState) -> bytes:
     request_number = len(state.completions)
     if state.tool_command is not None:
         if request_number == 1 and _exposes_function_tool(
-            state.completions[0], "bash"
+            state.completions[0], _shell_tool(state.scenario)
         ):
-            return _bash_stream_body(state.scenario, state.tool_command)
+            return _shell_stream_body(state.scenario, state.tool_command)
         return _content_stream_body(
             state.scenario,
             state.final_content or sentinel_for(state.scenario),
@@ -427,9 +431,9 @@ def _stream_body(state: ProviderState) -> bytes:
     if (
         state.scenario == Scenario("opencode", "focused")
         and request_number == 1
-        and _exposes_function_tool(state.completions[0], "bash")
+        and _exposes_function_tool(state.completions[0], _shell_tool(state.scenario))
     ):
-        return _bash_stream_body(state.scenario)
+        return _shell_stream_body(state.scenario)
     if state.scenario.client == "copilot":
         if request_number == 1:
             try:
@@ -725,7 +729,7 @@ def _tool_result_text(payload: Mapping[str, Any]) -> str:
     return _request_text({"messages": contents})
 
 
-def _bash_probe_diagnostic(
+def _shell_probe_diagnostic(
     state: ProviderState,
     *,
     runtime_output: str,
@@ -795,7 +799,8 @@ def _bash_probe_diagnostic(
     tools = state.completions[0].payload.get("tools", [])
     function = next(
         (tool["function"] for tool in tools if isinstance(tool, dict)
-         and isinstance(tool.get("function"), dict) and tool["function"].get("name") == "bash"),
+         and isinstance(tool.get("function"), dict)
+         and tool["function"].get("name") == _shell_tool(state.scenario)),
         {},
     )
     parameters = function.get("parameters", {})
@@ -821,7 +826,7 @@ def _bash_probe_diagnostic(
         if isinstance(message, dict) and message.get("role") == "tool"
     ]
     diagnostic = {
-        "bashSchema": schema,
+        "shellSchema": schema,
         "request2": {
             "messagesType": type(messages).__name__,
             "messageCount": len(records),
@@ -923,11 +928,12 @@ def validate_provider_state(
     if (
         state.scenario == Scenario("opencode", "focused")
         and state.completions
-        and not _exposes_function_tool(state.completions[0], "bash")
+        and not _exposes_function_tool(state.completions[0], _shell_tool(state.scenario))
     ):
         advertised = ", ".join(_function_tool_names(state.completions[0])) or "none"
         raise LocalSmokeError(
-            f"{state.scenario.name} did not expose the required 'bash' tool; "
+            f"{state.scenario.name} did not expose the required "
+            f"{_shell_tool(state.scenario)!r} tool; "
             f"advertised function tools: {advertised}"
         )
     expected_completions = (
@@ -974,12 +980,12 @@ def validate_provider_state(
     elif state.scenario.context == "focused":
         tool_text = _tool_result_text(state.completions[1].payload)
         if TOOL_SENTINEL not in tool_text:
-            diagnostic = _bash_probe_diagnostic(
+            diagnostic = _shell_probe_diagnostic(
                 state, runtime_output=runtime_output,
                 redact_values=redact_values, path_aliases=path_aliases or {},
             )
             raise LocalSmokeError(
-                f"{state.scenario.name} did not execute its auto-approved bash probe; "
+                f"{state.scenario.name} did not execute its auto-approved shell probe; "
                 f"diagnostic={diagnostic}"
             )
     text = _request_text(record.payload)
@@ -1046,9 +1052,9 @@ def validate_npm_provider_state(
             f"{state.scenario.name} npm probe made {len(state.completions)} "
             "completion requests; expected exactly two"
         )
-    if not _exposes_function_tool(state.completions[0], "bash"):
+    if not _exposes_function_tool(state.completions[0], _shell_tool(state.scenario)):
         raise LocalSmokeError(
-            f"{state.scenario.name} npm probe did not expose the bash tool"
+            f"{state.scenario.name} npm probe did not expose the shell tool"
         )
     if not state.npm_requests:
         raise LocalSmokeError(
@@ -1929,7 +1935,7 @@ def inspect_prerequisites(
             problems.append(problem)
     expected = {
         "cplt": f"cplt {EXPECTED_CPLT_RELEASE}",
-        "opencode": EXPECTED_OPENCODE_VERSION,
+        "opencode": f"opencode v{EXPECTED_OPENCODE_VERSION}",
         "copilot": f"GitHub Copilot CLI {EXPECTED_COPILOT_VERSION}.",
     }
     for name in ("cplt", "opencode", "copilot"):

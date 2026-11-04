@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "395d5d0d38e9d9a28b4b3e885dca1f7a42b76f63c35b1586966a00d930792c83",
+    "payloadManifestSha256": "21d4dea88b0a810d6d9f6ab405f5dd1455e555f0f8e4ff8741bc98321368a68a",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -53,7 +53,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "188e4e8331f68113440e60cc5e52e1d72e76514356d368fb190c11e62cc30bc6",
+      "sha256": "39286103eddfca62b93b2d780306d1081012f7052cd284f09ba47c04d0792113",
       "mode": "0644"
     },
     "plugin.json": {
@@ -61,7 +61,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "e38a6a93c1966b6400f96d8b160c986ac5ca167e3efa112c81b3d4bcd70a014e",
+      "sha256": "b44896410c3f4d2ca08f1c72781fa57de0c0ecedeb8f13357a87086127153b09",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/references/data-access.md": {
@@ -77,7 +77,7 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "56d24d7e88bdfed0351850acf0cd2bf3a319bb4972668509ecddbcf4ace3f7a7",
+      "sha256": "aacbf529f9e9789afad56aec4a50508b14e3217066a35eeb444dcabe45e2752a",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
@@ -85,15 +85,15 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "8e23954567e6b8e7a3a171705099e24c7ae84a46ade0d26a7e9eb010624fc0a7",
+      "sha256": "f6f4994d28f53cd5cb240be1ee5cc176cb925d9e999d1265570da65a8ad7e00e",
       "mode": "0644"
     },
     "skills/review/references/smells.md": {
-      "sha256": "4cc59d31d4a27a1c7c31c5a3bdca34b40b01b85cb2ffe601cb9b7c39023381d6",
+      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "755960bf9fc9318c01b4c9a86ff77bce055e2cc0643fa38c073233ac414e2184",
+      "sha256": "6c4dfb8a9cfae9a05df052a0f4f0e5d1eec837f39da6640ac121c136ab97f630",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
@@ -105,15 +105,11 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "6994617e355d995fd8c2c7a61436c3dd451096b750182a8c20c055d5a64958ef",
+      "sha256": "581b3ffb851e60e34db06ba9ee0cc80755dfe3f1bbff6861ccff7f0fdbddbe33",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
       "sha256": "e97614726acef3958b8b5236758d01c1e41e1919418005dd532c07015a3c381a",
-      "mode": "0644"
-    },
-    "skills/tdd/refactoring.md": {
-      "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
     "skills/tdd/test-boundaries.md": {

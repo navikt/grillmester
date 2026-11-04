@@ -1,9 +1,9 @@
 ---
 name: doctor
-description: "Audit whether the current repository and session are ready for effective Grillmester use in OpenCode v1. Use only when the user explicitly asks to check, diagnose, or understand the OpenCode setup; the audit is read-only."
+description: "Audit whether the current repository and session are ready for effective Grillmester use in OpenCode. Use only when the user explicitly asks to check, diagnose, or understand the OpenCode setup; the audit is read-only."
 ---
 
-# Grillmester Doctor for OpenCode v1
+# Grillmester Doctor for OpenCode
 
 Audit the consumer-owned boundary around the portable Grillmester target.
 Distinguish observed runtime behavior from configuration that merely appears
@@ -37,8 +37,9 @@ Inspect only applicable sources:
   `.opencode/skills`, plus portable `.agents/skills` roots;
 - the configured Grillmester target's `manifest.json`, `agents/`, `commands/`,
   and `skills/` trees;
-- repository build definitions, entry points, tests, and maintained domain,
-  architecture, security, and operations documentation.
+- repository build definitions, continuous-integration workflows, entry points,
+  tests, and maintained domain, architecture, security, and operations
+  documentation.
 
 OpenCode merges several configuration scopes. A file's existence does not
 prove it wins. When effective config or the runtime roster cannot be observed,
@@ -79,7 +80,7 @@ Verify these dimensions separately:
 2. **Agent discovery** — three primary agents and three hidden subagents are
    present under `agents/`; agent frontmatter has `mode`, `hidden`, and native
    permissions, and omits `model` so the session/provider choice is inherited.
-3. **Delegation** — Grillmester can use `task` only for `grill-inspektor`
+3. **Delegation** — Grillmester can use `subagent` only for `grill-inspektor`
    and `researcher`; other roles preserve their narrower task boundary.
 4. **Skills and commands** — all manifest skills exist under `skills/`, each
    command wrapper resolves the same skill ID, and manual-only source skills
@@ -95,6 +96,13 @@ Verify these dimensions separately:
    widen a role's denied task, shell, edit, web, or skill boundaries.
 8. **Shadowing** — no higher-precedence agent, command, or skill with the same
    ID silently replaces a Grillmester component.
+9. **Size gate** — the build or CI fails on oversized or overly complex code,
+   for example detekt `LongMethod`, `CyclomaticComplexMethod` and
+   `NestedBlockDepth`, or Biome `noExcessiveLinesPerFunction` and
+   `noExcessiveCognitiveComplexity`. Report a missing gate as `GAP` in a
+   repository with application code, and suggest a way to stop only new code,
+   such as a baseline, with limits generous enough not to push code into thin
+   helpers.
 
 Treat the OpenCode target as generated output. Recommend changing its canonical
 plugin source, adapter policy, or overlay and regenerating it; never recommend
@@ -135,6 +143,7 @@ Coverage:
 - Instructions: OK | GAP | DUPLICATION | UNVERIFIED — <evidence>
 - Permissions: OK | BLOCKER | GAP | UNVERIFIED — <evidence>
 - Shadowing: OK | BLOCKER | UNVERIFIED — <evidence>
+- Size gate: OK | GAP | UNVERIFIED — <evidence>
 
 Smallest next action:
 - <one bounded consumer- or source-owned change, or none>

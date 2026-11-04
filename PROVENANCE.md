@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 44 skills. The sources below record attribution
+`plugin/`: six agents and 37 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -96,6 +96,16 @@ Imported skills:
 
 The pilot's `integration-tests` and `e2e-tests` skills are consolidated into
 `tdd/test-boundaries.md`; `tdd` is their runtime successor.
+
+The pilot's `api-design`, `auth-overview`, `kafka-topic`, `kotlin-ktor`,
+`nais-manifest`, `nav-troubleshoot`, `observability-setup` and
+`postgresql-review` skills are consolidated into `nav-platform`, with one
+reference per area; `nav-platform` is their runtime successor. Those IDs remain
+the original source IDs, and the content lock records them as its lineage. It
+uses `nav-troubleshoot` as the `sourcePath` because diagnosis starts with that
+skill's method. The consolidation keeps Nav and Nais facts and deletes general
+guidance a capable model already has, such as schema and query review, API
+compatibility and event contracts; it imports no new content.
 
 `guided-review` is a Grillmester adaptation of the pilot review boundary. It
 keeps complete diff coverage and deterministic evidence while adding a
@@ -293,6 +303,33 @@ sources, imported skills and the component set are unchanged. The rights journal
 binds this content and provenance while preserving the underlying decision in
 #56.
 
+PR [#112](https://github.com/navikt/grillmester/pull/112) reviews a correction
+in the imported `team-status` skill and its Projects reference. The ban on `gh`
+now applies to roles without command execution, such as Doctor Who, and other
+roles may use `gh` as the fallback. Names, sources, imported skills and the
+component set are unchanged. The rights journal binds this content and
+provenance while preserving the underlying decision in #56.
+
+PR [#116](https://github.com/navikt/grillmester/pull/116) reviews the size-gate
+dimension in the `doctor` skill, which reports a missing gate as a gap.
+It adds no third-party material. Names, sources, imported skills and the
+component set are unchanged. The rights journal binds this content, the content
+lock and this provenance record while preserving the underlying decision in #56.
+
+PR [#118](https://github.com/navikt/grillmester/pull/118) reviews the move of
+eight skills into `nav-platform`. Within the rights scope it changes the skill
+IDs that `architecture-review` and `lumi-survey` point to, and the routing in
+`architecture-review` that follows from them, which now names API exposure and
+Kafka topics instead of concrete contracts. It adds no third-party material, and
+the source IDs stay on record above. The rights journal binds this content,
+the content lock and this provenance record while preserving the underlying
+decision in #56.
+
+PR [#119](https://github.com/navikt/grillmester/pull/119) reviews a correction
+that leaves the independent reviewer to the user's choice. It changes no component
+in the rights scope. The rights journal binds this provenance record while
+preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
@@ -430,22 +467,22 @@ The method review at `mattpocock/skills` revision
 `3cca18b368ae95cdbdebbff572ccafa662551015` adds TDD guidance to derive expected
 outcomes independently of the implementation, precise interface/seam vocabulary
 from `codebase-design`, and scoped exploration from `improve-codebase-architecture`.
-Grillmester retains its
-red-green-refactor cycle, existing task authorization and repository test seams.
-It does not move refactoring to a separate review workflow or require two
-adapters as proof of every refactoring.
+Grillmester retains its existing task authorization and repository test seams,
+and does not require two adapters as proof of every refactoring.
 
 The testing review at `mattpocock/skills` revision
 `4ae2317ddb22b046e26455e4f9c9b3aaaf62212d` adds a seam-first test plan in which
 each kept test states what it catches and misses. Grillmester states the plan
 and continues, asks only when the seam or the tests to keep are an unsettled
-material choice, keeps refactoring inside the loop, and separates throwaway
-feedback checks from the tests it keeps.
+material choice, and separates throwaway feedback checks from the tests it
+keeps. Refactoring has since moved out of the loop and into `review`, as
+upstream does, so all refactoring guidance sits with the smells.
 
 The quality review at the same revision adapts the standards and spec axes of
 `code-review`, with a Fowler smell baseline reported as judgement calls, into
 `review`. Grillmester adds a correctness lens, keeps self-review by the writer
-as the default and uses the same lenses for its independent reviewer. It also
+at every level, asks from R2 whether the user wants the independent reviewer and
+uses the same lenses for both. It also
 adopts the red, deterministic loop criteria, 3–5 ranked hypotheses and the
 forced-mutation diff check in `diagnosing-bugs`, while keeping Nav's
 operational data-access rules and bounded analysis when no loop is possible.
@@ -471,14 +508,16 @@ the user's language. The context-pointer rules for descriptions from
 The observability review at `navikt/copilot` revision
 `ce9abd567a89eb72f1b8f95447435fd16fe805d3` adapts the
 `skills/observability-debugging` guidance on trace representativeness into
-`nav-troubleshoot/references/observability-diagnose.md`. The local adaptation
+`nav-troubleshoot/references/observability-diagnose.md`, now part of
+`nav-platform/references/observability.md`. The local adaptation
 also checks sampling and query coverage before interpreting absent signals.
 It does not import endpoint URLs, query recipes or a mandatory signal count.
 
 The Texas review at `navikt/copilot` revision
 `2145f233dd35a62b5674d5f526bcf9417e741f03` adapts four points from
 `skills/tokenx-auth` into `auth-overview` and
-`nav-troubleshoot/references/auth-diagnose.md`: a Texas failure surfaces as 5xx,
+`nav-troubleshoot/references/auth-diagnose.md`, now both part of
+`nav-platform/references/auth.md`: a Texas failure surfaces as 5xx,
 not 401; one `skip_cache` retry after an access-policy change; `client_id` checks
 when authorizing per calling app; and both `acr` forms. The other Texas
 corrections in those files were checked against the Nais documentation. It does

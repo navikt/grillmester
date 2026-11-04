@@ -59,34 +59,39 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 6, 44, True),
+    PackageSpec("grillmester", "plugin", 6, 37, True),
 )
 LEGACY_CORE = PackageSpec("grillmester", "plugin", 8, 34, False)
 LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10, False)
 PREVIOUS_UNIFIED_PACKAGE = PackageSpec("grillmester", "plugin", 8, 43, False)
 PREVIOUS_PACKAGES = (LEGACY_CORE, LEGACY_ADD_ON)
-LEGACY_ADD_ON_SKILLS = (
+NAV_PLATFORM_SOURCE_SKILLS = (
     "api-design",
     "auth-overview",
     "kafka-topic",
     "kotlin-ktor",
-    "grillmester-kotlin-spring",
-    "lumi-survey",
     "nais-manifest",
     "nav-troubleshoot",
     "observability-setup",
     "postgresql-review",
 )
+LEGACY_ADD_ON_SKILLS = (
+    *NAV_PLATFORM_SOURCE_SKILLS,
+    "grillmester-kotlin-spring",
+    "lumi-survey",
+)
 SAME_PACKAGE_REMOVED_SKILLS = (
     "e2e-tests",
     "grillmester-nav-architecture-review",
     "integration-tests",
+    *NAV_PLATFORM_SOURCE_SKILLS,
 )
 HISTORICAL_REMOVED_SKILLS = ("grillmester-kotlin-spring",)
 CURRENT_ONLY_SKILLS = (
     "agent-retro",
     "app-sandbox-setup",
     "guided-review",
+    "nav-platform",
     "wait-what",
 )
 REMOVED_SKILLS = SAME_PACKAGE_REMOVED_SKILLS + HISTORICAL_REMOVED_SKILLS
@@ -178,7 +183,6 @@ def verify_local_cli_help_surface(
         "--reasoning-effort",
         "--no-auto-update",
         "--no-experimental",
-        "--no-remote",
         "--no-remote-export",
         "--disable-builtin-mcps",
         "--secret-env-vars",
@@ -348,7 +352,6 @@ def prepare_upgrade_marketplace(
     """Create an older local source beside an exact current catalog fixture."""
 
     current_catalog = load_json_object(catalog_path)
-    current_sources = marketplace_sources_from_catalog(catalog_path)
     current_versions = {
         plugin_version(source_root / package.path) for package in PACKAGES
     }
@@ -380,9 +383,11 @@ def prepare_upgrade_marketplace(
         )
         previous_plugins[package.name] = previous_plugin
 
-        # Development sources resolve relative to the staged marketplace.
-        if current_sources[package.name] == package.path:
-            shutil.copytree(source_package, staged_marketplace / package.path)
+        # The lifecycle runs on a local source in both modes. Copilot 1.0.100 does
+        # not register a pinned GitHub source from a local marketplace, so the
+        # remote smokes install that source after publication.
+        shutil.copytree(source_package, staged_marketplace / package.path)
+        current_entry["source"] = package.path
 
     previous_core = previous_plugins[PLUGIN_NAME]
     add_removed_agent_fixtures(previous_core)

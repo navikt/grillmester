@@ -44,7 +44,7 @@
     "matt-testing": {
       "repository": "mattpocock/skills",
       "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
-      "note": "Adapted the seam-first test plan, where each kept test states what it catches and misses; Grillmester states the plan and asks only when the seam or the kept tests are an unsettled material choice, and keeps refactoring inside the loop."
+      "note": "Adapted the seam-first test plan, where each kept test states what it catches and misses; Grillmester states the plan and asks only when the seam or the kept tests are an unsettled material choice."
     },
     "matt-grilling": {
       "repository": "mattpocock/skills",
@@ -133,7 +133,6 @@
     "accessibility-review": {"source": "hovmester", "sourcePath": ".github/skills/accessibility-review", "disposition": "adapted"},
     "agent-retro": {"source": "matt-additions", "sourcePath": "skills/engineering/retro", "disposition": "adapted", "disable-model-invocation": true},
     "aksel-design": {"source": "hovmester", "sourcePath": ".github/skills/aksel-design", "disposition": "adapted"},
-    "api-design": {"source": "pilot", "sourcePath": ".github/skills/api-design", "disposition": "adapted"},
     "app-sandbox-setup": {"source": "grillmester", "sourcePath": "plugin/skills/app-sandbox-setup", "disposition": "original", "disable-model-invocation": true},
     "architecture-review": {
       "source": "pilot",
@@ -143,14 +142,6 @@
         {"source": "navikt-copilot", "sourcePath": "skills/nav-architecture-review"}
       ],
       "disposition": "consolidated"
-    },
-    "auth-overview": {
-      "source": "pilot",
-      "sourcePath": ".github/skills/auth-overview",
-      "lineage": [
-        {"source": "nav-tokenx", "sourcePath": "skills/tokenx-auth"}
-      ],
-      "disposition": "adapted"
     },
     "create-a-skill": {
       "source": "pilot",
@@ -242,23 +233,25 @@
       ],
       "disposition": "adapted"
     },
-    "kafka-topic": {"source": "pilot", "sourcePath": ".github/skills/kafka-topic", "disposition": "adapted"},
     "klarsprak": {"source": "pilot", "sourcePath": ".github/skills/klarsprak", "disposition": "adapted"},
-    "kotlin-ktor": {"source": "pilot", "sourcePath": ".github/skills/kotlin-ktor", "disposition": "adapted"},
     "lumi-survey": {"source": "hovmester", "sourcePath": ".github/skills/lumi-survey", "disposition": "adapted"},
-    "nais-manifest": {"source": "pilot", "sourcePath": ".github/skills/nais-manifest", "disposition": "adapted"},
-    "nav-troubleshoot": {
+    "nav-platform": {
       "source": "pilot",
       "sourcePath": ".github/skills/nav-troubleshoot",
       "lineage": [
+        {"source": "pilot", "sourcePath": ".github/skills/api-design"},
+        {"source": "pilot", "sourcePath": ".github/skills/auth-overview"},
+        {"source": "pilot", "sourcePath": ".github/skills/kafka-topic"},
+        {"source": "pilot", "sourcePath": ".github/skills/kotlin-ktor"},
+        {"source": "pilot", "sourcePath": ".github/skills/nais-manifest"},
+        {"source": "pilot", "sourcePath": ".github/skills/observability-setup"},
+        {"source": "pilot", "sourcePath": ".github/skills/postgresql-review"},
         {"source": "nav-observability", "sourcePath": "skills/observability-debugging"},
         {"source": "nav-tokenx", "sourcePath": "skills/tokenx-auth"}
       ],
-      "disposition": "adapted"
+      "disposition": "consolidated"
     },
-    "observability-setup": {"source": "pilot", "sourcePath": ".github/skills/observability-setup", "disposition": "adapted"},
     "okr": {"source": "hovmester", "sourcePath": ".github/skills/okr", "disposition": "adapted"},
-    "postgresql-review": {"source": "pilot", "sourcePath": ".github/skills/postgresql-review", "disposition": "adapted"},
     "produktledelse": {"source": "hovmester", "sourcePath": ".github/skills/produktledelse", "disposition": "adapted"},
     "prototype": {"source": "pilot", "sourcePath": ".github/skills/prototype", "disposition": "adapted"},
     "pull-request": {

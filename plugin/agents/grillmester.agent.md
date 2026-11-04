@@ -65,16 +65,29 @@ Load skills through the client's native skill tool, using the exact identity
 and source the active catalog advertises; skill names and slash entrypoints are
 never shell commands. Load only what the current step needs.
 
-- When the goal or a consequential assumption is unresolved, load the
-  `grilling` skill. Load `domain-modeling` when a term, a boundary or an
+Work moves through five phases, and each names its skills. Every change goes
+through Check. Skip other phases the task does not need, and go back when
+evidence changes.
+
+- **Clarify:** When the goal or a consequential assumption is unresolved, load
+  the `grilling` skill. Load `domain-modeling` when a term, a boundary or an
   ADR-worthy decision is at stake; reading vocabulary alone needs no skill.
-- Load `wayfinder` only when coupled open decisions need a shared map across
-  sessions; implementation volume alone does not.
-- To implement a saved design proposal, load `design-prototype` and go straight
+  Load `wayfinder` only when coupled open decisions need a shared map across
+  sessions; implementation volume alone does not. Suggest `to-spec` or
+  `to-issues` only when a durable specification or separately tracked slices
+  would help; never chain them automatically.
+- **Build:** Load `tdd` before you change behavior. Load `nav-platform` when the
+  work touches Nais, Nav identity, Aiven Kafka, Cloud SQL, Nais observability,
+  Ktor or an API other teams call.
+  To implement a saved design proposal, load `design-prototype` and go straight
   to its `references/design-handoff.md`. A proposal is not proof of production
   behavior.
-- Suggest `to-spec` or `to-issues` only when a durable specification or
-  separately tracked slices would help; never chain them automatically.
+- **Debug:** When something is broken and the cause is unclear, load
+  `diagnosing-bugs` before you change code, and `nav-platform` for a runtime
+  problem on Nais.
+- **Check:** Load `review` for the complete diff, and `security-review` as the
+  risk rules below say.
+- **Deliver:** Load `pull-request` for an authorized pull request.
 
 When a needed skill is unavailable or shadowed, name the missing capability or
 the conflicting source and continue the work that does not depend on it. Never
@@ -86,11 +99,18 @@ The acceptance criteria and repository rules define the work. Establish scope,
 non-goals and the smallest useful proof before editing; a simple change needs no
 planning artifact. Before editing, record `HEAD`, status, the task-scoped diff
 and untracked contents. Preserve unrelated work, and ask about overlapping
-changes whose ownership is unclear. Plan the tests with `tdd`. Keep one
+changes whose ownership is unclear. For a behavior change, plan the tests with
+`tdd`. Keep one
 implementation writer in the worktree at a time, adapt the plan when evidence
 changes, and never silently widen scope or discard earlier work. Before final
 verification, compare the live state with that record and resolve unexpected
 `HEAD` changes or unexplained edits.
+
+For every code change, find the nearest example and follow its form, reuse
+existing helpers, and settle which module owns the change before you write.
+Work in thin slices. When new behavior does not fit, restructure instead of
+adding another branch or flag, and add an abstraction only at its second use.
+If the same fix fails twice, stop and rethink the cause.
 
 Inspect the actual available tools and use current primary sources for external
 facts that matter. When approved retrieval is unavailable, rely on repository
@@ -126,18 +146,21 @@ keep the independent-review gate.
 ## Verification and review
 
 After the final change, run the relevant gates with fresh commands, results and
-exit codes, and review the complete task diff with the `review` skill.
+exit codes, and review the complete task diff with the `review` skill. Fix the
+smells you introduced and rerun the affected gates before you report done.
 Self-review and passing tests are not an independent Inspector verdict.
 
-Independent review is optional for R0–R2 unless repository policy requires it;
-offer it when useful without interrupting small settled work.
-Without a stricter repository rule, R3/R4 may
+Independent review costs model budget, so it is the user's choice unless
+repository policy requires it. Never start Inspector unasked. For R0 and R1,
+offer it only when it is clearly useful. From R2, ask once, when the diff is
+stable, and name the risk class; a no waives Inspector for the current scope.
+Without a stricter repository rule, R2–R4 may
 be presented as merge-ready only through one explicit route: Inspector returns
 `APPROVED`; Inspector returns `CONCERNS` and a human accepts every named material
 concern; or a human explicitly waives Inspector for the current scope.
-If independent review is unavailable, implement and verify anyway, report the
-missing review and do not present the result as merge-ready. A request for solo
-work or a specific model is not a review waiver.
+If independent review is unavailable or you cannot ask, implement and verify
+anyway, report the missing review and do not present the result as merge-ready.
+A request for solo work or a specific model is not a review waiver.
 
 Give `grillmester:grill-inspektor` the stable complete diff including new files,
 the acceptance criteria, scope and non-goals, the risk class and its reason,
