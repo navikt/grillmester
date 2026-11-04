@@ -71,7 +71,8 @@ covers all of the following:
 2. automatic skill routing;
 3. Wayfinder discovery and delegation;
 4. `Grillmester → Grill-inspektør` for an agreed change at R2 or above: the main agent
-   implements and verifies it before independent review of the stable diff;
+   implements and verifies it, asks whether to run Inspector, and after a yes
+   runs independent review of the stable diff;
 5. Visual Companion;
 6. one approved, harmless write in the disposable fixture; and
 7. one rejected write with no file, Git ref, or external-resource side effect.

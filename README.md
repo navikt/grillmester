@@ -86,7 +86,7 @@ eller [manuell oppdatering, pinning og rollback](docs/installation.md#oppdatere-
 | **Doctor Who** 🕰️ | Du trenger støtte til discovery, mål, prioritering, workshops, teamhelse, produktfag eller Nav-arkitektur. |
 
 Beskriv ønsket resultat, kontekst og avgrensninger. Agenten laster normalt
-riktige skills selv. Grill-inspektør gir uavhengig review; Researcher og
+riktige skills selv. Grill-inspektør gir uavhengig review hvis du vil; Researcher og
 Perspektiv brukes ved behov. Barista og Kokk er erstattet av Grillmester.
 [Se alle agenter og skills](docs/agents-and-skills.md).
 

@@ -27,8 +27,8 @@ kan starte her.
 > et vesentlig valg fortsatt står åpent.
 
 **Forventet leveranse:** En avgrenset endring med fersk verifikasjon og selvreview.
-Uavhengig review følger oppgavens risiko og repoets regler; for R0 og R1 er den
-valgfri. Beslutningsgrunnlag, ordliste eller ADR foreslås i én linje når
+Uavhengig review er ditt valg, fordi den bruker modellbudsjett, med mindre repoet
+krever den. Fra R2 spør Grillmester om du vil ha den. Beslutningsgrunnlag, ordliste eller ADR foreslås i én linje når
 arbeidet trenger det, og skrives når du ber om det, sier ja eller repoets
 policy krever det.
 
@@ -47,12 +47,13 @@ hvert spørsmål. Størrelsen på den senere implementasjonen er ikke alene grun
 
 Grillmester eier plan, implementering, tester og leveranse på alle risikonivåer
 og skriver koden selv. Høy risiko, mange filer eller lang testtid utløser ikke
-en egen implementeringsagent. Review skjer på en stabil diff; fra R2 gir
+en egen implementeringsagent. Review skjer på en stabil diff. Sier du ja, gir
 Grill-inspektør en uavhengig vurdering i egen kontekst.
 
 Før en endring fra R2 og oppover kan kalles klar til merge, må Grill-inspektør ha godkjent
 den, et menneske uttrykkelig ha godtatt alle navngitte bekymringer, eller et
-menneske uttrykkelig ha frafalt review for det aktuelle omfanget. Egen
+menneske uttrykkelig ha frafalt review for det aktuelle omfanget. Et nei når
+Grillmester spør, regnes som at du frafaller den. Egen
 gjennomgang og beståtte tester erstatter ikke dette kravet. Nye endringer
 krever fersk verifikasjon og review når review brukes som leveransegrunnlag.
 
