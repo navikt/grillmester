@@ -38,7 +38,9 @@ OpenCode 2 ellers leser utenfor prosjektet uten å spørre. `execute` er avslåt
 fordi Code Mode kan gjøre HTTP-kall som `webfetch: deny` ikke stopper.
 `opencode_*` er avslått, fordi OpenCodes egne verktøy for økter og worktrees ikke
 er vurdert for rollene våre. Brukerens og repoets config kan overstyre reglene,
-så bare sandboxen er en teknisk grense.
+så bare sandboxen er en teknisk grense. Launcheren slår også av OpenCodes
+gratismodeller, siden OpenCode ellers sender koden til en av dem når ingen
+provider er satt opp.
 
 Én liten smoke erstatter de to gamle. Den starter øktene gjennom launcheren,
 direkte og gjennom cplt, mot en loopbackprovider. Linux-CI tester direkte, fordi

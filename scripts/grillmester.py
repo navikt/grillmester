@@ -84,7 +84,11 @@ CLIENT_LABELS = {
     "copilot": "GitHub Copilot CLI",
     "opencode": "OpenCode",
 }
-OPENCODE_LAUNCH_ENVIRONMENT = ("OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG_CONTENT")
+OPENCODE_LAUNCH_ENVIRONMENT = (
+    "OPENCODE_CONFIG_DIR",
+    "OPENCODE_CONFIG_CONTENT",
+    "OPENCODE_DISABLE_FREE_MODELS",
+)
 OPENCODE_USER_CONFIG_NAMES = ("opencode.json", "opencode.jsonc")
 # These reject --standalone, and they start no agent session.
 OPENCODE_SERVER_COMMANDS = frozenset(
@@ -625,6 +629,8 @@ def _client_launch(
     environment["OPENCODE_CONFIG_CONTENT"] = _opencode_config_content(
         invocation.agent, environment.get("OPENCODE_CONFIG_CONTENT")
     )
+    # With no provider, OpenCode would otherwise send the code to a free cloud model.
+    environment.setdefault("OPENCODE_DISABLE_FREE_MODELS", "true")
     forwarded = list(invocation.client_args)
     if forwarded[:1] == ["run"]:
         return ["run", "--agent", invocation.agent, *forwarded[1:]], environment
@@ -1058,7 +1064,7 @@ def _find_cplt() -> str | None:
     except MissingBinaryError:
         for directory in os.environ.get("PATH", "").split(os.pathsep):
             candidate = Path(directory or os.curdir) / "cplt"
-            if os.path.lexists(candidate):
+            if os.path.lexists(candidate) and not candidate.is_dir():
                 raise LauncherError(
                     f"{candidate} is not a working cplt; fix it, or start without "
                     "its sandbox with --no-cplt"
@@ -1319,7 +1325,7 @@ def interactive_defaults(
         return current
     if current is None:
         return choose_preferences(validation_cache=validation_cache)
-    sandbox = "gjennom cplt" if shutil.which("cplt") else "uten sandbox"
+    sandbox = "gjennom cplt" if _find_cplt() else "uten sandbox"
     prompt = (
         f"Start {CLIENT_LABELS[current.client]} med "
         f"{AGENT_LABELS[current.agent].split(' – ', 1)[0]} {sandbox}? "

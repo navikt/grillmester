@@ -57,10 +57,10 @@ Den vanlige kommandoen velger ikke provider eller modell; bruk din brukereide
 OpenCode-config og `/models`. OpenCode 2 leser ikke `~/.config/opencode` når
 `OPENCODE_CONFIG_DIR` peker på targetet. Uten cplt peker launcheren derfor
 `OPENCODE_CONFIG` på din `opencode.json` eller `opencode.jsonc`, men ikke på
-begge. Under cplt laster OpenCode bare targetets `opencode.json`, og launcheren
-sier fra når du har en egen fil som ikke blir lest. Da virker providere fra
-`/connect`, `OPENCODE_CONFIG_CONTENT` og `grillmester local`. Egne agenter, skills
-og plugins i `~/.config/opencode` lastes ikke i noen av tilfellene.
+begge. Under cplt leser OpenCode ikke denne filen, og launcheren sier fra når du
+har en. Da virker providere fra `/connect`, `OPENCODE_CONFIG_CONTENT` og
+`grillmester local`. Egne agenter, skills og plugins i `~/.config/opencode`
+lastes ikke i noen av tilfellene.
 
 Versjonsproben har timeout og outputgrense og kjører i en midlertidig mappe, ikke
 i consumer-repoet.
@@ -256,7 +256,10 @@ For OpenCode:
 3. peker `OPENCODE_CONFIG_DIR` på det distribuerte targetet
 4. velger offentlig agent med `default_agent` i `OPENCODE_CONFIG_CONTENT`, og
    med `--agent` for `run`; annen inline config beholdes
-5. lar cplt eie sandbox, proxy, repo-policy og `gh`-/Git-guards, eller starter
+5. slår av OpenCodes gratismodeller, siden OpenCode ellers sender koden til en
+   av dem når ingen provider er satt opp; `OPENCODE_DISABLE_FREE_MODELS=false`
+   slår dem på igjen
+6. lar cplt eie sandbox, proxy, repo-policy og `gh`-/Git-guards, eller starter
    OpenCode med `--standalone` når cplt ikke er i bruk
 
 Den installerer ingen klient og skriver ingen agent-/skillfiler i

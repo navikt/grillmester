@@ -565,8 +565,8 @@ cd /path/to/consumer-repo
 grillmester --client opencode --agent grillmester --no-cplt
 ```
 
-Under cplt laster OpenCode bare targetets `opencode.json`, ikke denne filen. Vil
-du ha sandbox rundt en lokal modell, bruk `grillmester local`. Ingen annen
+Under cplt leser OpenCode ikke denne filen. Vil du ha sandbox rundt en lokal
+modell, bruk `grillmester local`. Ingen annen
 runtime eller `nav-pilot-agent` er nødvendig.
 
 OpenCode-agentene har ingen modellpin. Når Grillmester delegerer til

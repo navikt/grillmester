@@ -126,7 +126,7 @@ jobs:
   validate:
     needs: plan
     if: needs.plan.outputs.release == 'true'
-    # Match the PR gate's reviewed cplt runtime host.
+    # Match the PR gate's reviewed host.
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:

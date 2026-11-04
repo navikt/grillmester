@@ -637,7 +637,7 @@ grillmester --client opencode --agent grillmester
 ```
 
 Launcheren setter targetpath og cplt-binding automatisk. Velg modell i
-OpenCode-configen eller med `/models`. Under cplt laster OpenCode bare targetets
+OpenCode-configen eller med `/models`. Under cplt leser OpenCode ikke din egen
 config, så bruk `/connect` for provideren der, eller `grillmester local` for en
 lokal modell.
 

@@ -128,8 +128,10 @@ class GrillmesterCliTests(unittest.TestCase):
             {"default_agent": "grillmester"},
             json.loads(environment["OPENCODE_CONFIG_CONTENT"]),
         )
+        self.assertEqual("true", environment["OPENCODE_DISABLE_FREE_MODELS"])
         self.assertIn("OPENCODE_CONFIG_DIR", command[:separator])
         self.assertIn("OPENCODE_CONFIG_CONTENT", command[:separator])
+        self.assertIn("OPENCODE_DISABLE_FREE_MODELS", command[:separator])
         self.assertNotIn("--standalone", command)
 
     def test_opencode_run_places_the_selected_agent_after_the_subcommand(self) -> None:
@@ -468,13 +470,19 @@ class GrillmesterCliTests(unittest.TestCase):
             ), self.assertRaisesRegex(CLI.LauncherError, "not a working cplt"):
                 CLI.resolve_cplt()
 
+    def test_a_directory_named_cplt_is_not_a_broken_install(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "cplt").mkdir()
+            with mock.patch.dict(os.environ, {"PATH": directory}):
+                self.assertIsNone(CLI.resolve_cplt())
+
     def test_saved_default_prompt_says_whether_a_sandbox_is_in_use(self) -> None:
         preferences = CLI.Preferences("opencode", "grillmester")
         for found, text in (("/bin/cplt", "gjennom cplt"), (None, "uten sandbox")):
             with self.subTest(found=found), mock.patch.object(
                 CLI, "load_preferences", return_value=preferences
             ), mock.patch.object(
-                CLI.shutil, "which", return_value=found
+                CLI, "_find_cplt", return_value=found
             ), mock.patch.object(
                 CLI.sys, "stdin", TtyBuffer()
             ), mock.patch.object(

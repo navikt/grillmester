@@ -875,8 +875,8 @@ grillmester --client opencode --agent grillmester
 
 The launcher binds the installed Grillmester target and starts the PATH-resolved
 OpenCode. Declare the provider and model in the user's normal OpenCode config
-before launch. Under cplt OpenCode loads only the target's config, so use
-`/connect` or `grillmester local` there. This source-pinned
+before launch. Under cplt OpenCode does not read that file, so use `/connect`
+or `grillmester local` there. This source-pinned
 [local-provider example](https://github.com/navikt/grillmester/blob/{source_sha}/docs/local-models.md#avansert-manuell-opencode-binding)
 shows the complete OpenAI-compatible shape; OpenCode's built-in GitHub Copilot
 provider instead uses its normal `/connect` flow. The source-pinned
