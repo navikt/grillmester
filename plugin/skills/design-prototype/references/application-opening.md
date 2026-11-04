@@ -122,17 +122,26 @@ part.
 
 Offer alternatives when the designer faces a real choice of direction, not for a small
 adjustment. Build them in the same copy behind a query parameter, for example `?variant=b`,
-and open one Browser tab per alternative with its own `instanceId` and a clear title. One
-dev server then serves them all with the same data, so the comparison stays fair. When one
-is chosen, remove the others and commit.
+and leave the page without the parameter as it is. One dev server then serves them all with
+the same data, so the comparison stays fair. Each alternative is a real direction: different
+structure, hierarchy or style across the page, not the same element in a new color.
+
+Open a tab without the parameter first for today's app, then one tab per alternative, each
+with its own `instanceId`. A tab shows the page's own title and not the title you pass, so
+set the page title in each alternative, for example «B · Spøkelse». Compare in these tabs
+and add no switcher, bar or other tool of ours to the page: it would become part of what is
+judged, and Pick & Polish and screenshots would pick it up.
+
+When one is chosen, remove the others, the parameter and the page titles, and commit.
 
 ## Compare with the current app
 
-One tab is enough for iterating. When before and after must be seen together, run the
+One tab is enough for iterating. For alternatives, the page without the parameter is today's
+app. When before and after must be seen together for a change to the page itself, run the
 unchanged baseline from a second owned copy with its own service key and port, and open it
-in a second Browser tab with a new `instanceId`. Title the tabs so they cannot be confused,
-for example «Dagens app» and «Forslag». The designer can place them side by side. Present
-the proposal copy only as a proposal.
+in a second Browser tab with a new `instanceId`. Set the page title in the proposal copy, for
+example «Forslag», so the tabs cannot be confused. Present the proposal copy only as a
+proposal.
 
 ## Start from a new idea
 
