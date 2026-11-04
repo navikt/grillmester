@@ -322,9 +322,9 @@ isolert XDG-, provider- og klientstate og den
 distribuerte payloaden. OpenCode får en byteidentisk, sessioneid kopi etter at
 manifest og digester er verifisert, slik at klientens runtime-packagefiler ikke
 kan forsøple release-targetet. Copilot leser pluginpayloaden direkte.
-Ambient OpenCode- og Copilot-komponenter som kan skygge agentteamet avvises;
-repoets vanlige `AGENTS.md` kan fortsatt gi stående prosjektkontekst. Dette er
-payloadisolasjon, ikke en egen runtime-sandbox. Bare de to nyeste avsluttede
+Ambient OpenCode- og Copilot-komponenter som kan skygge agentteamet avvises.
+OpenCode-local leser heller ikke repoets `AGENTS.md`, fordi prosjektconfigen er
+slått av. Dette er payloadisolasjon, ikke en egen runtime-sandbox. Bare de to nyeste avsluttede
 sessionmappene beholdes ved sekvensiell bruk; `doctor` og preview oppretter ingen
 sessionmappe.
 
@@ -332,9 +332,7 @@ For OpenCode kan prosjektets `.opencode/` fortsatt inneholde vanlig, inert
 metadata som `.gitignore`, packagefiler og `node_modules`, samt andre filer som
 ikke er en lastbar klientkomponent. Prosjektets `opencode.json` og lastbare
 agent-, command-, mode-, plugin-, skill-, theme- og toolrøtter avvises fortsatt.
-Legg stående prosjektinstrukser i `AGENTS.md` i repo-roten; en
-`.opencode/AGENTS.md` kan eksistere, men er ikke OpenCodes dokumenterte
-prosjektregelsti og bindes ikke av Grillmester.
+En `.opencode/AGENTS.md` kan eksistere, men bindes ikke av Grillmester.
 
 Copilot-local feiler konservativt på enhver ikke-tom repo-lokal agent- eller
 skillrot fordi klienten ikke tilbyr full discovery-disable. Det omfatter også

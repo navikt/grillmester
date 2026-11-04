@@ -86,6 +86,10 @@ CLIENT_LABELS = {
 }
 OPENCODE_LAUNCH_ENVIRONMENT = ("OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG_CONTENT")
 OPENCODE_USER_CONFIG_NAMES = ("opencode.json", "opencode.jsonc")
+# These reject --standalone, and they start no agent session.
+OPENCODE_SERVER_COMMANDS = frozenset(
+    {"acp", "pair", "serve", "service", "uninstall", "update", "upgrade"}
+)
 LAUNCHER_LONG_OPTIONS = (
     "--agent",
     "--client",
@@ -667,10 +671,20 @@ def build_direct_command(
     *,
     client: str,
 ) -> tuple[list[str], dict[str, str]]:
-    """Start the client without a sandbox, in the caller's working directory."""
+    """Start the client in the project directory, without a sandbox."""
 
     client_arguments, environment = _client_launch(invocation, distribution)
-    if invocation.client == "opencode":
+    # OpenCode's `run` trusts PWD over the real working directory.
+    environment["PWD"] = str(invocation.project_dir)
+    if invocation.client == "copilot":
+        # cplt adds this flag itself.
+        client_arguments.insert(0, "--no-auto-update")
+    else:
+        if client_arguments[:1] and client_arguments[0] in OPENCODE_SERVER_COMMANDS:
+            raise LauncherError(
+                f"'opencode {client_arguments[0]}' starts no agent session; "
+                "run it yourself without Grillmester"
+            )
         # OpenCode 2 otherwise starts a shared background service and stores
         # its password in OPENCODE_CONFIG_DIR, which is our distributed target.
         # cplt runs its own service for each session and rejects this flag.
@@ -682,16 +696,30 @@ def build_direct_command(
 
 
 def _printable_command(
-    invocation: Invocation, command: Sequence[str], environment: Mapping[str, str]
+    invocation: Invocation,
+    command: Sequence[str],
+    environment: Mapping[str, str],
+    *,
+    direct: bool,
 ) -> str:
-    if invocation.client != "opencode":
-        return shlex.join(command)
-    assignments = [
-        f"{name}={environment[name]}"
-        for name in (*OPENCODE_LAUNCH_ENVIRONMENT, "OPENCODE_CONFIG")
-        if name in environment
-    ]
-    return shlex.join(["env", *assignments, *command])
+    assignments: list[str] = []
+    if invocation.client == "opencode":
+        for name in (*OPENCODE_LAUNCH_ENVIRONMENT, "OPENCODE_CONFIG"):
+            if name in environment:
+                assignments.append(f"{name}={_printable_value(name, environment)}")
+    printed = shlex.join(["env", *assignments, *command] if assignments else command)
+    if direct:
+        return f"cd {shlex.quote(str(invocation.project_dir))} && {printed}"
+    return printed
+
+
+def _printable_value(name: str, environment: Mapping[str, str]) -> str:
+    """Keep provider keys in inline configuration out of terminal scrollback."""
+
+    value = environment[name]
+    if name == "OPENCODE_CONFIG_CONTENT" and set(json.loads(value)) != {"default_agent"}:
+        return "<your OPENCODE_CONFIG_CONTENT with default_agent set>"
+    return value
 
 
 CLIENT_INSTALL_HINTS = {
@@ -720,7 +748,7 @@ def _resolve_binary(name: str) -> str:
 def _trusted_cplt_version_output(
     binary: str, *, environment: Mapping[str, str] | None = None
 ) -> str:
-    """Inspect the required sandbox binary before it becomes the trust boundary."""
+    """Inspect cplt before it becomes the trust boundary."""
 
     try:
         result = subprocess.run(
@@ -1018,9 +1046,23 @@ def resolve_cplt(*, disabled: bool = False) -> CheckedBinary | None:
 
     if disabled:
         return None
+    cplt = _find_cplt()
+    return None if cplt is None else check_cplt(binary=cplt)
+
+
+def _find_cplt() -> str | None:
+    """Tell an absent cplt from a broken one, which `which` also skips."""
+
     try:
-        return check_cplt()
+        return _resolve_binary("cplt")
     except MissingBinaryError:
+        for directory in os.environ.get("PATH", "").split(os.pathsep):
+            candidate = Path(directory or os.curdir) / "cplt"
+            if os.path.lexists(candidate):
+                raise LauncherError(
+                    f"{candidate} is not a working cplt; fix it, or start without "
+                    "its sandbox with --no-cplt"
+                ) from None
         return None
 
 
@@ -1028,7 +1070,7 @@ def check_client_runtime(
     client: str,
     *,
     cplt: CheckedBinary | None,
-    distribution: Distribution | None = None,
+    distribution: Distribution,
     binary: str | None = None,
     probe_environment: Mapping[str, str] | None = None,
     probe_cplt_arguments: Sequence[str] = (),
@@ -1040,7 +1082,7 @@ def check_client_runtime(
         version = _sandboxed_client_version(
             client,
             cplt=cplt,
-            distribution=load_distribution() if distribution is None else distribution,
+            distribution=distribution,
             environment=probe_environment,
             cplt_arguments=probe_cplt_arguments,
         )
@@ -1277,9 +1319,10 @@ def interactive_defaults(
         return current
     if current is None:
         return choose_preferences(validation_cache=validation_cache)
+    sandbox = "gjennom cplt" if shutil.which("cplt") else "uten sandbox"
     prompt = (
         f"Start {CLIENT_LABELS[current.client]} med "
-        f"{AGENT_LABELS[current.agent].split(' – ', 1)[0]}? "
+        f"{AGENT_LABELS[current.agent].split(' – ', 1)[0]} {sandbox}? "
         "[Enter = start, c = endre, q = avslutt]: "
     )
     while True:
@@ -1460,17 +1503,6 @@ def _run_local_mode(arguments: Sequence[str]) -> int:
     return result
 
 
-def _installed_cplt(invocation: Invocation) -> str | None:
-    """Find cplt for --print-command, which executes nothing."""
-
-    if invocation.no_cplt:
-        return None
-    try:
-        return _resolve_binary("cplt")
-    except MissingBinaryError:
-        return None
-
-
 def main(arguments: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if arguments is None else arguments)
     validation_cache: dict[str, LaunchChecks] = {}
@@ -1494,14 +1526,14 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 "directory and pointing the launcher at it; keep your saved configuration"
             )
         if arguments[:1] == ["choose"]:
-            if len(arguments) != 1:
-                raise LauncherError("grillmester choose takes no arguments")
+            if arguments[1:] not in ([], ["--no-cplt"]):
+                raise LauncherError("grillmester choose takes only --no-cplt")
             try:
                 current = load_preferences()
             except InvalidPreferencesError as exc:
                 print(f"Advarsel: {exc}", file=sys.stderr)
                 current = None
-            choose_preferences(current)
+            choose_preferences(current, no_cplt=len(arguments) == 2)
             return 0
         wrapper, _ = _split_separator(arguments)
         if any(argument in ("-h", "--help") for argument in wrapper):
@@ -1520,7 +1552,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         distribution = load_distribution()
         if invocation.print_command:
             client = _resolve_binary(invocation.client)
-            cplt = _installed_cplt(invocation)
+            cplt = None if invocation.no_cplt else _find_cplt()
         else:
             checks = validation_cache.get(invocation.client)
             if checks is None:
@@ -1546,7 +1578,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 invocation, distribution, cplt=cplt
             )
         if invocation.print_command:
-            print(_printable_command(invocation, command, environment))
+            print(
+                _printable_command(
+                    invocation, command, environment, direct=cplt is None
+                )
+            )
             return 0
         if cplt is None:
             print(
@@ -1562,7 +1598,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 file=sys.stderr,
             )
             if invocation.client == "opencode":
-                user_config = _user_opencode_config(environment)
+                user_config = environment.get(
+                    "OPENCODE_CONFIG"
+                ) or _user_opencode_config(environment)
                 if user_config is not None:
                     print(
                         f"cplt does not load {user_config} for this target; "

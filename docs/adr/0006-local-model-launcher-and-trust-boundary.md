@@ -5,6 +5,9 @@ date: 2026-08-23
 
 # Bind lokal inference, og la cplt eie runtimegrensen
 
+> Klientintervallet og kravet om cplt i standardlauncheren er erstattet av
+> [ADR 0034](0034-opencode-2-og-valgfri-cplt.md).
+
 > Agentutvalget og delegeringen av implementering er delvis erstattet av
 > [ADR 0026](0026-grillmester-eier-hele-leveransen.md).
 

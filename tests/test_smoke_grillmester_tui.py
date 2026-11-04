@@ -21,10 +21,21 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
         command = SMOKE._launcher_command(
             launcher=Path("/opt/homebrew/bin/grillmester"),
             project_dir=Path("/tmp/consumer"),
+            sandboxed=True,
         )
 
         self.assertNotIn("--no-audit", command)
         self.assertIn("--preset", command)
+
+    def test_direct_launch_opts_out_of_cplt(self) -> None:
+        command = SMOKE._launcher_command(
+            launcher=Path("/opt/homebrew/bin/grillmester"),
+            project_dir=Path("/tmp/consumer"),
+            sandboxed=False,
+        )
+
+        self.assertIn("--no-cplt", command)
+        self.assertNotIn("--preset", command)
 
     def test_ready_requires_the_selected_version_and_tui_markers(self) -> None:
         marker = SMOKE._version_marker("2.3.1")
@@ -44,6 +55,17 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
         )
         self.assertFalse(
             SMOKE._is_ready(b"Unexpected server error", opencode_version=marker)
+        )
+
+    def test_the_launcher_line_does_not_prove_the_selected_agent(self) -> None:
+        marker = SMOKE._version_marker("2.3.1")
+
+        self.assertFalse(
+            SMOKE._is_ready(
+                b"Launching Grillmester (grillmester) in opencode...\r\n"
+                b"Ask anything Build 2.3.1",
+                opencode_version=marker,
+            )
         )
 
     def test_version_marker_rejects_non_semantic_output(self) -> None:

@@ -51,6 +51,9 @@ PROMPT = "Run the Grillmester OpenCode smoke."
 FINAL_TEXT = "GRILLMESTER_OPENCODE_SMOKE_OK"
 CONSUMER_MARKER = "GRILLMESTER_OPENCODE_SMOKE_CONSUMER_GUIDANCE"
 OUTSIDE_MARKER = "GRILLMESTER_OPENCODE_SMOKE_OUTSIDE_FILE"
+ENV_MARKER = "GRILLMESTER_OPENCODE_SMOKE_ENV_FILE"
+SUBAGENT_TEXT = "GRILLMESTER_OPENCODE_SMOKE_SUBAGENT_OK"
+SUBAGENT_HEADING = "# Grill-inspektor"
 SKILL_ID = "create-a-skill"
 SKILL_REFERENCE = "references/opencode-validation.md"
 SKILL_BASE_DIRECTORY = re.compile(r"^Base directory for this skill: (.+)$", re.MULTILINE)
@@ -59,6 +62,8 @@ REVIEWED_TOOLS = frozenset(
         "edit",
         "glob",
         "grep",
+        # OpenCode gates this one with the `edit` permission.
+        "opencode_worktree_remove",
         "question",
         "read",
         "shell",
@@ -74,6 +79,7 @@ SYSTEM_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 
 
 Arguments = Mapping[str, Any] | Callable[[Mapping[str, Any]], Mapping[str, Any]]
+TEXT_REPLY = "text"
 
 
 class SmokeError(RuntimeError):
@@ -140,6 +146,8 @@ class ProbeProvider(ThreadingHTTPServer):
             self.requests.append(request)
         if index < len(self.steps):
             name, arguments = self.steps[index]
+            if name == TEXT_REPLY:
+                return _text_stream(arguments["text"])
             if callable(arguments):
                 arguments = arguments(request)
             return _tool_stream(index, name, arguments)
@@ -203,8 +211,11 @@ def _isolated_environment(root: Path, client_bin: Path) -> dict[str, str]:
         "NO_COLOR": "1",
         "NO_PROXY": "127.0.0.1,localhost,::1",
         "OPENCODE_DISABLE_AUTOUPDATE": "true",
+        "OPENCODE_DISABLE_FREE_MODELS": "true",
         "OPENCODE_DISABLE_MODELS_FETCH": "true",
         "PATH": f"{client_bin}:{SYSTEM_PATH}",
+        # A stale PWD must not beat --project-dir.
+        "PWD": str(root),
         "TERM": "dumb",
     }
 
@@ -248,15 +259,13 @@ def _run(
         raise SmokeError(f"timed out: {shlex.join(command)[:200]}") from exc
 
 
-def verify_version(opencode: Path) -> None:
-    result = subprocess.run(
-        [str(opencode), "--version"],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        timeout=30,
-        check=False,
+def verify_version(opencode: Path, sandbox: Path, client_bin: Path) -> None:
+    root = sandbox / "version"
+    root.mkdir()
+    result = _run(
+        (str(opencode), "--version"),
+        cwd=root,
+        environment=_isolated_environment(root, client_bin),
     )
     expected = f"opencode v{EXPECTED_VERSION}"
     if result.returncode != 0 or result.stdout.strip() != expected:
@@ -379,21 +388,29 @@ def validate_session(
     if missing:
         raise SmokeError(f"the skill catalog lacks: {', '.join(missing)}")
     tools = {tool["function"]["name"] for tool in first.get("tools", [])}
-    if not REVIEWED_TOOLS <= tools:
-        raise SmokeError(f"reviewed tools are missing: {sorted(REVIEWED_TOOLS - tools)}")
-    if "execute" in tools:
-        raise SmokeError("Code Mode is still available")
+    if tools != REVIEWED_TOOLS:
+        raise SmokeError(
+            f"the tools differ from the reviewed set: {sorted(tools ^ REVIEWED_TOOLS)}"
+        )
 
+    if SUBAGENT_HEADING not in _system_text(requests[-2]):
+        raise SmokeError("the delegated request did not run as Grill-inspektor")
     results = _tool_results(requests[-1])
-    skill, reference, outside, write = (results.get(call_id(i), "") for i in range(4))
+    skill, reference, outside, env_file, write, subagent = (
+        results.get(call_id(index), "") for index in range(6)
+    )
     if f'<skill_content name="{SKILL_ID}">' not in skill:
         raise SmokeError(f"skill {SKILL_ID!r} did not load: {skill[:300]}")
     if reference_line not in reference:
         raise SmokeError(f"the bundled reference was not read: {reference[:300]}")
     if OUTSIDE_MARKER in outside or "permission.rejected" not in outside:
         raise SmokeError(f"a read outside the project went through: {outside[:300]}")
+    if ENV_MARKER in env_file or "permission.rejected" not in env_file:
+        raise SmokeError(f"a read of .env went through: {env_file[:300]}")
     if "permission.rejected" not in write:
         raise SmokeError(f"a write without approval went through: {write[:300]}")
+    if SUBAGENT_TEXT not in subagent:
+        raise SmokeError(f"the delegation did not return: {subagent[:300]}")
 
 
 def _install_provider(environment: dict[str, str], *, mode: str, port: int) -> None:
@@ -424,6 +441,8 @@ def _check_session(
         env={"PATH": SYSTEM_PATH, "GIT_CONFIG_GLOBAL": os.devnull},
     )
     (consumer / "AGENTS.md").write_text(f"{CONSUMER_MARKER}\n", encoding="utf-8")
+    env_file = consumer / ".env"
+    env_file.write_text(f"SMOKE={ENV_MARKER}\n", encoding="utf-8")
     outside = root / "outside.txt"
     outside.write_text(f"{OUTSIDE_MARKER}\n", encoding="utf-8")
     written = consumer / "written-without-approval.txt"
@@ -432,7 +451,17 @@ def _check_session(
         ("skill", {"id": SKILL_ID}),
         ("read", _skill_reference),
         ("read", {"path": str(outside)}),
+        ("read", {"path": str(env_file)}),
         ("write", {"path": str(written), "content": "must not exist\n"}),
+        (
+            "subagent",
+            {
+                "agent": "grill-inspektor",
+                "description": "Smoke delegation",
+                "prompt": "Return the smoke sentinel.",
+            },
+        ),
+        (TEXT_REPLY, {"text": SUBAGENT_TEXT}),
     )
     environment = _isolated_environment(root, client_bin)
     with ProbeProvider(steps) as provider:
@@ -461,7 +490,7 @@ def _check_session(
                 f"{PROVIDER_ID}/{MODEL_ID}",
                 PROMPT,
             ),
-            cwd=consumer,
+            cwd=root,
             environment=environment,
         )
         provider.shutdown()
@@ -486,13 +515,13 @@ def _check_session(
 
 
 def smoke(opencode: Path, cplt: Path | None) -> None:
-    verify_version(opencode)
     before = tree_digest(TARGET)
     with tempfile.TemporaryDirectory(prefix="grillmester-opencode-smoke-") as temp:
         sandbox = Path(temp).resolve()
         client_bin = sandbox / "client-bin"
         client_bin.mkdir()
         (client_bin / "opencode").symlink_to(opencode)
+        verify_version(opencode, sandbox, client_bin)
         _check_agents(opencode, sandbox, client_bin)
         _check_session(
             "direct", ("--no-cplt",), sandbox=sandbox, client_bin=client_bin

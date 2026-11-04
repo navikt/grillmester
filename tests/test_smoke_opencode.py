@@ -69,7 +69,9 @@ def session(**changes: Any) -> list[dict[str, Any]]:
         "skill": f'<skill_content name="{SMOKE.SKILL_ID}">body',
         "reference": "Read file: # Reference heading",
         "outside": '{"error":{"type":"permission.rejected"}}',
+        "env": '{"error":{"type":"permission.rejected"}}',
         "write": '{"error":{"type":"permission.rejected"}}',
+        "subagent": f"Result: {SMOKE.SUBAGENT_TEXT}",
     }
     results.update({key: value for key, value in changes.items() if key in results})
     system = changes.get(
@@ -80,6 +82,11 @@ def session(**changes: Any) -> list[dict[str, Any]]:
         "messages": [{"role": "system", "content": system}],
         "tools": [{"function": {"name": name}} for name in tools],
     }
+    delegated = {
+        "messages": [
+            {"role": "system", "content": changes.get("delegated", SMOKE.SUBAGENT_HEADING)}
+        ]
+    }
     last = {
         "messages": [
             tool_result(index, content)
@@ -88,19 +95,21 @@ def session(**changes: Any) -> list[dict[str, Any]]:
                     results["skill"],
                     results["reference"],
                     results["outside"],
+                    results["env"],
                     results["write"],
+                    results["subagent"],
                 )
             )
         ],
         "tools": first["tools"],
     }
-    return [first, {}, {}, {}, last]
+    return [first, {}, {}, {}, {}, {}, delegated, last]
 
 
 def validate(requests: list[dict[str, Any]]) -> None:
     SMOKE.validate_session(
         requests,
-        steps=4,
+        steps=7,
         skills=("tdd", "review"),
         reference_line="# Reference heading",
     )
@@ -159,7 +168,7 @@ class SessionValidationTests(unittest.TestCase):
         validate(session())
 
     def test_session_must_finish_every_step(self) -> None:
-        with self.assertRaisesRegex(SMOKE.SmokeError, "expected 5 agent requests"):
+        with self.assertRaisesRegex(SMOKE.SmokeError, "expected 8 agent requests"):
             validate(session()[:4])
 
     def test_system_prompt_must_carry_our_content(self) -> None:
@@ -174,17 +183,21 @@ class SessionValidationTests(unittest.TestCase):
                 validate(session(system=system))
 
     def test_tools_must_match_the_reviewed_surface(self) -> None:
-        with self.assertRaisesRegex(SMOKE.SmokeError, "tools are missing"):
-            validate(session(tools=["read"]))
-        with self.assertRaisesRegex(SMOKE.SmokeError, "Code Mode"):
-            validate(session(tools=[*SMOKE.REVIEWED_TOOLS, "execute"]))
+        for tools, difference in ((["read"], "edit"), ([*SMOKE.REVIEWED_TOOLS, "execute"], "execute")):
+            with self.subTest(difference=difference), self.assertRaisesRegex(
+                SMOKE.SmokeError, f"differ from the reviewed set.*{difference}"
+            ):
+                validate(session(tools=tools))
 
     def test_each_tool_result_is_checked(self) -> None:
         for changes, message in (
             ({"skill": "no such skill"}, "did not load"),
             ({"reference": "permission.rejected"}, "reference was not read"),
             ({"outside": SMOKE.OUTSIDE_MARKER}, "outside the project"),
+            ({"env": SMOKE.ENV_MARKER}, "read of .env"),
             ({"write": "Wrote file"}, "without approval"),
+            ({"subagent": "nothing"}, "delegation did not return"),
+            ({"delegated": "# Grillmester"}, "run as Grill-inspektor"),
         ):
             with self.subTest(changes=changes), self.assertRaisesRegex(
                 SMOKE.SmokeError, message
@@ -217,21 +230,27 @@ class ProbeProviderTests(unittest.TestCase):
         def later(request: dict[str, Any]) -> dict[str, str]:
             return {"path": request["seen"]}
 
-        steps = (("skill", {"id": "tdd"}), ("read", later))
+        steps = (
+            ("skill", {"id": "tdd"}),
+            ("read", later),
+            (SMOKE.TEXT_REPLY, {"text": "scripted reply"}),
+        )
         agent_request = {"tools": [{}]}
         with SMOKE.ProbeProvider(steps) as provider:
             threading.Thread(target=provider.serve_forever, daemon=True).start()
             title = self.post(provider.port, {"tools": []})
             first = self.post(provider.port, agent_request)
             second = self.post(provider.port, {**agent_request, "seen": "/computed"})
+            third = self.post(provider.port, agent_request)
             final = self.post(provider.port, agent_request)
             provider.shutdown()
 
         self.assertIn("Grillmester smoke", title)
         self.assertIn("skill", first)
         self.assertIn("/computed", second)
+        self.assertIn("scripted reply", third)
         self.assertIn(SMOKE.FINAL_TEXT, final)
-        self.assertEqual(3, len(provider.requests))
+        self.assertEqual(4, len(provider.requests))
 
 
 class BinaryTests(unittest.TestCase):
@@ -244,13 +263,14 @@ class BinaryTests(unittest.TestCase):
 
     def test_only_the_exact_release_test_version_passes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            binary = self.executable(
-                Path(directory), f"opencode v{SMOKE.EXPECTED_VERSION}"
-            )
-            SMOKE.verify_version(binary)
-            binary = self.executable(Path(directory), "opencode v0.0.1")
+            root = Path(directory)
+            for name in ("good", "bad"):
+                (root / name).mkdir()
+            binary = self.executable(root, f"opencode v{SMOKE.EXPECTED_VERSION}")
+            SMOKE.verify_version(binary, root / "good", root)
+            binary = self.executable(root, "opencode v0.0.1")
             with self.assertRaisesRegex(SMOKE.SmokeError, "found 'opencode v0.0.1'"):
-                SMOKE.verify_version(binary)
+                SMOKE.verify_version(binary, root / "bad", root)
 
     def test_missing_binary_skips_unless_it_is_required(self) -> None:
         with mock.patch.object(SMOKE.shutil, "which", return_value=None):

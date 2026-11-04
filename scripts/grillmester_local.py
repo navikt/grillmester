@@ -184,6 +184,7 @@ OPENCODE_LOCAL_ENVIRONMENT = {
     "OPENCODE_DISABLE_CLAUDE_CODE": "true",
     "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "true",
     "OPENCODE_DISABLE_FILEWATCHER": "true",
+    "OPENCODE_DISABLE_FREE_MODELS": "true",
     "OPENCODE_DISABLE_MODELS_FETCH": "true",
     "OPENCODE_DISABLE_PROJECT_CONFIG": "true",
     "OPENCODE_DB": ":memory:",
@@ -2926,13 +2927,7 @@ def _client_arguments(
     if config.client == "opencode":
         # OpenCode 2's TUI has no --agent or --model; the generated
         # configuration selects both.
-        if not arguments or arguments[0].startswith("-"):
-            return list(arguments)
-        raise LocalModeError(
-            "local OpenCode launch accepts the TUI, --help, or --version; use "
-            "'grillmester local run' for an auto-approved task, or the system "
-            "OpenCode command for admin commands or another project"
-        )
+        return list(arguments)
     return [
         *_copilot_binding_arguments(
             config,

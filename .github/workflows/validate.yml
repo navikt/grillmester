@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    # Keep the cplt runtime gate on its reviewed Linux host baseline.
+    # Keep the OpenCode gate on its reviewed Linux host baseline.
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

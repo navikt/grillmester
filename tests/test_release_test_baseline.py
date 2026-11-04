@@ -83,6 +83,41 @@ class ReleaseTestBaselineTest(unittest.TestCase):
             self.assertEqual(executable, output.read_bytes())
             self.assertEqual(0o555, stat.S_IMODE(output.stat().st_mode))
 
+    def test_verify_accepts_directory_members_but_not_as_the_executable(self) -> None:
+        stream = io.BytesIO()
+        with tarfile.open(
+            fileobj=stream, mode="w:gz", format=tarfile.USTAR_FORMAT
+        ) as archive:
+            directory = tarfile.TarInfo("package")
+            directory.type = tarfile.DIRTYPE
+            directory.mode = 0o755
+            archive.addfile(directory)
+            info = tarfile.TarInfo("package/client")
+            info.size = 6
+            info.mode = 0o755
+            archive.addfile(info, io.BytesIO(b"client"))
+        content = stream.getvalue()
+        record = {
+            "url": "https://example.invalid/client.tar.gz",
+            "archiveSize": len(content),
+            "archiveDigest": f"sha256:{hashlib.sha256(content).hexdigest()}",
+            "roster": ["package", "package/client"],
+            "executablePath": "package/client",
+            "executableSize": 6,
+            "executableSha256": hashlib.sha256(b"client").hexdigest(),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "client.tar.gz"
+            source.write_bytes(content)
+
+            BASELINE.verify_and_extract(record, source, root / "client")
+            self.assertEqual(b"client", (root / "client").read_bytes())
+
+            directory_as_client = dict(record, executablePath="package", executableSize=0)
+            with self.assertRaisesRegex(BASELINE.BaselineError, "executable size"):
+                BASELINE.verify_and_extract(directory_as_client, source, root / "other")
+
     def test_verify_rejects_digest_roster_and_existing_output(self) -> None:
         archive, record = archive_fixture(b"client")
         with tempfile.TemporaryDirectory() as temporary:

@@ -2026,6 +2026,7 @@ class LocalModeTests(unittest.TestCase):
             "true", launch.environment["OPENCODE_DISABLE_PROJECT_CONFIG"]
         )
         self.assertEqual("true", launch.environment["OPENCODE_DISABLE_CLAUDE_CODE"])
+        self.assertEqual("true", launch.environment["OPENCODE_DISABLE_FREE_MODELS"])
 
     def test_opencode_alternate_project_cannot_bypass_extension_scan(self) -> None:
         alternate = self.project / "subdir"

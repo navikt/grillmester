@@ -56,14 +56,14 @@ cplt med `--no-cplt`.
 Den vanlige kommandoen velger ikke provider eller modell; bruk din brukereide
 OpenCode-config og `/models`. OpenCode 2 leser ikke `~/.config/opencode` når
 `OPENCODE_CONFIG_DIR` peker på targetet. Uten cplt peker launcheren derfor
-`OPENCODE_CONFIG` på din `opencode.json` eller `opencode.jsonc`. Under cplt
-laster OpenCode bare targetets `opencode.json`, og launcheren sier fra når du har
-en egen fil som ikke blir lest. Da virker providere fra `/connect`,
-`OPENCODE_CONFIG_CONTENT` og `grillmester local`. Egne agenter, skills og plugins
-i `~/.config/opencode` lastes ikke i noen av tilfellene.
+`OPENCODE_CONFIG` på din `opencode.json` eller `opencode.jsonc`, men ikke på
+begge. Under cplt laster OpenCode bare targetets `opencode.json`, og launcheren
+sier fra når du har en egen fil som ikke blir lest. Da virker providere fra
+`/connect`, `OPENCODE_CONFIG_CONTENT` og `grillmester local`. Egne agenter, skills
+og plugins i `~/.config/opencode` lastes ikke i noen av tilfellene.
 
-Versjonsproben har timeout og outputgrense, kjører i en midlertidig mappe og gir
-aldri klienten skriverettighet i consumer-repoet.
+Versjonsproben har timeout og outputgrense og kjører i en midlertidig mappe, ikke
+i consumer-repoet.
 
 ### Lokal modell på macOS
 
@@ -265,7 +265,7 @@ standardmodus. Local-modus krever cplt, digestverifiserer targetet, kopierer de
 samme bytene til en privat `OPENCODE_CONFIG_DIR`, bruker privat providerconfig
 og avviser ambient komponenter som kan skygge den distribuerte payloaden.
 
-Targetets `opencode.json` holder disse reglene for alle agenter:
+Targetets `opencode.json` setter disse standardreglene for alle agenter:
 
 - `external_directory` spør før OpenCode leser eller skriver utenfor prosjektet.
   Skills i `OPENCODE_CONFIG_DIR` er unntatt, ellers ville hver referansefil
@@ -275,6 +275,13 @@ Targetets `opencode.json` holder disse reglene for alle agenter:
 - `opencode_*` er avslått, slik at modellen ikke flytter økter eller oppretter
   worktrees. `opencode_worktree_remove` vises fortsatt, men OpenCode krever
   samme godkjenning for den som for `edit`.
+
+Dette er standardregler, ikke tekniske grenser. Brukerens og repoets
+OpenCode-config kan overstyre dem, og et repo kan kjøre egen kode gjennom
+`.opencode/plugins`. Under cplt begrenser sandboxen fortsatt filer og nettverk.
+Uten cplt er det ingenting rundt klienten. Bruk derfor cplt i repoer du ikke
+stoler på, eller sett `OPENCODE_DISABLE_PROJECT_CONFIG=1`. Det slår også av
+repoets `AGENTS.md`.
 
 ## Agenter, commands og forwarding
 
@@ -291,8 +298,10 @@ grillmester --client opencode --agent grillmester -- run "Fiks den avgrensede op
 ```
 
 Argumenter før `--` går til cplt; argumenter etter `--` går til OpenCode.
-Reserverte agent-, config-, project- og `--standalone`-flagg kan ikke overstyre
-launcherbindingen.
+Reserverte agent-, project- og `--standalone`-flagg kan ikke overstyre
+launcherbindingen. Uten cplt avviser launcheren OpenCodes egne kommandoer `acp`,
+`pair`, `serve`, `service`, `uninstall`, `update` og `upgrade`, fordi de ikke
+starter en agentøkt. Kjør dem med `opencode` direkte.
 
 ## Verifiser discovery før en ekte oppgave
 

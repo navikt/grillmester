@@ -443,7 +443,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "stopper launch",
             "krever fortsatt cplt",
             "`--standalone`",
-            "`external_directory`\nspør",
+            "`external_directory` spør",
             "`execute` er avslått",
         ),
     ),

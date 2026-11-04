@@ -190,6 +190,7 @@ class GrillmesterCliTests(unittest.TestCase):
 
         self.assertTrue(invocation.no_cplt)
         self.assertEqual(["/trusted/opencode", "--standalone"], command)
+        self.assertEqual(str(ROOT), environment["PWD"])
         self.assertEqual(
             str(ROOT / "targets/opencode-v1"), environment["OPENCODE_CONFIG_DIR"]
         )
@@ -309,6 +310,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual(
             [
                 "/trusted/copilot",
+                "--no-auto-update",
                 "--plugin-dir",
                 str(ROOT / "plugin"),
                 "--agent",
@@ -316,6 +318,37 @@ class GrillmesterCliTests(unittest.TestCase):
             ],
             command,
         )
+
+    def test_opencode_server_commands_are_refused_without_cplt(self) -> None:
+        for command in sorted(CLI.OPENCODE_SERVER_COMMANDS):
+            invocation = CLI.parse_invocation(
+                ["--client", "opencode", "--agent", "grillmester", "--", command],
+                cwd=ROOT,
+            )
+            with self.subTest(command=command), self.assertRaisesRegex(
+                CLI.LauncherError, "starts no agent session"
+            ):
+                CLI.build_direct_command(
+                    invocation, self.distribution, client="/trusted/opencode"
+                )
+
+    def test_print_command_hides_inline_opencode_configuration(self) -> None:
+        invocation = CLI.parse_invocation(
+            ["--client", "opencode", "--agent", "grillmester"], cwd=ROOT
+        )
+        secret = json.dumps({"provider": {"key": "must-not-be-printed"}})
+        with mock.patch.dict(os.environ, {"OPENCODE_CONFIG_CONTENT": secret}):
+            command, environment = CLI.build_direct_command(
+                invocation, self.distribution, client="/trusted/opencode"
+            )
+
+        printed = CLI._printable_command(
+            invocation, command, environment, direct=True
+        )
+
+        self.assertNotIn("must-not-be-printed", printed)
+        self.assertIn("default_agent set", printed)
+        self.assertEqual(["cd", str(ROOT), "&&", "env"], shlex.split(printed)[:4])
 
     def test_opencode_agent_selection_keeps_existing_inline_configuration(self) -> None:
         invocation = CLI.parse_invocation(
@@ -421,10 +454,47 @@ class GrillmesterCliTests(unittest.TestCase):
         check_cplt.assert_not_called()
 
     def test_missing_cplt_selects_a_direct_launch(self) -> None:
-        with mock.patch.object(
-            CLI, "_resolve_binary", side_effect=CLI.MissingBinaryError("no cplt")
+        with tempfile.TemporaryDirectory() as directory, mock.patch.dict(
+            os.environ, {"PATH": directory}
         ):
             self.assertIsNone(CLI.resolve_cplt())
+
+    def test_broken_cplt_on_path_stops_the_launch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            binaries = Path(directory)
+            (binaries / "cplt").symlink_to(binaries / "gone")
+            with mock.patch.dict(
+                os.environ, {"PATH": str(binaries)}
+            ), self.assertRaisesRegex(CLI.LauncherError, "not a working cplt"):
+                CLI.resolve_cplt()
+
+    def test_saved_default_prompt_says_whether_a_sandbox_is_in_use(self) -> None:
+        preferences = CLI.Preferences("opencode", "grillmester")
+        for found, text in (("/bin/cplt", "gjennom cplt"), (None, "uten sandbox")):
+            with self.subTest(found=found), mock.patch.object(
+                CLI, "load_preferences", return_value=preferences
+            ), mock.patch.object(
+                CLI.shutil, "which", return_value=found
+            ), mock.patch.object(
+                CLI.sys, "stdin", TtyBuffer()
+            ), mock.patch.object(
+                CLI.sys, "stdout", TtyBuffer()
+            ), mock.patch.object(
+                CLI, "input", return_value="", create=True
+            ) as prompt:
+                self.assertEqual(preferences, CLI.interactive_defaults())
+
+            self.assertIn(text, prompt.call_args.args[0])
+
+    def test_choose_accepts_no_cplt_and_nothing_else(self) -> None:
+        with mock.patch.object(
+            CLI, "load_preferences", return_value=None
+        ), mock.patch.object(CLI, "choose_preferences") as choose:
+            self.assertEqual(0, CLI.main(["choose", "--no-cplt"]))
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(2, CLI.main(["choose", "--other"]))
+
+        choose.assert_called_once_with(None, no_cplt=True)
 
     def test_outdated_cplt_stops_the_launch_instead_of_dropping_the_sandbox(self) -> None:
         with mock.patch.object(
@@ -480,7 +550,10 @@ class GrillmesterCliTests(unittest.TestCase):
             client.chmod(0o700)
 
             checked = CLI.check_client_runtime(
-                "opencode", cplt=None, binary=str(client)
+                "opencode",
+                cplt=None,
+                distribution=self.distribution,
+                binary=str(client),
             )
 
             self.assertEqual("opencode v2.2.5", checked.version)
@@ -1698,7 +1771,9 @@ class GrillmesterCliTests(unittest.TestCase):
 
             stdout = io.StringIO()
             stderr = io.StringIO()
-            with mock.patch.object(
+            with mock.patch.dict(
+                os.environ, {"PATH": directory}
+            ), mock.patch.object(
                 CLI.shutil, "which", side_effect=which
             ), redirect_stdout(stdout), redirect_stderr(stderr):
                 result = CLI.doctor(None, root=ROOT)
@@ -1898,7 +1973,8 @@ class GrillmesterCliTests(unittest.TestCase):
 
             self.assertEqual(0, result.returncode, result.stderr)
             printed = shlex.split(result.stdout)
-            self.assertEqual(str(copilot.resolve(strict=True)), printed[0])
+            self.assertEqual(["cd", str(ROOT), "&&"], printed[:3])
+            self.assertEqual(str(copilot.resolve(strict=True)), printed[3])
             self.assertEqual("grillmester:grillmester", printed[printed.index("--agent") + 1])
 
     def test_local_print_command_locates_binaries_without_executing_version_probes(self) -> None:

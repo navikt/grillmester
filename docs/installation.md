@@ -279,8 +279,8 @@ cplt. Et eksplisitt klientvalg gjør fravær eller inkompatibel versjon til en f
 med en handlingsrettet installasjonskommando. Hvis ingen støttet klient finnes,
 feiler den samlede sjekken. `grillmester doctor --no-cplt` sjekker klientene slik
 de starter uten cplt. Klientens `--version` kjøres med avgrenset output og timeout
-i en midlertidig mappe, inne i cplt når den er i bruk; `doctor` gir aldri klienten
-skriverettigheter i consumer-repoet.
+i en midlertidig mappe, inne i cplt når den er i bruk; `doctor` kjører aldri
+klienten i consumer-repoet.
 
 ### Lokal modell i OpenCode eller Copilot CLI
 

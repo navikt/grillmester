@@ -5,7 +5,7 @@ date: 2026-11-04
 
 # OpenCode 2 og valgfri cplt
 
-Erstatter delvis ADR 0001, 0003 og 0004.
+Erstatter delvis ADR 0001, 0003, 0004, 0006 og 0007.
 
 Teamets hovedvei er Copilot-appen med lokal sandbox, der cplt ikke virker. Én
 person bruker OpenCode, så terminalveien skal fortsatt virke, men den skal ikke
@@ -32,12 +32,13 @@ i tillegg til den. Direkte launch peker derfor `OPENCODE_CONFIG` på brukerens
 om filen ikke blir lest. Vi kopierer den ikke til `OPENCODE_CONFIG_CONTENT`,
 fordi nøkler da havner i miljøet til verktøyene.
 
-Targetets `opencode.json` bevarer grensene fra OpenCode 1. `external_directory`
-spør, med unntak for skills i
-`OPENCODE_CONFIG_DIR`, siden OpenCode 2 ellers leser utenfor prosjektet uten å
-spørre. `execute` er avslått, fordi Code Mode kan gjøre HTTP-kall som
-`webfetch: deny` ikke stopper. `opencode_*` er avslått, fordi OpenCodes egne
-verktøy for økter og worktrees ikke er vurdert for rollene våre.
+Targetets `opencode.json` bevarer standardreglene fra OpenCode 1.
+`external_directory` spør, med unntak for skills i `OPENCODE_CONFIG_DIR`, siden
+OpenCode 2 ellers leser utenfor prosjektet uten å spørre. `execute` er avslått,
+fordi Code Mode kan gjøre HTTP-kall som `webfetch: deny` ikke stopper.
+`opencode_*` er avslått, fordi OpenCodes egne verktøy for økter og worktrees ikke
+er vurdert for rollene våre. Brukerens og repoets config kan overstyre reglene,
+så bare sandboxen er en teknisk grense.
 
 Én liten smoke erstatter de to gamle. Den starter øktene gjennom launcheren,
 direkte og gjennom cplt, mot en loopbackprovider. Linux-CI tester direkte, fordi

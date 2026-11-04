@@ -41,7 +41,12 @@ CONTRACT: dict[str, Any] = {
             "url": "https://registry.npmjs.org/@opencode/cli-darwin-arm64/-/cli-darwin-arm64-2.2.5.tgz",
             "archiveSize": 105814595,
             "archiveDigest": "sha512:53019bd8c209a8b4a1e307eb92fa8d880a211b559fe6df7a371ef5d7742f9ad0a7e4b1a29a65d83744dbd5c843d2631145d3ef9d482e7af291770334b71658d5",
-            "roster": ["package/package.json", "package/bin/opencode"],
+            "roster": [
+                "package",
+                "package/bin",
+                "package/package.json",
+                "package/bin/opencode",
+            ],
             "executablePath": "package/bin/opencode",
             "executableSize": 226703008,
             "executableSha256": "abe4d88594bffb12b364375b8a6732d2d1f7a977195ed1a35c5c76f8e89c9e0e",
@@ -50,7 +55,12 @@ CONTRACT: dict[str, Any] = {
             "url": "https://registry.npmjs.org/@opencode/cli-darwin-x64/-/cli-darwin-x64-2.2.5.tgz",
             "archiveSize": 111044366,
             "archiveDigest": "sha512:cfec2a2015e4e435705d57724091cec309e73a514ec742df025c773f3b9b26313fddaf78f0a3c1909aee179ce6eb2ca09491b33604778e2ee80ff07f1ce303fb",
-            "roster": ["package/package.json", "package/bin/opencode"],
+            "roster": [
+                "package",
+                "package/bin",
+                "package/package.json",
+                "package/bin/opencode",
+            ],
             "executablePath": "package/bin/opencode",
             "executableSize": 240617312,
             "executableSha256": "5e0cf9c94ee0fd4a4635807534e9ca4bf51ffe1c83260ada3510bf60e7333173",
@@ -271,7 +281,7 @@ def verify_and_extract(record: Mapping[str, Any], archive: Path, output: Path) -
         selected = None
         for member in members:
             if (
-                member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}
+                member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE, tarfile.DIRTYPE}
                 or member.pax_headers
                 or member.linkname
                 or member.devmajor != 0
@@ -281,7 +291,11 @@ def verify_and_extract(record: Mapping[str, Any], archive: Path, output: Path) -
                 raise BaselineError("archive contains a link or special member")
             if member.name == record["executablePath"]:
                 selected = member
-        if selected is None or selected.size != record["executableSize"]:
+        if (
+            selected is None
+            or not selected.isfile()
+            or selected.size != record["executableSize"]
+        ):
             raise BaselineError("executable size differs from the baseline")
         extracted = package.extractfile(selected)
         if extracted is None:
