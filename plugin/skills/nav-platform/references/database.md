@@ -19,8 +19,9 @@ current Nais documentation and repository needs.
 
 Nais derives connection variables from `envVarPrefix`. Follow the repository's
 existing mapping into typed application config, and do not copy a database
-environment prefix from another service. Do not hardcode the generated variable
-names, JDBC URL, credentials, certificate paths, or database version.
+environment prefix from another service. Do not copy the generated variable
+names, JDBC URL, credentials, certificate paths, or database version from another
+service.
 
 ## Connection capacity
 

@@ -111,7 +111,7 @@ callers, destinations, auth flags, ingress or scopes.
 | PostgreSQL | `gcp.sqlInstances` | [database.md](database.md) |
 | Kafka | `kafka.pool` | [kafka.md](kafka.md) |
 | Authentication | `azure.application.enabled`, `tokenx.enabled` | [auth.md](auth.md) |
-| Metrics, logs and traces | `prometheus` | [observability.md](observability.md) |
+| Metrics, logs and traces | `prometheus`, `observability` | [observability.md](observability.md) |
 
 Do not copy tenants, scopes, audiences, or sidecar annotations from another app.
 
@@ -134,8 +134,8 @@ manifest behavior rather than copying a delay value from another service.
 
 Use the application's framework shutdown and owned-resource cleanup. On
 termination, stop new work, wake blocking poll loops, finish, cancel or durably
-hand off in-flight work, close owned resources exactly once, and exit within
-`terminationGracePeriodSeconds`.
+hand off in-flight work according to its delivery contract, close owned resources
+exactly once, and exit within `terminationGracePeriodSeconds`.
 
 Readiness is not a substitute for termination handling. Do not add a manual
 `readiness=false` toggle unless repository and current platform evidence prove

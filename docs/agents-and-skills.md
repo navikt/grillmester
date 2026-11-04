@@ -280,8 +280,9 @@ et skillskifte er ikke i seg selv en ny fullmakt.
 `/nais-manifest`, `/nav-troubleshoot`, `/observability-setup` og
 `/postgresql-review` finnes ikke lenger. Bruk `/nav-platform`, eller beskriv
 oppgaven med vanlige ord. Skillen leser bare referansen for området oppgaven
-gjelder. Eldre repo- og brukerkopier forsvinner ikke av seg selv; `/doctor` finner
-dem.
+gjelder. Eldre repo- og brukerkopier forsvinner ikke av seg selv, og `/doctor`
+kjenner ikke lenger disse navnene. Søk etter dem i `.github/skills`,
+`.agents/skills` og repoets instruksjoner, og fjern eller oppdater det du finner.
 
 ## Videre
 

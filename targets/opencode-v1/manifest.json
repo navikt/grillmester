@@ -96,7 +96,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "cc916eb7f5187d4b0c4926e574604ccfff32ce04f80a00e2947a4f956ee90f0b",
+      "sha256": "c94b30c9f551930a73d22338ea660f6a3b044e7f7a7f806ff9be022f993a648d",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
@@ -192,7 +192,7 @@
       "mode": "0644"
     },
     "commands/nav-platform.md": {
-      "sha256": "d8e5bb9e5effe810e38dc3033c33e0739af1a6493897dad4d1135144ba35a984",
+      "sha256": "3a3690d4656c8bca76e3094dc739ad5a8ec97c2b76c119df3b4a2602b13c10f0",
       "mode": "0644"
     },
     "commands/okr.md": {
@@ -716,7 +716,7 @@
       "mode": "0644"
     },
     "skills/nav-platform/SKILL.md": {
-      "sha256": "6da83f9efc25b34d35441426ce88605646d010505e04581346900ad0aab8e19f",
+      "sha256": "dc89d52879519596515247e5d69c7ac3dcd4ab65aa2ffe9ca4f72fa2ed2a7a2b",
       "mode": "0644"
     },
     "skills/nav-platform/references/api.md": {
@@ -724,11 +724,11 @@
       "mode": "0644"
     },
     "skills/nav-platform/references/auth.md": {
-      "sha256": "73d2a0a82c459e7cdb85c79523db7833377f89c81ed125418954ee76ba8c6fed",
+      "sha256": "09cc43659cfe57c666748e82c33a61a96f647cf3b57a39c8d6c2e8f75285799d",
       "mode": "0644"
     },
     "skills/nav-platform/references/database.md": {
-      "sha256": "d2a96dc6a96545703e81d15720a8021594a77032c34bec6a401b0ac914a0b109",
+      "sha256": "f73f0ae8323abe2414b8d3a1fc87da1b89820058fe09ac112f16c6a8499ca600",
       "mode": "0644"
     },
     "skills/nav-platform/references/diagnosis.md": {
@@ -748,7 +748,7 @@
       "mode": "0644"
     },
     "skills/nav-platform/references/nais.md": {
-      "sha256": "9c38b570edba5206b4f91900073bbc2a8dc46762fb01e92cb059d705a9a20f88",
+      "sha256": "5e220cfa27b8b189291c7e21da3a44a5654816ff76116399c8460fdbade1c654",
       "mode": "0644"
     },
     "skills/nav-platform/references/naisjob-example.md": {

@@ -73,7 +73,7 @@ COPILOT_FULL_GENERATOR = {
 }
 EXCLUDED_SKILL_REPLACEMENTS = {
     "domain-modeling": "the full-context domain documentation workflow",
-    "nav-platform": "the full-context Nav platform workflow",
+    "nav-platform": "the repository's platform workflow",
     "to-issues": "the full-context plan decomposition workflow",
     "triage": "the full-context issue assessment workflow",
     "guided-review": "the full-context guided human review workflow",

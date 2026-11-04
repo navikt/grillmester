@@ -1,6 +1,6 @@
 ---
 name: nav-platform
-description: "Design, change or diagnose a Nav backend on Nais: manifests, Texas, TokenX, Entra ID, ID-porten, Wonderwall, Aiven Kafka, Cloud SQL PostgreSQL, Nais observability, Ktor and APIs other teams call. Use for runtime problems on Nais too, such as crash loops, failed deploys, 401/403, consumer lag or database errors; use `diagnosing-bugs` once a code defect needs reproduction and a fix, and `security-review` for a broader security assessment."
+description: "Design, change or diagnose a Nav backend on Nais: manifests, Texas, TokenX, Entra ID, ID-porten, Maskinporten, Wonderwall, Aiven Kafka, Cloud SQL PostgreSQL, Nais observability, Ktor and APIs other teams call. Use for runtime problems on Nais too, such as crash loops, failed deploys, 401/403, consumer lag or database errors; use `diagnosing-bugs` once a code defect needs reproduction and a fix, and `security-review` for a broader security assessment."
 ---
 
 # Nav platform
@@ -23,7 +23,7 @@ and only those. When no row fits, this skill does not apply.
 | Kafka | Aiven pools, Kafkarator `Topic` resources, ACLs, consumer lag | [kafka.md](references/kafka.md) |
 | Plain Kafka client | Direct `kafka-clients` use, Nais SSL configuration, commits | [plain-kafka.md](references/plain-kafka.md) |
 | Database | Cloud SQL, connection capacity, migrations, shared schemas, pool and connection errors | [database.md](references/database.md) |
-| Observability | Metrics, logs, traces, dashboards, alerts, signals that disagree | [observability.md](references/observability.md) |
+| Observability | Health endpoints, metrics, logs, traces, dashboards, alerts, signals that disagree | [observability.md](references/observability.md) |
 | API | An API other teams call: consumers, `accessPolicy`, the API catalogue | [api.md](references/api.md) |
 | Ktor | Startup modes, plugin artifacts, shared clients, error handling | [ktor.md](references/ktor.md) |
 

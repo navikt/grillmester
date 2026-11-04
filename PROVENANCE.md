@@ -315,6 +315,14 @@ It adds no third-party material. Names, sources, imported skills and the
 component set are unchanged. The rights journal binds this content, the content
 lock and this provenance record while preserving the underlying decision in #56.
 
+PR [#118](https://github.com/navikt/grillmester/pull/118) reviews the move of
+eight skills into `nav-platform`. Within the rights scope it changes the skill
+IDs that `architecture-review` and `lumi-survey` point to, and the Kafka routing
+in `architecture-review` that follows from them. It adds no third-party material,
+and the source IDs stay on record above. The rights journal binds this content,
+the content lock and this provenance record while preserving the underlying
+decision in #56.
+
 PR [#119](https://github.com/navikt/grillmester/pull/119) reviews a correction
 that leaves the independent reviewer to the user's choice. It changes no component
 in the rights scope. The rights journal binds this provenance record while

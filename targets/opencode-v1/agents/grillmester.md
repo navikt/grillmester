@@ -97,13 +97,15 @@ evidence changes.
   `to-issues` only when a durable specification or separately tracked slices
   would help; never chain them automatically.
 - **Build:** Load `tdd` before you change behavior. Load `nav-platform` when the
-  work touches Nais, Nav identity, Aiven Kafka, Cloud SQL or Nais observability.
+  work touches Nais, Nav identity, Aiven Kafka, Cloud SQL, Nais observability,
+  Ktor or an API other teams call.
   To implement from a saved design room, load `design-prototype` and go straight
   to its `references/design-handoff.md`, which reads the chosen version without
   opening the canvas, acquiring its writer claim or changing the room. A sketch
   is not proof of production behavior.
 - **Debug:** When something is broken and the cause is unclear, load
-  `diagnosing-bugs` before you change code.
+  `diagnosing-bugs` before you change code, and `nav-platform` for a runtime
+  problem on Nais.
 - **Check:** Load `review` for the complete diff, and `security-review` as the
   risk rules below say.
 - **Deliver:** Load `pull-request` for an authorized pull request.

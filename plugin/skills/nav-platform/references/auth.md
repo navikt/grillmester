@@ -166,9 +166,11 @@ POST $NAIS_TOKEN_ENDPOINT
 
 Confirm the exact endpoint variable, content type, provider name, target format,
 and response shape from current authoritative Nais documentation and the
-repository implementation. Preserve an existing token cache. If a client-side
-cache is necessary, key it by target and refresh before expiry; never stack a
-second cache on top of a provider that already owns caching. Texas caches
+repository implementation. Preserve an existing token cache. Never cache or store
+a bearer token in client state unless the token provider explicitly owns that
+cache. If a client-side cache is necessary, key it by target, and by user for a
+user-bound token, and refresh before expiry; never stack a second cache on top of
+a provider that already owns caching. Texas caches
 tokens itself; if a target denies a token after its access policy changed,
 retry once with `skip_cache` set to `true`.
 
