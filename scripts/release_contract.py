@@ -807,7 +807,7 @@ update Grillmester, and update each client with its own installer:
 
 ```bash
 brew upgrade navikt/tap/cplt
-brew upgrade opencode
+brew upgrade anomalyco/tap/opencode
 brew upgrade --cask copilot-cli
 ```"""
     return f"""## Grillmester {tag}
@@ -830,7 +830,7 @@ not runtime pins. The inner native OpenCode target remains `opencode-v1`.
 Install only the client or clients you want to use:
 
 ```bash
-brew install opencode
+brew install anomalyco/tap/opencode
 brew install --cask copilot-cli
 ```
 

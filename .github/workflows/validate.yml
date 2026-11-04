@@ -243,7 +243,7 @@ jobs:
           node-version: 22
 
       - name: Install pinned GitHub Copilot CLI
-        run: npm install --global @github/copilot@1.0.79
+        run: npm install --global @github/copilot@1.0.100
 
       - name: Smoke-test marketplace installation
         run: python3 scripts/smoke_plugin_install.py

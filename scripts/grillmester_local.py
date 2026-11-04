@@ -1626,7 +1626,7 @@ LOCAL_CPLT_HARDENING_FLAGS = (
 CLIENT_INSTALL_HINTS = {
     "copilot": "brew install --cask copilot-cli",
     "cplt": "brew install navikt/tap/cplt",
-    "opencode": "brew install opencode",
+    "opencode": "brew install anomalyco/tap/opencode",
 }
 RIPGREP_HINT = (
     "rg was not found on PATH; OpenCode's Glob and Grep tools will be "
@@ -2743,7 +2743,7 @@ def _validate_copilot_option_allowlist(arguments: Sequence[str]) -> None:
             continue
         if not argument.startswith("--"):
             # Short options and clusters were classified above against the
-            # exact 1.0.80 boolean/value roster.
+            # exact 1.0.100 boolean/value roster.
             index += 1
             continue
         name, separator, value = argument.partition("=")
@@ -2860,7 +2860,7 @@ def _copilot_binding_arguments(
         f"grillmester:{config.agent}",
         "--model",
         config.model_id,
-        "--effort",
+        "--reasoning-effort",
         DEFAULT_COPILOT_REASONING_EFFORT,
         "--no-auto-update",
         "--no-experimental",

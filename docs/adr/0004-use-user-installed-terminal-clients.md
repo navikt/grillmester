@@ -48,7 +48,7 @@ CLI-binæren.
   en manglende, ikke-valgt klient som `skip`, men feiler for et eksplisitt valg
   eller når ingen støttet klient finnes.
 - Standard kompatibilitetsgrense er OpenCode `>=1.18.20,<2`, Copilot CLI
-  `>=1.0.79,<2` og cplt fra testbaselinen `2026.08.17-062831-1008a92` eller en
+  `>=1.0.100,<2` og cplt fra testbaselinen `2026.08.17-062831-1008a92` eller en
   nyere, gyldig datostemplet release. Releasegaten bruker fortsatt den eksakte
   baselinen som repeterbart testinput. Nyere tillatte klienter er en
   kompatibilitetsflate, ikke checksum-attesterte Grillmester-bytes.

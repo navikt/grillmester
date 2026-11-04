@@ -45,7 +45,7 @@ Videre terminaldistribusjon samordnes med nav-pilot. Installer cplt og ønsket
 klient:
 
 ```bash
-brew install navikt/tap/cplt opencode
+brew install navikt/tap/cplt anomalyco/tap/opencode
 # eller for Copilot CLI: brew install --cask copilot-cli
 ```
 
@@ -68,7 +68,7 @@ python3 /absolute/path/to/grillmester/scripts/grillmester.py local launch
 ```
 
 Launcheren lager isolert OpenCode-config og kjører terminalsesjonen gjennom
-cplt. Den støtter OpenCode 1.x fra `1.18.20`, Copilot CLI 1.x fra `1.0.79`
+cplt. Den støtter OpenCode 1.x fra `1.18.20`, Copilot CLI 1.x fra `1.0.100`
 og cplt fra testbaselinen. Hver modell må kvalitetsvalideres separat.
 Se [OpenCode-guiden](opencode.md), [guiden for lokale modeller](local-models.md)
 og [klientstatus og releasegater](trust-and-client-support.md).

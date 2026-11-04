@@ -45,7 +45,7 @@ changes the version in `plugin/plugin.json`, and it can be dispatched from
   selected source's own tooling and tests only in that read-only job. Copilot
   compatibility runs trusted smoke tooling from `main` and installs the sealed
   catalog and the source payload from a worktree with the supported minimum
-  Copilot CLI 1.0.79, which must advertise the complete local-run flag surface in
+  Copilot CLI 1.0.100, which must advertise the complete local-run flag surface in
   `--help` without authentication or a model request. The native macOS matrix
   runs on Apple Silicon and hosted Intel. It verifies the exact OpenCode,
   Copilot CLI and cplt release-test artifacts before their first execution,

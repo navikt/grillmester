@@ -140,6 +140,10 @@ adaptation boundary are recorded in [PROVENANCE.md](PROVENANCE.md).
 Trace representativeness guidance was also adapted from `observability-debugging`
 at revision `ce9abd567a89eb72f1b8f95447435fd16fe805d3`.
 
+The guidance on Texas failures, the `skip_cache` retry, per-app `client_id` checks
+and both `acr` forms was adapted from `tokenx-auth` at revision
+`2145f233dd35a62b5674d5f526bcf9417e741f03`.
+
 MIT License
 
 Copyright (c) 2025 Nav

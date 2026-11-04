@@ -123,7 +123,7 @@ model in every request. It must not use a GitHub Copilot cloud model.
 
 Treat those exact versions only as release-test inputs, not as runtime pins or
 client binaries shipped in the release bundle. The launchers resolve
-user-installed OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.79,<2`, and cplt at
+user-installed OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.100,<2`, and cplt at
 the tested baseline or a newer dated release from `PATH`. Launcher tests must
 prove missing-client diagnostics, Copilot-only operation, and the absence of
 private `libexec/clients` copies.

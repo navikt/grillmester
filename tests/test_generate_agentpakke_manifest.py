@@ -53,7 +53,7 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
             manifest["clients"]["copilot"]["payloads"]["full"],
         )
         self.assertEqual(
-            ">=1.0.79,<2", manifest["clients"]["copilot"]["compatibility"]
+            ">=1.0.100,<2", manifest["clients"]["copilot"]["compatibility"]
         )
         self.assertEqual(
             ">=1.18.20,<2", manifest["clients"]["opencode"]["compatibility"]
@@ -161,7 +161,7 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
                 '"opencodeMinimum": "1.99.1"',
             )
             text = text.replace(
-                '"copilotMinimum": "1.0.79"',
+                '"copilotMinimum": "1.0.100"',
                 '"copilotMinimum": "1.42.0"',
             )
             baseline.write_text(text, encoding="utf-8")

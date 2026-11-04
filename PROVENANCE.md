@@ -284,6 +284,15 @@ actions. Names, sources, imported skills and the component set are
 unchanged. The rights journal binds this content and provenance while
 preserving the underlying decision in #56.
 
+PR [#107](https://github.com/navikt/grillmester/pull/107) reviews a correction
+in the imported `aksel-design` skill. It replaces a critical rule against
+Tailwind spacing with guidance that follows Aksel's own Tailwind documentation:
+prefer Aksel props and tokens, follow the repository's rules, and treat Tailwind
+spacing as compatible when the CSS layers are set up as documented. Names,
+sources, imported skills and the component set are unchanged. The rights journal
+binds this content and provenance while preserving the underlying decision in
+#56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
@@ -469,6 +478,15 @@ The observability review at `navikt/copilot` revision
 `nav-troubleshoot/references/observability-diagnose.md`. The local adaptation
 also checks sampling and query coverage before interpreting absent signals.
 It does not import endpoint URLs, query recipes or a mandatory signal count.
+
+The Texas review at `navikt/copilot` revision
+`2145f233dd35a62b5674d5f526bcf9417e741f03` adapts four points from
+`skills/tokenx-auth` into `auth-overview` and
+`nav-troubleshoot/references/auth-diagnose.md`: a Texas failure surfaces as 5xx,
+not 401; one `skip_cache` retry after an access-policy change; `client_id` checks
+when authorizing per calling app; and both `acr` forms. The other Texas
+corrections in those files were checked against the Nais documentation. It does
+not import code or request examples.
 
 Diagnostic data-access guidance was checked on 2026-09-09 against Nav's
 [published guidelines](https://ki-utvikling.nav.no/retningslinjer) and
