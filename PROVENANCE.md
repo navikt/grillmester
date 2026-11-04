@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 44 skills. The sources below record attribution
+`plugin/`: six agents and 37 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -96,6 +96,15 @@ Imported skills:
 
 The pilot's `integration-tests` and `e2e-tests` skills are consolidated into
 `tdd/test-boundaries.md`; `tdd` is their runtime successor.
+
+The pilot's `api-design`, `auth-overview`, `kafka-topic`, `kotlin-ktor`,
+`nais-manifest`, `nav-troubleshoot`, `observability-setup` and
+`postgresql-review` skills are consolidated into `nav-platform`, with one
+reference per area; `nav-platform` is their runtime successor. Those IDs remain
+the original source IDs, and the content lock records them as its lineage. It
+uses `nav-troubleshoot` as the `sourcePath` because diagnosis starts with that
+skill's method. The consolidation keeps Nav and Nais facts and removes what
+ADR 0035 places elsewhere; it imports no new content.
 
 `guided-review` is a Grillmester adaptation of the pilot review boundary. It
 keeps complete diff coverage and deterministic evidence while adding a
@@ -493,14 +502,16 @@ the user's language. The context-pointer rules for descriptions from
 The observability review at `navikt/copilot` revision
 `ce9abd567a89eb72f1b8f95447435fd16fe805d3` adapts the
 `skills/observability-debugging` guidance on trace representativeness into
-`nav-troubleshoot/references/observability-diagnose.md`. The local adaptation
+`nav-troubleshoot/references/observability-diagnose.md`, now part of
+`nav-platform/references/observability.md`. The local adaptation
 also checks sampling and query coverage before interpreting absent signals.
 It does not import endpoint URLs, query recipes or a mandatory signal count.
 
 The Texas review at `navikt/copilot` revision
 `2145f233dd35a62b5674d5f526bcf9417e741f03` adapts four points from
 `skills/tokenx-auth` into `auth-overview` and
-`nav-troubleshoot/references/auth-diagnose.md`: a Texas failure surfaces as 5xx,
+`nav-troubleshoot/references/auth-diagnose.md`, now both part of
+`nav-platform/references/auth.md`: a Texas failure surfaces as 5xx,
 not 401; one `skip_cache` retry after an access-policy change; `client_id` checks
 when authorizing per calling app; and both `acr` forms. The other Texas
 corrections in those files were checked against the Nais documentation. It does

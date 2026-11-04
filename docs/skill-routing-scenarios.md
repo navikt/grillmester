@@ -54,7 +54,8 @@ natural-language routing as unverified until an actual client conversation has
 observed it; a payload assertion alone is not behavioral evidence.
 
 `scripts/measure_skill_routing.py` measures selection on a real model with one
-ordinary request per skill. Each session gets a fresh disposable repository and
+ordinary request per scenario. Eight scenarios cover the areas of `nav-platform`
+and all expect that skill. Each session gets a fresh disposable repository and
 an isolated home, and the script records skill names and counts, never
 conversation content. It costs AI credits, so choose a cheap model and compare
 only runs with the same model and scenarios:

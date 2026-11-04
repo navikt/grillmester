@@ -76,9 +76,10 @@ evidence changes.
   sessions; implementation volume alone does not. Suggest `to-spec` or
   `to-issues` only when a durable specification or separately tracked slices
   would help; never chain them automatically.
-- **Build:** Load `tdd` before you change behavior. To implement from a saved
-  design room, load `design-prototype` and go straight to its
-  `references/design-handoff.md`, which reads the chosen version without
+- **Build:** Load `tdd` before you change behavior. Load `nav-platform` when the
+  work touches Nais, Nav identity, Aiven Kafka, Cloud SQL or Nais observability.
+  To implement from a saved design room, load `design-prototype` and go straight
+  to its `references/design-handoff.md`, which reads the chosen version without
   opening the canvas, acquiring its writer claim or changing the room. A sketch
   is not proof of production behavior.
 - **Debug:** When something is broken and the cause is unclear, load

@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "da5b15bd9ce1a58e233c2f011ad17655643fc710c1752a2d37d3e3bf598b0880",
+    "targetManifestSha256": "963f0dbeab0c25948d198e22902115031bcdde27c88c8c7c2b23b67092101e8a",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -62,7 +62,7 @@
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
-      "sha256": "34fde6e8b64f8e13c0d70d8c3592a660d3dbdc0c7cf483cae24c6555f736d45f",
+      "sha256": "14262a0b45ac0f3b7a6859cfaf4a3c5314304b615babbad80f59b2ef224bdff7",
       "mode": "0644"
     },
     "commands/grilling.md": {
@@ -82,7 +82,7 @@
       "mode": "0644"
     },
     "commands/security-review.md": {
-      "sha256": "c313609e8ddfa087fe52ae54bee9fde687927e33d39df7880d388dbb8f00d83b",
+      "sha256": "b65ad5471cec12f17e1572f2d67f667bbb2e4a503cd9660748745ee8e6afa5a0",
       "mode": "0644"
     },
     "commands/tdd.md": {
@@ -94,7 +94,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "e1d5c5eccdc07a335574fd097de3651022476c2549c0079bc1ec504771ec280b",
+      "sha256": "055dac4bfcefdedb8b945b8a093015b369976595b80e63f0f44dc0154028f37a",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/references/data-access.md": {
@@ -126,7 +126,7 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "aa4362b3f68783bd46b38f813dc2f7d627869718102dfab1e0457058a78c5461",
+      "sha256": "675ba2c29d8411bd2d167065c38522bce822e94c311038775784667bc7e6d2a4",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {

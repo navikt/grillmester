@@ -177,18 +177,20 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                     (plugin / "agents" / f"agent-{index}.agent.md").write_text(
                         f"---\nname: agent-{index}\n---\n", encoding="utf-8"
                     )
+                removed_from_core = set(SMOKE.SAME_PACKAGE_REMOVED_SKILLS) - set(
+                    SMOKE.LEGACY_ADD_ON_SKILLS
+                )
                 skill_ids = [
                     *(
                         f"fixture-skill-{index}"
                         for index in range(
-                            SMOKE.LEGACY_CORE.skills
-                            - len(SMOKE.SAME_PACKAGE_REMOVED_SKILLS)
+                            SMOKE.LEGACY_CORE.skills - len(removed_from_core)
                         )
                     ),
                     *(
                         skill_id
                         for skill_id in SMOKE.LEGACY_ADD_ON_SKILLS
-                        if skill_id not in SMOKE.HISTORICAL_REMOVED_SKILLS
+                        if skill_id not in SMOKE.REMOVED_SKILLS
                     ),
                     *SMOKE.CURRENT_ONLY_SKILLS,
                 ]
@@ -297,7 +299,12 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 self.assertTrue(
                     (previous_unified_plugin / "skills" / skill_id / "SKILL.md").is_file()
                 )
-                self.assertTrue((core_skills / skill_id / "SKILL.md").is_file())
+                legacy_skills = (
+                    add_on_skills
+                    if skill_id in SMOKE.LEGACY_ADD_ON_SKILLS
+                    else core_skills
+                )
+                self.assertTrue((legacy_skills / skill_id / "SKILL.md").is_file())
             for skill_id in SMOKE.HISTORICAL_REMOVED_SKILLS:
                 self.assertFalse((previous_unified_plugin / "skills" / skill_id).exists())
                 self.assertTrue((add_on_skills / skill_id / "SKILL.md").is_file())
