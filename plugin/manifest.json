@@ -193,7 +193,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/references/session-history.md": {
-      "sha256": "f42142b21a41e64d41776bc8a241ad2cba0a363c93e6ec43dd1dcc64b2cc38e4",
+      "sha256": "c48a18a9fa7809f4f0967221dc33bc1a4fdce03c4250436617de4182dd82a507",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/references/toolchain.md": {
@@ -225,7 +225,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/history.py": {
-      "sha256": "624a5ee29a84e885bc45a84bf5d3b1c4a7a7d10ad089c5a644de4f994d66649e",
+      "sha256": "e0f4fd54adfdd0966490644c3a28ea2ed885b0c99b5b41598754ef299c9b4eb3",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/instructions.py": {
@@ -241,7 +241,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/policy.py": {
-      "sha256": "562aaef6944d6a801fb58c77ebf5ee22b6b3e0a8edc06478aa37639348a31d4e",
+      "sha256": "b5980b2591da31a196acf8cf8d5d90c1503a0696be837a328754dc8dec80f426",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/scripts/app_sandbox/probes.py": {

@@ -382,7 +382,8 @@ class AppSandboxSetupTest(unittest.TestCase):
         alias = self.home / "history-alias"
         alias.symlink_to(history, target_is_directory=True)
         variants = [str(history.with_name("Session-State")), str(alias)]
-        current = {**before, "readonlyPaths": before["readonlyPaths"] + variants}
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + variants,
+                   "readwritePaths": before["readwritePaths"] + [str(alias)]}
         with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
             connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
         code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
@@ -394,10 +395,12 @@ class AppSandboxSetupTest(unittest.TestCase):
         code, output = self.run_cli("apply", "--no-instructions", "--confirm", json.loads(output)["digest"])
         self.assertEqual(code, 0, output)
         with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
-            readonly = json.loads(connection.execute(
+            after = json.loads(connection.execute(
                 "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p1'"
-            ).fetchone()[0])["readonlyPaths"]
-        self.assertEqual([path for path in readonly if path in variants + [str(history)]], [str(history)])
+            ).fetchone()[0])
+        shared = variants + [str(history)]
+        self.assertEqual([path for path in after["readonlyPaths"] if path in shared], [str(history)])
+        self.assertFalse([path for path in after["readwritePaths"] if path in shared])
 
     def test_opt_out_keeps_a_deny_on_the_real_history_target(self) -> None:
         history, before = self.history_fixture()
@@ -413,7 +416,7 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertNotIn(str(real), denied.get("removed", []))
         self.assertNotIn(str(history), denied.get("added", []))
 
-    def test_history_root_failures_are_skipped_or_refused_before_writing(self) -> None:
+    def test_history_root_failures_are_skipped_or_refused_in_plans(self) -> None:
         history, _ = self.history_fixture()
         copilot = history.parent
         original_exists = Path.exists
@@ -456,6 +459,24 @@ class AppSandboxSetupTest(unittest.TestCase):
                     self.assertEqual(code, expected, output)
                     self.assertIn(message, output)
                     self.assertNotIn(str(history), output)
+
+    def test_unresolvable_history_root_still_allows_the_optout(self) -> None:
+        history, _ = self.history_fixture()
+        original_resolve = Path.resolve
+
+        def unresolvable(path, *args, **kwargs):
+            if path == history:
+                raise RuntimeError("synthetic symlink loop")
+            return original_resolve(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "resolve", unresolvable):
+            for command, options in (("plan", ("--no-instructions",)), ("history", ("plan",))):
+                with self.subTest(command=command):
+                    code, output = self.run_cli(command, *options)
+                    self.assertEqual(code, 1, output)
+                    self.assertIn("non-symlink", output)
+                    code, output = self.run_cli(command, *options, "--no-session-history")
+                    self.assertEqual(code, 0, output)
 
     def test_history_apply_requires_fresh_policy_and_directory_confirmation(self) -> None:
         history, before = self.history_fixture()

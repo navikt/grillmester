@@ -142,7 +142,7 @@ def same_history(facts: Facts, path: str, history: Path) -> bool:
     try:
         return facts.same(Path(path), history)
     except RuntimeError:
-        # An entry that cannot be resolved is not the shared grant.
+        # Lexical identity keeps --no-session-history usable when an entry or the root is unresolvable.
         return False
 
 
