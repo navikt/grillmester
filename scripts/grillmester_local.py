@@ -2849,7 +2849,6 @@ def _copilot_binding_arguments(
         DEFAULT_COPILOT_REASONING_EFFORT,
         "--no-auto-update",
         "--no-experimental",
-        "--no-remote",
         "--no-remote-export",
         "--disable-builtin-mcps",
         f"--secret-env-vars={','.join(secret_environment)}",

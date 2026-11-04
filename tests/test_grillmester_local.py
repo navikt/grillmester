@@ -1435,7 +1435,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertIn("grillmester:grillmester", client)
         self.assertIn("--no-auto-update", client)
         self.assertIn("--no-experimental", client)
-        self.assertIn("--no-remote", client)
+        self.assertNotIn("--no-remote", client)
         self.assertIn("--no-remote-export", client)
         self.assertIn("--disable-builtin-mcps", client)
         self.assertNotIn("--allow-all-tools", client)
