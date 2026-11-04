@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -375,6 +376,63 @@ class AppSandboxSetupTest(unittest.TestCase):
         self.assertEqual(code, 0, output)
         removed = json.loads(output)["projects"][0]["diff"]["readonlyPaths"]["removed"]
         self.assertTrue(any(Path(path) == history for path in removed), removed)
+
+    def test_setup_treats_case_and_symlink_history_aliases_as_the_shared_grant(self) -> None:
+        history, before = self.history_fixture()
+        alias = self.home / "history-alias"
+        alias.symlink_to(history, target_is_directory=True)
+        variants = [str(history.with_name("Session-State")), str(alias)]
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + variants}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        code, output = self.run_cli("apply", "--no-instructions", "--confirm", json.loads(output)["digest"])
+        self.assertEqual(code, 0, output)
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
+            readonly = json.loads(connection.execute(
+                "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p1'"
+            ).fetchone()[0])["readonlyPaths"]
+        self.assertEqual([path for path in readonly if path in variants + [str(history)]], [str(history)])
+        code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        self.assertEqual(json.loads(output)["projects"][0]["diff"]["readonlyPaths"]["removed"], [str(history)])
+
+    def test_history_root_failures_are_skipped_or_refused_before_writing(self) -> None:
+        history, _ = self.history_fixture()
+        copilot = history.parent
+        original_exists = Path.exists
+
+        def unreadable_exists(path, *args, **kwargs):
+            if path == history:
+                raise PermissionError(errno.EACCES, "synthetic")
+            return original_exists(path, *args, **kwargs)
+
+        def redirected_copilot():
+            history.unlink()
+            real = self.home / "real-copilot"
+            copilot.rename(real)
+            copilot.symlink_to(real, target_is_directory=True)
+
+        # Ordered so each arrangement builds on the previous filesystem state.
+        cases = (
+            ("unreadable", lambda: None, unreadable_exists, 1, "readable"),
+            ("missing", lambda: shutil.rmtree(history), None, 0, "missing; grant skipped"),
+            ("regular file", lambda: history.write_text("", encoding="utf-8"), None, 1, "non-symlink"),
+            ("redirected .copilot", redirected_copilot, None, 1, "non-symlink"),
+        )
+        for name, arrange, exists, expected, message in cases:
+            arrange()
+            for command, options in (("plan", ("--no-instructions",)), ("history", ("plan",))):
+                with self.subTest(case=name, command=command):
+                    patch = (mock.patch.object(Path, "exists", exists) if exists
+                             else contextlib.nullcontext())
+                    with patch:
+                        code, output = self.run_cli(command, *options)
+                    self.assertEqual(code, expected, output)
+                    self.assertIn(message, output)
+                    self.assertNotIn(str(history), output)
+            self.assertFalse((self.home / ".copilot/app-sandbox-setup-backups").exists())
 
     def test_history_apply_requires_fresh_policy_and_directory_confirmation(self) -> None:
         history, before = self.history_fixture()

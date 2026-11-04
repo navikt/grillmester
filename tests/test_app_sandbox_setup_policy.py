@@ -185,6 +185,7 @@ class DiscoveryFactsTest(unittest.TestCase):
             (".netrc", "is_file"), (".aws", "is_dir"),
             (".docker", "exists"),
             (".copilot/app-sandbox-setup-backups", "is_dir"),
+            (".copilot/session-state", "exists"),
         ):
             for no_docker in (False, True):
                 with self.subTest(relative=relative, no_docker=no_docker):
@@ -196,7 +197,10 @@ class DiscoveryFactsTest(unittest.TestCase):
                         return original(path)
 
                     with mock.patch.object(Path, method, denied):
-                        if (relative == ".copilot/app-sandbox-setup-backups"
+                        if relative == ".copilot/session-state":
+                            facts = discovery.capture_paths(home, (), {}, (str(home / ".docker"),), no_docker)
+                            self.assertTrue(facts[str(home / relative)].unreadable)
+                        elif (relative == ".copilot/app-sandbox-setup-backups"
                                 or relative == ".docker" and no_docker):
                             discovery.capture_paths(home, (), {}, (str(home / ".docker"),), no_docker)
                         else:

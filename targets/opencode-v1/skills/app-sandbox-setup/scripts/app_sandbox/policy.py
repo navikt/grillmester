@@ -136,6 +136,16 @@ def clean_paths(rules: dict[str, Any], facts: Facts, row: dict[str, Any],
         after[field] = clean
 
 
+def same_history(facts: Facts, path: str, history: Path) -> bool:
+    if Path(path) == history:
+        return True
+    try:
+        return facts.same(Path(path), history)
+    except RuntimeError:
+        # Unresolvable entries keep their lexical identity instead of aborting setup.
+        return False
+
+
 def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict[str, Any],
                 after: dict[str, Any], grants: dict[str, list[str]], warnings: list[str]) -> None:
     home = Path(facts.home)
@@ -150,8 +160,8 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
     user_denied = [path for path in after["deniedPaths"] if path not in retired_denies]
     history = home / rules["SESSION_HISTORY_PATH"]
     for field in PATH_FIELDS:
-        # Spelling variants of the shared history grant follow the same opt-out and cleanup rules.
-        existing = list(dict.fromkeys(str(history) if Path(path) == history else path
+        # Spellings and aliases of the shared history grant follow the same opt-out and cleanup rules.
+        existing = list(dict.fromkeys(str(history) if same_history(facts, path, history) else path
                                       for path in after.get(field, [])))
         retired = {str(home / path): reason
                    for path, reason in rules["RETIRED_GRANTS"].get(field, {}).items()}
