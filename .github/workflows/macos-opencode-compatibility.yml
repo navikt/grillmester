@@ -42,8 +42,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]]
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_SHA}" ]] || exit 1
 
           machine="$(uname -m)"
           case "${machine}" in
@@ -73,21 +73,21 @@ jobs:
             --name executableSha256)"
 
           for client in opencode cplt copilot; do
-            [[ "$(stat -f '%Lp:%u' "${verified_bin}/${client}")" == "555:$(id -u)" ]]
+            [[ "$(stat -f '%Lp:%u' "${verified_bin}/${client}")" == "555:$(id -u)" ]] || exit 1
           done
           [[ "$(shasum -a 256 "${verified_bin}/opencode" | cut -d' ' -f1)" == \
-             "${opencode_binary_sha256}" ]]
+             "${opencode_binary_sha256}" ]] || exit 1
           [[ "$(shasum -a 256 "${verified_bin}/cplt" | cut -d' ' -f1)" == \
-             "${cplt_binary_sha256}" ]]
+             "${cplt_binary_sha256}" ]] || exit 1
           [[ "$(shasum -a 256 "${verified_bin}/copilot" | cut -d' ' -f1)" == \
-             "${copilot_binary_sha256}" ]]
+             "${copilot_binary_sha256}" ]] || exit 1
 
           # These are the first client executions in this job.
-          [[ "$("${verified_bin}/opencode" --version)" == "${RELEASE_TEST_OPENCODE_VERSION}" ]]
+          [[ "$("${verified_bin}/opencode" --version)" == "${RELEASE_TEST_OPENCODE_VERSION}" ]] || exit 1
           [[ "$("${verified_bin}/cplt" --version)" == \
-             "cplt ${RELEASE_TEST_CPLT_RELEASE}" ]]
-          [[ "$("${verified_bin}/copilot" --version)" == \
-             "GitHub Copilot CLI ${RELEASE_TEST_COPILOT_VERSION}." ]]
+             "cplt ${RELEASE_TEST_CPLT_RELEASE}" ]] || exit 1
+          [[ "$("${verified_bin}/copilot" --version | sed -n '1p')" == \
+             "GitHub Copilot CLI ${RELEASE_TEST_COPILOT_VERSION}." ]] || exit 1
           {
             echo "OPENCODE_BIN=${verified_bin}/opencode"
             echo "CPLT_BIN=${verified_bin}/cplt"
@@ -235,9 +235,9 @@ jobs:
           finally:
               os.close(output)
           PY
-          [[ "$(stat -f '%Lp:%u' "${destination}")" == "555:$(id -u)" ]]
+          [[ "$(stat -f '%Lp:%u' "${destination}")" == "555:$(id -u)" ]] || exit 1
           [[ "$(shasum -a 256 "${destination}" | cut -d' ' -f1)" == \
-             "${ripgrep_binary_sha256}" ]]
+             "${ripgrep_binary_sha256}" ]] || exit 1
           {
             echo "RIPGREP_BIN=${destination}"
             echo "RIPGREP_BINARY_SHA256=${ripgrep_binary_sha256}"
@@ -294,14 +294,14 @@ jobs:
           PATH: ${{ runner.temp }}/verified-darwin-bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
         run: |
           set -euo pipefail
-          [[ "$(stat -f '%Lp:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]]
-          [[ "$(stat -f '%Lp:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]]
+          [[ "$(stat -f '%Lp:%u' "${OPENCODE_BIN}")" == "555:$(id -u)" ]] || exit 1
+          [[ "$(stat -f '%Lp:%u' "${CPLT_BIN}")" == "555:$(id -u)" ]] || exit 1
           [[ "$(shasum -a 256 "${OPENCODE_BIN}" | cut -d' ' -f1)" == \
-             "${OPENCODE_BINARY_SHA256}" ]]
+             "${OPENCODE_BINARY_SHA256}" ]] || exit 1
           [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
-             "${CPLT_BINARY_SHA256}" ]]
+             "${CPLT_BINARY_SHA256}" ]] || exit 1
           [[ "$(shasum -a 256 "${RIPGREP_BIN}" | cut -d' ' -f1)" == \
-             "${RIPGREP_BINARY_SHA256}" ]]
+             "${RIPGREP_BINARY_SHA256}" ]] || exit 1
           python3 -I -S scripts/smoke_opencode.py \
             --require-binary --opencode "${OPENCODE_BIN}"
           python3 -I -S scripts/smoke_opencode_runtime.py \
@@ -383,7 +383,7 @@ jobs:
               directory.chmod(mode)
           PY
           bundle_root="${extraction}/grillmester-terminal-v1"
-          [[ -f "${bundle_root}/DISTRIBUTION-MANIFEST.json" ]]
+          [[ -f "${bundle_root}/DISTRIBUTION-MANIFEST.json" ]] || exit 1
           {
             echo "BUNDLE_ARCHIVE=${bundle}"
             echo "BUNDLE_ROOT=${bundle_root}"
@@ -396,7 +396,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
-             "${CPLT_BINARY_SHA256}" ]]
+             "${CPLT_BINARY_SHA256}" ]] || exit 1
           project="${RUNNER_TEMP}/empty-consumer"
           policy="${RUNNER_TEMP}/cplt-loopback-policy"
           mkdir -m 700 "${project}" "${policy}"
@@ -431,9 +431,9 @@ jobs:
             [[ -s "${listener_info}" ]] && break
             sleep 0.1
           done
-          [[ -s "${listener_info}" ]]
+          [[ -s "${listener_info}" ]] || exit 1
           listener_port="$(<"${listener_info}")"
-          [[ "${listener_port}" =~ ^[1-9][0-9]{1,4}$ ]]
+          [[ "${listener_port}" =~ ^[1-9][0-9]{1,4}$ ]] || exit 1
 
           policy_command=(
             "${CPLT_BIN}"
@@ -455,7 +455,7 @@ jobs:
           # This release-test policy deliberately blocks OpenCode's normal
           # allowed domains. Inspect every probe and require that single
           # intentional mismatch instead of trusting exit 0.
-          [[ "${check_status}" == "1" ]]
+          [[ "${check_status}" == "1" ]] || exit 1
           jq -e '
             .platform == "macos (Seatbelt)" and .battery == true and .enforcing == false and
             (.items | length) == 7 and .verified == 4 and
@@ -531,13 +531,13 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(shasum -a 256 "${COPILOT_BIN}" | cut -d' ' -f1)" == \
-             "${COPILOT_BINARY_SHA256}" ]]
+             "${COPILOT_BINARY_SHA256}" ]] || exit 1
           [[ "$(shasum -a 256 "${OPENCODE_BIN}" | cut -d' ' -f1)" == \
-             "${OPENCODE_BINARY_SHA256}" ]]
+             "${OPENCODE_BINARY_SHA256}" ]] || exit 1
           [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
-             "${CPLT_BINARY_SHA256}" ]]
+             "${CPLT_BINARY_SHA256}" ]] || exit 1
           [[ "$(shasum -a 256 "${RIPGREP_BIN}" | cut -d' ' -f1)" == \
-             "${RIPGREP_BINARY_SHA256}" ]]
+             "${RIPGREP_BINARY_SHA256}" ]] || exit 1
           smoke_home="${RUNNER_TEMP}/grillmester-local-smoke-home"
           mkdir -m 700 "${smoke_home}"
           HOME="${smoke_home}" \
@@ -562,9 +562,9 @@ jobs:
           set -euo pipefail
           umask 077
           [[ "$(shasum -a 256 "${COPILOT_BIN}" | cut -d' ' -f1)" == \
-             "${COPILOT_BINARY_SHA256}" ]]
+             "${COPILOT_BINARY_SHA256}" ]] || exit 1
           [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
-             "${CPLT_BINARY_SHA256}" ]]
+             "${CPLT_BINARY_SHA256}" ]] || exit 1
           provider_root="$(mktemp -d "${RUNNER_TEMP}/copilot-provider.XXXXXX")"
           provider_info="${provider_root}/port"
           provider_log="${provider_root}/requests.jsonl"
@@ -713,7 +713,7 @@ jobs:
             exit 1
           fi
           provider_port="$(<"${provider_info}")"
-          [[ "${provider_port}" =~ ^[1-9][0-9]{1,4}$ ]]
+          [[ "${provider_port}" =~ ^[1-9][0-9]{1,4}$ ]] || exit 1
           /usr/bin/nc -z -G 2 127.0.0.1 "${provider_port}"
           python_bin="$(command -v python3)"
           "${python_bin}" -I -S -c \
@@ -890,7 +890,7 @@ jobs:
               if not record.get("path", "").endswith("/chat/completions"):
                   raise SystemExit("OpenCode did not use Chat Completions")
           PY
-          [[ -z "$(git -C "${MACOS_CONSUMER}" status --porcelain)" ]]
+          [[ -z "$(git -C "${MACOS_CONSUMER}" status --porcelain)" ]] || exit 1
 
       - name: Reach the OpenCode TUI through the extracted launcher and cplt
         shell: bash
@@ -899,11 +899,11 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(shasum -a 256 "${OPENCODE_BIN}" | cut -d' ' -f1)" == \
-             "${OPENCODE_BINARY_SHA256}" ]]
+             "${OPENCODE_BINARY_SHA256}" ]] || exit 1
           [[ "$(shasum -a 256 "${CPLT_BIN}" | cut -d' ' -f1)" == \
-             "${CPLT_BINARY_SHA256}" ]]
+             "${CPLT_BINARY_SHA256}" ]] || exit 1
           launcher="${BUNDLE_ROOT}/scripts/grillmester.py"
-          [[ -f "${launcher}" && -x "${launcher}" ]]
+          [[ -f "${launcher}" && -x "${launcher}" ]] || exit 1
           qa_root="${RUNNER_TEMP}/tui-gate"
           tui_consumer="${qa_root}/tui-consumer"
           mkdir -m 700 "${qa_root}"
@@ -931,7 +931,7 @@ jobs:
             --cplt "${CPLT_BIN}" \
             --project-dir "${tui_consumer}" \
             --state-parent "${qa_root}"
-          [[ -z "$(git -C "${tui_consumer}" status --porcelain)" ]]
+          [[ -z "$(git -C "${tui_consumer}" status --porcelain)" ]] || exit 1
 
       # Last, so the pinned Node.js does not change PATH for the client steps.
       - name: Set up Node.js

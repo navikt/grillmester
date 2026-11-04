@@ -136,6 +136,28 @@ class DiscoveryFactsTest(unittest.TestCase):
                 self.assertTrue(facts.under(path / "child", Path(str(path).lower())))
                 self.assertTrue(facts.under(path, Path("/synthetic")))
 
+    def test_denied_stat_is_unreadable_when_exists_hides_it(self):
+        path = Path("/synthetic/Policy-Path")
+        with mock.patch.object(Path, "exists", return_value=False), \
+                mock.patch.object(discovery.os, "stat", side_effect=PermissionError(errno.EACCES, "synthetic")), \
+                mock.patch.object(Path, "resolve", return_value=path):
+            state = discovery.path_fact(path)
+        self.assertTrue(state.unreadable)
+        self.assertFalse(state.exists)
+
+    def test_distinct_inodes_stay_distinct_on_a_case_sensitive_volume(self):
+        left, right = Path("/synthetic/session-state"), Path("/synthetic/Session-State")
+        facts = Facts("/synthetic", paths={
+            str(left): PathFact(str(left), (1, 2)),
+            str(right): PathFact(str(left), (1, 3)),
+        })
+        self.assertFalse(facts.same(left, right))
+
+    def test_an_unresolvable_entry_is_not_the_shared_history_grant(self):
+        loop, history = "/synthetic/loop", Path("/synthetic/.copilot/session-state")
+        facts = Facts("/synthetic", paths={loop: PathFact(loop, resolution_failed=True)})
+        self.assertFalse(policy.same_history(facts, loop, history))
+
     def test_exists_errors_leave_observations_false(self):
         path = Path("/synthetic/Policy-Path")
         for code in (errno.EACCES, errno.EPERM, errno.ENAMETOOLONG):

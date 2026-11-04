@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import re
@@ -209,11 +210,26 @@ def backup_warnings(home: Path) -> list[str]:
     return backups.observe(home)[0]
 
 
+def path_exists(path: Path) -> bool:
+    """Path.exists(), except that a denied stat raises on every supported Python."""
+    if path.exists():
+        return True
+    try:
+        os.stat(path)
+    except OSError as error:
+        if error.errno in (errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP):
+            return False
+        raise
+    except ValueError:
+        return False
+    return True
+
+
 def path_fact(path: Path) -> PathFact:
     exists = file = directory = symlink = unreadable = False
     inode = None
     try:
-        exists = path.exists()
+        exists = path_exists(path)
     except OSError:
         unreadable = True
     else:

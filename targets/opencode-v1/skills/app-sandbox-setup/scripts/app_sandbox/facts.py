@@ -57,8 +57,8 @@ class Facts:
 
     def same(self, left: Path, right: Path) -> bool:
         a, b = self.path(left), self.path(right)
-        if a.inode is not None and a.inode == b.inode:
-            return True
+        if a.inode is not None and b.inode is not None:
+            return a.inode == b.inode
         if a.resolution_failed or b.resolution_failed:
             raise RuntimeError("path resolution unavailable")
         return a.resolved == b.resolved

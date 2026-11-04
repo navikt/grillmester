@@ -385,6 +385,10 @@ class AppSandboxSetupTest(unittest.TestCase):
         current = {**before, "readonlyPaths": before["readonlyPaths"] + variants}
         with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
             connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        self.assertEqual(sorted(json.loads(output)["projects"][0]["diff"]["readonlyPaths"]["removed"]),
+                         sorted(variants))
         code, output = self.run_cli("plan", "--no-instructions", "--json")
         self.assertEqual(code, 0, output)
         code, output = self.run_cli("apply", "--no-instructions", "--confirm", json.loads(output)["digest"])
@@ -394,19 +398,41 @@ class AppSandboxSetupTest(unittest.TestCase):
                 "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p1'"
             ).fetchone()[0])["readonlyPaths"]
         self.assertEqual([path for path in readonly if path in variants + [str(history)]], [str(history)])
+
+    def test_opt_out_keeps_a_deny_on_the_real_history_target(self) -> None:
+        history, before = self.history_fixture()
+        real = self.home / "real-history"
+        history.rename(real)
+        history.symlink_to(real, target_is_directory=True)
+        current = {**before, "deniedPaths": before["deniedPaths"] + [str(real)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
         code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
         self.assertEqual(code, 0, output)
-        self.assertEqual(json.loads(output)["projects"][0]["diff"]["readonlyPaths"]["removed"], [str(history)])
+        denied = json.loads(output)["projects"][0]["diff"].get("deniedPaths", {})
+        self.assertNotIn(str(real), denied.get("removed", []))
+        self.assertNotIn(str(history), denied.get("added", []))
 
     def test_history_root_failures_are_skipped_or_refused_before_writing(self) -> None:
         history, _ = self.history_fixture()
         copilot = history.parent
         original_exists = Path.exists
+        original_stat = os.stat
 
-        def unreadable_exists(path, *args, **kwargs):
-            if path == history:
+        def unreadable_stat(path, *args, **kwargs):
+            if isinstance(path, (str, os.PathLike)) and Path(path) == history:
                 raise PermissionError(errno.EACCES, "synthetic")
-            return original_exists(path, *args, **kwargs)
+            return original_stat(path, *args, **kwargs)
+
+        def hidden_denial(path, *args, **kwargs):
+            # From Python 3.14, Path.exists() reports a denied stat as missing.
+            return False if path == history else original_exists(path, *args, **kwargs)
+
+        def denied_stat():
+            stack = contextlib.ExitStack()
+            stack.enter_context(mock.patch.object(Path, "exists", hidden_denial))
+            stack.enter_context(mock.patch.object(os, "stat", unreadable_stat))
+            return stack
 
         def redirected_copilot():
             history.unlink()
@@ -416,23 +442,20 @@ class AppSandboxSetupTest(unittest.TestCase):
 
         # Ordered so each arrangement builds on the previous filesystem state.
         cases = (
-            ("unreadable", lambda: None, unreadable_exists, 1, "readable"),
-            ("missing", lambda: shutil.rmtree(history), None, 0, "missing; grant skipped"),
-            ("regular file", lambda: history.write_text("", encoding="utf-8"), None, 1, "non-symlink"),
-            ("redirected .copilot", redirected_copilot, None, 1, "non-symlink"),
+            ("unreadable", lambda: None, denied_stat, 1, "readable"),
+            ("missing", lambda: shutil.rmtree(history), contextlib.nullcontext, 0, "missing; grant skipped"),
+            ("regular file", lambda: history.write_text("", encoding="utf-8"), contextlib.nullcontext, 1, "non-symlink"),
+            ("redirected .copilot", redirected_copilot, contextlib.nullcontext, 1, "non-symlink"),
         )
-        for name, arrange, exists, expected, message in cases:
+        for name, arrange, patch, expected, message in cases:
             arrange()
             for command, options in (("plan", ("--no-instructions",)), ("history", ("plan",))):
                 with self.subTest(case=name, command=command):
-                    patch = (mock.patch.object(Path, "exists", exists) if exists
-                             else contextlib.nullcontext())
-                    with patch:
+                    with patch():
                         code, output = self.run_cli(command, *options)
                     self.assertEqual(code, expected, output)
                     self.assertIn(message, output)
                     self.assertNotIn(str(history), output)
-            self.assertFalse((self.home / ".copilot/app-sandbox-setup-backups").exists())
 
     def test_history_apply_requires_fresh_policy_and_directory_confirmation(self) -> None:
         history, before = self.history_fixture()

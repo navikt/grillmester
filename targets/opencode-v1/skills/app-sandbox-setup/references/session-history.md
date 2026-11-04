@@ -20,8 +20,9 @@ python3 <script> history apply --confirm <digest>
 Omitting `--project` targets every configured Copilot project; do that only
 when the user requested all projects. Otherwise pass the exact configured
 project directory to both commands. Add `--no-session-history` to both
-commands to remove only the exact shared grant. Existing entries that name the
-same directory by case, trailing slash or symlink count as that grant. The
+commands to remove only the shared grant. Existing grants that name the same
+directory by case, trailing slash or symlink count as that grant; denied paths
+keep their own path. The
 same opt-out works with normal `plan`, `apply` and `guide`; repeat it on later
 setup runs.
 

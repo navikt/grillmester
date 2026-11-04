@@ -49,7 +49,7 @@ Explain these in plain words. The sandbox is guardrails, **not containment**.
 - This is a deliberate loss of cross-project history isolation, not a blanket
   grant to `.copilot` or permission to read unrelated material. The app DB,
   settings, OAuth files and sandbox backups keep their existing protection.
-- `--no-session-history` removes the exact shared readonly grant. It does not
+- `--no-session-history` removes the shared readonly grant and its aliases. It does not
   remove broader/narrower user grants or the app's own grants. Verify both
   checkpoint reads and the current session's own artifact writes after restart.
 

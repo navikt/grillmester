@@ -44,7 +44,7 @@ def profile_opt_in_paths(rules: dict[str, Any], facts: Facts) -> list[str]:
 def session_history_paths(rules: dict[str, Any], facts: Facts, options: Options,
                           warnings: list[str]) -> list[str]:
     if options.no_session_history:
-        warnings.append(Info("Shared session history is OFF: only the exact shared grant is removed; "
+        warnings.append(Info("Shared session history is OFF: only the shared grant and its aliases are removed; "
                              "narrower, broader and app-owned grants remain."))
         return []
     home = Path(facts.home)
@@ -142,7 +142,7 @@ def same_history(facts: Facts, path: str, history: Path) -> bool:
     try:
         return facts.same(Path(path), history)
     except RuntimeError:
-        # Unresolvable entries keep their lexical identity instead of aborting setup.
+        # An entry that cannot be resolved is not the shared grant.
         return False
 
 
@@ -161,8 +161,11 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
     history = home / rules["SESSION_HISTORY_PATH"]
     for field in PATH_FIELDS:
         # Spellings and aliases of the shared history grant follow the same opt-out and cleanup rules.
-        existing = list(dict.fromkeys(str(history) if same_history(facts, path, history) else path
-                                      for path in after.get(field, [])))
+        # A deny keeps its own path, because the sandbox applies it to that path only.
+        existing = list(dict.fromkeys(
+            str(history) if Path(path) == history
+            or field != "deniedPaths" and same_history(facts, path, history) else path
+            for path in after.get(field, [])))
         retired = {str(home / path): reason
                    for path, reason in rules["RETIRED_GRANTS"].get(field, {}).items()}
         if field == "deniedPaths":
@@ -171,7 +174,7 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
             retired.update({path: "profile opt-in inactive" for path in facts.profile_candidates
                             if path not in facts.profile_readonly})
         if field == "readonlyPaths" and options.no_session_history:
-            retired[str(home / rules["SESSION_HISTORY_PATH"])] = "--no-session-history removes this exact shared grant"
+            retired[str(home / rules["SESSION_HISTORY_PATH"])] = "--no-session-history removes this shared grant"
         if options.no_docker and field == "readwritePaths":
             retired.update({path: "--no-docker removes this exact grant" for path in facts.docker})
         for path in existing:
