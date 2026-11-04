@@ -284,6 +284,15 @@ actions. Names, sources, imported skills and the component set are
 unchanged. The rights journal binds this content and provenance while
 preserving the underlying decision in #56.
 
+PR [#107](https://github.com/navikt/grillmester/pull/107) reviews a correction
+in the imported `aksel-design` skill. It replaces a critical rule against
+Tailwind spacing with guidance that follows Aksel's own Tailwind documentation:
+prefer Aksel props and tokens, follow the repository's rules, and treat Tailwind
+spacing as compatible when the CSS layers are set up as documented. Names,
+sources, imported skills and the component set are unchanged. The rights journal
+binds this content and provenance while preserving the underlying decision in
+#56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
