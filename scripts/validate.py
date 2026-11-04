@@ -216,9 +216,9 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         (
             NO_EXECUTION_BRANCH,
             "Never fall back to `gh`, shell, raw HTTP",
-            "cplt-guarded `gh issue` commands",
-            "Outside that explicit cplt context",
-            "Never use raw HTTP for a tracker mutation",
+            "use `gh` for what it lacks",
+            "never bypass cplt's repository scope",
+            "Never use raw HTTP outside `gh` for a tracker mutation",
             "Status: NEEDS_INPUT",
             "original `local run` prompt",
             "exact, bounded mutation",
@@ -256,7 +256,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
     Guardrail(
         "team-status-semantic-tools",
         ("plugin/skills/team-status/SKILL.md",),
-        ("Never use `gh`, shell, raw HTTP", "Status: NEEDS_INPUT"),
+        ("never use `gh`, shell, raw HTTP", "Status: NEEDS_INPUT"),
     ),
     Guardrail(
         "projects-v2-no-cli-fallback",
@@ -468,7 +468,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "cplt-guardede `gh issue`-kommandoer",
             "Det krever ikke en egen write-MCP",
             "repo-scope og `gh`-guard",
-            "gjelder ikke automatisk Copilot app, cloud agent",
+            "bruker Grillmester `gh`",
             "`--npm-access`",
             ".npmrc",
             "NPM_AUTH_TOKEN",

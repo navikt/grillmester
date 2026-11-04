@@ -42,8 +42,9 @@ relevant excerpt and note the limitation in the report.
 For GitHub Projects:
 
 1. Check whether an approved semantic GitHub or Projects integration is
-   actually available at runtime. Never use `gh`, shell, raw HTTP, or other
-   network commands as a fallback in this product workflow.
+   actually available at runtime. When your role forbids command execution,
+   never use `gh`, shell, raw HTTP, or other network commands as a fallback in
+   this product workflow; otherwise `gh` is the fallback.
 2. Obtain the owner and project number from a confirmed link or team source.
 3. Retrieve fields, options, and items dynamically through the integration.
 4. Find the team's explanation of columns and fields. Do not infer "active",
