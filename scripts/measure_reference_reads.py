@@ -45,7 +45,7 @@ SKILLS = _load_sibling("grillmester_skill_references_for_reads", "skill_referenc
 
 MAX_TOOL_CALLS = 12
 RUN_TIMEOUT_SECONDS = 170
-EDIT_TOOLS = frozenset({"apply_patch", "create", "edit", "str_replace_editor", "write"})
+EDIT_TOOLS = frozenset({"apply_patch", "create", "edit", "write"})
 FINGERPRINT_LINES = 3
 FINGERPRINT_MINIMUM = 45
 USE_SKILL = "\n\nBruk skillen `{skill}`."
@@ -204,7 +204,8 @@ CASES = (
     Case(
         "dulting",
         "references/ethics-and-evaluation.md",
-        "Lag en FORGOOD-vurdering og en måleplan for påminnelsen om vedtak.",
+        "Mange glemmer å svare på varselet om vedtak. Foreslå en påminnelse vi kan"
+        " teste.",
     ),
     Case(
         "improve-codebase-architecture",
@@ -341,8 +342,8 @@ CASES = (
     Case(
         "triage",
         "AGENT-BRIEF.md",
-        "Dette issuet er klart for arbeid: Vedtak mangler status i API-et. Lag "
-        "det som trengs.",
+        "Vurder dette issuet: Vedtak mangler status i API-et. Er det klart til å"
+        " jobbes med?",
     ),
     Case(
         "wayfinder",
@@ -383,7 +384,7 @@ class ReadResult:
     loaded: bool = False
     references: list[str] = field(default_factory=list)
     tool_calls: int = 0
-    first_reference: int | None = None
+    first_reads: dict[str, int] = field(default_factory=dict)
     first_edit: int | None = None
     premium_requests: float | None = None
     stopped: str = "exit"
@@ -392,8 +393,7 @@ class ReadResult:
     def mark(self, reference: str) -> None:
         if reference not in self.references:
             self.references.append(reference)
-        if self.first_reference is None:
-            self.first_reference = self.tool_calls
+        self.first_reads.setdefault(reference, self.tool_calls)
 
 
 def fingerprints(path: Path) -> tuple[str, ...]:
@@ -444,10 +444,13 @@ def read_events(
                 result.mark(viewed)
             payload = data.get("result")
             if isinstance(payload, dict):
-                text = f"{payload.get('content', '')}\n{payload.get('detailedContent', '')}"
+                text = str(payload.get("content", ""))
                 for reference, proof in proofs.items():
                     if any(item in text for item in proof):
                         result.mark(reference)
+            if result.tool_calls >= limit:
+                result.stopped = "tool limit"
+                return True
         if kind != "tool.execution_start":
             continue
         result.tool_calls += 1
@@ -455,16 +458,15 @@ def read_events(
         arguments = data.get("arguments") if isinstance(data.get("arguments"), dict) else {}
         if tool == "skill" and arguments.get("skill") == skill:
             result.loaded = True
-        if tool == "view":
+        command = arguments.get("command")
+        if tool == "view" or (tool == "str_replace_editor" and command == "view"):
             path = str(arguments.get("path", ""))
             for reference in proofs:
                 if path.endswith(f"/{skill}/{reference}"):
                     views[data.get("toolCallId")] = reference
-        if tool in EDIT_TOOLS and result.first_edit is None:
+        edits = tool in EDIT_TOOLS or (tool == "str_replace_editor" and command != "view")
+        if edits and result.first_edit is None:
             result.first_edit = result.tool_calls
-        if result.tool_calls >= limit:
-            result.stopped = "tool limit"
-            return True
     return False
 
 
@@ -537,6 +539,8 @@ def run_once(
             process.wait()
             if time.monotonic() - started >= RUN_TIMEOUT_SECONDS:
                 result.stopped = "timeout"
+            elif process.returncode and result.stopped == "exit":
+                result.stopped = f"exit {process.returncode}"
         finally:
             timer.cancel()
             ROUTING._stop(process)
@@ -545,9 +549,10 @@ def run_once(
 
 
 def read_before_edit(result: ReadResult, reference: str) -> bool:
-    if reference not in result.references or result.first_reference is None:
+    first = result.first_reads.get(reference)
+    if first is None:
         return False
-    return result.first_edit is None or result.first_reference < result.first_edit
+    return result.first_edit is None or first < result.first_edit
 
 
 def render_table(cases: Sequence[Case], results: Sequence[ReadResult]) -> str:
@@ -555,12 +560,13 @@ def render_table(cases: Sequence[Case], results: Sequence[ReadResult]) -> str:
     for result in results:
         grouped[result.case].append(result)
     rows = [
-        "| Referanse | Lest | Før første endring | Leste også |",
-        "| --- | --- | --- | --- |",
+        "| Referanse | Lastet | Lest | Før første endring | Leste også |",
+        "| --- | --- | --- | --- | --- |",
     ]
     read = total = 0
     for case in cases:
         runs = grouped.get(case.id, [])
+        loaded = sum(result.loaded for result in runs)
         hits = sum(case.reference in result.references for result in runs)
         early = sum(read_before_edit(result, case.reference) for result in runs)
         also = Counter(
@@ -571,11 +577,12 @@ def render_table(cases: Sequence[Case], results: Sequence[ReadResult]) -> str:
         )
         extra = ", ".join(f"`{name}` {count}" for name, count in also.most_common(3))
         rows.append(
-            f"| `{case.id}` | {hits}/{len(runs)} | {early}/{len(runs)} | {extra or '–'} |"
+            f"| `{case.id}` | {loaded}/{len(runs)} | {hits}/{len(runs)} "
+            f"| {early}/{len(runs)} | {extra or '–'} |"
         )
         read += hits
         total += len(runs)
-    rows.append(f"| **Sum** | **{read}/{total}** | | |")
+    rows.append(f"| **Sum** | | **{read}/{total}** | | |")
     return "\n".join(rows) + "\n"
 
 
@@ -599,16 +606,21 @@ def main(arguments: Sequence[str] | None = None) -> int:
         for case in CASES
         if not options.only or case.id in options.only or case.skill in options.only
     )
+    if not cases:
+        print("no case matches --only", file=sys.stderr)
+        return 1
     copilot = shutil.which(options.copilot)
     if copilot is None:
         print(f"{options.copilot} was not found", file=sys.stderr)
         return 1
+    plugin = (options.output / "plugin").resolve()
+    if plugin.exists():
+        print(f"{options.output} holds an older copy; use a new directory", file=sys.stderr)
+        return 1
     token = ROUTING.github_token()
     options.output.mkdir(parents=True, exist_ok=True)
-    plugin = (options.output / "plugin").resolve()
-    if not plugin.exists():
-        ROUTING.copy_plugin_without_model_pins(options.plugin.resolve(strict=True), plugin)
-        open_manual_skills(plugin)
+    ROUTING.copy_plugin_without_model_pins(options.plugin.resolve(strict=True), plugin)
+    open_manual_skills(plugin)
     jobs = [(case, run) for run in range(options.runs) for case in cases]
     results: list[ReadResult] = []
     with (
@@ -641,6 +653,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
     table = render_table(cases, results)
     (options.output / "summary.md").write_text(table, encoding="utf-8")
     print(table)
+    failed = [result for result in results if result.stopped.startswith("exit ")]
+    if failed:
+        print(f"{len(failed)} sessions failed, so their misses mean nothing", file=sys.stderr)
+        return 1
     return 0
 
 

@@ -233,7 +233,7 @@
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {
-      "sha256": "06db767ccedfd7b8a40a4da9a8b76a7b09675659a0f9648853937f132712743f",
+      "sha256": "b09c52ae095f70147b494adcb53079a71d3e1035d13efa992a13c9fc127fb842",
       "mode": "0644"
     },
     "skills/architecture-review/references/nav-context.md": {
@@ -245,7 +245,7 @@
       "mode": "0644"
     },
     "skills/create-a-skill/SKILL.md": {
-      "sha256": "bafcc6a78de1823319bc113aac33d917403010e231cfaaeb28eaf6a5b317263e",
+      "sha256": "7ac96a31c46011a0e1db5ef31da55d54513e959c8709846b0ba9cc9c0c6b85ed",
       "mode": "0644"
     },
     "skills/create-a-skill/references/copilot-cli-validation.md": {
@@ -261,7 +261,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "a7ed66edfdd54df150ff23bb6339fdfd2334c93295292cc165803c20e1551a8a",
+      "sha256": "5685bab322f9232fd17651a6a6b979169779bf6400759835936af1acf7d8938a",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -325,7 +325,7 @@
       "mode": "0644"
     },
     "skills/dulting/SKILL.md": {
-      "sha256": "0a87919144bf922de302a22160a576e8519b574d34281d1d12177cba5a666650",
+      "sha256": "929e06106d08b24c7398afb4168c75f5bc02e0c81c21b8ba8f0fbac10a88f2d0",
       "mode": "0644"
     },
     "skills/dulting/references/behavioral-patterns.md": {
@@ -373,7 +373,7 @@
       "mode": "0644"
     },
     "skills/klarsprak/SKILL.md": {
-      "sha256": "3113262a1e782cef2382fbeebcbef24f6cd693d9c45e5edc9e1afc2b863ecb43",
+      "sha256": "4c00d639e24b8efb6cca21817dfbe78db7f7fb2c18e456459f2e6e3de45b7495",
       "mode": "0644"
     },
     "skills/klarsprak/references/ai-markorer.md": {
@@ -473,7 +473,7 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "ff0d0a7efd12b0cc618f288a8dedc49deec732d72749bd4c6ce596a8d43c7ece",
+      "sha256": "97be0618685ef55169fac8441d1aa040f0fba067554dac4a9b8b5d91f7a05c66",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
@@ -485,7 +485,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "2a37f32d0b81a391ff66baca3a014e0be4f232d69df4ec7c44bae0fd876bb801",
+      "sha256": "c112a9232aaec8bbbf894fc5608ddcd7c4d0eba3db452b78f3e5638c282e122e",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
@@ -521,7 +521,7 @@
       "mode": "0644"
     },
     "skills/triage/SKILL.md": {
-      "sha256": "82ba5afedb12e8db8ac08411b33bc31efeb602219a3a7be67368326ee6f6368e",
+      "sha256": "1e0c5380e010d8dc3642e8f02255b59c858c163b81ce6a7eb94a1aa7f7adf35d",
       "mode": "0644"
     },
     "skills/wait-what/SKILL.md": {

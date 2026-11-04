@@ -25,6 +25,7 @@ _SKILL_MODULE = importlib.util.module_from_spec(_SKILL_SPEC)
 _SKILL_SPEC.loader.exec_module(_SKILL_MODULE)
 skill_references = _SKILL_MODULE.skill_references
 disclosed_references = _SKILL_MODULE.disclosed_references
+prose_lines = _SKILL_MODULE.prose_lines
 
 
 PLUGIN_NAME = "grillmester"
@@ -96,6 +97,7 @@ FORBIDDEN_SCAFFOLD_MARKERS = re.compile(
 MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 REFERENCE_CONTENTS_LIMIT = 100
 REFERENCE_CONTENTS_HEADINGS = ("Contents", "Innhold")
+CONTENTS_LINK = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 AGENT_FRONTMATTER_KEYS = {
     "name",
     "description",
@@ -1192,19 +1194,17 @@ def validate_skill_links(
 
 
 def second_level_headings(text: str) -> list[str]:
-    headings = []
-    fenced = False
-    for line in text.splitlines():
-        if line.startswith("```"):
-            fenced = not fenced
-        elif not fenced and line.startswith("## "):
-            headings.append(line[3:].strip())
-    return headings
+    return [line[3:].strip() for line in prose_lines(text) if line.startswith("## ")]
 
 
 def contents_entries(text: str) -> list[str]:
-    section = re.split(r"^## .*$", text, maxsplit=2, flags=re.MULTILINE)[1]
-    return [line[2:].strip() for line in section.splitlines() if line.startswith("- ")]
+    entries: list[str] = []
+    headings = 0
+    for line in prose_lines(text):
+        headings += line.startswith("## ")
+        if headings == 1 and line.startswith("- "):
+            entries.append(CONTENTS_LINK.sub(r"\1", line[2:]).strip())
+    return entries
 
 
 def validate_disclosed_references(
@@ -1214,7 +1214,7 @@ def validate_disclosed_references(
 
     linked = {
         (skill_root / target.strip().split("#", 1)[0]).resolve()
-        for target in MARKDOWN_LINK.findall(body)
+        for target in MARKDOWN_LINK.findall("\n".join(prose_lines(body)))
         if not target.startswith(("http://", "https://", "mailto:"))
     }
     for reference in disclosed_references(skill_root):

@@ -65,7 +65,8 @@ Avoid:
 
 - **Implementation-coupled tests:** mocking internal collaborators, testing
   private methods, asserting call counts or order with no contract reason, or
-  checking a side channel, such as a storage table, instead of the interface.
+  checking a side channel, such as a storage table, instead of the interface,
+  unless the schema itself is the contract.
 - **Tautological tests:** an expected value computed the way the code computes
   it. Take expected values from an independent source: a literal, a worked
   example or the spec. Check that a plausible wrong result would fail.

@@ -18,7 +18,7 @@ betydning.
 | Oppgaven berører | Les |
 |---|---|
 | **Begreper:** fagtermer, anglisismer eller teksttype | [fagtermer-og-anglisismer.md](./references/fagtermer-og-anglisismer.md) |
-| **KI-preg:** teksten høres generert ut, eller du skriver en lengre tekst | [ai-markorer.md](./references/ai-markorer.md) |
+| **KI-preg:** teksten høres generert ut | [ai-markorer.md](./references/ai-markorer.md) |
 | **Omskriving:** du skriver om en setning eller et avsnitt | [for-og-etter.md](./references/for-og-etter.md) |
 
 ## Oppdag språkreglene først

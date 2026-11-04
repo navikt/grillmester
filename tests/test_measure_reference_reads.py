@@ -114,10 +114,54 @@ class EventTests(unittest.TestCase):
         self.assertTrue(READS.read_before_edit(early, "references/a.md"))
         self.assertFalse(READS.read_before_edit(late, "references/a.md"))
 
+    def test_each_reference_keeps_its_own_first_read(self) -> None:
+        run = result()
+        view_b = call("view", path="/skills/skill/references/b.md")
+        view_a = call("view", path="/skills/skill/references/a.md")
+        edit = call("edit", "edit", path="README.md")
+        READS.read_events(
+            [view_b, output(), edit, view_a, output()], run, "skill", PROOFS
+        )
+        self.assertTrue(READS.read_before_edit(run, "references/b.md"))
+        self.assertFalse(READS.read_before_edit(run, "references/a.md"))
+
+    def test_str_replace_editor_view_is_a_read_and_not_an_edit(self) -> None:
+        run = result()
+        READS.read_events(
+            [
+                call(
+                    "str_replace_editor",
+                    command="view",
+                    path="/skills/skill/references/a.md",
+                ),
+                output(),
+            ],
+            run,
+            "skill",
+            PROOFS,
+        )
+        self.assertEqual(["references/a.md"], run.references)
+        self.assertIsNone(run.first_edit)
+
+    def test_the_last_allowed_call_still_counts(self) -> None:
+        run = result()
+        READS.read_events(
+            [call("view", path="/skills/skill/references/a.md"), output()],
+            run,
+            "skill",
+            PROOFS,
+            limit=1,
+        )
+        self.assertEqual(["references/a.md"], run.references)
+
     def test_the_tool_limit_stops_a_run(self) -> None:
         run = result()
         stopped = READS.read_events(
-            [call("view", path="README.md")] * 3, run, "skill", PROOFS, limit=2
+            [call("view", path="README.md"), output()] * 3,
+            run,
+            "skill",
+            PROOFS,
+            limit=2,
         )
         self.assertTrue(stopped)
         self.assertEqual("tool limit", run.stopped)
@@ -149,11 +193,15 @@ class FixtureTests(unittest.TestCase):
     def test_table_counts_reads_and_other_references(self) -> None:
         case = READS.Case("skill", "references/a.md", "Prompt")
         hit = READS.ReadResult(
-            case.id, 0, references=["references/a.md", "references/b.md"], first_reference=1
+            case.id,
+            0,
+            loaded=True,
+            references=["references/a.md", "references/b.md"],
+            first_reads={"references/a.md": 1},
         )
         miss = READS.ReadResult(case.id, 1, first_edit=1)
         table = READS.render_table((case,), (hit, miss))
-        self.assertIn("| `skill/references/a.md` | 1/2 | 1/2 | `b.md` 1 |", table)
+        self.assertIn("| `skill/references/a.md` | 1/2 | 1/2 | 1/2 | `b.md` 1 |", table)
         self.assertIn("**1/2**", table)
 
 

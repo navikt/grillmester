@@ -19,7 +19,7 @@ govern the artifact this skill produces.
 |---|---|
 | **Writing:** deciding what stays in `SKILL.md`, what is disclosed and what belongs in `scripts/` | [principles.md](references/principles.md) |
 | **Validation:** right before you validate a skill | [copilot-cli-validation.md](references/copilot-cli-validation.md), and use the branch for the intended client |
-| **Term or failure mode:** a defined term needs clarifying, or a failure needs a name | only its heading in [glossary.md](references/glossary.md) |
+| **Term or failure mode:** a defined term needs clarifying, or a failure needs diagnosis | only its heading in [glossary.md](references/glossary.md) |
 
 ## Choose the mode
 
@@ -74,7 +74,8 @@ the intended installation scope is unresolved. Do not add a parallel skill
 tree. Place each skill at `<selected-root>/<kebab-case-name>/SKILL.md`, with
 optional `references/`, `scripts/`, and `assets/` directories beside it. Keep
 disclosed references one level below `SKILL.md` and point to each one directly
-from a Read first section in `SKILL.md`, with the condition for loading it.
+from a Read first section in `SKILL.md`, or from the one step that needs it,
+with the condition for loading it.
 
 Use the portable GitHub skill frontmatter supported by the target clients and
 narrowed by the target repository's policy:
@@ -128,8 +129,8 @@ edits and report these conditions as findings instead.
 
 ## 5. Validate and forward-test
 
-Run the structural, link,
-discovery, and invocation checks that are safe in the target repository.
+Run the structural, link, discovery, and invocation checks that are safe in the
+target repository.
 In create or revise mode, execute bundled scripts on
 representative fixtures and inspect the final diff for scope, relevance,
 no-ops, duplication, and stale repository assumptions. In diagnose or review

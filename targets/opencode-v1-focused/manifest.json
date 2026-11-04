@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "d39f3702ba2b42d3c32bc48168c2ea8e85cf4394d901b14af7e772f841cc471c",
+    "targetManifestSha256": "4a6ce4e17110b641b0508bdf96738174fc2b75a80b7fa01b8ae3338583c3b054",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -122,7 +122,7 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "678aec1001836d71807f4635d54d480d9ddb4b710547bac19ef0de21dafc88f4",
+      "sha256": "6e92eb65c9de0062f08cf61f3cd8cc13d685cd8654ce3b5f32062d813faed290",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
@@ -134,7 +134,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "ae49516529b51544c37702282e24d73709467445be29fa7c2e6a30b0848f37ba",
+      "sha256": "90a1c742908231aec495fe6d4bd4d7c8be52750a6ba76b5eeb4423390fd1b91c",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {

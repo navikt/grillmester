@@ -395,7 +395,7 @@
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {
-      "sha256": "bb6444097454736b8b35c1a90665770aeeccb0e4668e701f545c2e662af219b7",
+      "sha256": "ec528fa96b8c9edc62e02bfc9e1a292451a338b72eea91702bd3e503a8af484c",
       "mode": "0644"
     },
     "skills/architecture-review/references/nav-context.md": {
@@ -423,7 +423,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "0e9bb2884a5fbbe099b688ed819387502fe1b70450001a9760afbd04a9bfb4da",
+      "sha256": "ea3b32dfaa914817db92efcc2865d52d04591af0b98419194861405370b11fc3",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -483,7 +483,7 @@
       "mode": "0644"
     },
     "skills/dulting/SKILL.md": {
-      "sha256": "b93386a235d4c07f79cb03e61ef8eca214cfaa35a2f949b5e47bc077d8002065",
+      "sha256": "8dbb6ba00ff6265fe7ccd220fd91ede9f4cfb8a7da8c7f0e6e58da4142e32d61",
       "mode": "0644"
     },
     "skills/dulting/references/behavioral-patterns.md": {
@@ -531,7 +531,7 @@
       "mode": "0644"
     },
     "skills/klarsprak/SKILL.md": {
-      "sha256": "41518ce3c16a2ac047fadb9204d34ba014d1a100a91358d3d17a76bf7f0f47f2",
+      "sha256": "36cf85c89d4590b2356a346cec91148f4991d1ca0588acb0400a448288e57de5",
       "mode": "0644"
     },
     "skills/klarsprak/references/ai-markorer.md": {
@@ -631,7 +631,7 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "159493ec32d2db8fb2f7f71ab1312338e146fc56e2e720720b939fb8b00bbea1",
+      "sha256": "2625e458dd9d4c4dcb489c2262bd40bbad5e63e2b8163f8cdcf69ec438abec36",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
@@ -643,7 +643,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "ae49516529b51544c37702282e24d73709467445be29fa7c2e6a30b0848f37ba",
+      "sha256": "90a1c742908231aec495fe6d4bd4d7c8be52750a6ba76b5eeb4423390fd1b91c",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
@@ -679,7 +679,7 @@
       "mode": "0644"
     },
     "skills/triage/SKILL.md": {
-      "sha256": "7b79fcfc061c348e4e820d205ecbb3bf64a95265f601f8df53599780a17ee390",
+      "sha256": "2bb11416c98c25101ccaa77f3dcd1b88e2470476b28e392db88a7fda6980a71c",
       "mode": "0644"
     },
     "skills/wait-what/SKILL.md": {

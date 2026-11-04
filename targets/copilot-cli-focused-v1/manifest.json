@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "87a1ac2cdf50d5beaa9fe33d37f33fb8bd6fd7e57cc26c96fd791a1cb6f77be0",
+    "payloadManifestSha256": "ffc5bee2074eed192eb5a41ed216f734cbefb04ccde9c40bfb9c6182e5a4c9a1",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -89,7 +89,7 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "9a4b4f9495b4944a503e0bb8946be69fed40dd5a35d82067b53ed287e053afd3",
+      "sha256": "1433699ae2b4e91e3a478f1d4f6364dbca51b8484e93038c01178f3c3efeb620",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
@@ -101,7 +101,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "2a37f32d0b81a391ff66baca3a014e0be4f232d69df4ec7c44bae0fd876bb801",
+      "sha256": "c112a9232aaec8bbbf894fc5608ddcd7c4d0eba3db452b78f3e5638c282e122e",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {

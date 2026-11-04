@@ -6,8 +6,8 @@ videre fra en lastet skill til riktig referanse. Om skillen lastes uten hint, st
 [baseline for skillvalg](skill-routing-baseline.md). Kjør målingen med
 `scripts/measure_reference_reads.py`.
 
-Etter endringen ble referansen lest i 148 av 156 økter, og hver gang før
-første endring. Det gjelder alle referanser. Under to av tre:
+Etter endringen ble referansen lest i 148 av 156 økter. Det gjelder alle
+referanser. Under to av tre:
 
 - `aksel-design/references/components.md`: 1 av 3.
 - `design-prototype/references/application-opening.md`: 0 av 3.
@@ -73,5 +73,6 @@ trenger.
 atferden, så målingene bruker ikke flagget. Tallene under «Hva pekeren betyr» ble
 målt med flagget. De er sammenlignbare med hverandre, men ikke med hovedtallet.
 
-Tre økter viser bare store forskjeller. En referanse er lest bare når teksten kom
-tilbake til modellen, eller når `view` av filen lyktes.
+Tre økter viser bare store forskjeller. En referanse teller som lest når teksten
+kom tilbake til modellen, eller når `view` av filen lyktes. Et delvis oppslag teller
+også, så tallene er en øvre grense.

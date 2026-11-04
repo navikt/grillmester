@@ -7,7 +7,8 @@ description: "Assess a design or change for security and privacy risks. Use for 
 
 ## Read first
 
-1. Find every row below that the task touches.
+1. Find every row below that the task touches, and look again when new facts
+   appear.
 2. Read those references before you edit, answer or run a command.
 3. Name the references you read when you report.
 

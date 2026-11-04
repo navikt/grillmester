@@ -20,7 +20,7 @@ verified facts, assumptions and decisions throughout the work.
 | The task touches | Read |
 |---|---|
 | **Behavioural mapping:** mapping the journey, applying Fogg or EAST, or comparing techniques | [behavioral-patterns.md](references/behavioral-patterns.md) |
-| **Ethics and evaluation:** the FORGOOD assessment, experiment design or a measurement plan | [ethics-and-evaluation.md](references/ethics-and-evaluation.md) |
+| **Any intervention:** before you design one, for the FORGOOD assessment, experiment design and measurement plan | [ethics-and-evaluation.md](references/ethics-and-evaluation.md) |
 
 ## Scope the problem
 
@@ -66,9 +66,11 @@ Never use the prototype as evidence that the intervention works in production.
 
 ## Run the ethics gate
 
-Stop before designing or experimenting when the responsible product,
-subject-matter, legal, privacy or accessibility role must make a decision that
-cannot be derived from the sources.
+Run the FORGOOD assessment, experiment design and measurement plan from
+[the ethics and evaluation reference](references/ethics-and-evaluation.md). Stop
+before designing or experimenting when the responsible product, subject-matter,
+legal, privacy or accessibility role must make a decision that cannot be derived
+from the sources.
 
 Require specific clarification for:
 
