@@ -13,7 +13,7 @@ piloteres fra en lokal Grillmester-checkout; videre terminaldistribusjon
 samordnes med nav-pilot. Installer cplt og den bruker-eide OpenCode-klienten:
 
 ```bash
-brew install navikt/tap/cplt opencode
+brew install navikt/tap/cplt anomalyco/tap/opencode
 ```
 
 OpenCode er en brukerinstallert terminalklient. Grillmester resolver
@@ -276,7 +276,9 @@ en pågående session beholder allerede lastet kontekst.
 
 ## Grensen mot OpenCode 2
 
-OpenCode 2 er beta og utenfor første release-løfte. V1-targetfilene forventes å
-være strukturelt kompatible, men permissions, provider/model-adferd og faktisk
-runtimeparitet må testes separat før `opencode2` omtales som støttet. Bruk
-`opencode` for den støttede OpenCode 1-flaten.
+OpenCode 2 er utenfor første release-løfte, og `brew install opencode` gir nå
+OpenCode 2. V1-targetfilene forventes å være strukturelt kompatible, men
+permissions, provider/model-adferd og faktisk runtimeparitet må testes separat
+før OpenCode 2 omtales som støttet. OpenCode 1 installeres fra OpenCodes egen
+Homebrew-tap. Har du `opencode` fra Homebrew fra før, kjør `brew uninstall opencode`
+før du installerer fra tapen.

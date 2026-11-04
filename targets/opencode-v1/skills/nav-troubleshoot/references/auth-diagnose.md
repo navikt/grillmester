@@ -71,7 +71,9 @@ Only diagnose a sidecar when deployment evidence shows one is used. Compare:
 
 1. sidecar health and injected endpoint variable names
 2. application request shape and target
-3. sidecar response status with sensitive content suppressed
+3. sidecar response with sensitive content suppressed; Texas introspection
+   answers 200 for a well-formed request, so read `active` and `error`, not the
+   status
 4. application caching and error handling
 
 Running a request inside a production pod can expose credentials or change
@@ -87,6 +89,9 @@ state. Show the exact redacted command and ask for approval first.
 | discovery/JWKS unreachable | outbound policy, DNS and provider status |
 | no HTTP response, timeout or reset | DNS, routing, ingress and service-to-service access policy |
 | proxy- or sidecar-generated 401/403 | verified proxy/sidecar configuration and redacted diagnostics |
+| 401 while Texas itself fails | an outage shown as a rejected token; a Texas failure should give 5xx |
+| target denies a cached token after an access-policy change | one retry with `skip_cache` set to `true` |
+| login level rejected | both `acr` forms, such as `idporten-loa-high` and `Level4` |
 | app-level denial | verified roles, groups, scopes and route policy |
 
 Any policy or code change is a proposal until the user approves the exact

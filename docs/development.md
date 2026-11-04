@@ -215,7 +215,7 @@ den starter ingen modellklient og inngår ikke i pluginpayloaden. Se
 
 Plugin-smoken skal bekrefte 6 agenter, 44 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
-minimumsklienten Copilot CLI `1.0.79` annonserer hele flaggrosteren som local-run
+minimumsklienten Copilot CLI `1.0.100` annonserer hele flaggrosteren som local-run
 eier i `--help`, uten modell- eller nettverkskall. Den eksakte local-smoken
 kjører flaggene med release-testklienten. OpenCode-smoken bruker
 OpenCode `1.18.20`, kopierer targetet til en skrivbar tempmappe og bekrefter native
@@ -228,7 +228,7 @@ en deterministisk loopback-provider gjennom ekte OpenCode og bekrefter native
 delegering, blokkert `.env`, progressiv skill-reference, avvist write og en
 eksplisitt auto-godkjent write uten å kontakte en modell. Begge smokene hopper
 kontrollert over når binæren mangler. Den eksakte release-testbaselinen er
-OpenCode `1.18.20`, Copilot CLI `1.0.80` og cplt
+OpenCode `1.18.20`, Copilot CLI `1.0.100` og cplt
 `2026.08.17-062831-1008a92`. De er testinput, ikke runtimepinner;
 standardlauncheren støtter kompatible 1.x-klienter og nyere datostemplede
 cplt-releaser. Releasegaten skal kjøre de eksakte smokene:
@@ -261,10 +261,10 @@ konkrete lokale modellen. Agentpakkemanifestet er en kildekontrakt for
 avhengighet til `nav-pilot` eller en installert Copilot-agent.
 
 Launcher- og formeltestene skal i tillegg bevise systemklientkontrakten: en
-manglende OpenCode-installasjon gir `brew install opencode`, installert Copilot
-CLI virker uten OpenCode, `doctor` skiller `skip` fra eksplisitt feil, ingen
-klienter gir en samlet feil, og formelen oppretter aldri `libexec/clients` eller
-legger en privat klientkatalog først på `PATH`.
+manglende OpenCode-installasjon gir `brew install anomalyco/tap/opencode`,
+installert Copilot CLI virker uten OpenCode, `doctor` skiller `skip` fra
+eksplisitt feil, ingen klienter gir en samlet feil, og formelen oppretter aldri
+`libexec/clients` eller legger en privat klientkatalog først på `PATH`.
 
 ## Discovery-budsjett
 

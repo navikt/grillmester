@@ -308,7 +308,7 @@ class GrillmesterCliTests(unittest.TestCase):
         def resolve(client: str) -> str:
             if client == "opencode":
                 raise CLI.MissingBinaryError(
-                    "OpenCode was not found on PATH; install it with: brew install opencode"
+                    "OpenCode was not found on PATH; install it with: brew install anomalyco/tap/opencode"
                 )
             return "/opt/homebrew/bin/copilot"
 
@@ -323,7 +323,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ) as save, mock.patch.object(CLI, "check_client_runtime") as runtime:
             runtime.return_value = (
                 "copilot",
-                "/opt/homebrew/bin/copilot (GitHub Copilot CLI 1.0.80.)",
+                "/opt/homebrew/bin/copilot (GitHub Copilot CLI 1.0.100.)",
             )
             selected = CLI.interactive_defaults()
 
@@ -388,7 +388,7 @@ class GrillmesterCliTests(unittest.TestCase):
         def resolve(client: str) -> str:
             if client == "opencode":
                 raise CLI.MissingBinaryError(
-                    "OpenCode was not found on PATH; install it with: brew install opencode"
+                    "OpenCode was not found on PATH; install it with: brew install anomalyco/tap/opencode"
                 )
             return "/opt/homebrew/bin/copilot"
 
@@ -405,7 +405,7 @@ class GrillmesterCliTests(unittest.TestCase):
             "check_client_runtime",
             return_value=(
                 "copilot",
-                "/opt/homebrew/bin/copilot (GitHub Copilot CLI 1.0.80.)",
+                "/opt/homebrew/bin/copilot (GitHub Copilot CLI 1.0.100.)",
             ),
         ), mock.patch.object(
             CLI, "input", side_effect=["c", ""], create=True
@@ -761,7 +761,7 @@ class GrillmesterCliTests(unittest.TestCase):
     ) -> None:
         checks = [
             ("cplt", f"/trusted/cplt (cplt {CLI.SUPPORTED_CPLT_RELEASE})"),
-            ("copilot", "/trusted/copilot (GitHub Copilot CLI 1.0.80.)"),
+            ("copilot", "/trusted/copilot (GitHub Copilot CLI 1.0.100.)"),
         ]
         stderr = io.StringIO()
         with mock.patch.object(CLI, "load_preferences", return_value=None), mock.patch.object(
@@ -871,7 +871,7 @@ class GrillmesterCliTests(unittest.TestCase):
             CLI,
             "_resolve_binary",
             side_effect=CLI.MissingBinaryError(
-                "OpenCode was not found on PATH; install it with: brew install opencode"
+                "OpenCode was not found on PATH; install it with: brew install anomalyco/tap/opencode"
             ),
         ), mock.patch.object(
             CLI, "input", create=True
@@ -947,7 +947,7 @@ class GrillmesterCliTests(unittest.TestCase):
             ), mock.patch.object(
                 CLI,
                 "check_client_runtime",
-                return_value=("copilot", "/bin/copilot (GitHub Copilot CLI 1.0.80.)"),
+                return_value=("copilot", "/bin/copilot (GitHub Copilot CLI 1.0.100.)"),
             ), mock.patch.object(
                 CLI, "check_client"
             ) as check_client, mock.patch.object(
@@ -1232,14 +1232,14 @@ class GrillmesterCliTests(unittest.TestCase):
             "cplt", "/bin/cplt", f"cplt {CLI.SUPPORTED_CPLT_RELEASE}"
         )
         output = (
-            "GitHub Copilot CLI 1.0.80.\n"
+            "GitHub Copilot CLI 1.0.100.\n"
             "Run 'copilot update' to check for updates.\n"
         )
         with mock.patch.object(
             CLI, "_bounded_command_output", return_value=(0, output, "")
         ):
             self.assertEqual(
-                "GitHub Copilot CLI 1.0.80.",
+                "GitHub Copilot CLI 1.0.100.",
                 CLI._sandboxed_client_version(
                     "copilot", cplt=cplt, distribution=self.distribution
                 ),
@@ -1249,7 +1249,7 @@ class GrillmesterCliTests(unittest.TestCase):
         cplt = CLI.CheckedBinary(
             "cplt", "/bin/cplt", f"cplt {CLI.SUPPORTED_CPLT_RELEASE}"
         )
-        output = "GitHub Copilot CLI 1.0.80.\nunexpected banner\n"
+        output = "GitHub Copilot CLI 1.0.100.\nunexpected banner\n"
         with mock.patch.object(
             CLI, "_bounded_command_output", return_value=(0, output, "")
         ):
@@ -1308,7 +1308,10 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(
             CLI, "_sandboxed_client_version", return_value="2.0.0"
         ):
-            with self.assertRaisesRegex(CLI.LauncherError, "supported 1.x range"):
+            with self.assertRaisesRegex(
+                CLI.LauncherError,
+                "supported 1.x range.*brew install anomalyco/tap/opencode",
+            ):
                 CLI.check_client_runtime(
                     "opencode",
                     cplt=cplt,
@@ -1405,7 +1408,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(
             CLI,
             "_sandboxed_client_version",
-            return_value="GitHub Copilot CLI 1.0.80.",
+            return_value="GitHub Copilot CLI 1.0.100.",
         ):
             checks = CLI.check_client("copilot")
         self.assertEqual("cplt", checks.cplt.label)
@@ -1440,7 +1443,10 @@ class GrillmesterCliTests(unittest.TestCase):
             "_sandboxed_client_version",
             return_value="GitHub Copilot CLI 2.0.0.",
         ):
-            with self.assertRaisesRegex(CLI.LauncherError, "supported 1.x range"):
+            with self.assertRaisesRegex(
+                CLI.LauncherError,
+                "supported 1.x range.*brew upgrade --cask copilot-cli",
+            ):
                 CLI.check_client_runtime(
                     "copilot", cplt=cplt, distribution=self.distribution
                 )
@@ -1454,7 +1460,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(
             CLI,
             "_sandboxed_client_version",
-            return_value="GitHub Copilot CLI 1.0.80-beta.1",
+            return_value="GitHub Copilot CLI 1.0.100-beta.1",
         ):
             with self.assertRaisesRegex(CLI.LauncherError, "prerelease"):
                 CLI.check_client_runtime(
@@ -1473,7 +1479,7 @@ class GrillmesterCliTests(unittest.TestCase):
         ), mock.patch.object(
             CLI, "_sandboxed_client_version", return_value="0.0.410"
         ):
-            with self.assertRaisesRegex(CLI.LauncherError, "starting at 1.0.79"):
+            with self.assertRaisesRegex(CLI.LauncherError, "starting at 1.0.100"):
                 CLI.check_client("copilot")
 
     def test_doctor_skips_an_absent_optional_client_and_checks_cplt_once(self) -> None:
@@ -1586,7 +1592,7 @@ class GrillmesterCliTests(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertEqual("", result.stdout)
         self.assertIn("OpenCode was not found on PATH", result.stderr)
-        self.assertIn("brew install opencode", result.stderr)
+        self.assertIn("brew install anomalyco/tap/opencode", result.stderr)
 
     def test_installed_copilot_cli_works_without_opencode(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1598,7 +1604,7 @@ class GrillmesterCliTests(unittest.TestCase):
             )
             resolved_cplt = str(cplt.resolve(strict=True))
             self._write_version_binary(
-                binaries, "copilot", "GitHub Copilot CLI 1.0.80."
+                binaries, "copilot", "GitHub Copilot CLI 1.0.100."
             )
             environment = {
                 **os.environ,

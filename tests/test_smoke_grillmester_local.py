@@ -50,7 +50,7 @@ def post_completion(base_url: str, payload: dict[str, object]) -> str:
 
 
 def native_skill_tool() -> dict[str, object]:
-    # Schema observed from the isolated reviewed Copilot 1.0.80 binary.
+    # Schema observed from the isolated reviewed Copilot 1.0.100 binary.
     return {
         "type": "function",
         "function": {

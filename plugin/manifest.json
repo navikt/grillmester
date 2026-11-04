@@ -153,7 +153,7 @@
       "mode": "0644"
     },
     "skills/aksel-design/SKILL.md": {
-      "sha256": "f4f8cc1b47e919f589fdad0e1b139aa481abffdf519ff0ce1ee350026f7a421d",
+      "sha256": "7d5145b71e45a7937e7eaea4581c60b264d3781b6361ad3d1d82af6afbf22fc6",
       "mode": "0644"
     },
     "skills/aksel-design/references/components.md": {
@@ -169,7 +169,7 @@
       "mode": "0644"
     },
     "skills/aksel-design/references/setup.md": {
-      "sha256": "79955398819eba6e7f84dd38c3f192041c68e9776220a3b402a522e4f3edde89",
+      "sha256": "f792e71a447c2b492894b97819019d4f37bae6440e09c9fe1e10e3e512ef8d5d",
       "mode": "0644"
     },
     "skills/aksel-design/references/tokens.md": {
@@ -301,7 +301,7 @@
       "mode": "0644"
     },
     "skills/auth-overview/SKILL.md": {
-      "sha256": "de584d2dee654ba350b380e086678298566d723802ec8646d9011f19a10b1677",
+      "sha256": "ed718f61938e31939ee5508e9bec5c6288e8edc55a27c79e902ba94226aeae15",
       "mode": "0644"
     },
     "skills/auth-overview/references/decision-tree.md": {
@@ -309,7 +309,7 @@
       "mode": "0644"
     },
     "skills/auth-overview/references/local-auth-mock.md": {
-      "sha256": "ab8fc0e47e90489184905ca963ab598908ca751d94e72f386ebb8d06e12b8cae",
+      "sha256": "84d337c070b4bbb170ab89dd0a96bffda95f0f6b14ebbd517aa5a5947f737dc5",
       "mode": "0644"
     },
     "skills/create-a-skill/SKILL.md": {
@@ -737,7 +737,7 @@
       "mode": "0644"
     },
     "skills/nais-manifest/references/pod-lifecycle.md": {
-      "sha256": "30f8bc5f2065013a4f999234fca5fe214b51f85eb079a5015aa17062bb7d766e",
+      "sha256": "b6b99088c7df59be1db697a3373fdd9f4405f76d10ba2cf2b6f9a560b9c64232",
       "mode": "0644"
     },
     "skills/nav-troubleshoot/SKILL.md": {
@@ -745,7 +745,7 @@
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/auth-diagnose.md": {
-      "sha256": "2ca4e35faf982b9b5ac694a52fce2ef4c480a9e270a4e9621fc824d7acf001e8",
+      "sha256": "e853bc042cc07dc7f10d437ddaf8314f05fcd977f626e3fc77fd45927724fcee",
       "mode": "0644"
     },
     "skills/nav-troubleshoot/references/database-diagnose.md": {

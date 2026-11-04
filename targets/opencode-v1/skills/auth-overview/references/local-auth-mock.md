@@ -50,7 +50,8 @@ Point the test-only discovery URL and accepted audience to the mock issuer, send
 the token through the repository's normal test HTTP client, and stop the server
 in the test framework's cleanup hook. Cover at least valid token, wrong issuer,
 wrong audience, expired token, missing required claim, and insufficient
-authorization.
+authorization. When the code checks `acr`, cover both `Level4` and
+`idporten-loa-high`.
 
 ## Local containers
 

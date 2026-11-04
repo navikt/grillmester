@@ -86,7 +86,7 @@ klientprosess er ikke bevis på at oppgaven er semantisk fullført.
 
 OpenCode, Copilot CLI og cplt installeres og oppdateres av brukeren. Local-
 flyten bruker de samme kompatibilitetsgrensene som standardlauncheren:
-OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.79,<2` og cplt fra testbaselinen
+OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.100,<2` og cplt fra testbaselinen
 eller en nyere, gyldig datostemplet release.
 
 De eksakte versjonene i releasegaten er testinput, ikke runtimepinner.

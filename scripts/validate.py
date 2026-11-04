@@ -432,7 +432,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "cplt er fortsatt en hard runtimegrense",
             "det finnes ingen direkte eller stille fallback",
             "OpenCode `>=1.18.20,<2`",
-            "Copilot CLI `>=1.0.79,<2`",
+            "Copilot CLI `>=1.0.100,<2`",
             "installert Copilot CLI uten OpenCode",
         ),
     ),

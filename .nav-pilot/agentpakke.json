@@ -9,7 +9,7 @@
   "minNavPilotVersion": "2026.08.28-091813-dc3e4ff",
   "clients": {
     "copilot": {
-      "compatibility": ">=1.0.79,<2",
+      "compatibility": ">=1.0.100,<2",
       "defaultModel": "inherit",
       "defaultContext": "full",
       "payloads": {

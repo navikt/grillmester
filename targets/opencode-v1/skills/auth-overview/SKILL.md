@@ -77,6 +77,10 @@ a Ktor service this may be Nav token-support integrated with Ktor
 Do not hand-roll JWT validation or add a second auth stack without an explicit
 decision.
 
+Texas introspection answers HTTP 200 for a well-formed request, valid token or
+not, so read `active` in the body, not the status. If Texas itself fails, answer
+5xx, not 401, so an outage does not look like a rejected token.
+
 Validate at least signature, issuer, audience, expiry and not-before. Then
 validate the claims required by the operation:
 
@@ -86,7 +90,11 @@ validate the claims required by the operation:
 - `oid` identifies an Azure object;
 - `azp` identifies the authorized party and must be checked against the
   intended callers for M2M access;
-- `acr` must meet the required login level when the operation needs one.
+- `client_id` identifies the calling application in TokenX tokens as
+  `<cluster>:<namespace>:<app>`; check it when authorizing per calling app;
+- `acr` must meet the required login level when the operation needs one. Nais
+  maps some values for compatibility, so check both forms, such as
+  `idporten-loa-high` and `Level4`.
 
 Derive the acting identity from validated claims, not from request fields.
 Keep health and metrics routes outside user authentication only when the
@@ -112,15 +120,17 @@ Confirm the exact endpoint variable, content type, provider name, target format,
 and response shape from current authoritative Nais documentation and the
 repository implementation. Preserve an existing token cache. If a client-side
 cache is necessary, key it by target and refresh before expiry; never stack a
-second cache on top of a provider that already owns caching.
+second cache on top of a provider that already owns caching. Texas caches
+tokens itself; if a target denies a token after its access policy changed,
+retry once with `skip_cache` set to `true`.
 
 ## Diagnose 401 and 403 systematically
 
 1. Reproduce without printing the token.
 2. Identify the verified producer of the HTTP response from redacted evidence:
    ingress or auth proxy, sidecar, application, or downstream service.
-3. Compare environment, issuer, audience, target, provider, expiry, `azp`, and
-   required claims with the deployed manifest and code.
+3. Compare environment, issuer, audience, target, provider, expiry, `azp` or
+   `client_id`, and required claims with the deployed manifest and code.
 4. Diagnose ingress separately. Use `accessPolicy` for service-to-service
    connectivity and applicable token-grant context, and NetworkPolicy for
    network-connectivity evidence. Do not presume that either produced an

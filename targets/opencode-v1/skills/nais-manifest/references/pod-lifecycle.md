@@ -6,10 +6,11 @@ description: Nais pod termination and portable graceful-shutdown checks for back
 
 Inspect the current Nais behavior and repository lifecycle before changing it.
 When termination begins, Kubernetes starts the grace period and removes the pod
-from service endpoints. A `preStopHook` runs only when one is configured; some
-repositories or deployment templates use a delay or application callback there.
-Confirm current platform and manifest behavior rather than assuming such a hook
-exists or copying a delay value from another service.
+from service endpoints. Unless the manifest sets its own hook, Nais adds a
+default `preStop` hook that waits five seconds before the application receives
+SIGTERM, and the wait counts toward the grace period. Some repositories use
+their own delay or application callback instead. Confirm current platform and
+manifest behavior rather than copying a delay value from another service.
 
 The application should:
 
