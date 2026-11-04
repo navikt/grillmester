@@ -77,7 +77,9 @@ explicit per application.
 - The published contract owns its event identity. Deduplicate on that identity,
   never on offset.
 - Reuse the existing poison-message strategy. Do not replace one strategy with
-  another silently.
+  another silently. Preserve enough metadata to replay safely, alert on the rate,
+  restrict access to sensitive payloads, and never log the raw payload or personal
+  key.
 
 ## Kafka diagnosis
 

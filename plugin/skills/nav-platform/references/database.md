@@ -89,8 +89,9 @@ perform a destructive shared-schema change on an assumed notification window.
 
 ## Database diagnosis
 
-First detect database engine, provisioning model, driver, pool, migration tool,
-replica count and configuration names from consumer evidence. Cloud SQL,
+Apply the [data-access boundary](diagnosis.md#data-access) before any query or log
+read. First detect database engine, provisioning model, driver, pool, migration
+tool, replica count and configuration names from consumer evidence. Cloud SQL,
 PostgreSQL, HikariCP and Flyway are common Nais choices, not assumptions.
 
 ### Read-only evidence

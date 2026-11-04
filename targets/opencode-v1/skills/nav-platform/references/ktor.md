@@ -28,3 +28,10 @@ actual framework.
   accidentally.
 - **Blocking work stays out of handlers.** Run Kafka polling outside request
   handlers. Shutdown follows [the pod lifecycle](nais.md#pod-lifecycle).
+
+## Ask first
+
+- Adding an engine, DI framework, public error contract, shared-client retry
+  policy or new startup path.
+- Changing authentication, database migration timing, Kafka delivery semantics or
+  graceful-shutdown guarantees.

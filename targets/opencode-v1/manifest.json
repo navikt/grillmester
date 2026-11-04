@@ -192,7 +192,7 @@
       "mode": "0644"
     },
     "commands/nav-platform.md": {
-      "sha256": "3a3690d4656c8bca76e3094dc739ad5a8ec97c2b76c119df3b4a2602b13c10f0",
+      "sha256": "b1e5edb24b5b00838979d425156041f1300ea28b8469e6163f1bdbe8b2386f14",
       "mode": "0644"
     },
     "commands/okr.md": {
@@ -716,7 +716,7 @@
       "mode": "0644"
     },
     "skills/nav-platform/SKILL.md": {
-      "sha256": "7b77eacbb531a6b40d9e7ee8dd77e58c4d8131c684bf8982227ebca4a252ce94",
+      "sha256": "0275f580e106d87ee7eebe69fc227cfe39c57a6f1964e097d73935efd5197471",
       "mode": "0644"
     },
     "skills/nav-platform/references/api.md": {
@@ -724,11 +724,11 @@
       "mode": "0644"
     },
     "skills/nav-platform/references/auth.md": {
-      "sha256": "ed16f9eb9b9cddb19533750934bff7af92a93f21e85abdc2dba000e8800871fd",
+      "sha256": "a5e7fb9be238acf9e43147ea3c69508538fe9862401ebedef6393fe7b5d61373",
       "mode": "0644"
     },
     "skills/nav-platform/references/database.md": {
-      "sha256": "31fcac01f7b7cbfe4005ec5e3d0ecddb65f8b4383f4ee1f92ad644d0ebc772f0",
+      "sha256": "6cc0969e4a6720ef46155a337abdd7ee3b7efe9296fc3e2172836f8735e08799",
       "mode": "0644"
     },
     "skills/nav-platform/references/diagnosis.md": {
@@ -736,11 +736,11 @@
       "mode": "0644"
     },
     "skills/nav-platform/references/kafka.md": {
-      "sha256": "b670671a9aff53179460891280112de1a7b0e9b1e5c034a81566d578c7955b81",
+      "sha256": "dbe99f743c6cfae8ed72af4473e59b42ab46f82fc53f7a54c5d34458ae9a6a9a",
       "mode": "0644"
     },
     "skills/nav-platform/references/ktor.md": {
-      "sha256": "50f4a20d86d55a7abfc02f21e0a0747200e839e81fd227ca5121f38ee8bee3e1",
+      "sha256": "5bdc50e9442672a0adf0807091882df28595bb1ceeddd006d9d8bb2ba19c84b7",
       "mode": "0644"
     },
     "skills/nav-platform/references/local-auth-mock.md": {

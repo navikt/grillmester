@@ -103,8 +103,9 @@ The pilot's `api-design`, `auth-overview`, `kafka-topic`, `kotlin-ktor`,
 reference per area; `nav-platform` is their runtime successor. Those IDs remain
 the original source IDs, and the content lock records them as its lineage. It
 uses `nav-troubleshoot` as the `sourcePath` because diagnosis starts with that
-skill's method. The consolidation keeps Nav and Nais facts and removes what
-ADR 0035 places elsewhere; it imports no new content.
+skill's method. The consolidation keeps Nav and Nais facts and deletes general
+guidance a capable model already has, such as schema and query review, API
+compatibility and event contracts; it imports no new content.
 
 `guided-review` is a Grillmester adaptation of the pilot review boundary. It
 keeps complete diff coverage and deterministic evidence while adding a
@@ -317,9 +318,10 @@ lock and this provenance record while preserving the underlying decision in #56.
 
 PR [#118](https://github.com/navikt/grillmester/pull/118) reviews the move of
 eight skills into `nav-platform`. Within the rights scope it changes the skill
-IDs that `architecture-review` and `lumi-survey` point to, and the Kafka routing
-in `architecture-review` that follows from them. It adds no third-party material,
-and the source IDs stay on record above. The rights journal binds this content,
+IDs that `architecture-review` and `lumi-survey` point to, and the routing in
+`architecture-review` that follows from them, which now names API exposure and
+Kafka topics instead of concrete contracts. It adds no third-party material, and
+the source IDs stay on record above. The rights journal binds this content,
 the content lock and this provenance record while preserving the underlying
 decision in #56.
 
