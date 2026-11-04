@@ -70,14 +70,14 @@ covers all of the following:
 1. `/grilling`;
 2. automatic skill routing;
 3. Wayfinder discovery and delegation;
-4. `Grillmester → Grill-inspektør` for an agreed R3/R4 change: the main agent
+4. `Grillmester → Grill-inspektør` for an agreed change at R2 or above: the main agent
    implements and verifies it before independent review of the stable diff;
 5. Visual Companion;
 6. one approved, harmless write in the disposable fixture; and
 7. one rejected write with no file, Git ref, or external-resource side effect.
 
 High risk alone must not force delegation. Self-review or passing tests
-alone must not satisfy the R3/R4 independent-review gate. Record a missing
+alone must not satisfy the independent-review gate from R2. Record a missing
 review capability honestly rather than treating direct implementation as a waiver.
 
 Use the role and write constraints in consumer-pilot runbook sections 5 and 6.

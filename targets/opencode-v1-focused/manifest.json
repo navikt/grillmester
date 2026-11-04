@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "79d64d1d210b9abfe043550781abbff6dbddc7e33563d3fc2966fc51e2b86c92",
+    "targetManifestSha256": "de93df2030dd4e4bfabaed0d10c7a8b4e6544e1cc8daf291d0e123f2df58f34a",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -58,7 +58,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "78b5f73f7ca7d372b878a24a748061a9ec7a9276c4d2e67e237af83ef3a8d48c",
+      "sha256": "596f5101ddb5c38e261900167ef315b38dd97a59486c60241420fa8940f34aaf",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
@@ -118,11 +118,11 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "d72a9e73825e22b41be6b2a2dc369be8da7a6b709a316695e9a8e4f96ba6ace8",
+      "sha256": "3ee7fc55f1d603342e0794db6dd5fc156e2146d11a9e8f37def3c1d29de78520",
       "mode": "0644"
     },
     "skills/review/references/smells.md": {
-      "sha256": "4cc59d31d4a27a1c7c31c5a3bdca34b40b01b85cb2ffe601cb9b7c39023381d6",
+      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -138,15 +138,11 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "a784019b3b18d3e4ef10822a18090d440008aa59e5b7cc7e1ce194e0af8b5607",
+      "sha256": "1db9c4954de5a28f5e278bc44264649d489dd94b73c37af5443fa0d827692137",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
       "sha256": "e97614726acef3958b8b5236758d01c1e41e1919418005dd532c07015a3c381a",
-      "mode": "0644"
-    },
-    "skills/tdd/refactoring.md": {
-      "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
     "skills/tdd/test-boundaries.md": {

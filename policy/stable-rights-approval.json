@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#112",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#116",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#112",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#116",
       "status": "approved"
     }
   },
@@ -31,7 +31,7 @@
         "aksel-design": "97060fbda5abf4a687376bdec07ad82d3bedc62b550e37d00ac39a70d9c2fd60",
         "architecture-review": "d237367e7654be10a0c90e7a5064b9af1a41bc25f5e0c581fddb4c276b83e6a0",
         "design-prototype": "678d7152f51e2107b73f1e7107209069a2b3354771b24736769fcc9a7b7b420f",
-        "doctor": "536a4f1f117939f1149d2b67aeeb16fba174948f9fa54575de988992b44988f0",
+        "doctor": "63a192a18f3b748ddee404a73936a14c045776326825360517fd332e824e579a",
         "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
         "figma-workflow": "3980ce1a848e35169594c29121e4d2dfd32abd562795d90065bca903eb5f7e94",
         "lumi-survey": "d9bc10c2a9dc986ddc42782029779b260d57b0255214a031716903fbadbdd46f",
@@ -41,11 +41,11 @@
         "workshop-design": "cc0e4c8e0fe6e2054fa4eb852a2605eb78ac854fb6732fab6ef2ef04abdb1a9b"
       }
     },
-    "contentLockSha256": "aeae1e3577f0567c0ea5201b50b27cd674ee703e76759c69fcf85e54b26dc3a8",
+    "contentLockSha256": "ce5b2cb3660a90b6418f89405fc219ac0b6b9716c78c868e74a431f96fced7c3",
     "hovmester": {
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "18a7afb350fafda1e31c036eaab6c696b20331d3f73d1611c7e34cbf2d3d954a"
+    "provenanceSha256": "abf29ceb67a8219305324e6798a868aa236047e576ac8cc3f2bca2a04ddedf53"
   }
 }

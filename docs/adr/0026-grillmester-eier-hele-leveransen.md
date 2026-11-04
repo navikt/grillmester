@@ -5,6 +5,9 @@ date: 2026-11-02
 
 # Grillmester eier hele leveransen
 
+> Kravet om uavhengig review gjelder nå fra R2, se
+> [ADR 0035](0035-plasser-innhold-etter-hva-det-gjor.md).
+
 Erstatter delvis ADR 0005, 0006, 0008 og 0024 for agentutvalget og delegering
 av implementering.
 

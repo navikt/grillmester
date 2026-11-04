@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "916dbeff9c934a05a94d9aaf9ed0734c0626ba07ac27723690181ef15f2e5216",
+    "payloadManifestSha256": "d8ee5d0e758cc92f9c77b25bb31b5c1cd0bb4a4b788ea77ccb706f72d718f0ca",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -56,7 +56,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "188e4e8331f68113440e60cc5e52e1d72e76514356d368fb190c11e62cc30bc6",
+      "sha256": "67a97b207c59fda49cf170b7535808fa6de5c04f99dcad0ec4116fb080f55bf9",
       "mode": "0644"
     },
     "plugin.json": {
@@ -88,11 +88,11 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "8e23954567e6b8e7a3a171705099e24c7ae84a46ade0d26a7e9eb010624fc0a7",
+      "sha256": "f6f4994d28f53cd5cb240be1ee5cc176cb925d9e999d1265570da65a8ad7e00e",
       "mode": "0644"
     },
     "skills/review/references/smells.md": {
-      "sha256": "4cc59d31d4a27a1c7c31c5a3bdca34b40b01b85cb2ffe601cb9b7c39023381d6",
+      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -108,15 +108,11 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "6994617e355d995fd8c2c7a61436c3dd451096b750182a8c20c055d5a64958ef",
+      "sha256": "581b3ffb851e60e34db06ba9ee0cc80755dfe3f1bbff6861ccff7f0fdbddbe33",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
       "sha256": "e97614726acef3958b8b5236758d01c1e41e1919418005dd532c07015a3c381a",
-      "mode": "0644"
-    },
-    "skills/tdd/refactoring.md": {
-      "sha256": "2e9481a885b292f7cb12a7dd46e26affdffd1813c5e6bd9ce7f1086a448ffb15",
       "mode": "0644"
     },
     "skills/tdd/test-boundaries.md": {

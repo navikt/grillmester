@@ -413,7 +413,7 @@ def replace_section(
 
 
 def apply_grillmester_focused_overlay(text: str, *, client: str, path: str) -> str:
-    """Narrow capability discovery without changing the shared delivery loop."""
+    """Narrow the skills to the focused roster and keep the delivery loop."""
     text = replace_section(
         text,
         start="## Available capabilities",
@@ -422,6 +422,10 @@ def apply_grillmester_focused_overlay(text: str, *, client: str, path: str) -> s
             "## Available capabilities\n\n"
             "This focused payload provides `diagnosing-bugs`, `grilling`,\n"
             "`issue-management`, `pull-request`, `review`, `security-review`, and `tdd`.\n"
+            "Clarify an unresolved goal with `grilling`, load `tdd` before you change\n"
+            "behavior, debug an unclear cause with `diagnosing-bugs` before you change code,\n"
+            "check with `review` and, when the risk rules say so, `security-review`, and use\n"
+            "`pull-request` for an authorized pull request.\n"
             "Load a skill from the active catalog only when the task needs its method;\n"
             "use its exact advertised identity and source through the native loading\n"
             "mechanism. Skill names are never shell commands. Do not preload the roster.\n"

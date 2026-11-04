@@ -44,7 +44,7 @@
     "matt-testing": {
       "repository": "mattpocock/skills",
       "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
-      "note": "Adapted the seam-first test plan, where each kept test states what it catches and misses; Grillmester states the plan and asks only when the seam or the kept tests are an unsettled material choice, and keeps refactoring inside the loop."
+      "note": "Adapted the seam-first test plan, where each kept test states what it catches and misses; Grillmester states the plan and asks only when the seam or the kept tests are an unsettled material choice."
     },
     "matt-grilling": {
       "repository": "mattpocock/skills",

@@ -38,8 +38,9 @@ Inspect only applicable sources:
   `.opencode/skills`, plus portable `.agents/skills` roots;
 - the configured Grillmester target's `manifest.json`, `agents/`, `commands/`,
   and `skills/` trees;
-- repository build definitions, entry points, tests, and maintained domain,
-  architecture, security, and operations documentation.
+- repository build definitions, continuous-integration workflows, entry points,
+  tests, and maintained domain, architecture, security, and operations
+  documentation.
 
 OpenCode merges several configuration scopes. A file's existence does not
 prove it wins. When effective config or the runtime roster cannot be observed,
@@ -96,6 +97,13 @@ Verify these dimensions separately:
    widen a role's denied task, shell, edit, web, or skill boundaries.
 8. **Shadowing** — no higher-precedence agent, command, or skill with the same
    ID silently replaces a Grillmester component.
+9. **Size gate** — the build or CI fails on oversized or overly complex code,
+   for example detekt `LongMethod`, `CyclomaticComplexMethod` and
+   `NestedBlockDepth`, or Biome `noExcessiveLinesPerFunction` and
+   `noExcessiveCognitiveComplexity`. Report a missing gate as `GAP` in a
+   repository with application code, and suggest a way to stop only new code,
+   such as a baseline, with limits generous enough not to push code into thin
+   helpers.
 
 Treat the OpenCode target as generated output. Recommend changing its canonical
 plugin source, adapter policy, or overlay and regenerating it; never recommend
@@ -136,6 +144,7 @@ Coverage:
 - Instructions: OK | GAP | DUPLICATION | UNVERIFIED — <evidence>
 - Permissions: OK | BLOCKER | GAP | UNVERIFIED — <evidence>
 - Shadowing: OK | BLOCKER | UNVERIFIED — <evidence>
+- Size gate: OK | GAP | UNVERIFIED — <evidence>
 
 Smallest next action:
 - <one bounded consumer- or source-owned change, or none>
