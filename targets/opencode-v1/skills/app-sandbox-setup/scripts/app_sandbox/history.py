@@ -56,7 +56,7 @@ def plan(connection: sqlite3.Connection, home: Path, project: Optional[Path],
         after = dict(before)
         for field in ("readwritePaths", "readonlyPaths"):
             if field in after and (field == "readwritePaths" or no_session_history):
-                after[field] = [path for path in after[field] if not facts.same(Path(path), target)]
+                after[field] = [path for path in after[field] if not policy.same_history(facts, path, target)]
         if grants and any(facts.under(target, Path(path)) for path in after.get("deniedPaths", [])):
             warnings.append(f'{display(row["name"])}: history grant skipped under an existing denied path.')
         elif grants:

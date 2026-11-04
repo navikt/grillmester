@@ -142,7 +142,7 @@ def same_history(facts: Facts, path: str, history: Path) -> bool:
     try:
         return facts.same(Path(path), history)
     except RuntimeError:
-        # Unresolvable entries keep their lexical identity instead of aborting setup.
+        # Lexical identity keeps --no-session-history usable when an entry or the root is unresolvable.
         return False
 
 
