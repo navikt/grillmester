@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#107",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#112",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#107",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#112",
       "status": "approved"
     }
   },
@@ -37,7 +37,7 @@
         "lumi-survey": "d9bc10c2a9dc986ddc42782029779b260d57b0255214a031716903fbadbdd46f",
         "okr": "8b6ece4c2dd014c5392be30687c611eba76a294ba5eedf85124fa807faacb60a",
         "produktledelse": "664b49e9544c54e4443903942495d30b975ed8e74099a5913847f98e6703426f",
-        "team-status": "16a4d8f66a09968029e02ca1ba3213c75e9702a6007b23dc6278a6870f2e271c",
+        "team-status": "5bf7785de165806fa3b997695a66ee9a1ad20859d3cce0f65de9ae30ef804310",
         "workshop-design": "cc0e4c8e0fe6e2054fa4eb852a2605eb78ac854fb6732fab6ef2ef04abdb1a9b"
       }
     },
@@ -46,6 +46,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "f01748e117c52bff4ceecfeb515a0af65c704ebd49a264a85a99ec6f72afcdb3"
+    "provenanceSha256": "18a7afb350fafda1e31c036eaab6c696b20331d3f73d1611c7e34cbf2d3d954a"
   }
 }

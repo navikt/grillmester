@@ -21,10 +21,10 @@ som ofte mangler:
 1. Toolset-et må eksplisitt aktiveres i serveroppsettet (typisk `--toolsets=projects` eller tilsvarende toolset-konfig)
 2. Tokenet må ha project-scope
 
-Verktøyene kan skjules uten riktig aktivering eller scope. Fravær av et
-verktøy er ikke tillatelse til å bytte til shell, `gh`, rå GraphQL, `curl` eller
-en annen nettverksvei. Ikke be brukeren kjøre slike kommandoer på vegne av
-Doctor Who.
+Verktøyene kan skjules uten riktig aktivering eller scope. For Doctor Who og
+andre roller uten kommandokjøring er fravær av et verktøy ikke tillatelse til å
+bytte til shell, `gh`, rå GraphQL, `curl` eller en annen nettverksvei. Ikke be
+brukeren kjøre slike kommandoer på vegne av dem.
 
 ## Når integrasjonen mangler
 

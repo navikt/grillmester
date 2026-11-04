@@ -112,17 +112,15 @@ smallest pasted or exported issue/project excerpt and return
 mutation as a draft and return `Status: NEEDS_INPUT`, naming the required
 integration or the exact manual GitHub UI action.
 
-An implementation agent in a terminal session explicitly started through
-Grillmester and cplt may use cplt-guarded `gh issue` commands as its approved
-GitHub adapter. Use only the confirmed current repository and account, keep the
-command inside cplt, and never bypass cplt's repository scope, GitHub guard or
-command restrictions. Prefer semantic GitHub tools when they are available.
+Otherwise prefer a semantic GitHub tool and use `gh` for what it lacks, including
+`gh api` for native relationships and project fields. A missing semantic tool is
+no reason to stop, and the authorization above covers the command. Use only the
+confirmed current repository and account. In a session started through
+Grillmester and cplt, keep the command inside cplt and never bypass cplt's
+repository scope, GitHub guard or command restrictions.
 When `GH_TOKEN` is supplied, never inspect or print the token or enumerate the
 full environment; invoke only the bounded `gh` command needed for the approved
-mutation.
-Outside that explicit cplt context, do not substitute `gh` or shell for a
-missing semantic tracker capability. Never use raw HTTP for a
-tracker mutation.
+mutation. Never use raw HTTP outside `gh` for a tracker mutation.
 
 Verify every created or changed issue, project item, field value, and
 relationship after writing.

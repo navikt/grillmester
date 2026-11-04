@@ -731,7 +731,7 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "e2bb03321c2c0171bd8f120f0ed74c68364fe550c085158eecf6ba2af32d32ee",
+      "sha256": "0be5370cf7d5c9cde9c2f6faf5707acf22c628500ae0da1a33edf78ef19fcce5",
       "mode": "0644"
     },
     "skills/kafka-topic/SKILL.md": {
@@ -927,11 +927,11 @@
       "mode": "0644"
     },
     "skills/team-status/SKILL.md": {
-      "sha256": "d34ff625cf08d73a6847eb9ead4db032da4ea110608e6561e822f0bb5d25ab9c",
+      "sha256": "ad51fa1ab998e7aa064c304d38646def13735d5f74075e3a3d6dfaa40cbdf716",
       "mode": "0644"
     },
     "skills/team-status/references/projects-v2.md": {
-      "sha256": "daf04a8387f830b85eb30c8f84a33152119fd7f2e59a6f29a3898d0fe6b78b07",
+      "sha256": "ad0b28e9fec9aa9a00569d3023407f5a8629f5e0eec2c7ce62a183d64ac25f81",
       "mode": "0644"
     },
     "skills/team-status/references/rapportmaler.md": {
