@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 37 skills. The sources below record attribution
+`plugin/`: six agents and 36 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -330,10 +330,16 @@ that leaves the independent reviewer to the user's choice. It changes no compone
 in the rights scope. The rights journal binds this provenance record while
 preserving the underlying decision in #56.
 
+PR [#120](https://github.com/navikt/grillmester/pull/120) reviews the removal of
+`lumi-survey`, which the team no longer needs. Within the rights scope it removes
+that skill and the `designer` agent's pointer to it. It adds no third-party
+material. The rights journal binds this content, the content lock and this
+provenance record while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
-  `produktledelse`, `team-status`, `workshop-design`, `dulting`, `lumi-survey`
+  `produktledelse`, `team-status`, `workshop-design`, `dulting`
 - Hovmester's visual `prototype` workflow is imported as `design-prototype`;
   the pilot's behavior-oriented `prototype` retains its original ID.
 

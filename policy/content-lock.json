@@ -234,7 +234,6 @@
       "disposition": "adapted"
     },
     "klarsprak": {"source": "pilot", "sourcePath": ".github/skills/klarsprak", "disposition": "adapted"},
-    "lumi-survey": {"source": "hovmester", "sourcePath": ".github/skills/lumi-survey", "disposition": "adapted"},
     "nav-platform": {
       "source": "pilot",
       "sourcePath": ".github/skills/nav-troubleshoot",

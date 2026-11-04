@@ -212,7 +212,7 @@ den starter ingen modellklient og inngår ikke i pluginpayloaden. Se
 [canvas-protokollen](testing/visual-companion-canvas.md) og
 [kjøreinstruksjonene](../experiments/canvas-review/README.md).
 
-Plugin-smoken skal bekrefte 6 agenter, 37 skills og byte-eksakt installasjon,
+Plugin-smoken skal bekrefte 6 agenter, 36 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
 minimumsklienten Copilot CLI `1.0.100` annonserer hele flaggrosteren som local-run
 eier i `--help`, uten modell- eller nettverkskall. Den eksakte local-smoken
