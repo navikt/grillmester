@@ -301,7 +301,7 @@ component set are unchanged. The rights journal binds this content and
 provenance while preserving the underlying decision in #56.
 
 PR [#116](https://github.com/navikt/grillmester/pull/116) reviews the size-gate
-dimension in the imported `doctor` skill, which reports a missing gate as a gap.
+dimension in the `doctor` skill, which reports a missing gate as a gap.
 It adds no third-party material. Names, sources, imported skills and the
 component set are unchanged. The rights journal binds this content, the content
 lock and this provenance record while preserving the underlying decision in #56.

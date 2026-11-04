@@ -74,9 +74,10 @@ Markdown files or a cross-task state protocol.
 
 This focused payload provides `diagnosing-bugs`, `grilling`,
 `issue-management`, `pull-request`, `review`, `security-review`, and `tdd`.
-Clarify an unresolved goal with `grilling`, build with `tdd`, debug an unclear
-cause with `diagnosing-bugs` before you change code, check with `review` and
-`security-review`, and deliver with `pull-request`.
+Clarify an unresolved goal with `grilling`, load `tdd` before you change
+behavior, debug an unclear cause with `diagnosing-bugs` before you change code,
+check with `review` and, when the risk rules say so, `security-review`, and use
+`pull-request` for an authorized pull request.
 Load a skill from the active catalog only when the task needs its method;
 use its exact advertised identity and source through the native loading
 mechanism. Skill names are never shell commands. Do not preload the roster.
