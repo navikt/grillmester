@@ -300,6 +300,12 @@ roles may use `gh` as the fallback. Names, sources, imported skills and the
 component set are unchanged. The rights journal binds this content and
 provenance while preserving the underlying decision in #56.
 
+PR [#116](https://github.com/navikt/grillmester/pull/116) reviews the size-gate
+dimension in `doctor`, which reports a missing gate as a gap. It adds no
+third-party material and changes no name, source or component. The rights journal
+binds this content and provenance while preserving the underlying decision in
+#56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,

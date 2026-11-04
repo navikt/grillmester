@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#112",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#116",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#112",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#116",
       "status": "approved"
     }
   },
@@ -31,7 +31,7 @@
         "aksel-design": "97060fbda5abf4a687376bdec07ad82d3bedc62b550e37d00ac39a70d9c2fd60",
         "architecture-review": "d237367e7654be10a0c90e7a5064b9af1a41bc25f5e0c581fddb4c276b83e6a0",
         "design-prototype": "678d7152f51e2107b73f1e7107209069a2b3354771b24736769fcc9a7b7b420f",
-        "doctor": "536a4f1f117939f1149d2b67aeeb16fba174948f9fa54575de988992b44988f0",
+        "doctor": "a0a0439ae3a10a6d85c257d260693b77ade647e92931e02322e1f7e914a75d0b",
         "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
         "figma-workflow": "3980ce1a848e35169594c29121e4d2dfd32abd562795d90065bca903eb5f7e94",
         "lumi-survey": "d9bc10c2a9dc986ddc42782029779b260d57b0255214a031716903fbadbdd46f",
@@ -46,6 +46,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "18a7afb350fafda1e31c036eaab6c696b20331d3f73d1611c7e34cbf2d3d954a"
+    "provenanceSha256": "d6313ca38809438945b96b396900d71d63274bcc1d49b8bba619f6d5e8f3364f"
   }
 }
