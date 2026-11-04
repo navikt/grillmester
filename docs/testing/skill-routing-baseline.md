@@ -15,6 +15,10 @@ gjelder ikke for en sterkere modell.
 Fem kjøringer viser bare store forskjeller. Sammenlign med samme modell og samme
 scenarioer, og ikke les noe ut av ett eller to treff.
 
+Målingen er gjort før åtte skills ble samlet i `nav-platform`. Scenarioene har
+beholdt ID-ene i tabellen, men forventer nå `nav-platform`. Tabellen viser hva
+som ble lastet da.
+
 | Scenario | Agent | Treff | Uten skill | Lastet |
 | --- | --- | --- | --- | --- |
 | `grilling` | grillmester | 0/5 | 5 | – |

@@ -266,7 +266,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
     ),
     Guardrail(
         "pod-evidence-approval",
-        ("plugin/skills/nav-troubleshoot/references/pod-diagnose.md",),
+        ("plugin/skills/nav-platform/references/nais.md",),
         (
             "Read-only is not a safety classification",
             "exact cluster/context, namespace",
@@ -277,21 +277,14 @@ GUARDRAILS: tuple[Guardrail, ...] = (
     ),
     Guardrail(
         "auth-status-producer",
-        ("plugin/skills/nav-troubleshoot/references/auth-diagnose.md",),
+        ("plugin/skills/nav-platform/references/auth.md",),
         (
             "verified producer of the HTTP response",
+            "Do not presume that either produced",
             "Neither is generally the producer of an HTTP 401 or 403",
             "blocked network path normally means",
         ),
         ("whether 401/403 comes from ingress/network policy",),
-    ),
-    Guardrail(
-        "auth-overview-status-producer",
-        ("plugin/skills/auth-overview/SKILL.md",),
-        (
-            "verified producer of the HTTP response",
-            "Do not presume that either produced",
-        ),
     ),
     Guardrail(
         "architecture-report-inert-html",
@@ -877,7 +870,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
         errors.append("package-manifest.json must contain exactly one package")
         return None
     expected_definitions = [
-        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 44},
+        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 37},
     ]
     if package_definitions != expected_definitions:
         errors.append("package-manifest.json package roster or counts have drifted")
@@ -1551,8 +1544,8 @@ def validate_package_rosters(
 ) -> None:
     if len(agent_ids) != 6:
         errors.append(f"plugin must contain 6 agents, found {len(agent_ids)}")
-    if len(skill_ids) != 44:
-        errors.append(f"plugin must contain 44 skills, found {len(skill_ids)}")
+    if len(skill_ids) != 37:
+        errors.append(f"plugin must contain 37 skills, found {len(skill_ids)}")
 
 
 def validate_assets(root: Path, errors: list[str]) -> None:

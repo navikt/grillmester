@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "97fee3779ce473493fbeb5af7b761c138fbd32a4b5bc37efe0b5e2aadca131cd",
+    "payloadManifestSha256": "011246acbf6abd75668a6c168db01a8266cb8f855449a1fd2d02fcc0ee9446df",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -64,7 +64,7 @@
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "e38a6a93c1966b6400f96d8b160c986ac5ca167e3efa112c81b3d4bcd70a014e",
+      "sha256": "b44896410c3f4d2ca08f1c72781fa57de0c0ecedeb8f13357a87086127153b09",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/references/data-access.md": {
@@ -96,7 +96,7 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "755960bf9fc9318c01b4c9a86ff77bce055e2cc0643fa38c073233ac414e2184",
+      "sha256": "6c4dfb8a9cfae9a05df052a0f4f0e5d1eec837f39da6640ac121c136ab97f630",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {

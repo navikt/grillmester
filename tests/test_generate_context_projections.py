@@ -66,13 +66,13 @@ class FocusedContextGenerationTest(unittest.TestCase):
             "---\npermission:\n  skill:\n    \"*\": allow\n"
             + manual
             + "    review: allow\n  task:\n    \"*\": deny\n    grill-inspektor: ask\n"
-            + "---\n# Agent\n\n    nav-troubleshoot: ask\n"
+            + "---\n# Agent\n\n    nav-platform: ask\n"
         )
         stripped = GENERATOR.strip_opencode_absent_skill_permissions(
             allowed, path="agents/grillmester.md"
         )
         self.assertIn("    grill-inspektor: ask\n", stripped)
-        self.assertIn("    nav-troubleshoot: ask\n", stripped)
+        self.assertIn("    nav-platform: ask\n", stripped)
         for entry in ("teach: ask", "triage: deny"):
             with self.subTest(entry=entry):
                 text = allowed.replace("    review: allow\n", f"    {entry}\n")

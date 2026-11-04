@@ -123,46 +123,46 @@ SCENARIOS = (
     Scenario(
         "api-design",
         "Andre team skal hente vedtak fra oss. Hvordan bør REST-API-et utformes?",
-        ("api-design",),
+        ("nav-platform",),
     ),
     Scenario(
         "auth-overview",
         "Hvordan validerer vi TokenX-tokens i denne tjenesten, og hvilke claims må "
         "vi sjekke?",
-        ("auth-overview",),
+        ("nav-platform",),
     ),
     Scenario(
         "kafka-topic",
         "Vi må publisere vedtakshendelser. Sett opp et nytt Kafka-topic på Aiven med "
         "riktige tilganger.",
-        ("kafka-topic",),
+        ("nav-platform",),
     ),
     Scenario(
         "kotlin-ktor",
         "Legg til et Ktor-endepunkt som henter ett vedtak med id.",
-        ("kotlin-ktor",),
+        ("nav-platform",),
     ),
     Scenario(
         "nais-manifest",
         "Appen trenger mer minne og tilgang til en annen tjeneste. Oppdater "
         "Nais-konfigurasjonen.",
-        ("nais-manifest",),
+        ("nav-platform",),
     ),
     Scenario(
         "nav-troubleshoot",
         "Appen går i CrashLoopBackOff i dev-gcp etter siste deploy. Hva er galt?",
-        ("nav-troubleshoot",),
+        ("nav-platform",),
     ),
     Scenario(
         "observability-setup",
         "Legg til metrikker og tracing, så vi ser hvor lang tid vedtakene tar.",
-        ("observability-setup",),
+        ("nav-platform",),
     ),
     Scenario(
         "postgresql-review",
         "Gå gjennom SQL-migreringen og indeksene for vedtakstabellen. Tåler dette "
         "ti millioner rader?",
-        ("postgresql-review",),
+        ("nav-platform",),
     ),
     Scenario(
         "architecture-review",

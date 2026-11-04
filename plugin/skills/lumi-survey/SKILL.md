@@ -1,6 +1,6 @@
 ---
 name: lumi-survey
-description: "Integrate or review @navikt/lumi-survey from frontend configuration through verified feedback submission. Use for Lumi widgets, survey choices, transport or privacy-safe context; use `auth-overview` for shared authentication design beyond the Lumi integration."
+description: "Integrate or review @navikt/lumi-survey from frontend configuration through verified feedback submission. Use for Lumi widgets, survey choices, transport or privacy-safe context; use `nav-platform` for shared authentication design beyond the Lumi integration."
 ---
 
 # Integrate Lumi Survey from current evidence

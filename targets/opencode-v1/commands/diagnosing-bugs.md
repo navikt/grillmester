@@ -1,5 +1,5 @@
 ---
-description: "Diagnose hard bugs, flakes and performance regressions with a tight feedback loop that goes red before any fix. Use when something is broken, failing or slow and the cause is unclear; use `tdd` for an established fix and `nav-troubleshoot` when the evidence is in a deployed Nais environment."
+description: "Diagnose hard bugs, flakes and performance regressions with a tight feedback loop that goes red before any fix. Use when something is broken, failing or slow and the cause is unclear; use `tdd` for an established fix and `nav-platform` when the evidence is in a deployed Nais environment."
 ---
 
 Use the `skill` tool to load `diagnosing-bugs`, then follow that skill for this request.

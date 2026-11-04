@@ -202,7 +202,7 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | **Kodebase og levering** | Arkitekturforbedring, README, PR eller skillvedlikehold. | Improve codebase architecture, README update, Pull request, Create a skill |
 | **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel design, Accessibility review, Design prototype, Figma workflow |
 | **Produkt og tjeneste** | Mål, discovery, teamarbeid, workshop, klarspråk eller ansvarlig atferdsdesign. | OKR, Produktledelse, Team status, Workshop design, Klarspråk, Dulting |
-| **Nav backend og plattform** | Kontrakter, identitet, runtime, data og operasjon i Nav/Nais. | API design, Auth overview, Kafka topic, Kotlin/Ktor, Nais manifest, Nav troubleshoot, Observability, PostgreSQL review |
+| **Nav backend og plattform** | Identitet, Nais, Kafka, database, observability og feilsøking i Nav/Nais. | Nav platform |
 | **Nav-produktcapabilities** | En Nav-spesifikk tjenestekomponent eller arbeidsmåte trengs. | Lumi Survey |
 
 Lumi Survey er en ordinær Nav-capability. Som alle integrasjonsskills skal den
@@ -211,13 +211,13 @@ ikke gjette detaljer fra minnet.
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 44 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 37 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-De 44 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
+De 37 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
 `design-prototype` og `review`. Nav-pilot eier valg og distribusjon av
 agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som
@@ -264,6 +264,7 @@ Disse grensene gjør overlappende metoder enklere å velge:
 | Se layout, hierarki eller en brukerflyt | `design-prototype` | Visuell skisse; `figma-workflow` bruker et eksisterende design som grunnlag. |
 | Bestemme hvor testene skal ligge, også integrasjons- og e2e-tester | `tdd` | Lager en kort testplan og holder testene få og plassert så høyt som det fortsatt er raskt. |
 | Kontrollere en ferdig diff eller forstå den sammen | `review` / `guided-review` | Egenkontroll versus interaktiv gjennomgang; `security-review` brukes ved relevante sikkerhets- og personvernspørsmål. |
+| Bygge på eller feilsøke Nais, Texas, TokenX, Kafka, Cloud SQL eller observability | `nav-platform` | Rutetabell til én referanse per område, med både design og feilsøking. `diagnosing-bugs` finner og retter en kodefeil; `security-review` gir en bredere sikkerhetsvurdering. |
 | Få forrige svar forklart enklere | `/wait-what` | Kun manuelt. Ny forklaring med litt kontekst, korte setninger og repoets begreper. |
 | Forbedre agentmiljøet etter en økt som gikk tungt | `/agent-retro` | Kun manuelt. Foreslår pekere, automatiske sjekker, slankere instruksjonsfiler og bedre tilgang til logger og informasjon; endrer bare det du godtar. Team-retroer hører til `workshop-design`. |
 
@@ -272,6 +273,20 @@ oppdeling i tickets kan uttrykkes i vanlig språk. Det oppretter ingen
 automatisk kjede fra grilling til spec og videre til issues. Fullmakt til
 konkrete eksterne handlinger følger brukerens oppdrag og gjeldende grenser;
 et skillskifte er ikke i seg selv en ny fullmakt.
+
+### Slash-navn som er borte
+
+`/api-design`, `/auth-overview`, `/kafka-topic`, `/kotlin-ktor`,
+`/nais-manifest`, `/nav-troubleshoot`, `/observability-setup` og
+`/postgresql-review` finnes ikke lenger. Bruk `/nav-platform`, eller beskriv
+oppgaven med vanlige ord. Skillen leser bare referansen for området oppgaven
+gjelder. Den dekker Nav- og Nais-fakta. Generell skjema- og spørringsgjennomgang,
+API-kompatibilitet og hendelseskontrakter er ikke med, fordi modellen kan det selv.
+
+Eldre repo- og brukerkopier forsvinner ikke av seg selv, og `/doctor` kjenner ikke
+lenger disse navnene. Søk etter dem i `.github/skills`, `.agents/skills`,
+`.claude/skills`, `~/.copilot/skills`, `~/.agents/skills` og repoets instruksjoner,
+og fjern eller oppdater det du finner.
 
 ## Videre
 
