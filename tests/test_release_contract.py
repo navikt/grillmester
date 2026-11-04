@@ -594,6 +594,7 @@ class ReleaseContractTest(unittest.TestCase):
             "shasum -a 256 -c grillmester-terminal-v0.2.0-poc.4.tar.gz.sha256",
             "tar -xzf grillmester-terminal-v0.2.0-poc.4.tar.gz",
             "brew install anomalyco/tap/opencode",
+            "npm install --global opencode-ai@1",
             "brew upgrade anomalyco/tap/opencode",
             "brew install --cask copilot-cli",
             "grillmester doctor --client copilot",

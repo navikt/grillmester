@@ -738,7 +738,7 @@ def _opencode_client_arguments(
 CLIENT_INSTALL_HINTS = {
     "copilot": "brew install --cask copilot-cli",
     "cplt": "brew install navikt/tap/cplt",
-    "opencode": "brew install anomalyco/tap/opencode",
+    "opencode": "brew install anomalyco/tap/opencode or npm install --global opencode-ai@1",
 }
 
 
@@ -1109,7 +1109,8 @@ def discover_clients(candidates: Sequence[str] = CLIENTS) -> tuple[str, ...]:
     if not available:
         raise LauncherError(
             "no supported terminal client was found on PATH; install OpenCode "
-            "with 'brew install anomalyco/tap/opencode' or GitHub Copilot CLI with "
+            "with 'brew install anomalyco/tap/opencode' or "
+            "'npm install --global opencode-ai@1', or GitHub Copilot CLI with "
             "'brew install --cask copilot-cli'"
         )
     return tuple(available)
