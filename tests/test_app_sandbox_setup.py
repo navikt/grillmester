@@ -388,8 +388,9 @@ class AppSandboxSetupTest(unittest.TestCase):
             connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
         code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
         self.assertEqual(code, 0, output)
-        self.assertEqual(sorted(json.loads(output)["projects"][0]["diff"]["readonlyPaths"]["removed"]),
-                         sorted(variants))
+        diff = json.loads(output)["projects"][0]["diff"]
+        self.assertEqual(sorted(diff["readonlyPaths"]["removed"]), sorted(variants))
+        self.assertIn(str(alias), diff["readwritePaths"]["removed"])
         code, output = self.run_cli("plan", "--no-instructions", "--json")
         self.assertEqual(code, 0, output)
         code, output = self.run_cli("apply", "--no-instructions", "--confirm", json.loads(output)["digest"])
@@ -401,6 +402,32 @@ class AppSandboxSetupTest(unittest.TestCase):
         shared = variants + [str(history)]
         self.assertEqual([path for path in after["readonlyPaths"] if path in shared], [str(history)])
         self.assertFalse([path for path in after["readwritePaths"] if path in shared])
+
+    def test_a_history_root_denied_through_an_alias_keeps_grant_aliases(self) -> None:
+        history, before = self.history_fixture()
+        grant, deny = self.home / "grant-alias", self.home / "deny-alias"
+        grant.symlink_to(history, target_is_directory=True)
+        deny.symlink_to(history, target_is_directory=True)
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + [str(grant)],
+                   "deniedPaths": before["deniedPaths"] + [str(deny)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        readonly = json.loads(output)["projects"][0]["diff"].get("readonlyPaths", {})
+        self.assertNotIn(str(history), readonly.get("added", []))
+        self.assertNotIn(str(grant), readonly.get("removed", []))
+
+    def test_a_deny_spelling_of_the_history_root_is_still_normalized(self) -> None:
+        history, before = self.history_fixture()
+        current = {**before, "deniedPaths": before["deniedPaths"] + [f"{history}/"]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        denied = json.loads(output)["projects"][0]["diff"]["deniedPaths"]
+        self.assertIn(str(history), denied["added"])
+        self.assertEqual(denied["removed"], [f"{history}/"])
 
     def test_opt_out_keeps_a_deny_on_the_real_history_target(self) -> None:
         history, before = self.history_fixture()

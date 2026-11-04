@@ -142,7 +142,7 @@ def same_history(facts: Facts, path: str, history: Path) -> bool:
     try:
         return facts.same(Path(path), history)
     except RuntimeError:
-        # Lexical identity keeps --no-session-history usable when an entry or the root is unresolvable.
+        # An entry that cannot be resolved is not treated as the shared grant.
         return False
 
 
@@ -159,12 +159,15 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
     })
     user_denied = [path for path in after["deniedPaths"] if path not in retired_denies]
     history = home / rules["SESSION_HISTORY_PATH"]
+    history_denied = any(same_history(facts, path, history) for path in after["deniedPaths"])
     for field in PATH_FIELDS:
-        # Spellings and aliases of the shared history grant follow the same opt-out and cleanup rules.
-        # A deny keeps its own path, because the sandbox applies it to that path only.
+        # Spellings and aliases of the shared history grant follow the same opt-out and cleanup
+        # rules. A deny keeps its own path, and a denied root keeps its aliases, so normalizing
+        # never moves a grant onto a path that a deny alias protects.
         existing = list(dict.fromkeys(
             str(history) if Path(path) == history
-            or field != "deniedPaths" and same_history(facts, path, history) else path
+            or field != "deniedPaths" and not history_denied and same_history(facts, path, history)
+            else path
             for path in after.get(field, [])))
         retired = {str(home / path): reason
                    for path, reason in rules["RETIRED_GRANTS"].get(field, {}).items()}

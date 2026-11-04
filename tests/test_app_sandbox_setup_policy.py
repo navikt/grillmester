@@ -145,6 +145,14 @@ class DiscoveryFactsTest(unittest.TestCase):
         self.assertTrue(state.unreadable)
         self.assertFalse(state.exists)
 
+    def test_missing_and_looped_paths_do_not_exist(self):
+        path = Path("/synthetic/Policy-Path")
+        for code in (errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP):
+            with self.subTest(code=code), \
+                    mock.patch.object(Path, "exists", return_value=False), \
+                    mock.patch.object(discovery.os, "stat", side_effect=OSError(code, "synthetic")):
+                self.assertFalse(discovery.path_exists(path))
+
     def test_distinct_inodes_stay_distinct_on_a_case_sensitive_volume(self):
         left, right = Path("/synthetic/session-state"), Path("/synthetic/Session-State")
         facts = Facts("/synthetic", paths={
