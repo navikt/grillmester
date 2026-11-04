@@ -2,6 +2,26 @@
 
 Disse mønstrene er ment som startpunkter. Tilpass dem til eksisterende arkitektur og komponentmønstre i løsningen.
 
+## Innhold
+
+- Sidecontainer
+- Kortmønster
+- Skjemalayout
+- Dashboard-rutenett
+- Tospaltet layout
+- Filterseksjon
+- Lastertilstander
+- Feilhåndtering
+- Bleed for full-width sections
+- Kvitteringsmønster
+- Knapprad
+- Tag-container
+- Next.js-integrasjon
+- Stablede systemmeldinger
+- Skip-link for tastaturnavigasjon
+- Fokushåndtering ved feil
+- Valg mellom mønstrene
+
 ## Sidecontainer
 
 Bruk `Box` + `VStack` som standard sidecontainer med responsiv padding.

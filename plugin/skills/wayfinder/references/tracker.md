@@ -5,6 +5,13 @@ repository instructions, issue templates, contributor documentation, and
 read-only tracker metadata identify the tracker and its policy. Verify its
 actual operations, and use only the labels it already has.
 
+## Contents
+
+- Map and ticket schema
+- Native graph and publication
+- Claim and work a ticket
+- Resolve and advance
+
 ## Map and ticket schema
 
 The map is one issue labelled `wayfinder:map`. Each decision ticket is a native

@@ -4,11 +4,23 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Iterable
+from pathlib import Path
 
 IDENTIFIER = re.compile(r"/?[a-z][a-z0-9-]*\Z")
 CODE_SPAN = re.compile(r"(?<!`)(`+)([^\n]*?)\1(?!`)")
 LINK = re.compile(r"!?\[[^\]\n]*\]\([^\n]*?\)")
 FENCE = re.compile(r"^\s{0,3}(`{3,}|~{3,})")
+NON_REFERENCE_PARTS = frozenset({"assets", "node_modules", "scripts", "templates", "tests"})
+
+
+def disclosed_references(skill_root: Path) -> list[Path]:
+    """Return the Markdown files a skill discloses behind its SKILL.md."""
+    return sorted(
+        path
+        for path in skill_root.rglob("*.md")
+        if path.name != "SKILL.md"
+        and not NON_REFERENCE_PARTS & set(path.relative_to(skill_root).parts)
+    )
 
 
 def transform_prose(text: str, transform: Callable[[str], str]) -> str:

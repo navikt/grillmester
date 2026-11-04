@@ -11,14 +11,23 @@ pass. This skill keeps the loop tight and the kept tests few and well placed.
 Use the repository's test framework, naming, fixtures and commands; find them
 in neighboring tests, build files and CI.
 
+## Read first
+
+1. Find every row below that the task touches.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Seam:** choosing between the module interface, a real adapter and the running application | [test-boundaries.md](test-boundaries.md) |
+| **Test double:** a test needs a fake, stub or mock | [mocking.md](mocking.md) |
+
 ## Plan the tests first
 
 Before the first test, write a short test plan: the **seam** you test at and
 the tests you intend to keep, one line each with what the test catches and what
 it misses. Choose the highest seam that is still fast enough for the loop; the
-ideal is one seam per feature. [test-boundaries.md](test-boundaries.md) helps
-choose between the module interface, a real adapter and the running
-application.
+ideal is one seam per feature.
 
 State the plan and continue; starting a TDD cycle needs no approval. Ask only
 when the seam or the tests to keep are an unsettled material choice, such as a
@@ -50,16 +59,17 @@ or secrets.
 ## What a good test is
 
 A good test verifies behavior through a public interface, so the code can
-change while the test stays. See [tests.md](tests.md) for patterns and
-[mocking.md](mocking.md) for mocking only at system boundaries.
+change while the test stays. It makes one claim, reads like a specification in
+the repository's language for tests, and mocks only at system boundaries.
 
 Avoid:
 
 - **Implementation-coupled tests:** mocking internal collaborators, testing
-  private methods, or checking a side channel instead of the interface.
+  private methods, asserting call counts or order with no contract reason, or
+  checking a side channel, such as a storage table, instead of the interface.
 - **Tautological tests:** an expected value computed the way the code computes
   it. Take expected values from an independent source: a literal, a worked
-  example or the spec.
+  example or the spec. Check that a plausible wrong result would fail.
 - **Horizontal slicing:** writing all tests first and then all code. Work one
   vertical slice at a time.
 - **Test bloat:** near-duplicate tests, one test per trivial edge case, tests

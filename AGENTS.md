@@ -35,6 +35,13 @@ repository.
   through nav-pilot. Audit migration ownership before removing old copies.
   Preserve original source IDs in provenance and remove obsolete runtime calls.
 
+## Reference reads
+
+Hidden information is worthless. Every disclosed reference is linked from its
+`SKILL.md`, normally in a Read first section, and has a case in
+`scripts/measure_reference_reads.py`. When you change a pointer, a reference or a
+skill's structure, run that script for the skill. See ADR 0037.
+
 ## Verification
 
 Run before publishing a change:

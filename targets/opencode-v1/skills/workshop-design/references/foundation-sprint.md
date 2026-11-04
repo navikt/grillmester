@@ -4,6 +4,18 @@
 
 Aksels gjennomgang: https://aksel.nav.no/god-praksis/artikler/foundation-sprint-slik-samler-du-teamet-om-en-felles-retning
 
+## Innhold
+
+- Når passer den — og når ikke
+- De fem grunnelementene
+- Roller
+- Flyt per oppgave
+- To-dagers kjøreplan-skjelett
+- Offentlig sektor-tilpasninger
+- Skalering til store grupper
+- Samarbeidsflate som tekst
+- Fallgruver
+
 ## Når passer den — og når ikke
 
 | ✅ Passer | ❌ Passer ikke |

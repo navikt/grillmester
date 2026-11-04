@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "f71a3365c82dae9a4ce55b108871951e5bb1d00c700b385ca6ff5f492de4aa7f",
+    "payloadManifestSha256": "470a4aeddf7bb8ae3b969eec55e85634fbb708688237e9006c83c91fbb556fae",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -85,19 +85,15 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "f6f4994d28f53cd5cb240be1ee5cc176cb925d9e999d1265570da65a8ad7e00e",
-      "mode": "0644"
-    },
-    "skills/review/references/smells.md": {
-      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
+      "sha256": "ca3d743cebc83f1be59d1b044ee7005ee3e36f9c76523904d29ddf3e0054fbb4",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "6c4dfb8a9cfae9a05df052a0f4f0e5d1eec837f39da6640ac121c136ab97f630",
+      "sha256": "9a4b4f9495b4944a503e0bb8946be69fed40dd5a35d82067b53ed287e053afd3",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
-      "sha256": "20c43920b461b7ddaa0d54b30363e4ebc912bd390ca3e8e7acf97fc980db3493",
+      "sha256": "2466a193bb9a2553600e28fd5e696bc780f46ac63acb5e82a4289e2ad387aec8",
       "mode": "0644"
     },
     "skills/security-review/references/threat-model.md": {
@@ -105,7 +101,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "581b3ffb851e60e34db06ba9ee0cc80755dfe3f1bbff6861ccff7f0fdbddbe33",
+      "sha256": "2a37f32d0b81a391ff66baca3a014e0be4f232d69df4ec7c44bae0fd876bb801",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
@@ -114,10 +110,6 @@
     },
     "skills/tdd/test-boundaries.md": {
       "sha256": "cfee2884f0dddd5af1f020f674df946c1ddffce8d3fbb43720bd05a7e0ae3395",
-      "mode": "0644"
-    },
-    "skills/tdd/tests.md": {
-      "sha256": "ce570f378f822b0205296d7189eb727c2dd6e9710162a90f7c20119c321fbe6d",
       "mode": "0644"
     }
   }

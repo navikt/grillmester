@@ -2,6 +2,17 @@
 
 Aksel v8 introduserer et semantisk token-lag med prefikset `--ax-` (aksel x). Disse tokenene abstraherer over lys/mørk modus og over fargefamilier, og **skal foretrekkes foran rå fargetokens**.
 
+## Innhold
+
+- Prinsipp
+- Bakgrunnstokens
+- Teksttokens
+- Border-tokens
+- Fargefamilier
+- `data-color`-mekanismen
+- Praktiske regler
+- Lys/mørk modus
+
 ## Prinsipp
 
 - Bruk `--ax-bg-*`, `--ax-text-*` og `--ax-border-*` for flater, tekst og border.

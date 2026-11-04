@@ -2,6 +2,28 @@
 
 Oppslagsverk for vanlige Aksel-komponenter brukt i Nav-frontend. Eksemplene er bevisst korte og skrevet i TSX.
 
+## Innhold
+
+- Box
+- VStack
+- HStack
+- HGrid
+- Button
+- TextField
+- Select
+- Checkbox
+- Radio
+- Dialog
+- LinkCard
+- Table
+- Show / Hide
+- LocalAlert
+- Heading, BodyShort, BodyLong
+- Loader og Skeleton
+- ExpansionCard
+- ErrorSummary
+- Praktiske valg
+
 ## Box
 
 Bruk `Box` for innpakning, padding, bakgrunn, border og radius.

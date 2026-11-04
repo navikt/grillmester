@@ -263,19 +263,19 @@
       "mode": "0644"
     },
     "skills/aksel-design/SKILL.md": {
-      "sha256": "bfaccea78315421fab4b2722ef5ede48cebbb081eb000c7b2ce88885b86623c7",
+      "sha256": "051029fdc0c781382f8c1b32068db1232a624fa0cdf0e72a568ef3572481b78c",
       "mode": "0644"
     },
     "skills/aksel-design/references/components.md": {
-      "sha256": "cfb69eaf6eb3c7d67cfc06ec8f6f196c17f252be598f948cd3f731ca7f8269a3",
+      "sha256": "ca57e23bd9ca8d7e1522f803cc331ccb6d9da1200124b97fdfee25f8a377bf45",
       "mode": "0644"
     },
     "skills/aksel-design/references/patterns.md": {
-      "sha256": "af7a8ebdc47e377f8f87003b6ef6c908a6b86bd1f40dbd5e65c76180f8450c7f",
+      "sha256": "86b191d0194e0664e0805349abe4e9620e4fd9b1c903e8066a76dd9f996cc85c",
       "mode": "0644"
     },
     "skills/aksel-design/references/semantic-tokens.md": {
-      "sha256": "61226937650b319f785224e9f8c40dc84222ba3925d5e086300e9072500e95c0",
+      "sha256": "5fafcdd95b9a7e77668667602be0582ab403a9a078dad312524b24dfdd403dfe",
       "mode": "0644"
     },
     "skills/aksel-design/references/setup.md": {
@@ -283,11 +283,11 @@
       "mode": "0644"
     },
     "skills/aksel-design/references/tokens.md": {
-      "sha256": "8e3b1e6f018dd0d3047b6b01b9774eb960f60d7526b1573997b6c41a7f151fac",
+      "sha256": "a8741f7f714a0ceb5ab586141caf20013905ea81f842e5875ef3fd6298277049",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
-      "sha256": "8fc2d43b86084839320ec4c41263dabc7421dcaf0334ee147e66c66bc87e3ec8",
+      "sha256": "c7d94e912db48a0204964490ab480e131b876c4076345d7a5d137f48e1949768",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/references/maintenance.md": {
@@ -395,7 +395,7 @@
       "mode": "0644"
     },
     "skills/architecture-review/SKILL.md": {
-      "sha256": "5349ef66019e4e0cf91eb252139ccbb6aef5325719a9ccd8c570ab49c01f69d7",
+      "sha256": "bb6444097454736b8b35c1a90665770aeeccb0e4668e701f545c2e662af219b7",
       "mode": "0644"
     },
     "skills/architecture-review/references/nav-context.md": {
@@ -411,7 +411,7 @@
       "mode": "0644"
     },
     "skills/create-a-skill/references/glossary.md": {
-      "sha256": "8ff0500c0fb219d97d71c02407ab4cff2e4db0d78623c925d7894b57d162de53",
+      "sha256": "ed2a73ca7902cbeb563f7c4a178c5112a9b488991a9ab7212e585f770e0089fb",
       "mode": "0644"
     },
     "skills/create-a-skill/references/opencode-validation.md": {
@@ -419,7 +419,7 @@
       "mode": "0644"
     },
     "skills/create-a-skill/references/principles.md": {
-      "sha256": "ca3278585a4a9746ecf719f4b8e0a143ab080cb82f7dc999e4be12ec2eb86368",
+      "sha256": "4322ccbdeff0cb6e9744cc5e867531c45e61fe81f38299b893f5d3ee640f63e1",
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
@@ -483,7 +483,7 @@
       "mode": "0644"
     },
     "skills/dulting/SKILL.md": {
-      "sha256": "c4c05212e5bcb03c34d66204b5ca7a69058c45822fbaef95ceda844cc8383251",
+      "sha256": "b93386a235d4c07f79cb03e61ef8eca214cfaa35a2f949b5e47bc077d8002065",
       "mode": "0644"
     },
     "skills/dulting/references/behavioral-patterns.md": {
@@ -519,7 +519,7 @@
       "mode": "0644"
     },
     "skills/improve-codebase-architecture/HTML-REPORT.md": {
-      "sha256": "0b412e5e71e6d7fb88432009643498b3537ca69b91c8ae392e2407dfac3a43dd",
+      "sha256": "3a06de56d7d230f33d444b39f4f303016c06d04178dd69be6de749f4feb451e6",
       "mode": "0644"
     },
     "skills/improve-codebase-architecture/SKILL.md": {
@@ -531,7 +531,7 @@
       "mode": "0644"
     },
     "skills/klarsprak/SKILL.md": {
-      "sha256": "1b89ccaaa3cc7354326f164e03276e9245f34a1b8009170eeb5d140e35dd4777",
+      "sha256": "41518ce3c16a2ac047fadb9204d34ba014d1a100a91358d3d17a76bf7f0f47f2",
       "mode": "0644"
     },
     "skills/klarsprak/references/ai-markorer.md": {
@@ -547,7 +547,7 @@
       "mode": "0644"
     },
     "skills/nav-platform/SKILL.md": {
-      "sha256": "0275f580e106d87ee7eebe69fc227cfe39c57a6f1964e097d73935efd5197471",
+      "sha256": "13b79237fd40e6297e2c65650d7dc2a35a2ec2e0f306c472a944fab2db012da8",
       "mode": "0644"
     },
     "skills/nav-platform/references/api.md": {
@@ -555,7 +555,7 @@
       "mode": "0644"
     },
     "skills/nav-platform/references/auth.md": {
-      "sha256": "a5e7fb9be238acf9e43147ea3c69508538fe9862401ebedef6393fe7b5d61373",
+      "sha256": "6f0045bc7e00bf00039a0079f88e4c2ef83c07101f308183dcffc57125ec6644",
       "mode": "0644"
     },
     "skills/nav-platform/references/database.md": {
@@ -603,7 +603,7 @@
       "mode": "0644"
     },
     "skills/produktledelse/SKILL.md": {
-      "sha256": "d7d012c665be2bae5811969e5acbbb4d1bddd290299d2de5087094e77570f00b",
+      "sha256": "09dc93767b75bc5a437b6f1d5b99d8a8ea6bc0f898e1b7676744026e0a61bcc8",
       "mode": "0644"
     },
     "skills/produktledelse/references/ressurser.md": {
@@ -627,19 +627,15 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "1860f61fcf93f51486534b6c1ef6a50de35f28669e0b5bb45ac09860207f9f52",
-      "mode": "0644"
-    },
-    "skills/review/references/smells.md": {
-      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
+      "sha256": "113361d92fd769875d57c7e9067b28eedd1d7946cafc69890a716c75a0744f44",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "a3791c031a98313bd2516306936957dbd6cf35d1281697b9443c1ae16ebbbdb0",
+      "sha256": "159493ec32d2db8fb2f7f71ab1312338e146fc56e2e720720b939fb8b00bbea1",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
-      "sha256": "20c43920b461b7ddaa0d54b30363e4ebc912bd390ca3e8e7acf97fc980db3493",
+      "sha256": "2466a193bb9a2553600e28fd5e696bc780f46ac63acb5e82a4289e2ad387aec8",
       "mode": "0644"
     },
     "skills/security-review/references/threat-model.md": {
@@ -647,7 +643,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "1db9c4954de5a28f5e278bc44264649d489dd94b73c37af5443fa0d827692137",
+      "sha256": "ae49516529b51544c37702282e24d73709467445be29fa7c2e6a30b0848f37ba",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
@@ -658,12 +654,8 @@
       "sha256": "cfee2884f0dddd5af1f020f674df946c1ddffce8d3fbb43720bd05a7e0ae3395",
       "mode": "0644"
     },
-    "skills/tdd/tests.md": {
-      "sha256": "ce570f378f822b0205296d7189eb727c2dd6e9710162a90f7c20119c321fbe6d",
-      "mode": "0644"
-    },
     "skills/team-status/SKILL.md": {
-      "sha256": "df84f1ffff45fc83c2e664597f3230e7190161b58713083a61647ea0aaa20dad",
+      "sha256": "2c1690d18994139d523b7092aeac587cf1e3fc10e99673c92ae270cf73c5216f",
       "mode": "0644"
     },
     "skills/team-status/references/projects-v2.md": {
@@ -671,7 +663,7 @@
       "mode": "0644"
     },
     "skills/team-status/references/rapportmaler.md": {
-      "sha256": "8061c3326b1b06032068c89d43fd13776cf72717467afcbaa6c349502a63894f",
+      "sha256": "550059b44a563bf820003d6fd6b69627018848cfd43f3041dde9364b4abbf347",
       "mode": "0644"
     },
     "skills/to-issues/SKILL.md": {
@@ -687,7 +679,7 @@
       "mode": "0644"
     },
     "skills/triage/SKILL.md": {
-      "sha256": "b80e4c9c08b4ff5e9138984e2e6a3dcdc5cd84a255775d64ceedd0d8cadaed54",
+      "sha256": "7b79fcfc061c348e4e820d205ecbb3bf64a95265f601f8df53599780a17ee390",
       "mode": "0644"
     },
     "skills/wait-what/SKILL.md": {
@@ -699,7 +691,7 @@
       "mode": "0644"
     },
     "skills/wayfinder/references/tracker.md": {
-      "sha256": "efa6caa1f772be440c72d4e8583be924d86939191b4f7c44724fc8f33c60e086",
+      "sha256": "20e3b4f89d6ce16f9de4141d4ff849adccf0836270c67ff53dd72aa99ce70156",
       "mode": "0644"
     },
     "skills/workshop-design/SKILL.md": {
@@ -707,11 +699,11 @@
       "mode": "0644"
     },
     "skills/workshop-design/references/foundation-sprint.md": {
-      "sha256": "3daf5a0ce015c5d93c2d3dc2cdceba43ad355378be7c385d58fd0ee2ce69590d",
+      "sha256": "cb88b2345e04f3f383537ccfc8f30093e827c922a303528513acc45a9a185f40",
       "mode": "0644"
     },
     "skills/workshop-design/references/retro-og-teamhelse.md": {
-      "sha256": "f5f33721da63f622d6831d56ef044c6bac0da6cf7d1c2d3eefc37e8b6c68f383",
+      "sha256": "b2c912df8055d6ad849bffb06bfd2db91b39c77a5adb5362208ed6c72a6ea9ca",
       "mode": "0644"
     }
   }

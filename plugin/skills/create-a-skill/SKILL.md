@@ -9,6 +9,18 @@ Create, revise, or diagnose one GitHub Copilot skill for the intended app or
 CLI. The target repository's instructions and supported client contracts
 govern the artifact this skill produces.
 
+## Read first
+
+1. Find every row below that the task touches.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Writing:** deciding what stays in `SKILL.md`, what is disclosed and what belongs in `scripts/` | [principles.md](references/principles.md) |
+| **Validation:** right before you validate a skill | [copilot-cli-validation.md](references/copilot-cli-validation.md), and use the branch for the intended client |
+| **Term or failure mode:** a defined term needs clarifying, or a failure needs a name | only its heading in [glossary.md](references/glossary.md) |
+
 ## Choose the mode
 
 - **Create or revise** — adapt the workflow to the change and edit the skill,
@@ -62,7 +74,7 @@ the intended installation scope is unresolved. Do not add a parallel skill
 tree. Place each skill at `<selected-root>/<kebab-case-name>/SKILL.md`, with
 optional `references/`, `scripts/`, and `assets/` directories beside it. Keep
 disclosed references one level below `SKILL.md` and point to each one directly
-from `SKILL.md` with the condition for loading it.
+from a Read first section in `SKILL.md`, with the condition for loading it.
 
 Use the portable GitHub skill frontmatter supported by the target clients and
 narrowed by the target repository's policy:
@@ -90,12 +102,6 @@ description are explicit.
 
 ## 3. Design the information hierarchy
 
-Apply [the authoring principles](references/principles.md) to decide what stays
-in `SKILL.md`, what is disclosed behind a contextual pointer, and whether
-deterministic repeated work belongs in `scripts/`. When a defined term needs
-clarification or a failure mode needs diagnosis, find and read only its heading
-in [the glossary](references/glossary.md).
-
 Keep repository and stack constraints in repository instructions or a
 repository-specific reference unless they are intrinsic to the skill's single
 job. Reuse existing templates, scripts, and assets when they already express
@@ -122,9 +128,7 @@ edits and report these conditions as findings instead.
 
 ## 5. Validate and forward-test
 
-Immediately before validation, read
-[the Copilot client validation checklist](references/copilot-cli-validation.md)
-and use the branch for the intended client. Run the structural, link,
+Run the structural, link,
 discovery, and invocation checks that are safe in the target repository.
 In create or revise mode, execute bundled scripts on
 representative fixtures and inspect the final diff for scope, relevance,

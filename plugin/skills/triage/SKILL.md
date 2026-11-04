@@ -8,6 +8,16 @@ description: "Assess incoming issues or pull requests, verify claims and prepare
 Classify, verify, clarify, recommend and prepare;
 issue-management owns approved mutations.
 
+## Read first
+
+1. Find every row below that the task touches.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Ready item:** an issue or pull request is ready for work | [AGENT-BRIEF.md](./AGENT-BRIEF.md), and write its brief |
+
 ## Discover the contract
 
 Establish from consumer instructions and read-only tracker metadata:
@@ -76,7 +86,7 @@ decisions or domain terms through the consumer's documented policy.
 
 ### 5. Prepare
 
-Use [AGENT-BRIEF.md](./AGENT-BRIEF.md) for ready items. For needs-context,
+Write the brief for ready items. For needs-context,
 draft concrete unanswered questions. For declined items, draft a
 self-contained rationale with verified duplicate or implementation evidence.
 Follow consumer language and attribution; add no AI marker unless required.

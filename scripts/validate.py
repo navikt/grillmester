@@ -24,6 +24,7 @@ if _SKILL_SPEC is None or _SKILL_SPEC.loader is None:
 _SKILL_MODULE = importlib.util.module_from_spec(_SKILL_SPEC)
 _SKILL_SPEC.loader.exec_module(_SKILL_MODULE)
 skill_references = _SKILL_MODULE.skill_references
+disclosed_references = _SKILL_MODULE.disclosed_references
 
 
 PLUGIN_NAME = "grillmester"
@@ -93,6 +94,10 @@ FORBIDDEN_SCAFFOLD_MARKERS = re.compile(
     r"(?:\[TODO:|Structuring This Skill|Replace with the first main section)"
 )
 MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+REFERENCE_CONTENTS_LIMIT = 100
+REFERENCE_CONTENTS_HEADINGS = ("Contents", "Innhold")
+# This skill is being rebuilt on its own branch and follows the rule when it lands.
+REFERENCE_RULE_EXEMPT_SKILLS = frozenset({"design-prototype"})
 AGENT_FRONTMATTER_KEYS = {
     "name",
     "description",
@@ -1188,6 +1193,50 @@ def validate_skill_links(
             errors.append(f"{path}: linked file does not exist: {target}")
 
 
+def second_level_headings(text: str) -> list[str]:
+    headings = []
+    fenced = False
+    for line in text.splitlines():
+        if line.startswith("```"):
+            fenced = not fenced
+        elif not fenced and line.startswith("## "):
+            headings.append(line[3:].strip())
+    return headings
+
+
+def contents_entries(text: str) -> list[str]:
+    section = re.split(r"^## .*$", text, maxsplit=2, flags=re.MULTILINE)[1]
+    return [line[2:].strip() for line in section.splitlines() if line.startswith("- ")]
+
+
+def validate_disclosed_references(
+    skill_root: Path, body: str, errors: list[str]
+) -> None:
+    """A reference nobody can reach, or scan, is hidden information."""
+
+    if skill_root.name in REFERENCE_RULE_EXEMPT_SKILLS:
+        return
+    linked = {
+        (skill_root / target.strip().split("#", 1)[0]).resolve()
+        for target in MARKDOWN_LINK.findall(body)
+        if not target.startswith(("http://", "https://", "mailto:"))
+    }
+    for reference in disclosed_references(skill_root):
+        if reference.resolve() not in linked:
+            errors.append(f"{reference}: reference is not linked from SKILL.md")
+        text = reference.read_text(encoding="utf-8")
+        if len(text.splitlines()) <= REFERENCE_CONTENTS_LIMIT:
+            continue
+        headings = second_level_headings(text)
+        if not headings or headings[0] not in REFERENCE_CONTENTS_HEADINGS:
+            errors.append(
+                f"{reference}: a reference over {REFERENCE_CONTENTS_LIMIT} lines "
+                "must start with a contents list"
+            )
+        elif contents_entries(text) != headings[1:]:
+            errors.append(f"{reference}: contents list does not match its headings")
+
+
 def validate_skills(
     root: Path,
     contracts: dict[str, dict[str, Any]],
@@ -1260,6 +1309,7 @@ def validate_skills(
                     errors.append(f"{path}: {key} must be {expected_value!r}")
         skill_root = path.parent
         validate_skill_links(path, body, skill_root, errors)
+        validate_disclosed_references(skill_root, body, errors)
         for resource in sorted(skill_root.rglob("*.md")):
             if resource == path:
                 continue

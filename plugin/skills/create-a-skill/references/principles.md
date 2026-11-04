@@ -9,6 +9,16 @@ files.
 
 **Bold terms** use the definitions in the skill's glossary.
 
+## Contents
+
+- Invocation
+- Writing the description
+- Information hierarchy
+- When to split
+- Pruning
+- Leading words
+- Failure modes
+
 ## Invocation
 
 User reach and model reach are independent axes. Together they produce three
@@ -67,6 +77,19 @@ whose correctness or safety depends on them.
 legible. **Branching** is the cleanest disclosure test: inline what every branch
 needs and disclose what only some branches reach. A context pointer's wording,
 not its target, decides when the agent follows it.
+
+A reference is worth nothing until the agent reads it. Give a skill with
+references a **Read first** section near the top of `SKILL.md`: three steps and a
+table that maps each branch to its reference, in the words a request uses, such
+as the symptom. Agents skip a closing list of links and a "see" inside a step,
+small models most of all, so write neither. Link every reference directly from
+`SKILL.md`, and start one over 100 lines with a contents list. A reference only
+one later step needs can be named in that step instead, with its condition and
+the action to take, if a measurement shows agents follow it.
+
+Keep in `SKILL.md` what every branch needs and any trap the agent would not
+recognize as a trigger. Delete a reference no branch needs. Prove a pointer by
+reading the tool calls of a real session on the weakest model you support.
 
 Use **co-location** within each file: keep a concept's definition, rules, and
 caveats together.

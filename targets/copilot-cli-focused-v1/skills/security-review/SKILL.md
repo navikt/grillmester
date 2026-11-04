@@ -5,6 +5,17 @@ description: "Assess a design or change for security and privacy risks. Use for 
 
 # Review security and privacy
 
+## Read first
+
+1. Find every row below that the task touches.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Nav target:** it runs on Nav or Nais, handles Nav data, identities or a fødselsnummer, or uses Nav authentication, audit or network controls | [nav-security-review.md](references/nav-security-review.md), applied where repository and current authoritative evidence show that it fits |
+| **New attack surface:** it adds or materially alters an entry point, trust boundary, identity model, sensitive-data flow, privileged operation, external integration or deployed surface | [threat-model.md](references/threat-model.md), and perform its DFD-first STRIDE review |
+
 ## Establish facts and boundaries
 
 Read the scoped design or complete diff, relevant repository policy, deployed
@@ -12,16 +23,6 @@ configuration, and tests. Identify protected assets, actors, data categories,
 trust boundaries, entry points, privileged operations, external flows, and
 plausible failure impact. Mark missing facts as unknown instead of filling them
 from a generic checklist.
-
-If the target runs in Nav or NAIS, handles Nav data or identities, or uses Nav
-authentication, audit, or network controls, load [the Nav security review
-reference](references/nav-security-review.md). Apply it only where repository
-and current authoritative evidence show that it fits.
-
-When the change adds or materially alters an entry point, trust boundary,
-identity model, sensitive-data flow, privileged operation, external
-integration, or deployed surface, load [the threat-modeling
-reference](references/threat-model.md) and perform its DFD-first STRIDE review.
 
 ## Review the applicable surfaces
 

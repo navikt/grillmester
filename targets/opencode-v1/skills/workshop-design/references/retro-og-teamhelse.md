@@ -5,6 +5,12 @@ temperaturmåling kan åpne en bredere samtale ved behov, og helsesjekk-boten ka
 gi et ukentlig anonymt signal. Funn fra de to siste kan bli input til den
 første, men aldri et sentralt måltall.
 
+## Innhold
+
+- Del 1: Retro
+- Del 2: Teamets egen temperaturmåling
+- Del 3: Tolkning av helsesjekk-bot-resultater
+
 ## Del 1: Retro
 
 Rytme og format under er forslag, ikke team-policy. Bruk consumerens

@@ -5,7 +5,21 @@ description: "Choose Aksel components, semantic tokens and responsive patterns f
 
 # Aksel Design System
 
-Bruk denne skillen når du jobber i Nav-frontend med `@navikt/ds-react`, layout i Aksel-primitives og responsiv UI. Hovedregler ligger her; detaljer ligger i `references/`.
+Bruk denne skillen når du jobber i Nav-frontend med `@navikt/ds-react`, layout i Aksel-primitives og responsiv UI.
+
+## Les først
+
+1. Finn hver rad under som oppgaven berører.
+2. Les de referansene før du endrer, svarer eller kjører en kommando.
+3. Oppgi hvilke referanser du leste når du rapporterer.
+
+| Oppgaven berører | Les |
+|---|---|
+| **Komponent-API:** props, varianter eller eksempler for en komponent | [components.md](references/components.md) |
+| **Layout:** sidemeny, kort-grid, skjema eller Next.js-mønstre | [patterns.md](references/patterns.md) |
+| **Oppsett:** installasjon, CSS, token-importstier eller v8-codemods | [setup.md](references/setup.md) |
+| **Tokens:** spacing, breakpoints eller full token-oversikt | [tokens.md](references/tokens.md) |
+| **Semantiske tokens:** `--ax-*` eller `data-color` | [semantic-tokens.md](references/semantic-tokens.md) |
 
 Skillen gir råd og kan brukes read-only. Installer avhengigheter eller endre
 consumer-repoet bare innenfor en eksplisitt godkjent implementasjonsslice.
@@ -69,8 +83,6 @@ Importer CSS i roten av appen (f.eks. `_app.tsx`, `layout.tsx` eller `main.tsx`)
 @import "@navikt/ds-css";
 ```
 
-For detaljert oppsett, token-importstier og v8-codemods, se `references/setup.md`.
-
 ## Spacing-regler
 
 **Foretrekk Aksel-props og spacing-tokens, og følg repoets egne regler.**
@@ -128,9 +140,6 @@ gjenbruk av tidligere kontroller som beskrevet over.
 
 Bruk `Box`, `VStack`, `HStack`, `HGrid`, `Show`/`Hide` og `Page`/`Page.Block` for layout. Jobb mobile-first med responsive props (`xs`, `sm`, `md`, `lg`, `xl`).
 
-For komponent-API og eksempler, se `references/components.md`.
-For layout-mønstre (sidebar, kort-grid, skjema), se `references/patterns.md`.
-
 ## Boundaries
 
 ### ✅ Alltid
@@ -150,9 +159,3 @@ For layout-mønstre (sidebar, kort-grid, skjema), se `references/patterns.md`.
 - Hardkod spacing, radius, farger eller typografi når Aksel-tokens finnes
 - Bygg standardfelter, knapper eller varsler med rå HTML i produktkode hvis Aksel tilbyr komponenten; HTML-skisser følger det avgrensede unntaket over
 - Bruk responsive hacks når responsive props dekker behovet
-
-For installasjon, CSS-oppsett og v8-codemods, se `references/setup.md`.
-For komplett token-oversikt, se `references/tokens.md`.
-For semantiske `--ax-*`-tokens og `data-color`, se `references/semantic-tokens.md`.
-For komponent-API, se `references/components.md`.
-For layout-mønstre (inkl. Next.js), se `references/patterns.md`.

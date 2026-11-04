@@ -403,6 +403,46 @@ class PackageValidationTest(unittest.TestCase):
         reference.unlink()
         self.assert_error("linked file does not exist")
 
+    def test_reference_must_be_linked_from_skill_md(self) -> None:
+        errors: list[str] = []
+        with tempfile.TemporaryDirectory() as temporary:
+            skill = Path(temporary)
+            (skill / "references").mkdir()
+            (skill / "references/hidden.md").write_text("# Hidden\n", encoding="utf-8")
+            (skill / "references/shown.md").write_text("# Shown\n", encoding="utf-8")
+            VALIDATE.validate_disclosed_references(
+                skill, "Read [shown](references/shown.md#start).", errors
+            )
+        self.assertEqual(1, len(errors))
+        self.assertIn("hidden.md: reference is not linked", errors[0])
+
+    def test_long_reference_needs_a_matching_contents_list(self) -> None:
+        filler = "text\n" * 100
+
+        def errors_for(text: str) -> list[str]:
+            errors: list[str] = []
+            with tempfile.TemporaryDirectory() as temporary:
+                skill = Path(temporary)
+                (skill / "long.md").write_text(text, encoding="utf-8")
+                VALIDATE.validate_disclosed_references(
+                    skill, "[long](long.md)", errors
+                )
+            return errors
+
+        listed = "# Long\n\n## Contents\n\n- One\n- Two\n\n"
+        fenced = "```md\n## Not a heading\n```\n"
+        self.assertEqual(
+            [], errors_for(listed + f"## One\n\n{filler}{fenced}## Two\n\ntext\n")
+        )
+        self.assertIn(
+            "must start with a contents list",
+            errors_for(f"# Long\n\n## One\n\n{filler}")[0],
+        )
+        self.assertIn(
+            "does not match its headings",
+            errors_for(listed + f"## One\n\n{filler}## Three\n\ntext\n")[0],
+        )
+
     def test_broken_link_in_progressive_reference_is_rejected(self) -> None:
         reference = (
             self.root
