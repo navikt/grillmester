@@ -904,7 +904,7 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(
             "16384", copilot.environment["COPILOT_PROVIDER_MAX_OUTPUT_TOKENS"]
         )
-        effort = copilot.command.index("--effort")
+        effort = copilot.command.index("--reasoning-effort")
         self.assertEqual("medium", copilot.command[effort + 1])
 
     def test_opencode_never_executes_ambient_gh_outside_cplt(self) -> None:
@@ -2940,7 +2940,7 @@ class LocalModeTests(unittest.TestCase):
                 self.assertTrue(checked)
                 return (
                     SimpleNamespace(path=str(self.cplt), version="cplt reviewed"),
-                    SimpleNamespace(path=str(self.copilot), version="1.0.80"),
+                    SimpleNamespace(path=str(self.copilot), version="1.0.100"),
                 )
 
             stdout = io.StringIO()

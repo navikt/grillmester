@@ -487,7 +487,7 @@ jobs:
           node-version: 22
 
       - name: Install pinned GitHub Copilot CLI
-        run: npm install --global @github/copilot@1.0.79
+        run: npm install --global @github/copilot@1.0.100
 
       - name: Smoke-test immutable marketplace installation
         env:
@@ -856,7 +856,7 @@ jobs:
           node-version: 22
 
       - name: Install pinned GitHub Copilot CLI
-        run: npm install --global @github/copilot@1.0.79
+        run: npm install --global @github/copilot@1.0.100
 
       - name: Smoke-test published floating marketplace
         run: >-
@@ -2646,7 +2646,7 @@ jobs:
           node-version: 22
 
       - name: Install pinned GitHub Copilot CLI
-        run: npm install --global @github/copilot@1.0.79
+        run: npm install --global @github/copilot@1.0.100
 
       - name: Smoke-test published release tag
         run: >-

@@ -65,6 +65,11 @@
       "repository": "navikt/copilot",
       "revision": "ce9abd567a89eb72f1b8f95447435fd16fe805d3",
       "note": "Adapted trace representativeness guidance from observability-debugging; endpoint and command recipes are not imported. Local data-access rules were also checked against Nav's published guidelines and observability workflow at this revision."
+    },
+    "nav-tokenx": {
+      "repository": "navikt/copilot",
+      "revision": "2145f233dd35a62b5674d5f526bcf9417e741f03",
+      "note": "Adapted four points from tokenx-auth: a Texas failure surfaces as 5xx, not 401; one skip_cache retry after an access-policy change; client_id checks when authorizing per calling app; and both acr forms. Code and request examples are not imported. The other Texas corrections were checked against the Nais documentation."
     }
   },
   "agents": {
@@ -139,7 +144,14 @@
       ],
       "disposition": "consolidated"
     },
-    "auth-overview": {"source": "pilot", "sourcePath": ".github/skills/auth-overview", "disposition": "adapted"},
+    "auth-overview": {
+      "source": "pilot",
+      "sourcePath": ".github/skills/auth-overview",
+      "lineage": [
+        {"source": "nav-tokenx", "sourcePath": "skills/tokenx-auth"}
+      ],
+      "disposition": "adapted"
+    },
     "create-a-skill": {
       "source": "pilot",
       "sourcePath": ".github/skills/create-a-skill",
@@ -239,7 +251,8 @@
       "source": "pilot",
       "sourcePath": ".github/skills/nav-troubleshoot",
       "lineage": [
-        {"source": "nav-observability", "sourcePath": "skills/observability-debugging"}
+        {"source": "nav-observability", "sourcePath": "skills/observability-debugging"},
+        {"source": "nav-tokenx", "sourcePath": "skills/tokenx-auth"}
       ],
       "disposition": "adapted"
     },

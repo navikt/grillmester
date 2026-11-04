@@ -30,7 +30,7 @@ MINIMUM_OPENCODE_VERSION = tuple(
     int(part) for part in MINIMUM_OPENCODE_VERSION_TEXT.split(".")
 )
 SUPPORTED_OPENCODE_MAJOR = MINIMUM_OPENCODE_VERSION[0]
-MINIMUM_COPILOT_VERSION = (1, 0, 79)
+MINIMUM_COPILOT_VERSION = (1, 0, 100)
 SUPPORTED_COPILOT_MAJOR = MINIMUM_COPILOT_VERSION[0]
 CLIENTS = ("copilot", "opencode")
 PUBLIC_AGENTS = ("grillmester", "designer", "doctor-who")
@@ -738,7 +738,7 @@ def _opencode_client_arguments(
 CLIENT_INSTALL_HINTS = {
     "copilot": "brew install --cask copilot-cli",
     "cplt": "brew install navikt/tap/cplt",
-    "opencode": "brew install opencode",
+    "opencode": "brew install anomalyco/tap/opencode",
 }
 
 
@@ -1062,7 +1062,8 @@ def check_client_runtime(
         ):
             raise LauncherError(
                 "OpenCode must be in the supported 1.x range, starting at "
-                f"{MINIMUM_OPENCODE_VERSION_TEXT}; found {version!r}"
+                f"{MINIMUM_OPENCODE_VERSION_TEXT}; found {version!r}; "
+                f"install it with: {CLIENT_INSTALL_HINTS['opencode']}"
             )
     else:
         observed = _copilot_semver(version)
@@ -1073,7 +1074,8 @@ def check_client_runtime(
             minimum = ".".join(str(part) for part in MINIMUM_COPILOT_VERSION)
             raise LauncherError(
                 "Copilot CLI must be in the supported 1.x range, starting at "
-                f"{minimum}; found {version!r}"
+                f"{minimum}; found {version!r}; update it with: "
+                "brew upgrade --cask copilot-cli"
             )
     return CheckedBinary(client, binary, version)
 
@@ -1107,7 +1109,7 @@ def discover_clients(candidates: Sequence[str] = CLIENTS) -> tuple[str, ...]:
     if not available:
         raise LauncherError(
             "no supported terminal client was found on PATH; install OpenCode "
-            "with 'brew install opencode' or GitHub Copilot CLI with "
+            "with 'brew install anomalyco/tap/opencode' or GitHub Copilot CLI with "
             "'brew install --cask copilot-cli'"
         )
     return tuple(available)

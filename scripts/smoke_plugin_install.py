@@ -175,6 +175,7 @@ def verify_local_cli_help_surface(
         "--plugin-dir",
         "--agent",
         "--model",
+        "--reasoning-effort",
         "--no-auto-update",
         "--no-experimental",
         "--no-remote",

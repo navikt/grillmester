@@ -332,7 +332,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 distribution["releaseTest"],
                 {
                     "opencodeVersion": "1.18.20",
-                    "copilotVersion": "1.0.80",
+                    "copilotVersion": "1.0.100",
                     "cpltRelease": "2026.08.17-062831-1008a92",
                 },
             )
@@ -522,8 +522,8 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
         launcher = source / "scripts/grillmester.py"
         launcher.write_text(
             launcher.read_text(encoding="utf-8").replace(
-                "MINIMUM_COPILOT_VERSION = (1, 0, 79)",
-                "MINIMUM_COPILOT_VERSION = (1, 0, 80)",
+                "MINIMUM_COPILOT_VERSION = (1, 0, 100)",
+                "MINIMUM_COPILOT_VERSION = (1, 0, 101)",
             ),
             encoding="utf-8",
         )

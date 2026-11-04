@@ -215,16 +215,21 @@ Installer minst én terminalklient. Du kan ha begge samtidig og oppdatere dem
 uavhengig av Grillmester:
 
 ```bash
-brew install opencode
+brew install anomalyco/tap/opencode
 brew install --cask copilot-cli
 ```
 
 `opencode` her er terminalklienten. Den forventes ikke å vises som en egen app
-i macOS Launchpad eller `/Applications`.
+i macOS Launchpad eller `/Applications`. Bruk tapen: `brew install opencode` gir
+OpenCode 2, som launcheren ikke støtter ennå. Har du `opencode` fra Homebrew fra
+før, kjør `brew uninstall opencode` først.
 
 Standardlauncheren støtter OpenCode 1.x fra `1.18.20`, Copilot CLI 1.x fra
-`1.0.79` og cplt fra den testede baselinen eller en nyere, datostemplet release.
+`1.0.100` og cplt fra den testede baselinen eller en nyere, datostemplet release.
 Eksakte klientversjoner brukes bare som reproduserbart release-testinput.
+Launcheren slår av Copilot CLIs egen oppdatering, så det er casken som teller.
+Oppdater den med `brew upgrade --cask copilot-cli`; vanlig `brew upgrade` tar den
+ikke med.
 
 Start den interaktive velgeren:
 
@@ -316,7 +321,7 @@ hardlinks og utenfor consumer-prosjektet; den kanoniske pathen deny-es også i
 cplt.
 
 Local-flyten bruker de samme kompatible systemklientene som standardlauncheren:
-OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.79,<2` og cplt fra testbaselinen
+OpenCode `>=1.18.20,<2`, Copilot CLI `>=1.0.100,<2` og cplt fra testbaselinen
 eller en nyere, gyldig datostemplet release. De eksakte CI-versjonene er
 testinput, ikke runtimepinner; en vanlig 1.x-oppgradering krever derfor ikke en
 ny Grillmester-release.
@@ -618,8 +623,8 @@ Grillmester har et deterministisk generert, native target for OpenCode 1.x fra
 native delegering og native permissions. `1.18.20` er den eksakte
 release-testbaselinen; standardlauncheren godtar nyere 1.x-versjoner, mens
 OpenCode 2 er en separat, ikke-verifisert flate. Installer og oppdater OpenCode
-selv med `brew install opencode`. Grillmester verken installerer eller skygger
-klienten. Start den lagrede defaulten eller oppgi
+selv med `brew install anomalyco/tap/opencode`. Grillmester verken installerer
+eller skygger klienten. Start den lagrede defaulten eller oppgi
 OpenCode eksplisitt:
 
 ```bash

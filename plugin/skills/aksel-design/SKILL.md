@@ -71,13 +71,13 @@ Importer CSS i roten av appen (f.eks. `_app.tsx`, `layout.tsx` eller `main.tsx`)
 
 For detaljert oppsett, token-importstier og v8-codemods, se `references/setup.md`.
 
-## Spacing-regler (KRITISK)
+## Spacing-regler
 
-**Foretrekk Aksel spacing-tokens. Unngå Tailwind padding/margin når Aksel-tokens er tilgjengelige.**
+**Foretrekk Aksel-props og spacing-tokens, og følg repoets egne regler.**
 
 - Bruk `space-*` i `Box`, `VStack`, `HStack`, `HGrid` og andre Aksel-primitives
 - Foretrekk `gap`, `paddingBlock`, `paddingInline`, `marginBlock` og `marginInline`
-- Bruk Tailwind spacing bare når Aksel ikke dekker behovet eller du bevisst viderefører et etablert mønster
+- Tailwind spacing som `mb-4` fungerer sammen med Aksel når CSS-lagene er satt opp som i [Aksels Tailwind-dokumentasjon](https://aksel.nav.no/grunnleggende/kode/tailwind.md)
 
 ```tsx
 import { Box, VStack } from "@navikt/ds-react";
@@ -144,7 +144,6 @@ For layout-mønstre (sidebar, kort-grid, skjema), se `references/patterns.md`.
 ### ⚠️ Avklar ved manglende mandat eller et vesentlig designvalg
 - Nye UI-avhengigheter utenfor Aksel
 - Store avvik fra etablerte layout-mønstre
-- Tailwind utilities som overlapper tydelig med Aksel primitives
 - Egen CSS for noe Aksel allerede dekker
 
 ### 🚫 Aldri

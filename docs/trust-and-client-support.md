@@ -38,7 +38,7 @@ og prosessgruppe-cleanup.
 versjoner, URLs, størrelser, arkivroster og digester i reproduserbare release-
 og kompatibilitetstester. Det er release-gatekode, ikke runtimepinner eller en
 alternativ klientdistribusjon. Normal launch godtar OpenCode `>=1.18.20,<2`,
-Copilot CLI `>=1.0.79,<2` og cplt fra testbaselinen eller en nyere, gyldig
+Copilot CLI `>=1.0.100,<2` og cplt fra testbaselinen eller en nyere, gyldig
 datostemplet release.
 
 ## Toolstrategi
@@ -63,7 +63,7 @@ tekniske grensen.
 | **VS Code** | Sekundær, ikke-verifisert kompatibilitetsflate utenfor første release-løfte. | Faktisk installasjon og oppdatering med to Grillmester-versjoner. |
 | **OpenCode 1.x fra 1.18.20** | Deterministisk target med 6 agenter, 44 skills og 44 commands. Brukerinstallert klient startes gjennom cplt. | Hver konkret modell må kvalitetsvalideres; nyere 1.x er kompatibilitetsflate, ikke de eksakte testbytene. |
 | **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en avgrenset kjøring med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web avhenger av cplt-policy; eksplisitte GitHub- og package-tokens krever separate opt-in-flagg. OpenCode isolerer ambient GitHub-konto, mens Copilot-profilen kan mediere en native Keychain-credential. `run` krever et separat worktree og etterkontroll. |
-| **OpenCode 2 beta** | Forventet filkompatibilitet, men ingen støttet runtimeflate. | Permissions, provider/model-adferd og full runtimeparitet må testes separat. |
+| **OpenCode 2** | Forventet filkompatibilitet, men ingen støttet runtimeflate. | Permissions, provider/model-adferd og full runtimeparitet må testes separat. |
 
 ### Designverksted og overlevering mellom klienter
 

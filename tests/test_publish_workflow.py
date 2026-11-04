@@ -445,7 +445,7 @@ class PublishWorkflowContractTest(unittest.TestCase):
             )
             jobs = dict(zip(parts[1::2], parts[2::2]))
             setup = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
-            install = "npm install --global @github/copilot@1.0.79"
+            install = "npm install --global @github/copilot@1.0.100"
             install_jobs = {name: body for name, body in jobs.items() if install in body}
             self.assertTrue(install_jobs, workflow.name)
             for name, body in install_jobs.items():

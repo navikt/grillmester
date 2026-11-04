@@ -8,7 +8,7 @@ det; kommandoen er ikke en offlineprofil.
 
 Local-flyten bruker brukerinstallerte systemklienter med samme
 kompatibilitetsgrense som standardlauncheren: OpenCode `>=1.18.20,<2`, Copilot
-CLI `>=1.0.79,<2` og cplt fra testbaselinen eller en nyere, gyldig datostemplet
+CLI `>=1.0.100,<2` og cplt fra testbaselinen eller en nyere, gyldig datostemplet
 release. De eksakte versjonene i CI er release-testinput, ikke pinner som gjør
 hver klientoppgradering til en Grillmester-release. Grillmester tilbyr ingen
 egen offlineprofil; strengere egress må konfigureres og eies i cplt eller
@@ -668,7 +668,7 @@ grillmester --client copilot --agent grillmester \
   --pass-env COPILOT_AUTO_UPDATE \
   --pass-env COPILOT_OTEL_ENABLED \
   --pass-env NO_PROXY \
-  -- --model "$COPILOT_MODEL" --effort medium \
+  -- --model "$COPILOT_MODEL" --reasoning-effort medium \
   --no-auto-update --no-remote --no-remote-export \
   --disable-builtin-mcps \
   --secret-env-vars=COPILOT_PROVIDER_API_KEY

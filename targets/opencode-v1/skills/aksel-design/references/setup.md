@@ -61,9 +61,9 @@ npx @navikt/aksel@8.16.1 codemod v8-tokens
 
 Etter codemod, kjør repoets sjekker (f.eks. `mise check`, `pnpm lint`, `pnpm test`) for å fange regresjoner.
 
-## Finn Tailwind-konflikter
+## Finn Tailwind-spacing
 
-Aksel-komponenter skal ikke blandes med Tailwind padding/margin. Søk etter konflikter før refaktorering:
+Aksel og Tailwind kan brukes sammen. Hvis repoet vil samle spacing i Aksel-props, søk etter Tailwind padding og margin før refaktorering:
 
 ```bash
 # ripgrep
