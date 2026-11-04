@@ -5,6 +5,8 @@ date: 2026-10-23
 
 # Valgfri app-canvas med samme innspillslager
 
+> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 Den midlertidige livssyklusen i denne beslutningen utvides av
 [ADR 0023](0023-prosjektlagret-designrom.md) for uttrykkelig prosjektlagrede
 designrom. Transport-, eierskaps- og innsendingsgrensene videreføres.

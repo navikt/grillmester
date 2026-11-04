@@ -5,6 +5,8 @@ date: 2026-10-23
 
 # Innspill i Visual Companion
 
+> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 Delvis erstattet av [ADR 0023](0023-prosjektlagret-designrom.md) for
 prosjektlagrede rom: innspill lagres varig i prosjektet og beholdes ved stopp.
 Midlertidige økter følger fortsatt lagrings- og oppryddingskontrakten nedenfor.

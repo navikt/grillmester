@@ -5,6 +5,8 @@ date: 2026-10-29
 
 # Skrivebeskyttet skisseinspeksjon
 
+> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 ## Bakgrunn
 
 Canvas-tilstand og dokumentstruktur viser ikke hvordan en skisse ser ut.

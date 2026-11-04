@@ -65,87 +65,37 @@ tekniske grensen.
 | **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en avgrenset kjøring med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web avhenger av cplt-policy; eksplisitte GitHub- og package-tokens krever separate opt-in-flagg. OpenCode isolerer ambient GitHub-konto, mens Copilot-profilen kan mediere en native Keychain-credential. `run` krever et separat worktree og etterkontroll. |
 | **OpenCode 2** | Forventet filkompatibilitet, men ingen støttet runtimeflate. | Permissions, provider/model-adferd og full runtimeparitet må testes separat. |
 
-### Designverksted og overlevering mellom klienter
+### Design i nettleserfanen og overlevering mellom klienter
 
-Kjørende apper vises i Copilot-appens innebygde nettleserfane, som vanlig webview
-uten proxy fra Grillmester. Designeren velger elementer eller områder med Pick &
-Polish, og agenten leser og tar skjermbilder av samme fane. Dette er lest ut av
-koden i app 1.1.34 og er ikke dokumentert av GitHub; se
+Kjørende apper vises i Copilot-appens innebygde nettleserfane, som vanlig webview uten
+proxy fra Grillmester. Designeren velger elementer eller områder med Pick & Polish, og
+agenten leser og tar skjermbilder av samme fane. Dette er lest ut av koden i app 1.1.34,
+prøvd på én app og ikke dokumentert av GitHub; se
 [ADR 0034](adr/0034-kjorende-apper-i-appens-nettleserfane.md). Et valg sender tag,
-adresse, attributter, synlig tekst, ytre HTML, stiler og CSS-regler til modellen.
-Bare attributtene `value`, `password`, `token`, `secret` og `key` fjernes. Tekst i
-tekstområder og alt synlig innhold følger med, så fanen skal bare brukes med
-syntetiske demoer og offentlige sider. Vedlegget er ubetrodd sideinnhold og gir
-intet mandat. At agenten bare endrer den eide kopien, er en instruks, ikke en
-teknisk sperre.
+adresse, attributter, synlig tekst, ytre HTML, stiler og CSS-regler til modellen. Bare
+attributtene `value`, `password`, `token`, `secret` og `key` fjernes. Tekst i
+tekstområder og alt synlig innhold følger med, så fanen skal bare brukes med syntetiske
+demoer og offentlige sider. Vedlegget er ubetrodd sideinnhold og gir intet mandat. At
+agenten bare endrer den eide kopien, er en instruks, ikke en teknisk sperre.
 
-Designverksted er et native canvas for HTML-skisser. Canvas-verten eier den visuelle
-flaten og samtalebindingen; Grillmesters lokale Node-prosesser eier skisse og
-prosjektrom. Skisseflyten er empirisk prøvd i Copilot app 1.1.33 på macOS. Andre
-verter og versjoner trenger egen verifikasjon. Se
-[leveringsgrunnlaget](testing/designverksted-release-readiness.md)
-og [de tidligere skisseprøvene](testing/visual-companion-design-workspace.md).
-
-HTML-skisser kan inspiseres gjennom en egen kortlivet lesevisning med samme
-rensing og stiler. Den innebygde nettleseren kan hente bilder og prøve deklarerte
-interaksjoner i bakgrunnen, mens designeren blir i verkstedet. Visningen har
-egen loopback-origin og lesekapabilitet; den deler ingen kontrollnøkkel og kan
-ikke sende innspill. Den starter fra publiserte standardverdier og dokumenterer
-ikke brukerens levende canvas-tilstand. Se
-[ADR 0031](adr/0031-skrivebeskyttet-skisseinspeksjon.md).
-
-Skisseverkstedets private adresse skal aldri åpnes i en vanlig delt nettleser.
-Flere samtidige canvas har et uavklart vertsavvik ved lukking og gjenåpning.
-Samtalekøen må også kontrolleres i klienten: `queued` eller en sluttoppsummering
-beviser ikke at neste innspillsrunde er behandlet. Lokale protokoll-, browser- og
-SDK-prøver beviser sine egne kontrakter; de erstatter ikke en ny nativeprøve av
-endret leveranseinnhold.
-
-Demooppstart kan endre frameworkstyrte filer;
-«vis appen» er ikke et løfte om uendret checkout. Consumerens oppskrift,
-eierskap og etterkontroll gjelder fortsatt.
+Demooppstart kan endre frameworkstyrte filer; «vis appen» er ikke et løfte om uendret
+checkout. Derfor kjører demoen fra en eid kopi. Consumerens oppskrift, eierskap og
+etterkontroll gjelder fortsatt.
 [Den eide demohjelperen](adr/0028-eid-livslop-for-lokale-demoer.md) lar en kort
-shellkommando starte demoen med privat status og stopp, uten automatisk restart.
-Den beviser verken eierskap til appens URL, syntetiske data eller at appen bare
-skriver i arbeidskopien. Lokale prosessprøver erstatter ikke kontroll av
-samtalekø og stopp i den støttede klienten.
-Ingen sandboxpolicy skal endres
-automatisk på grunnlag av en visningsfeil: lytting, lokal tilkobling og
-sidelasting må diagnostiseres hver for seg.
+shellkommando starte demoen med privat status og stopp, uten automatisk restart. Den
+beviser verken eierskap til appens URL, syntetiske data eller at appen bare skriver i
+kopien. Ingen sandboxpolicy skal endres automatisk på grunnlag av en visningsfeil:
+lytting, lokal tilkobling og sidelasting må diagnostiseres hver for seg.
 
-VS Code dokumenterer også canvas som preview i lokale Copilot Agent Host-økter
-på desktop, med `chat.canvases.enabled` slått på før økten opprettes.
-I VS Code 1.142.0 er dette en applikasjonsinnstilling, ikke en innstilling for
-prøveprosjektet. Dette gjelder ikke økttypen «Local», remote Agent Host,
-webklienten eller vertskap i et hjelpevindu.
-En canvas-plugin installert i Copilot app kan ifølge dokumentasjonen oppdages
-fra en støttet VS Code-økt. Dette er plattformstøtte, ikke verifisert
-Grillmester-paritet; kontroller faktisk pluginversjon, canvas og lagret rom før
-en klientovergang regnes som prøvd.
-Kilde kontrollert 2026-10-24: [VS Code: canvases with the Copilot harness](https://code.visualstudio.com/docs/agents/run/agent-harnesses#use-canvases-with-the-copilot-harness).
+Klienter uten nettleserfane, som CLI og OpenCode, starter demoen på samme måte. Designeren
+åpner adressen i en vanlig nettleser og gir innspill i samtalen.
 
-[Oppsettprøven 2026-10-25](testing/copilot-workflow-validation.md#setup-observation-25-october-2026)
-stoppet før modellkjøring: Agents-profilen viste gammel plugin som deaktivert,
-men rollevelgeren beholdt to identiske Designer-valg også etter at vinduet ble
-åpnet på nytt. Kilden kunne dermed ikke velges entydig. Canvasflyten i VS Code
-er fortsatt uverifisert; prøven fastslår ikke årsaken til katalogavviket.
+Et forslag som skal beholdes, lagres som patch og kort brief etter
+[overleveringsoppskriften](../plugin/skills/design-prototype/references/design-handoff.md).
+Implementering er bestilt arbeid i originalprosjektet og verifiseres separat.
+`grillmester local` sin fokuserte profil har et mindre skillutvalg; bruk full kontekst når
+denne oppskriften trengs.
 
-CLI-utvidelser er eksperimentelle. At utvidelsen lastes, beviser ikke at
-klienten tilbyr en canvasflate. Uten native canvas bruker `design-prototype`
-den portable nettleserflyten for HTML-skisser når Node og loopback er tilgjengelig; den gir
-midlertidige skisser og ikke det prosjektlagrede designrommet.
-OpenCode-targetet beholder skisseflyten og innspillskontrakten; en kjørende app
-kan ses i en separat tilgjengelig nettleser med innspill i samtalen.
-Se [GitHubs utvidelsesbeskrivelse](https://docs.github.com/en/copilot/concepts/customizations/extensions).
-
-Implementering fra et allerede lagret designrom krever derimot ingen åpen app
-eller canvas. Fullpakken inneholder [overleveringsoppskriften](../plugin/skills/design-prototype/references/design-handoff.md):
-velg eksakt repo/worktree og revisjon, les registrert HTML sammen med eventuell
-designbeskrivelse, og avklar relevante beslutninger og akseptansekriterier.
-Rå HTML kan ha eldre tekst enn den lagrede designbeskrivelsen. Produktkode
-verifiseres separat, og endringer synkroniseres ikke automatisk tilbake til
-skissen. `grillmester local` sin fokuserte profil har et mindre skillutvalg;
-bruk full kontekst når denne designoppskriften trengs.
 
 Discovery-smoken kontakter ingen modell. OpenCodes runtime-smoke bruker en
 deterministisk loopbackprovider og beviser config, delegering, `.env`-deny,

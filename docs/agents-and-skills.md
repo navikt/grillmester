@@ -85,22 +85,26 @@ alternativer og panel brukes når de belyser et faktisk designvalg. En liten
 justering trenger verken nye varianter eller nytt intervju.
 
 I Copilot-appen åpner Designer en kjørende app i nettleserfanen ved siden av
-samtalen. Du peker med Pick & Polish (⌘⇧C) og skriver ønsket i samtalen. Forslaget
-lages i en eid kopi av appen, og du ser det i samme fane. Originalprosjektet endres
+samtalen. Designer starter appen lokalt når det lar seg gjøre. Ellers vises en
+eventuell publisert demo, og en lokal kopi prøves igjen når du ber om en endring.
+Du peker med Pick & Polish (⌘⇧C) og skriver ønsket i
+samtalen. Hopper du over spørsmålet om å stole på repoet, ber appen om godkjenning for
+hver handling, så velg å stole på repoer du kjenner. Forslaget lages i en eid kopi av appen, og du ser det i samme fane. Originalprosjektet endres
 bare som separat bestilt implementering. Et forslag er midlertidig til det er
 lagret etter avtale. Be om to faner når du vil se dagens app og forslaget side om
 side.
 
-Designverksted er for HTML-skisser. Sendte innspill går til samme Designer-samtale,
-og svaret kommer tilbake i verkstedet. «I kø» bekrefter mottak, ikke at arbeidet
-har startet. Lagrede skisser har også editor og versjoner, og kan åpnes igjen uten
-ny innsending. Uten nettleserfane brukes en separat tilgjengelig nettleser for appen
-og samtalen for innspill, og den portable flyten for midlertidige HTML-skisser.
-Figma kan være arbeidsflaten fra start eller avtalt sluttleveranse etter en
-skisse. Be Designer i samtalen bygge videre i ønsket Figma-fil; med tilgjengelig
-skrivetilgang brukes redigerbare Aksel-komponenter og valgt skisseversjon.
-Uten skrivetilgang leveres et avtalt utkast, ikke en påstått Figma-fil.
-Overleveringen er ikke automatisk synkronisering mellom Figma og skissen.
+En ny idé uten app bygges som en liten app med ekte Aksel-komponenter, på samme måte.
+Vil du leke helt fritt, sier du det, så lager Designer vanlige HTML-filer uten
+Aksel-regler.
+Ved et reelt retningsvalg vises alternativer i hver sin fane. Vil du beholde et
+forslag, lagres det som patch og kort brief. Uten nettleserfane brukes en
+tilgjengelig nettleser for appen og samtalen for innspill.
+Figma kan være arbeidsflaten fra start eller avtalt sluttleveranse etter et
+forslag. Be Designer i samtalen bygge videre i ønsket Figma-fil; med tilgjengelig
+skrivetilgang brukes redigerbare Aksel-komponenter, og siden i fanen forteller
+hvilke komponenter som skal brukes. Uten skrivetilgang leveres et avtalt utkast,
+ikke en påstått Figma-fil. Overleveringen er ikke automatisk synkronisering.
 
 Bestillingen styrer starten: «Kjør demoen» viser den faktiske appen, «drodle»
 kan starte i samtalen, og en brukerhistorie gir et avgrenset designforslag med

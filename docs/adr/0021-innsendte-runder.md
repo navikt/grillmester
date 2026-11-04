@@ -5,6 +5,8 @@ date: 2026-10-23
 
 # Uforanderlige innsendte runder
 
+> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 Delvis erstattet av [ADR 0023](0023-prosjektlagret-designrom.md) for
 prosjektlagrede rom: journalen lagres i `workspace.json` og beholdes ved stopp.
 Gjenåpning bevarer rundene uten å sende dem på nytt. Midlertidige økter følger

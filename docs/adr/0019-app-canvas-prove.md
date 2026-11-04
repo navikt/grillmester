@@ -5,6 +5,8 @@ date: 2026-10-23
 
 # Avgrenset prøve av app-canvas
 
+> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 Delvis erstattet av [ADR 0023](0023-prosjektlagret-designrom.md) for lagring og
 opprydding i prosjektlagrede rom. Skisseversjoner, innspill og svar beholdes
 ved stopp; transport og samtalebinding er fortsatt midlertidige.

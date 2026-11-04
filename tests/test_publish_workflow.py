@@ -56,18 +56,6 @@ class PublishWorkflowContractTest(unittest.TestCase):
         for statement in statements:
             self.assertRegex(statement, r"(\|\| exit 1|&& break)$")
 
-    def test_sketch_browser_smoke_runs_in_validation_and_exact_source_release(self) -> None:
-        for workflow, source in (
-            (ROOT / ".github/workflows/validate.yml", "node scripts/smoke_visual_companion.cjs"),
-            (ROOT / ".github/workflows/release.yml", 'node "${SOURCE_ROOT}/scripts/smoke_visual_companion.cjs"'),
-        ):
-            body = workflow_jobs(workflow)["validate"]
-            self.assertIn(source, body)
-            self.assertIn("playwright@1.62.1", body)
-            self.assertIn("--browser-channel chromium", body)
-            self.assertIn("--ignore-scripts --no-audit --no-fund", body)
-            self.assertNotIn("contents: write", body)
-
     def test_shell_run_blocks_never_expand_github_expressions_directly(self) -> None:
         """Keep attacker-controlled workflow values out of shell source text."""
 
@@ -1603,10 +1591,10 @@ class PublishWorkflowContractTest(unittest.TestCase):
         owner = json.loads((ROOT / "package-manifest.json").read_text(encoding="utf-8"))[
             "marketplace"
         ]["owner"]
-        legacy = {key: value for key, value in manifest.items() if key != "extensions"}
+        self.assertNotIn("extensions", manifest)
         cases = (
             ("source manifest", manifest, 0),
-            ("manifest without extensions", legacy, 0),
+            ("earlier release with extensions", {**manifest, "extensions": "extensions/"}, 0),
             ("other extensions directory", {**manifest, "extensions": "other/"}, 1),
             ("unknown component key", {**manifest, "hooks": "hooks/"}, 1),
         )
@@ -1633,8 +1621,8 @@ class PublishWorkflowContractTest(unittest.TestCase):
                         expected, result.returncode, f"gate {gate}, {label}: {result.stderr}"
                     )
 
-    def test_release_runs_every_visual_companion_check_from_validation(self) -> None:
-        """A release must not test the shipped canvas less than pull requests do."""
+    def test_release_runs_every_demo_helper_check_from_validation(self) -> None:
+        """A release must not test the shipped demo helper less than pull requests do."""
 
         def node_commands(workflow: Path, step_names: tuple[str, ...]) -> set[str]:
             lines = workflow.read_text(encoding="utf-8").splitlines()
@@ -1654,32 +1642,21 @@ class PublishWorkflowContractTest(unittest.TestCase):
                         )
             return commands
 
-        validation = node_commands(
-            VALIDATE_WORKFLOW,
-            ("Validate Visual Companion scripts", "Test app canvas adapter without a model"),
-        )
+        validation = node_commands(VALIDATE_WORKFLOW, ("Validate the demo helper",))
         release = node_commands(
-            RELEASE_WORKFLOW,
-            (
-                "Validate Visual Companion scripts from exact source",
-                "Test app canvas adapter from exact source without a model",
-            ),
+            RELEASE_WORKFLOW, ("Validate the demo helper from exact source",)
         )
-        self.assertGreaterEqual(len(validation), 19)
-        self.assertEqual(set(), validation - release)
-
-    def test_validation_syntax_checks_every_visual_smoke(self) -> None:
-        """Browser smokes stay out of CI, so their syntax is checked instead."""
-
-        text = VALIDATE_WORKFLOW.read_text(encoding="utf-8")
-        smokes = sorted((ROOT / "scripts").glob("smoke_visual_*.cjs"))
-        self.assertGreaterEqual(len(smokes), 8)
-        for smoke in smokes:
-            with self.subTest(smoke=smoke.name):
-                self.assertEqual(1, text.count(f"node --check scripts/{smoke.name}\n"))
+        self.assertEqual(
+            {
+                "node --check plugin/skills/design-prototype/scripts/app-runtime.js",
+                "node --test plugin/skills/design-prototype/tests/*.test.js",
+            },
+            validation,
+        )
+        self.assertEqual(validation, release)
 
     def test_native_macos_gate_runs_node_suites_with_the_validation_node(self) -> None:
-        """Case-insensitive filesystem cases only run on the native macOS gate."""
+        """The demo helper suite also runs on the native macOS filesystem."""
 
         setup = re.compile(
             r"uses: (actions/setup-node@[0-9a-f]{40} # v[0-9.]+)\n"
@@ -1691,13 +1668,9 @@ class PublishWorkflowContractTest(unittest.TestCase):
         self.assertEqual(set(setup.findall(validation)), set(setup.findall(macos)))
         self.assertEqual(1, macos.count("actions/setup-node@"))
         node_steps = macos[macos.index("actions/setup-node@") :]
-        for suite in (
-            "node --test plugin/skills/design-prototype/tests/*.test.js\n",
-            "node --test plugin/extensions/visual-companion/tests/*.test.mjs\n",
-        ):
-            with self.subTest(suite=suite):
-                self.assertEqual(1, node_steps.count(suite))
-                self.assertIn(suite, validation)
+        suite = "node --test plugin/skills/design-prototype/tests/*.test.js\n"
+        self.assertEqual(1, node_steps.count(suite))
+        self.assertIn(suite, validation)
 
 
 if __name__ == "__main__":

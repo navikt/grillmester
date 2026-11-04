@@ -24,18 +24,12 @@ påkrevd.
 
 Bruk `/app-sandbox-setup` for manuelt sandbox-oppsett i Copilot app på macOS med plan, bekreftelse, verify og rollback.
 
-Designverksted krever vanlig Node.js på appens `PATH`; utvidelsen støtter
-Node.js 18 eller nyere, og gjeldende LTS anbefales. Prosjektlagrede designrom
-støttes bare på Unix-verter som macOS og Linux. Forhåndsvisningen bruker en
-privat lokal loopback-server. Se [forutsetninger](docs/installation.md#før-du-begynner).
-
 Kjørende apper vises i Copilot-appens nettleserfane. Designeren peker med
 **Pick & Polish** (⌘⇧C) og skriver ønsket i samtalen, og forslag lages i en eid
-kopi av appen med ekte komponenter. Bruk lokale demoer med syntetiske data, fordi
-sidens tekst, HTML og adresse går til modellen. Designverksted er for HTML-skisser
-med varianter, innspillsrunder og versjoner. Se
-[flyten for kjørende apper](plugin/skills/design-prototype/references/application-opening.md)
-og [skisseflyten](plugin/skills/design-prototype/references/design-workspace.md).
+kopi av appen med ekte komponenter. En ny idé uten app bygges som en liten Aksel-app
+på samme måte. Bruk demoer med syntetiske data, fordi sidens tekst, HTML og adresse
+går til modellen. Demoer krever Node.js på appens `PATH`. Se
+[designflyten](plugin/skills/design-prototype/references/application-opening.md).
 
 ### Copilot CLI
 
@@ -81,7 +75,7 @@ eller [manuell oppdatering, pinning og rollback](docs/installation.md#oppdatere-
 | Agent | Bruk når |
 | --- | --- |
 | **Grillmester** 🔥 | Undersøker, planlegger, implementerer og verifiserer utviklingsoppgaver i samme samtale. Avklarer vesentlige valg og bruker uavhengig review etter risiko. |
-| **Designer** 🎨 | Du vil utforske eller forbedre skisser, brukerflyt og konsepter. Bruker tilgjengelig canvas, nettleser eller Figma, og kan implementere når du ber om det. |
+| **Designer** 🎨 | Du vil utforske eller forbedre apper, brukerflyt og konsepter med ekte komponenter. Bruker nettleserfanen eller Figma, og kan implementere når du ber om det. |
 | **Doctor Who** 🕰️ | Du trenger støtte til discovery, mål, prioritering, workshops, teamhelse, produktfag eller Nav-arkitektur. |
 
 Beskriv ønsket resultat, kontekst og avgrensninger. Agenten laster normalt

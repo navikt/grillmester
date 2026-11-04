@@ -15,9 +15,7 @@
       "permission": {
         "edit": "ask",
         "bash": {
-          "*": "ask",
-          "node scripts/server.js * --cleanup-all*": "deny",
-          "node *design-prototype/scripts/server.js * --cleanup-all*": "deny"
+          "*": "ask"
         },
         "webfetch": "ask",
         "websearch": "ask",
@@ -131,12 +129,6 @@
     }
   ],
   "pathTextReplacements": {
-    "skills/design-prototype/references/visual-companion.md": [
-      {
-        "from": "lokal Copilot CLI/app-kjøring",
-        "to": "lokal OpenCode CLI/app-kjøring"
-      }
-    ],
     "skills/create-a-skill/references/principles.md": [
       {
         "from": "Use GitHub Copilot's supported invocation fields rather than encoding policy\nin prose.",
@@ -156,9 +148,7 @@
     "skills/create-a-skill/references/opencode-validation.md": "policy/opencode-v1/overlays/skills/create-a-skill/references/opencode-validation.md"
   },
   "remove": [
-    "skills/create-a-skill/references/copilot-cli-validation.md",
-    "skills/design-prototype/scripts/app-runtime.js",
-    "skills/design-prototype/tests/app-runtime.test.js"
+    "skills/create-a-skill/references/copilot-cli-validation.md"
   ],
   "skillCapabilities": {
     "default": "native",

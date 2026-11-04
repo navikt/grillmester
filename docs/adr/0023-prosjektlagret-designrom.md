@@ -5,6 +5,8 @@ date: 2026-10-24
 
 # Prosjektlagret designrom
 
+> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 ## Kontekst
 
 Appadapteren fra [ADR 0022](0022-app-canvas-adapter.md) kobler skissen til en

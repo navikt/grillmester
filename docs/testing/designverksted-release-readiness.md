@@ -1,9 +1,8 @@
 # Designverksted: grunnlag for native levering
 
-> Kjørende apper er foreslått flyttet til appens nettleserfane i
-> [ADR 0034](../adr/0034-kjorende-apper-i-appens-nettleserfane.md). Resultatene for
-> «Appen nå» under gjelder den fjernede flyten og er bevart som historikk.
-> Skisseresultatene gjelder fortsatt. Den nye flyten er ikke prøvd i appen ennå.
+> Designverksted er foreslått fjernet i
+> [ADR 0034](../adr/0034-kjorende-apper-i-appens-nettleserfane.md). Dette dokumentet
+> og de andre prøvenotatene her er bevart som historikk.
 
 Status 28. oktober 2026: Den samlede flyten er prøvd i **Copilot app 1.1.33
 på macOS**. Resultatene gjelder kandidatene som faktisk ble prøvd. Senere
@@ -19,7 +18,7 @@ uten demo; en bestilling om bare visning oppretter ikke et forslag.
 Første leveranse bruker én arbeidsflate inne i Copilot. Den private
 rendereradressen skal ikke åpnes i en ekstern nettleser. Andre verter og
 versjoner trenger egen verifikasjon: canvasstøtte alene garanterer ikke
-lagringsisolasjon. Se [tillitsgrensene](../trust-and-client-support.md#designverksted-og-overlevering-mellom-klienter)
+lagringsisolasjon. Se [tillitsgrensene](../trust-and-client-support.md#design-i-nettleserfanen-og-overlevering-mellom-klienter)
 og [ADR 0027](../adr/0027-designverksted-for-kjorende-apper.md).
 
 ## Verifiserte resultater

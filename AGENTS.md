@@ -48,42 +48,15 @@ python3 scripts/generate_context_projections.py --check
 python3 scripts/generate_agentpakke_manifest.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
-node --check plugin/skills/design-prototype/scripts/server.js
-node --check plugin/skills/design-prototype/scripts/helper.js
-node --check plugin/skills/design-prototype/scripts/workshop.js
-node --check plugin/skills/design-prototype/scripts/design-contract.js
-node --check plugin/skills/design-prototype/scripts/comments.js
-node --check plugin/skills/design-prototype/scripts/feedback-store.js
-node --check plugin/skills/design-prototype/scripts/canvas-state.js
-node --check plugin/skills/design-prototype/scripts/workspace-store.js
-node --check plugin/skills/design-prototype/scripts/workspace-state.js
-node --check plugin/skills/design-prototype/scripts/editor-contract.js
-node --check plugin/skills/design-prototype/scripts/editor-bindings.js
-node --check plugin/skills/design-prototype/scripts/editor.js
 node --check plugin/skills/design-prototype/scripts/app-runtime.js
-node --check plugin/skills/design-prototype/scripts/local-ports.js
-node --check plugin/skills/design-prototype/scripts/html-inspection.js
 node --test plugin/skills/design-prototype/tests/*.test.js
-node --check plugin/extensions/visual-companion/extension.mjs
-node --check plugin/extensions/visual-companion/adapter.mjs
-node --check plugin/extensions/visual-companion/backend.mjs
-node --check plugin/extensions/visual-companion/runtime.mjs
-node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
-node --check scripts/smoke_visual_canvas.cjs
-node --check scripts/visual-smoke-controls.cjs
-node --test plugin/extensions/visual-companion/tests/*.test.mjs
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py --require-binary
 python3 scripts/smoke_opencode_runtime.py --require-binary --cplt cplt
 python3 scripts/smoke_grillmester_local.py --require-binaries --cplt cplt --opencode opencode --copilot copilot
 ```
 
-For sketch changes, run `scripts/smoke_visual_companion.cjs` with an existing
-Playwright module (`--playwright-module PATH`) and browser (`--browser-channel
-chrome` or `chromium`). CI runs it in Chromium with a pinned test dependency. The
-demo helper regressions use only owned synthetic processes and private temporary
-state; they run in the design-prototype Node test suite. Running apps open in the
-client's Browser, so that flow needs a trial in the app itself.
+The demo helper regressions use only owned synthetic processes and private temporary state; they run in the design-prototype Node test suite. Running apps open in the client's Browser, so that flow needs a trial in the app itself.
 
 The install smoke test must use a disposable, isolated Copilot home. For live
 client behavior, use Nav's normal `cplt` setup in an empty, disposable test

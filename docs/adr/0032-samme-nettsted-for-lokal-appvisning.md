@@ -5,7 +5,7 @@ date: 2026-10-31
 
 # Samme nettsted for lokal appvisning
 
-> Foreslått erstattet for kjørende apper av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
 
 ## Kontekst
 

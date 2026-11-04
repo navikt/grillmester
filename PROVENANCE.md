@@ -326,13 +326,16 @@ and avoiding a drifting matrix of client-specific aliases. Their behavioral
 contracts remain narrower: Doctor Who neither delegates nor uses shell
 commands. Designer delegates only to Perspektiv and Researcher and never
 delegates code implementation; it uses edit/execute for design work, approved
-tool setup, and implementation the user asks for. Canvas sketches use their
-bound publication actions; the portable workflow without canvas writes HTML
-only to the exact private `screen_dir` returned by its active startup JSON.
+tool setup, and implementation the user asks for. Design proposals are edits
+in an owned copy of the app, never in the original project.
 Technical containment and approval remain client-
 and enterprise-owned.
 
 ### Visual Companion lineage
+
+The Visual Companion runtime is proposed removed in
+[ADR 0034](docs/adr/0034-kjorende-apper-i-appens-nettleserfane.md). This lineage is
+kept as history.
 
 Hovmester's Visual Companion was derived from the brainstorming workflow in
 `obra/superpowers`. The exact historical upstream revision used by Hovmester was
@@ -341,10 +344,10 @@ license boundary were reviewed against `obra/superpowers` at
 `44c9b2d6e889982ac18c27d05a19fefe335194e1`, specifically the
 `skills/brainstorming` skill and its Visual Companion resources.
 
-Grillmester keeps its independently hardened server: loopback-only networking,
+Grillmester kept an independently hardened server: loopback-only networking,
 session tokens, strict Host/Origin checks, a sandboxed opaque iframe, CSP without
 external network access, private OS-temp state, bounded opaque events and
-marker-bound cleanup. From the reviewed upstream it adopts the useful lifecycle
+marker-bound cleanup. From the reviewed upstream it adopted the useful lifecycle
 and interaction ideas—just-in-time visual use, readiness checks, paused-state
 feedback, per-screen event isolation and an idle timeout that polling cannot keep
 alive—without copying remote binds, repository state, generic file serving,
@@ -352,11 +355,10 @@ external assets or raw event text. See the full MIT notice in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 The owned-demo helper `design-prototype/scripts/app-runtime.js` is original
-Grillmester implementation. The existing sketch path retains its lineage above;
-no new imported component or synchronization relationship is introduced.
+Grillmester implementation. No new imported component or synchronization
+relationship is introduced.
 
-An earlier running-app canvas, proposed removed in
-[ADR 0034](docs/adr/0034-kjorende-apper-i-appens-nettleserfane.md), used
+An earlier running-app canvas, proposed removed in the same ADR, used
 `navikt/agentic-ui-canvas` at `ce79929f5d2b27cc5610690bca19c4450dd530b6` and
 `b18e313a6f0eb8e5b6fc74ac671ee0490a437aa3` as architectural references. No source
 files from either revision were imported or redistributed; no reuse licence was

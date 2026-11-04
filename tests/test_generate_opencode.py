@@ -26,15 +26,13 @@ SPEC.loader.exec_module(GENERATOR)
 
 
 class OpenCodeGenerationTest(unittest.TestCase):
-    def test_design_target_keeps_portable_feedback_without_the_demo_runtime(self) -> None:
+    def test_design_target_ships_the_demo_helper_and_nothing_else_from_the_old_engine(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
         prefix = "skills/design-prototype/"
-        self.assertNotIn(prefix + "scripts/app-runtime.js", files)
-        self.assertNotIn(prefix + "tests/app-runtime.test.js", files)
-        self.assertEqual([], [name for name in files if name.startswith((f"{prefix}scripts/application-", f"{prefix}tests/application-"))])
-        for name in ("server.js", "feedback-store.js", "local-ports.js", "html-inspection.js"):
-            self.assertIn(prefix + "scripts/" + name, files)
-        self.assertIn(prefix + "tests/feedback-submit-draft.test.js", files)
+        self.assertEqual(
+            {prefix + "scripts/app-runtime.js", prefix + "tests/app-runtime.test.js"},
+            {name for name in files if name.startswith((prefix + "scripts/", prefix + "tests/"))},
+        )
 
     def test_projected_design_tests_keep_their_local_module_dependencies(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
@@ -181,12 +179,8 @@ class OpenCodeGenerationTest(unittest.TestCase):
 
         designer = self.expected("agents/designer.md")
         perspektiv = self.expected("agents/perspektiv.md")
-        self.assertIn(
-            '  bash:\n    "*": ask\n'
-            '    "node scripts/server.js * --cleanup-all*": deny\n'
-            '    "node *design-prototype/scripts/server.js * --cleanup-all*": deny',
-            designer,
-        )
+        self.assertIn('  bash:\n    "*": ask\n', designer)
+        self.assertNotIn("--cleanup-all", designer)
         self.assertNotIn("  bash: allow", designer)
         self.assertIn("    perspektiv: allow", designer)
         self.assertIn("    researcher: allow", designer)
@@ -401,9 +395,9 @@ class OpenCodeGenerationTest(unittest.TestCase):
 
     def test_skill_tree_resources_are_copied_and_executable_mode_is_preserved(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
-        source = ROOT / "plugin/skills/design-prototype/scripts/server.js"
+        source = ROOT / "plugin/skills/design-prototype/scripts/app-runtime.js"
         target_data, target_mode = files[
-            "skills/design-prototype/scripts/server.js"
+            "skills/design-prototype/scripts/app-runtime.js"
         ]
         self.assertEqual(source.read_bytes(), target_data)
         self.assertEqual(0o644, target_mode)

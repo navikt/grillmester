@@ -1,6 +1,6 @@
 # 0029: Appobservasjon og kjørende forslag i samme verksted
 
-> Foreslått erstattet for kjørende apper av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
 
 Status: Akseptert
 

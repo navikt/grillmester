@@ -298,7 +298,6 @@ class FocusedContextGenerationTest(unittest.TestCase):
         )
 
         full_plugin = json.loads((ROOT / "plugin/plugin.json").read_bytes())
-        self.assertEqual("extensions/", full_plugin.pop("extensions"))
         self.assertEqual(full_plugin, json.loads(copilot["plugin.json"][0]))
         self.assertFalse(any(path.startswith("extensions/") for path in copilot))
         self.assertFalse(any(path.startswith("extensions/") for path in opencode))
@@ -317,7 +316,6 @@ class FocusedContextGenerationTest(unittest.TestCase):
                     changed_copilot.add(relative)
         self.assertEqual(
             {
-                "plugin.json",
                 "agents/grillmester.agent.md",
                 "agents/grill-inspektor.agent.md",
                 "skills/diagnosing-bugs/SKILL.md",
@@ -374,7 +372,6 @@ class FocusedContextGenerationTest(unittest.TestCase):
         self.assertEqual(
             {
                 "agentFrontmatterRemoved": ["model"],
-                "pluginManifestFieldsRemoved": ["extensions"],
                 "agentEscalation": "missing-capability-handoff",
                 "excludedSkillReferences": "full-context-guidance",
             },
@@ -437,19 +434,36 @@ class FocusedContextGenerationTest(unittest.TestCase):
         finally:
             temporary.cleanup()
 
-    def test_policy_cannot_keep_extensions_or_remove_unreviewed_manifest_fields(self) -> None:
+    def test_policy_cannot_remove_manifest_fields(self) -> None:
         temporary, root = self.copy_repository()
         try:
             policy_path = root / "policy/focused-context-v1.json"
             policy = json.loads(policy_path.read_text(encoding="utf-8"))
-            for removed in ([], ["extensions", "skills"]):
-                with self.subTest(removed=removed):
-                    policy["copilotCli"]["removePluginManifestFields"] = removed
-                    policy_path.write_text(json.dumps(policy), encoding="utf-8")
-                    with self.assertRaisesRegex(
-                        GENERATOR.ProjectionError, "remove only the extensions field"
-                    ):
-                        GENERATOR.build_projections(root)
+            policy["copilotCli"]["removePluginManifestFields"] = ["skills"]
+            policy_path.write_text(json.dumps(policy), encoding="utf-8")
+            with self.assertRaisesRegex(
+                GENERATOR.ProjectionError, "policy copilotCli fields are invalid"
+            ):
+                GENERATOR.build_projections(root)
+        finally:
+            temporary.cleanup()
+
+    def test_copilot_source_cannot_declare_app_extensions(self) -> None:
+        temporary, root = self.copy_repository()
+        try:
+            plugin_path = root / "plugin/plugin.json"
+            plugin = json.loads(plugin_path.read_text(encoding="utf-8"))
+            plugin["extensions"] = "extensions/"
+            content = json.dumps(plugin).encode("utf-8")
+            plugin_path.write_bytes(content)
+            manifest_path = root / "plugin/manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files"]["plugin.json"]["sha256"] = hashlib.sha256(content).hexdigest()
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(
+                GENERATOR.ProjectionError, "must not declare app extensions"
+            ):
+                GENERATOR.build_projections(root)
         finally:
             temporary.cleanup()
 

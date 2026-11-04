@@ -90,10 +90,9 @@ never shell commands. Load only what the current step needs.
   ADR-worthy decision is at stake; reading vocabulary alone needs no skill.
 - Load `wayfinder` only when coupled open decisions need a shared map across
   sessions; implementation volume alone does not.
-- To implement from a saved design room, load `design-prototype` and go straight
-  to its `references/design-handoff.md`, which reads the chosen version without
-  opening the canvas, acquiring its writer claim or changing the room. A sketch
-  is not proof of production behavior.
+- To implement a saved design proposal, load `design-prototype` and go straight
+  to its `references/design-handoff.md`. A proposal is not proof of production
+  behavior.
 - Suggest `to-spec` or `to-issues` only when a durable specification or
   separately tracked slices would help; never chain them automatically.
 

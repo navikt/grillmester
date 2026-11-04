@@ -20,38 +20,72 @@ på nytt automatisk. Bekreft fortsatt create/edit-kapabilitet før skriving.
 
 <a id="underlag-og-mal"></a>
 
+## Innhold
+
+- Underlag og mål
+- Oppstart, filopprettelse og Aksel-biblioteker
+- Søk og bruk komponenter
+- Preflight, snapshot og Code Connect
+- Plugin API-mønster og gotchas
+- Tabeller, layout, kontekst og tilstander
+- Visuell kontroll og levering
+
 ## Underlag og mål
 
-Bruk avtalt arbeidsflate og sluttmål: bygg direkte i Figma eller viderefør en
-valgt skisse. En bestilling om Figma krever ingen innledende HTML-skisse.
-Ved videreføring fra et lagret designrom, les det valgte, hashverifiserte
-HTML-/descriptor-paret etter [overleveringsreferansen](design-handoff.md).
-For midlertidig arbeid, bruk gjeldende publiserte versjon i den eiende samtalen;
-ikke krev prosjektlagring bare for overføringen. Ta med valgt retning, relevante
-tilstander og uavklarte innspill, og bevar descriptorens tekst- og kontrollverdier.
-Bevar avtalt variant, tilstand og visningsbredde. Avklar et manglende valg bare
-når det endrer leveransen; lokale valg i Juster visning er ikke automatisk lagret.
+Bruk avtalt arbeidsflate og sluttmål: bygg direkte i Figma eller viderefør et
+valgt forslag. En bestilling om Figma krever ingen forutgående demo. Ved
+videreføring er den kjørende siden underlaget, så gjør dette mens demoen kjører;
+ikke krev lagring bare for overføringen. Ta med valgt retning, relevante tilstander
+og uavklarte innspill. Bevar avtalt variant, tilstand og visningsbredde. Avklar et
+manglende valg bare når det endrer leveransen.
 
-Følg omfanget av den valgte skissen og bestillingen. Når hele siden skal
+Følg omfanget av det valgte forslaget og bestillingen. Når hele siden skal
 videreføres, bygg sidens struktur, tekst og kontroller som redigerbare noder,
 med Aksel-instanser der de passer. Skjermbilder kan være referanse eller kontekst
 utenfor omfanget, men skal ikke erstatte innhold som skal kunne redigeres.
 En bestilt nåtilstand bygger på den faktiske appen og dens observerte tilstand;
-skill den fra skisseforslag, og ikke forbedre siden under dokumentasjonen.
+skill den fra forslag, og ikke forbedre siden under dokumentasjonen.
 
 Gjenbruk avtalt målfil, side eller node og skriv bare innenfor bestilt omfang.
 Opprett en ny fil bare når det er ønsket; oppskriften nedenfor gjelder det
 tilfellet. Avklar bare manglende mål eller plassering som påvirker arbeidet eller
-tilgangen. Til Figma overføres avtalt designinnhold, aldri verkstedets private
-rendereradresse eller kontrolltoken.
+tilgangen. Til Figma overføres avtalt designinnhold, aldri lokale adresser eller
+hemmeligheter.
 
 Lever redigerbare komponenter og relevante tilstander etter reglene nedenfor,
 med verifisert Figma-lenke og hvilket underlag de bygger på. En import eller et
 bilde alene beviser ikke redigerbare Aksel-instanser. Dette er en overlevering,
 ikke automatisk toveis synk: oppgi hvilket underlag videre arbeid skal følge,
-og ikke overskriv skissen eller Figma-endringer for å få flatene like.
-Ved senere gjenåpning må videre Figma-endringer ikke omtales som innarbeidet i
-HTML-skissen uten kontroll.
+og ikke overskriv forslaget eller Figma-endringer for å få flatene like.
+Videre Figma-endringer må ikke omtales som innarbeidet i forslaget uten kontroll.
+
+### Fra kjørende side til Aksel-instanser
+
+En kjørende side forteller selv hvilke komponenter den bruker. Aksel-komponenter har
+klasser som `aksel-button` og `aksel-guide-panel`, og varianten står i klassen eller
+i `data-variant` og `data-color`. Les dem i nettleserfanen med `evaluate_javascript`:
+
+```javascript
+const parts = {};
+for (const el of document.querySelectorAll('main [class*="aksel-"]')) {
+  for (const name of el.classList) {
+    const match = /^aksel-([a-z-]+?)(?:--([a-z0-9-]+))?$/.exec(name);
+    if (!match) continue;
+    const part = (parts[match[1]] ??= { count: 0, variants: [] });
+    if (!match[2]) part.count += 1;
+    for (const value of [match[2], el.dataset.variant, el.dataset.color]) {
+      if (value && !part.variants.includes(value)) part.variants.push(value);
+    }
+  }
+}
+return parts;
+```
+
+Slå opp navnet i [katalogen](aksel-figma-katalog.md): `guide-panel` er `GuidePanel`,
+`link-card` er `LinkCard`. Da bygger du med riktig instans, variant og tekst i stedet
+for å gjette ut fra et bilde. Hjelpeklasser som `stack`, `box` og `theme` er layout og
+blir frames. Komponenter uten Figma-instans står under `kunKode` i katalogen. Elementer
+uten Aksel-klasse er egne løsninger; bygg dem som vanlige frames og si fra om dem.
 
 ## Oppstart: Hent planKey
 
@@ -521,9 +555,8 @@ vise plassering og proporsjoner i ekte sidekontekst. Dette mønsteret gjelder
 kontekst utenfor det redigerbare omfanget. Ved en bestilt hel side skal hele
 sidens relevante innhold bygges redigerbart etter reglene ovenfor.
 
-Måling og midlertidig spacer-injeksjon nedenfor krever godkjent nettlesertilgang
-til den isolerte demoens offentlige adresse. Gjør det aldri i verkstedets
-private renderer. En slik endret bakgrunn er forslagets kontekst, ikke
+Måling og midlertidig spacer-injeksjon nedenfor gjøres i nettleserfanen mot den
+isolerte demoen. En slik endret bakgrunn er forslagets kontekst, ikke
 dokumentasjon av appens uendrede nåtilstand.
 
 **Teknikk (kontekst-overlay):**
@@ -574,23 +607,15 @@ set.name = "<Modulnavn>";
 
 Figma skal bevare den valgte
 retningens flyt, hierarki og innhold, men skal bruke aktiv Aksel-struktur fremfor
-å kopiere HTML-en piksel for piksel. For et lagret rom, les det hashverifiserte
-registrerte paret via [overleveringsreferansen](design-handoff.md) før bygging.
-Descriptorens `texts[].value` og redigerbare `controls[].initial` overstyrer
-HTML-tekst og innstillingsattributter; bygg aldri fra rå HTML alene.
+å kopiere siden piksel for piksel.
 
 Etter bygging:
 
 1. Ta screenshot av Figma: `get_screenshot(fileKey, nodeId)` av hovedframen
-2. Bruk tilgjengelig visuell referanse fra den valgte, rendrede skisseversjonen.
-   Ved dokumentasjon av nåtilstand er den observerte appen på samme side,
-   visningsbredde og tilstand fasit; ikke legg inn designforbedringer.
-   Uten screenshot, bruk den eksplisitte beslutningen og det verifiserte
-   kildeparet for et lagret rom. For en midlertidig canvas-skisse brukes
-   gjeldende publiserte HTML og eventuell descriptor gjennom den eiende
-   samtalens kapabiliteter; ikke krev en separat kildefil eller nytt lagret rom.
-   I portabel flyt finnes HTML i `screen_dir`, som ikke er en screenshotmappe.
-   Skill kildekontroll fra faktisk visuell sammenligning og oppgi manglende bevis.
+2. Ta `screenshot_page` av samme side, tilstand og bredde i nettleserfanen. Ved
+   dokumentasjon av nåtilstand er den observerte appen fasit; ikke legg inn
+   designforbedringer. Uten screenshot, bruk den eksplisitte beslutningen og oppgi
+   manglende bevis. Skill kildekontroll fra faktisk visuell sammenligning.
 3. Sammenlign side om side mot denne sjekklisten (avledet fra faktiske feil-moduser):
    - **Struktur**: samme brukerfunksjoner, innholdsblokker og rekkefølge;
      komponentvalg kan avvike når aktiv Aksel tilbyr en riktigere komponent

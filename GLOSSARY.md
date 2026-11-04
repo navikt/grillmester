@@ -54,81 +54,33 @@ _Avoid_: plugininnhold, genererte instructions
 
 ### Design
 
-**Designrom**:
-Samlingen av underlag, innspill og valg i ett skissearbeid. «Versjoner» gjelder
-lagrede skisser. Et prosjektlagret rom kan åpnes igjen med samme innspill.
-Approm fra tidligere versjoner kan leses, men ikke åpnes.
-_Avoid_: samtale, produktkode
+**Kjørende app**:
+En faktisk app med repoets komponenter, navigasjon og skjemaoppførsel, vist i
+klientens nettleserfane. Lokal demo er førstevalget. Originalprosjektet beholdes
+uendret.
+_Avoid_: statisk kopi, skjermbilde, lagret appversjon
 
-**Midlertidig skisse**:
-En skisse i designverkstedet som ikke er lagret i prosjektet. Den og
-innspillene følger den levende økten og har ingen lagrede versjoner eller
-«Rediger». Prosjektlagring velges når det er bestilt; en midlertidig skisse
-krever ikke et eget lagringsspørsmål.
-_Avoid_: prosjektlagring og designrom overfor designeren
-
-**Gi innspill**:
-Skissen kan brukes som vanlig. «Gi innspill» lar designeren velge
-en del eller hele siden; etter valget kan siden brukes igjen. «Send innspill»
-sender det ferdige innspillet direkte. «Legg til flere» samler flere notater
-til en uttrykkelig innsending med synlig antall. Ingenting sendes automatisk.
-Skisser kan også ha deklarerte varianter, lokale visningsvalg og lagret redigering.
-_Avoid_: Prøv og Endre som to vedvarende arbeidsmoduser, Pick & Polish
+**Eid kopi**:
+En disponibel kopi av appen som demoen og forslag kjører fra, med privat
+Git-historikk som versjoner og angre. Endringer her er ikke produktkode.
+_Avoid_: worktree uten bevis for at den er disponibel, originalprosjektet
 
 **Pick & Polish**:
 Copilot-appens plukker i nettleserfanen. Designeren velger en del av siden eller
 et område, og valget følger neste melding i samtalen. Valget er innspill og
 ubetrodd sideinnhold, ikke mandat. Det lagres ikke utenfor samtalen.
-_Avoid_: Canvas Dev Mode, Gi innspill
-
-**Skisseversjon**:
-En lagret, uforanderlig revisjon av skissen og dens eventuelle deklarerte
-kontroller. «Vis» viser den uten å endre noe; gjenoppretting lager en ny
-versjon og bevarer historikken.
-_Avoid_: runde, gjeldende utkast
-
-**Kjørende app**:
-En faktisk lokal app med repoets komponenter, navigasjon og skjemaoppførsel. Den
-kjører fra en eid kopi og vises i klientens nettleserfane, ikke i Designverksted.
-Originalprosjektet beholdes uendret.
-_Avoid_: statisk kopi, skjermbilde, lagret appversjon
+_Avoid_: Canvas Dev Mode
 
 **Forslag**:
-Et synlig designforslag. For en kjørende app er det en endring i den eide kopien,
-som designeren ser i nettleserfanen. For en ny idé er det en HTML-skisse. Forslaget
-er midlertidig til det er lagret etter avtale, og det endrer ikke produktet før
-implementering er bestilt.
-_Avoid_: implementert appendring, ekstra canvas, automatisk kopiert runtime
+En synlig endring i den eide kopien, laget med appens ekte komponenter. En ny idé
+uten app er en liten Aksel-app. Forslaget er midlertidig til det er lagret som patch
+og brief etter avtale, og det endrer ikke produktet før implementering er bestilt.
+_Avoid_: implementert appendring, skisse som dagens app
 
-**Runde**:
-Ett uforanderlig sett med innspill og valg fra en eksplisitt innsending i en
-skisse. En ny skisseversjon er ikke en ny runde.
-_Avoid_: versjon, samtaletur
-
-**Innspill**:
-Kommentarer til skissen eller appen, samt tekstforslag og deklarerte valg som
-skissen støtter. Appinnspill beholder side-, mål- og visningskonteksten fra da
-de ble skrevet; de identifiserer ingen kildeversjon. Lagrede, usendte innspill
-er ikke en bestilling om behandling.
-_Avoid_: automatisk kildeendring, ny fullmakt
-
-**Behold denne delen**:
-Et vanlig innspill som ber agenten beholde en del, med valgte innstillinger,
-i neste versjon. Det sendes med neste runde som andre innspill og er ikke bevis
-på at neste skisse er visuelt lik.
-_Avoid_: beholdt valg, lagret felt, automatisk låsing
-
-**Lagret felt**:
-En verdi i skissens editor som blokkerer motstridende overskriving til designeren
-velger «Tillat senere endring». Verdien beholdes da, men senere skisseversjoner
-kan endre den. Dette feltvernet gjelder ikke appens kildefiler.
-_Avoid_: beholdt valg, føring, usendt tekstforslag
-
-**Leveringsstatus**:
-Status for sending til samtalen. `queued` bekrefter mottak i køen; `unknown`
-betyr at mottaket er uavklart. Ingen av dem beviser behandling eller resultat,
-og ukjent mottak gir ikke automatisk ny innsending.
-_Avoid_: behandlingsstatus, ferdig
+**Variant**:
+Et alternativ til et reelt retningsvalg, bygget i samme kopi bak en query-parameter
+og vist i egen fane.
+_Avoid_: små justeringer, egne kopier per alternativ
 
 ### Runtime
 

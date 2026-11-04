@@ -5,6 +5,8 @@ date: 2026-10-25
 
 # Behold som innspill og «Juster visning» i «Prøv»
 
+> Foreslått erstattet av [ADR 0034](0034-kjorende-apper-i-appens-nettleserfane.md).
+
 Delvis erstatter [ADR 0018](0018-deklarerte-justeringer-og-beholdte-valg.md)
 for hvordan en del beholdes, og bygger på
 [ADR 0023](0023-prosjektlagret-designrom.md).

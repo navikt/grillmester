@@ -99,30 +99,8 @@ python3 scripts/generate_context_projections.py --check
 python3 scripts/generate_agentpakke_manifest.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
-node --check plugin/skills/design-prototype/scripts/server.js
-node --check plugin/skills/design-prototype/scripts/helper.js
-node --check plugin/skills/design-prototype/scripts/workshop.js
-node --check plugin/skills/design-prototype/scripts/design-contract.js
-node --check plugin/skills/design-prototype/scripts/comments.js
-node --check plugin/skills/design-prototype/scripts/feedback-store.js
-node --check plugin/skills/design-prototype/scripts/canvas-state.js
-node --check plugin/skills/design-prototype/scripts/workspace-store.js
-node --check plugin/skills/design-prototype/scripts/workspace-state.js
-node --check plugin/skills/design-prototype/scripts/editor-contract.js
-node --check plugin/skills/design-prototype/scripts/editor-bindings.js
-node --check plugin/skills/design-prototype/scripts/editor.js
 node --check plugin/skills/design-prototype/scripts/app-runtime.js
-node --check plugin/skills/design-prototype/scripts/local-ports.js
-node --check plugin/skills/design-prototype/scripts/html-inspection.js
 node --test plugin/skills/design-prototype/tests/*.test.js
-node --check plugin/extensions/visual-companion/extension.mjs
-node --check plugin/extensions/visual-companion/adapter.mjs
-node --check plugin/extensions/visual-companion/backend.mjs
-node --check plugin/extensions/visual-companion/runtime.mjs
-node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
-node --check scripts/smoke_visual_canvas.cjs
-node --check scripts/visual-smoke-controls.cjs
-node --test plugin/extensions/visual-companion/tests/*.test.mjs
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py
 python3 scripts/smoke_opencode_runtime.py --cplt cplt
@@ -130,67 +108,12 @@ python3 scripts/smoke_grillmester_local.py \
   --cplt cplt --opencode opencode --copilot copilot
 ```
 
-Visual Companion kan også testes direkte i nettleser uten en modellklient.
-Den valgfrie smoken bruker en allerede installert Playwright og nettleser,
-oppretter et disponibelt prosjekt og rydder sin egen sesjon etterpå:
-
-```bash
-node scripts/smoke_visual_companion.cjs \
-  --playwright-module /absolute/path/to/playwright/index.js \
-  --browser-channel chrome \
-  --headed \
-  --evidence-dir /tmp/visual-companion-evidence
-```
-
-Utelat `--playwright-module` hvis pakken allerede kan resolves lokalt, og
-`--browser-channel` for Playwrights eksisterende Chromium-installasjon.
-Bruk `--headed` for resize-kontrollen med Chrome på macOS. Den lokale Chrome-
-versjonen kan miste treffområder for faste elementer i en sandboxet iframe når
-en hodeløs test endrer viewport etter versjonsbytter. Feilen er også reprodusert
-på uendret baseline; samme sekvens fungerer i en synlig nettleser. Smoken
-kontrollerer resize uten å laste siden på nytt, slik at utkastet må bevares.
-Smoken installerer ingenting. Den prøver konseptvalg, skjema og arbeidsoversikt
-på desktop og smale vinduer: kommentarer med mus og tastatur, tekstforslag og
-angre, innsending, svar, versjonsbytte, fokus og bevaring av utkast. HTML-fixturene
-bruker bevisst fallback-stiler; en separat visuell gjennomgang med consumerens
-verifiserte Aksel-versjon er fortsatt nødvendig. Skjermleserbruk og klientens
-videreføring av `comments.js wait` må verifiseres separat.
-
-`scripts/smoke_visual_workshop.cjs` bruker samme flagg og tester deklarerte
-justeringer, sammenligning, ønsker om å beholde deler og ugyldige deklarasjoner. Kjør den
-ved endringer i denne kontrakten, i tillegg til kommentarsmoken. Bruk separate
-evidensmapper for de to kjøringene. Ingen av dem installerer avhengigheter eller
-starter en modellklient.
-
-`scripts/smoke_visual_scenarios.cjs` supplerer disse med åtte sammenhengende
-oppgaver for ulike simulerte roller, blant annet fire varianter, flere utkast,
-lange norske tekster, skjema i kort og feil under innsending. Se
-[scenarioer og akseptansekriterier](testing/visual-companion-scenarios.md).
-Flagget `--aksel-project` kan bruke en eksisterende, samversjonert Aksel-
-installasjon til faktisk komponentrendering uten å endre kildeprosjektet.
-
-`scripts/smoke_visual_review_rounds.cjs` følger fem nye oppgaver over flere
-gjennomganger: to faner, endret retning, gjenåpnet forbehold, faktisk 200 %
-nettleserzoom og frakobling med et utkast. Zoomcaset velger 200 % i Chromes
-innstillinger og måler CSS-viewport og enhetsskala. En emulert mindre viewport
-med høyere enhetsskala er ikke nettleserzoom. Se
-[flere runder med innspill](testing/visual-companion-review-rounds.md).
-Klientforutsetninger og egne akseptprøver for Copilot app, CLI og andre flater
-står i [klientmatrisen](testing/visual-companion-client-capabilities.md).
-
-`scripts/smoke_visual_companion.cjs` prøver skisseflyten i Chromium og kjøres i CI.
 Kjørende apper vises i appens nettleserfane; se
 [ADR 0034](adr/0034-kjorende-apper-i-appens-nettleserfane.md). Den flyten kan ikke
 prøves uten appen selv.
 `app-runtime.test.js` starter bare eide syntetiske prosesser og prøver kort retur,
 privat kontroll, gjenbruk, avbrudd, utløp og opprydding av vanlige barn. Se
 [beslutningen om demolivsløp](adr/0028-eid-livslop-for-lokale-demoer.md).
-
-En isolert prøve av appens canvas-API ligger i `experiments/canvas-review/`.
-Den bruker et medfølgende SDK mot en simulert vert og et separat nettleseroppsett;
-den starter ingen modellklient og inngår ikke i pluginpayloaden. Se
-[canvas-protokollen](testing/visual-companion-canvas.md) og
-[kjøreinstruksjonene](../experiments/canvas-review/README.md).
 
 Plugin-smoken skal bekrefte 6 agenter, 44 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at

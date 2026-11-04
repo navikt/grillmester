@@ -1,5 +1,8 @@
 # Visual Companion: klientkapabiliteter og akseptprøver
 
+> Visual Companion er foreslått fjernet i
+> [ADR 0034](../adr/0034-kjorende-apper-i-appens-nettleserfane.md). Dette er historikk.
+
 Kildekontroll: 2026-10-23. Matrisen skiller dokumenterte klientkapabiliteter fra
 det som må prøves i en konkret installasjon. Den avgrensede appprøven nedenfor
 bekrefter oppdagelse, panelvisning, innsending fra ledig og opptatt sesjon,

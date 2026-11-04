@@ -72,9 +72,8 @@ covers all of the following:
 3. Wayfinder discovery and delegation;
 4. `Grillmester → Grill-inspektør` for an agreed R3/R4 change: the main agent
    implements and verifies it before independent review of the stable diff;
-5. Visual Companion;
-6. one approved, harmless write in the disposable fixture; and
-7. one rejected write with no file, Git ref, or external-resource side effect.
+5. one approved, harmless write in the disposable fixture; and
+6. one rejected write with no file, Git ref, or external-resource side effect.
 
 High risk alone must not force delegation. Self-review or passing tests
 alone must not satisfy the R3/R4 independent-review gate. Record a missing

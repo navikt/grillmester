@@ -27,7 +27,6 @@ PARITY_CHECKS = {
     "automatic-skill-routing",
     "wayfinder-delegation",
     "grillmester-grill-inspektor",
-    "visual-companion",
     "approved-write",
     "rejected-write",
 }

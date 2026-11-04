@@ -639,7 +639,6 @@ def _focused_target_files(
         }
         expected_transformations = {
             "agentFrontmatterRemoved": ["model"],
-            "pluginManifestFieldsRemoved": ["extensions"],
             "agentEscalation": "missing-capability-handoff",
             "excludedSkillReferences": "full-context-guidance",
         }
@@ -873,36 +872,10 @@ def _plugin_files(
         raise BundleBuildError("Copilot plugin manifest must name grillmester")
     if not isinstance(manifest.get("version"), str) or not manifest["version"].strip():
         raise BundleBuildError("Copilot plugin manifest needs a version")
-    if manifest.get("extensions") != "extensions/":
-        raise BundleBuildError("Copilot plugin must use the reviewed extensions/ directory")
-    extension_root = PurePosixPath("extensions/visual-companion")
-    for filename in ("package.json", "extension.mjs"):
-        if extension_root / filename not in relative_files:
-            raise BundleBuildError(f"visual-companion extension is missing {filename}")
-    if any(
-        path.parts[0] == "extensions" and path.parts[:2] != extension_root.parts
-        for path in relative_files
-    ):
-        raise BundleBuildError("Copilot plugin contains an unreviewed app extension")
-    package = _parse_json_object(
-        relative_files[extension_root / "package.json"].content,
-        label="visual-companion package",
-    )
-    _require_exact_fields(
-        package, {"name", "version", "private", "type", "main", "description"},
-        label="visual-companion package",
-    )
-    if package.get("private") is not True or any(package.get(key) != value for key, value in {
-        "name": "visual-companion",
-        "type": "module", "main": "extension.mjs",
-    }.items()):
-        raise BundleBuildError("visual-companion package entry is not the reviewed contract")
-    forbidden = {"node_modules", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml"}
-    if any(
-        path.parts[:2] == extension_root.parts and forbidden.intersection(path.parts[2:])
-        for path in relative_files
-    ):
-        raise BundleBuildError("visual-companion must not bundle installed dependencies or lockfiles")
+    if "extensions" in manifest:
+        raise BundleBuildError("Copilot plugin must not declare app extensions")
+    if any(path.parts[0] == "extensions" for path in relative_files):
+        raise BundleBuildError("Copilot plugin must not contain app extensions")
     observed_agents = {
         path.name.removesuffix(".agent.md")
         for path in relative_files
@@ -1234,7 +1207,6 @@ def collect_bundle_files(source_root: Path, source_sha: str) -> list[BundleFile]
         },
         "copilotCli": {
             "removeAgentFrontmatterFields": ["model"],
-            "removePluginManifestFields": ["extensions"],
         },
     }
     if focused_policy != expected_focused_policy:
