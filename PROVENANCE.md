@@ -306,6 +306,11 @@ It adds no third-party material. Names, sources, imported skills and the
 component set are unchanged. The rights journal binds this content, the content
 lock and this provenance record while preserving the underlying decision in #56.
 
+PR [#119](https://github.com/navikt/grillmester/pull/119) reviews a correction
+that leaves the independent reviewer to the user's choice. It changes no component
+in the rights scope. The rights journal binds this provenance record while
+preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
