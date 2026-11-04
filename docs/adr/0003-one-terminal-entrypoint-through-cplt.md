@@ -5,6 +5,9 @@ date: 2026-08-22
 
 # Gi terminalklientene én Grillmester-inngang gjennom cplt
 
+> Grensen mot OpenCode 2 og kravet om cplt er erstattet av
+> [ADR 0034](0034-opencode-2-og-valgfri-cplt.md).
+
 Klienteierskapet og Homebrew-distribusjonen i denne ADR-en er senere supersedert
 av [ADR 0004](0004-use-user-installed-terminal-clients.md): standardlauncheren
 bruker systeminstallerte OpenCode- og Copilot CLI-binærer, mens beslutningen om

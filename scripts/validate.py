@@ -429,11 +429,22 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         (
             "OpenCode og Copilot CLI er valgfrie systemklienter",
             "Launcheren resolver `cplt`, `opencode` og `copilot` fra `PATH`",
-            "cplt er fortsatt en hard runtimegrense",
-            "det finnes ingen direkte eller stille fallback",
-            "OpenCode `>=1.18.20,<2`",
             "Copilot CLI `>=1.0.100,<2`",
             "installert Copilot CLI uten OpenCode",
+        ),
+    ),
+    Guardrail(
+        "adr-opencode-2-and-optional-cplt",
+        ("docs/adr/0034-opencode-2-og-valgfri-cplt.md",),
+        (
+            "OpenCode `>=2.2.5,<3`",
+            "cplt er valgfri for standardlauncheren",
+            "`--no-cplt`",
+            "stopper launch",
+            "krever fortsatt cplt",
+            "`--standalone`",
+            "`external_directory` spør",
+            "`execute` er avslått",
         ),
     ),
     Guardrail(
@@ -482,7 +493,8 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         (
             "resolver `opencode` fra `PATH`",
             "installerer, erstatter eller skygger aldri klienten",
-            "starter alltid OpenCode gjennom cplt",
+            "starter OpenCode gjennom cplt\nnår cplt er installert",
+            "droppe sandboxen",
             "lokal inference, ikke offline",
         ),
     ),
@@ -506,7 +518,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "direkte API-kall",
             "bundle-checksum binder Grillmester-bundle-en, ikke disse klientbinærene",
             "Websearch, dokumentasjon og GitHub",
-            "mottar Exa den oppgaveavledede søketeksten",
+            "mottar søkeleverandøren den oppgaveavledede søketeksten",
             "Dette er en tredjeparts datagrense",
             "`--no-audit`",
         ),
@@ -553,7 +565,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         (
             "Local-flyten har ingen cloudmodell-fallback, men den kan være tilkoblet",
             "OpenCodes websearch er aktiv",
-            "sendes søketeksten til Exa",
+            "sendes søketeksten til\nsøkeleverandøren",
             "lokal inference betyr derfor ikke at søketeksten forblir på maskinen",
             "interaktiv launch krever klientgodkjenning",
         ),

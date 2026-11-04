@@ -1,10 +1,10 @@
 ---
 name: doctor
-description: "Audit whether the current repository and session are ready for effective Grillmester use in OpenCode v1. Use only when the user explicitly asks to check, diagnose, or understand the OpenCode setup; the audit is read-only."
+description: "Audit whether the current repository and session are ready for effective Grillmester use in OpenCode. Use only when the user explicitly asks to check, diagnose, or understand the OpenCode setup; the audit is read-only."
 ---
-# Grillmester Doctor for OpenCode v1
+# Grillmester Doctor for OpenCode
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Audit the consumer-owned boundary around the portable Grillmester target.
 Distinguish observed runtime behavior from configuration that merely appears
@@ -80,7 +80,7 @@ Verify these dimensions separately:
 2. **Agent discovery** — three primary agents and three hidden subagents are
    present under `agents/`; agent frontmatter has `mode`, `hidden`, and native
    permissions, and omits `model` so the session/provider choice is inherited.
-3. **Delegation** — Grillmester can use `task` only for `grill-inspektor`
+3. **Delegation** — Grillmester can use `subagent` only for `grill-inspektor`
    and `researcher`; other roles preserve their narrower task boundary.
 4. **Skills and commands** — all manifest skills exist under `skills/`, each
    command wrapper resolves the same skill ID, and manual-only source skills

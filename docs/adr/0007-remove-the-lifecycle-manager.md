@@ -5,6 +5,9 @@ date: 2026-08-24
 
 # Fjern lifecycle-manageren og bruk cplt som eneste runtimegrense
 
+> Klientintervallet og kravet om cplt i standardlauncheren er erstattet av
+> [ADR 0034](0034-opencode-2-og-valgfri-cplt.md).
+
 ## Kontekst
 
 ADR 0002 introduserte en valgfri manager for immutable installasjon, private

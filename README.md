@@ -92,7 +92,8 @@ Perspektiv brukes ved behov. Barista og Kokk er erstattet av Grillmester.
 
 ## Støtte og avgrensninger
 
-GitHub Copilot CLI er referanseklienten; Copilot app har egen plugininstallasjon.
+Copilot app med lokal sandbox er teamets hovedvei; GitHub Copilot CLI er
+referanseklienten. OpenCode 2 og cplt er støttet for dem som vil bruke dem.
 Linux og VS Code er utenfor release-løftet. Hver modell må kvalitetsvalideres
 separat. Se [klientstatus og
 releasegater](docs/trust-and-client-support.md).

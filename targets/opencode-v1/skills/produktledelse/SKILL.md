@@ -4,7 +4,7 @@ description: "Explore product opportunities, user needs, assumptions and initiat
 ---
 # Product management
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Support continuous discovery, risk assessment and competency development. In
 discovery, exploration is the goal: expand the opportunity space and make

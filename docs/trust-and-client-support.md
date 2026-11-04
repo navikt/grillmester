@@ -13,7 +13,7 @@ klientflate faktisk er verifisert for.
 | Provider og modell | Bruker, klient og organisasjon | Hvor inferensen kjører og hvilken modell som svarer. |
 | Tilgjengelige tools | Klient, pluginprofil og konfigurerte MCP-er | Hvilke handlinger modellen kan foreslå å bruke. |
 | Tool-, path- og URL-godkjenninger | Bruker og enterprise-policy | Om en konkret handling får kjøre. |
-| Sandbox, nettverk, `gh` og Git | cplt og organisasjonspolicy | Tekniske runtimegrenser for terminalflyten. |
+| Sandbox, nettverk, `gh` og Git | Copilot-appens sandbox, cplt og organisasjonspolicy | Tekniske runtimegrenser. Uten sandbox gjelder bare klientens egne godkjenninger. |
 | CI, rulesets og CODEOWNERS | Consumer-/organisasjonseier | Deterministiske leveranse- og mergekrav. |
 
 Et verktøy i en agentprofil gir ikke OAuth-scope, installerer ikke en MCP og
@@ -29,15 +29,22 @@ klientbinærene. Installasjons- og oppdateringstillit for systemklientene eies a
 brukeren, organisasjonen og valgt pakkekanal; Grillmester distribuerer, kopierer
 eller skygger dem ikke.
 
+cplt er valgfritt for standardlauncheren. Med cplt på `PATH` starter klienten i
+cplts sandbox. Uten cplt, eller med `--no-cplt`, starter klienten direkte, og
+launcheren sier fra om det. En installert cplt som ikke består versjonssjekken
+stopper launcheren, slik at ingen mister sandboxen uten å ha valgt det.
+`grillmester local` krever cplt.
+
 Presence-discovery og `--print-command` kjører ingen klientbinær. Når versjon må
 bevises for `choose`, `doctor` eller launch, kjøres klientens strenge
-`--version` gjennom cplt mot en tom 0700-prosjektmappe med timeout, outputgrense
-og prosessgruppe-cleanup.
+`--version` med timeout, outputgrense og prosessgruppe-cleanup: gjennom cplt mot
+en tom 0700-prosjektmappe når cplt er i bruk, ellers direkte i en midlertidig
+mappe.
 
 `scripts/release_test_baseline.py` er den ene kjørbare kontrakten for eksakte
 versjoner, URLs, størrelser, arkivroster og digester i reproduserbare release-
 og kompatibilitetstester. Det er release-gatekode, ikke runtimepinner eller en
-alternativ klientdistribusjon. Normal launch godtar OpenCode `>=1.18.20,<2`,
+alternativ klientdistribusjon. Normal launch godtar OpenCode `>=2.2.5,<3`,
 Copilot CLI `>=1.0.100,<2` og cplt fra testbaselinen eller en nyere, gyldig
 datostemplet release.
 
@@ -57,13 +64,12 @@ tekniske grensen.
 
 | Klient | Nåstatus | Hva som fortsatt må bevises før stabil |
 | --- | --- | --- |
-| **Copilot CLI** | Referanseklient. Native marketplace-installasjon og terminal-launch gjennom cplt bruker samme pluginpayload. | Den nye 44-skill-pakken, immutable kandidat, resolved modell, delegering og runtime-toolbruk i representativt repo. |
-| **Copilot app** | Native Plugins-UI. Appen tilbyr også BYOK mot LM Studio og OpenAI-kompatible endepunkter i public preview. | Discovery, oppdatering, resolved source, delegering, write/deny og lokal BYOK må observeres i appen; terminalens cplt-grense gjelder ikke. |
+| **Copilot CLI** | Referanseklient. Native marketplace-installasjon og terminal-launch bruker samme pluginpayload. | Den nye 44-skill-pakken, immutable kandidat, resolved modell, delegering og runtime-toolbruk i representativt repo. |
+| **Copilot app** | Teamets hovedvei, med native Plugins-UI og lokal sandbox. Appen tilbyr også BYOK mot LM Studio og OpenAI-kompatible endepunkter i public preview. | Discovery, oppdatering, resolved source, delegering, write/deny og lokal BYOK må observeres i appen; terminalens cplt-grense gjelder ikke. |
 | **Copilot cloud agent** | Repoaktivering er dokumentert gjennom `.github/copilot/settings.json`. | Navs enterprise-policy, plugin-discovery og samme publiserte RC i en representativ consumer. |
 | **VS Code** | Sekundær, ikke-verifisert kompatibilitetsflate utenfor første release-løfte. | Faktisk installasjon og oppdatering med to Grillmester-versjoner. |
-| **OpenCode 1.x fra 1.18.20** | Deterministisk target med 6 agenter, 44 skills og 44 commands. Brukerinstallert klient startes gjennom cplt. | Hver konkret modell må kvalitetsvalideres; nyere 1.x er kompatibilitetsflate, ikke de eksakte testbytene. |
+| **OpenCode 2.x fra 2.2.5** | Deterministisk target med 6 agenter, 44 skills og 44 commands. Brukerinstallert klient startes gjennom cplt når cplt er installert. | Hver konkret modell må kvalitetsvalideres; nyere 2.x er kompatibilitetsflate, ikke de eksakte testbytene. |
 | **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en avgrenset kjøring med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web avhenger av cplt-policy; eksplisitte GitHub- og package-tokens krever separate opt-in-flagg. OpenCode isolerer ambient GitHub-konto, mens Copilot-profilen kan mediere en native Keychain-credential. `run` krever et separat worktree og etterkontroll. |
-| **OpenCode 2** | Forventet filkompatibilitet, men ingen støttet runtimeflate. | Permissions, provider/model-adferd og full runtimeparitet må testes separat. |
 
 ### Designverksted og overlevering mellom klienter
 
@@ -185,9 +191,9 @@ verifiseres separat, og endringer synkroniseres ikke automatisk tilbake til
 skissen. `grillmester local` sin fokuserte profil har et mindre skillutvalg;
 bruk full kontekst når denne designoppskriften trengs.
 
-Discovery-smoken kontakter ingen modell. OpenCodes runtime-smoke bruker en
-deterministisk loopbackprovider og beviser config, delegering, `.env`-deny,
-progressiv skill-reference og write/deny uten modellvarians.
+OpenCode-smoken kontakter ingen ekte modell. Den bruker en deterministisk
+loopbackprovider og beviser agenter, permissions, progressiv skill-reference og
+stoppede lesinger og writes uten modellvarians, både direkte og gjennom cplt.
 
 Local-smoken starter både OpenCode og Copilot CLI gjennom release-testbaselinens
 cplt og klienter for focused og full kontekst. Den krever riktig payload,
@@ -260,9 +266,9 @@ best-effort cplt-kommandogrense; repository rules og branch protection er
 autoritative. Grillmester sender fortsatt `--git-guard` og kan ikke svekke en
 strengere organisjonspolicy.
 
-OpenCode-local velger Exa som websearch-provider. Når websearch brukes, mottar
-Exa den oppgaveavledede søketeksten gjennom den effektive cplt-
-nettverkspolicyen. Interaktiv launch krever klientgodkjenning; `local run`
+OpenCode 2 spør ved første websearch hvilken søkeleverandør brukeren vil bruke.
+Når websearch brukes, mottar søkeleverandøren den oppgaveavledede søketeksten
+gjennom den effektive cplt-nettverkspolicyen. Interaktiv launch krever klientgodkjenning; `local run`
 auto-godkjenner tool-et. Dette er en tredjeparts datagrense og skal ikke omtales
 som lokal-only selv om modellinferensen går til loopback.
 
@@ -286,11 +292,11 @@ betyr bare at inference-requestet går til det valgte loopbackendepunktet.
 Den uavhengige macOS-gaten kjører på Apple Silicon og Intel. Den bygger
 bundle-en deterministisk, validerer manifestene, resolver systemklienter fra
 `PATH`, kjører doctor og starter en avgrenset OpenCode-TUI gjennom cplt uten
-modellkall. Bundle-en må aldri inneholde en privat klientkatalog.
+modellkall. Linux-CI tester OpenCode direkte; cplt-veien testes på macOS. Bundle-en må aldri inneholde en privat klientkatalog.
 
 Den native gaten henter de eksakte OpenCode-, Copilot CLI- og cplt-artefaktene
 registrert som testinput, verifiserer arkiv- og binærdigester før første kjøring
-og kjører discovery-, runtime- og local-smokene. Dette er reproduserbar
+og kjører OpenCode- og local-smokene. Dette er reproduserbar
 releaseevidens; det endrer ikke launcherens kompatible runtimeintervaller.
 
 Før en RC omtales som klar for lokalmodellpilot, kjør samme immutable RC mot en

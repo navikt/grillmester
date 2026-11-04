@@ -4,7 +4,7 @@ description: "Review an agent session and propose improvements to the repository
 ---
 # Agent Retro
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Review an agent session and propose changes to the agent's **environment**, so
 future runs go better: the instructions, checks, skills and tools around the

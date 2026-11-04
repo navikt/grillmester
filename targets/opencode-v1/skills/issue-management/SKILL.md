@@ -4,7 +4,7 @@ description: "Inspect, create, update, link or close GitHub issues for work that
 ---
 # Issue Management
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Apply GitHub issue mechanics to work that is already understood. The caller owns
 `grilling`, planning, specifications, and ticket decomposition;

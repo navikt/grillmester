@@ -1,5 +1,5 @@
 ---
-description: "Audit whether the current repository and session are ready for effective Grillmester use in OpenCode v1. Use only when the user explicitly asks to check, diagnose, or understand the OpenCode setup; the audit is read-only."
+description: "Audit whether the current repository and session are ready for effective Grillmester use in OpenCode. Use only when the user explicitly asks to check, diagnose, or understand the OpenCode setup; the audit is read-only."
 ---
 
 Use the `skill` tool to load `doctor`, then follow that skill for this request.

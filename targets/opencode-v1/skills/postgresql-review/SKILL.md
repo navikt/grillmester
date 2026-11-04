@@ -4,7 +4,7 @@ description: "Design or review PostgreSQL schemas, queries, transactions, migrat
 ---
 # Review PostgreSQL safely
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 ## Establish repository and runtime evidence first
 

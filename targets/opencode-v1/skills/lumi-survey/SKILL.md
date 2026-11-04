@@ -4,7 +4,7 @@ description: "Integrate or review @navikt/lumi-survey from frontend configuratio
 ---
 # Integrate Lumi Survey from current evidence
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Treat the installed package types, current Lumi owner contract, repository
 patterns, and environment manifests as the source of truth. Package exports,

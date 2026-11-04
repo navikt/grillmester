@@ -1,12 +1,12 @@
 ---
 name: create-a-skill
-description: Create, revise, review, or diagnose a portable Agent Skill for OpenCode v1, including native discovery, permissions, and an optional slash-command adapter. Use when a user asks to create or improve a skill, investigate why one does not load, or validate skill behavior.
+description: Create, revise, review, or diagnose a portable Agent Skill for OpenCode, including native discovery, permissions, and an optional slash-command adapter. Use when a user asks to create or improve a skill, investigate why one does not load, or validate skill behavior.
 ---
 
 # Create an OpenCode-compatible Agent Skill
 
 Create, revise, or diagnose one portable Agent Skill. Repository instructions,
-the installed OpenCode v1 contract, and the target repository's chosen skill
+the installed OpenCode contract, and the target repository's chosen skill
 root govern the artifact.
 
 ## Choose the mode

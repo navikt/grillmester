@@ -4,7 +4,7 @@ description: "Prepare and publish a pull request when the user asks to open or u
 ---
 # Prepare and publish a reviewable pull request
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Do not create or modify a pull request until the user has explicitly authorized
 that external action. A request to implement, verify, or review a change is not

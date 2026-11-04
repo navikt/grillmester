@@ -4,7 +4,7 @@ description: "Guide a human through a pull request or resolved diff one reading 
 ---
 # Guided review
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Build shared code understanding through an interactive walkthrough, then
 prepare a formal pre-merge review for the human to decide.

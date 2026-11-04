@@ -122,7 +122,7 @@ def copilot_provider_state(context: str) -> SMOKE.ProviderState:
     return state
 
 
-def failed_bash_provider_state(content: object = "permission denied") -> SMOKE.ProviderState:
+def failed_shell_provider_state(content: object = "permission denied") -> SMOKE.ProviderState:
     state = SMOKE.ProviderState(SMOKE.Scenario("opencode", "focused"))
     state.model_requests.append({})
     state.completions.extend(
@@ -132,7 +132,7 @@ def failed_bash_provider_state(content: object = "permission denied") -> SMOKE.P
         )
         for payload in (
             {"messages": [{"role": "system", "content": "SYSTEM_PROMPT_MUST_NOT_APPEAR"}],
-             "tools": [{"type": "function", "function": {"name": "bash", "parameters": {
+             "tools": [{"type": "function", "function": {"name": "shell", "parameters": {
                  "required": ["command", "description"],
                  "properties": {"command": {"type": "string"}, "description": {
                      "type": "string", "description": "SCHEMA_PROSE_MUST_NOT_APPEAR"}},
@@ -320,7 +320,11 @@ class MatrixTests(unittest.TestCase):
                         "tools": [
                             {
                                 "type": "function",
-                                "function": {"name": "bash"},
+                                "function": {
+                                    "name": SMOKE._shell_tool(
+                                        SMOKE.Scenario(client, context)
+                                    )
+                                },
                             }
                         ] + ([native_skill_tool()] if client == "copilot" else []),
                     },
@@ -552,6 +556,12 @@ class MatrixTests(unittest.TestCase):
                     urllib.request.ProxyHandler({})
                 ).open(request, timeout=5):
                     pass
+                shell_tool = {
+                    "type": "function",
+                    "function": {
+                        "name": SMOKE._shell_tool(SMOKE.Scenario(client, "full"))
+                    },
+                }
                 stream = post_completion(
                     config.base_url,
                     {
@@ -568,9 +578,7 @@ class MatrixTests(unittest.TestCase):
                                 ),
                             }
                         ],
-                        "tools": [
-                            {"type": "function", "function": {"name": "bash"}}
-                        ],
+                        "tools": [shell_tool],
                     },
                 )
                 stream += post_completion(
@@ -581,9 +589,7 @@ class MatrixTests(unittest.TestCase):
                         "messages": [
                             {"role": "tool", "content": SMOKE.NPM_ACCESS_SENTINEL}
                         ],
-                        "tools": [
-                            {"type": "function", "function": {"name": "bash"}}
-                        ],
+                        "tools": [shell_tool],
                     },
                 )
                 observed.append((client, npm_access))
@@ -711,7 +717,7 @@ class MatrixTests(unittest.TestCase):
         with self.assertRaisesRegex(SMOKE.LocalSmokeError, "required string parameter 'skill'"):
             SMOKE.validate_provider_state(state)
 
-    def test_provider_validation_requires_the_bash_tool_result_not_its_arguments(
+    def test_provider_validation_requires_the_shell_tool_result_not_its_arguments(
         self,
     ) -> None:
         scenario = SMOKE.Scenario("opencode", "focused")
@@ -735,7 +741,7 @@ class MatrixTests(unittest.TestCase):
                             }
                         ],
                         "tools": [
-                            {"type": "function", "function": {"name": "bash"}}
+                            {"type": "function", "function": {"name": "shell"}}
                         ],
                     },
                 ),
@@ -751,7 +757,7 @@ class MatrixTests(unittest.TestCase):
                                 "tool_calls": [
                                     {
                                         "function": {
-                                            "name": "bash",
+                                            "name": "shell",
                                             "arguments": json.dumps(
                                                 {
                                                     "command": SMOKE.TOOL_PROBE_COMMAND
@@ -768,10 +774,10 @@ class MatrixTests(unittest.TestCase):
             )
         )
 
-        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "auto-approved bash"):
+        with self.assertRaisesRegex(SMOKE.LocalSmokeError, "auto-approved shell"):
             SMOKE.validate_provider_state(state)
 
-    def test_provider_validation_names_missing_bash_tool(self) -> None:
+    def test_provider_validation_names_missing_shell_tool(self) -> None:
         scenario = SMOKE.Scenario("opencode", "focused")
         state = SMOKE.ProviderState(scenario)
         state.model_requests.append({})
@@ -784,7 +790,7 @@ class MatrixTests(unittest.TestCase):
                     "stream": True,
                     "messages": [{"role": "system", "content": "# Grillmester 🔥"}],
                     "tools": [
-                        {"type": "function", "function": {"name": "shell"}},
+                        {"type": "function", "function": {"name": "bash"}},
                         {"type": "function", "function": {"name": "read"}},
                     ],
                 },
@@ -793,14 +799,14 @@ class MatrixTests(unittest.TestCase):
 
         with self.assertRaisesRegex(
             SMOKE.LocalSmokeError,
-            "required 'bash' tool; advertised function tools: shell, read",
+            "required 'shell' tool; advertised function tools: bash, read",
         ):
             SMOKE.validate_provider_state(state)
 
-    def test_failed_bash_diagnostic_reports_schema_and_result_without_private_context(self) -> None:
+    def test_failed_shell_diagnostic_reports_schema_and_result_without_private_context(self) -> None:
         secret = "synthetic-sensitive-value"
         escaped_secret = 'synthetic-"quoted"\ncredential'
-        state = failed_bash_provider_state([
+        state = failed_shell_provider_state([
             {"type": "text", "text": f"Invalid input: description required; /isolated/probe/consumer; {secret}"},
         ])
         state.completions[1].payload["messages"].insert(0, {
@@ -828,8 +834,8 @@ class MatrixTests(unittest.TestCase):
             )
         message = str(raised.exception)
         diagnostic = json.loads(message.split("diagnostic=", 1)[1])
-        self.assertEqual(["command", "description"], diagnostic["bashSchema"]["required"])
-        self.assertEqual({"command": "string", "description": "string"}, diagnostic["bashSchema"]["properties"])
+        self.assertEqual(["command", "description"], diagnostic["shellSchema"]["required"])
+        self.assertEqual({"command": "string", "description": "string"}, diagnostic["shellSchema"]["properties"])
         self.assertEqual(["user", "tool"], diagnostic["request2"]["roles"])
         result = diagnostic["request2"]["toolResults"][0]
         self.assertEqual("list", result["contentType"])
@@ -845,9 +851,9 @@ class MatrixTests(unittest.TestCase):
                          "/isolated/probe", SMOKE.CREDENTIAL_CANARY_PREFIX):
             self.assertNotIn(excluded, message)
 
-    def test_failed_bash_diagnostic_is_bounded_and_redacts_before_clipping(self) -> None:
+    def test_failed_shell_diagnostic_is_bounded_and_redacts_before_clipping(self) -> None:
         secret = "SYNTHETIC_SECRET_" + "x" * 2000
-        state = failed_bash_provider_state("a" * 20000 + secret + " tool error")
+        state = failed_shell_provider_state("a" * 20000 + secret + " tool error")
         with self.assertRaises(SMOKE.LocalSmokeError) as raised:
             SMOKE.validate_provider_state(
                 state, runtime_output="b" * 20000 + secret + " client error",
@@ -871,7 +877,7 @@ class MatrixTests(unittest.TestCase):
             provider = mock.MagicMock()
             provider.__enter__.return_value = provider
             provider.base_url = "http://127.0.0.1:12345/v1"
-            provider.state = failed_bash_provider_state()
+            provider.state = failed_shell_provider_state()
 
             def run_command(command, cwd, environment, timeout):
                 provider.state.completions[1].payload["messages"][0]["content"] = f"permission denied in {cwd}"
@@ -913,7 +919,7 @@ class MatrixTests(unittest.TestCase):
                         }
                     ],
                     "tools": [
-                        {"type": "function", "function": {"name": "bash"}}
+                        {"type": "function", "function": {"name": "shell"}}
                     ],
                 },
             )
@@ -935,7 +941,7 @@ class PrerequisiteTests(unittest.TestCase):
                 binaries / "cplt", f"cplt {SMOKE.EXPECTED_CPLT_RELEASE}"
             )
             opencode = executable(
-                binaries / "opencode", SMOKE.EXPECTED_OPENCODE_VERSION
+                binaries / "opencode", f"opencode v{SMOKE.EXPECTED_OPENCODE_VERSION}"
             )
             copilot = executable(
                 binaries / "copilot",
@@ -968,7 +974,7 @@ class PrerequisiteTests(unittest.TestCase):
                 binaries / "cplt", f"cplt {SMOKE.EXPECTED_CPLT_RELEASE}"
             )
             opencode = executable(
-                binaries / "opencode", SMOKE.EXPECTED_OPENCODE_VERSION
+                binaries / "opencode", f"opencode v{SMOKE.EXPECTED_OPENCODE_VERSION}"
             )
             line = f"GitHub Copilot CLI {SMOKE.EXPECTED_COPILOT_VERSION}."
             copilot = executable(binaries / "copilot", f"{line}\\n{line}")

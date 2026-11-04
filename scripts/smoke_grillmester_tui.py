@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove that the installed launcher reaches OpenCode's TUI through cplt."""
+"""Prove that the launcher reaches OpenCode's TUI with the selected agent."""
 
 from __future__ import annotations
 
@@ -22,10 +22,11 @@ from typing import Mapping, Sequence
 
 
 MAX_OUTPUT_BYTES = 2 * 1024 * 1024
-OPENCODE_RUNTIME_GITIGNORE = (
-    b"node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\n"
-)
 READY_MARKERS = (b"Ask anything", b"Grillmester")
+# The launcher names the agent too, and that must not count as the TUI doing so.
+LAUNCHER_LINE = re.compile(rb"Launching Grillmester[^\r\n]*")
+# A fresh OpenCode home opens release notes over the footer and takes the keyboard.
+RELEASE_NOTES_MARKER = b"What's new in"
 OPENCODE_VERSION = re.compile(
     r"^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
     r"(?:[-+][0-9A-Za-z.-]+)?$"
@@ -52,7 +53,7 @@ def _regular_executable(path: Path, *, label: str) -> Path:
     return resolved
 
 
-def _environment(state: Path, *, opencode: Path, cplt: Path) -> dict[str, str]:
+def _environment(state: Path, *, opencode: Path, cplt: Path | None) -> dict[str, str]:
     home = state / "home"
     config = state / "config"
     data = state / "data"
@@ -73,7 +74,8 @@ def _environment(state: Path, *, opencode: Path, cplt: Path) -> dict[str, str]:
     cplt_config.write_bytes(b"")
     cplt_config.chmod(0o600)
 
-    for name, binary in (("opencode", opencode), ("cplt", cplt)):
+    binaries = {"opencode": opencode} if cplt is None else {"opencode": opencode, "cplt": cplt}
+    for name, binary in binaries.items():
         link = client_bin / name
         try:
             expected = binary.resolve(strict=True)
@@ -126,7 +128,8 @@ def _version_marker(opencode_version: str) -> bytes:
 
 
 def _is_ready(output: bytes, *, opencode_version: bytes) -> bool:
-    return all(marker in output for marker in (*READY_MARKERS, opencode_version))
+    rendered = LAUNCHER_LINE.sub(b"", output)
+    return all(marker in rendered for marker in (*READY_MARKERS, opencode_version))
 
 
 def _bounded_excerpt(output: bytes) -> str:
@@ -159,7 +162,9 @@ def _terminate_child(child_pid: int, *, grace_seconds: float = 2.0) -> int:
     return os.waitpid(child_pid, 0)[1]
 
 
-def _launcher_command(*, launcher: Path, project_dir: Path) -> list[str]:
+def _launcher_command(
+    *, launcher: Path, project_dir: Path, sandboxed: bool
+) -> list[str]:
     """Build the public launcher invocation exercised by the TUI smoke."""
 
     return [
@@ -170,14 +175,7 @@ def _launcher_command(*, launcher: Path, project_dir: Path) -> list[str]:
         "grillmester",
         "--project-dir",
         str(project_dir),
-        "--yes",
-        "--quiet",
-        "--preset",
-        "strict",
-        "--",
-        "--print-logs",
-        "--log-level",
-        "INFO",
+        *(("--yes", "--quiet", "--preset", "strict") if sandboxed else ("--no-cplt",)),
     ]
 
 
@@ -186,7 +184,7 @@ def _run_tui_smoke_in_state(
     launcher: Path,
     opencode: Path,
     opencode_version: str,
-    cplt: Path,
+    cplt: Path | None,
     project_dir: Path,
     state: Path,
     startup_timeout: float = 25.0,
@@ -194,7 +192,8 @@ def _run_tui_smoke_in_state(
 ) -> None:
     launcher = _regular_executable(launcher, label="launcher")
     opencode = _regular_executable(opencode, label="OpenCode")
-    cplt = _regular_executable(cplt, label="cplt")
+    if cplt is not None:
+        cplt = _regular_executable(cplt, label="cplt")
     version_marker = _version_marker(opencode_version)
     try:
         project_dir = project_dir.resolve(strict=True)
@@ -208,10 +207,12 @@ def _run_tui_smoke_in_state(
     environment = _environment(state, opencode=opencode, cplt=cplt)
     if _resolved_on_path("opencode", environment) != opencode:
         raise TuiSmokeError("isolated PATH does not select the reviewed OpenCode binary")
-    if _resolved_on_path("cplt", environment) != cplt:
+    if cplt is not None and _resolved_on_path("cplt", environment) != cplt:
         raise TuiSmokeError("isolated PATH does not select the reviewed cplt binary")
 
-    command = _launcher_command(launcher=launcher, project_dir=project_dir)
+    command = _launcher_command(
+        launcher=launcher, project_dir=project_dir, sandboxed=cplt is not None
+    )
     child_pid, descriptor = pty.fork()
     if child_pid == 0:
         os.chdir(project_dir)
@@ -221,11 +222,15 @@ def _run_tui_smoke_in_state(
     output = bytearray()
     child_status: int | None = None
     interrupted = False
+    dismissed = False
     startup_deadline = time.monotonic() + startup_timeout
     exit_deadline = 0.0
     try:
         while child_status is None:
             now = time.monotonic()
+            if not dismissed and RELEASE_NOTES_MARKER in output:
+                os.write(descriptor, b"\x1b")
+                dismissed = True
             if not interrupted and _is_ready(
                 output, opencode_version=version_marker
             ):
@@ -262,9 +267,10 @@ def _run_tui_smoke_in_state(
             if observed:
                 child_status = observed_status
     finally:
+        # Close first: macOS holds a dying child until its terminal is drained.
+        os.close(descriptor)
         if child_status is None:
             child_status = _terminate_child(child_pid)
-        os.close(descriptor)
 
     if not _is_ready(output, opencode_version=version_marker):
         raise TuiSmokeError(
@@ -275,13 +281,6 @@ def _run_tui_smoke_in_state(
     exit_code = os.waitstatus_to_exitcode(child_status)
     if exit_code != 0:
         raise TuiSmokeError(f"OpenCode TUI exited with {exit_code}")
-    support = Path(environment["XDG_CONFIG_HOME"]) / "opencode/.gitignore"
-    try:
-        content = support.read_bytes()
-    except OSError as exc:
-        raise TuiSmokeError(f"launcher did not pre-seed OpenCode runtime support: {exc}") from exc
-    if content != OPENCODE_RUNTIME_GITIGNORE or support.is_symlink():
-        raise TuiSmokeError("OpenCode runtime support file is not the reviewed regular payload")
 
 
 def run_tui_smoke(
@@ -289,7 +288,7 @@ def run_tui_smoke(
     launcher: Path,
     opencode: Path,
     opencode_version: str,
-    cplt: Path,
+    cplt: Path | None,
     project_dir: Path,
     state_parent: Path,
     startup_timeout: float = 25.0,
@@ -321,7 +320,7 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     parser.add_argument("--launcher", type=Path, required=True)
     parser.add_argument("--opencode", type=Path, required=True)
     parser.add_argument("--opencode-version", required=True)
-    parser.add_argument("--cplt", type=Path, required=True)
+    parser.add_argument("--cplt", type=Path, help="start through cplt, not directly")
     parser.add_argument("--project-dir", type=Path, required=True)
     parser.add_argument("--state-parent", type=Path, required=True)
     return parser.parse_args(arguments)
@@ -341,7 +340,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
     except (TuiSmokeError, OSError) as exc:
         print(f"Grillmester TUI smoke failed: {exc}", file=sys.stderr)
         return 1
-    print("Grillmester TUI smoke passed through cplt without a model call.")
+    route = "directly" if options.cplt is None else "through cplt"
+    print(f"Grillmester TUI smoke passed {route} without a model call.")
     return 0
 
 

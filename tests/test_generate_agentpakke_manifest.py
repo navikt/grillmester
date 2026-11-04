@@ -36,7 +36,7 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
         self.assertEqual("1", manifest["contractVersion"])
         self.assertEqual("grillmester", manifest["name"])
         self.assertEqual(
-            "2026.08.28-091813-dc3e4ff",
+            "2026.10.29-065631-a3ed31e",
             manifest["minNavPilotVersion"],
         )
         self.assertNotIn("primaryAgents", manifest["clients"]["copilot"])
@@ -56,7 +56,7 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
             ">=1.0.100,<2", manifest["clients"]["copilot"]["compatibility"]
         )
         self.assertEqual(
-            ">=1.18.20,<2", manifest["clients"]["opencode"]["compatibility"]
+            ">=2.2.5,<3", manifest["clients"]["opencode"]["compatibility"]
         )
         self.assertEqual(
             {
@@ -157,8 +157,8 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
             baseline = root / "scripts/release_test_baseline.py"
             text = baseline.read_text(encoding="utf-8")
             text = text.replace(
-                '"opencodeMinimum": "1.18.20"',
-                '"opencodeMinimum": "1.99.1"',
+                '"opencodeMinimum": "2.2.5"',
+                '"opencodeMinimum": "2.99.1"',
             )
             text = text.replace(
                 '"copilotMinimum": "1.0.100"',
@@ -168,7 +168,7 @@ class AgentpakkeManifestGenerationTest(unittest.TestCase):
 
             manifest = GENERATOR.build_manifest(root)
             self.assertEqual(">=1.42.0,<2", manifest["clients"]["copilot"]["compatibility"])
-            self.assertEqual(">=1.99.1,<2", manifest["clients"]["opencode"]["compatibility"])
+            self.assertEqual(">=2.99.1,<3", manifest["clients"]["opencode"]["compatibility"])
         finally:
             temporary.cleanup()
 

@@ -495,7 +495,7 @@ class PackageValidationTest(unittest.TestCase):
     def test_release_baseline_digests_are_not_mistaken_for_national_ids(self) -> None:
         path = self.root / "scripts/release_test_baseline.py"
         text = path.read_text(encoding="utf-8")
-        self.assertIn("9598" + "c27bda0e2d88ce4db5f853e25504c20ac6152e10205785a1cf8f45559952", text)
+        self.assertIn("b975395752f8185c2bf4800d4c41eb17d55091c5c43908ff40836" + "925009fb0a3", text)
         self.assertEqual([], self.errors())
 
         path.write_text(text + '\nUNSAFE_EXAMPLE = "12345' + '678901"\n', encoding="utf-8")

@@ -48,9 +48,9 @@ class ReleaseTestBaselineTest(unittest.TestCase):
     def test_contract_separates_runtime_support_from_exact_test_clients(self) -> None:
         contract = BASELINE.CONTRACT
         self.assertEqual(1, contract["schemaVersion"])
-        self.assertEqual("1.18.20", contract["standardSupport"]["opencodeMinimum"])
+        self.assertEqual("2.2.5", contract["standardSupport"]["opencodeMinimum"])
         self.assertEqual("1.0.100", contract["standardSupport"]["copilotMinimum"])
-        self.assertEqual("1.18.20", contract["releaseTest"]["opencodeVersion"])
+        self.assertEqual("2.2.5", contract["releaseTest"]["opencodeVersion"])
         self.assertEqual("1.0.100", contract["releaseTest"]["copilotVersion"])
         for client in ("opencode", "copilot", "cplt"):
             self.assertTrue(
@@ -63,7 +63,7 @@ class ReleaseTestBaselineTest(unittest.TestCase):
         with redirect_stdout(output):
             self.assertEqual(0, BASELINE.main(["github-env"]))
         values = dict(line.split("=", 1) for line in output.getvalue().splitlines())
-        self.assertEqual("1.18.20", values["RELEASE_TEST_OPENCODE_VERSION"])
+        self.assertEqual("2.2.5", values["RELEASE_TEST_OPENCODE_VERSION"])
         self.assertEqual("1.0.100", values["RELEASE_TEST_COPILOT_MINIMUM"])
 
         output = io.StringIO()
@@ -82,6 +82,41 @@ class ReleaseTestBaselineTest(unittest.TestCase):
             BASELINE.verify_and_extract(record, source, output)
             self.assertEqual(executable, output.read_bytes())
             self.assertEqual(0o555, stat.S_IMODE(output.stat().st_mode))
+
+    def test_verify_accepts_directory_members_but_not_as_the_executable(self) -> None:
+        stream = io.BytesIO()
+        with tarfile.open(
+            fileobj=stream, mode="w:gz", format=tarfile.USTAR_FORMAT
+        ) as archive:
+            directory = tarfile.TarInfo("package")
+            directory.type = tarfile.DIRTYPE
+            directory.mode = 0o755
+            archive.addfile(directory)
+            info = tarfile.TarInfo("package/client")
+            info.size = 6
+            info.mode = 0o755
+            archive.addfile(info, io.BytesIO(b"client"))
+        content = stream.getvalue()
+        record = {
+            "url": "https://example.invalid/client.tar.gz",
+            "archiveSize": len(content),
+            "archiveDigest": f"sha256:{hashlib.sha256(content).hexdigest()}",
+            "roster": ["package", "package/client"],
+            "executablePath": "package/client",
+            "executableSize": 6,
+            "executableSha256": hashlib.sha256(b"client").hexdigest(),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "client.tar.gz"
+            source.write_bytes(content)
+
+            BASELINE.verify_and_extract(record, source, root / "client")
+            self.assertEqual(b"client", (root / "client").read_bytes())
+
+            directory_as_client = dict(record, executablePath="package", executableSize=0)
+            with self.assertRaisesRegex(BASELINE.BaselineError, "executable size"):
+                BASELINE.verify_and_extract(directory_as_client, source, root / "other")
 
     def test_verify_rejects_digest_roster_and_existing_output(self) -> None:
         archive, record = archive_fixture(b"client")

@@ -26,7 +26,7 @@ permission:
 ---
 # Grillmester 🔥
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Own the task from investigation through implementation, tests and verified
 delivery in the same conversation. Write the code yourself at every risk level,
@@ -140,7 +140,7 @@ a bounded factual question without writes; do ordinary lookups yourself and
 wait for findings that affect the implementation. `grill-inspektor`
 reviews independently, as described below.
 
-Use the `task` tool and omit its `model` argument unless the user asks for
+Use the `subagent` tool and omit its `model` argument unless the user asks for
 an override. If an optional specialist is unavailable, do the work yourself and
 keep the independent-review gate.
 

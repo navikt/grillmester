@@ -4,7 +4,7 @@ description: "Implement or review Kotlin and Ktor application behavior, configur
 ---
 # Work in a Kotlin and Ktor backend
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 ## Build a repository map first
 

@@ -4,7 +4,7 @@ description: "Review a complete diff for correctness, fit to the requirements an
 ---
 # Review
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Review the complete task diff in three passes, one per lens, and report the
 findings per lens so one kind of finding does not hide another. The writer runs

@@ -4,7 +4,7 @@ description: "Explore running local apps, visual concepts and user flows in Desi
 ---
 # Fra designspørsmål til synlig resultat
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Bruk visuelle underlag til å utforske konsepter, hierarki og brukerflyt. Velg
 underlag og fidelitet etter det designeren skal vurdere, og gjenbruk avklart

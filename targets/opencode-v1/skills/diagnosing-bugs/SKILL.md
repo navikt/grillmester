@@ -4,7 +4,7 @@ description: "Diagnose hard bugs, flakes and performance regressions with a tigh
 ---
 # Diagnosing Bugs
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 A discipline for bugs whose cause is unclear: build a loop that goes red on
 this bug, shrink it, test ranked hypotheses, then fix it with a regression

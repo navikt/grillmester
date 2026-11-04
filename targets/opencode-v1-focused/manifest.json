@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "350e500c41f922961b3d4827485fc1d38a78e15c3d4b952ed27ec28d89760aa2",
+    "targetManifestSha256": "79d64d1d210b9abfe043550781abbff6dbddc7e33563d3fc2966fc51e2b86c92",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -54,11 +54,11 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "aea5f57d1f23372ba4b0c03c2f059bd7010bd309947b05653938821a3c3b3244",
+      "sha256": "83a628f9126a29060e60b45b3f64a523ce14c96eef67fbe47c923df5503efda1",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "5ce1a02b671bbb469f1d7fc06f470f4241d73f6b99d69027b951a0c5000f4fb6",
+      "sha256": "78b5f73f7ca7d372b878a24a748061a9ec7a9276c4d2e67e237af83ef3a8d48c",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
@@ -90,11 +90,11 @@
       "mode": "0644"
     },
     "opencode.json": {
-      "sha256": "6a6d8464b2388ff645fc32d343ae82aa446df9ca459aac6081bdd418c6fa0cd6",
+      "sha256": "173c40fdd87926b3e3b36e654e9a2ca7962ced0b6c7e639cc42ed72c771aa336",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/SKILL.md": {
-      "sha256": "04d479af374235dc938877d2a7d82ae9fa3a2cf9e66bb968c5c001e7044135b7",
+      "sha256": "e1d5c5eccdc07a335574fd097de3651022476c2549c0079bc1ec504771ec280b",
       "mode": "0644"
     },
     "skills/diagnosing-bugs/references/data-access.md": {
@@ -106,19 +106,19 @@
       "mode": "0755"
     },
     "skills/grilling/SKILL.md": {
-      "sha256": "ee97cce46a5cacf22d15b51dde6a89d2fdf6edb97a4ad6fd3fa634efaaf4d53a",
+      "sha256": "cd7c26d7b8fc31a9421439c3af9cd3908eb7507f9185ab3c3b22672d618699cd",
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "b8d93ff9546fefd04212ab4be0b7af6da57bf53ca933b2c99cb4d5301930ccb3",
+      "sha256": "e26d99db380e23a7d7e9540cf2b1170e35711a433d9d5d14655b4d3958a7c168",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
-      "sha256": "5ee94e9723eca23fa018fdb448b3161d7c6a3a50fd315a0b2b0c2f820d8b0ed3",
+      "sha256": "5e05d3bc7df9990708d30eacac44fa0a5101170bef269a1bd5e61c2e7a62bdc0",
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "f6c50e568de74946fe84646ba5fe7a097e01ff879c91dbc82a5fbd2320ef798e",
+      "sha256": "d72a9e73825e22b41be6b2a2dc369be8da7a6b709a316695e9a8e4f96ba6ace8",
       "mode": "0644"
     },
     "skills/review/references/smells.md": {
@@ -126,7 +126,7 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "6b0991f4e06e09035f332b2a24d7c3c0636b00946f9d9b1627b577863ba5e88a",
+      "sha256": "aa4362b3f68783bd46b38f813dc2f7d627869718102dfab1e0457058a78c5461",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
@@ -138,7 +138,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "90961505fe7e9ea3773c99c3c75a6463cf0e471c80c5bb3dcd637b1bbc17c70d",
+      "sha256": "a784019b3b18d3e4ef10822a18090d440008aa59e5b7cc7e1ce194e0af8b5607",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {

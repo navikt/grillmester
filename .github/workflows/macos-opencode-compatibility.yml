@@ -83,7 +83,8 @@ jobs:
              "${copilot_binary_sha256}" ]] || exit 1
 
           # These are the first client executions in this job.
-          [[ "$("${verified_bin}/opencode" --version)" == "${RELEASE_TEST_OPENCODE_VERSION}" ]] || exit 1
+          [[ "$("${verified_bin}/opencode" --version)" == \
+             "opencode v${RELEASE_TEST_OPENCODE_VERSION}" ]] || exit 1
           [[ "$("${verified_bin}/cplt" --version)" == \
              "cplt ${RELEASE_TEST_CPLT_RELEASE}" ]] || exit 1
           [[ "$("${verified_bin}/copilot" --version | sed -n '1p')" == \
@@ -303,8 +304,6 @@ jobs:
           [[ "$(shasum -a 256 "${RIPGREP_BIN}" | cut -d' ' -f1)" == \
              "${RIPGREP_BINARY_SHA256}" ]] || exit 1
           python3 -I -S scripts/smoke_opencode.py \
-            --require-binary --opencode "${OPENCODE_BIN}"
-          python3 -I -S scripts/smoke_opencode_runtime.py \
             --require-binary --opencode "${OPENCODE_BIN}" --cplt "${CPLT_BIN}"
 
       - name: Build and extract the exact distributable bundle
@@ -457,8 +456,8 @@ jobs:
           # intentional mismatch instead of trusting exit 0.
           [[ "${check_status}" == "1" ]] || exit 1
           jq -e '
-            .platform == "macos (Seatbelt)" and .battery == true and .enforcing == false and
-            (.items | length) == 7 and .verified == 4 and
+            .platform == "macos (Seatbelt)" and .battery == true and .enforcing == true and
+            (.items | length) == 7 and .verified == 4 and .over_blocked == 1 and
             ([.items[] | select(.category == "filesystem")] | length) == 4 and
             ([.items[] | select(.category == "exec")] | length) == 1 and
             ([.items[] | select(.category == "network")] | length) == 2 and
@@ -922,13 +921,19 @@ jobs:
           cplt_resolved="$(canonical "${CPLT_BIN}")"
           opencode_resolved="$(canonical "${OPENCODE_BIN}")"
           grep -F "ok  cplt ${cplt_resolved} (cplt " <<<"${doctor_output}"
-          grep -F "ok  opencode ${opencode_resolved} (${RELEASE_TEST_OPENCODE_VERSION})" \
+          grep -F "ok  opencode ${opencode_resolved} (opencode v${RELEASE_TEST_OPENCODE_VERSION})" \
             <<<"${doctor_output}"
           python3 -I -S scripts/smoke_grillmester_tui.py \
             --launcher "${launcher}" \
             --opencode "${OPENCODE_BIN}" \
             --opencode-version "${RELEASE_TEST_OPENCODE_VERSION}" \
             --cplt "${CPLT_BIN}" \
+            --project-dir "${tui_consumer}" \
+            --state-parent "${qa_root}"
+          python3 -I -S scripts/smoke_grillmester_tui.py \
+            --launcher "${launcher}" \
+            --opencode "${OPENCODE_BIN}" \
+            --opencode-version "${RELEASE_TEST_OPENCODE_VERSION}" \
             --project-dir "${tui_consumer}" \
             --state-parent "${qa_root}"
           [[ -z "$(git -C "${tui_consumer}" status --porcelain)" ]] || exit 1

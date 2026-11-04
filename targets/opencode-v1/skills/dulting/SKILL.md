@@ -4,7 +4,7 @@ description: "Design and evaluate responsible behavioral interventions in public
 ---
 # Design responsible nudges
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Treat a nudge as a hypothesis about a specific user behaviour, not as decoration
 or a shortcut around a service problem. Base it on actual user insight, product

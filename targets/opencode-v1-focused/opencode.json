@@ -1,5 +1,13 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "autoupdate": false,
+  "permission": {
+    "external_directory": {
+      "*": "ask",
+      "{env:OPENCODE_CONFIG_DIR}/skills/*": "allow"
+    },
+    "execute": "deny",
+    "opencode_*": "deny"
+  },
   "share": "disabled"
 }

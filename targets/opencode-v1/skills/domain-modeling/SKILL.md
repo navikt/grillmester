@@ -4,7 +4,7 @@ description: "Sharpen a project's domain language and durable decisions. Use whe
 ---
 # Domain Modeling
 
-> **OpenCode v1:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
+> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Actively sharpen the project's domain model while you design: challenge terms,
 probe boundaries with concrete scenarios and check the code. Reading the
