@@ -348,7 +348,6 @@ def prepare_upgrade_marketplace(
     """Create an older local source beside an exact current catalog fixture."""
 
     current_catalog = load_json_object(catalog_path)
-    current_sources = marketplace_sources_from_catalog(catalog_path)
     current_versions = {
         plugin_version(source_root / package.path) for package in PACKAGES
     }
@@ -380,9 +379,11 @@ def prepare_upgrade_marketplace(
         )
         previous_plugins[package.name] = previous_plugin
 
-        # Development sources resolve relative to the staged marketplace.
-        if current_sources[package.name] == package.path:
-            shutil.copytree(source_package, staged_marketplace / package.path)
+        # The lifecycle runs on a local source in both modes. Copilot 1.0.100 does
+        # not register a pinned GitHub source from a local marketplace, so the
+        # remote smokes install that source after publication.
+        shutil.copytree(source_package, staged_marketplace / package.path)
+        current_entry["source"] = package.path
 
     previous_core = previous_plugins[PLUGIN_NAME]
     add_removed_agent_fixtures(previous_core)

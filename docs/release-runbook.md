@@ -43,10 +43,13 @@ changes the version in `plugin/plugin.json`, and it can be dispatched from
 - **Catalog validation** binds the planned source SHA, regenerates and seals the
   one-package catalog before any selected-source tooling runs, and executes the
   selected source's own tooling and tests only in that read-only job. Copilot
-  compatibility runs trusted smoke tooling from `main` and installs the sealed
-  catalog and the source payload from a worktree with the supported minimum
-  Copilot CLI 1.0.100, which must advertise the complete local-run flag surface in
-  `--help` without authentication or a model request. The native macOS matrix
+  compatibility runs trusted smoke tooling from `main`, checks the sealed catalog
+  against the source, and runs the plugin lifecycle on the source payload from a
+  worktree with the supported minimum Copilot CLI 1.0.100, which must advertise the
+  complete local-run flag surface in `--help` without authentication or a model
+  request. The remote smokes after publication install the pinned GitHub source
+  itself; `validate.yml` runs the same release-catalog smoke on every pull request.
+  The native macOS matrix
   runs on Apple Silicon and hosted Intel. It verifies the exact OpenCode,
   Copilot CLI and cplt release-test artifacts before their first execution,
   runs the native and cplt runtime smokes, and launches all four local-model

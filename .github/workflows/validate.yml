@@ -248,6 +248,13 @@ jobs:
       - name: Smoke-test marketplace installation
         run: python3 scripts/smoke_plugin_install.py
 
+      - name: Smoke-test release catalog
+        run: |
+          catalog="${RUNNER_TEMP}/marketplace.json"
+          source_sha="$(git rev-parse HEAD)"
+          python3 scripts/generate_marketplace.py --mode release --sha "${source_sha}" --output "${catalog}"
+          python3 scripts/smoke_plugin_install.py --catalog "${catalog}" --expect-release-sha "${source_sha}"
+
   macos-live-compatibility:
     uses: ./.github/workflows/macos-opencode-compatibility.yml
     with:
