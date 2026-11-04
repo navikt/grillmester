@@ -7,6 +7,13 @@ description: Plain Apache Kafka patterns for a Ktor backend: lifecycle, consumer
 Use these patterns only after repository inspection confirms direct
 `org.apache.kafka:kafka-clients` usage or the user approves it for a new flow.
 
+## Contents
+
+- Lifecycle beside the HTTP server
+- Producer
+- Nais SSL configuration
+- Testing
+
 ## Lifecycle beside the HTTP server
 
 `KafkaConsumer` is not thread-safe. Own it inside one runner and execute `poll`

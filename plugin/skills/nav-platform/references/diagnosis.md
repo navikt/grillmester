@@ -5,6 +5,15 @@ code defect to `diagnosing-bugs` for implementation and regression
 testing. Mark `NEEDS_CONTEXT` when the reproduction or expected behavior
 cannot be established from available evidence.
 
+## Contents
+
+- Data access
+- Establish runtime identity
+- Evidence loop
+- Deploy and performance
+- Safety and authorization
+- Boundaries
+
 ## Data access
 
 Apply [Nav's current guidelines](https://ki-utvikling.nav.no/retningslinjer) and
@@ -48,15 +57,7 @@ a live command.
 6. Propose the smallest reversible fix and verification, but do not apply it
    without authorization.
 
-## Route by symptom
-
-| Symptom | Section |
-|---|---|
-| Pending, image pull, crash loop, OOM or failed probes | [Pod diagnosis](nais.md#pod-diagnosis) |
-| 401 or 403 | [Auth diagnosis](auth.md#auth-diagnosis-401-and-403) |
-| Consumer lag or unprocessed messages | [Kafka diagnosis](kafka.md#kafka-diagnosis) |
-| Connection pool, migration or database errors | [Database diagnosis](database.md#database-diagnosis) |
-| Error, latency or restart signals disagree | [Observability diagnosis](observability.md#observability-diagnosis) |
+## Deploy and performance
 
 For a deploy failure, first separate automation/build failure, Nais resource
 rejection and a successful deploy followed by runtime failure. Read the actual

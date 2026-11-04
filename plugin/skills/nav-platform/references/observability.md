@@ -1,5 +1,14 @@
 # Observability on Nais
 
+## Contents
+
+- Discover current state
+- Metrics, logs and traces
+- Health
+- Alerts
+- Observability diagnosis
+- Boundaries
+
 ## Discover current state
 
 Take the framework, package, paths, endpoints, metric names, labels, service

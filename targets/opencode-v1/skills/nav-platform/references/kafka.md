@@ -4,6 +4,15 @@ This reference holds Kafkarator, pools, ACLs and diagnosis. Event contracts and
 team conventions belong in the owning repository. For direct `kafka-clients`
 use, load [plain-kafka.md](plain-kafka.md).
 
+## Contents
+
+- Find the topic owner
+- Connect the workload to a pool
+- Provision the topic declaratively
+- Traps
+- Kafka diagnosis
+- Boundaries
+
 ## Find the topic owner
 
 Determine where topics are provisioned and how they are deployed from repository

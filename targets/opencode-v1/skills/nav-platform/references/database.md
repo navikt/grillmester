@@ -1,5 +1,14 @@
 # Cloud SQL PostgreSQL on Nais
 
+## Contents
+
+- Platform configuration
+- Connection capacity
+- Migrations
+- Shared databases
+- Database diagnosis
+- Boundaries
+
 ## Platform configuration
 
 ```yaml

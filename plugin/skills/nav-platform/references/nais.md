@@ -1,5 +1,18 @@
 # Nais workloads
 
+## Contents
+
+- Derive values from the repository
+- Choose the resource kind
+- Start from an evidence-filled Application shape
+- Resource rules
+- Keep access policy explicit and minimal
+- Add platform capabilities only when code uses them
+- Pod lifecycle
+- Validate the rendered manifest
+- Pod diagnosis
+- Boundaries
+
 ## Derive values from the repository
 
 Derive application name, namespace, team label, image placeholder, port, probes,

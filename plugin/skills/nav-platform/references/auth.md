@@ -1,5 +1,17 @@
 # Authentication and authorization
 
+## Contents
+
+- Inspect the repository before choosing a mechanism
+- Separate incoming and outgoing auth
+- Authentication decision tree
+- Keep platform and application configuration aligned
+- Validate incoming tokens
+- Obtain outgoing tokens
+- Auth diagnosis: 401 and 403
+- Deliver evidence
+- Boundaries
+
 ## Inspect the repository before choosing a mechanism
 
 Read the deployed Nais manifests, runtime configuration, build dependencies,

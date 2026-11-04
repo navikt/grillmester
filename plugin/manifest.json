@@ -682,7 +682,7 @@
       "mode": "0644"
     },
     "skills/nav-platform/SKILL.md": {
-      "sha256": "4974e57cde50271ce64ac4326871fe9dd743037075825ef6563f6aa790180398",
+      "sha256": "45ef18cd327ad9de2bb4dd7ea0459a9ac78ddc83fff3febeffef66d878c68629",
       "mode": "0644"
     },
     "skills/nav-platform/references/api.md": {
@@ -690,19 +690,19 @@
       "mode": "0644"
     },
     "skills/nav-platform/references/auth.md": {
-      "sha256": "09cc43659cfe57c666748e82c33a61a96f647cf3b57a39c8d6c2e8f75285799d",
+      "sha256": "ed16f9eb9b9cddb19533750934bff7af92a93f21e85abdc2dba000e8800871fd",
       "mode": "0644"
     },
     "skills/nav-platform/references/database.md": {
-      "sha256": "f73f0ae8323abe2414b8d3a1fc87da1b89820058fe09ac112f16c6a8499ca600",
+      "sha256": "31fcac01f7b7cbfe4005ec5e3d0ecddb65f8b4383f4ee1f92ad644d0ebc772f0",
       "mode": "0644"
     },
     "skills/nav-platform/references/diagnosis.md": {
-      "sha256": "dc9ee8e7fd4e3ab404506bc7c5760af206bce728c1f47d3d6035cc51d01de17f",
+      "sha256": "f0f85fafd28c9888ac236f9858954e67b7b658d353fd00a59a9728e86e35c423",
       "mode": "0644"
     },
     "skills/nav-platform/references/kafka.md": {
-      "sha256": "769f85e55ea8f0401360cf67336a9b610ab6f794ac0988d771316d970da8a529",
+      "sha256": "b670671a9aff53179460891280112de1a7b0e9b1e5c034a81566d578c7955b81",
       "mode": "0644"
     },
     "skills/nav-platform/references/ktor.md": {
@@ -714,7 +714,7 @@
       "mode": "0644"
     },
     "skills/nav-platform/references/nais.md": {
-      "sha256": "5e220cfa27b8b189291c7e21da3a44a5654816ff76116399c8460fdbade1c654",
+      "sha256": "39c38016d0a8eef0515d1dbe236422d114a0dd4b93450bca8d294824a4dd4930",
       "mode": "0644"
     },
     "skills/nav-platform/references/naisjob-example.md": {
@@ -722,11 +722,11 @@
       "mode": "0644"
     },
     "skills/nav-platform/references/observability.md": {
-      "sha256": "b12e84e59b768ab3b67666b3a9a3a8491a656a940eee1e0d8726fbb2a88bcc41",
+      "sha256": "7c17691313e2ffc0d53fe318df34845dddf100d0a067c6e3e509eac0b681d8dd",
       "mode": "0644"
     },
     "skills/nav-platform/references/plain-kafka.md": {
-      "sha256": "b62f76292411531e6843e297ab14db2eca909226a06636231d375e805d6f74f9",
+      "sha256": "3a2e4188ccae6f258e48ab420d3ed943c3bcb6010515769664e99cc97629f941",
       "mode": "0644"
     },
     "skills/okr/SKILL.md": {
