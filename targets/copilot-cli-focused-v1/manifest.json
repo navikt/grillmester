@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "9522d9d871a9adb1293742a0b643da19cdda1ce6b962ec44d4b71e79fa0e967d",
+    "payloadManifestSha256": "157b956a7c00947a232ed7ae444afdeb351eb1eb2814de2450238b1b13e7c1a6",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -80,7 +80,7 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "56d24d7e88bdfed0351850acf0cd2bf3a319bb4972668509ecddbcf4ace3f7a7",
+      "sha256": "aacbf529f9e9789afad56aec4a50508b14e3217066a35eeb444dcabe45e2752a",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {

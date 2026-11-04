@@ -485,21 +485,22 @@ Plugininstallasjon installerer ikke en write-capable GitHub MCP og gir ingen
 OAuth-scopes. Copilot CLIs innebygde GitHub MCP er read-only som standard, og
 Projects er ikke del av standardverktøysettet.
 
-En implementasjonsagent i en terminalsesjon som brukeren eksplisitt har startet
-gjennom Grillmester og cplt, kan bruke cplt-guardede `gh issue`-kommandoer etter
-bekreftelse av repo og konto. Interaktiv launch bruker klientgodkjenning. I
-`local run` kan den opprinnelige prompten være den menneskelige autorisasjonen
-for én eksakt, avgrenset endring, uten en ny tool-dialog. Det krever ikke en
-egen write-MCP. Begge local-klientene krever eksplisitt `--github-access` med
-caller-supplied `GH_TOKEN`; cplts repo-scope og `gh`-guard reduserer risiko, men
-er myke grenser og kan omgås med direkte tokenbruk. Denne veien gjelder ikke
-automatisk Copilot app, cloud agent eller en annen runtime uten cplt.
+Der klienten kan kjøre kommandoer, bruker Grillmester `gh` med brukerens egen
+innlogging for det et semantisk verktøy mangler, også relasjoner og prosjektfelt,
+etter bekreftelse av repo og konto. Det krever ikke en egen write-MCP. Projects
+krever `project`-scope på innloggingen.
 
-Hvis den aktuelle runtime-en mangler både en godkjent semantisk integrasjon og
-den eksplisitte cplt-guardede `gh issue`-veien, skal Grillmester bevare et
-reviewbart utkast og returnere `NEEDS_INPUT`/`NEEDS_CONTEXT`; den skal ikke
-bytte til shell eller rå API-kall. Projects og native parent-/dependency-
-relasjoner krever fortsatt en konkret capability med riktig project-scope.
+I en terminalsesjon som brukeren eksplisitt har startet gjennom Grillmester og
+cplt, er dette cplt-guardede `gh issue`-kommandoer. Interaktiv launch bruker
+klientgodkjenning. I `local run` kan den opprinnelige prompten være den
+menneskelige autorisasjonen for én eksakt, avgrenset endring, uten en ny
+tool-dialog. Begge local-klientene krever eksplisitt `--github-access` med
+caller-supplied `GH_TOKEN`; cplts repo-scope og `gh`-guard reduserer risiko, men
+er myke grenser og kan omgås med direkte tokenbruk.
+
+Hvis rollen forbyr kommandokjøring, eller runtime-en mangler både en godkjent
+semantisk integrasjon og `gh`, skal Grillmester bevare et reviewbart utkast og
+returnere `NEEDS_INPUT`/`NEEDS_CONTEXT`; den skal ikke bytte til rå API-kall.
 Oppsett av en write-capable MCP er enterprise-/teameid og reviewes separat fra
 plugininstallasjonen.
 
