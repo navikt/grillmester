@@ -44,6 +44,18 @@ def workflow_jobs(workflow: Path) -> dict[str, str]:
 
 
 class PublishWorkflowContractTest(unittest.TestCase):
+    def test_macos_assertions_stop_the_step_on_bash_3_2(self) -> None:
+        # The macOS runners use Bash 3.2, where a false bare [[ ]] survives set -e.
+        text = re.sub(r"\\\n\s*", " ", MACOS_WORKFLOW.read_text(encoding="utf-8"))
+        statements = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip().startswith("[[ ")
+        ]
+        self.assertGreater(len(statements), 30)
+        for statement in statements:
+            self.assertRegex(statement, r"(\|\| exit 1|&& break)$")
+
     def test_application_browser_smoke_runs_in_validation_and_exact_source_release(self) -> None:
         for workflow, source in (
             (ROOT / ".github/workflows/validate.yml", "node scripts/smoke_visual_application.cjs"),
