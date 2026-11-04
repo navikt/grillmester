@@ -178,7 +178,6 @@ def verify_local_cli_help_surface(
         "--reasoning-effort",
         "--no-auto-update",
         "--no-experimental",
-        "--no-remote",
         "--no-remote-export",
         "--disable-builtin-mcps",
         "--secret-env-vars",

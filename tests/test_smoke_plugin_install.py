@@ -56,7 +56,6 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                         "--reasoning-effort",
                         "--no-auto-update",
                         "--no-experimental",
-                        "--no-remote",
                         "--no-remote-export",
                         "--disable-builtin-mcps",
                         "--secret-env-vars",
@@ -100,7 +99,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                     "--reasoning-effort",
                     "--no-auto-update",
                     "--no-experimental",
-                    "--no-remote-export",
+                    "--no-remote-exporter",
                     "--disable-builtin-mcps",
                     "--secret-env-vars",
                     "--prompt",
@@ -112,7 +111,7 @@ class PluginLifecycleSmokeTest(unittest.TestCase):
                 )
             )
             with mock.patch.object(SMOKE, "run", return_value=deceptive):
-                with self.assertRaisesRegex(RuntimeError, "--no-remote"):
+                with self.assertRaisesRegex(RuntimeError, "--no-remote-export"):
                     SMOKE.verify_local_cli_help_surface("copilot", {}, plugin)
 
     def test_release_semver_is_strict_and_linear(self) -> None:
