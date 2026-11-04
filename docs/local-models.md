@@ -753,8 +753,8 @@ serveren, contextprofilen og harnesset sammen i et disponibelt repo:
 4. **Skill:** én Grillmester-skill lastes progressivt og følger en relativ
    reference eller et bundled script korrekt.
 5. **Uavhengig review:** gi Grillmester en avklart slice fra R2 og oppover. Bekreft at
-   hovedagenten implementerer og verifiserer selv, og deretter bruker
-   Grill-inspektør på den stabile diffen. Begge skal bruke eksakt lokal modell.
+   hovedagenten implementerer og verifiserer selv, spør om du vil ha
+   Grill-inspektør, og bruker den på den stabile diffen når du sier ja. Begge skal bruke eksakt lokal modell.
    Høy risiko skal ikke alene utløse delegering av implementeringen.
 6. **Lang oppgave:** kjør en representativ vertical slice med tester og mål
    tool-call-feil, context/compaction, hastighet og memory pressure.

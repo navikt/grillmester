@@ -461,8 +461,8 @@ upstream does, so all refactoring guidance sits with the smells.
 The quality review at the same revision adapts the standards and spec axes of
 `code-review`, with a Fowler smell baseline reported as judgement calls, into
 `review`. Grillmester adds a correctness lens, keeps self-review by the writer
-at every level, makes the independent reviewer the default from R2 and uses the
-same lenses for both. It also
+at every level, asks from R2 whether the user wants the independent reviewer and
+uses the same lenses for both. It also
 adopts the red, deterministic loop criteria, 3–5 ranked hypotheses and the
 forced-mutation diff check in `diagnosing-bugs`, while keeping Nav's
 operational data-access rules and bounded analysis when no loop is possible.

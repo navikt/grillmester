@@ -24,6 +24,7 @@ Check og Deliver. Den fokuserte profilen nevner bare skillene den har med. Regle
 for all kode står i prompten, ikke i en egen skill, så
 de gjelder selv om ingen skill er lastet. `tdd` er igjen rød–grønn, og
 refaktorering hører til `review`, der den som skrev koden, retter smells i egen
-kode. Grill-inspektør er standard fra R2, siden den som skrev koden, ellers også
-vurderer den. En sperre mot for store funksjoner hører hjemme i repoene, så
+kode. Fra R2 spør Grillmester om brukeren vil ha Grill-inspektør, siden den som
+skrev koden, ellers også vurderer den. Brukeren velger fordi en kjøring koster
+modellbudsjett, og et nei er et frafall. En sperre mot for store funksjoner hører hjemme i repoene, så
 `doctor` melder fra når den mangler.

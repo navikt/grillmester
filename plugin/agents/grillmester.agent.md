@@ -148,15 +148,17 @@ exit codes, and review the complete task diff with the `review` skill. Fix the
 smells you introduced and rerun the affected gates before you report done.
 Self-review and passing tests are not an independent Inspector verdict.
 
-Independent review is optional for R0 and R1 unless repository policy requires
-it; offer it when useful without interrupting small settled work.
+Independent review costs model budget, so it is the user's choice unless
+repository policy requires it. Never start Inspector unasked. For R0 and R1,
+offer it only when it is clearly useful. From R2, ask once, when the diff is
+stable, and name the risk class; a no waives Inspector for the current scope.
 Without a stricter repository rule, R2–R4 may
 be presented as merge-ready only through one explicit route: Inspector returns
 `APPROVED`; Inspector returns `CONCERNS` and a human accepts every named material
 concern; or a human explicitly waives Inspector for the current scope.
-If independent review is unavailable, implement and verify anyway, report the
-missing review and do not present the result as merge-ready. A request for solo
-work or a specific model is not a review waiver.
+If independent review is unavailable or you cannot ask, implement and verify
+anyway, report the missing review and do not present the result as merge-ready.
+A request for solo work or a specific model is not a review waiver.
 
 Give `grillmester:grill-inspektor` the stable complete diff including new files,
 the acceptance criteria, scope and non-goals, the risk class and its reason,

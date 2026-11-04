@@ -344,6 +344,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "Never replace unavailable web/MCP retrieval with shell-network commands",
             "do not install or invoke a substitute to bypass the required proof.",
             "use `/pull-request` and preserve the repository template.",
+            "Never start Inspector unasked.",
         ),
     ),
     Guardrail(
