@@ -210,12 +210,12 @@ def backup_warnings(home: Path) -> list[str]:
 
 
 def path_fact(path: Path) -> PathFact:
-    exists = file = directory = symlink = False
+    exists = file = directory = symlink = unreadable = False
     inode = None
     try:
         exists = path.exists()
     except OSError:
-        pass
+        unreadable = True
     else:
         if exists:
             try:
@@ -242,8 +242,10 @@ def path_fact(path: Path) -> PathFact:
     except (OSError, RuntimeError):
         resolved = str(path).casefold()
         failed = True
+    if directory and not symlink and not os.access(path, os.R_OK | os.X_OK):
+        unreadable = True
     return PathFact(resolved, inode, exists, file, directory,
-                    symlink, empty_directory(path), failed)
+                    symlink, empty_directory(path), failed, unreadable)
 
 
 def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any],
@@ -251,7 +253,7 @@ def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any
     # Preserve the oracle's unguarded profile/deny checks, but not for arbitrary
     # policy entries or their ancestors. The backup rule is unconditional, and
     # --no-docker skips profile checks beneath Docker grants.
-    for relative in rules.RW_PATHS + rules.RO_PATHS + rules.HARDENING_READONLY:
+    for relative in rules.RW_PATHS + rules.RO_PATHS + rules.HARDENING_READONLY + (rules.SESSION_HISTORY_PATH,):
         path = home / relative
         if no_docker and any(under(path, Path(parent)) for parent in docker):
             continue
@@ -268,7 +270,7 @@ def capture_paths(home: Path, candidates: Sequence[str], existing: dict[str, Any
         else:
             path.is_dir()
 
-    paths = {home, home / ".copilot", Path("/Users")}
+    paths = {home, home / ".copilot", home / rules.SESSION_HISTORY_PATH, Path("/Users")}
     paths.update(Path(area) for area in rules.SYSTEM_AREAS)
     paths.update(home / relative for relative in
                  rules.RW_PATHS + rules.RO_PATHS + rules.HARDENING_READONLY + rules.DENIED_PATHS)

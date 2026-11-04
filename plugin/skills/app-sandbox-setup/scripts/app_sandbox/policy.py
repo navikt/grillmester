@@ -9,7 +9,7 @@ from typing import Any
 
 from .facts import Facts, Options
 from .paths import Info, SetupError, canonical, display, has_control, home_relative, merge_notices, schema_error
-from .rules import BOOL_FIELDS, CREDENTIAL_WARNING, MASKING_SCOPE_WARNING, PATH_FIELDS
+from .rules import BOOL_FIELDS, CREDENTIAL_WARNING, MASKING_SCOPE_WARNING, PATH_FIELDS, SESSION_HISTORY_WARNING
 from . import instructions, toolchain
 
 
@@ -39,6 +39,29 @@ def read_policy(raw: str) -> dict[str, Any]:
 def profile_opt_in_paths(rules: dict[str, Any], facts: Facts) -> list[str]:
     """The same conditional rule applies to observed and pending activation."""
     return list(facts.profile_readonly) if rules.get("PROFILE_OPT_IN") else []
+
+
+def session_history_paths(rules: dict[str, Any], facts: Facts, options: Options,
+                          warnings: list[str]) -> list[str]:
+    if options.no_session_history:
+        warnings.append(Info("Shared session history is OFF: only the exact shared grant is removed; "
+                             "narrower, broader and app-owned grants remain."))
+        return []
+    home = Path(facts.home)
+    path = home / rules["SESSION_HISTORY_PATH"]
+    state = facts.path(path)
+    if (state.symlink or state.resolution_failed or facts.path(home / ".copilot").symlink
+            or state.exists and not state.directory):
+        raise SetupError(1, "Shared history requires an existing non-symlink session-state directory; "
+                            "or rerun with --no-session-history.")
+    if state.unreadable:
+        raise SetupError(1, "Shared history requires a readable session-state directory; fix its permissions "
+                            "or rerun with --no-session-history.")
+    if not state.exists:
+        warnings.append(Info("Session history directory is missing; grant skipped. Rerun after the app creates it."))
+        return []
+    warnings.append(SESSION_HISTORY_WARNING)
+    return [str(path)]
 
 
 def profile_paths(rules: dict[str, Any], facts: Facts, options: Options,
@@ -88,6 +111,7 @@ def profile_paths(rules: dict[str, Any], facts: Facts, options: Options,
     grants["deniedPaths"] = facts.required_denies(rules, grants["readwritePaths"])
     grants["readonlyPaths"] += list(facts.hardened_caches)
     grants["readonlyPaths"] += profile_opt_in_paths(rules, facts)
+    grants["readonlyPaths"] += session_history_paths(rules, facts, options, warnings)
     grants["readwritePaths"] += list(facts.writable_caches)
     warnings.append(Info("After an app update, rerun this skill: new version-named app cache directories need readonly hardening."))
     return grants
@@ -124,8 +148,11 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
         for path in rules["DENIED_PATHS"] if str(home / path) not in denied
     })
     user_denied = [path for path in after["deniedPaths"] if path not in retired_denies]
+    history = home / rules["SESSION_HISTORY_PATH"]
     for field in PATH_FIELDS:
-        existing = list(dict.fromkeys(after.get(field, [])))
+        # Spelling variants of the shared history grant follow the same opt-out and cleanup rules.
+        existing = list(dict.fromkeys(str(history) if Path(path) == history else path
+                                      for path in after.get(field, [])))
         retired = {str(home / path): reason
                    for path, reason in rules["RETIRED_GRANTS"].get(field, {}).items()}
         if field == "deniedPaths":
@@ -133,6 +160,8 @@ def merge_paths(rules: dict[str, Any], facts: Facts, options: Options, row: dict
         if field == "readonlyPaths" and rules.get("PROFILE_OPT_IN"):
             retired.update({path: "profile opt-in inactive" for path in facts.profile_candidates
                             if path not in facts.profile_readonly})
+        if field == "readonlyPaths" and options.no_session_history:
+            retired[str(home / rules["SESSION_HISTORY_PATH"])] = "--no-session-history removes this exact shared grant"
         if options.no_docker and field == "readwritePaths":
             retired.update({path: "--no-docker removes this exact grant" for path in facts.docker})
         for path in existing:

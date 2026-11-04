@@ -21,6 +21,7 @@ class PathFact:
     symlink: bool = False
     empty: bool = False
     resolution_failed: bool = False
+    unreadable: bool = False
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class Options:
     no_docker: bool = False
     no_instructions: bool = False
     move_backups: bool = False
+    no_session_history: bool = False
 
 
 @dataclass(frozen=True)

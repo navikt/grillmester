@@ -4,7 +4,8 @@ Add a new path rule as one row in RULES here. Derived views preserve the legacy
 order: changing that order changes diagnostics and confirmation digests.
 
 Behavioural values: condition="when_exists" selects rw/ro discovery paths;
-condition="always" selects readonly hardening paths. Deny conditions
+condition="always" selects readonly hardening paths; condition="shared_history"
+selects the default readonly session-history grant. Deny conditions
 "when_file"/"qualified_dir" describe qualification, which uses kind="file"
 and the backup exception; kind="any"/"dir" are otherwise descriptive.
 group="docker" selects Docker discovery order, and group="backup" identifies
@@ -61,6 +62,7 @@ RULES = (
     Rule(".copilot/agents", "ro", "any", "when_exists", "app", "agents"),
     Rule(".copilot/extensions", "ro", "any", "when_exists", "app", "extensions"),
     Rule(".copilot/marketplace-cache", "ro", "any", "when_exists", "app", "marketplace cache"),
+    Rule(".copilot/session-state", "ro", "dir", "shared_history", "app", "shared conversation history"),
     Rule(".agents", "ro", "any", "when_exists", "tool", "agents"),
     Rule(".claude/skills", "ro", "any", "when_exists", "tool", "skills"),
     Rule(".gitconfig", "ro", "any", "when_exists", "tool", "Git configuration"),
@@ -106,7 +108,7 @@ RULES = (
     Rule(".config/op", "deny", "dir", "qualified_dir", "secret", "password manager"),
     Rule(".azure", "deny", "dir", "qualified_dir", "secret", "Azure credentials"),
     Rule(".copilot/session-state", "rw", "any", "always", "app",
-         "the app grants its own session files", "retired"),
+         "shared history is readonly; the app manages its own session writes", "retired"),
     Rule("Library/Application Support/Google/Chrome for Testing", "rw", "any", "always", "tool",
          "Chromium needs denied macOS IPC; no path grant helps", "retired"),
     Rule(".copilot/data.db-wal", "deny", "any", "always", "app",
@@ -139,6 +141,7 @@ RETIRED_GRANTS = {
 }
 APP_CACHE_WRITABLE: set[str] = set()
 BACKUP_DIRECTORY = next(rule.path for rule in RULES if rule.group == "backup")
+SESSION_HISTORY_PATH = next(rule.path for rule in RULES if rule.condition == "shared_history")
 APP_OWNED_DB_SUFFIXES = (".open-lock", "-wal", "-shm", "-journal")
 PATH_FIELDS = ("readwritePaths", "readonlyPaths", "deniedPaths")
 BOOL_FIELDS = ("allowOutbound", "allowLocalNetwork", "allowGitCredentials", "allowGhCredentials")
@@ -151,6 +154,11 @@ CREDENTIAL_WARNING = (
 MASKING_SCOPE_WARNING = (
     "Credential masking covers only app-injected GH_TOKEN / git credential helper, NOT files "
     "on disk such as ~/.npmrc, gradle.properties or hosts.yml. Existing credential choices are preserved."
+)
+SESSION_HISTORY_WARNING = (
+    "Shared session history grants let agents and sandboxed commands read conversations, checkpoints "
+    "and artifacts from all projects. Histories may contain sensitive data that outbound access could "
+    "expose. Use --no-session-history to remove this exact shared grant."
 )
 SYSTEM_AREAS = (
     "/System", "/Library", "/usr", "/bin", "/sbin", "/etc", "/var",
@@ -166,5 +174,6 @@ def snapshot() -> dict[str, Any]:
         "FILE_DENIED_PATHS": FILE_DENIED_PATHS, "BACKUP_DIRECTORY": BACKUP_DIRECTORY,
         "RETIRED_GRANTS": {field: dict(paths) for field, paths in RETIRED_GRANTS.items()},
         "SYSTEM_AREAS": SYSTEM_AREAS,
+        "SESSION_HISTORY_PATH": SESSION_HISTORY_PATH,
         "PROFILE_OPT_IN": any(rule.condition == "profile_opt_in" for rule in RULES),
     }

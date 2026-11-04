@@ -190,6 +190,219 @@ class AppSandboxSetupTest(unittest.TestCase):
             sys.stderr.write(self.cli_stderr)
         return code, output.getvalue()
 
+    def history_fixture(self) -> tuple[Path, dict]:
+        history = self.home / ".copilot/session-state"
+        checkpoints = history / "synthetic-session/checkpoints"
+        checkpoints.mkdir(parents=True)
+        (checkpoints / "001-example.md").write_text("PRIVATE_CHECKPOINT_CONTENT", encoding="utf-8")
+        policy = {
+            "readonlyPaths": [str(self.home / ".copilot/installed-plugins")] * 2,
+            "readwritePaths": [str(self.home / ".cache")],
+            "deniedPaths": [str(self.db)],
+            "allowOutbound": False, "allowLocalNetwork": False,
+            "allowGitCredentials": True, "allowGhCredentials": True,
+            "unknownSetting": "PRIVATE_POLICY_VALUE",
+        }
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute(
+                "UPDATE projects SET instructions='PRIVATE_INSTRUCTIONS' WHERE id='p1'"
+            )
+            connection.execute("INSERT INTO project_sandbox_policies VALUES ('p1', ?)", (json.dumps(policy),))
+        return history, policy
+
+    def test_shared_history_is_readonly_by_default_and_has_an_exact_optout(self) -> None:
+        history, before = self.history_fixture()
+        before["readwritePaths"].append(str(history))
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(before),))
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        plan = json.loads(output)
+        diff = plan["projects"][0]["diff"]
+        self.assertIn(str(history), diff["readonlyPaths"]["added"])
+        self.assertIn(str(history), diff["readwritePaths"]["removed"])
+        self.assertTrue(any("all projects" in warning for warning in plan["warnings"]))
+        code, output = self.run_cli("apply", "--no-instructions", "--confirm", plan["digest"])
+        self.assertEqual(code, 0, output)
+        code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        self.assertIn(str(history), json.loads(output)["projects"][0]["diff"]["readonlyPaths"]["removed"])
+
+    def test_history_only_updates_all_projects_without_other_setup_changes(self) -> None:
+        history, before = self.history_fixture()
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute(
+                "INSERT INTO projects(id, name, main_repo_path, sandbox_enabled) VALUES ('p2', 'second', ?, 1)",
+                (str(self.home / "other/repository"),),
+            )
+            connection.execute(
+                "INSERT INTO project_sandbox_policies VALUES ('p2', '{\"customSetting\":true}')"
+            )
+        code, output = self.run_cli("history", "plan", "--json")
+        self.assertEqual(code, 0, output)
+        plan = json.loads(output)
+        self.assertEqual([p["name"] for p in plan["projects"]], ["example", "second"])
+        for project in plan["projects"]:
+            self.assertEqual(project["diff"], {
+                "readonlyPaths": {"added": [str(history)], "removed": []},
+                "readwritePaths": {"added": [], "removed": []},
+                "deniedPaths": {"added": [], "removed": []},
+            })
+        for marker in ("PRIVATE_CHECKPOINT_CONTENT", "PRIVATE_POLICY_VALUE", "PRIVATE_INSTRUCTIONS"):
+            self.assertNotIn(marker, output)
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
+            self.assertEqual(json.loads(connection.execute(
+                "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p1'"
+            ).fetchone()[0]), before)
+        code, output = self.run_cli("history", "apply", "--confirm", plan["digest"])
+        self.assertEqual(code, 0, output)
+        expected = {**before, "readonlyPaths": before["readonlyPaths"] + [str(history)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
+            self.assertEqual(json.loads(connection.execute(
+                "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p1'"
+            ).fetchone()[0]), expected)
+            self.assertEqual(connection.execute(
+                "SELECT sandbox_enabled, instructions FROM projects WHERE id='p1'"
+            ).fetchone(), (0, "PRIVATE_INSTRUCTIONS"))
+            self.assertEqual(json.loads(connection.execute(
+                "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p2'"
+            ).fetchone()[0]), {"customSetting": True, "readonlyPaths": [str(history)]})
+            self.assertEqual(connection.execute(
+                "SELECT sandbox_enabled FROM projects WHERE id='p2'"
+            ).fetchone(), (1,))
+        code, output = self.run_cli("history", "plan", "--json")
+        self.assertEqual(code, 0, output)
+        self.assertFalse(json.loads(output)["changed"])
+        code, output = self.run_cli("history", "plan", "--project", str(self.home / "code/repository"),
+                                    "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        self.assertEqual([p["name"] for p in json.loads(output)["projects"]], ["example"])
+        self.assertEqual(json.loads(output)["projects"][0]["diff"]["readonlyPaths"],
+                         {"added": [], "removed": [str(history)]})
+
+    def test_history_access_preserves_denies_and_refuses_redirected_directory(self) -> None:
+        history, before = self.history_fixture()
+        conflicting = {**before, "deniedPaths": before["deniedPaths"] + [str(history)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(conflicting),))
+        code, output = self.run_cli("history", "plan", "--json")
+        self.assertEqual(code, 0, output)
+        self.assertFalse(json.loads(output)["changed"])
+        self.assertTrue(any("denied" in warning for warning in json.loads(output)["warnings"]))
+        real_history = history.with_name("saved-history")
+        history.rename(real_history)
+        history.symlink_to(real_history, target_is_directory=True)
+        for command, options in (("plan", ("--no-instructions",)), ("history", ("plan",))):
+            code, output = self.run_cli(command, *options)
+            self.assertEqual(code, 1, output)
+            self.assertIn("non-symlink", output)
+        self.assertFalse((self.home / ".copilot/app-sandbox-setup-backups").exists())
+
+    def test_history_skips_projects_without_policy_and_omits_masking(self) -> None:
+        history, _ = self.history_fixture()
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute(
+                "INSERT INTO projects(id, name, main_repo_path, sandbox_enabled) VALUES ('p2', 'second', ?, 0)",
+                (str(self.home / "other/repository"),),
+            )
+        code, output = self.run_cli("history", "plan", "--json")
+        self.assertEqual(code, 0, output)
+        plan = json.loads(output)
+        self.assertEqual([p["name"] for p in plan["projects"]], ["example"])
+        self.assertTrue(any("no sandbox policy" in warning for warning in plan["warnings"]))
+        code, output = self.run_cli("history", "apply", "--confirm", plan["digest"])
+        self.assertEqual(code, 0, output)
+        self.assertNotIn("Credential masking after apply", output)
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
+            self.assertIsNone(connection.execute(
+                "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p2'"
+            ).fetchone())
+
+    def test_history_rejects_unreadable_directory(self) -> None:
+        history, _ = self.history_fixture()
+        history.chmod(0)
+        self.addCleanup(history.chmod, 0o700)
+        if os.access(history, os.R_OK | os.X_OK):
+            self.skipTest("permissions are not enforced for this user")
+        for command, options in (("plan", ("--no-instructions",)), ("history", ("plan",))):
+            code, output = self.run_cli(command, *options)
+            self.assertEqual(code, 1, output)
+            self.assertIn("readable", output)
+            self.assertIn("--no-session-history", output)
+        code, output = self.run_cli("history", "plan", "--no-session-history")
+        self.assertEqual(code, 0, output)
+
+    def test_history_optout_cleans_writable_grant_under_deny_and_keeps_backup(self) -> None:
+        history, before = self.history_fixture()
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + [str(history) + "/"],
+                   "readwritePaths": before["readwritePaths"] + [str(history)],
+                   "deniedPaths": before["deniedPaths"] + [str(history.parent)]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("history", "plan", "--json")
+        self.assertEqual(code, 0, output)
+        diff = json.loads(output)["projects"][0]["diff"]
+        self.assertEqual(diff["readwritePaths"]["removed"], [str(history)])
+        self.assertEqual(diff["readonlyPaths"]["added"], [])
+        code, output = self.run_cli("history", "plan", "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        digest = json.loads(output)["digest"]
+        code, output = self.run_cli("history", "apply", "--no-session-history", "--confirm", digest)
+        self.assertEqual(code, 0, output)
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
+            stored = json.loads(connection.execute(
+                "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p1'"
+            ).fetchone()[0])
+        self.assertEqual(stored, {**current, "readonlyPaths": before["readonlyPaths"],
+                                  "readwritePaths": before["readwritePaths"]})
+        self.assertTrue(any((self.home / ".copilot/app-sandbox-setup-backups").iterdir()))
+
+    def test_setup_treats_trailing_slash_history_grant_as_the_shared_grant(self) -> None:
+        history, before = self.history_fixture()
+        current = {**before, "readonlyPaths": before["readonlyPaths"] + [str(history) + "/"]}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=?", (json.dumps(current),))
+        code, output = self.run_cli("plan", "--no-instructions", "--json")
+        self.assertEqual(code, 0, output)
+        code, output = self.run_cli("apply", "--no-instructions", "--confirm", json.loads(output)["digest"])
+        self.assertEqual(code, 0, output)
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
+            readonly = json.loads(connection.execute(
+                "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p1'"
+            ).fetchone()[0])["readonlyPaths"]
+        self.assertEqual(sum(Path(path) == history for path in readonly), 1, readonly)
+        code, output = self.run_cli("plan", "--no-instructions", "--no-session-history", "--json")
+        self.assertEqual(code, 0, output)
+        removed = json.loads(output)["projects"][0]["diff"]["readonlyPaths"]["removed"]
+        self.assertTrue(any(Path(path) == history for path in removed), removed)
+
+    def test_history_apply_requires_fresh_policy_and_directory_confirmation(self) -> None:
+        history, before = self.history_fixture()
+        code, output = self.run_cli("history", "apply")
+        self.assertEqual(code, 1, output)
+        self.assertIn("--confirm", output)
+        code, output = self.run_cli("history", "plan", "--json")
+        self.assertEqual(code, 0, output)
+        digest = json.loads(output)["digest"]
+        current = {**before, "allowLocalNetwork": True}
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection, connection:
+            connection.execute("UPDATE project_sandbox_policies SET policy_json=? WHERE project_id='p1'",
+                               (json.dumps(current),))
+        code, output = self.run_cli("history", "apply", "--confirm", digest)
+        self.assertEqual(code, 4, output)
+        code, output = self.run_cli("history", "plan", "--json")
+        self.assertEqual(code, 0, output)
+        digest = json.loads(output)["digest"]
+        history.rename(history.with_name("replaced-history"))
+        history.mkdir()
+        code, output = self.run_cli("history", "apply", "--confirm", digest)
+        self.assertEqual(code, 4, output)
+        with contextlib.closing(sqlite3.connect(str(self.db))) as connection:
+            self.assertEqual(json.loads(connection.execute(
+                "SELECT policy_json FROM project_sandbox_policies WHERE project_id='p1'"
+            ).fetchone()[0]), current)
+        self.assertFalse((self.home / ".copilot/app-sandbox-setup-backups").exists())
+
     def test_single_project_plan_and_apply_leave_other_policies_untouched(self) -> None:
         other = self.home / "other/repository"
         other.mkdir(parents=True)

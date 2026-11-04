@@ -39,6 +39,20 @@ Explain these in plain words. The sandbox is guardrails, **not containment**.
 - A sandboxed Gradle client may reuse an **unsandboxed daemon**. Passing builds
   alone do not prove enforcement. Enterprise settings can also alter results.
 
+## Shared session history
+
+- `~/.copilot/session-state` is readonly by default, across all session IDs.
+  Agents and sandboxed commands can read other projects' conversations,
+  events and tool output, checkpoints, artifacts and session policy files. They
+  may contain confidential data or copied credentials. Setup always keeps
+  `allowOutbound` on, so outbound access can expose that material.
+- This is a deliberate loss of cross-project history isolation, not a blanket
+  grant to `.copilot` or permission to read unrelated material. The app DB,
+  settings, OAuth files and sandbox backups keep their existing protection.
+- `--no-session-history` removes the exact shared readonly grant. It does not
+  remove broader/narrower user grants or the app's own grants. Verify both
+  checkpoint reads and the current session's own artifact writes after restart.
+
 ## Deliberately blocked
 
 - SSH/signing (`.ssh`/`.gnupg`), nais/kubectl/gcloud, private Docker pulls via

@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
-from . import backups, discovery, instructions, optional_cli, policy, probes, rules, store
+from . import backups, discovery, history, instructions, optional_cli, policy, probes, rules, store
 from .facts import Options
 from .paths import SetupError, changed_projects, display, split_notices
 
@@ -21,7 +21,8 @@ class UsageParser(argparse.ArgumentParser):
 
 def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool],
                  no_docker: bool = False, no_instructions: bool = False,
-                 move_backups: bool = False, project_path: Optional[Path] = None) -> dict[str, Any]:
+                 move_backups: bool = False, project_path: Optional[Path] = None,
+                 no_session_history: bool = False) -> dict[str, Any]:
     projects = store.project_rows(connection)
     if project_path is not None:
         selected = project_path.resolve()
@@ -37,13 +38,14 @@ def compute_plan(connection: sqlite3.Connection, home: Path, mask: Optional[bool
     facts = discovery.gather(home, projects, paths, existing, warnings, no_docker=no_docker,
                              no_instructions=no_instructions, move_backups=move_backups)
     return policy.compute_plan(rules.snapshot(), facts, existing,
-                               Options(mask, no_docker, no_instructions, move_backups))
+                               Options(mask, no_docker, no_instructions, move_backups, no_session_history))
 
 
 def profile_paths(home: Path, mask: Optional[bool], warnings: list[str],
-                  no_docker: bool = False) -> dict[str, list[str]]:
+                  no_docker: bool = False, no_session_history: bool = False) -> dict[str, list[str]]:
     facts = discovery.gather(home, (), (), {}, profile_only=True, no_docker=no_docker)
-    return policy.profile_paths(rules.snapshot(), facts, Options(mask, no_docker), warnings)
+    return policy.profile_paths(rules.snapshot(), facts, Options(mask, no_docker, no_session_history=no_session_history),
+                                warnings)
 
 
 def rollback_plan(connection: sqlite3.Connection, snapshot: dict[str, Any],
@@ -84,7 +86,7 @@ def public_plan(plan: dict[str, Any]) -> dict[str, Any]:
         "changed": bool(changed_projects(plan) or plan.get("placeholder_removals") or plan.get("backup_moves")),
     }
     result["unchanged_projects"] = len(plan["projects"]) - len(projects)
-    if plan.get("operation") != "rollback":
+    if plan.get("operation") not in ("rollback", "history"):
         result["masking_after"] = {state.lower(): names for state, names in masking_after(plan).items()}
     result["toolchain_decisions"] = [{"name": project["name"], "decisions": project.get("toolchain", [])}
                                     for project in changed_projects(plan)]
@@ -174,7 +176,7 @@ def print_plan(plan: dict[str, Any], json_mode: bool = False, summary: Optional[
                 for line in instructions_diff(before["instructions"], after["instructions"])[key].splitlines():
                     print(f"  {prefix} instructions: {line}")
     print(f'{len(plan["projects"]) - len(projects)} projects unchanged')
-    masking = masking_line(plan) if plan.get("operation") != "rollback" else None
+    masking = masking_line(plan) if plan.get("operation") not in ("rollback", "history") else None
     if masking:
         print(masking)
     if summary is None:
@@ -201,7 +203,8 @@ def print_notices(messages: Sequence[str]) -> None:
         print("Info: " + note)
 
 
-def print_guide(db: Path, home: Path, mask: Optional[bool], no_docker: bool = False) -> int:
+def print_guide(db: Path, home: Path, mask: Optional[bool], no_docker: bool = False,
+                no_session_history: bool = False) -> int:
     warnings: list[str] = []
     paths = None
     projects = []
@@ -211,7 +214,7 @@ def print_guide(db: Path, home: Path, mask: Optional[bool], no_docker: bool = Fa
         connection = store.open_db(db)
         connection.execute("BEGIN")
         store.validate_schema(connection)
-        plan = compute_plan(connection, home, mask, no_docker)
+        plan = compute_plan(connection, home, mask, no_docker, no_session_history=no_session_history)
         projects = plan["projects"]
         warnings.extend(plan["warnings"])
     except SetupError as error:
@@ -227,7 +230,7 @@ def print_guide(db: Path, home: Path, mask: Optional[bool], no_docker: bool = Fa
         if connection is not None:
             connection.close()
     if not projects:
-        paths = profile_paths(home, mask, warnings, no_docker)
+        paths = profile_paths(home, mask, warnings, no_docker, no_session_history)
         projects = [{"name": "<project>", "after": {"policy": paths}}]
     labels = {"readwritePaths": "Additional read/write (Add folder)",
               "readonlyPaths": "Additional read-only", "deniedPaths": "Denied"}
@@ -254,9 +257,11 @@ def print_guide(db: Path, home: Path, mask: Optional[bool], no_docker: bool = Fa
 
 def run(argv: Optional[Sequence[str]] = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "history":
+        return history.run(argv[1:])
     if argv and argv[0] in ("profile", "gradle-toolchains"):
         return optional_cli.run(argv)
-    parser = UsageParser(description=__doc__)
+    parser = UsageParser(description=__doc__, epilog="To change only shared history access: history --help.")
     parser.add_argument("command", choices=["plan", "apply", "guide", "rollback", "verify"])
     parser.add_argument("--confirm")
     parser.add_argument("--db", type=Path)
@@ -266,6 +271,7 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
     masking.add_argument("--mask-credentials", dest="mask_credentials", action="store_const", const=True, default=None)
     masking.add_argument("--no-mask-credentials", dest="mask_credentials", action="store_const", const=False)
     parser.add_argument("--no-docker", action="store_true")
+    parser.add_argument("--no-session-history", action="store_true")
     parser.add_argument("--no-instructions", action="store_true")
     parser.add_argument("--move-backups", action="store_true")
     parser.add_argument("--no-toolchain", action="store_true")
@@ -281,12 +287,14 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
         raise SetupError(1, "Usage error: --no-toolchain applies only to verify.")
     if args.project is not None and args.command not in {"plan", "apply"}:
         raise SetupError(1, "Usage error: --project applies only to plan and apply.")
+    if args.no_session_history and args.command not in {"plan", "apply", "guide"}:
+        raise SetupError(1, "Usage error: --no-session-history applies only to plan, apply and guide.")
     home = (args.home if args.home is not None else Path.home()).resolve()
     db = args.db if args.db is not None else home / ".copilot/data.db"
     if args.command == "verify":
         return probes.verify(home, db, bool(args.mask_credentials), not args.no_toolchain)
     if args.command == "guide":
-        return print_guide(db, home, args.mask_credentials, args.no_docker)
+        return print_guide(db, home, args.mask_credentials, args.no_docker, args.no_session_history)
     snapshot = store.rollback_snapshot(args.backup) if args.command == "rollback" else None
     writing = args.command == "apply" or (args.command == "rollback" and args.confirm is not None)
     connection = store.open_db(db, writing)
@@ -295,7 +303,7 @@ def run(argv: Optional[Sequence[str]] = None) -> int:
         store.validate_schema(connection)
         plan = (rollback_plan(connection, snapshot, args.no_instructions) if snapshot is not None
                 else compute_plan(connection, home, args.mask_credentials, args.no_docker,
-                                  args.no_instructions, args.move_backups, args.project))
+                                  args.no_instructions, args.move_backups, args.project, args.no_session_history))
         summary = None
         if writing:
             if args.confirm != plan["digest"]:

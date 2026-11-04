@@ -2,15 +2,22 @@
 
 ## What apply does
 
-Apply checks schema and a fresh digest under `BEGIN IMMEDIATE`, backs up,
+Default apply checks schema and a fresh digest under `BEGIN IMMEDIATE`, backs up,
 merges policies and enables sandbox for valid projects. Failed DB writes roll
 back. After commit, only planned, still-empty, non-symlink placeholders are
 removed; cleanup failures warn without undoing policy.
+
+`history apply` uses the same confirmed transaction and backup mechanism,
+but only changes the shared readonly session-history grant. It preserves
+sandbox defaults and performs no placeholder or loose-backup cleanup.
 
 ## Change later
 
 - Rerun plan/apply to change masking or use Settings → Projects → Sandbox.
   Default apply re-enables valid projects; profile apply preserves their toggle.
+- Shared session history is readonly by default. Use `--no-session-history`
+  on plan and apply to remove that exact shared grant; narrower/broader user
+  grants and app-owned session grants remain.
 - `rollback --from <backup>` previews; confirm with the same command plus
   `--confirm <digest>`. It restores shared project policies/toggles and **only
   our instructions block**, preserving current user text. Malformed current/
