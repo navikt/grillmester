@@ -203,21 +203,16 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel design, Accessibility review, Design prototype, Figma workflow |
 | **Produkt og tjeneste** | Mål, discovery, teamarbeid, workshop, klarspråk eller ansvarlig atferdsdesign. | OKR, Produktledelse, Team status, Workshop design, Klarspråk, Dulting |
 | **Nav backend og plattform** | Identitet, Nais, Kafka, database, observability og feilsøking i Nav/Nais. | Nav platform |
-| **Nav-produktcapabilities** | En Nav-spesifikk tjenestekomponent eller arbeidsmåte trengs. | Lumi Survey |
-
-Lumi Survey er en ordinær Nav-capability. Som alle integrasjonsskills skal den
-verifisere gjeldende pakke/API og repoets faktiske auth-/Nais-oppsett; den skal
-ikke gjette detaljer fra minnet.
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 37 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 36 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-De 37 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
+De 36 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
 `design-prototype` og `review`. Nav-pilot eier valg og distribusjon av
 agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som

@@ -37,7 +37,7 @@ installasjonen skal være reproduserbar.
 ## Innhold
 
 `grillmester@grillmester` er hele produktet: tre offentlige agenter, tre
-interne roller og 37 kuraterte skills for metode, design, produktarbeid,
+interne roller og 36 kuraterte skills for metode, design, produktarbeid,
 levering og relevante Nav-teknologier. Det finnes ingen separat tilleggspakke.
 
 ## Installer i Copilot CLI
@@ -622,7 +622,7 @@ ikke skal påvirke resultatet.
 ## OpenCode
 
 Grillmester har et deterministisk generert, native target for OpenCode 2.x fra
-`2.2.5`. Det gir hele flaten med 6 agenter, 37 skills, 37 slash commands,
+`2.2.5`. Det gir hele flaten med 6 agenter, 36 skills, 36 slash commands,
 native delegering og native permissions. `2.2.5` er den eksakte
 release-testbaselinen; standardlauncheren godtar nyere 2.x-versjoner. Installer
 og oppdater OpenCode selv med `brew install opencode`. Grillmester verken

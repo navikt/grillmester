@@ -98,8 +98,8 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
             "review",
         )
         component(
-            self.plugin / "plugin/skills/lumi-survey/SKILL.md",
-            "lumi-survey",
+            self.plugin / "plugin/skills/nav-platform/SKILL.md",
+            "nav-platform",
         )
         json_file(
             self.plugin / "plugin/plugin.json",
@@ -303,10 +303,10 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
         self.assertRegex(report["release"]["catalogSha256"], r"^[0-9a-f]{64}$")
 
     def test_single_plugin_roster_includes_nav_skill_and_detects_collision(self) -> None:
-        local_nav_skill = ".github/skills/lumi/SKILL.md"
+        local_nav_skill = ".github/skills/nav/SKILL.md"
         component(
             self.consumer / local_nav_skill,
-            "lumi-survey",
+            "nav-platform",
         )
         manifest = json.loads(
             (self.consumer / ".github/.hovmester-manifest.json").read_text()
@@ -325,16 +325,16 @@ class ConsumerPilotPreflightTest(unittest.TestCase):
 
         self.assertEqual({"barista", "kokk"}, set(agents))
         self.assertEqual(
-            {"review", "lumi-survey"}, set(skills)
+            {"review", "nav-platform"}, set(skills)
         )
         self.assertEqual(["grillmester"], report["plugin"]["packages"])
         self.assertEqual(["grillmester"], report["migrationContract"]["packages"])
         self.assertEqual(
-            ["lumi-survey", "review"],
+            ["nav-platform", "review"],
             report["plugin"]["skillIds"],
         )
         self.assertEqual(
-            ["lumi-survey", "review"],
+            ["nav-platform", "review"],
             [item["id"] for item in report["collisions"]["skills"]],
         )
         self.assertTrue(report["baselineWritable"], report["blockers"])

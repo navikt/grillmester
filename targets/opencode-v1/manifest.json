@@ -20,8 +20,8 @@
     "agents": 6,
     "primaryAgents": 3,
     "subagents": 3,
-    "skills": 37,
-    "commands": 37
+    "skills": 36,
+    "commands": 36
   },
   "skillCapabilities": {
     "accessibility-review": "native",
@@ -44,7 +44,6 @@
     "improve-codebase-architecture": "native",
     "issue-management": "native",
     "klarsprak": "native",
-    "lumi-survey": "native",
     "nav-platform": "native",
     "okr": "native",
     "produktledelse": "native",
@@ -84,7 +83,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "a2a71694869400cee648d80438ba823cc95b25aa04425141d488e46b25867b58",
+      "sha256": "86c94f549bdc14044f7dfa94ae7ade26422cbc0bc3e3d574d7efc090f96f69b4",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -185,10 +184,6 @@
     },
     "commands/klarsprak.md": {
       "sha256": "f483884751850a1414f9599b5c673516860edaa0a55ffac792d6cfc32d277e09",
-      "mode": "0644"
-    },
-    "commands/lumi-survey.md": {
-      "sha256": "b7ccbf97d0ed5f0eab42cc3b04defe12ecf49127b8e3d5370c71195ed110fea9",
       "mode": "0644"
     },
     "commands/nav-platform.md": {
@@ -549,22 +544,6 @@
     },
     "skills/klarsprak/references/for-og-etter.md": {
       "sha256": "34029a5acdb95920b382812674b30f28b9597c9edaab2d47d2bcc86c1e591433",
-      "mode": "0644"
-    },
-    "skills/lumi-survey/SKILL.md": {
-      "sha256": "c1c91bf49823bfaacb6cb1a0c982990f3b05a463a35398c3ca9a138a28f6a49d",
-      "mode": "0644"
-    },
-    "skills/lumi-survey/references/backend-transport.md": {
-      "sha256": "8c94f965b5e5cf74a9d53a737718ed682bd3d65ebc6e55c2ac6d74d0c6d146c1",
-      "mode": "0644"
-    },
-    "skills/lumi-survey/references/nais-integration.md": {
-      "sha256": "650dfc8df3fe3fd71a744e5211c1e442304fd98aec4ebe018d27fe7808d42d71",
-      "mode": "0644"
-    },
-    "skills/lumi-survey/references/survey-design.md": {
-      "sha256": "fa6ba1abc26594fa5a1325b177554946435814d49262d0117f8ff6fc00e9252b",
       "mode": "0644"
     },
     "skills/nav-platform/SKILL.md": {

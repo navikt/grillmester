@@ -158,7 +158,7 @@ etter et avvist kall. Last bare metoden som trengs nå.
 | Kjørbart forsøk for en usikker data-, tilstands- eller feilkontrakt | `prototype` |
 | UU-gjennomgang av implementert UI | `accessibility-review` |
 | Viktige uavklarte behov og antakelser | `grilling`; `grill-me` er brukerens manuelle grilløkt |
-| Atferdsendring, menneskelige workshops eller brukerundersøkelser | `dulting`, `workshop-design` eller `lumi-survey` etter formålet |
+| Atferdsendring eller menneskelige workshops | `dulting` eller `workshop-design` etter formålet |
 | Bestilt GitHub-oppgave eller pull request | `issue-management` eller `pull-request` |
 | Gjennomgang av egen implementering | `review` |
 | Personopplysninger, identitet, tilgang eller nye tillitsgrenser | `security-review` |
