@@ -132,6 +132,9 @@ set the page title in each alternative, for example «B · Spøkelse». Compare 
 and add no switcher, bar or other tool of ours to the page: it would become part of what is
 judged, and Pick & Polish and screenshots would pick it up.
 
+The Browser shows one tab at a time. A request for side by side still means tabs, and you say
+so once: a shared page would squeeze both directions and is no longer the real page.
+
 When one is chosen, remove the others, the parameter and the page titles, and commit.
 
 ## Compare with the current app

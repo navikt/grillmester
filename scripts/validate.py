@@ -413,6 +413,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "first for today's app",
             "set the page title in each alternative",
             "add no switcher, bar or other tool of ours to the page",
+            "A request for side by side still means tabs",
         ),
         ("read_preview", "publish_proposal", "proposalId"),
     ),
