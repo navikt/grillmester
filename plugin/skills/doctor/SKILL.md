@@ -165,15 +165,17 @@ Check these dimensions separately:
 9. **Size gate** — the build or CI fails on oversized or overly complex code,
    for example detekt `LongMethod`, `CyclomaticComplexMethod` and
    `NestedBlockDepth`, or Biome `noExcessiveLinesPerFunction` and
-   `noExcessiveCognitiveComplexity`. Report a missing gate as `GAP`, and suggest
-   a baseline so it stops only new code, with limits generous enough not to push
-   code into thin helpers.
+   `noExcessiveCognitiveComplexity`. Report a missing gate as `GAP` in a
+   repository with application code, and suggest a way to stop only new code,
+   such as a baseline, with limits generous enough not to push code into thin
+   helpers.
 
 Classify each finding:
 
 - `BLOCKER` — an observed conflict, unsafe ambiguity, or missing target-client
   activation prevents the requested use.
-- `GAP` — material repository context is missing or too costly to rediscover.
+- `GAP` — material repository context or a quality gate is missing, or context
+  is too costly to rediscover.
 - `DUPLICATION` — the same policy has competing owners or copies.
 - `OPTIONAL` — an optimization with no present correctness or safety impact.
 

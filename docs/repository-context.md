@@ -205,6 +205,7 @@ read-only og vurderer:
 - hvilke instructions klientflatene kan se
 - om repoet mangler en liten, stående kontrakt
 - om en regel heller bør være CI/ruleset enn prompttekst
+- om repoet mangler en sperre mot for store eller komplekse funksjoner
 
 `/doctor` synker eller oppretter ikke filer. Et forslag blir først en endring i en
 separat, godkjent oppgave.

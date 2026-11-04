@@ -57,7 +57,8 @@ gjennomgang og beståtte tester erstatter ikke dette kravet. Nye endringer
 krever fersk verifikasjon og review når review brukes som leveransegrunnlag.
 
 Arbeidet går gjennom fem faser, og Grillmester-prompten nevner skillene i hver
-fase. En fase som ikke trengs, hoppes over.
+fase. Alle endringer kontrolleres, mens andre faser som ikke trengs, hoppes over.
+Den fokuserte profilen for lokale modeller nevner bare skillene den har med.
 
 | Fase | Skills | Når |
 | --- | --- | --- |

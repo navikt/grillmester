@@ -85,7 +85,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "fe67cc2423becb108d651d4b3c9c0bd0e6d0d3bfb5fec4e66236ba603bd80d0c",
+      "sha256": "4e5b6db98b6bb6ab6c71a6945c199f2deb13c3f908b3cd0fe4dfd7daebc3e7ff",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
@@ -609,7 +609,7 @@
       "mode": "0755"
     },
     "skills/doctor/SKILL.md": {
-      "sha256": "7996d74addfc6d758728954fa9008bbb05e6f04391dc03268a7b81a602e9b6ed",
+      "sha256": "d6c121b273a61352b220b541570438f84741a5c3ecd77952fd4b86529708f385",
       "mode": "0644"
     },
     "skills/domain-modeling/ADR-FORMAT.md": {
@@ -829,7 +829,7 @@
       "mode": "0644"
     },
     "skills/review/references/smells.md": {
-      "sha256": "af5e300b51acdda268fb46c863d3dba7c036fa13aaae2adc7f96e4145599fed1",
+      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {

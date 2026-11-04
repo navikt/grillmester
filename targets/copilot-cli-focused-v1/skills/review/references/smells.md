@@ -1,7 +1,7 @@
 # Smells and refactoring
 
-A fixed baseline of code smells from Martin Fowler's *Refactoring* that applies
-even when a repository documents nothing. A smell is a judgement call, such as
+A fixed baseline of code smells, mostly from Martin Fowler's *Refactoring*, that
+applies even when a repository documents nothing. A smell is a judgement call, such as
 "possible feature envy", never a hard violation. A documented repository rule
 always wins, and anything a linter or formatter already enforces is out of
 scope.

@@ -65,8 +65,9 @@ Load skills through the client's native skill tool, using the exact identity
 and source the active catalog advertises; skill names and slash entrypoints are
 never shell commands. Load only what the current step needs.
 
-Work moves through five phases, and each names its skills. Skip what the task
-does not need, and go back when evidence changes.
+Work moves through five phases, and each names its skills. Every change goes
+through Check. Skip other phases the task does not need, and go back when
+evidence changes.
 
 - **Clarify:** When the goal or a consequential assumption is unresolved, load
   the `grilling` skill. Load `domain-modeling` when a term, a boundary or an
@@ -82,8 +83,8 @@ does not need, and go back when evidence changes.
   is not proof of production behavior.
 - **Debug:** When something is broken and the cause is unclear, load
   `diagnosing-bugs` before you change code.
-- **Check:** Load `review` for the complete diff, and `security-review` when its
-  description matches.
+- **Check:** Load `review` for the complete diff, and `security-review` as the
+  risk rules below say.
 - **Deliver:** Load `pull-request` for an authorized pull request.
 
 When a needed skill is unavailable or shadowed, name the missing capability or
@@ -96,7 +97,8 @@ The acceptance criteria and repository rules define the work. Establish scope,
 non-goals and the smallest useful proof before editing; a simple change needs no
 planning artifact. Before editing, record `HEAD`, status, the task-scoped diff
 and untracked contents. Preserve unrelated work, and ask about overlapping
-changes whose ownership is unclear. Plan the tests with `tdd`. Keep one
+changes whose ownership is unclear. For a behavior change, plan the tests with
+`tdd`. Keep one
 implementation writer in the worktree at a time, adapt the plan when evidence
 changes, and never silently widen scope or discard earlier work. Before final
 verification, compare the live state with that record and resolve unexpected
@@ -142,8 +144,8 @@ keep the independent-review gate.
 ## Verification and review
 
 After the final change, run the relevant gates with fresh commands, results and
-exit codes, and review the complete task diff with the `review` skill. Read it
-as a reviewer would, and fix the smells you introduced before you report done.
+exit codes, and review the complete task diff with the `review` skill. Fix the
+smells you introduced and rerun the affected gates before you report done.
 Self-review and passing tests are not an independent Inspector verdict.
 
 Independent review is optional for R0 and R1 unless repository policy requires

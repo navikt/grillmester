@@ -62,6 +62,9 @@ Markdown files or a cross-task state protocol.
 
 This focused payload provides `diagnosing-bugs`, `grilling`,
 `issue-management`, `pull-request`, `review`, `security-review`, and `tdd`.
+Clarify an unresolved goal with `grilling`, build with `tdd`, debug an unclear
+cause with `diagnosing-bugs` before you change code, check with `review` and
+`security-review`, and deliver with `pull-request`.
 Load a skill from the active catalog only when the task needs its method;
 use its exact advertised identity and source through the native loading
 mechanism. Skill names are never shell commands. Do not preload the roster.
@@ -91,7 +94,8 @@ The acceptance criteria and repository rules define the work. Establish scope,
 non-goals and the smallest useful proof before editing; a simple change needs no
 planning artifact. Before editing, record `HEAD`, status, the task-scoped diff
 and untracked contents. Preserve unrelated work, and ask about overlapping
-changes whose ownership is unclear. Plan the tests with `tdd`. Keep one
+changes whose ownership is unclear. For a behavior change, plan the tests with
+`tdd`. Keep one
 implementation writer in the worktree at a time, adapt the plan when evidence
 changes, and never silently widen scope or discard earlier work. Before final
 verification, compare the live state with that record and resolve unexpected
@@ -134,8 +138,8 @@ not be replaced by self-review.
 ## Verification and review
 
 After the final change, run the relevant gates with fresh commands, results and
-exit codes, and review the complete task diff with the `review` skill. Read it
-as a reviewer would, and fix the smells you introduced before you report done.
+exit codes, and review the complete task diff with the `review` skill. Fix the
+smells you introduced and rerun the affected gates before you report done.
 Self-review and passing tests are not an independent Inspector verdict.
 
 Independent review is optional for R0 and R1 unless repository policy requires

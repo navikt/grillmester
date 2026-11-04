@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "15e0918e82a79b7be6a17e05e047f2961815e4d21de68d3c95e6d649827b0df2",
+    "payloadManifestSha256": "d8ee5d0e758cc92f9c77b25bb31b5c1cd0bb4a4b788ea77ccb706f72d718f0ca",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
   },
@@ -56,7 +56,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "15adf15e4de7506927cc1eb519edf21313a6285bc3ed72cc272fd333370af316",
+      "sha256": "d917ab1b10861c03968aba6ef621065c4f26e43e47170c2e813bb25085433a18",
       "mode": "0644"
     },
     "plugin.json": {
@@ -92,7 +92,7 @@
       "mode": "0644"
     },
     "skills/review/references/smells.md": {
-      "sha256": "af5e300b51acdda268fb46c863d3dba7c036fa13aaae2adc7f96e4145599fed1",
+      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
