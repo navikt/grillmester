@@ -125,7 +125,7 @@
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
-      "sha256": "b5d64d511caedc52637bc41efb5af9e25e34c1933a9909211a146a081ad807ec",
+      "sha256": "3e750f1d934e6c3e3e5fd8a7a67c3c51f8c450e2f9d7cf5ed1c73f5b36ab50a4",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/references/maintenance.md": {
@@ -261,7 +261,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "816cd56e6d4f01b233924f4de7db8af4f1ca71bd04f2ff3f88c7fed101ed9435",
+      "sha256": "a7ed66edfdd54df150ff23bb6339fdfd2334c93295292cc165803c20e1551a8a",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -269,7 +269,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.md": {
-      "sha256": "69f53d5724dcceb28f27764143824d59adf767d487fcc917aa902e86903f01e8",
+      "sha256": "2f1e8b3044ad8fab18f93e61446a2e73902dade6c1d3348cdc8949b785adbf09",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-tokens.md": {
@@ -277,7 +277,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/application-opening.md": {
-      "sha256": "5803f659c60dd6006c770d22c4b9649d2d23d406060138d72f550cf8fac78d8b",
+      "sha256": "0bf9e6666382f4571f93ad322a475e676d41727d893371bbbf27d476fb0f32fb",
       "mode": "0644"
     },
     "skills/design-prototype/references/design-handoff.md": {
@@ -285,7 +285,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
-      "sha256": "34496cc33ad4c962df3bf608dde8d63ef4da6723c64e107af174ab9399e320bd",
+      "sha256": "8ba5326f674d02187e0a93d127f89c0d0ebd3f3ade2bcb17c348b34c4361bcd5",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/app-runtime.js": {

@@ -96,8 +96,6 @@ FORBIDDEN_SCAFFOLD_MARKERS = re.compile(
 MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 REFERENCE_CONTENTS_LIMIT = 100
 REFERENCE_CONTENTS_HEADINGS = ("Contents", "Innhold")
-# This skill is being rebuilt on its own branch and follows the rule when it lands.
-REFERENCE_RULE_EXEMPT_SKILLS = frozenset({"design-prototype"})
 AGENT_FRONTMATTER_KEYS = {
     "name",
     "description",
@@ -1214,8 +1212,6 @@ def validate_disclosed_references(
 ) -> None:
     """A reference nobody can reach, or scan, is hidden information."""
 
-    if skill_root.name in REFERENCE_RULE_EXEMPT_SKILLS:
-        return
     linked = {
         (skill_root / target.strip().split("#", 1)[0]).resolve()
         for target in MARKDOWN_LINK.findall(body)

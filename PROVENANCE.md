@@ -345,6 +345,14 @@ source. The Visual Companion lineage below stays as history. The rights journal
 binds this content, the content lock and this provenance record while preserving
 the underlying decision in #56.
 
+PR [#122](https://github.com/navikt/grillmester/pull/122) reviews the move of
+reference pointers into a Read first section, direct links to every reference and
+contents lists in long references. Within the rights scope it changes
+`aksel-design`, `architecture-review`, `design-prototype`, `dulting`,
+`produktledelse`, `team-status` and `workshop-design` without changing their facts.
+It adds no third-party material. The rights journal binds this content, the content
+lock and this provenance record while preserving the underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,

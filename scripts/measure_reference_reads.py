@@ -164,39 +164,20 @@ CASES = (
     ),
     Case(
         "design-prototype",
-        "references/aksel-markup-fasit.md",
-        "Lag en HTML-skisse av vedtakssiden. Aksel-snapshotet mangler, så bruk "
-        "riktig Aksel-markup.",
-        DESIGNER,
-    ),
-    Case(
-        "design-prototype",
         "references/application-opening.md",
-        "Åpne appen vår i Designverksted så vi kan se på vedtakssiden.",
+        "Jeg vil se to retninger for vedtakssiden side om side.",
         DESIGNER,
     ),
     Case(
         "design-prototype",
         "references/design-handoff.md",
-        "Implementer valgt versjon fra det lagrede designrommet.",
-        DESIGNER,
-    ),
-    Case(
-        "design-prototype",
-        "references/design-workspace.md",
-        "Fortsett på HTML-skissen i canvas, og lag en ny versjon.",
+        "Behold forslaget, og lag en brief til utviklerne.",
         DESIGNER,
     ),
     Case(
         "design-prototype",
         "references/figma-prototype.md",
         "Lag et redigerbart Figma-design av vedtakssiden.",
-        DESIGNER,
-    ),
-    Case(
-        "design-prototype",
-        "references/visual-companion.md",
-        "Lag en HTML-skisse av vedtakssiden uten canvas.",
         DESIGNER,
     ),
     Case(

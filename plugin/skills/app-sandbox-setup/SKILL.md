@@ -109,7 +109,11 @@ Exit codes: **1** usage/setup/no projects; **2** DB missing/denied/unreadable;
   decision now. `Info:` lines are background: mention one only when it explains
   something the user asks about or is about to hit. JSON output separates
   `warnings` from `info` and lists `masking_after` per project.
-- Settle masking, Docker and shared-history choices with the user.
+- Settle masking, Docker and shared-history choices with the user. The sandbox is
+  guardrails, not containment: masking covers only the app's own token and stops
+  the Gradle daemon, Testcontainers, dev servers and Playwright; the Docker socket
+  is effectively unsandboxed host access; shared history lets sandboxed commands
+  read every project's sessions.
 - Apply also writes a marked toolchain block into a project's instructions when
   a pinned tool needs `mise exec` or `JAVA_HOME`; `--no-instructions` opts out.
 - Offer the full per-project diff. Show it unprompted when it removes user
