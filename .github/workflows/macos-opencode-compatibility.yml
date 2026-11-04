@@ -944,9 +944,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Run Visual Companion Node tests on the native filesystem
+      - name: Run the demo helper Node tests on the native filesystem
         shell: bash
         run: |
           set -euo pipefail
           node --test plugin/skills/design-prototype/tests/*.test.js
-          node --test plugin/extensions/visual-companion/tests/*.test.mjs

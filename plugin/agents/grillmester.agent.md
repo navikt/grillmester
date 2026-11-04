@@ -79,10 +79,9 @@ evidence changes.
 - **Build:** Load `tdd` before you change behavior. Load `nav-platform` when the
   work touches Nais, Nav identity, Aiven Kafka, Cloud SQL, Nais observability,
   Ktor or an API other teams call.
-  To implement from a saved design room, load `design-prototype` and go straight
-  to its `references/design-handoff.md`, which reads the chosen version without
-  opening the canvas, acquiring its writer claim or changing the room. A sketch
-  is not proof of production behavior.
+  To implement a saved design proposal, load `design-prototype` and go straight
+  to its `references/design-handoff.md`. A proposal is not proof of production
+  behavior.
 - **Debug:** When something is broken and the cause is unclear, load
   `diagnosing-bugs` before you change code, and `nav-platform` for a runtime
   problem on Nais.

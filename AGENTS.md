@@ -48,58 +48,14 @@ python3 scripts/generate_context_projections.py --check
 python3 scripts/generate_agentpakke_manifest.py --check
 python3 scripts/validate.py
 python3 -m unittest discover -s tests -v
-node --check plugin/skills/design-prototype/scripts/server.js
-node --check plugin/skills/design-prototype/scripts/helper.js
-node --check plugin/skills/design-prototype/scripts/workshop.js
-node --check plugin/skills/design-prototype/scripts/design-contract.js
-node --check plugin/skills/design-prototype/scripts/comments.js
-node --check plugin/skills/design-prototype/scripts/feedback-store.js
-node --check plugin/skills/design-prototype/scripts/canvas-state.js
-node --check plugin/skills/design-prototype/scripts/workspace-store.js
-node --check plugin/skills/design-prototype/scripts/workspace-promotion.js
-node --check plugin/skills/design-prototype/scripts/workspace-state.js
-node --check plugin/skills/design-prototype/scripts/editor-contract.js
-node --check plugin/skills/design-prototype/scripts/editor-bindings.js
-node --check plugin/skills/design-prototype/scripts/editor.js
 node --check plugin/skills/design-prototype/scripts/app-runtime.js
-node --check plugin/skills/design-prototype/scripts/application-connection-state.js
-node --check plugin/skills/design-prototype/scripts/application-connection-view.js
-node --check plugin/skills/design-prototype/scripts/application-contract.js
-node --check plugin/skills/design-prototype/scripts/application-error.js
-node --check plugin/skills/design-prototype/scripts/application-inspector.js
-node --check plugin/skills/design-prototype/scripts/application-proxy.js
-node --check plugin/skills/design-prototype/scripts/local-ports.js
-node --check plugin/skills/design-prototype/scripts/application-server.js
-node --check plugin/skills/design-prototype/scripts/application-shell.js
-node --check plugin/skills/design-prototype/scripts/application-workspace.js
-node --check plugin/skills/design-prototype/scripts/application-proposals.js
-node --check plugin/skills/design-prototype/scripts/application-proposal-view.js
-node --check plugin/skills/design-prototype/scripts/html-embedding.js
-node --check plugin/skills/design-prototype/scripts/html-inspection.js
 node --test plugin/skills/design-prototype/tests/*.test.js
-node --check plugin/extensions/visual-companion/extension.mjs
-node --check plugin/extensions/visual-companion/adapter.mjs
-node --check plugin/extensions/visual-companion/backend.mjs
-node --check plugin/extensions/visual-companion/runtime.mjs
-node --check plugin/extensions/visual-companion/tests/sdk-smoke.mjs
-node --check scripts/smoke_visual_canvas.cjs
-node --check scripts/smoke_visual_application.cjs
-node --check scripts/smoke_visual_workbench.cjs
-node --check scripts/visual-smoke-workers.cjs
-node --check scripts/visual-smoke-controls.cjs
-node --test plugin/extensions/visual-companion/tests/*.test.mjs
 python3 scripts/smoke_plugin_install.py
 python3 scripts/smoke_opencode.py --require-binary --cplt cplt
 python3 scripts/smoke_grillmester_local.py --require-binaries --cplt cplt --opencode opencode --copilot copilot
 ```
 
-For application changes, run `scripts/smoke_visual_application.cjs` and
-`scripts/smoke_visual_workbench.cjs` with an
-existing Playwright module (`--playwright-module PATH`) and browser
-(`--browser-channel chrome` or `chromium`). It uses synthetic local apps and
-disposable rooms. CI runs both Chromium smokes with a pinned test dependency.
-The runtime helper regressions use only owned synthetic processes and private
-temporary state; they run in the design-prototype Node test suite.
+The demo helper regressions use only owned synthetic processes and private temporary state; they run in the design-prototype Node test suite. Running apps open in the client's Browser, so that flow needs a trial in the app itself.
 
 The install smoke test must use a disposable, isolated Copilot home. For live
 client behavior, use Nav's normal `cplt` setup in an empty, disposable test

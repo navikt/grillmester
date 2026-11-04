@@ -29,9 +29,6 @@
   "copilotCli": {
     "removeAgentFrontmatterFields": [
       "model"
-    ],
-    "removePluginManifestFields": [
-      "extensions"
     ]
   }
 }

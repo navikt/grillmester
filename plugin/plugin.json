@@ -8,6 +8,5 @@
   "repository": "https://github.com/navikt/grillmester",
   "license": "MIT",
   "agents": "agents/",
-  "skills": "skills/",
-  "extensions": "extensions/"
+  "skills": "skills/"
 }

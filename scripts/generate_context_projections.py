@@ -235,9 +235,7 @@ def load_policy(root: Path, policy_path: Path) -> tuple[dict[str, Any], str]:
     )
     require_exact_fields(
         copilot,
-        expected=frozenset({
-            "removeAgentFrontmatterFields", "removePluginManifestFields",
-        }),
+        expected=frozenset({"removeAgentFrontmatterFields"}),
         label="policy copilotCli",
     )
     require_exact_fields(
@@ -257,10 +255,6 @@ def load_policy(root: Path, policy_path: Path) -> tuple[dict[str, Any], str]:
         )
     if copilot["removeAgentFrontmatterFields"] != ["model"]:
         raise ProjectionError("focused Copilot agents must remove only the model field")
-    if copilot["removePluginManifestFields"] != ["extensions"]:
-        raise ProjectionError(
-            "focused Copilot manifest must remove only the extensions field"
-        )
     if handoff != {
         "status": "NEEDS_FULL_CONTEXT",
         "command": "grillmester local --full",
@@ -832,12 +826,8 @@ def build_copilot_projection(
     plugin_manifest = parse_object(plugin_bytes, label="Copilot manifest")
     if plugin_manifest.get("name") != "grillmester":
         raise ProjectionError("focused Copilot source must be the Grillmester plugin")
-    if plugin_manifest.get("extensions") != "extensions/":
-        raise ProjectionError(
-            "Copilot source must use the reviewed extensions/ directory"
-        )
-    for field in policy["copilotCli"]["removePluginManifestFields"]:
-        plugin_manifest.pop(field, None)
+    if "extensions" in plugin_manifest:
+        raise ProjectionError("Copilot source must not declare app extensions")
     files: dict[str, GeneratedFile] = {}
     focused_plugin = (
         json.dumps(plugin_manifest, indent=2, ensure_ascii=False) + "\n"
@@ -890,7 +880,6 @@ def build_copilot_projection(
         "modelSelection": "inherit-provider-or-session",
         "transformations": {
             "agentFrontmatterRemoved": ["model"],
-            "pluginManifestFieldsRemoved": ["extensions"],
             "agentEscalation": "missing-capability-handoff",
             "excludedSkillReferences": "full-context-guidance",
         },

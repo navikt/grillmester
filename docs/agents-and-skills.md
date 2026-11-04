@@ -102,27 +102,27 @@ med relevante tilstander og kontroll av det rendrede resultatet. Visuelle
 alternativer og panel brukes når de belyser et faktisk designvalg. En liten
 justering trenger verken nye varianter eller nytt intervju.
 
-I den verifiserte Copilot app-flaten åpner Designverksted både app og skisse i
-canvaset ved siden av samtalen. Sendte innspill går til samme Designer-samtale,
-og svaret kommer tilbake i verkstedet. «I kø» bekrefter mottak, ikke at arbeidet
-har startet. Appinnspill er midlertidige som standard; avtalt prosjektlagring
-bevarer innspill og svar, uten appkode eller apphistorikk. Lagrede skisser har
-også editor og versjoner. Et lukket appverksted krever en ny instans; lagret
-arbeid kan da åpnes igjen uten ny innsending. Se
-[støtteomfang og kjente grenser](testing/designverksted-release-readiness.md).
-Uten denne canvasflaten brukes en separat tilgjengelig nettleser for appen og
-samtalen for innspill, eller den portable flyten for midlertidige HTML-skisser.
-Nativeverkstedets private adresse skal ikke brukes i en ekstern nettleser.
-Figma kan være arbeidsflaten fra start eller avtalt sluttleveranse etter en
-skisse. Be Designer i samtalen bygge videre i ønsket Figma-fil; med tilgjengelig
-skrivetilgang brukes redigerbare Aksel-komponenter og valgt skisseversjon.
-Uten skrivetilgang leveres et avtalt utkast, ikke en påstått Figma-fil.
-Overleveringen er ikke automatisk synkronisering mellom Figma og skissen.
-I et appverksted ligger «Appen nå» og «Forslag» i samme flate. «Vis forslag»
-åpner den interaktive skissen der du allerede arbeider. Innspill på forslaget
-går til samme samtale og brukes til neste skisseversjon. Skissen har syntetiske
-tilstander; den beviser ikke appens runtime eller validering. Produktkode endres
-bare som separat bestilt implementering.
+I Copilot-appen åpner Designer en kjørende app i nettleserfanen ved siden av
+samtalen. Designer starter appen lokalt når det lar seg gjøre. Ellers vises en
+eventuell publisert demo, og en lokal kopi prøves igjen når du ber om en endring.
+Du peker med Pick & Polish (⌘⇧C) og skriver ønsket i
+samtalen. Hopper du over spørsmålet om å stole på repoet, ber appen om godkjenning for
+hver handling, så velg å stole på repoer du kjenner. Forslaget lages i en eid kopi av appen, og du ser det i samme fane. Originalprosjektet endres
+bare som separat bestilt implementering. Et forslag er midlertidig til det er
+lagret etter avtale. Be om to faner når du vil se dagens app og forslaget side om
+side.
+
+En ny idé uten app bygges som en liten app med ekte Aksel-komponenter, på samme måte.
+Vil du leke helt fritt, sier du det, så lager Designer vanlige HTML-filer uten
+Aksel-regler.
+Ved et reelt retningsvalg vises alternativer i hver sin fane. Vil du beholde et
+forslag, lagres det som patch og kort brief. Uten nettleserfane brukes en
+tilgjengelig nettleser for appen og samtalen for innspill.
+Figma kan være arbeidsflaten fra start eller avtalt sluttleveranse etter et
+forslag. Be Designer i samtalen bygge videre i ønsket Figma-fil; med tilgjengelig
+skrivetilgang brukes redigerbare Aksel-komponenter, og siden i fanen forteller
+hvilke komponenter som skal brukes. Uten skrivetilgang leveres et avtalt utkast,
+ikke en påstått Figma-fil. Overleveringen er ikke automatisk synkronisering.
 
 Bestillingen styrer starten: «Kjør demoen» viser den faktiske appen, «drodle»
 kan starte i samtalen, og en brukerhistorie gir et avgrenset designforslag med
@@ -144,8 +144,8 @@ av verktøy og implementere et valgt design når du ber om det.
 Grillmester bedre.
 
 Designer bruker tilgjengelige og tillatte verktøy til visuell kontroll av
-den avtalte arbeidsflaten. Et native verksted krever ikke en ekstra kontrollfane.
-Hvis verktøyene ikke kan inspisere canvaset, skal det sies konkret; kodekontroll
+den avtalte arbeidsflaten. I nettleserfanen ser Designer det samme som du gjør.
+Hvis verktøyene ikke kan inspisere flaten, skal det sies konkret; kodekontroll
 og HTTP-svar beviser ikke gjengivelsen. Designer skal fortsatt levere det
 avtalte forslaget og beskrive hva som gjenstår å prøve. Aksel- og
 Figma-integrasjoner brukes etter oppgaven og tilgjengelige kapabiliteter.

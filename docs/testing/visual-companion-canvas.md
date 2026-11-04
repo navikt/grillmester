@@ -52,7 +52,7 @@ i begge retninger, med og uten redusert bevegelse: laveste tekstkontrast er
 
 Faktisk `file://`-visning i appen gjenstår. Filprøven ble ikke åpnet der fordi
 skjermen var låst; testrepoets tillit og arkiverte sesjon ble ikke endret.
-Se [kjøreoppsett og presise grenser](../../experiments/canvas-review/README.md#local-html-without-an-http-server).
+Forsøkets README er fjernet; den finnes i Git-historikken.
 
 ### Felles innsendingskontrakt før adapteren
 
@@ -219,7 +219,7 @@ SDK-inngangsfilens SHA-256
 `a8faeb5d4c8379ce6d8473c86e001fc4e2cd5d260e064d4c622f72c35102871d`.
 I dette automatiserte prøvelaget ble appen bare undersøkt som filer.
 Reproduserbare kommandoer står i
-[forsøkets README](../../experiments/canvas-review/README.md).
+forsøkets README i Git-historikken.
 
 Den faktiske appprøven brukte versjon 1.1.31 på macOS og en disponibel
 testmappe med prosjektutvidelsen. Designer ble valgt fra appens katalog,

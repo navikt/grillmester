@@ -10,17 +10,14 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "16bf92e8bd3cc51ab215370e5eaee8570c50b52ed0395536576da37a68b763ce",
+    "payloadManifestSha256": "f71a3365c82dae9a4ce55b108871951e5bb1d00c700b385ca6ff5f492de4aa7f",
     "policy": "policy/focused-context-v1.json",
-    "policySha256": "89b79a07444f5c8e30d097cdd7bb6a5b486a7108b886739d75423be1f6cf15ed"
+    "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
   "modelSelection": "inherit-provider-or-session",
   "transformations": {
     "agentFrontmatterRemoved": [
       "model"
-    ],
-    "pluginManifestFieldsRemoved": [
-      "extensions"
     ],
     "agentEscalation": "missing-capability-handoff",
     "excludedSkillReferences": "full-context-guidance"
@@ -48,7 +45,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "3d7cb47af2af9f6b9f3c2657d592eca466369956f28a4cdf08bd9f2adc709fbe",
+      "sha256": "8677ba9dc0eda941959223ad30fe49b6eecb4998b12d4540d536830ae978bfda",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {

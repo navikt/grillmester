@@ -26,23 +26,13 @@ SPEC.loader.exec_module(GENERATOR)
 
 
 class OpenCodeGenerationTest(unittest.TestCase):
-    def test_design_target_keeps_shared_feedback_validation_without_app_canvas_runtime(self) -> None:
+    def test_design_target_ships_the_demo_helper_and_nothing_else_from_the_old_engine(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
         prefix = "skills/design-prototype/"
-        for name in ("application-contract.js", "application-error.js", "html-embedding.js"):
-            self.assertIn(prefix + "scripts/" + name, files)
-        for name in ("app-runtime.js", "application-connection-state.js", "application-connection-view.js",
-                     "application-connection.css",
-                     "application-inspector.js", "application-proxy.js", "application-server.js",
-                     "application-shell.js", "application-shell.css", "application-shell.tmpl",
-                     "application-workspace.js", "application-proposals.js", "application-proposal-view.js", "application-source.js", "application-changes.js",
-                     "application-reference.js"):
-            self.assertNotIn(prefix + "scripts/" + name, files)
-        for name in ("app-runtime.test.js", "application-connection.test.js", "application-inactive-view.test.js", "application-inspector.test.js", "application-proxy.test.js",
-                     "application-server.test.js", "application-workspace.test.js"):
-            self.assertNotIn(prefix + "tests/" + name, files)
-        for name in ("application-contract.test.js", "application-feedback.test.js", "feedback-submit-draft.test.js"):
-            self.assertTrue(prefix + "tests/" + name in files, f"Portable feedback test omitted: {name}")
+        self.assertEqual(
+            {prefix + "scripts/app-runtime.js"},
+            {name for name in files if name.startswith((prefix + "scripts/", prefix + "tests/"))},
+        )
 
     def test_projected_design_tests_keep_their_local_module_dependencies(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
@@ -197,12 +187,8 @@ class OpenCodeGenerationTest(unittest.TestCase):
 
         designer = self.expected("agents/designer.md")
         perspektiv = self.expected("agents/perspektiv.md")
-        self.assertIn(
-            '  bash:\n    "*": ask\n'
-            '    "node scripts/server.js * --cleanup-all*": deny\n'
-            '    "node *design-prototype/scripts/server.js * --cleanup-all*": deny',
-            designer,
-        )
+        self.assertIn('  bash:\n    "*": ask\n', designer)
+        self.assertNotIn("--cleanup-all", designer)
         self.assertNotIn("  bash: allow", designer)
         self.assertIn("    perspektiv: allow", designer)
         self.assertIn("    researcher: allow", designer)
@@ -417,9 +403,9 @@ class OpenCodeGenerationTest(unittest.TestCase):
 
     def test_skill_tree_resources_are_copied_and_executable_mode_is_preserved(self) -> None:
         files, _ = GENERATOR.build_projection(ROOT)
-        source = ROOT / "plugin/skills/design-prototype/scripts/server.js"
+        source = ROOT / "plugin/skills/design-prototype/scripts/app-runtime.js"
         target_data, target_mode = files[
-            "skills/design-prototype/scripts/server.js"
+            "skills/design-prototype/scripts/app-runtime.js"
         ]
         self.assertEqual(source.read_bytes(), target_data)
         self.assertEqual(0o644, target_mode)

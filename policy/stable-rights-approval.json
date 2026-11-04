@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#120",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#121",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#120",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#121",
       "status": "approved"
     }
   },
@@ -23,14 +23,14 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "5c442ea8a4c758bc7aea477e5f800c5e1372c013d1f017fbe83e152acb4d47b9",
+        "designer": "5507170c3f08dd37cc909a32163af2997ede37f59fa365b19d46c774a9eca383",
         "doctor-who": "90fc611770da001f3a4b5af487eeb57b11e657b4bba17641d3d001e28e05a5b5"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
         "aksel-design": "97060fbda5abf4a687376bdec07ad82d3bedc62b550e37d00ac39a70d9c2fd60",
         "architecture-review": "10cebf09a397f19ccb18fde96746a53b412f4d44c3d1be013aa0a9b36d9784ea",
-        "design-prototype": "678d7152f51e2107b73f1e7107209069a2b3354771b24736769fcc9a7b7b420f",
+        "design-prototype": "2510828eef6310c71c41246fc21c6a205ce2d6563d4d401a04ef4a84fa88250f",
         "doctor": "63a192a18f3b748ddee404a73936a14c045776326825360517fd332e824e579a",
         "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
         "figma-workflow": "3980ce1a848e35169594c29121e4d2dfd32abd562795d90065bca903eb5f7e94",
@@ -45,6 +45,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "e1ed6e7a1edc0a2d64f7ef40d15e552d3dacdd31c143e22655a8d951a80f6810"
+    "provenanceSha256": "e9f60f2fba835492ce8c4e5575fac3b3b30e080037033e83568cb1c55c5bb4b3"
   }
 }

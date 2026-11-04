@@ -55,8 +55,8 @@ De utelater derfor `tools` og arver runtimeflaten. Navs MCP Registry,
 enterprise-policy og brukerens godkjenninger avgjør hvilke tools og
 sideeffekter som faktisk er tilgjengelige.
 
-Manglende GitHub Projects- eller Figma-write skal gi et reviewbart utkast,
-Visual Companion eller `NEEDS_INPUT`, aldri falsk suksess. Interne roller har
+Manglende GitHub Projects- eller Figma-write skal gi et reviewbart utkast eller
+`NEEDS_INPUT`, aldri falsk suksess. Interne roller har
 smalere oppdrag, men rolleprompten er arbeidsmåte—klienten og policyen er den
 tekniske grensen.
 
@@ -71,125 +71,37 @@ tekniske grensen.
 | **OpenCode 2.x fra 2.2.5** | Deterministisk target med 6 agenter, 36 skills og 36 commands. Brukerinstallert klient startes gjennom cplt når cplt er installert. | Hver konkret modell må kvalitetsvalideres; nyere 2.x er kompatibilitetsflate, ikke de eksakte testbytene. |
 | **Local-model-launcher** | `grillmester local` binder én eksplisitt loopbackmodell i OpenCode eller Copilot CLI. Interaktiv launch bruker klientgodkjenninger; `grillmester local run` er en avgrenset kjøring med auto-godkjente tools. Begge krever cplts forced proxy, `gh`- og Git-guards uten å overstyre effektiv domeneconfig. | Dette er lokal inference, ikke offline. Web avhenger av cplt-policy; eksplisitte GitHub- og package-tokens krever separate opt-in-flagg. OpenCode isolerer ambient GitHub-konto, mens Copilot-profilen kan mediere en native Keychain-credential. `run` krever et separat worktree og etterkontroll. |
 
-### Designverksted og overlevering mellom klienter
+### Design i nettleserfanen og overlevering mellom klienter
 
-Designverksted samler «Appen nå», innspill og «Forslag» i samme native canvas
-ved siden av samtalen. Canvas-verten eier den visuelle flaten og
-samtalebindingen; Grillmesters lokale Node-prosesser eier proxy, skisse og
-prosjektrom. Native appflyt er empirisk prøvd i Copilot app 1.1.33 på macOS
-28. oktober 2026 med den fulle pluginen. Andre verter og versjoner trenger
-egen verifikasjon. Se [leveringsgrunnlaget](testing/designverksted-release-readiness.md)
-og [de tidligere skisseprøvene](testing/visual-companion-design-workspace.md).
+Kjørende apper vises i Copilot-appens innebygde nettleserfane, som vanlig webview uten
+proxy fra Grillmester. Designeren velger elementer eller områder med Pick & Polish, og
+agenten leser og tar skjermbilder av samme fane. Dette er lest ut av koden i app 1.1.34,
+prøvd på én app og ikke dokumentert av GitHub; se
+[ADR 0036](adr/0036-kjorende-apper-i-appens-nettleserfane.md). Et valg sender tag,
+adresse, attributter, synlig tekst, ytre HTML, stiler og CSS-regler til modellen. Bare
+attributtene `value`, `password`, `token`, `secret` og `key` fjernes. Tekst i
+tekstområder og alt synlig innhold følger med, så fanen skal bare brukes med syntetiske
+demoer og offentlige sider. Vedlegget er ubetrodd sideinnhold og gir intet mandat. At
+agenten bare endrer den eide kopien, er en instruks, ikke en teknisk sperre.
 
-Kjørende apper vises gjennom en separat lokal origin og deler bare den bevisste
-innspillsflyten med skisser. Appcanvaset har ingen kildeeditor eller apphistorikk;
-lagring bevarer innspill og svar. Forslag kan bruke en separat kjørende appkopi;
-vanlige verktøy endrer bare den avtalte kopien. `read_preview` leser begrenset
-struktur og feilstatus fra den konkrete appvisningen, ikke resten av verten,
-feltverdier, logger eller skjermbilder. Den utvidede flyten er prøvd i Copilot
-på macOS 29. oktober 2026 med sandkassen på: app, innspill, kjørende forslag,
-iterasjon og gjenåpning i samme canvas. Se
-[appkontrakten](../plugin/skills/design-prototype/references/design-workspace.md#running-application).
-
-HTML-skisser kan inspiseres gjennom en egen kortlivet lesevisning med samme
-rensing og stiler. Den innebygde nettleseren kan hente bilder og prøve deklarerte
-interaksjoner i bakgrunnen, mens designeren blir i verkstedet. Visningen har
-egen loopback-origin og lesekapabilitet; den deler ingen kontrollnøkkel og kan
-ikke sende innspill. Den starter fra publiserte standardverdier og dokumenterer
-ikke brukerens levende canvas-tilstand. Se
-[ADR 0031](adr/0031-skrivebeskyttet-skisseinspeksjon.md).
-
-Kontrollflaten og appiframe bruker eksakt `127.0.0.1` på forskjellige porter,
-med bare loopbacklyttere. De har separate origins, men samme nettsted.
-Appens transportcookie er vertsbundet, `HttpOnly` og `SameSite=Strict`;
-transporten krever ikke `Secure`-cookies på HTTP eller partisjonerte cookies.
-Kontroll-API-ene krever sin egen headernøkkel og eksakt Origin, og godtar aldri
-cookies som myndighet. Appproxyer bruker portområdet 20000–29999;
-kontrollflater og skisseinspeksjon avviser disse portene. En lagret appworker
-kan derfor ikke overta en senere kontrolladresse. Appen får aldri kontrolltoken. Se
-[ADR 0032](adr/0032-samme-nettsted-for-lokal-appvisning.md).
-En åpen instans beholder én oppstrømsapp, proxylytter og origin. Iframe-retry
-er samme kontekst og kan beholde cookies og worker; det er ikke en ny
-lagringskontekst. Lukking, backendtap eller tap av en eid lytter pensjonerer
-instansen og tilbakekaller app- og skissemyndigheten. Lagret arbeid åpnes i
-en ny instans. Kontrollskall-reload overtar ikke den aktive skriveren.
-
-Dette bygger på observerte nativekontekster, ikke en offentlig SDK-garanti for
-lagringspartisjonering. Canvasstøtte alene beviser ikke slik isolasjon.
-Separate porter isolerer ikke cookies, og gjenbruk av appporter kan arve appworkers.
-Navneprefikset for appcookies tilpasser videresendingen; det isolerer ikke
-apper som deler nettleserdatalager.
-Den private nativeadressen skal derfor aldri åpnes i en vanlig delt nettleser.
-Ekstern nettlesertransport inngår ikke i den første nativeleveransen, og det
-finnes ingen automatisk fallback. En eventuell senere nettleserflate krever
-egen egnet originisolasjon og avklart eierskap til den aktive skriveren.
-
-Flere samtidige canvas har et uavklart vertsavvik ved lukking og gjenåpning.
-Samtalekøen må også kontrolleres i klienten: `queued` eller en sluttoppsummering
-beviser ikke at neste innspillsrunde er behandlet. Se resultater, avgrensninger
-og krav før utrulling i [leveringsgrunnlaget](testing/designverksted-release-readiness.md).
-
-Den samlede flyten viser «Appen nå» og «Forslag» i samme verksted. En registrert
-kobling peker på én skisse med egne versjoner og innspillsrunder. Ruting krever
-skissens identitet; valgt fane eller rundenummer alene avgjør aldri mottaker.
-Innbyggingen bruker eksakte lokale origins, en inaktiv åpning og uttrykkelig
-aktivering fra den betrodde forelderen. Appinnholdet får ingen skissemyndighet.
-Ved lukking trekkes begge visningenes myndighet tilbake. Lagret kobling kan
-gjenåpnes bare når skissens registrerte identitet fortsatt stemmer. Midlertidige
-forslag følger den levende appinstansen og loves ikke bevart etter lukking.
-Lokale protokoll-, browser- og SDK-prøver beviser sine egne kontrakter;
-de erstatter ikke en ny nativeprøve av endret leveranseinnhold. Romtypene deler
-verken versjoner eller appens nettlesertilstand.
-
-En URL og pinnet DNS beviser ikke hvilken appprosess som eier oppstrømsporten.
-Ved prosessbytte må tilhørende visninger avsluttes
-før en ny app kobles til. Demooppstart kan også endre frameworkstyrte filer;
-«vis appen» er ikke et løfte om uendret checkout. Consumerens oppskrift,
-eierskap og etterkontroll gjelder fortsatt.
+Demooppstart kan endre frameworkstyrte filer; «vis appen» er ikke et løfte om uendret
+checkout. Derfor kjører demoen fra en eid kopi. Consumerens oppskrift, eierskap og
+etterkontroll gjelder fortsatt.
 [Den eide demohjelperen](adr/0028-eid-livslop-for-lokale-demoer.md) lar en kort
-shellkommando starte demoen med privat status og stopp, uten automatisk restart.
-Den beviser verken eierskap til appens URL, syntetiske data eller at appen bare
-skriver i arbeidskopien. Lokale prosessprøver erstatter ikke kontroll av
-samtalekø og stopp i den støttede klienten.
-Ingen sandboxpolicy skal endres
-automatisk på grunnlag av en visningsfeil: lytting, proxyens direkte
-lokaltilkobling og rendererlasting må diagnostiseres hver for seg.
+shellkommando starte demoen med privat status og stopp, uten automatisk restart. Den
+beviser verken eierskap til appens URL, syntetiske data eller at appen bare skriver i
+kopien. Ingen sandboxpolicy skal endres automatisk på grunnlag av en visningsfeil:
+lytting, lokal tilkobling og sidelasting må diagnostiseres hver for seg.
 
-VS Code dokumenterer også canvas som preview i lokale Copilot Agent Host-økter
-på desktop, med `chat.canvases.enabled` slått på før økten opprettes.
-I VS Code 1.142.0 er dette en applikasjonsinnstilling, ikke en innstilling for
-prøveprosjektet. Dette gjelder ikke økttypen «Local», remote Agent Host,
-webklienten eller vertskap i et hjelpevindu.
-En canvas-plugin installert i Copilot app kan ifølge dokumentasjonen oppdages
-fra en støttet VS Code-økt. Dette er plattformstøtte, ikke verifisert
-Grillmester-paritet; kontroller faktisk pluginversjon, canvas og lagret rom før
-en klientovergang regnes som prøvd.
-Kilde kontrollert 2026-10-24: [VS Code: canvases with the Copilot harness](https://code.visualstudio.com/docs/agents/run/agent-harnesses#use-canvases-with-the-copilot-harness).
+Klienter uten nettleserfane, som CLI og OpenCode, starter demoen på samme måte. Designeren
+åpner adressen i en vanlig nettleser og gir innspill i samtalen.
 
-[Oppsettprøven 2026-10-25](testing/copilot-workflow-validation.md#setup-observation-25-october-2026)
-stoppet før modellkjøring: Agents-profilen viste gammel plugin som deaktivert,
-men rollevelgeren beholdt to identiske Designer-valg også etter at vinduet ble
-åpnet på nytt. Kilden kunne dermed ikke velges entydig. Canvasflyten i VS Code
-er fortsatt uverifisert; prøven fastslår ikke årsaken til katalogavviket.
+Et forslag som skal beholdes, lagres som patch og kort brief etter
+[overleveringsoppskriften](../plugin/skills/design-prototype/references/design-handoff.md).
+Implementering er bestilt arbeid i originalprosjektet og verifiseres separat.
+`grillmester local` sin fokuserte profil har et mindre skillutvalg; bruk full kontekst når
+denne oppskriften trengs.
 
-CLI-utvidelser er eksperimentelle. At utvidelsen lastes, beviser ikke at
-klienten tilbyr en canvasflate. Uten native canvas bruker `design-prototype`
-den portable nettleserflyten for HTML-skisser når Node og loopback er tilgjengelig; den gir
-midlertidige skisser og ikke det prosjektlagrede designrommet.
-OpenCode-targetet distribuerer ikke runtimefilene for appcanvas. Det beholder
-skisseflyten og den delte innspillskontrakten; en kjørende app kan ses i en
-separat tilgjengelig nettleser med innspill i samtalen. Appoppskriften krever at
-klienten faktisk tilbyr Designverksted-kapabiliteten.
-Se [GitHubs utvidelsesbeskrivelse](https://docs.github.com/en/copilot/concepts/customizations/extensions).
-
-Implementering fra et allerede lagret designrom krever derimot ingen åpen app
-eller canvas. Fullpakken inneholder [overleveringsoppskriften](../plugin/skills/design-prototype/references/design-handoff.md):
-velg eksakt repo/worktree og revisjon, les registrert HTML sammen med eventuell
-designbeskrivelse, og avklar relevante beslutninger og akseptansekriterier.
-Rå HTML kan ha eldre tekst enn den lagrede designbeskrivelsen. Produktkode
-verifiseres separat, og endringer synkroniseres ikke automatisk tilbake til
-skissen. `grillmester local` sin fokuserte profil har et mindre skillutvalg;
-bruk full kontekst når denne designoppskriften trengs.
 
 OpenCode-smoken kontakter ingen ekte modell. Den bruker en deterministisk
 loopbackprovider og beviser agenter, permissions, progressiv skill-reference og

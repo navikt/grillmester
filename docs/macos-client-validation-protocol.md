@@ -73,9 +73,8 @@ covers all of the following:
 4. `Grillmester → Grill-inspektør` for an agreed change at R2 or above: the main agent
    implements and verifies it, asks whether to run Inspector, and after a yes
    runs independent review of the stable diff;
-5. Visual Companion;
-6. one approved, harmless write in the disposable fixture; and
-7. one rejected write with no file, Git ref, or external-resource side effect.
+5. one approved, harmless write in the disposable fixture; and
+6. one rejected write with no file, Git ref, or external-resource side effect.
 
 High risk alone must not force delegation. Self-review or passing tests
 alone must not satisfy the independent-review gate from R2. Record a missing

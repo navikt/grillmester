@@ -7,8 +7,6 @@ som forvaltes i
 
 - **Aksel MCP** gir oppdatert dokumentasjon om komponenter og tokens.
 - **Figma MCP** brukes til å lese og lage Figma-skisser.
-- **Playwright MCP** inspiserer lokale sider og kontrollerer Visual Companion.
-  Den kan brukes ved arbeid mot en eksisterende flate.
+- **Playwright MCP** inspiserer lokale sider i klienter uten nettleserfane.
 
-Visual Companion-serveren kjører uten Playwright. Uten et nettleserverktøy
-kan du bruke Figma eller legge ved et skjermbilde.
+Uten et nettleserverktøy kan du bruke Figma eller legge ved et skjermbilde.

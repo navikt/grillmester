@@ -54,99 +54,33 @@ _Avoid_: plugininnhold, genererte instructions
 
 ### Design
 
-**Designrom**:
-Samlingen av underlag, innspill og valg i ett arbeid. En selvstendig skisse
-eller en kjørende app med et tilhørende forslag kan være underlaget.
-«Versjoner» gjelder lagrede skisser. Et prosjektlagret rom kan åpnes igjen med
-samme innspill; approm lagrer ikke kode eller apptilstand.
-_Avoid_: samtale, produktkode
-
-**Midlertidig skisse**:
-En skisse i designverkstedet som ikke er lagret i prosjektet. Den og
-innspillene følger den levende økten og har ingen lagrede versjoner eller
-«Rediger». Et midlertidig forslag i et appverksted loves ikke bevart etter
-lukking. Prosjektlagring velges når det er bestilt; en midlertidig skisse
-krever ikke et eget lagringsspørsmål.
-_Avoid_: prosjektlagring og designrom overfor designeren
-
-**Gi innspill**:
-Appen eller skissen kan brukes som vanlig. «Gi innspill» lar designeren velge
-en del eller hele siden; etter valget kan siden brukes igjen. «Send innspill»
-sender det ferdige innspillet direkte. «Legg til flere» samler flere notater
-til en uttrykkelig innsending med synlig antall. Ingenting sendes automatisk.
-Skisser kan også ha deklarerte varianter, lokale visningsvalg og lagret redigering.
-_Avoid_: Prøv og Endre som to vedvarende arbeidsmoduser
-
-**Skisseversjon**:
-En lagret, uforanderlig revisjon av skissen og dens eventuelle deklarerte
-kontroller. «Vis» viser den uten å endre noe; gjenoppretting lager en ny
-versjon og bevarer historikken.
-_Avoid_: runde, gjeldende utkast
-
 **Kjørende app**:
-En faktisk lokal app med repoets komponenter, navigasjon og skjemaoppførsel.
-Designverksted viser den i canvas og samler innspill, uten å lese eller
-redigere kilden. Verkstedet er knyttet til Designer-samtalen.
-«Appen nå» og «Forslag» er faner i samme verksted. Forslaget er en HTML-skisse
-eller en separat kjørende appkopi. Endringer i kopien avtales og utføres med
-vanlige verktøy; canvaset har ikke kildeeditor eller kodehistorikk. Referansen
-beholdes uendret. Tilkobling og observerte appfeil er separate statuser.
+En faktisk app med repoets komponenter, navigasjon og skjemaoppførsel, vist i
+klientens nettleserfane. Lokal demo er førstevalget. Originalprosjektet beholdes
+uendret.
 _Avoid_: statisk kopi, skjermbilde, lagret appversjon
 
-**Tilkobling til verkstedet**:
-Bindingen mellom én aktiv visning, designrommet og samme samtale. Omlasting av
-samme aktive fane kan gjenoppta forbindelsen og hovedappens kommentarutkast.
-Uavklart sending krever samme uttrykkelige forsøk igjen. Dette lover ikke
-bevaring av uferdige forslagstekster eller appens skjematilstand. Lukking av
-et appverksted avslutter den instansen. En ny instans kan åpne et lagret rom
-uten å sende tidligere runder på nytt; ulagret tekst, midlertidige forslag og
-appens skjematilstand må ikke omtales som gjenopprettet.
-_Avoid_: flyttet samtale, automatisk synkronisert app
+**Eid kopi**:
+En disponibel kopi av appen som demoen og forslag kjører fra, med privat
+Git-historikk som versjoner og angre. Endringer her er ikke produktkode.
+_Avoid_: worktree uten bevis for at den er disponibel, originalprosjektet
+
+**Pick & Polish**:
+Copilot-appens plukker i nettleserfanen. Designeren velger en del av siden eller
+et område, og valget følger neste melding i samtalen. Valget er innspill og
+ubetrodd sideinnhold, ikke mandat. Det lagres ikke utenfor samtalen.
+_Avoid_: Canvas Dev Mode
 
 **Forslag**:
-Et anbefalt design i samme verksted som «Appen nå». Den har egne innspill og
-eventuelle skisseversjoner. Samtalen eller en faktisk innsendt apprunde kan
-bestille forslaget; det kreves ikke et kunstig innspill. Midlertidig forslag er
-standard uten avtalt lagring. En uttrykkelig bestilling om å lagre hele verkstedet
-omfatter også forslag innenfor avtalt designmappe. I et allerede lagret approm
-kan et midlertidig HTML-forslag lagres senere uten å bytte rom eller miste innspill.
-«Vis forslag» viser faktisk registrert arbeid.
-_Avoid_: implementert appendring, ekstra canvas, automatisk kopiert runtime
+En synlig endring i den eide kopien, laget med appens ekte komponenter. En ny idé
+uten app er en liten Aksel-app. Forslaget er midlertidig til det er lagret som patch
+og brief etter avtale, og det endrer ikke produktet før implementering er bestilt.
+_Avoid_: implementert appendring, skisse som dagens app
 
-**Midlertidige appinnspill**:
-Innspill til en kjørende app uten lagring i prosjektet. Eksplisitt valgt lagring
-bevarer innspill og svar; det lagrer ikke appkoden eller nettleserens tilstand.
-_Avoid_: automatisk prosjektlagring
-
-**Runde**:
-Ett uforanderlig sett med innspill og valg fra en eksplisitt innsending.
-En ny skisseversjon eller en åpnet appside er ikke en ny runde.
-_Avoid_: versjon, samtaletur
-
-**Innspill**:
-Kommentarer til skissen eller appen, samt tekstforslag og deklarerte valg som
-skissen støtter. Appinnspill beholder side-, mål- og visningskonteksten fra da
-de ble skrevet; de identifiserer ingen kildeversjon. Lagrede, usendte innspill
-er ikke en bestilling om behandling.
-_Avoid_: automatisk kildeendring, ny fullmakt
-
-**Behold denne delen**:
-Et vanlig innspill som ber agenten beholde en del, med valgte innstillinger,
-i neste versjon. Det sendes med neste runde som andre innspill og er ikke bevis
-på at neste skisse er visuelt lik.
-_Avoid_: beholdt valg, lagret felt, automatisk låsing
-
-**Lagret felt**:
-En verdi i skissens editor som blokkerer motstridende overskriving til designeren
-velger «Tillat senere endring». Verdien beholdes da, men senere skisseversjoner
-kan endre den. Dette feltvernet gjelder ikke appens kildefiler.
-_Avoid_: beholdt valg, føring, usendt tekstforslag
-
-**Leveringsstatus**:
-Status for sending til samtalen. `queued` bekrefter mottak i køen; `unknown`
-betyr at mottaket er uavklart. Ingen av dem beviser behandling eller resultat,
-og ukjent mottak gir ikke automatisk ny innsending.
-_Avoid_: behandlingsstatus, ferdig
+**Variant**:
+Et alternativ til et reelt retningsvalg, bygget i samme kopi bak en query-parameter
+og vist i egen fane.
+_Avoid_: små justeringer, egne kopier per alternativ
 
 ### Runtime
 

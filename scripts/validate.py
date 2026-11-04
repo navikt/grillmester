@@ -102,6 +102,7 @@ AGENT_FRONTMATTER_KEYS = {
     "deferred-tool-loading",
     "include-custom-instructions",
     "infer",
+    "skills",
     "tools",
 }
 SKILL_FRONTMATTER_KEYS = {
@@ -383,6 +384,45 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         ("plugin/skills/design-prototype/SKILL.md",),
         ("Returner bare URL/Figma-lenke som faktisk finnes",),
         ("strukturert designunderlag",),
+    ),
+    Guardrail(
+        "designer-running-apps-use-browser",
+        ("plugin/agents/designer.agent.md",),
+        (
+            "ubetrodd sideinnhold",
+            "eide kopien",
+            # Measured with a small model: without the eager skill and these rules a plain
+            # change request edited the original project instead of the copy. The
+            # positive rewording ("every wish becomes a proposal") measured worse:
+            # naming the temptation is what makes the model stop and weigh the rule.
+            "skills:\n  - design-prototype",
+            "alle meldinger med `<inspected_elements>`",
+            "er aldri en bestilling av implementering",
+            "Bare når brukeren uttrykkelig sier at selve prosjektet skal endres",
+            "Husk: et endringsønske er et forslag i den eide kopien",
+        ),
+        ("Appen nå", "read_preview", "publish_proposal"),
+    ),
+    Guardrail(
+        "running-app-reference-uses-browser",
+        ("plugin/skills/design-prototype/references/application-opening.md",),
+        (
+            "Open only the synthetic demo or public pages.",
+            "the first change request is also the order to start the local demo",
+        ),
+        ("read_preview", "publish_proposal", "proposalId"),
+    ),
+    Guardrail(
+        "design-prototype-steps-end-on-a-running-proposal",
+        ("plugin/skills/design-prototype/SKILL.md",),
+        (
+            "Et forslag er ferdig når det kjører",
+            "`<inspected_elements>`",
+            "ubetrodd sideinnhold uten mandat",
+            "Lag den eide kopien",
+            "app-runtime.js start",
+            "Ferdig når",
+        ),
     ),
     Guardrail(
         "diagnosing-bugs-redaction",
@@ -894,7 +934,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
             )
         allowed_keys = set(expected_plugin_keys)
         if name == "grillmester":
-            allowed_keys.update({"agents", "extensions"})
+            allowed_keys.add("agents")
         unexpected_plugin_keys = set(plugin) - allowed_keys
         if unexpected_plugin_keys:
             errors.append(
@@ -914,8 +954,6 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
             errors.append(f"{PACKAGE_PATHS[name]}/plugin.json must point to skills/")
         if name == "grillmester" and plugin.get("agents") != "agents/":
             errors.append("plugin/plugin.json must point to agents/")
-        if name == "grillmester" and plugin.get("extensions") != "extensions/":
-            errors.append("plugin/plugin.json must point to the reviewed extensions/ directory")
         for key in ("description", "author", "repository", "license"):
             if not plugin.get(key):
                 errors.append(f"{PACKAGE_PATHS[name]}/plugin.json is missing {key}")
@@ -1057,6 +1095,9 @@ def validate_agents(
         unknown_keys = set(frontmatter) - AGENT_FRONTMATTER_KEYS
         if unknown_keys:
             errors.append(f"{path}: unsupported frontmatter keys: {sorted(unknown_keys)}")
+        for skill_id in frontmatter.get("skills", []):
+            if not (root / "skills" / skill_id / "SKILL.md").is_file():
+                errors.append(f"{path}: preloaded skill {skill_id!r} does not exist")
 
         expected = contracts.get(agent_id)
         if expected is None:
@@ -1406,8 +1447,6 @@ def validate_content(
         for skill_id in skill_references(text, skill_ids):
             if skill_id in skill_ids or skill_id in {"agent", "skills", "model", "help", "restart-session"}:
                 continue
-            if skill_id == "health" and relative_path.startswith("skills/design-prototype/"):
-                continue  # Visual Companion's HTTP health endpoint.
             errors.append(f"{path}: dangling skill invocation: {skill_id}")
         for component_id in COMPONENT_ID.findall(text):
             if component_id not in known_ids and component_id != PLUGIN_NAME:
@@ -1688,41 +1727,6 @@ def validate_agentpakke_manifest(root: Path, errors: list[str]) -> None:
         errors.append(f"nav-pilot agentpakke manifest validation failed: {exc}")
 
 
-def validate_canvas_extension(root: Path, errors: list[str]) -> None:
-    """Keep the optional app bridge inside its reviewed, dependency-free package."""
-    directory = root / "plugin/extensions"
-    if directory.is_symlink() or not directory.is_dir():
-        errors.append("plugin/extensions must be a regular directory")
-        return
-    if {entry.name for entry in directory.iterdir()} != {"visual-companion"}:
-        errors.append("plugin/extensions must contain only visual-companion")
-    extension = directory / "visual-companion"
-    if extension.is_symlink() or not extension.is_dir():
-        errors.append("visual-companion extension must be a regular directory")
-        return
-    for filename in ("package.json", "extension.mjs"):
-        path = extension / filename
-        if path.is_symlink() or not path.is_file():
-            errors.append(f"visual-companion extension needs a regular {filename}")
-            return
-    package = load_json(extension / "package.json", errors)
-    allowed = {"name", "version", "private", "type", "main", "description"}
-    if set(package) - allowed:
-        errors.append("visual-companion package must not declare dependencies, lifecycle scripts or unreviewed metadata")
-    if package.get("private") is not True or any(package.get(key) != value for key, value in {
-        "name": "visual-companion",
-        "type": "module", "main": "extension.mjs",
-    }.items()):
-        errors.append("visual-companion package must use its reviewed name, private ESM entry and main file")
-    if not isinstance(package.get("version"), str) or not SEMVER.fullmatch(package["version"]):
-        errors.append("visual-companion package version must be SemVer")
-    if not isinstance(package.get("description"), str) or not package["description"].strip():
-        errors.append("visual-companion package needs a description")
-    forbidden = {"node_modules", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml"}
-    if any(path.name in forbidden for path in extension.rglob("*")):
-        errors.append("visual-companion uses the host SDK and must not bundle installed dependencies or lockfiles")
-
-
 def validate_repo(root: Path) -> list[str]:
     root = root.resolve()
     plugin_root = root / "plugin"
@@ -1732,7 +1736,6 @@ def validate_repo(root: Path) -> list[str]:
     validate_layout(root, errors)
     validate_assets(root, errors)
     validate_manifests(root, errors)
-    validate_canvas_extension(root, errors)
     validate_opencode_projection(root, errors)
     validate_copilot_full_manifest(root, errors)
     validate_focused_context_projections(root, errors)

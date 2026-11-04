@@ -1,5 +1,7 @@
 # 0029: Appobservasjon og kjørende forslag i samme verksted
 
+> Erstattet av [ADR 0036](0036-kjorende-apper-i-appens-nettleserfane.md).
+
 Status: Akseptert
 
 ## Bakgrunn

@@ -1,9 +1,11 @@
 ---
-status: accepted
+status: superseded by ADR-0036
 date: 2026-10-23
 ---
 
 # Valgfri app-canvas med samme innspillslager
+
+> Erstattet av [ADR 0036](0036-kjorende-apper-i-appens-nettleserfane.md).
 
 Den midlertidige livssyklusen i denne beslutningen utvides av
 [ADR 0023](0023-prosjektlagret-designrom.md) for uttrykkelig prosjektlagrede

@@ -15,9 +15,7 @@
       "permission": {
         "edit": "ask",
         "bash": {
-          "*": "ask",
-          "node scripts/server.js * --cleanup-all*": "deny",
-          "node *design-prototype/scripts/server.js * --cleanup-all*": "deny"
+          "*": "ask"
         },
         "webfetch": "ask",
         "websearch": "ask",
@@ -137,12 +135,6 @@
         "to": "`shell` or delegation tools"
       }
     ],
-    "skills/design-prototype/references/visual-companion.md": [
-      {
-        "from": "lokal Copilot CLI/app-kjøring",
-        "to": "lokal OpenCode CLI/app-kjøring"
-      }
-    ],
     "skills/create-a-skill/references/principles.md": [
       {
         "from": "Use GitHub Copilot's supported invocation fields rather than encoding policy\nin prose.",
@@ -163,28 +155,7 @@
   },
   "remove": [
     "skills/create-a-skill/references/copilot-cli-validation.md",
-    "skills/design-prototype/scripts/app-runtime.js",
-    "skills/design-prototype/tests/app-runtime.test.js",
-    "skills/design-prototype/scripts/application-connection-state.js",
-    "skills/design-prototype/scripts/application-connection-view.js",
-    "skills/design-prototype/scripts/application-connection.css",
-    "skills/design-prototype/scripts/application-inspector.js",
-    "skills/design-prototype/scripts/application-proxy.js",
-    "skills/design-prototype/scripts/application-server.js",
-    "skills/design-prototype/scripts/application-shell.js",
-    "skills/design-prototype/scripts/application-shell.css",
-    "skills/design-prototype/scripts/application-shell.tmpl",
-    "skills/design-prototype/scripts/application-workspace.js",
-    "skills/design-prototype/scripts/application-proposals.js",
-    "skills/design-prototype/scripts/application-proposal-view.js",
-    "skills/design-prototype/tests/application-connection.test.js",
-    "skills/design-prototype/tests/application-inspector.test.js",
-    "skills/design-prototype/tests/application-proxy.test.js",
-    "skills/design-prototype/tests/application-server.test.js",
-    "skills/design-prototype/tests/application-workspace.test.js",
-    "skills/design-prototype/tests/application-proposals.test.js",
-    "skills/design-prototype/tests/application-proposal-view.test.js",
-    "skills/design-prototype/tests/application-inactive-view.test.js"
+    "skills/design-prototype/tests/app-runtime.test.js"
   ],
   "skillCapabilities": {
     "default": "native",

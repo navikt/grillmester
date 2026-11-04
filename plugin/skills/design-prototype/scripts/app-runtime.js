@@ -332,7 +332,7 @@ function parse(args) {
     const flag = args.shift();
     if (flag === "--") { command = args; break; }
     const value = args.shift(); fail(value !== undefined, "A flag value is missing.");
-    if (flag === "--project-dir") projectDir = value;
+    if (flag === "--project-dir") { fail(value !== "", "The project directory is empty."); projectDir = value; }
     else if (flag === "--session") session = value;
     else if (flag === "--ttl-seconds") { fail(/^\d+$/.test(value), "Invalid runtime lifetime."); ttlSeconds = Number(value); }
     else if (flag === "--env") {

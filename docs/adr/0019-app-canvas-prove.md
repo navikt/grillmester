@@ -1,9 +1,11 @@
 ---
-status: accepted
+status: superseded by ADR-0036
 date: 2026-10-23
 ---
 
 # Avgrenset prøve av app-canvas
+
+> Erstattet av [ADR 0036](0036-kjorende-apper-i-appens-nettleserfane.md).
 
 Delvis erstattet av [ADR 0023](0023-prosjektlagret-designrom.md) for lagring og
 opprydding i prosjektlagrede rom. Skisseversjoner, innspill og svar beholdes

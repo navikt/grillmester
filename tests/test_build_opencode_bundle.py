@@ -217,29 +217,30 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                 source = self.make_source(target_name)
                 self.update_manifested_file(
                     source / "targets" / target_name,
-                    "extensions/visual-companion/extension.mjs", b"export {};\n",
+                    "extensions/unreviewed/extension.mjs", b"export {};\n",
                 )
                 with self.assertRaisesRegex(
                     BUILDER.BundleBuildError, "must not contain app extensions"
                 ):
                     BUILDER.collect_bundle_files(source, SOURCE_SHA)
 
-    def test_full_package_requires_the_reviewed_extension_entry(self) -> None:
-        source = self.make_source()
-        (source / "plugin/extensions/visual-companion/extension.mjs").unlink()
+    def test_full_package_rejects_app_extensions(self) -> None:
+        source = self.make_source("declared")
+        path = source / "plugin/plugin.json"
+        plugin = json.loads(path.read_bytes())
+        plugin["extensions"] = "extensions/"
+        path.write_text(json.dumps(plugin) + "\n", encoding="utf-8")
         with self.assertRaisesRegex(
-            BUILDER.BundleBuildError, "visual-companion extension is missing extension.mjs"
+            BUILDER.BundleBuildError, "must not declare app extensions"
         ):
             BUILDER.collect_bundle_files(source, SOURCE_SHA)
 
-    def test_full_package_rejects_extension_install_scripts(self) -> None:
-        source = self.make_source()
-        path = source / "plugin/extensions/visual-companion/package.json"
-        package = json.loads(path.read_bytes())
-        package["scripts"] = {"install": "unexpected-command"}
-        path.write_text(json.dumps(package) + "\n", encoding="utf-8")
+        source = self.make_source("contained")
+        extension = source / "plugin/extensions/unreviewed/extension.mjs"
+        extension.parent.mkdir(parents=True)
+        extension.write_bytes(b"export {};\n")
         with self.assertRaisesRegex(
-            BUILDER.BundleBuildError, "visual-companion package must contain exactly"
+            BUILDER.BundleBuildError, "must not contain app extensions"
         ):
             BUILDER.collect_bundle_files(source, SOURCE_SHA)
 
@@ -307,10 +308,7 @@ class BuildOpenCodeBundleTest(unittest.TestCase):
                     if path.is_file()
                 )
             self.assertEqual(set(files), expected_files)
-            self.assertIn(
-                f"{ARCHIVE_ROOT}/plugin/extensions/visual-companion/extension.mjs", files
-            )
-            self.assertFalse(any("/targets/" in path and "/extensions/" in path for path in files))
+            self.assertFalse(any("/extensions/" in path for path in files))
 
             manifest_member = files[f"{ARCHIVE_ROOT}/DISTRIBUTION-MANIFEST.json"]
             manifest_stream = archive.extractfile(manifest_member)

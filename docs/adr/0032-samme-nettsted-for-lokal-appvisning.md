@@ -1,9 +1,11 @@
 ---
-status: accepted
+status: superseded by ADR-0036
 date: 2026-10-31
 ---
 
 # Samme nettsted for lokal appvisning
+
+> Erstattet av [ADR 0036](0036-kjorende-apper-i-appens-nettleserfane.md).
 
 ## Kontekst
 

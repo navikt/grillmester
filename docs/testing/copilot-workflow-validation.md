@@ -216,7 +216,7 @@ removed, the application settings restored byte-for-byte and the exact test
 folder's trust withdrawn. Both test windows were closed. A new attempt needs
 an unambiguous role source before the interaction cases above can begin.
 
-The [client-support page](../trust-and-client-support.md#designverksted-og-overlevering-mellom-klienter)
+The [client-support page](../trust-and-client-support.md#design-i-nettleserfanen-og-overlevering-mellom-klienter)
 links the current platform documentation and states the remaining boundaries.
 
 ## Short human pilot

@@ -1,9 +1,11 @@
 ---
-status: accepted
+status: superseded by ADR-0036
 date: 2026-10-25
 ---
 
 # Behold som innspill og «Juster visning» i «Prøv»
+
+> Erstattet av [ADR 0036](0036-kjorende-apper-i-appens-nettleserfane.md).
 
 Delvis erstatter [ADR 0018](0018-deklarerte-justeringer-og-beholdte-valg.md)
 for hvordan en del beholdes, og bygger på
