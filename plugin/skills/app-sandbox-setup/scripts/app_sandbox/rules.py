@@ -158,7 +158,7 @@ MASKING_SCOPE_WARNING = (
 SESSION_HISTORY_WARNING = (
     "Shared session history grants let agents and sandboxed commands read conversations, checkpoints "
     "and artifacts from all projects. Histories may contain sensitive data that outbound access could "
-    "expose. Use --no-session-history to remove this exact shared grant."
+    "expose. Use --no-session-history to remove this shared grant."
 )
 SYSTEM_AREAS = (
     "/System", "/Library", "/usr", "/bin", "/sbin", "/etc", "/var",

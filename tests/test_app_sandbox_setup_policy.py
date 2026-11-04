@@ -136,6 +136,36 @@ class DiscoveryFactsTest(unittest.TestCase):
                 self.assertTrue(facts.under(path / "child", Path(str(path).lower())))
                 self.assertTrue(facts.under(path, Path("/synthetic")))
 
+    def test_denied_stat_is_unreadable_when_exists_hides_it(self):
+        path = Path("/synthetic/Policy-Path")
+        with mock.patch.object(Path, "exists", return_value=False), \
+                mock.patch.object(discovery.os, "stat", side_effect=PermissionError(errno.EACCES, "synthetic")), \
+                mock.patch.object(Path, "resolve", return_value=path):
+            state = discovery.path_fact(path)
+        self.assertTrue(state.unreadable)
+        self.assertFalse(state.exists)
+
+    def test_missing_and_looped_paths_do_not_exist(self):
+        path = Path("/synthetic/Policy-Path")
+        for code in (errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP):
+            with self.subTest(code=code), \
+                    mock.patch.object(Path, "exists", return_value=False), \
+                    mock.patch.object(discovery.os, "stat", side_effect=OSError(code, "synthetic")):
+                self.assertFalse(discovery.path_exists(path))
+
+    def test_distinct_inodes_stay_distinct_on_a_case_sensitive_volume(self):
+        left, right = Path("/synthetic/session-state"), Path("/synthetic/Session-State")
+        facts = Facts("/synthetic", paths={
+            str(left): PathFact(str(left), (1, 2)),
+            str(right): PathFact(str(left), (1, 3)),
+        })
+        self.assertFalse(facts.same(left, right))
+
+    def test_an_unresolvable_entry_is_not_the_shared_history_grant(self):
+        loop, history = "/synthetic/loop", Path("/synthetic/.copilot/session-state")
+        facts = Facts("/synthetic", paths={loop: PathFact(loop, resolution_failed=True)})
+        self.assertFalse(policy.same_history(facts, loop, history))
+
     def test_exists_errors_leave_observations_false(self):
         path = Path("/synthetic/Policy-Path")
         for code in (errno.EACCES, errno.EPERM, errno.ENAMETOOLONG):
@@ -185,6 +215,7 @@ class DiscoveryFactsTest(unittest.TestCase):
             (".netrc", "is_file"), (".aws", "is_dir"),
             (".docker", "exists"),
             (".copilot/app-sandbox-setup-backups", "is_dir"),
+            (".copilot/session-state", "exists"),
         ):
             for no_docker in (False, True):
                 with self.subTest(relative=relative, no_docker=no_docker):
@@ -196,7 +227,10 @@ class DiscoveryFactsTest(unittest.TestCase):
                         return original(path)
 
                     with mock.patch.object(Path, method, denied):
-                        if (relative == ".copilot/app-sandbox-setup-backups"
+                        if relative == ".copilot/session-state":
+                            facts = discovery.capture_paths(home, (), {}, (str(home / ".docker"),), no_docker)
+                            self.assertTrue(facts[str(home / relative)].unreadable)
+                        elif (relative == ".copilot/app-sandbox-setup-backups"
                                 or relative == ".docker" and no_docker):
                             discovery.capture_paths(home, (), {}, (str(home / ".docker"),), no_docker)
                         else:
