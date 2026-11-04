@@ -7,7 +7,7 @@
   },
   "counts": {
     "agents": 6,
-    "skills": 37
+    "skills": 36
   },
   "agents": [
     "designer",
@@ -38,7 +38,6 @@
     "improve-codebase-architecture",
     "issue-management",
     "klarsprak",
-    "lumi-survey",
     "nav-platform",
     "okr",
     "produktledelse",
@@ -66,7 +65,7 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "3435d7f3f1281965ea2ce4a8d42a811a82765314411631da34c9f13224740e9f",
+      "sha256": "5c442ea8a4c758bc7aea477e5f800c5e1372c013d1f017fbe83e152acb4d47b9",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -663,22 +662,6 @@
     },
     "skills/klarsprak/references/for-og-etter.md": {
       "sha256": "34029a5acdb95920b382812674b30f28b9597c9edaab2d47d2bcc86c1e591433",
-      "mode": "0644"
-    },
-    "skills/lumi-survey/SKILL.md": {
-      "sha256": "61ea319378542affecd551518897f07fccadbdf515890b97a2f57f824dc2733a",
-      "mode": "0644"
-    },
-    "skills/lumi-survey/references/backend-transport.md": {
-      "sha256": "8c94f965b5e5cf74a9d53a737718ed682bd3d65ebc6e55c2ac6d74d0c6d146c1",
-      "mode": "0644"
-    },
-    "skills/lumi-survey/references/nais-integration.md": {
-      "sha256": "650dfc8df3fe3fd71a744e5211c1e442304fd98aec4ebe018d27fe7808d42d71",
-      "mode": "0644"
-    },
-    "skills/lumi-survey/references/survey-design.md": {
-      "sha256": "fa6ba1abc26594fa5a1325b177554946435814d49262d0117f8ff6fc00e9252b",
       "mode": "0644"
     },
     "skills/nav-platform/SKILL.md": {

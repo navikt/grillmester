@@ -200,12 +200,6 @@ SCENARIOS = (
         ("dulting",),
     ),
     Scenario(
-        "lumi-survey",
-        "Vi vil legge inn en Lumi-undersøkelse i frontenden etter at brukeren har "
-        "lest vedtaket.",
-        ("lumi-survey",),
-    ),
-    Scenario(
         "okr",
         "Formuler mål og måltall for teamet det neste halvåret.",
         ("okr",),

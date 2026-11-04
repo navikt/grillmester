@@ -870,7 +870,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
         errors.append("package-manifest.json must contain exactly one package")
         return None
     expected_definitions = [
-        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 37},
+        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 36},
     ]
     if package_definitions != expected_definitions:
         errors.append("package-manifest.json package roster or counts have drifted")
@@ -1544,8 +1544,8 @@ def validate_package_rosters(
 ) -> None:
     if len(agent_ids) != 6:
         errors.append(f"plugin must contain 6 agents, found {len(agent_ids)}")
-    if len(skill_ids) != 37:
-        errors.append(f"plugin must contain 37 skills, found {len(skill_ids)}")
+    if len(skill_ids) != 36:
+        errors.append(f"plugin must contain 36 skills, found {len(skill_ids)}")
 
 
 def validate_assets(root: Path, errors: list[str]) -> None:
