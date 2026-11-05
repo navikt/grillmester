@@ -183,11 +183,6 @@ SCENARIOS = (
         ("prototype",),
     ),
     Scenario(
-        "readme-update",
-        "README-en er utdatert. Oppdater den så den stemmer med koden.",
-        ("readme-update",),
-    ),
-    Scenario(
         "klarsprak",
         "Gjør denne teksten lettere å forstå for brukerne: «Vedtaket er fattet i "
         "medhold av folketrygdloven.»",

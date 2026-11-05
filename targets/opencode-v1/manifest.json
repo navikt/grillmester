@@ -20,8 +20,8 @@
     "agents": 6,
     "primaryAgents": 3,
     "subagents": 3,
-    "skills": 31,
-    "commands": 31
+    "skills": 30,
+    "commands": 30
   },
   "skillCapabilities": {
     "accessibility-review": "native",
@@ -48,7 +48,6 @@
     "produktledelse": "native",
     "prototype": "native",
     "pull-request": "native",
-    "readme-update": "native",
     "review": "native",
     "security-review": "native",
     "tdd": "native",
@@ -195,10 +194,6 @@
     },
     "commands/pull-request.md": {
       "sha256": "af9cf9b61f3171b43441e38130b9d6950af354ec3c204c5819bb8178f95adbed",
-      "mode": "0644"
-    },
-    "commands/readme-update.md": {
-      "sha256": "2f1c5f4dcc86a3e72adae692e8a283f6a1ffe7e46b31d2224c1bfb570acca6bf",
       "mode": "0644"
     },
     "commands/review.md": {
@@ -635,10 +630,6 @@
     },
     "skills/pull-request/SKILL.md": {
       "sha256": "5e05d3bc7df9990708d30eacac44fa0a5101170bef269a1bd5e61c2e7a62bdc0",
-      "mode": "0644"
-    },
-    "skills/readme-update/SKILL.md": {
-      "sha256": "7a6fd0830f2a834c800c85724f35dfee477563c5c90013dda8b71865a789de31",
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
