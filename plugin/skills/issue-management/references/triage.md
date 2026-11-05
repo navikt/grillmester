@@ -1,24 +1,7 @@
----
-name: triage
-description: "Assess incoming issues or pull requests, verify claims and prepare work-ready briefs. Use for inbox review, bug-report assessment or readiness decisions; use `issue-management` for tracker mutations and `review` for a completed implementation diff."
----
 # Triage
 
-> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
-
-Classify, verify, clarify, recommend and prepare;
-issue-management owns approved mutations.
-
-## Read first
-
-1. Find every row below that the task touches, and look again when new facts
-   appear.
-2. Read those references before you edit, answer or run a command.
-3. Name the references you read when you report.
-
-| The task touches | Read |
-|---|---|
-| **Ready item:** you judge an issue or pull request ready for work | [AGENT-BRIEF.md](./AGENT-BRIEF.md), and write its brief |
+Classify, verify, clarify, recommend and prepare; `SKILL.md` owns approved
+mutations.
 
 ## Discover the contract
 
@@ -96,7 +79,7 @@ Follow consumer language and attribution; add no AI marker unless required.
 ## Approval boundary
 
 Reading and drafting are read-only. Route tracker writes through
-`issue-management`, reusing the user's authorization for the target repository,
+the steps in `SKILL.md`, reusing the user's authorization for the target repository,
 items and bounded mutations. An explicit request to apply those changes does
 not need a second approval just because triage prepared them.
 

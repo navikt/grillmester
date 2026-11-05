@@ -6,7 +6,7 @@ videre fra en lastet skill til riktig referanse. Om skillen lastes uten hint, st
 [baseline for skillvalg](skill-routing-baseline.md). Kjør målingen med
 `scripts/measure_reference_reads.py`.
 
-Etter endringen ble referansen lest i 158 av 168 økter. Det gjelder alle
+Etter endringen ble referansen lest i 163 av 174 økter. Det gjelder alle
 referanser. Under to av tre:
 
 - `aksel-design/references/components.md`: 1 av 3.
@@ -24,12 +24,12 @@ referanser. Under to av tre:
 | `domain-modeling` | 6/6 |
 | `dulting` | 6/6 |
 | `improve-codebase-architecture` | 3/3 |
+| `issue-management` | 8/9 |
 | `klarsprak` | 8/9 |
 | `nav-platform` | 33/33 |
 | `produktledelse` | 31/33 |
 | `security-review` | 6/6 |
 | `tdd` | 6/6 |
-| `triage` | 3/3 |
 | `wayfinder` | 3/3 |
 
 ## Ny måling av design-prototype

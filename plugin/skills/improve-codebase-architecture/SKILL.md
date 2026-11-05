@@ -104,7 +104,7 @@ During the grilling loop:
 Once the chosen deepening has been thoroughly grilled:
 
 - Break the deepening down into a safe, incremental refactoring plan in the
-  active task (optionally on to `/to-issues` for grabbable slices).
+  active task (optionally on to `/issue-management` for grabbable slices).
 - Define proof against the original friction: behavior preserved through the
   public interface and less knowledge or coordination required of callers.
   Where real alternatives exist, verify substitution at the seam; an extra

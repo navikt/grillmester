@@ -4,7 +4,7 @@ Målt 4. november 2026 med Copilot CLI 1.0.105 og Haiku 5.5, etter at åtte skil
 samlet i `nav-platform`. Hvert scenario er kjørt tre ganger, til sammen 108 økter. Se
 [scenarioene](../skill-routing-scenarios.md) for hvordan testen er bygd opp.
 
-- I øktene der en skill var forventet, lastet modellen riktig skill i 39 av 102.
+- I øktene der en skill var forventet, lastet modellen riktig skill i 40 av 102.
 - Én økt lastet en skill i tillegg til den riktige. Ingen økt lastet bare feil skill.
 - Den lastet ingen skill i de seks øktene der ingen skill trengs.
 
@@ -23,13 +23,18 @@ Tre kjøringer viser bare store forskjeller. Sammenlign med samme modell og samm
 scenarioer, og ikke les noe ut av ett eller to treff.
 
 Scenarioene har beholdt ID-ene fra før sammenslåingene, men forventer nå
-`nav-platform` eller `produktledelse`.
+`nav-platform`, `produktledelse` eller `issue-management`.
 
 Radene for `okr`, `team-status`, `workshop-design` og `produktledelse` er målt etter
 at de tre første ble slått sammen med `produktledelse`. Haiku 5.5 lastet da ikke
 skillen for mål og status, selv om `okr` alene ga 3 av 3. Et smalt navn er en sterk
 utløser. Opus 5.5, målt utenfor Copilot CLI, fant skillen og leste riktige referanser
 for begge forespørslene. Doctor Who bruker Opus som standard.
+
+Radene for `to-issues`, `triage` og `issue-management` er målt etter at de to første
+ble slått sammen med `issue-management`. Oppdeling og issue-forespørsler gikk opp, mens
+vurdering av en feilrapport gikk fra 2 av 3 til 0 av 3. Opus 5.5, målt utenfor Copilot
+CLI, fant skillen og leste `triage.md` og `AGENT-BRIEF.md` for den samme forespørselen.
 
 | Scenario | Agent | Treff | Uten skill | Lastet |
 | --- | --- | --- | --- | --- |
@@ -42,9 +47,9 @@ for begge forespørslene. Doctor Who bruker Opus som standard.
 | `security-review` | grillmester | 2/3 | 1 | `security-review` 2 |
 | `pull-request` | grillmester | 0/3 | 3 | – |
 | `to-spec` | grillmester | 0/3 | 3 | – |
-| `to-issues` | grillmester | 2/3 | 1 | `to-issues` 2 |
-| `triage` | grillmester | 2/3 | 1 | `triage` 2 |
-| `issue-management` | grillmester | 0/3 | 3 | – |
+| `to-issues` | grillmester | 3/3 | 0 | `issue-management` 3 |
+| `triage` | grillmester | 0/3 | 3 | – |
+| `issue-management` | grillmester | 2/3 | 1 | `issue-management` 2 |
 | `api-design` | grillmester | 0/3 | 3 | – |
 | `auth-overview` | grillmester | 0/3 | 3 | – |
 | `kafka-topic` | grillmester | 3/3 | 0 | `nav-platform` 3 |

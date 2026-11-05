@@ -206,13 +206,13 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 33 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 31 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-De 33 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
+De 31 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
 `design-prototype` og `review`. Nav-pilot eier valg og distribusjon av
 agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som
@@ -273,6 +273,9 @@ et skillskifte er ikke i seg selv en ny fullmakt.
 
 `/okr`, `/team-status` og `/workshop-design` finnes ikke lenger. Bruk
 `/produktledelse`, eller beskriv oppgaven med vanlige ord.
+
+`/to-issues` og `/triage` finnes ikke lenger. Bruk `/issue-management`, eller beskriv
+oppgaven med vanlige ord.
 
 `/api-design`, `/auth-overview`, `/kafka-topic`, `/kotlin-ktor`,
 `/nais-manifest`, `/nav-troubleshoot`, `/observability-setup` og

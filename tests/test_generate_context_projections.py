@@ -147,15 +147,16 @@ class FocusedContextGenerationTest(unittest.TestCase):
 
     def test_excluded_skill_guidance_preserves_words_paths_and_urls(self) -> None:
         preserved = (
-            "The findings were triaged. Keep docs/triage.md, `docs/triage.md`, "
-            "https://example.test/triage, and [Triage guide](docs/triage.md)."
+            "The route was mapped by wayfinder. Keep docs/wayfinder.md, "
+            "`docs/wayfinder.md`, https://example.test/wayfinder, and "
+            "[Wayfinder guide](docs/wayfinder.md)."
         )
-        source = preserved + " Use `triage` and `/to-issues` for the next steps."
+        source = preserved + " Use `wayfinder` and `/domain-modeling` for the next steps."
 
         self.assertEqual(
             preserved
-            + " Use the full-context issue assessment workflow and "
-            "the full-context plan decomposition workflow for the next steps.",
+            + " Use the full-context decision-mapping workflow and "
+            "the full-context domain documentation workflow for the next steps.",
             GENERATOR.replace_excluded_skill_references(source),
         )
 
@@ -291,6 +292,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "skills/diagnosing-bugs/SKILL.md",
                 "skills/grilling/SKILL.md",
                 "skills/issue-management/SKILL.md",
+                "skills/issue-management/references/to-issues.md",
                 "skills/review/SKILL.md",
                 "skills/security-review/SKILL.md",
             },
@@ -321,6 +323,7 @@ class FocusedContextGenerationTest(unittest.TestCase):
                 "skills/diagnosing-bugs/SKILL.md",
                 "skills/grilling/SKILL.md",
                 "skills/issue-management/SKILL.md",
+                "skills/issue-management/references/to-issues.md",
                 "skills/review/SKILL.md",
                 "skills/security-review/SKILL.md",
             },

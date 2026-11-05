@@ -1,5 +1,5 @@
 ---
-description: "Inspect, create, update, link or close GitHub issues for work that is already shaped. Use for tracker mechanics and explicit issue requests; use `triage` to assess readiness and `to-issues` to decompose a resolved plan."
+description: "Assess incoming issues or pull requests, verify claims and prepare work-ready briefs, break settled plans into issues, and inspect, create, update, link or close GitHub issues. Use for triage, inbox review, bug-report assessment, readiness decisions, ticket breakdown and explicit issue requests; use `wayfinder` for unresolved decisions and `review` for a completed implementation diff."
 ---
 
 Use the `skill` tool to load `issue-management`, then follow that skill for this request.

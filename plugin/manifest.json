@@ -7,7 +7,7 @@
   },
   "counts": {
     "agents": 6,
-    "skills": 33
+    "skills": 31
   },
   "agents": [
     "designer",
@@ -46,9 +46,7 @@
     "review",
     "security-review",
     "tdd",
-    "to-issues",
     "to-spec",
-    "triage",
     "wait-what",
     "wayfinder"
   ],
@@ -74,7 +72,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "a2cb755761c8649197b3cfd4fbe93356c4df15568b96baff567c6d17d79af0c8",
+      "sha256": "34984f77238b1c6049d6a227a219f436a63cba576d773a6e3559c14e9488c2b1",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
@@ -362,11 +360,23 @@
       "mode": "0644"
     },
     "skills/improve-codebase-architecture/SKILL.md": {
-      "sha256": "c32bd3af6548e6dca7560f7bf0a5054015d0b72ffca8d94fb413ce44a9330570",
+      "sha256": "52b2f3f94159b093a5d898805f07cef6b1c68877932ffe3cb3a6bd6b36f40665",
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "6c06108912a41cde8e9c128fa6bbc273727170fbc35b26347ba662b6dbfa13dd",
+      "sha256": "dd986fdafda19cedd5c1678753af1f69366c80b956832805f10589c4b17582b1",
+      "mode": "0644"
+    },
+    "skills/issue-management/references/AGENT-BRIEF.md": {
+      "sha256": "4996afbbf8aa5fa8451b54b912ac6b12614ace34e9be4d059659e530e7bec46f",
+      "mode": "0644"
+    },
+    "skills/issue-management/references/to-issues.md": {
+      "sha256": "6c52ecd731b65ac59f239e7f964d73f332a20daeab1c2fd97e1b2f3b2d01c715",
+      "mode": "0644"
+    },
+    "skills/issue-management/references/triage.md": {
+      "sha256": "a5cb9079f9807893d3a8da38731973cd7dc081cea80605d0575268e2bac83443",
       "mode": "0644"
     },
     "skills/klarsprak/SKILL.md": {
@@ -521,20 +531,8 @@
       "sha256": "cfee2884f0dddd5af1f020f674df946c1ddffce8d3fbb43720bd05a7e0ae3395",
       "mode": "0644"
     },
-    "skills/to-issues/SKILL.md": {
-      "sha256": "bb8ee0005db430b2fa57c6f5e7e95ea38813fcd819093f0985b1cb6862fc5787",
-      "mode": "0644"
-    },
     "skills/to-spec/SKILL.md": {
-      "sha256": "21877123949de643f63f9e1bd6d105444f6050023f79672706b19599537e5ddb",
-      "mode": "0644"
-    },
-    "skills/triage/AGENT-BRIEF.md": {
-      "sha256": "4996afbbf8aa5fa8451b54b912ac6b12614ace34e9be4d059659e530e7bec46f",
-      "mode": "0644"
-    },
-    "skills/triage/SKILL.md": {
-      "sha256": "1e0c5380e010d8dc3642e8f02255b59c858c163b81ce6a7eb94a1aa7f7adf35d",
+      "sha256": "03afd26387ebc7894bff1ff692ce1dc0a83df1294db29b363cee79c99cd4cdfe",
       "mode": "0644"
     },
     "skills/wait-what/SKILL.md": {
@@ -542,7 +540,7 @@
       "mode": "0644"
     },
     "skills/wayfinder/SKILL.md": {
-      "sha256": "a13286f7819aa009570a731ed9b640ceb4c790cc1b4083d5d838f5eea5bbd77e",
+      "sha256": "72aa2f80e61fcb2c5c37a4047acd5ce29e9191ed2616f3e0baffadb09ce39080",
       "mode": "0644"
     },
     "skills/wayfinder/references/tracker.md": {
