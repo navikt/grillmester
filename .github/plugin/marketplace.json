@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "A Copilot agent team for clarified software delivery, design, product work, and Nav specialist capabilities.",
-    "version": "0.14.0"
+    "version": "0.15.0"
   },
   "plugins": [
     {
       "name": "grillmester",
       "description": "Software delivery, design, and product work with one task owner, on-demand skills, and optional independent specialists.",
-      "version": "0.14.0",
+      "version": "0.15.0",
       "source": "plugin"
     }
   ]
