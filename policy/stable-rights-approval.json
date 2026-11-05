@@ -5,7 +5,7 @@
         "role": "Grillmester repository maintainer",
         "team": "Team eSyfo"
       },
-      "date": "2026-11-04",
+      "date": "2026-11-05",
       "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#122",
       "status": "approved"
     },
@@ -14,7 +14,7 @@
         "role": "Hovmester repository owner",
         "team": "Team eSyfo"
       },
-      "date": "2026-11-04",
+      "date": "2026-11-05",
       "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#122",
       "status": "approved"
     }
@@ -28,16 +28,16 @@
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
-        "aksel-design": "97060fbda5abf4a687376bdec07ad82d3bedc62b550e37d00ac39a70d9c2fd60",
-        "architecture-review": "10cebf09a397f19ccb18fde96746a53b412f4d44c3d1be013aa0a9b36d9784ea",
-        "design-prototype": "8b4e9c97c3eec9e4951b30611d2cd86ebb720016216fd9697da084e9702c6bd1",
+        "aksel-design": "6da741099a2a72b96d2857a4935743832084f0d04b30c8585080f9105c1d21ad",
+        "architecture-review": "19194e2172d0cc0ce07f8a055cfca7ab94b890a577231147b9c4ea5a6ec9b8e7",
+        "design-prototype": "fec346b534d91c74f5ec29874096af05412d4b1d91bc00b40920676ace9e50cd",
         "doctor": "63a192a18f3b748ddee404a73936a14c045776326825360517fd332e824e579a",
-        "dulting": "cca70c994d64cc4bdbb6733417f6a7c344c43c3c9299bb1fb97b8634b7e85edd",
+        "dulting": "8bc852137b14cb9eb0c066f8dc9856e455565fe868e2ae62ba7461efb8380893",
         "figma-workflow": "3980ce1a848e35169594c29121e4d2dfd32abd562795d90065bca903eb5f7e94",
         "okr": "8b6ece4c2dd014c5392be30687c611eba76a294ba5eedf85124fa807faacb60a",
-        "produktledelse": "664b49e9544c54e4443903942495d30b975ed8e74099a5913847f98e6703426f",
-        "team-status": "5bf7785de165806fa3b997695a66ee9a1ad20859d3cce0f65de9ae30ef804310",
-        "workshop-design": "cc0e4c8e0fe6e2054fa4eb852a2605eb78ac854fb6732fab6ef2ef04abdb1a9b"
+        "produktledelse": "8c5cff4e6e4117c68e627a2cc115c838a8de36e603cb78f38bebc27e2ecc37a8",
+        "team-status": "7696d8fc5d177c427a47350fa108078714cb5bef99e298fe090c8096b133bdf6",
+        "workshop-design": "72d35774d45a45877adbe3d0a426e592946753b2465d11bb2d29df4d77e88c24"
       }
     },
     "contentLockSha256": "664fe365ae9eba00fd73480be9e64bb5cb183c8e0c0139c2d2c5f781b43372e1",
@@ -45,6 +45,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "c6367c6504dd0dcb4aadb1e87950e9a493e3171ff9e945d186309ece25bba71d"
+    "provenanceSha256": "ca252a19e92d15bc96fb453345b1aa1422dc05fb75415495d533330be7a7741f"
   }
 }

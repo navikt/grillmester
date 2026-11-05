@@ -64,6 +64,10 @@ only runs with the same model and scenarios:
 python3 scripts/measure_skill_routing.py --model MODEL --output DIRECTORY
 ```
 
+`scripts/measure_reference_reads.py` measures the next step: once a skill is
+loaded, does the agent read the reference the request needs? Results are in the
+[reference baseline](testing/reference-reads-baseline.md).
+
 The current numbers are in the [baseline](testing/skill-routing-baseline.md).
 
 For the unified development workflow and Barista migration checks,

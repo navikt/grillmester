@@ -9,6 +9,12 @@ Tre maler. Felles regler:
   dokumenterte semantikk. Mangler den — spør, ikke gjett
 - Vurderingstekst hører hjemme i de avsluttende seksjonene, ikke i issue-listene — skill mellom hva tavla sier og egne tolkninger
 
+## Innhold
+
+- Ukesoversikt
+- Periodestatus
+- Prioriteringsunderlag
+
 ## Ukesoversikt
 
 ```markdown

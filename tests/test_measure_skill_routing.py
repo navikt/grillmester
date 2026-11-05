@@ -19,6 +19,14 @@ sys.modules[SPEC.name] = ROUTING
 SPEC.loader.exec_module(ROUTING)
 
 
+class ClientCommandTests(unittest.TestCase):
+    def test_measurements_never_carry_the_credit_cap(self) -> None:
+        scenario = ROUTING.Scenario("tdd", "Prompt", ("tdd",))
+        command = ROUTING.client_command("copilot", Path("plugin"), scenario, "model")
+        self.assertIn("--allow-all", command)
+        self.assertNotIn("--max-ai-credits", command)
+
+
 def result() -> object:
     return ROUTING.RunResult("tdd", 0, "grillmester", "model")
 

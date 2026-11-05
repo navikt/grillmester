@@ -3,6 +3,16 @@
 Denne hurtigreferansen er kontrollert mot Aksel 8.16.1. Consumerens resolverte
 pakker, typer og live-dokumentasjon er alltid autoritative.
 
+## Innhold
+
+- Spacing-skala for props (`space-*`)
+- Legacy migreringstabell (pre-v7 → v7)
+- Border radius
+- Brytepunkter
+- Semantiske tokens
+- CSS-variabler
+- Tommelfingerregler
+
 ## Spacing-skala for props (`space-*`)
 
 Bruk disse tokenene i Aksel-props som `gap`, `padding`, `paddingInline`, `paddingBlock`, `margin`, `marginInline` og `marginBlock`.

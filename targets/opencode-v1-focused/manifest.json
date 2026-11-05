@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "53b507be7fdc6e3b43e0eb5cb5f962b80b1057d3868ea7ec449074f367857120",
+    "targetManifestSha256": "8c366b9924d246f045f5da36edb68a1fb7694316869f33d9da9ece80de2e6fbe",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -118,19 +118,15 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "3ee7fc55f1d603342e0794db6dd5fc156e2146d11a9e8f37def3c1d29de78520",
-      "mode": "0644"
-    },
-    "skills/review/references/smells.md": {
-      "sha256": "507abc9884c101bd1901386657ffce9bd6a2c433ab435129b4a640b2874a2ed5",
+      "sha256": "aa2369cc86a2a48614c9d7632bbb61a6b6e3ab65194e384a8f8b95573e48505b",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "d8afd5859b3670766e63cc98eec01d347f7c2d4970d3c3d4601b602bb0762fc8",
+      "sha256": "6e92eb65c9de0062f08cf61f3cd8cc13d685cd8654ce3b5f32062d813faed290",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
-      "sha256": "20c43920b461b7ddaa0d54b30363e4ebc912bd390ca3e8e7acf97fc980db3493",
+      "sha256": "2466a193bb9a2553600e28fd5e696bc780f46ac63acb5e82a4289e2ad387aec8",
       "mode": "0644"
     },
     "skills/security-review/references/threat-model.md": {
@@ -138,7 +134,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "1db9c4954de5a28f5e278bc44264649d489dd94b73c37af5443fa0d827692137",
+      "sha256": "90a1c742908231aec495fe6d4bd4d7c8be52750a6ba76b5eeb4423390fd1b91c",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
@@ -147,10 +143,6 @@
     },
     "skills/tdd/test-boundaries.md": {
       "sha256": "cfee2884f0dddd5af1f020f674df946c1ddffce8d3fbb43720bd05a7e0ae3395",
-      "mode": "0644"
-    },
-    "skills/tdd/tests.md": {
-      "sha256": "ce570f378f822b0205296d7189eb727c2dd6e9710162a90f7c20119c321fbe6d",
       "mode": "0644"
     }
   }

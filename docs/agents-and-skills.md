@@ -280,8 +280,8 @@ API-kompatibilitet og hendelseskontrakter er ikke med, fordi modellen kan det se
 
 Eldre repo- og brukerkopier forsvinner ikke av seg selv, og `/doctor` kjenner ikke
 lenger disse navnene. Søk etter dem i `.github/skills`, `.agents/skills`,
-`.claude/skills`, `~/.copilot/skills`, `~/.agents/skills` og repoets instruksjoner,
-og fjern eller oppdater det du finner.
+`.claude/skills`, `.opencode/skills`, `~/.copilot/skills`, `~/.agents/skills` og
+repoets instruksjoner, og fjern eller oppdater det du finner.
 
 ## Videre
 

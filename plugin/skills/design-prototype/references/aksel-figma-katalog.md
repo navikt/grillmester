@@ -12,6 +12,19 @@ aktive biblioteket.
 > JSON-filen. **45 komponenter** er registrert; det aktive biblioteket er alltid
 > autoritativt.
 
+## Innhold
+
+- Slik leser du katalogen
+- Skjema og input
+- Tilbakemelding og status
+- Layout og innholdsgruppering
+- Overlegg (modaler, popovere)
+- Navigasjon
+- Typografi
+- Data og tabeller
+- Kun i kode / ikke egne Figma-komponenter
+- Dekning
+
 ## Slik leser du katalogen
 
 - **key** importeres med `importComponentSetByKeyAsync(key)` — bortsett fra rader merket `(component)` → bruk `importComponentByKeyAsync`.

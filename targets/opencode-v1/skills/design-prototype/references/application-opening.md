@@ -5,12 +5,12 @@ holds what only some runs need.
 
 ## Contents
 
-- [Keep the demo running](#keep-the-demo-running): the helper, startup failures, stopping
-- [Use the Browser](#use-the-browser): actions, addresses and what the tab may show
+- [Keep the demo running](#keep-the-demo-running)
+- [Use the Browser](#use-the-browser)
 - [Move from a public demo to the local demo](#move-from-a-public-demo-to-the-local-demo)
 - [Show alternatives](#show-alternatives)
 - [Compare with the current app](#compare-with-the-current-app)
-- [Start from a new idea](#start-from-a-new-idea), including [Freestyle](#freestyle)
+- [Start from a new idea](#start-from-a-new-idea)
 - [Keep the result](#keep-the-result)
 
 ## Keep the demo running

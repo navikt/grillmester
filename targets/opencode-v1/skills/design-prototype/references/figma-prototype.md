@@ -18,17 +18,26 @@ den synlige Figma-integrasjonen og kontroller verktøyene på nytt. Manglende
 verktøy beviser ikke at tilkoblingen er brutt; ikke installer eller autoriser
 på nytt automatisk. Bekreft fortsatt create/edit-kapabilitet før skriving.
 
-<a id="underlag-og-mal"></a>
-
 ## Innhold
 
 - Underlag og mål
-- Oppstart, filopprettelse og Aksel-biblioteker
+- Oppstart: Hent planKey
+- Opprett fil etter eksplisitt godkjenning
+- Aksel-biblioteker i Nav-org
 - Søk og bruk komponenter
-- Preflight, snapshot og Code Connect
-- Plugin API-mønster og gotchas
-- Tabeller, layout, kontekst og tilstander
-- Visuell kontroll og levering
+- Preflight mot aktivt bibliotek
+- Vedlikehold av snapshotet
+- Verifiser eksisterende Code Connect read-only
+- Plugin API-mønster for instansiering
+- Gotchas
+- Tabeller — det finnes ingen `Table`-komponent
+- Layout-oppbygging
+- Kontekst rundt en avgrenset modul
+- Flere tilstander av én modul
+- Visuell kontroll og interaksjoner i Figma
+- Lever
+
+<a id="underlag-og-mal"></a>
 
 ## Underlag og mål
 

@@ -14,14 +14,24 @@ proposal.
 
 Use this skill for consequential choices across system boundaries. If
 organization- or platform-specific facts could change the recommendation,
-identify and verify them explicitly. When Nav or NAIS context may matter, load
-[the conditional Nav context](references/nav-context.md) and apply only branches
-that could change the recommendation. Concrete follow-up work belongs to the
+identify and verify them explicitly. Concrete follow-up work belongs to the
 matching implementation or review specialist.
 
 Use `security-review` for a concrete code, configuration, privacy,
 or threat review. An architecture review may identify the need for that deeper
 review without pretending to replace it.
+
+## Read first
+
+1. Find every row below that the task touches, and look again when new facts
+   appear.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The proposal touches | Read |
+|---|---|
+| **Nav context:** Nais, Nav teams, Nav identity or Nav data | [nav-context.md](references/nav-context.md), applying only branches that could change the recommendation |
+| **Consequential seam:** a new service, cross-boundary integration, storage or event seam, authentication or authorization change, platform migration or hard-to-reverse choice | [review-checklist.md](references/review-checklist.md), applying only relevant branches; it is neither a form nor an ADR template |
 
 ## Establish the review surface
 
@@ -54,12 +64,6 @@ Review every concern that could materially change the recommendation:
    as concrete scenarios or constraints rather than generic virtues.
 3. **Evolution and operations** — compatibility, delivery, observability,
    failure handling, migration, rollback, reversibility, and decommissioning.
-
-For a new service, cross-boundary integration, storage or event seam,
-authentication or authorization change, platform migration, or difficult-to-
-reverse choice, load [the conditional architecture review
-checklist](references/review-checklist.md). Apply only relevant branches; it is
-neither a form nor an ADR template.
 
 ## Compare real alternatives
 

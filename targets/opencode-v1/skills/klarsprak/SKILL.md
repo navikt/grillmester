@@ -9,6 +9,18 @@ description: "Write or edit clear Norwegian prose while preserving technical mea
 Stram inn norsk prosa uten å endre beslutninger, kontrakter eller teknisk
 betydning.
 
+## Les først
+
+1. Finn hver rad under som oppgaven berører.
+2. Les de referansene før du endrer, svarer eller kjører en kommando.
+3. Oppgi hvilke referanser du leste når du rapporterer.
+
+| Oppgaven berører | Les |
+|---|---|
+| **Begreper:** fagtermer, anglisismer eller teksttype | [fagtermer-og-anglisismer.md](./references/fagtermer-og-anglisismer.md) |
+| **KI-preg:** teksten høres generert ut | [ai-markorer.md](./references/ai-markorer.md) |
+| **Omskriving:** du skriver om en setning eller et avsnitt | [for-og-etter.md](./references/for-og-etter.md) |
+
 ## Oppdag språkreglene først
 
 Ikke anta at hele repositoryet bruker samme språk.
@@ -78,9 +90,3 @@ utvidelse av oppdraget.
 - Gjette målform, språkvariant eller loggspråk.
 - Endre en beslutning under dekke av språkvask.
 - Erstatte et kodeord eller domeneterm bare fordi et norsk synonym finnes.
-
-## Referanser ved behov
-
-- [Fagtermer og teksttyper](./references/fagtermer-og-anglisismer.md)
-- [Før og etter](./references/for-og-etter.md)
-- [AI-markører](./references/ai-markorer.md)

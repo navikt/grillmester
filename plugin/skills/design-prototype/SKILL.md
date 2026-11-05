@@ -18,7 +18,7 @@ genererte filer. Et spørsmål eller en observasjon besvares uten ny versjon.
 | Designeren skal velge mellom retninger, eller se før og etter | [Show alternatives](references/application-opening.md#show-alternatives) og [Compare with the current app](references/application-opening.md#compare-with-the-current-app) |
 | Ny idé uten app | [Start from a new idea](references/application-opening.md#start-from-a-new-idea): liten Aksel-app i en midlertidig mappe |
 | Leke fritt eller finne opp noe nytt utenfor Aksel | [Freestyle](references/application-opening.md#freestyle): vanlige HTML-filer eller en Vite-app, uten Aksel-regler |
-| Vurdere eller utforme Figma, eller dokumentere appen der | [Figma-oppskriften](references/figma-prototype.md): tilgang, bibliotek, redigerbarhet og visuell sammenligning |
+| Vurdere eller utforme Figma, eller dokumentere appen der | [Figma-oppskriften](references/figma-prototype.md): tilgang, bibliotek, redigerbarhet og visuell sammenligning. Les [katalogen](references/aksel-figma-katalog.md) og [tokenene](references/aksel-figma-tokens.md) for komponenter og verdier |
 | Bygge videre på et forslag i Figma | [Figma-overlevering](references/figma-prototype.md#underlag-og-mal), mens siden fortsatt kjører |
 | Beholde, overlevere eller implementere et forslag | [Overlevering](references/design-handoff.md): patch, brief og kontroll |
 

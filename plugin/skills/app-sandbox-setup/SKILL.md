@@ -26,9 +26,19 @@ Shared session history is **readonly by default**: agents and sandboxed
 commands can read conversations, checkpoints and artifacts from all projects.
 Explain this privacy trade-off before confirmation; `--no-session-history`
 removes the shared grant and its aliases. It does not grant the rest of `.copilot`.
-For a history-only update, follow [shared session history](references/session-history.md)
-instead of rerunning general setup; skip the masking and Docker questions
-because that branch preserves those settings.
+
+## Read first
+
+1. Find every row below that the task touches.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Setup:** masking, Docker or shared-history choices before the user confirms | [risks.md](references/risks.md) |
+| **History only:** updating shared session history | [session-history.md](references/session-history.md), instead of rerunning general setup; skip the masking and Docker questions because that branch preserves those settings |
+| **Toolchain:** Java, node or pnpm fails in the sandbox, or the shell profile and Gradle paths | [toolchain.md](references/toolchain.md) |
+| **Later changes:** changing a choice, rollback or backups | [maintenance.md](references/maintenance.md) |
 
 ## Before you start
 
@@ -99,8 +109,11 @@ Exit codes: **1** usage/setup/no projects; **2** DB missing/denied/unreadable;
   decision now. `Info:` lines are background: mention one only when it explains
   something the user asks about or is about to hit. JSON output separates
   `warnings` from `info` and lists `masking_after` per project.
-- Settle masking, Docker and shared-history choices using
-  [the risks](references/risks.md).
+- Settle masking, Docker and shared-history choices with the user. The sandbox is
+  guardrails, not containment: masking covers only the app's own token and stops
+  the Gradle daemon, Testcontainers, dev servers and Playwright; the Docker socket
+  is effectively unsandboxed host access; shared history lets sandboxed commands
+  read every project's sessions.
 - Apply also writes a marked toolchain block into a project's instructions when
   a pinned tool needs `mise exec` or `JAVA_HOME`; `--no-instructions` opts out.
 - Offer the full per-project diff. Show it unprompted when it removes user
@@ -112,10 +125,3 @@ Exit codes: **1** usage/setup/no projects; **2** DB missing/denied/unreadable;
 Rerun plan and apply after adding a project in the app (new projects start
 without a sandbox policy), installing tools, app updates or creating credential
 folders such as `~/.aws`. Default apply re-enables valid projects.
-
-## References
-
-- [Risks to explain before confirmation](references/risks.md)
-- [Toolchains, verify probes and the optional shell profile and Gradle paths](references/toolchain.md),
-  for developers whose Java, node or pnpm fails in the sandbox
-- [Change later, rollback and backups](references/maintenance.md)

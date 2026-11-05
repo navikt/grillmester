@@ -370,15 +370,13 @@ def client_command(
         scenario.prompt,
         "--output-format",
         "json",
-        "--allow-all-tools",
+        "--allow-all",
         "--secret-env-vars=COPILOT_GITHUB_TOKEN",
         "--no-ask-user",
         "--no-custom-instructions",
         "--no-auto-update",
         "--no-experimental",
         "--disable-builtin-mcps",
-        "--max-ai-credits",
-        "30",
     ]
 
 

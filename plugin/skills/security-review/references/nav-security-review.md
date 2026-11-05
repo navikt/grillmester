@@ -6,6 +6,17 @@ and NAIS guidance as the source of truth. Platform controls and organizational
 terminology change; verify consequential claims instead of applying this
 document as a universal policy.
 
+## Contents
+
+- Data and privacy
+- Logs, telemetry, audit, and secrets
+- Authentication and authorization
+- Conditional Nav API and browser signals
+- NAIS network and workload controls
+- External integrations and data movement
+- DPIA, audit, and escalation
+- Evidence checklist
+
 ## Data and privacy
 
 - Identify the processing purpose, data subjects, fields, derived facts,

@@ -10,6 +10,17 @@ Build a traceable status report from the sources the team actually uses.
 GitHub Projects is one possible source, not a prerequisite. The default mode is
 read-only.
 
+## Read first
+
+1. Find every row below that the task touches.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Any report:** a weekly overview, period status or prioritisation material | [rapportmaler.md](./references/rapportmaler.md), and use the template that fits |
+| **GitHub Projects:** the team tracks work on a Projects board | [projects-v2.md](./references/projects-v2.md) for the read procedures |
+
 ## 1. Clarify the status request
 
 Find or ask for:
@@ -50,8 +61,6 @@ For GitHub Projects:
 3. Retrieve fields, options, and items dynamically through the integration.
 4. Find the team's explanation of columns and fields. Do not infer "active",
    "done", goals, period, size, or priority from the field name alone.
-5. Use [projects-v2.md](./references/projects-v2.md) for technical read
-   procedures when relevant.
 
 If necessary Projects evidence cannot be read with the available approved
 tools, ask for a dated export or pasted excerpt and stop with
@@ -65,8 +74,7 @@ they do not automatically define the team's board or the full report scope.
 
 ## 3. Build the report
 
-Select the appropriate template from
-[rapportmaler.md](./references/rapportmaler.md):
+Select the appropriate template:
 
 | Report | Purpose |
 |---|---|
