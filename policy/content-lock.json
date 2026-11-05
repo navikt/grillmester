@@ -229,9 +229,10 @@
       "source": "pilot",
       "sourcePath": ".github/skills/issue-management",
       "lineage": [
-        {"source": "pilot", "sourcePath": ".github/skills/to-issues"}
+        {"source": "pilot", "sourcePath": ".github/skills/to-issues"},
+        {"source": "pilot", "sourcePath": ".github/skills/triage"}
       ],
-      "disposition": "adapted"
+      "disposition": "consolidated"
     },
     "klarsprak": {"source": "pilot", "sourcePath": ".github/skills/klarsprak", "disposition": "adapted"},
     "nav-platform": {
@@ -290,9 +291,7 @@
       ],
       "disposition": "consolidated"
     },
-    "to-issues": {"source": "pilot", "sourcePath": ".github/skills/to-issues", "disposition": "adapted"},
     "to-spec": {"source": "pilot", "sourcePath": ".github/skills/to-spec", "disposition": "adapted"},
-    "triage": {"source": "pilot", "sourcePath": ".github/skills/triage", "disposition": "adapted"},
     "wait-what": {"source": "matt-additions", "sourcePath": "skills/productivity/wait-what", "disposition": "adapted", "disable-model-invocation": true},
     "wayfinder": {"source": "pilot", "sourcePath": ".github/skills/wayfinder", "disposition": "adapted"}
   }

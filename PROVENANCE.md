@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 33 skills. The sources below record attribution
+`plugin/`: six agents and 31 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -366,6 +366,12 @@ per area. Within the rights scope it moves their content, shares their authority
 boundary rules in `SKILL.md`, and changes the `designer` and `doctor-who` routing. It
 adds no third-party material, and the source IDs stay on record. The rights journal
 binds this content, the content lock and this provenance record while preserving the
+underlying decision in #56.
+
+PR [#126](https://github.com/navikt/grillmester/pull/126) reviews the move of
+`to-issues` and `triage` into `issue-management`. Those two are pilot skills, so
+nothing in the rights scope changes apart from this provenance record and the content
+lock, which keeps them as lineage. The rights journal binds both while preserving the
 underlying decision in #56.
 
 Imported skills:

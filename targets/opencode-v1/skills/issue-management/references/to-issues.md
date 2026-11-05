@@ -1,8 +1,3 @@
----
-name: to-issues
-description: "Turn a resolved plan or specification into independently useful implementation issues with native dependencies. Use when the user asks to break work into tickets; use `wayfinder` for unresolved decisions and `issue-management` for tracker mechanics."
----
-
 # To Issues
 
 Break a plan, spec, or conversation into **GitHub issues** — tracer-bullet
@@ -11,7 +6,7 @@ vertical slices that remain understandable and useful on their own.
 Use this workflow when the user asks to break the work into implementation
 tickets or accepts that deliverable in ordinary language; naming the skill is
 unnecessary. Do not automatically decompose every specification or create
-multiple issues for one clear slice. Use `/wayfinder` when the route still
+multiple issues for one clear slice. Use `wayfinder` when the route still
 depends on unresolved decisions.
 
 Establish tracker context from consumer-owned instructions, issue templates,
@@ -19,6 +14,10 @@ contributor documentation, and read-only GitHub metadata before tracker use.
 A dedicated adapter file is optional; its absence must not block drafting.
 Stop before publishing only when the target repository, authorization boundary,
 or a required operation or metadata value remains unresolved.
+
+## Contents
+
+- Process
 
 ## Process
 
@@ -77,9 +76,8 @@ Use the agreed plan to choose granularity and blocking edges. Ask only when a
 material scope or dependency choice cannot be inferred. A settled breakdown
 does not need another interview.
 
-Load `issue-management` and draft each issue with its issue body and drafting
-rules: a functional title, the human-readable opening first, and the technical
-brief after it. Present tracker metadata alongside each draft: issue type,
+Draft each issue with the issue body and drafting rules in `SKILL.md`: a functional
+title, the human-readable opening first, and the technical brief after it. Present tracker metadata alongside each draft: issue type,
 labels, project and initial status, parent, blockers, and assignee when
 applicable.
 

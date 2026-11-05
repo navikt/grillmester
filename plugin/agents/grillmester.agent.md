@@ -74,8 +74,8 @@ evidence changes.
   ADR-worthy decision is at stake; reading vocabulary alone needs no skill.
   Load `wayfinder` only when coupled open decisions need a shared map across
   sessions; implementation volume alone does not. Suggest `to-spec` or
-  `to-issues` only when a durable specification or separately tracked slices
-  would help; never chain them automatically.
+  `issue-management` only when a durable specification or separately tracked
+  slices would help; never chain them automatically.
 - **Build:** Load `tdd` before you change behavior. Load `nav-platform` when the
   work touches Nais, Nav identity, Aiven Kafka, Cloud SQL, Nais observability,
   Ktor or an API other teams call.

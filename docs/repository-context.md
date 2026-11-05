@@ -141,7 +141,7 @@ en onboardingflate som kan vurdere agent readiness og foreslå repo-kontekst.
 De to produktene har ulike, men overlappende roller:
 
 - `navikt/copilot` kan fortsatt levere Navs eksisterende instructions og skills
-- `grillmester@grillmester` leverer agentteamet og alle 33 skills i den
+- `grillmester@grillmester` leverer agentteamet og alle 31 skills i den
   kuraterte arbeidsflyten
 
 Sameksistensløftet gjelder standardlauncheren og pluginflyten. Copilot CLI har

@@ -93,5 +93,5 @@ accounted for: resolved and indexed, out of scope with a rationale, or
 invalidated by a recorded superseding decision. Close the map within the
 authorized workflow, then return the decisions to the caller's next phase.
 A durable specification may use `to-spec`; independently deliverable slices
-may use `to-issues`. Neither transition is automatic, and a single clear slice
+may use `issue-management`. Neither transition is automatic, and a single clear slice
 needs neither.

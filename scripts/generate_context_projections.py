@@ -74,8 +74,7 @@ COPILOT_FULL_GENERATOR = {
 EXCLUDED_SKILL_REPLACEMENTS = {
     "domain-modeling": "the full-context domain documentation workflow",
     "nav-platform": "the repository's platform workflow",
-    "to-issues": "the full-context plan decomposition workflow",
-    "triage": "the full-context issue assessment workflow",
+    "wayfinder": "the full-context decision-mapping workflow",
     "guided-review": "the full-context guided human review workflow",
     "architecture-review": "the full-context architecture assessment workflow",
 }
@@ -664,8 +663,8 @@ def validate_copilot_full_manifest(
         raise ProjectionError("Copilot full payload manifest generator is invalid")
     agents = string_list(manifest["agents"], label="Copilot full payload agents")
     skills = string_list(manifest["skills"], label="Copilot full payload skills")
-    if len(agents) != 6 or len(skills) != 33:
-        raise ProjectionError("Copilot full payload is not the complete 6/33 target")
+    if len(agents) != 6 or len(skills) != 31:
+        raise ProjectionError("Copilot full payload is not the complete 6/31 target")
     if manifest["counts"] != {"agents": len(agents), "skills": len(skills)}:
         raise ProjectionError("Copilot full payload counts are invalid")
     observed_agents = tuple(
@@ -717,8 +716,8 @@ def build_opencode_projection(
     counts = source_manifest.get("counts")
     if not isinstance(counts, dict) or counts.get("agents") != 6 or counts.get(
         "skills"
-    ) != 33 or counts.get("commands") != 33:
-        raise ProjectionError("focused OpenCode source is not the complete 6/33 target")
+    ) != 31 or counts.get("commands") != 31:
+        raise ProjectionError("focused OpenCode source is not the complete 6/31 target")
     files: dict[str, GeneratedFile] = {}
     for relative in (".gitignore", "opencode.json"):
         add_file(

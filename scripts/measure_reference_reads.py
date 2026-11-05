@@ -215,6 +215,23 @@ CASES = (
         "Finn refaktoreringsmuligheter i koden og presenter kandidatene.",
     ),
     Case(
+        "issue-management",
+        "references/AGENT-BRIEF.md",
+        "Vurder dette issuet: Vedtak mangler status i API-et. Er det klart til å"
+        " jobbes med?",
+    ),
+    Case(
+        "issue-management",
+        "references/to-issues.md",
+        "Planen ligger i docs/plan.md. Del den opp i issues vi kan jobbe med hver"
+        " for oss.",
+    ),
+    Case(
+        "issue-management",
+        "references/triage.md",
+        "Vi har fått en feilrapport om at varsler kommer dobbelt. Vurder den.",
+    ),
+    Case(
         "klarsprak",
         "references/ai-markorer.md",
         "Språkvask README.md. Teksten høres KI-generert ut.",
@@ -381,12 +398,6 @@ CASES = (
         "tdd",
         "test-boundaries.md",
         "Ny regel i VedtakService. Hvilken søm bør testene ligge på?",
-    ),
-    Case(
-        "triage",
-        "AGENT-BRIEF.md",
-        "Vurder dette issuet: Vedtak mangler status i API-et. Er det klart til å"
-        " jobbes med?",
     ),
     Case(
         "wayfinder",

@@ -1,6 +1,6 @@
 ---
 name: to-spec
-description: "Document resolved requirements and design choices as a concise implementation plan or specification, including a requested local document. Use `grilling` for unresolved design choices and `to-issues` for several independently deliverable slices."
+description: "Document resolved requirements and design choices as a concise implementation plan or specification, including a requested local document. Use `grilling` for unresolved design choices and `issue-management` for several independently deliverable slices."
 ---
 
 # To Spec
@@ -95,5 +95,5 @@ required metadata or authorization remains unresolved; prepare the complete
 draft first. A request to publish this specification is authorization for that
 bounded write, without an additional approval round.
 
-A specification does not imply issue decomposition. Recommend `/to-issues`
+A specification does not imply issue decomposition. Recommend `/issue-management`
 only when several independently deliverable slices need durable tracking.

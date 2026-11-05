@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "59b45910b06e29fa537f05de593e969640318240873906bc85ed2d9a198d866d",
+    "targetManifestSha256": "957df0b15167984f7c7be042278b280fc44b8aaecab8feda0f351f9e4a061dc4",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -70,7 +70,7 @@
       "mode": "0644"
     },
     "commands/issue-management.md": {
-      "sha256": "2df4e12d9850b1e475326713ea31235235b9f16486a4096da1262096dcfd50e7",
+      "sha256": "a5a6785bca614c3222da558862b131e8685ade1138b83c18bf1676d3436731cc",
       "mode": "0644"
     },
     "commands/pull-request.md": {
@@ -110,7 +110,19 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "e26d99db380e23a7d7e9540cf2b1170e35711a433d9d5d14655b4d3958a7c168",
+      "sha256": "50bc9239ff3a4c20bcda84a28f53f7074aa0693d848523cc4272702dcbcf5fe6",
+      "mode": "0644"
+    },
+    "skills/issue-management/references/AGENT-BRIEF.md": {
+      "sha256": "4996afbbf8aa5fa8451b54b912ac6b12614ace34e9be4d059659e530e7bec46f",
+      "mode": "0644"
+    },
+    "skills/issue-management/references/to-issues.md": {
+      "sha256": "786eaa820e8e49521f2efd3be688fce1197690205da9ccc637641befe0fbed44",
+      "mode": "0644"
+    },
+    "skills/issue-management/references/triage.md": {
+      "sha256": "a5cb9079f9807893d3a8da38731973cd7dc081cea80605d0575268e2bac83443",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {

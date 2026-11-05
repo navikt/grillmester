@@ -107,13 +107,13 @@ SCENARIOS = (
         "to-issues",
         "Planen ligger i docs/plan.md. Del den opp i issues vi kan jobbe med hver "
         "for oss.",
-        ("to-issues",),
+        ("issue-management",),
     ),
     Scenario(
         "triage",
         "Vi har fått en feilrapport om at varsler kommer dobbelt. Vurder om den er "
         "klar til å jobbes med.",
-        ("triage",),
+        ("issue-management",),
     ),
     Scenario(
         "issue-management",

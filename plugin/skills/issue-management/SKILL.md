@@ -1,13 +1,26 @@
 ---
 name: issue-management
-description: "Inspect, create, update, link or close GitHub issues for work that is already shaped. Use for tracker mechanics and explicit issue requests; use `triage` to assess readiness and `to-issues` to decompose a resolved plan."
+description: "Assess incoming issues or pull requests, verify claims and prepare work-ready briefs, break settled plans into issues, and inspect, create, update, link or close GitHub issues. Use for triage, inbox review, bug-report assessment, readiness decisions, ticket breakdown and explicit issue requests; use `wayfinder` for unresolved decisions and `review` for a completed implementation diff."
 ---
 
 # Issue Management
 
-Apply GitHub issue mechanics to work that is already understood. The caller owns
-`grilling`, planning, specifications, and ticket decomposition;
-this skill owns the resulting tracker mutations.
+Assess incoming work, break settled plans into issues, and apply GitHub issue
+mechanics. The caller owns `grilling`, planning and specifications; this skill owns
+the resulting tracker mutations.
+
+## Read first
+
+1. Find every row below that the task touches, and look again when new facts
+   appear.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Breakdown:** a plan, spec or conversation should become independently useful issues | [to-issues.md](references/to-issues.md) |
+| **Incoming work:** an issue, bug report or pull request must be assessed | [triage.md](references/triage.md) |
+| **Ready item:** you judge an issue or pull request ready for work | [AGENT-BRIEF.md](references/AGENT-BRIEF.md), and write its brief |
 
 ## 1. Discover tracker context
 
@@ -37,7 +50,7 @@ Use the repository's issue template and documented language when they exist.
 Otherwise ask when language affects the result, then keep the issue
 self-contained and concise. Give it a functional title that says what changes,
 not which file or mechanism will be touched. Without a repository template or a
-body that the calling skill defines, use this one; make the opening useful to a
+body that a reference or calling skill defines, use this one; make the opening useful to a
 non-technical teammate and omit a section that adds nothing:
 
 ```markdown

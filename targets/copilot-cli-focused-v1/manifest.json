@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "96b2c8ed47efb034e4b785c7f78fcb20cacd68fa0aa3f0b68d2fcb8ff58b73b3",
+    "payloadManifestSha256": "32654ed9e73041e62ce5873e034605e49ee4a00ef94692cc92cc43bb122eb34b",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -77,7 +77,19 @@
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
-      "sha256": "aacbf529f9e9789afad56aec4a50508b14e3217066a35eeb444dcabe45e2752a",
+      "sha256": "90e1cb620da40d6761d61107a1866e0f6d9a7a4fe4072d6931d03f887d141866",
+      "mode": "0644"
+    },
+    "skills/issue-management/references/AGENT-BRIEF.md": {
+      "sha256": "4996afbbf8aa5fa8451b54b912ac6b12614ace34e9be4d059659e530e7bec46f",
+      "mode": "0644"
+    },
+    "skills/issue-management/references/to-issues.md": {
+      "sha256": "786eaa820e8e49521f2efd3be688fce1197690205da9ccc637641befe0fbed44",
+      "mode": "0644"
+    },
+    "skills/issue-management/references/triage.md": {
+      "sha256": "a5cb9079f9807893d3a8da38731973cd7dc081cea80605d0575268e2bac83443",
       "mode": "0644"
     },
     "skills/pull-request/SKILL.md": {
