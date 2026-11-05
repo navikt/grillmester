@@ -44,8 +44,7 @@ prosalinje i hver seksjon. Før så det bare etter filens lengste linjer, så et
 på én seksjon kunne stå som ulest. Noe av hoppet skyldes altså tellingen.
 
 En lenke til i samme setning ga 1 av 3 for `application-opening.md`, så hold
-Les først til én peker per ønske. De andre skillene er ikke målt på nytt, og
-`aksel-design/references/components.md` kan ha samme feiltelling.
+Les først til én peker per ønske. De andre skillene er ikke målt på nytt.
 
 ## Hva pekeren betyr
 

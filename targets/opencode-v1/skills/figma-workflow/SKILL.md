@@ -113,7 +113,7 @@ Sammenlign resultatet med Figma-originalen. Sjekk spacing, farger, typografi og 
 | 48 | `space-48` |
 | 64 | `space-64` |
 
-I v8 er token-navnet pikselbasert: `spacing/24` i Figma → `space-24`. Fullstendig skala i `aksel-design`-skillens `tokens.md`.
+I v8 er token-navnet pikselbasert: `spacing/24` i Figma → `space-24`. Fullstendig skala står i [Aksels design-tokens](https://aksel.nav.no/grunnleggende/styling/design-tokens.md).
 
 ### Farger: Figma-variabler → Aksel semantiske farger
 

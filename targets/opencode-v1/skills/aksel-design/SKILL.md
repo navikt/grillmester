@@ -82,8 +82,10 @@ Importer CSS i roten av appen (f.eks. `_app.tsx`, `layout.tsx` eller `main.tsx`)
 @import "@navikt/ds-css";
 ```
 
-Ved migrering velger du en eksplisitt versjon av Aksel-CLI-et, leser `--help`, kjører
-mot en ren branch og går gjennom diffen. Kjør repoets sjekker etterpå.
+Ved migrering følger du [guiden for v8](https://aksel.nav.no/grunnleggende/migreringsguider/versjon-8.md)
+og [codemods](https://aksel.nav.no/grunnleggende/kode/codemods-config.md). Velg en
+eksplisitt versjon av Aksel-CLI-et, les `--help`, kjør mot en ren branch og gå gjennom
+diffen. Kjør repoets sjekker etterpå.
 
 ## Spacing-regler
 
@@ -119,6 +121,8 @@ export function Example(): JSX.Element {
   hovedfargen på appen.
 - Tilstander som hover har egne tokens, og `--ax-text-*-contrast` brukes for tekst på
   sterk bakgrunn.
+- `--ax-breakpoint-*` kan ikke brukes i `@media`-betingelser, og det finnes ingen
+  `radius-0`-token.
 
 ## Kritiske v8-regler
 
