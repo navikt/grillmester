@@ -1,14 +1,8 @@
----
-name: okr
-description: "Formulate and review measurable product outcomes with objectives, key results, baselines and evidence. Use for goal setting or turning delivery lists into outcome measures; use `team-status` to report progress against existing goals."
----
-
-# OKRs and goal-setting in the public sector
+# Goals and OKRs in the public sector
 
 Help the team formulate, review and follow up on goals. Move drafts from activities
 to observable outcomes, but do not invent baselines, target values or
-measurement data. Examples are available in
-[eksempler.md](./references/eksempler.md).
+measurement data.
 
 ## Discover the goal context
 
@@ -82,33 +76,13 @@ document goal attainment. Discover the project and fields dynamically if the
 team actually uses them, and turn goals into field options or rename fields
 only when the user asks for it.
 
-## Durable changes
-
-For a requested goal document, issue, PR or project metadata change, reuse the
-user's existing authorization for the exact target, action and scope. When a
-material choice or authority is missing, show the target, draft and field
-changes, then ask only for what is missing. Do not repeat approval for the same
-requested result. New targets or expanded scope need their own authority.
-
-If the correct target is unknown, ask. Do not create a new goal document by
-default.
-
 ## Boundaries
-
-### Always
 
 - Lint your own suggestions too.
 - Distinguish outcomes, deliverables and routine operations.
 - Mark missing data, baselines and decisions.
-
-### Ask when authority or a material choice is missing
-
-- Write or publish goals.
-- Create issues or pull requests.
-- Change tracker or project metadata.
-
-### Never
-
-- Rate goal attainment without data.
-- Invent a baseline, target value, owner or measurement plan.
-- Treat the number of completed tasks as evidence of impact.
+- Rate goal attainment only from data, and invent no baseline, target value, owner
+  or measurement plan.
+- Never treat the number of completed tasks as evidence of impact.
+- If the correct target is unknown, ask. Do not create a new goal document by
+  default.

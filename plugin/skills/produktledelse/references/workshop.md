@@ -1,13 +1,18 @@
----
-name: workshop-design
-description: "Design a facilitated workshop with an outcome, agenda, participation structure and follow-up. Use for group exploration, alignment, decisions, retrospectives or team health; use `produktledelse` for individual discovery guidance and `okr` for goal formulation."
----
-
 # Workshop design
 
 Design meetings and workshops with a clear outcome, genuine involvement and
 follow-up. By default, deliver a facilitation plan and a tool-neutral
 collaboration surface in text.
+
+## Contents
+
+- Discover the context
+- The BØRA gate
+- Design principles
+- Deliverable
+- Format routing
+- Privacy and safety
+- Boundaries
 
 ## Discover the context
 
@@ -84,9 +89,9 @@ features.
 
 | Need | Reference |
 |---|---|
-| New team or initiative that needs a shared hypothesis | [Foundation Sprint](./references/foundation-sprint.md) |
-| Retrospective or team health | [Retro og teamhelse](./references/retro-og-teamhelse.md) |
-| Goal workshop | Use this flow and load okr for goal formulation |
+| New team or initiative that needs a shared hypothesis | [Foundation Sprint](foundation-sprint.md) |
+| Retrospective or team health | [Retro og teamhelse](retro-og-teamhelse.md) |
+| Goal workshop | Use this flow and [okr.md](okr.md) for goal formulation |
 | Group without a product mission | Consider a team contract rather than a Foundation Sprint |
 
 The reference formats are starting points. Adapt them to the actual outcome,
@@ -101,33 +106,11 @@ participants, risks and constraints.
 - Ask the user to share only the necessary excerpt if an internal source cannot
   be read safely.
 
-## Durable changes
-
-For a requested meeting invitation, collaboration surface, issue, document or
-other resource, reuse existing authorization for the exact target, action,
-scope, recipients and access level. When a material choice or authority is
-missing, show the target and draft or planned structure, then ask only for what
-is missing. New recipients, wider access or expanded scope need their own
-authority. Sending invitations or messages and contacting participants require
-explicit outreach authorization; a facilitation-plan request alone does not
-grant it. The privacy constraints above apply to every authorized artifact.
-
 ## Boundaries
-
-### Always
 
 - Clarify the desired outcome before creating the facilitation plan.
 - Adapt to the participants, decision format and accessibility needs.
 - Close with an evaluation and concrete next steps.
-
-### Ask when authority or a material choice is missing
-
-- Create, share or change a meeting, document or collaboration surface.
-- Contact participants or publish results and team-health data; preserve the
-  explicit outreach and privacy boundaries.
-
-### Never
-
-- Promise an integration or access that has not been verified.
-- Use team health for individual assessment or upward reporting.
-- Publish raw, sensitive workshop data without explicit approval.
+- Promise no integration or access that has not been verified.
+- Never use team health for individual assessment or upward reporting.
+- Never publish raw, sensitive workshop data without explicit approval.

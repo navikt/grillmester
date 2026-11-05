@@ -395,15 +395,15 @@ class FocusedContextGenerationTest(unittest.TestCase):
     def test_tampered_or_unmanifested_full_copilot_source_is_rejected(self) -> None:
         temporary, root = self.copy_repository()
         try:
-            source = root / "plugin/skills/okr/SKILL.md"
+            source = root / "plugin/skills/produktledelse/SKILL.md"
             source.write_text(source.read_text(encoding="utf-8") + "tampered\n")
             with self.assertRaisesRegex(
                 GENERATOR.ProjectionError,
-                "Copilot full payload source differs from its manifest.*okr",
+                "Copilot full payload source differs from its manifest.*produktledelse",
             ):
                 GENERATOR.build_projections(root)
 
-            shutil.copy2(ROOT / "plugin/skills/okr/SKILL.md", source)
+            shutil.copy2(ROOT / "plugin/skills/produktledelse/SKILL.md", source)
             (root / "plugin/unmanifested.md").write_text(
                 "unexpected\n", encoding="utf-8"
             )

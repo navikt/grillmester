@@ -4,7 +4,7 @@ Teamets hovedvei er [Copilot-appen](installation.md#copilot-app) med lokal
 sandbox. OpenCode er støttet for dem som vil bruke den klienten.
 
 Grillmester har et komplett, native target for OpenCode 2 fra `2.2.5`: 6
-agenter, 36 skills og 36 slash commands. Agentmodus, toolnavn, delegering og
+agenter, 33 skills og 33 slash commands. Agentmodus, toolnavn, delegering og
 permissions er oversatt til OpenCodes egne kontrakter; det er ikke
 Copilot-pluginen pakket inn på nytt. `2.2.5` er release-testbaselinen, mens
 launcheren godtar kompatible nyere 2.x-versjoner. Targetet heter fortsatt
@@ -290,7 +290,7 @@ repoets `AGENTS.md`.
 
 OpenCode-targetet har seks native agenter. De tre offentlige velges direkte;
 Grill-inspektør, Researcher og Perspektiv brukes gjennom delegering. Skills lastes
-progressivt med OpenCodes native `skill`-tool, og de 36 commands speiler
+progressivt med OpenCodes native `skill`-tool, og de 33 commands speiler
 skillinngangene.
 
 TUI-en får agenten fra `default_agent`, som vinner over et `default_agent` i

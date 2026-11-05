@@ -51,6 +51,7 @@ FINGERPRINT_MINIMUM = 45
 CONTENTS_HEADINGS = ("Contents", "Innhold")
 USE_SKILL = "\n\nBruk skillen `{skill}`."
 DESIGNER = "designer"
+DOCTOR = "doctor-who"
 
 
 @dataclass(frozen=True)
@@ -294,20 +295,71 @@ CASES = (
         "Nais.",
     ),
     Case(
-        "okr",
-        "references/eksempler.md",
-        "Vi skal lage OKR for vedtaksteamet. Lag et utkast i samme form som "
-        "gode eksempler.",
+        "produktledelse",
+        "references/discovery.md",
+        "Vi vil la brukere trekke tilbake søknader. Hvilke antakelser bør vi teste"
+        " først?",
+        DOCTOR,
+    ),
+    Case(
+        "produktledelse",
+        "references/foundation-sprint.md",
+        "Nytt team trenger en felles hypotese. Design en workshop.",
+        DOCTOR,
+    ),
+    Case(
+        "produktledelse",
+        "references/okr-eksempler.md",
+        "Vi skal lage OKR for vedtaksteamet. Lag et utkast.",
+        DOCTOR,
+    ),
+    Case(
+        "produktledelse",
+        "references/okr.md",
+        "Formuler mål og måltall for teamet det neste halvåret.",
+        DOCTOR,
+    ),
+    Case(
+        "produktledelse",
+        "references/projects-v2.md",
+        "Lag status fra GitHub Projects-tavlen vår for denne uken.",
+        DOCTOR,
+    ),
+    Case(
+        "produktledelse",
+        "references/rapportmaler.md",
+        "Skriv ukestatus for teamet.",
+        DOCTOR,
     ),
     Case(
         "produktledelse",
         "references/ressurser.md",
         "Hvilke ressurser anbefaler du for å lære brukerintervju?",
+        DOCTOR,
+    ),
+    Case(
+        "produktledelse",
+        "references/retro-og-teamhelse.md",
+        "Design en retro om teamhelse.",
+        DOCTOR,
     ),
     Case(
         "produktledelse",
         "references/team-rammeverk.md",
         "Hva betyr forkortelsen PO-MVP i teamet vårt? Den står i planen.",
+        DOCTOR,
+    ),
+    Case(
+        "produktledelse",
+        "references/team-status.md",
+        "Hvordan ligger vi an mot målene denne perioden?",
+        DOCTOR,
+    ),
+    Case(
+        "produktledelse",
+        "references/workshop.md",
+        "Design en halvdags samling der teamet blir enige om prioriteringene.",
+        DOCTOR,
     ),
     Case(
         "security-review",
@@ -331,16 +383,6 @@ CASES = (
         "Ny regel i VedtakService. Hvilken søm bør testene ligge på?",
     ),
     Case(
-        "team-status",
-        "references/projects-v2.md",
-        "Lag status fra GitHub Projects-tavlen vår for denne uken.",
-    ),
-    Case(
-        "team-status",
-        "references/rapportmaler.md",
-        "Skriv ukestatus for teamet.",
-    ),
-    Case(
         "triage",
         "AGENT-BRIEF.md",
         "Vurder dette issuet: Vedtak mangler status i API-et. Er det klart til å"
@@ -351,16 +393,6 @@ CASES = (
         "references/tracker.md",
         "Vi har flere avhengige beslutninger om vedtaksflyten. Lag et delt kart"
         " som issues.",
-    ),
-    Case(
-        "workshop-design",
-        "references/foundation-sprint.md",
-        "Nytt team trenger en felles hypotese. Design en workshop.",
-    ),
-    Case(
-        "workshop-design",
-        "references/retro-og-teamhelse.md",
-        "Design en retro om teamhelse.",
     ),
 )
 

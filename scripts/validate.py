@@ -261,12 +261,12 @@ GUARDRAILS: tuple[Guardrail, ...] = (
     ),
     Guardrail(
         "team-status-semantic-tools",
-        ("plugin/skills/team-status/SKILL.md",),
+        ("plugin/skills/produktledelse/references/team-status.md",),
         ("never use `gh`, shell, raw HTTP", "Status: NEEDS_INPUT"),
     ),
     Guardrail(
         "projects-v2-no-cli-fallback",
-        ("plugin/skills/team-status/references/projects-v2.md",),
+        ("plugin/skills/produktledelse/references/projects-v2.md",),
         ("Status: NEEDS_INPUT", "lime inn eller eksportere"),
         ("gh project", "gh api", "```bash"),
     ),
@@ -922,7 +922,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
         errors.append("package-manifest.json must contain exactly one package")
         return None
     expected_definitions = [
-        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 36},
+        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 33},
     ]
     if package_definitions != expected_definitions:
         errors.append("package-manifest.json package roster or counts have drifted")
@@ -1636,8 +1636,8 @@ def validate_package_rosters(
 ) -> None:
     if len(agent_ids) != 6:
         errors.append(f"plugin must contain 6 agents, found {len(agent_ids)}")
-    if len(skill_ids) != 36:
-        errors.append(f"plugin must contain 36 skills, found {len(skill_ids)}")
+    if len(skill_ids) != 33:
+        errors.append(f"plugin must contain 33 skills, found {len(skill_ids)}")
 
 
 def validate_assets(root: Path, errors: list[str]) -> None:

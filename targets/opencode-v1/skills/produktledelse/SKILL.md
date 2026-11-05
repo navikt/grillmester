@@ -1,14 +1,13 @@
 ---
 name: produktledelse
-description: "Explore product opportunities, user needs, assumptions and initiative risks. Use for discovery planning, user interviews or product-lead reflection; use `okr` for measurable goals and `workshop-design` for a facilitated group session."
+description: "Set goals and OKRs, report team status, design workshops and retrospectives, and explore product opportunities from evidence. Use for goal setting, key results, status reports, goal progress, facilitated sessions, team health, discovery or user interviews; use `dulting` to design a behavioural intervention and `klarsprak` for wording."
 ---
 # Product management
 
 > **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
-Support continuous discovery, risk assessment and competency development. In
-discovery, exploration is the goal: expand the opportunity space and make
-assumptions visible. Conclude only when the user asks you to.
+Support product work with evidence the team can stand behind: discovery, goals,
+status and workshops. Each area has its own reference.
 
 ## Read first
 
@@ -18,8 +17,15 @@ assumptions visible. Conclude only when the user asks you to.
 
 | The task touches | Read |
 |---|---|
-| **Unknown term:** an acronym or internal framework you cannot place | [team-rammeverk.md](./references/team-rammeverk.md) |
-| **Resources:** the user wants books, courses or other material | [ressurser.md](./references/ressurser.md), which is curated and not authoritative |
+| **Discovery:** opportunities, assumptions, user interviews, product risks or a product lead's own development | [discovery.md](references/discovery.md) |
+| **Goals:** OKRs, objectives, key results, baselines or measurement plans | [okr.md](references/okr.md) and [okr-eksempler.md](references/okr-eksempler.md) |
+| **Status:** weekly updates, period reviews, goal progress or prioritisation material | [team-status.md](references/team-status.md) and [rapportmaler.md](references/rapportmaler.md) |
+| **GitHub Projects:** the team tracks work on a Projects board | [projects-v2.md](references/projects-v2.md) |
+| **Workshop:** any facilitated session or group decision | [workshop.md](references/workshop.md) |
+| **New team or initiative:** a shared hypothesis or a Foundation Sprint | [foundation-sprint.md](references/foundation-sprint.md) and [workshop.md](references/workshop.md) |
+| **Retrospective or team health** | [retro-og-teamhelse.md](references/retro-og-teamhelse.md) and [workshop.md](references/workshop.md) |
+| **Unknown term:** an acronym or internal framework you cannot place | [team-rammeverk.md](references/team-rammeverk.md) |
+| **Resources:** the user wants books, courses or other material | [ressurser.md](references/ressurser.md), which is curated and not authoritative |
 
 ## Discover the product context
 
@@ -34,114 +40,45 @@ Clarify as needed:
 - product area, team boundary, ownership, and legal and policy requirements
 - existing strategy, goals, insight sources and known constraints
 
-Ask for necessary facts that cannot be found. Do not fill gaps with knowledge
-from other teams or an assumed internal framework.
-
-## Opportunity tree
-
-Build and critique the tree as text:
-
-```
-Ønsket utfall
-├── Mulighet: udekket behov eller smerte fra brukerens perspektiv
-│   ├── Løsningsidé 1
-│   │   └── Eksperiment
-│   ├── Løsningsidé 2
-│   └── Løsningsidé 3
-└── Mulighet: ...
-```
-
-- An opportunity is a user need, not a feature or solution.
-- Seek at least three genuinely different solution ideas before evaluating
-  them.
-- When the request starts with a solution, ask which need and outcome it should
-  support.
-- Mark each need and relationship as evidence-based, interpreted or assumed.
-
-## Assumption testing
-
-1. Break the idea down into assumptions about desirability, viability,
-   feasibility, usability and ethics.
-2. Map importance and uncertainty.
-3. Select the most critical assumption.
-4. Suggest the least expensive defensible experiment that can change the
-   decision.
-5. Define the signal, threshold and what the team will do for different
-   outcomes.
-
-Do not collect or store user data until privacy, consent, access control and the
-consumer's practices have been clarified.
-
-## Interviews and insight cadence
-
-- Ask about actual behaviour: «Fortell om sist gang …»
-- Avoid hypothetical questions that only measure polite intent.
-- Suggest regular, small learning loops when the context allows it.
-- Clarify who should participate, based on how the team actually works.
-
-## Six product risks
-
-Use these to support reflection, never as compliance approval:
-
-| Risk | Check question |
-|---|---|
-| Value | Which documented need does this address, and what would indicate value? |
-| Usability | Can the target group understand and use the solution successfully? |
-| Feasibility | Does the team have the technology, data, skills and capacity? |
-| Viability | Are stewardship, cost, benefit and ownership sustainable? |
-| Laws and regulations | Which verified constraints apply, and who can decide? |
-| Ethics | Who could be harmed, excluded or have less genuine agency? |
-
-Obtain legal, security and privacy assessment when the risk requires it; the
-agent's reflection does not replace professional approval.
-
-## Competency development
-
-Use competency reflection as an open conversation, not as a scoring model or HR
-assessment. Ask the user to describe their role, goals and context, select one
-or two development areas together, and anchor the next step in specific work
-situations. The user owns the assessment and decides whether anything should be
-stored or shared.
-
-Do not process names, personally identifiable examples, employee data or other
-confidential information. Keep the reflection in the conversation unless the
-user has approved a specific target. Do not recommend sharing it with a manager
-or colleagues; that is the user's decision. Do not present the outcome as a
-formal assessment.
-
-## Internal frameworks
-
-The reference on acronyms is not the consumer's team context. Find the
-definition in the consumer's own sources or ask the user. Suggest a
-consumer-owned documentation change only after confirming the correct target.
+Ask for necessary facts that cannot be found, one at a time. Do not fill gaps with
+knowledge from other teams or an assumed internal framework. The reference on
+acronyms is not the consumer's team context: find the definition in the consumer's
+own sources or ask the user, and suggest a consumer-owned documentation change only
+after confirming the correct target.
 
 ## Durable changes
 
-For exploration, draft in the conversation. For a requested issue, PR, shared
-plan or insight activity, reuse existing authorization for the exact target,
-action and scope. When a material choice or authority is missing, show the
-target and draft, then ask only for what is missing. New targets or expanded
-scope need their own authority. Contacting people, recruiting participants or
-sending messages requires explicit user authorization for that outreach; a
-research or planning request alone does not grant it.
+For exploration and reports, draft in the conversation. For a requested issue, PR,
+document, goal, project value, guide, meeting, collaboration surface, shared plan or
+other resource, reuse existing authorization for the exact target, action, scope,
+recipients and access level. Do not repeat approval for the same requested result.
+When a material choice or authority is missing, show the exact target and the draft,
+old and new values or planned structure, then ask only for what is missing. New targets, new recipients, wider
+access or expanded scope need their own authority. Contacting people, recruiting
+participants or sending messages and invitations requires explicit user authorization
+for that outreach; a research, planning or facilitation request alone does not grant
+it. The privacy constraints in the references apply to every authorized artifact.
 
 ## Boundaries
 
 ### Always
 
 - Distinguish evidence, interpretation, hypothesis and missing knowledge.
-- Frame opportunities from the user's perspective.
-- Explore alternatives before making a recommendation.
 
 ### Ask when authority or a material choice is missing
 
-- Publish or share discovery material.
-- Recruit or contact users and other stakeholders; require explicit outreach
-  authorization.
-- Write to the consumer's documentation or tracker.
+- Publish or share discovery material, goals, results or team-health data; preserve
+  the explicit outreach and privacy boundaries.
+- Recruit or contact users, participants and other stakeholders; require explicit
+  outreach authorization.
+- Write to the consumer's documentation or tracker, or change project metadata.
+- Create, share or change an issue, pull request, meeting, document or collaboration
+  surface.
+- Extend the analysis to repositories or systems outside the confirmed scope.
 
 ### Never
 
-- Conclude unprompted during discovery.
 - Guess internal acronyms or team practices.
-- Use the product risks as formal approval.
+- Change external state without authority for the target, action and scope.
+- Use team health for individual assessment or upward reporting.
+- Publish raw, sensitive workshop data without explicit approval.
