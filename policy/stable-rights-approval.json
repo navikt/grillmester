@@ -23,14 +23,14 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "a933ebb05f549bbbcfee40fa08d44a9fd781598cf3d02cb1f8678fda32a50ae8",
+        "designer": "2a25b206cf43015fac1d47eb9349505039cd967728d228f75966b1d5d9365af1",
         "doctor-who": "90fc611770da001f3a4b5af487eeb57b11e657b4bba17641d3d001e28e05a5b5"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
         "aksel-design": "6da741099a2a72b96d2857a4935743832084f0d04b30c8585080f9105c1d21ad",
         "architecture-review": "19194e2172d0cc0ce07f8a055cfca7ab94b890a577231147b9c4ea5a6ec9b8e7",
-        "design-prototype": "4a51ace9eac5f5ebbdc55ba73edbf0dbbcd8778a14e19a2f65295514af7418aa",
+        "design-prototype": "359db681516e18e9837655cba89fa6e746f63e14930ff62c7449576aa20ca3e1",
         "doctor": "63a192a18f3b748ddee404a73936a14c045776326825360517fd332e824e579a",
         "dulting": "8bc852137b14cb9eb0c066f8dc9856e455565fe868e2ae62ba7461efb8380893",
         "figma-workflow": "3980ce1a848e35169594c29121e4d2dfd32abd562795d90065bca903eb5f7e94",

@@ -415,7 +415,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         (
             "Open only the synthetic demo or public pages.",
             "the first change request is also the order to start the local demo",
-            "first for today's app",
+            "That first tab is today's app only while the copy holds no earlier proposal",
             "set the page title in each alternative",
             "add no switcher, bar or other tool of ours to the page",
             "A request for side by side still means tabs",

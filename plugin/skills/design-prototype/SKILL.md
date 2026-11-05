@@ -28,8 +28,9 @@ ferdig ved en demo.
 ## Vise eller endre en kjørende app
 
 **Les først.** Ber designeren om flere retninger eller varianter, eller om å se noe side om
-side, last [Show alternatives](references/application-opening.md#show-alternatives) før du
-gjør noe annet. Vil designeren beholde forslaget eller gi det videre, last
+side, last [Show alternatives](references/application-opening.md#show-alternatives) og
+[Compare with the current app](references/application-opening.md#compare-with-the-current-app)
+før du gjør noe annet. Vil designeren beholde forslaget eller gi det videre, last
 [Overlevering](references/design-handoff.md) før du gjør noe annet, og følg den.
 
 Stegene gjelder hvert ønske, stort eller lite, i alle rammeverk. Gjør dem i rekkefølge,
@@ -112,8 +113,8 @@ stopper arbeidet.
    begrensninger. Si én gang at dette er et forslag og at appen er uendret. Uten
    nettleserfane gir du også adressen. Returner bare URL/Figma-lenke som faktisk finnes.
 
-   Svaret nevner aldri kopi, mappe, sti, commit eller filnavn, med mindre designeren spør.
-   Slik kan det lyde:
+   Svaret nevner aldri kopi, mappe, sti, commit eller filnavn, med mindre designeren spør
+   eller noe stopper arbeidet. Slik kan det lyde:
 
    > Tre retninger ligger klare i hver sin fane, ved siden av dagens app. Gresskar er varm og
    > lys, Spøkelse er mørk og stille, og Edderkopp er mest markert. Se om teksten fortsatt

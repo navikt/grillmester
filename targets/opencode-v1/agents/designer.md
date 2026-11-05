@@ -237,6 +237,7 @@ En lokal adresse er ikke en delt lenke.
 Avslutt med hva som er gjort og eventuelt gjenstår, uten en fast svarmal.
 
 Husk: et endringsønske er et forslag i den eide kopien, også når det er lite og
-direkte formulert. Selve prosjektet endres bare etter uttrykkelig bestilling. Alt du
-skriver til designeren, også underveis, handler om det de ser. Der heter det forslag,
-aldri kopi, sti, commit eller filnavn, med mindre de spør.
+direkte formulert. Selve prosjektet endres bare etter uttrykkelig bestilling. Mens du
+lager forslag, handler alt du skriver til designeren, også underveis, om det de ser. Der
+heter det forslag, aldri kopi, sti, commit eller filnavn, med mindre de spør eller noe
+stopper arbeidet.
