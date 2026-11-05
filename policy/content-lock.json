@@ -270,7 +270,6 @@
       ],
       "disposition": "adapted"
     },
-    "readme-update": {"source": "pilot", "sourcePath": ".github/skills/readme-update", "disposition": "adapted"},
     "review": {
       "source": "pilot",
       "sourcePath": ".github/skills/review",

@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 31 skills. The sources below record attribution
+`plugin/`: six agents and 30 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -373,6 +373,12 @@ PR [#126](https://github.com/navikt/grillmester/pull/126) reviews the move of
 nothing in the rights scope changes apart from this provenance record and the content
 lock, which keeps them as lineage. The rights journal binds both while preserving the
 underlying decision in #56.
+
+PR [#127](https://github.com/navikt/grillmester/pull/127) reviews the removal of the
+pilot skill `readme-update`, because a capable model updates a README from evidence
+without it. Nothing in the rights scope changes apart from this provenance record and
+the content lock. The rights journal binds both while preserving the underlying
+decision in #56.
 
 Imported skills:
 

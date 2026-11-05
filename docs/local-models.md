@@ -144,7 +144,7 @@ server i local-flyten. Dette feiler lukket i `setup`; bruk Copilot CLI når
 lokalserveren krever autentisering.
 
 Hver launch bruker focused Grillmester og Grill-inspektør med sju
-utviklingsskills. Bytt klient eller be om full 6-agent/31-skill-kontekst for én
+utviklingsskills. Bytt klient eller be om full 6-agent/30-skill-kontekst for én
 sesjon uten å endre defaulten:
 
 ```bash

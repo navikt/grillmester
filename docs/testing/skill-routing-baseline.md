@@ -1,10 +1,10 @@
 # Baseline for skillvalg
 
 Målt 4. november 2026 med Copilot CLI 1.0.105 og Haiku 5.5, etter at åtte skills ble
-samlet i `nav-platform`. Hvert scenario er kjørt tre ganger, til sammen 108 økter. Se
+samlet i `nav-platform`. Hvert scenario er kjørt tre ganger, til sammen 105 økter. Se
 [scenarioene](../skill-routing-scenarios.md) for hvordan testen er bygd opp.
 
-- I øktene der en skill var forventet, lastet modellen riktig skill i 40 av 102.
+- I øktene der en skill var forventet, lastet modellen riktig skill i 40 av 99.
 - Én økt lastet en skill i tillegg til den riktige. Ingen økt lastet bare feil skill.
 - Den lastet ingen skill i de seks øktene der ingen skill trengs.
 
@@ -61,7 +61,6 @@ CLI, fant skillen og leste `triage.md` og `AGENT-BRIEF.md` for den samme foresp�
 | `architecture-review` | grillmester | 3/3 | 0 | `architecture-review` 3 |
 | `improve-codebase-architecture` | grillmester | 3/3 | 0 | `improve-codebase-architecture` 3 |
 | `prototype` | grillmester | 2/3 | 1 | `prototype` 2 |
-| `readme-update` | grillmester | 0/3 | 3 | – |
 | `klarsprak` | grillmester | 0/3 | 3 | – |
 | `dulting` | grillmester | 3/3 | 0 | `dulting` 3 |
 | `okr` | doctor-who | 0/3 | 3 | – |

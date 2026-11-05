@@ -199,20 +199,20 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | **Beslutningskart og oppdeling** | Avhengige, uavklarte beslutninger trenger et varig kart, eller avklart arbeid skal deles i selvstendige leveranser. | Wayfinder, To issues, Issue management |
 | **Overlevering** | Brukeren ber om å flytte pågående arbeid til en annen sesjon, klient eller kollega. | Handoff (manuell) |
 | **Implementasjon og kvalitet** | Feilsøking, teststrategi, review eller sikkerhet/personvern. | Diagnosing bugs, TDD, Review, Guided review, Security review |
-| **Kodebase og levering** | Arkitekturforbedring, README, PR eller skillvedlikehold. | Improve codebase architecture, README update, Pull request, Create a skill |
+| **Kodebase og levering** | Arkitekturforbedring, PR eller skillvedlikehold. | Improve codebase architecture, Pull request, Create a skill |
 | **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel design, Accessibility review, Design prototype, Figma workflow |
 | **Produkt og tjeneste** | Mål, discovery, teamarbeid, workshop, klarspråk eller ansvarlig atferdsdesign. | Produktledelse, Klarspråk, Dulting |
 | **Nav backend og plattform** | Identitet, Nais, Kafka, database, observability og feilsøking i Nav/Nais. | Nav platform |
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 31 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 30 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-De 31 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
+De 30 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
 `design-prototype` og `review`. Nav-pilot eier valg og distribusjon av
 agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som
@@ -276,6 +276,8 @@ et skillskifte er ikke i seg selv en ny fullmakt.
 
 `/to-issues` og `/triage` finnes ikke lenger. Bruk `/issue-management`, eller beskriv
 oppgaven med vanlige ord.
+
+`/readme-update` finnes ikke lenger. Be om en oppdatert README med vanlige ord.
 
 `/api-design`, `/auth-overview`, `/kafka-topic`, `/kotlin-ktor`,
 `/nais-manifest`, `/nav-troubleshoot`, `/observability-setup` og
