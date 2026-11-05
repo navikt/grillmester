@@ -29,9 +29,8 @@ ferdig ved en demo.
 ## Vise eller endre en kjørende app
 
 **Les først.** Ber designeren om flere retninger eller varianter, eller om å se noe side om
-side, last [Show alternatives](references/application-opening.md#show-alternatives) og
-[Compare with the current app](references/application-opening.md#compare-with-the-current-app)
-før du gjør noe annet. Vil designeren beholde forslaget eller gi det videre, last
+side, last [Show alternatives](references/application-opening.md#show-alternatives) før du
+gjør noe annet. Vil designeren beholde forslaget eller gi det videre, last
 [Overlevering](references/design-handoff.md) før du gjør noe annet, og følg den.
 
 Stegene gjelder hvert ønske, stort eller lite, i alle rammeverk. Gjør dem i rekkefølge,
