@@ -6,16 +6,15 @@ videre fra en lastet skill til riktig referanse. Om skillen lastes uten hint, st
 [baseline for skillvalg](skill-routing-baseline.md). Kjør målingen med
 `scripts/measure_reference_reads.py`.
 
-Etter endringen ble referansen lest i 163 av 174 økter. Det gjelder alle
+Etter endringen ble referansen lest i 153 av 162 økter. Det gjelder alle
 referanser. Under to av tre:
 
-- `aksel-design/references/components.md`: 1 av 3.
 - `design-prototype/references/application-opening.md`: 0 av 3.
 - `design-prototype/references/design-handoff.md`: 1 av 3.
 
 | Skill | Lest |
 | --- | --- |
-| `aksel-design` | 13/15 |
+| `aksel-design` | 3/3 |
 | `app-sandbox-setup` | 12/12 |
 | `architecture-review` | 6/6 |
 | `create-a-skill` | 9/9 |
@@ -32,6 +31,10 @@ referanser. Under to av tre:
 | `tdd` | 6/6 |
 | `wayfinder` | 3/3 |
 
+`aksel-design` har nå bare `patterns.md`. Fire referanser som kopierte Aksels egne
+dokumenter, er fjernet. I seks kjøringer med spørsmål om komponenter, tokens og
+migrering hentet agenten dokumentasjonen fra aksel.nav.no i alle seks.
+
 ## Ny måling av design-prototype
 
 5. november ga `design-prototype` 14/15 med samme oppsett, mot 10/15 over.
@@ -41,8 +44,7 @@ prosalinje i hver seksjon. Før så det bare etter filens lengste linjer, så et
 på én seksjon kunne stå som ulest. Noe av hoppet skyldes altså tellingen.
 
 En lenke til i samme setning ga 1 av 3 for `application-opening.md`, så hold
-Les først til én peker per ønske. De andre skillene er ikke målt på nytt, og
-`aksel-design/references/components.md` kan ha samme feiltelling.
+Les først til én peker per ønske. De andre skillene er ikke målt på nytt.
 
 ## Hva pekeren betyr
 

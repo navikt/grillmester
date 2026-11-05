@@ -380,6 +380,13 @@ without it. Nothing in the rights scope changes apart from this provenance recor
 the content lock. The rights journal binds both while preserving the underlying
 decision in #56.
 
+PR [#128](https://github.com/navikt/grillmester/pull/128) reviews the removal of four
+`aksel-design` references that copied Aksel's own documentation. The skill now points
+to that documentation and to the installed packages, and keeps the rules and layout
+patterns. It adds no third-party material. The rights journal binds this content, the
+content lock and this provenance record while preserving the underlying decision in
+#56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `produktledelse`,

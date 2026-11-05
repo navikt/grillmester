@@ -15,11 +15,8 @@ Bruk denne skillen når du jobber i Nav-frontend med `@navikt/ds-react`, layout 
 
 | Oppgaven berører | Les |
 |---|---|
-| **Komponent-API:** props, varianter eller eksempler for en komponent | [components.md](references/components.md) |
-| **Layout:** sidemeny, kort-grid, skjema eller Next.js-mønstre | [patterns.md](references/patterns.md) |
-| **Oppsett:** installasjon, CSS, token-importstier eller v8-codemods | [setup.md](references/setup.md) |
-| **Tokens:** spacing, breakpoints eller full token-oversikt | [tokens.md](references/tokens.md) |
-| **Semantiske tokens:** `--ax-*` eller `data-color` | [semantic-tokens.md](references/semantic-tokens.md) |
+| **Layout:** sidemeny, kort-grid, skjema, kvittering, filter eller Next.js-mønstre | [patterns.md](references/patterns.md) |
+| **Komponenter, tokens, brytepunkter, oppsett eller migrering** | [Aksels dokumentasjon](https://aksel.nav.no/llm.md) for den resolverte versjonen |
 
 Skillen gir råd og kan brukes read-only. Installer avhengigheter eller endre
 consumer-repoet bare innenfor en eksplisitt godkjent implementasjonsslice.
@@ -52,7 +49,7 @@ Uten kompatible stiler skal begrensningen vises som fallback eller wireframe.
 Før du bruker rådene under, finn de eksakt resolverte versjonene av
 `@navikt/ds-react` og `@navikt/ds-css` i manifest, lockfil og eventuelt
 `node_modules`. Bekreft at pakkene er samversjonerte, og skill mellom v7 og v8.
-Installerte typer, eksportkart og rendret DOM vinner over denne snapshoten.
+Installerte typer, eksportkart og rendret DOM vinner over rådene her.
 
 Aksel-dokumentasjon er tilgjengelig som LLM-optimaliserte `.md`-filer. Hent
 dokumentasjon fra kilden fremfor å anta API fra treningsdata:
@@ -66,7 +63,8 @@ sesjonen, og følg bare lenkene til komponentene du bruker. Bruk bare råd som
 gjelder den resolverte versjonen. Gjenbruk allerede kontrollerte API-er, markup
 og stilkilde gjennom iterasjonen; slå opp på nytt ved ny komponent,
 versjonsendring eller et konkret avvik i gjengivelsen. Dette erstatter ikke
-kontroll av det nye, rendrede resultatet.
+kontroll av det nye, rendrede resultatet. Uten nettilgang bruker du installerte typer
+og `@navikt/ds-tokens`, og sier hva som ikke er kontrollert.
 
 ## Installasjon og oppsett
 
@@ -82,6 +80,11 @@ Importer CSS i roten av appen (f.eks. `_app.tsx`, `layout.tsx` eller `main.tsx`)
 ```css
 @import "@navikt/ds-css";
 ```
+
+Ved migrering følger du [guiden for v8](https://aksel.nav.no/grunnleggende/migreringsguider/versjon-8.md)
+og [codemods](https://aksel.nav.no/grunnleggende/kode/codemods-config.md). Velg en
+eksplisitt versjon av Aksel-CLI-et, les `--help`, kjør mot en ren branch og gå gjennom
+diffen. Kjør repoets sjekker etterpå.
 
 ## Spacing-regler
 
@@ -105,6 +108,20 @@ export function Example(): JSX.Element {
   );
 }
 ```
+
+## Tokens
+
+- I React-props bruker du `space-*` og responsive objekt-props.
+- I CSS bruker du `var(--ax-space-*)`, `var(--ax-radius-*)` og semantiske tokens som
+  den installerte pakken eksporterer.
+- Foretrekk semantiske tokens som `--ax-bg-neutral-soft` foran rå farger som
+  `--ax-neutral-100`.
+- Bruk `data-color` for å bytte farge på enkeltkomponenter, ikke for å endre
+  hovedfargen på appen.
+- Tilstander som hover har egne tokens, og `--ax-text-*-contrast` brukes for tekst på
+  sterk bakgrunn.
+- `--ax-breakpoint-*` kan ikke brukes i `@media`-betingelser, og det finnes ingen
+  `radius-0`-token.
 
 ## Kritiske v8-regler
 
@@ -139,6 +156,10 @@ gjenbruk av tidligere kontroller som beskrevet over.
 ## Layout og komponenter
 
 Bruk `Box`, `VStack`, `HStack`, `HGrid`, `Show`/`Hide` og `Page`/`Page.Block` for layout. Jobb mobile-first med responsive props (`xs`, `sm`, `md`, `lg`, `xl`).
+
+Velg `Box` for ramme, padding eller bakgrunn, `VStack` og `HStack` for rytme og
+rekkefølge, `HGrid` for flere kolonner, og `Dialog` når fokus skal flyttes inn i et
+kontrollert overlay. Bruk `title` på ikonet eller `aria-label` på knappen, ikke begge.
 
 ## Boundaries
 

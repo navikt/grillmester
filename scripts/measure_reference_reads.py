@@ -69,36 +69,8 @@ class Case:
 CASES = (
     Case(
         "aksel-design",
-        "references/components.md",
-        "Hvilke props trenger Aksel-komponenten Table for sortering? Bruk den i"
-        " VedtakSide.tsx.",
-        DESIGNER,
-    ),
-    Case(
-        "aksel-design",
         "references/patterns.md",
         "Lag en responsiv side med sidemeny og kort-grid i VedtakSide.tsx.",
-        DESIGNER,
-    ),
-    Case(
-        "aksel-design",
-        "references/semantic-tokens.md",
-        "Hvilke semantiske --ax-tokens og hvilken data-color skal feilstatusen "
-        "på vedtakskortet bruke?",
-        DESIGNER,
-    ),
-    Case(
-        "aksel-design",
-        "references/setup.md",
-        "Vi skal over på Aksel v8. Hvordan kjører vi codemods og setter opp "
-        "CSS-importene?",
-        DESIGNER,
-    ),
-    Case(
-        "aksel-design",
-        "references/tokens.md",
-        "Hvilke spacing-tokens og breakpoints finnes i Aksel, og hvilke passer "
-        "for kortene i VedtakSide.tsx?",
         DESIGNER,
     ),
     Case(

@@ -456,7 +456,7 @@ class PackageValidationTest(unittest.TestCase):
     def test_broken_link_in_progressive_reference_is_rejected(self) -> None:
         reference = (
             self.root
-            / "plugin/skills/aksel-design/references/components.md"
+            / "plugin/skills/aksel-design/references/patterns.md"
         )
         reference.write_text(
             reference.read_text(encoding="utf-8")

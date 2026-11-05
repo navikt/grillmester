@@ -233,27 +233,11 @@
       "mode": "0644"
     },
     "skills/aksel-design/SKILL.md": {
-      "sha256": "051029fdc0c781382f8c1b32068db1232a624fa0cdf0e72a568ef3572481b78c",
-      "mode": "0644"
-    },
-    "skills/aksel-design/references/components.md": {
-      "sha256": "ca57e23bd9ca8d7e1522f803cc331ccb6d9da1200124b97fdfee25f8a377bf45",
+      "sha256": "120a2cdec03e86adc3b54347d6a043f61479ec9adc9669c361e4e30e8d3fefdb",
       "mode": "0644"
     },
     "skills/aksel-design/references/patterns.md": {
       "sha256": "86b191d0194e0664e0805349abe4e9620e4fd9b1c903e8066a76dd9f996cc85c",
-      "mode": "0644"
-    },
-    "skills/aksel-design/references/semantic-tokens.md": {
-      "sha256": "5fafcdd95b9a7e77668667602be0582ab403a9a078dad312524b24dfdd403dfe",
-      "mode": "0644"
-    },
-    "skills/aksel-design/references/setup.md": {
-      "sha256": "f792e71a447c2b492894b97819019d4f37bae6440e09c9fe1e10e3e512ef8d5d",
-      "mode": "0644"
-    },
-    "skills/aksel-design/references/tokens.md": {
-      "sha256": "a8741f7f714a0ceb5ab586141caf20013905ea81f842e5875ef3fd6298277049",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
@@ -465,7 +449,7 @@
       "mode": "0644"
     },
     "skills/figma-workflow/SKILL.md": {
-      "sha256": "93854b24aedd90c958fbb62027d440f50029123e228a3d3b7284fe65ba7d78b8",
+      "sha256": "d77d486868498a7bb15980eb2a28bb71ebb0bbada30ad0fe6d2957add5f88433",
       "mode": "0644"
     },
     "skills/grill-me/SKILL.md": {
