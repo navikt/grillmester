@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 
+INTERRUPT_RETRY_SECONDS = 2.0
 MAX_OUTPUT_BYTES = 2 * 1024 * 1024
 READY_MARKERS = (b"Ask anything", b"Grillmester")
 # The launcher names the agent too, and that must not count as the TUI doing so.
@@ -225,6 +226,7 @@ def _run_tui_smoke_in_state(
     dismissed = False
     startup_deadline = time.monotonic() + startup_timeout
     exit_deadline = 0.0
+    next_interrupt = 0.0
     try:
         while child_status is None:
             now = time.monotonic()
@@ -237,6 +239,7 @@ def _run_tui_smoke_in_state(
                 os.write(descriptor, b"\x03")
                 interrupted = True
                 exit_deadline = now + exit_timeout
+                next_interrupt = now + INTERRUPT_RETRY_SECONDS
             elif not interrupted and now >= startup_deadline:
                 raise TuiSmokeError(
                     "OpenCode TUI did not become ready before timeout:\n"
@@ -244,6 +247,14 @@ def _run_tui_smoke_in_state(
                 )
             elif interrupted and now >= exit_deadline:
                 raise TuiSmokeError("OpenCode TUI did not exit after Ctrl-C")
+            elif interrupted and now >= next_interrupt:
+                # A TUI that is still drawing can swallow the first Ctrl-C.
+                try:
+                    os.write(descriptor, b"\x03")
+                except OSError as exc:
+                    if exc.errno != errno.EIO:
+                        raise
+                next_interrupt = now + INTERRUPT_RETRY_SECONDS
 
             ready, _, _ = select.select([descriptor], [], [], 0.2)
             if ready:
