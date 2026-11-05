@@ -4,7 +4,7 @@ Målt 4. november 2026 med Copilot CLI 1.0.105 og Haiku 5.5, etter at åtte skil
 samlet i `nav-platform`. Hvert scenario er kjørt tre ganger, til sammen 108 økter. Se
 [scenarioene](../skill-routing-scenarios.md) for hvordan testen er bygd opp.
 
-- I øktene der en skill var forventet, lastet modellen riktig skill i 44 av 102.
+- I øktene der en skill var forventet, lastet modellen riktig skill i 39 av 102.
 - Én økt lastet en skill i tillegg til den riktige. Ingen økt lastet bare feil skill.
 - Den lastet ingen skill i de seks øktene der ingen skill trengs.
 
@@ -22,8 +22,14 @@ uten det. Bruk aldri flagget i en måling, og sammenlign ikke med den første m�
 Tre kjøringer viser bare store forskjeller. Sammenlign med samme modell og samme
 scenarioer, og ikke les noe ut av ett eller to treff.
 
-Scenarioene har beholdt ID-ene fra før sammenslåingen, men forventer nå
-`nav-platform`.
+Scenarioene har beholdt ID-ene fra før sammenslåingene, men forventer nå
+`nav-platform` eller `produktledelse`.
+
+Radene for `okr`, `team-status`, `workshop-design` og `produktledelse` er målt etter
+at de tre første ble slått sammen med `produktledelse`. Haiku 5.5 lastet da ikke
+skillen for mål og status, selv om `okr` alene ga 3 av 3. Et smalt navn er en sterk
+utløser. Opus 5.5, målt utenfor Copilot CLI, fant skillen og leste riktige referanser
+for begge forespørslene. Doctor Who bruker Opus som standard.
 
 | Scenario | Agent | Treff | Uten skill | Lastet |
 | --- | --- | --- | --- | --- |
@@ -53,9 +59,9 @@ Scenarioene har beholdt ID-ene fra før sammenslåingen, men forventer nå
 | `readme-update` | grillmester | 0/3 | 3 | – |
 | `klarsprak` | grillmester | 0/3 | 3 | – |
 | `dulting` | grillmester | 3/3 | 0 | `dulting` 3 |
-| `okr` | doctor-who | 3/3 | 0 | `okr` 3 |
-| `team-status` | doctor-who | 1/3 | 2 | `team-status` 1 |
-| `workshop-design` | doctor-who | 3/3 | 0 | `workshop-design` 3 |
+| `okr` | doctor-who | 0/3 | 3 | – |
+| `team-status` | doctor-who | 0/3 | 3 | – |
+| `workshop-design` | doctor-who | 2/3 | 1 | `produktledelse` 2 |
 | `produktledelse` | doctor-who | 1/3 | 2 | `produktledelse` 1 |
 | `aksel-design` | designer | 3/3 | 0 | `aksel-design` 3 |
 | `design-prototype` | designer | 3/3 | 0 | `design-prototype` 3 |

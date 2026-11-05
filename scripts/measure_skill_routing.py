@@ -202,20 +202,20 @@ SCENARIOS = (
     Scenario(
         "okr",
         "Formuler mål og måltall for teamet det neste halvåret.",
-        ("okr",),
+        ("produktledelse",),
         "doctor-who",
     ),
     Scenario(
         "team-status",
         "Lag en statusoppdatering for teamet denne uka.",
-        ("team-status",),
+        ("produktledelse",),
         "doctor-who",
     ),
     Scenario(
         "workshop-design",
         "Vi skal ha en workshop om hvordan brukerne opplever vedtaksbrevet. Lag et "
         "opplegg.",
-        ("workshop-design",),
+        ("produktledelse",),
         "doctor-who",
     ),
     Scenario(

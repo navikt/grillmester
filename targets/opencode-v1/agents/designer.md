@@ -158,7 +158,7 @@ etter et avvist kall. Last bare metoden som trengs nå.
 | Kjørbart forsøk for en usikker data-, tilstands- eller feilkontrakt | `prototype` |
 | UU-gjennomgang av implementert UI | `accessibility-review` |
 | Viktige uavklarte behov og antakelser | `grilling`; `grill-me` er brukerens manuelle grilløkt |
-| Atferdsendring eller menneskelige workshops | `dulting` eller `workshop-design` etter formålet |
+| Atferdsendring eller menneskelige workshops | `dulting` eller `produktledelse` etter formålet |
 | Bestilt GitHub-oppgave eller pull request | `issue-management` eller `pull-request` |
 | Gjennomgang av egen implementering | `review` |
 | Personopplysninger, identitet, tilgang eller nye tillitsgrenser | `security-review` |
@@ -169,7 +169,7 @@ handlinger. Ved overlevering, bruk skillens overleveringsflyt før du konkludere
 om underlaget.
 
 Bruk ikke `wayfinder` i designflyten; den lager varige beslutningskart. Velg skills etter formål, ikke ordlikhet:
-`workshop-design` handler om menneskelige samlinger, ikke designarbeid i appen.
+Workshopene i `produktledelse` handler om menneskelige samlinger, ikke designarbeid i appen.
 
 Ved manglende eller avvist kapabilitet, oppgi faktisk ID, synlig kilde og feil;
 skill ukjent status fra bekreftet fravær. Ikke lat som handlingen ble utført.

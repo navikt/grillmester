@@ -20,8 +20,8 @@
     "agents": 6,
     "primaryAgents": 3,
     "subagents": 3,
-    "skills": 36,
-    "commands": 36
+    "skills": 33,
+    "commands": 33
   },
   "skillCapabilities": {
     "accessibility-review": "native",
@@ -45,7 +45,6 @@
     "issue-management": "native",
     "klarsprak": "native",
     "nav-platform": "native",
-    "okr": "native",
     "produktledelse": "native",
     "prototype": "native",
     "pull-request": "native",
@@ -53,13 +52,11 @@
     "review": "native",
     "security-review": "native",
     "tdd": "native",
-    "team-status": "native",
     "to-issues": "native",
     "to-spec": "native",
     "triage": "native",
     "wait-what": "native",
-    "wayfinder": "native",
-    "workshop-design": "native"
+    "wayfinder": "native"
   },
   "manualOnlyApproximation": {
     "sourceField": "disable-model-invocation: true",
@@ -83,11 +80,11 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "e3c567d19bf5caf13ba3a4501a640e92eb80e12fb3a028ca9afb989c6fb26045",
+      "sha256": "a0896af99a30220f454028a6ac6576fc2950bbd2555d9ad1d1a167ef504f534a",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
-      "sha256": "05692e191807bc61fef847d2988cb2a99b3b4c1f6a86a24eeca318ba54b3500a",
+      "sha256": "6ea6d7e4d7265ae16692de3fdf74b62c9e22deea05060c7ff8ab25a61b88c967",
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
@@ -190,12 +187,8 @@
       "sha256": "b1e5edb24b5b00838979d425156041f1300ea28b8469e6163f1bdbe8b2386f14",
       "mode": "0644"
     },
-    "commands/okr.md": {
-      "sha256": "96ed21692bc55312bfa70299f81cb34293b45b5145a11270c24b2a3fab5724bd",
-      "mode": "0644"
-    },
     "commands/produktledelse.md": {
-      "sha256": "41b2c229760c6095f2419f65f88a532e2028a7aeacfd775c929ee0c0cf44bdad",
+      "sha256": "51ef48010c9ea35e31bf9eecf2cec2eab1fbf9571b26d3e321e4bb94ab3529a6",
       "mode": "0644"
     },
     "commands/prototype.md": {
@@ -222,10 +215,6 @@
       "sha256": "f777fa4b0ffa7be5de5623324fa9844bb2c10f723de503138680d481154cc1f3",
       "mode": "0644"
     },
-    "commands/team-status.md": {
-      "sha256": "531d58a43f539af6a892017fe85ca66326a1a9446de87cb883d08ae134c9a219",
-      "mode": "0644"
-    },
     "commands/to-issues.md": {
       "sha256": "111f6f3c372c7f680632dedd9816b7a609a3c613bb4f3d0be3347862525ff7ca",
       "mode": "0644"
@@ -244,10 +233,6 @@
     },
     "commands/wayfinder.md": {
       "sha256": "5045e5cdd0799640e83ae24ca9789de1b9ba47323df9e0be6f4454b422dd5c4c",
-      "mode": "0644"
-    },
-    "commands/workshop-design.md": {
-      "sha256": "de54e771465912f5339361284ff6f3c1035906c576e6b901bfefae197ebadc95",
       "mode": "0644"
     },
     "opencode.json": {
@@ -594,24 +579,52 @@
       "sha256": "3a2e4188ccae6f258e48ab420d3ed943c3bcb6010515769664e99cc97629f941",
       "mode": "0644"
     },
-    "skills/okr/SKILL.md": {
-      "sha256": "c0ae29c8491920003503f3d75f4db9c352707c3c8b238ee16f2324fb12f7e717",
+    "skills/produktledelse/SKILL.md": {
+      "sha256": "f8930da84d33d2c34e7879fa0b67788d1c379d0b7590af7acfa9854aa4edf995",
       "mode": "0644"
     },
-    "skills/okr/references/eksempler.md": {
+    "skills/produktledelse/references/discovery.md": {
+      "sha256": "f8ed199b16a9a33a9dc03294429227b723880ea788c162ee045f00149d4464f4",
+      "mode": "0644"
+    },
+    "skills/produktledelse/references/foundation-sprint.md": {
+      "sha256": "0ec4ce67052ef66e56fa1cd2232fbc8b3f53e9b5aeb68431b3c239a2250cca6b",
+      "mode": "0644"
+    },
+    "skills/produktledelse/references/okr-eksempler.md": {
       "sha256": "78e152651db66bdb5eeb30bd1adafb7fe08272164bfdc5fdd353bb6558b7386f",
       "mode": "0644"
     },
-    "skills/produktledelse/SKILL.md": {
-      "sha256": "09dc93767b75bc5a437b6f1d5b99d8a8ea6bc0f898e1b7676744026e0a61bcc8",
+    "skills/produktledelse/references/okr.md": {
+      "sha256": "10a84af200e6dafae0c7467a744db2d692179b1a42f296c8e42ca5e91094d854",
+      "mode": "0644"
+    },
+    "skills/produktledelse/references/projects-v2.md": {
+      "sha256": "ad0b28e9fec9aa9a00569d3023407f5a8629f5e0eec2c7ce62a183d64ac25f81",
+      "mode": "0644"
+    },
+    "skills/produktledelse/references/rapportmaler.md": {
+      "sha256": "550059b44a563bf820003d6fd6b69627018848cfd43f3041dde9364b4abbf347",
       "mode": "0644"
     },
     "skills/produktledelse/references/ressurser.md": {
       "sha256": "e0be5aed729631f9e3c4c13d861cc9e649294e3c10b911f456ecf666873306e0",
       "mode": "0644"
     },
+    "skills/produktledelse/references/retro-og-teamhelse.md": {
+      "sha256": "b2c912df8055d6ad849bffb06bfd2db91b39c77a5adb5362208ed6c72a6ea9ca",
+      "mode": "0644"
+    },
     "skills/produktledelse/references/team-rammeverk.md": {
       "sha256": "f1ca4dc58774680618f761124f77e91a3ef91923d2f0e4e2024c3b54c69838dd",
+      "mode": "0644"
+    },
+    "skills/produktledelse/references/team-status.md": {
+      "sha256": "93fc312906515f92ade17ce47d929bd6d54feb4f7d089ddf77a604f518116d61",
+      "mode": "0644"
+    },
+    "skills/produktledelse/references/workshop.md": {
+      "sha256": "d563b4400a104a12c11c76e7e30278bcb15e0de755cec4b56c1d39837a7c42a0",
       "mode": "0644"
     },
     "skills/prototype/SKILL.md": {
@@ -654,18 +667,6 @@
       "sha256": "cfee2884f0dddd5af1f020f674df946c1ddffce8d3fbb43720bd05a7e0ae3395",
       "mode": "0644"
     },
-    "skills/team-status/SKILL.md": {
-      "sha256": "2c1690d18994139d523b7092aeac587cf1e3fc10e99673c92ae270cf73c5216f",
-      "mode": "0644"
-    },
-    "skills/team-status/references/projects-v2.md": {
-      "sha256": "ad0b28e9fec9aa9a00569d3023407f5a8629f5e0eec2c7ce62a183d64ac25f81",
-      "mode": "0644"
-    },
-    "skills/team-status/references/rapportmaler.md": {
-      "sha256": "550059b44a563bf820003d6fd6b69627018848cfd43f3041dde9364b4abbf347",
-      "mode": "0644"
-    },
     "skills/to-issues/SKILL.md": {
       "sha256": "3d0198a2928ee6a22f491ae4f1f0435f8128f2fec88c89e8c10861ab5ed0bf20",
       "mode": "0644"
@@ -692,18 +693,6 @@
     },
     "skills/wayfinder/references/tracker.md": {
       "sha256": "20e3b4f89d6ce16f9de4141d4ff849adccf0836270c67ff53dd72aa99ce70156",
-      "mode": "0644"
-    },
-    "skills/workshop-design/SKILL.md": {
-      "sha256": "a6d01741784e37406ffb5662c84d1510b369bbc151c433422414f23c4e754112",
-      "mode": "0644"
-    },
-    "skills/workshop-design/references/foundation-sprint.md": {
-      "sha256": "cb88b2345e04f3f383537ccfc8f30093e827c922a303528513acc45a9a185f40",
-      "mode": "0644"
-    },
-    "skills/workshop-design/references/retro-og-teamhelse.md": {
-      "sha256": "b2c912df8055d6ad849bffb06bfd2db91b39c77a5adb5362208ed6c72a6ea9ca",
       "mode": "0644"
     }
   }

@@ -250,8 +250,16 @@
       ],
       "disposition": "consolidated"
     },
-    "okr": {"source": "hovmester", "sourcePath": ".github/skills/okr", "disposition": "adapted"},
-    "produktledelse": {"source": "hovmester", "sourcePath": ".github/skills/produktledelse", "disposition": "adapted"},
+    "produktledelse": {
+      "source": "hovmester",
+      "sourcePath": ".github/skills/produktledelse",
+      "lineage": [
+        {"source": "hovmester", "sourcePath": ".github/skills/okr"},
+        {"source": "hovmester", "sourcePath": ".github/skills/team-status"},
+        {"source": "hovmester", "sourcePath": ".github/skills/workshop-design"}
+      ],
+      "disposition": "consolidated"
+    },
     "prototype": {"source": "pilot", "sourcePath": ".github/skills/prototype", "disposition": "adapted"},
     "pull-request": {
       "source": "pilot",
@@ -282,12 +290,10 @@
       ],
       "disposition": "consolidated"
     },
-    "team-status": {"source": "hovmester", "sourcePath": ".github/skills/team-status", "disposition": "adapted"},
     "to-issues": {"source": "pilot", "sourcePath": ".github/skills/to-issues", "disposition": "adapted"},
     "to-spec": {"source": "pilot", "sourcePath": ".github/skills/to-spec", "disposition": "adapted"},
     "triage": {"source": "pilot", "sourcePath": ".github/skills/triage", "disposition": "adapted"},
     "wait-what": {"source": "matt-additions", "sourcePath": "skills/productivity/wait-what", "disposition": "adapted", "disable-model-invocation": true},
-    "wayfinder": {"source": "pilot", "sourcePath": ".github/skills/wayfinder", "disposition": "adapted"},
-    "workshop-design": {"source": "hovmester", "sourcePath": ".github/skills/workshop-design", "disposition": "adapted"}
+    "wayfinder": {"source": "pilot", "sourcePath": ".github/skills/wayfinder", "disposition": "adapted"}
   }
 }

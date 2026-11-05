@@ -54,9 +54,9 @@ Hver oppgave kjøres med samme mønster:
 
 ## To-dagers kjøreplan-skjelett
 
-09:00–15:30-mønster. Tilpass tidene til teamets BØRA — dette er skjelettet, ikke fasiten.
+09:00–15:30-mønster. Tilpass tidene til teamets [BØRA](workshop.md#the-børa-gate) — dette er skjelettet, ikke fasiten.
 
-Skjelettet er tidsrammen — berik hver økt med fasilitatornotater (hva fasilitator sier og gjør, materiell, fallgruver) etter malen i SKILL.md.
+Skjelettet er tidsrammen — berik hver økt med fasilitatornotater (hva fasilitator sier og gjør, materiell, fallgruver) etter malen i [workshop.md](workshop.md).
 
 **Dag 1 — grunnelementene**
 

@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 36 skills. The sources below record attribution
+`plugin/`: six agents and 33 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -360,10 +360,19 @@ adds no third-party material. The rights journal binds
 this content, the content lock and this provenance record while preserving the
 underlying decision in #56.
 
+PR [#124](https://github.com/navikt/grillmester/pull/124) reviews the move of
+`okr`, `team-status` and `workshop-design` into `produktledelse`, with one reference
+per area. Within the rights scope it moves their content, shares their authority and
+boundary rules in `SKILL.md`, and changes the `designer` and `doctor-who` routing. It
+adds no third-party material, and the source IDs stay on record. The rights journal
+binds this content, the content lock and this provenance record while preserving the
+underlying decision in #56.
+
 Imported skills:
 
-- `accessibility-review`, `aksel-design`, `figma-workflow`, `okr`,
-  `produktledelse`, `team-status`, `workshop-design`, `dulting`
+- `accessibility-review`, `aksel-design`, `figma-workflow`, `produktledelse`,
+  `dulting`; `okr`, `team-status` and `workshop-design` are consolidated into
+  `produktledelse`, and the content lock records them as its lineage
 - Hovmester's visual `prototype` workflow is imported as `design-prototype`;
   the pilot's behavior-oriented `prototype` retains its original ID.
 

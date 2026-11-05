@@ -1,25 +1,16 @@
----
-name: team-status
-description: "Summarize team status, goal progress and priorities from confirmed work and outcome evidence. Use for weekly updates, period reviews or cross-repository overviews; use `okr` to formulate goals and `triage` to assess individual incoming issues."
----
 # Team status
-
-> **OpenCode:** Skill names below are exact IDs from the active catalog, not slash commands. Load them with the native `skill` tool. Slash commands are direct user entry points only.
 
 Build a traceable status report from the sources the team actually uses.
 GitHub Projects is one possible source, not a prerequisite. The default mode is
 read-only.
 
-## Read first
+## Contents
 
-1. Find every row below that the task touches.
-2. Read those references before you edit, answer or run a command.
-3. Name the references you read when you report.
-
-| The task touches | Read |
-|---|---|
-| **Any report:** a weekly overview, period status or prioritisation material | [rapportmaler.md](./references/rapportmaler.md), and use the template that fits |
-| **GitHub Projects:** the team tracks work on a Projects board | [projects-v2.md](./references/projects-v2.md) for the read procedures |
+- 1. Clarify the status request
+- 2. Establish the evidence base
+- 3. Build the report
+- When a board or field guide is missing
+- Boundaries
 
 ## 1. Clarify the status request
 
@@ -109,34 +100,13 @@ Use the agreed consumer-owned location when the user has requested a guide.
 Otherwise draft in the conversation and clarify the target and authority before
 creating an issue, file, or PR.
 
-## External changes
-
-Status work is read-only unless the user requests otherwise. For a requested
-issue, project value, guide, or report change, verify the target, action and
-scope against the user's existing authorization. Reuse that authorization;
-do not ask again merely because the draft is ready. When a material choice or
-authority is missing, show the exact target and the old/new values or draft,
-then ask only for what is missing. New targets or expanded scope need their own
-authority.
-
-Do not change field definitions or options as a side effect of reporting.
-
 ## Boundaries
 
-### Always
-
+- Status work is read-only unless the user requests otherwise.
 - Confirm the scope and sources.
 - Retrieve project fields dynamically when GitHub Projects is used.
 - Separate source data, interpretation, assumptions, and data gaps.
 - State the timestamp for data that can change.
-
-### Ask when authority or a material choice is missing
-
-- Create or change issues, project items, field values, guides, or PRs.
-- Extend the analysis to repositories or systems outside the confirmed scope.
-
-### Never
-
-- Guess the project, field semantics, team boundary, or goal period.
-- Present tracker activity as documented user or societal impact.
-- Change external state without authority for the target, action and scope.
+- Do not change field definitions or options as a side effect of reporting.
+- Never guess the project, field semantics, team boundary, or goal period.
+- Never present tracker activity as documented user or societal impact.

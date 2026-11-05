@@ -126,9 +126,9 @@ user.
 
 | Intent | Use |
 |---|---|
-| Status, goal progress, or prioritisation material | team-status |
-| Formulate or review goals | okr |
-| Workshop, retrospective, foundation sprint, or team health | workshop-design |
+| Status, goal progress, or prioritisation material | produktledelse |
+| Formulate or review goals | produktledelse |
+| Workshop, retrospective, foundation sprint, or team health | produktledelse |
 | Discovery, product risk, or competency development | produktledelse |
 | Create or improve an issue | issue-management |
 | Stress-test an important choice | grilling |
