@@ -156,6 +156,55 @@ class GrillmesterTuiSmokeTest(unittest.TestCase):
             )
             self.assertEqual([], list(state.iterdir()))
 
+    def test_a_swallowed_ctrl_c_is_sent_again(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            binaries = root / "bin"
+            project = root / "project"
+            state = root / "state"
+            binaries.mkdir()
+            (project / ".git").mkdir(parents=True)
+            state.mkdir()
+            for name in ("cplt", "opencode"):
+                executable = binaries / name
+                executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+                executable.chmod(0o700)
+            launcher = binaries / "grillmester"
+            launcher.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env python3
+                    import signal
+                    import time
+
+                    seen = []
+
+                    def interrupt(*_arguments):
+                        seen.append(1)
+                        if len(seen) > 1:
+                            raise SystemExit(0)
+
+                    signal.signal(signal.SIGINT, interrupt)
+                    print("Ask anything Grillmester 2.2.5", flush=True)
+                    while True:
+                        time.sleep(0.1)
+                    """
+                ),
+                encoding="utf-8",
+            )
+            launcher.chmod(0o700)
+
+            SMOKE.run_tui_smoke(
+                launcher=launcher,
+                opencode=binaries / "opencode",
+                opencode_version="2.2.5",
+                cplt=binaries / "cplt",
+                project_dir=project,
+                state_parent=state,
+                startup_timeout=3,
+                exit_timeout=5,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
