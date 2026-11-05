@@ -35,6 +35,18 @@ referanser. Under to av tre:
 | `wayfinder` | 3/3 |
 | `workshop-design` | 6/6 |
 
+## Ny måling av design-prototype
+
+5. november ga `design-prototype` 14/15 med samme oppsett, mot 10/15 over.
+`application-opening.md` fikk 3 av 3 og `design-handoff.md` 2 av 3. To ting endret
+seg: pekerne fikk en Les først-blokk foran stegene, og verktøyet teller nå første
+prosalinje i hver seksjon. Før så det bare etter filens lengste linjer, så et oppslag
+på én seksjon kunne stå som ulest. Noe av hoppet skyldes altså tellingen.
+
+En lenke til i samme setning ga 1 av 3 for `application-opening.md`, så hold
+Les først til én peker per ønske. De andre skillene er ikke målt på nytt, og
+`aksel-design/references/components.md` kan ha samme feiltelling.
+
 ## Hva pekeren betyr
 
 Før endringen ble 115 av 180 lest. De 29 referansene som fikk ny peker, gikk fra 37
