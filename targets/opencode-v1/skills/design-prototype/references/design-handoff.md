@@ -13,8 +13,10 @@ A running proposal lives in an explicitly owned copy of the app. The Browser tab
 its local URL and the picks in the conversation are not deliverables. When the
 designer wants to keep the result, do this before the demo and copy go away:
 
-1. Read the diff from the copy's private baseline. Check that it holds only the
-   agreed proposal, with no generated files, lockfile churn, secrets or demo data.
+1. Remove what only served the comparison: other alternatives, the query parameter
+   and page titles. Then read the diff from the copy's private baseline, and check
+   that it holds only the agreed proposal, with no generated files, lockfile churn,
+   secrets or demo data.
 2. With agreed storage, save it as a patch with a short brief in the agreed design
    area of the conversation's project. Without agreed storage, keep the copy and
    say that the result is temporary.

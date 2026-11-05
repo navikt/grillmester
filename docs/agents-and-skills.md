@@ -109,8 +109,8 @@ Du peker med Pick & Polish (⌘⇧C) og skriver ønsket i
 samtalen. Hopper du over spørsmålet om å stole på repoet, ber appen om godkjenning for
 hver handling, så velg å stole på repoer du kjenner. Forslaget lages i en eid kopi av appen, og du ser det i samme fane. Originalprosjektet endres
 bare som separat bestilt implementering. Et forslag er midlertidig til det er
-lagret etter avtale. Be om to faner når du vil se dagens app og forslaget side om
-side.
+lagret etter avtale. Be om en egen fane for dagens app når du vil sammenligne. Ved varianter får du
+den automatisk, sammen med én fane per variant.
 
 En ny idé uten app bygges som en liten app med ekte Aksel-komponenter, på samme måte.
 Vil du leke helt fritt, sier du det, så lager Designer vanlige HTML-filer uten

@@ -65,7 +65,7 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "5507170c3f08dd37cc909a32163af2997ede37f59fa365b19d46c774a9eca383",
+      "sha256": "2a25b206cf43015fac1d47eb9349505039cd967728d228f75966b1d5d9365af1",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -261,7 +261,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "5685bab322f9232fd17651a6a6b979169779bf6400759835936af1acf7d8938a",
+      "sha256": "7ebb02cd048e8d3cd55540a4c8b903693d4402146406ebc353623044e411c892",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -277,15 +277,15 @@
       "mode": "0644"
     },
     "skills/design-prototype/references/application-opening.md": {
-      "sha256": "0bf9e6666382f4571f93ad322a475e676d41727d893371bbbf27d476fb0f32fb",
+      "sha256": "860c3a17d8146a36c0a1567b6be6d5ff66efb3b3f38c4996ba7d7b239f9712ba",
       "mode": "0644"
     },
     "skills/design-prototype/references/design-handoff.md": {
-      "sha256": "df33a220a3b882fa750a0c01bb8d56c0bc71fcbe7917e90d72d2738b2636f1c3",
+      "sha256": "76f2459c54cd57a6bfdc8c2a77b3e08e88d66529bf72533ed760d85951784cd1",
       "mode": "0644"
     },
     "skills/design-prototype/references/figma-prototype.md": {
-      "sha256": "8ba5326f674d02187e0a93d127f89c0d0ebd3f3ade2bcb17c348b34c4361bcd5",
+      "sha256": "b33850d91b90fcd8258bc76416244a24a7bad7bdf241c8d06fdc65c05081397c",
       "mode": "0644"
     },
     "skills/design-prototype/scripts/app-runtime.js": {

@@ -66,6 +66,38 @@ class CoverageTests(unittest.TestCase):
                 self.assertTrue(READS.fingerprints(path))
 
 
+class FingerprintTests(unittest.TestCase):
+    INTRO = "An introduction long enough to look like a proof line at the top."
+    ENTRY = "- A contents entry long enough to look like a proof line here."
+    OPENER = "The opening sentence of a section, long enough to prove a read."
+    FENCED = "## A heading inside a code fence that must not start a section"
+    AFTER_FENCE = "A line after the fence, long enough but not the first of its section."
+
+    def proofs(self) -> tuple[str, ...]:
+        long_lines = "\n".join("x" * (100 + index) for index in range(3))
+        text = (
+            f"# Title\n\n{self.INTRO}\n\n## Contents\n\n{self.ENTRY}\n\n"
+            f"## A\n\n{long_lines}\n\n"
+            f"## B\n\n{self.OPENER}\n\n"
+            f"```text\n{self.FENCED}\n```\n\n{self.AFTER_FENCE}\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "reference.md"
+            path.write_text(text, encoding="utf-8")
+            return READS.fingerprints(path)
+
+    def test_the_first_prose_line_of_a_section_proves_a_read(self) -> None:
+        self.assertIn(self.OPENER, self.proofs())
+
+    def test_the_title_and_contents_prove_nothing(self) -> None:
+        proofs = self.proofs()
+        self.assertNotIn(self.INTRO, proofs)
+        self.assertNotIn(self.ENTRY, proofs)
+
+    def test_a_heading_in_a_code_fence_starts_no_section(self) -> None:
+        self.assertNotIn(self.AFTER_FENCE, self.proofs())
+
+
 class EventTests(unittest.TestCase):
     def test_a_view_counts_as_a_read_of_that_reference(self) -> None:
         run = result()

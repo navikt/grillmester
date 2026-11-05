@@ -28,6 +28,8 @@ samme fane, ikke en egen motor eller skill.
 - Skillet mellom dagens app og forslag, og merking av simulert innhold.
 - Versjoner, nå som commits i kopiens private historikk.
 - Varianter ved reelle retningsvalg, nå bak en query-parameter med én fane per variant.
+- «Appen nå», nå som en egen fane for dagens app når varianter sammenlignes. Vi legger ingen
+  egen flate i appen som vurderes, fordi den ville bli en del av det designeren ser og peker på.
 - At deler designeren vil beholde og tekst designeren har gitt, står til et nyere ønske
   endrer dem.
 - Midlertidig som standard, og uttrykkelig lagring som patch og brief.

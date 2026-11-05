@@ -48,6 +48,7 @@ RUN_TIMEOUT_SECONDS = 170
 EDIT_TOOLS = frozenset({"apply_patch", "create", "edit", "write"})
 FINGERPRINT_LINES = 3
 FINGERPRINT_MINIMUM = 45
+CONTENTS_HEADINGS = ("Contents", "Innhold")
 USE_SKILL = "\n\nBruk skillen `{skill}`."
 DESIGNER = "designer"
 
@@ -396,16 +397,28 @@ class ReadResult:
         self.first_reads.setdefault(reference, self.tool_calls)
 
 
-def fingerprints(path: Path) -> tuple[str, ...]:
-    """Return the lines that prove a reference's text reached the model."""
+def is_proof(line: str) -> bool:
+    return len(line) >= FINGERPRINT_MINIMUM and not line.startswith(("|", "```", "#"))
 
-    lines = (line.strip() for line in path.read_text(encoding="utf-8").splitlines())
-    prose = (
-        line
-        for line in lines
-        if len(line) >= FINGERPRINT_MINIMUM and not line.startswith(("|", "```", "#"))
-    )
-    return tuple(sorted(prose, key=len, reverse=True)[:FINGERPRINT_LINES])
+
+def fingerprints(path: Path) -> tuple[str, ...]:
+    """Return the lines that prove a reference's text reached the model.
+
+    A pointer can send the agent to one section, so the first prose line of each
+    section is a proof too. Reading only the title and contents proves nothing new.
+    """
+
+    text = path.read_text(encoding="utf-8")
+    lines = (line.strip() for line in text.splitlines())
+    proofs = sorted(filter(is_proof, lines), key=len, reverse=True)[:FINGERPRINT_LINES]
+    waiting = False
+    for line in map(str.strip, SKILLS.prose_lines(text)):
+        if line.startswith(("## ", "### ")):
+            waiting = line.split(" ", 1)[1] not in CONTENTS_HEADINGS
+        elif waiting and is_proof(line):
+            proofs.append(line)
+            waiting = False
+    return tuple(dict.fromkeys(proofs))
 
 
 def reference_proofs(skill_root: Path) -> dict[str, tuple[str, ...]]:

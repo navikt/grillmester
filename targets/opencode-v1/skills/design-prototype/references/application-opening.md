@@ -5,23 +5,12 @@ holds what only some runs need.
 
 ## Contents
 
-- Contents
-- Keep the demo running
-- Use the Browser
-- Move from a public demo to the local demo
-- Show alternatives
-- Compare with the current app
-- Start from a new idea
-- Keep the result
-
-## Contents
-
-- [Keep the demo running](#keep-the-demo-running): the helper, startup failures, stopping
-- [Use the Browser](#use-the-browser): actions, addresses and what the tab may show
+- [Keep the demo running](#keep-the-demo-running)
+- [Use the Browser](#use-the-browser)
 - [Move from a public demo to the local demo](#move-from-a-public-demo-to-the-local-demo)
 - [Show alternatives](#show-alternatives)
 - [Compare with the current app](#compare-with-the-current-app)
-- [Start from a new idea](#start-from-a-new-idea), including [Freestyle](#freestyle)
+- [Start from a new idea](#start-from-a-new-idea)
 - [Keep the result](#keep-the-result)
 
 ## Keep the demo running
@@ -133,17 +122,34 @@ part.
 
 Offer alternatives when the designer faces a real choice of direction, not for a small
 adjustment. Build them in the same copy behind a query parameter, for example `?variant=b`,
-and open one Browser tab per alternative with its own `instanceId` and a clear title. One
-dev server then serves them all with the same data, so the comparison stays fair. When one
-is chosen, remove the others and commit.
+and leave the page without the parameter as it is. One dev server then serves them all with
+the same data, so the comparison stays fair. Each alternative is a real direction, not the
+same element in a new color: different structure, hierarchy or style across the page, or
+across the part the designer asked about.
+
+Open a tab without the parameter first, then one tab per alternative, each with its own
+`instanceId`. That first tab is today's app only while the copy holds no earlier proposal.
+Otherwise call it the current proposal, and show today's app as
+[Compare with the current app](#compare-with-the-current-app) describes. A tab shows the
+page's own title and not the title you pass, so set the page title in each alternative, for
+example «B · Spøkelse». Compare in these tabs and add no switcher, bar or other tool of ours
+to the page: it would become part of what is judged, and Pick & Polish and screenshots would
+pick it up.
+
+The Browser shows one tab at a time. A request for side by side still means tabs, and you say
+so once: a shared page would squeeze both directions and is no longer the real page. Without
+a Browser tab, give the full address of each alternative.
+
+When one is chosen, fold it into the page, remove the others, the parameter and the page
+titles, and commit. The first tab then shows the proposal, so stop calling it today's app.
 
 ## Compare with the current app
 
-One tab is enough for iterating. When before and after must be seen together, run the
-unchanged baseline from a second owned copy with its own service key and port, and open it
-in a second Browser tab with a new `instanceId`. Title the tabs so they cannot be confused,
-for example «Dagens app» and «Forslag». The designer can place them side by side. Present
-the proposal copy only as a proposal.
+One tab is enough for iterating. When before and after must be seen together and the copy
+already holds the change, run the unchanged baseline from a second owned copy with its own
+service key and port, and open it in a second Browser tab with a new `instanceId`. Set the
+page title in the proposal copy, for example «Forslag», so the tabs cannot be confused.
+Present the proposal copy only as a proposal.
 
 ## Start from a new idea
 

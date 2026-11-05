@@ -18,11 +18,8 @@ den synlige Figma-integrasjonen og kontroller verktøyene på nytt. Manglende
 verktøy beviser ikke at tilkoblingen er brutt; ikke installer eller autoriser
 på nytt automatisk. Bekreft fortsatt create/edit-kapabilitet før skriving.
 
-<a id="underlag-og-mal"></a>
-
 ## Innhold
 
-- Innhold
 - Underlag og mål
 - Oppstart: Hent planKey
 - Opprett fil etter eksplisitt godkjenning
@@ -40,15 +37,7 @@ på nytt automatisk. Bekreft fortsatt create/edit-kapabilitet før skriving.
 - Visuell kontroll og interaksjoner i Figma
 - Lever
 
-## Innhold
-
-- Underlag og mål
-- Oppstart, filopprettelse og Aksel-biblioteker
-- Søk og bruk komponenter
-- Preflight, snapshot og Code Connect
-- Plugin API-mønster og gotchas
-- Tabeller, layout, kontekst og tilstander
-- Visuell kontroll og levering
+<a id="underlag-og-mal"></a>
 
 ## Underlag og mål
 
