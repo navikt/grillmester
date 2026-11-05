@@ -328,6 +328,10 @@ GUARDRAILS: tuple[Guardrail, ...] = (
         ("plugin/skills/guided-review/SKILL.md",),
         (
             "Present exactly one reading step",
+            "one visible review card",
+            "exact, focused code, diff, or artifact excerpt",
+            "binary or otherwise non-renderable artifacts",
+            "proposed fixes remain drafts",
             "Then wait for the human",
             "every in-scope changed file",
             "human explicitly approves the exact",
