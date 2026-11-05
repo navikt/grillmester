@@ -48,6 +48,7 @@ RUN_TIMEOUT_SECONDS = 170
 EDIT_TOOLS = frozenset({"apply_patch", "create", "edit", "write"})
 FINGERPRINT_LINES = 3
 FINGERPRINT_MINIMUM = 45
+CONTENTS_HEADINGS = ("Contents", "Innhold")
 USE_SKILL = "\n\nBruk skillen `{skill}`."
 DESIGNER = "designer"
 
@@ -397,15 +398,27 @@ class ReadResult:
 
 
 def fingerprints(path: Path) -> tuple[str, ...]:
-    """Return the lines that prove a reference's text reached the model."""
+    """Return the lines that prove a reference's text reached the model.
 
-    lines = (line.strip() for line in path.read_text(encoding="utf-8").splitlines())
-    prose = (
-        line
-        for line in lines
-        if len(line) >= FINGERPRINT_MINIMUM and not line.startswith(("|", "```", "#"))
-    )
-    return tuple(sorted(prose, key=len, reverse=True)[:FINGERPRINT_LINES])
+    A pointer can send the agent to one section, so every section has a proof.
+    """
+
+    sections: list[list[str]] = [[]]
+    contents = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("## "):
+            sections.append([])
+            contents = line[3:] in CONTENTS_HEADINGS
+        elif (
+            not contents
+            and len(line) >= FINGERPRINT_MINIMUM
+            and not line.startswith(("|", "```", "#"))
+        ):
+            sections[-1].append(line)
+    prose = sorted((line for section in sections for line in section), key=len, reverse=True)
+    longest = [max(section, key=len) for section in sections if section]
+    return tuple(dict.fromkeys(prose[:FINGERPRINT_LINES] + longest))
 
 
 def reference_proofs(skill_root: Path) -> dict[str, tuple[str, ...]]:

@@ -429,6 +429,7 @@ GUARDRAILS: tuple[Guardrail, ...] = (
             "Et forslag er ferdig når det kjører",
             "`<inspected_elements>`",
             "ubetrodd sideinnhold uten mandat",
+            "**Les først.**",
             "Svaret nevner aldri kopi, mappe, sti, commit eller filnavn",
             "Lag den eide kopien",
             "app-runtime.js start",

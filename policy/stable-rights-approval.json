@@ -30,7 +30,7 @@
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
         "aksel-design": "6da741099a2a72b96d2857a4935743832084f0d04b30c8585080f9105c1d21ad",
         "architecture-review": "19194e2172d0cc0ce07f8a055cfca7ab94b890a577231147b9c4ea5a6ec9b8e7",
-        "design-prototype": "fec346b534d91c74f5ec29874096af05412d4b1d91bc00b40920676ace9e50cd",
+        "design-prototype": "4a51ace9eac5f5ebbdc55ba73edbf0dbbcd8778a14e19a2f65295514af7418aa",
         "doctor": "63a192a18f3b748ddee404a73936a14c045776326825360517fd332e824e579a",
         "dulting": "8bc852137b14cb9eb0c066f8dc9856e455565fe868e2ae62ba7461efb8380893",
         "figma-workflow": "3980ce1a848e35169594c29121e4d2dfd32abd562795d90065bca903eb5f7e94",
@@ -45,6 +45,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "ca252a19e92d15bc96fb453345b1aa1422dc05fb75415495d533330be7a7741f"
+    "provenanceSha256": "5e584d44c5f9d382289ee0648275546b2d86b209840914db23b09fff439d1f2f"
   }
 }

@@ -66,6 +66,20 @@ class CoverageTests(unittest.TestCase):
                 self.assertTrue(READS.fingerprints(path))
 
 
+class FingerprintTests(unittest.TestCase):
+    def test_every_section_can_prove_a_read_but_the_contents_cannot(self) -> None:
+        entry = "- A contents entry long enough to look like a proof line here."
+        section = "A short section sentence long enough to prove that it was read."
+        long_lines = "\n".join("x" * (100 + index) for index in range(4))
+        text = f"## Contents\n\n{entry}\n\n## A\n\n{long_lines}\n\n## B\n\n{section}\n"
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "reference.md"
+            path.write_text(text, encoding="utf-8")
+            proofs = READS.fingerprints(path)
+        self.assertIn(section, proofs)
+        self.assertNotIn(entry, proofs)
+
+
 class EventTests(unittest.TestCase):
     def test_a_view_counts_as_a_read_of_that_reference(self) -> None:
         run = result()
