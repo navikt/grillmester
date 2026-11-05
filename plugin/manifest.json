@@ -95,27 +95,11 @@
       "mode": "0644"
     },
     "skills/aksel-design/SKILL.md": {
-      "sha256": "fdea28cfdf3738a6a32444c2d31c4e48771ec09ff6435b647c07de0c78ef23fb",
-      "mode": "0644"
-    },
-    "skills/aksel-design/references/components.md": {
-      "sha256": "ca57e23bd9ca8d7e1522f803cc331ccb6d9da1200124b97fdfee25f8a377bf45",
+      "sha256": "836f0750d11a21efb0925f4b6ba0a4299122bafece3046a94adaf10d65d65f91",
       "mode": "0644"
     },
     "skills/aksel-design/references/patterns.md": {
       "sha256": "86b191d0194e0664e0805349abe4e9620e4fd9b1c903e8066a76dd9f996cc85c",
-      "mode": "0644"
-    },
-    "skills/aksel-design/references/semantic-tokens.md": {
-      "sha256": "5fafcdd95b9a7e77668667602be0582ab403a9a078dad312524b24dfdd403dfe",
-      "mode": "0644"
-    },
-    "skills/aksel-design/references/setup.md": {
-      "sha256": "f792e71a447c2b492894b97819019d4f37bae6440e09c9fe1e10e3e512ef8d5d",
-      "mode": "0644"
-    },
-    "skills/aksel-design/references/tokens.md": {
-      "sha256": "a8741f7f714a0ceb5ab586141caf20013905ea81f842e5875ef3fd6298277049",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
