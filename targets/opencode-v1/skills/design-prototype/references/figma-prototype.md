@@ -22,6 +22,26 @@ på nytt automatisk. Bekreft fortsatt create/edit-kapabilitet før skriving.
 
 ## Innhold
 
+- Innhold
+- Underlag og mål
+- Oppstart: Hent planKey
+- Opprett fil etter eksplisitt godkjenning
+- Aksel-biblioteker i Nav-org
+- Søk og bruk komponenter
+- Preflight mot aktivt bibliotek
+- Vedlikehold av snapshotet
+- Verifiser eksisterende Code Connect read-only
+- Plugin API-mønster for instansiering
+- Gotchas
+- Tabeller — det finnes ingen `Table`-komponent
+- Layout-oppbygging
+- Kontekst rundt en avgrenset modul
+- Flere tilstander av én modul
+- Visuell kontroll og interaksjoner i Figma
+- Lever
+
+## Innhold
+
 - Underlag og mål
 - Oppstart, filopprettelse og Aksel-biblioteker
 - Søk og bruk komponenter

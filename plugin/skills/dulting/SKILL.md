@@ -10,6 +10,17 @@ or a shortcut around a service problem. Base it on actual user insight, product
 data, regulations and the consumer's documented constraints. Distinguish
 verified facts, assumptions and decisions throughout the work.
 
+## Read first
+
+1. Find every row below that the task touches.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Behavioural mapping:** mapping the journey, applying Fogg or EAST, or comparing techniques | [behavioral-patterns.md](references/behavioral-patterns.md) |
+| **Any intervention:** before you design one, for the FORGOOD assessment, experiment design and measurement plan | [ethics-and-evaluation.md](references/ethics-and-evaluation.md) |
+
 ## Scope the problem
 
 1. Read the relevant user journey, research, target state, existing
@@ -36,9 +47,6 @@ motivation, prompt or timing, trust, or a structural constraint.
 - Do not use nudging to conceal insufficient capacity, unresolved regulations
   or a service that does not let the user complete the task.
 
-Load the [behavioural patterns](references/behavioral-patterns.md) when mapping
-the journey, applying Fogg/EAST or comparing specific techniques.
-
 ## Compare interventions
 
 Create two or three genuinely different hypotheses, including a simpler option
@@ -57,11 +65,11 @@ Never use the prototype as evidence that the intervention works in production.
 
 ## Run the ethics gate
 
-Load the [ethics and evaluation reference](references/ethics-and-evaluation.md)
-for the FORGOOD assessment, experiment design and measurement plan. Stop before
-designing or experimenting when the responsible product, subject-matter, legal,
-privacy or accessibility role must make a decision that cannot be derived from
-the sources.
+Run the FORGOOD assessment, experiment design and measurement plan from
+[the ethics and evaluation reference](references/ethics-and-evaluation.md). Stop
+before designing or experimenting when the responsible product, subject-matter,
+legal, privacy or accessibility role must make a decision that cannot be derived
+from the sources.
 
 Require specific clarification for:
 

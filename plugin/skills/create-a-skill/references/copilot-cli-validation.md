@@ -12,6 +12,12 @@ and direct callers affected by a changed name or invocation boundary. Confirm
 the expected source and revision so a shadowing installed copy cannot stand in
 for the edited skill. Report unrelated pre-existing parser errors separately.
 
+## Reference reads
+
+For each reference, run one request that reaches its branch, in a fresh session,
+and confirm from the tool calls that the agent read it before acting. A final
+answer that sounds informed proves nothing. Use the weakest model you support.
+
 ## App discovery
 
 Use a fresh app session in a disposable repository with the intended skill

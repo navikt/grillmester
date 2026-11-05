@@ -9,6 +9,17 @@ description: "Assess incoming issues or pull requests, verify claims and prepare
 Classify, verify, clarify, recommend and prepare;
 issue-management owns approved mutations.
 
+## Read first
+
+1. Find every row below that the task touches, and look again when new facts
+   appear.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Ready item:** you judge an issue or pull request ready for work | [AGENT-BRIEF.md](./AGENT-BRIEF.md), and write its brief |
+
 ## Discover the contract
 
 Establish from consumer instructions and read-only tracker metadata:

@@ -5,6 +5,17 @@ holds what only some runs need.
 
 ## Contents
 
+- Contents
+- Keep the demo running
+- Use the Browser
+- Move from a public demo to the local demo
+- Show alternatives
+- Compare with the current app
+- Start from a new idea
+- Keep the result
+
+## Contents
+
 - [Keep the demo running](#keep-the-demo-running): the helper, startup failures, stopping
 - [Use the Browser](#use-the-browser): actions, addresses and what the tab may show
 - [Move from a public demo to the local demo](#move-from-a-public-demo-to-the-local-demo)

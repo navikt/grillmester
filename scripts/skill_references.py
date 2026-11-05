@@ -4,11 +4,40 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Iterable
+from pathlib import Path
 
 IDENTIFIER = re.compile(r"/?[a-z][a-z0-9-]*\Z")
 CODE_SPAN = re.compile(r"(?<!`)(`+)([^\n]*?)\1(?!`)")
 LINK = re.compile(r"!?\[[^\]\n]*\]\([^\n]*?\)")
 FENCE = re.compile(r"^\s{0,3}(`{3,}|~{3,})")
+NON_REFERENCE_PARTS = frozenset({"assets", "node_modules", "scripts", "templates", "tests"})
+
+
+def disclosed_references(skill_root: Path) -> list[Path]:
+    """Return the Markdown files a skill discloses behind its SKILL.md."""
+    return sorted(
+        path
+        for path in skill_root.rglob("*.md")
+        if path.name != "SKILL.md"
+        and not NON_REFERENCE_PARTS & set(path.relative_to(skill_root).parts)
+    )
+
+
+def prose_lines(text: str) -> list[str]:
+    """Return the lines outside fenced code blocks."""
+    lines: list[str] = []
+    fence: str | None = None
+    for line in text.splitlines():
+        marker = FENCE.match(line)
+        if marker:
+            run = marker.group(1)
+            if fence is None:
+                fence = run
+            elif run[0] == fence[0] and len(run) >= len(fence):
+                fence = None
+        elif fence is None:
+            lines.append(line)
+    return lines
 
 
 def transform_prose(text: str, transform: Callable[[str], str]) -> str:

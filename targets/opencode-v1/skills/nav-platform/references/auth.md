@@ -181,8 +181,9 @@ and response shape from current authoritative Nais documentation and the
 repository implementation. Preserve an existing token cache. Only the token
 provider may cache or store a bearer token, and never stack a second cache on one
 that already caches. A cache the provider owns keys by target, and by user for a
-user-bound token, and refreshes before expiry. Texas caches tokens itself; if a target denies a token after its access policy changed,
-retry once with `skip_cache` set to `true`.
+user-bound token, and refreshes before expiry. Texas caches tokens itself; if a
+target denies a token after its access policy changed, retry once with
+`skip_cache` set to `true`.
 
 ## Auth diagnosis: 401 and 403
 

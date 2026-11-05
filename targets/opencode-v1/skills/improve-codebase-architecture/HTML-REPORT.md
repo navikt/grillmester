@@ -6,6 +6,17 @@ styles, images, modules, or other resources from the network. Do not include
 JavaScript. Build diagrams from semantic HTML and CSS so the report remains
 useful without Mermaid or any other runtime dependency.
 
+## Contents
+
+- Safety contract
+- Scaffold
+- Header
+- Candidate cards
+- Static diagram patterns
+- Style guide
+- Top recommendation
+- Tone
+
 ## Safety contract
 
 Treat repository names, paths, domain terms, ADR text, and all other discovered

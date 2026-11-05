@@ -11,6 +11,14 @@ Each **failure mode** lives beside the lever that cures it, tagged
 
 **Bold terms** in any definition are themselves defined in this glossary.
 
+## Contents
+
+- Predictability
+- Invocation
+- Information Hierarchy
+- Steering
+- Pruning
+
 ## Predictability
 
 The degree to which a skill reliably respects user intent, essential

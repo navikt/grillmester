@@ -9,6 +9,17 @@ Support continuous discovery, risk assessment and competency development. In
 discovery, exploration is the goal: expand the opportunity space and make
 assumptions visible. Conclude only when the user asks you to.
 
+## Read first
+
+1. Find every row below that the task touches.
+2. Read those references before you edit, answer or run a command.
+3. Name the references you read when you report.
+
+| The task touches | Read |
+|---|---|
+| **Unknown term:** an acronym or internal framework you cannot place | [team-rammeverk.md](./references/team-rammeverk.md) |
+| **Resources:** the user wants books, courses or other material | [ressurser.md](./references/ressurser.md), which is curated and not authoritative |
+
 ## Discover the product context
 
 Start with the consumer repository's relevant instructions and documentation,
@@ -95,14 +106,11 @@ Do not process names, personally identifiable examples, employee data or other
 confidential information. Keep the reflection in the conversation unless the
 user has approved a specific target. Do not recommend sharing it with a manager
 or colleagues; that is the user's decision. Do not present the outcome as a
-formal assessment. Curated, non-authoritative resource suggestions are
-available in
-[ressurser.md](./references/ressurser.md).
+formal assessment.
 
 ## Internal frameworks
 
-[team-rammeverk.md](./references/team-rammeverk.md) explains how to handle
-unknown acronyms. The file is not the consumer's team context. Find the
+The reference on acronyms is not the consumer's team context. Find the
 definition in the consumer's own sources or ask the user. Suggest a
 consumer-owned documentation change only after confirming the correct target.
 
