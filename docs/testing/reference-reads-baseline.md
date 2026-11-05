@@ -6,12 +6,16 @@ videre fra en lastet skill til riktig referanse. Om skillen lastes uten hint, st
 [baseline for skillvalg](skill-routing-baseline.md). Kjør målingen med
 `scripts/measure_reference_reads.py`.
 
-Etter endringen ble referansen lest i 148 av 156 økter. Det gjelder alle
+Etter endringen ble referansen lest i 152 av 156 økter. Det gjelder alle
 referanser. Under to av tre:
 
 - `aksel-design/references/components.md`: 1 av 3.
-- `design-prototype/references/application-opening.md`: 0 av 3.
-- `design-prototype/references/design-handoff.md`: 1 av 3.
+
+`design-prototype` er målt på nytt 5. november, etter at pekerne fikk en Les
+først-blokk og verktøyet begynte å telle lesing av én seksjon. Før det sto den på
+10/15. Det var for lavt, for pekeren sender agenten til én seksjon, og verktøyet så
+bare etter filens lengste linjer. De andre skillene er ikke målt på nytt, så tallene
+deres kan være litt lave.
 
 | Skill | Lest |
 | --- | --- |
@@ -19,7 +23,7 @@ referanser. Under to av tre:
 | `app-sandbox-setup` | 12/12 |
 | `architecture-review` | 6/6 |
 | `create-a-skill` | 9/9 |
-| `design-prototype` | 10/15 |
+| `design-prototype` | 14/15 |
 | `diagnosing-bugs` | 3/3 |
 | `domain-modeling` | 6/6 |
 | `dulting` | 6/6 |
