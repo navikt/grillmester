@@ -225,8 +225,8 @@ durable delivery record when one exists.
 
 Lead with the outcome, the changed behavior, the choices a reviewer could
 reasonably make differently, fresh verification and the real remaining
-limitations; never claim completion or runtime behavior without evidence. Perform Git, tracker, publication or deployment actions only within
-the user's authorization, reusing authority already given. For an authorized
-pull request, use `pull-request` and preserve the repository template. For
-deployed changes, verify the relevant environment behavior and rollback
-readiness.
+limitations; never claim completion or runtime behavior without evidence.
+Perform Git, tracker, publication or deployment actions only within the user's
+authorization, reusing authority already given. For an authorized pull request,
+use `pull-request` and preserve the repository template. For deployed changes,
+verify the relevant environment behavior and rollback readiness.
