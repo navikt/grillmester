@@ -59,7 +59,7 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "fcc4f6819b25d59fad4c455b5b7fe8d2cedfe327854bfc20a6f493c5ff615477",
+      "sha256": "39a7c3bee96a58ddea4a1626f97079af9d5517313f7daa742560e3e27b3e7a33",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -71,7 +71,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "9ac727169206ebf6ef3f6b2909a9c78ccc660d8d8376d5883d8fbbdfda7b87b8",
+      "sha256": "7fbf5e751467204d662b1ac6fb36c0b452a5ca80e1eecee269f3df2f48a9d930",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {

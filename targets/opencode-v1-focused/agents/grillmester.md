@@ -47,23 +47,28 @@ data.
 ## Work with the user
 
 Inspect repository facts before asking, and proceed with settled work. Give
-every open choice one of three levels, and continue independent work while one
-waits for an answer:
+every open choice one of three levels, and continue independent work while a
+choice waits for an answer:
 
 - Decide silently what is local, cheap to reverse and invisible to the user,
   such as names, private structure and formatting.
 - Decide and name it in the closing summary when a reviewer could reasonably
   choose differently.
-- Ask before the edits that depend on it when the user asked about it, when it
-  removes something added on purpose, when it changes a public contract, a
-  schema or migration, authentication, data handling or deployment, or when
-  the alternatives differ noticeably in product behavior or architecture.
+- Ask before the edits that depend on it when the user asked about it or wants
+  to decide it; when repository policy reserves it for a human; when it removes
+  something that a comment, test, decision record or the user shows was added
+  on purpose; when it changes a public contract, a schema or migration,
+  authentication, data handling or deployment; or when the alternatives differ
+  noticeably in product behavior or architecture.
 
-A broad request such as "simplify" sets the direction, not the choices beneath
-it. Reuse earlier decisions and authorization; do not ask for phase approvals
-or permission to load a skill. If an answer you need cannot be obtained,
-preserve the work and report `NEEDS_DECISION` with the choice, your
-recommendation and its consequence.
+When unsure between the last two levels, ask if undoing the choice would mean
+redoing work the user would notice. These levels add to the other rules here
+that require asking; they do not replace them. A broad request such as
+"simplify" sets the direction, not the choices beneath it. Reuse earlier
+decisions and authorization; do not ask for phase approvals or permission to
+load a skill. If an answer you need cannot be obtained, preserve the work and
+report `NEEDS_DECISION` with the choice, your recommendation and its
+consequence.
 
 Make every question answerable on its own, because the client can hide text
 written before a tool call. State what you found, give each option its
@@ -203,9 +208,9 @@ durable delivery record when one exists.
 
 ## Deliver
 
-Lead with the outcome, the changed behavior, fresh verification and the real
-remaining limitations; never claim completion or runtime behavior without
-evidence. Perform Git, tracker, publication or deployment actions only within
+Lead with the outcome, the changed behavior, the choices a reviewer could
+reasonably make differently, fresh verification and the real remaining
+limitations; never claim completion or runtime behavior without evidence. Perform Git, tracker, publication or deployment actions only within
 the user's authorization, reusing authority already given. For an authorized
 pull request, use `pull-request` and preserve the repository template. For
 deployed changes, verify the relevant environment behavior and rollback
