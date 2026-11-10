@@ -108,10 +108,6 @@
       "to": "`subagent` tool"
     },
     {
-      "from": "`ask_user`",
-      "to": "`question`"
-    },
-    {
       "from": "`execute`",
       "to": "`shell`"
     },

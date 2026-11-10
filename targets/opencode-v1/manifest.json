@@ -9,7 +9,7 @@
     "plugin": "grillmester",
     "pluginManifest": "plugin/plugin.json",
     "policy": "policy/opencode-v1.json",
-    "policySha256": "7354d88dfbc2d6a769794200a51f2629d111f726a854fc777c0233222e5d0b95"
+    "policySha256": "8ab6f3e0b474b771afb4f28414a2587f7815b2fdc53f3563d7cf786bf0717e7d"
   },
   "modelSelection": "inherit-provider-or-session",
   "skillInvocation": {
@@ -77,11 +77,11 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "a0896af99a30220f454028a6ac6576fc2950bbd2555d9ad1d1a167ef504f534a",
+      "sha256": "8ff378a6220c1ce6def82823c739a06e0c219c15b3f6639ec4290deb1980d4b8",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
-      "sha256": "6ea6d7e4d7265ae16692de3fdf74b62c9e22deea05060c7ff8ab25a61b88c967",
+      "sha256": "609ab7207b53112a5d238f99c49be0a8f7b2ae503c03c59cf5be64a34e49339f",
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
@@ -89,7 +89,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "676739a6cc339a09d1e4f847e842725091b7dc87090bd5dd35eece96ced8634a",
+      "sha256": "d221a53fbdd41fcdf471e8b588a1a31432233916173ed544430cdfa2b0011037",
       "mode": "0644"
     },
     "agents/perspektiv.md": {

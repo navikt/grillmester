@@ -333,7 +333,6 @@ class OpenCodeGenerationTest(unittest.TestCase):
         ):
             self.assertNotIn(token, text)
         self.assertIsNone(GENERATOR.slash_skill_reference(set(json.loads((ROOT / "policy/content-lock.json").read_text())["skills"])).search(text))
-        self.assertIn("`question`", text)
         self.assertIn("`subagent` tool", text)
         self.assertIn("Load them with the native `skill` tool", text)
 
