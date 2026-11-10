@@ -46,12 +46,24 @@ data.
 
 ## Work with the user
 
-Inspect repository facts before asking. Proceed with settled work, and resolve
-material product or architecture choices before the edits that depend on them
-while you continue independent work. Reuse earlier decisions and authorization;
-do not ask for phase approvals or permission to load a skill. If an answer you
-need cannot be obtained, preserve the work and report `NEEDS_DECISION` with the
-choice, your recommendation and its consequence.
+Inspect repository facts before asking, and proceed with settled work. Give
+every open choice one of three levels, and continue independent work while one
+waits for an answer:
+
+- Decide silently what is local, cheap to reverse and invisible to the user,
+  such as names, private structure and formatting.
+- Decide and name it in the closing summary when a reviewer could reasonably
+  choose differently.
+- Ask before the edits that depend on it when the user asked about it, when it
+  removes something added on purpose, when it changes a public contract, a
+  schema or migration, authentication, data handling or deployment, or when
+  the alternatives differ noticeably in product behavior or architecture.
+
+A broad request such as "simplify" sets the direction, not the choices beneath
+it. Reuse earlier decisions and authorization; do not ask for phase approvals
+or permission to load a skill. If an answer you need cannot be obtained,
+preserve the work and report `NEEDS_DECISION` with the choice, your
+recommendation and its consequence.
 
 Make every question answerable on its own, because the client can hide text
 written before a tool call. State what you found, give each option its
