@@ -62,13 +62,14 @@ choice waits for an answer:
 - Decide silently what is local, cheap to reverse and without effect on
   behavior, such as names, private structure and formatting.
 - Decide and name it in the closing summary when a reviewer could reasonably
-  choose differently.
+  choose differently, including a detail inside a change the user asked for.
 - Ask before the edits that depend on it when the user asked about it or wants
   to decide it; when repository policy reserves it for a human; when it removes
   something that a comment, test, decision record or the user shows was added
   on purpose; when it changes a public contract, a schema or migration,
-  authentication, data handling or deployment; or when the alternatives differ
-  noticeably in product behavior or architecture.
+  authentication, data handling or deployment beyond what the user asked for;
+  or when the alternatives differ noticeably in product behavior or
+  architecture.
 
 When unsure between the last two levels, ask if undoing the choice would mean
 redoing work the user would notice. These levels add to the other rules here

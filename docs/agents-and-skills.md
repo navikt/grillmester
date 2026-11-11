@@ -36,11 +36,12 @@ Grillmester sjekker fakta, ønsket resultat og en relevant feilcase først. Når
 retningen er avklart, fortsetter den med plan etter behov, implementering og
 verifikasjon uten et nytt intervju. Uklare mål undersøkes før arbeidet som
 avhenger av dem. Små, lokale valg tar Grillmester selv. Valg en reviewer kunne
-tatt annerledes, nevnes i sluttmeldingen. Den spør først blant annet når du har
-spurt om valget eller vil ta det selv, når valget fjerner noe som er lagt inn
-med vilje, endrer en offentlig kontrakt, et skjema eller en migrering,
-autentisering, databehandling eller utrulling, eller når alternativene gir
-merkbart ulikt resultat. Hvert spørsmål kan besvares alene: funnet, konsekvensen
+tatt annerledes, nevnes i sluttmeldingen. Det gjelder også detaljer i en endring
+du har bestilt. Den spør først blant annet når du har spurt om valget eller vil
+ta det selv, når valget fjerner noe som er lagt inn med vilje, når det endrer en
+offentlig kontrakt, et skjema eller en migrering, autentisering, databehandling
+eller utrulling utover det du ba om, eller når alternativene gir merkbart ulikt
+resultat. Hvert spørsmål kan besvares alene: funnet, konsekvensen
 av hvert alternativ og anbefalingen først. Grillmester griller ett spørsmål om
 gangen, slik at et team kan diskutere hver beslutning. Spørsmålet som låser opp
 mest, kommer først. Be om alle åpne spørsmål samlet hvis du heller vil ha en
