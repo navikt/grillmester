@@ -1,5 +1,5 @@
 ---
-description: "Grill the user relentlessly about a plan, decision or idea, one round of numbered questions at a time. Use for unresolved intent, assumptions or design choices, or when the user asks to be grilled."
+description: "Grill the user relentlessly about a plan, decision or idea, one question at a time. Use for unresolved intent, assumptions or design choices, or when the user asks to be grilled."
 ---
 
 Use the `skill` tool to load `grilling`, then follow that skill for this request.

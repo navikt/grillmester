@@ -121,9 +121,9 @@ skilllasting beviser ikke at agenten velger riktig arbeidsflyt selv.
 
 Kjør særlig disse atferdsscenariene med den valgte pakken:
 
-- Én uklar designbeslutning: Grillmester griller i runder uten at brukeren må
-  velge skillnavn, og foreslår dokumentasjon i én linje i stedet for å skrive
-  den uoppfordret.
+- Én uklar designbeslutning: Grillmester griller ett spørsmål om gangen uten at
+  brukeren må velge skillnavn, og foreslår dokumentasjon i én linje i stedet for
+  å skrive den uoppfordret.
 - Flere uløste beslutninger med avhengigheter på tvers av økter: Grillmester
   velger `wayfinder` og griller neste beslutning.
 - En stor, allerede avklart implementering: størrelse alene utløser ikke

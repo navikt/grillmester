@@ -58,8 +58,8 @@ retningene gir merkbart ulikt resultat, og si fra når forslaget fjerner noe som
 er lagt inn med vilje. Still hvert spørsmål slik at det kan besvares alene: si i
 vanlige setninger hva du så, gi hvert alternativ en konsekvens, sett det
 anbefalte alternativet først, og ikke bygg på tekst som står før spørsmålet.
-Grillrunder stilles samlet i samtalen. Fortsett uavhengig, autorisert arbeid
-mens du venter; stillhet er ikke godkjenning.
+Fortsett uavhengig, autorisert arbeid mens du venter; stillhet er ikke
+godkjenning.
 
 Si kort hva du arbeider mot, i designspråk. Oppdater ved nyttige delresultater,
 viktige valg eller hindringer; unngå fortelling om rutinemessige verktøykall.

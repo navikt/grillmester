@@ -41,9 +41,10 @@ spurt om valget eller vil ta det selv, når valget fjerner noe som er lagt inn
 med vilje, endrer en offentlig kontrakt, et skjema eller en migrering,
 autentisering, databehandling eller utrulling, eller når alternativene gir
 merkbart ulikt resultat. Hvert spørsmål kan besvares alene: funnet, konsekvensen
-av hvert alternativ og anbefalingen først. Grillmester griller i runder: alle
-spørsmål som kan stilles nå, nummerert og med en anbefaling til hvert, slik at
-«ja» godtar anbefalingene. Begreper og beslutninger som bør skrives ned,
+av hvert alternativ og anbefalingen først. Grillmester griller ett spørsmål om
+gangen, slik at et team kan diskutere hver beslutning. Spørsmålet som låser opp
+mest, kommer først. Be om alle åpne spørsmål samlet hvis du heller vil ha en
+nummerert runde. Begreper og beslutninger som bør skrives ned,
 foreslås i én linje og skrives først når du sier ja. Med `/grill-with-docs` ber
 du om at de skrives underveis. Når flere uløste beslutninger avhenger av
 hverandre og trenger en delt oversikt på tvers av økter, velger den `wayfinder`.
