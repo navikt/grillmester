@@ -387,6 +387,13 @@ patterns. It adds no third-party material. The rights journal binds this content
 content lock and this provenance record while preserving the underlying decision in
 #56.
 
+PR [#131](https://github.com/navikt/grillmester/pull/131) reviews the rule that
+`designer` and `doctor-who` ask questions that can be answered on their own. It
+replaces the instruction to use the client's question tool, so the OpenCode policy no
+longer rewrites that tool name. It adds no third-party material. The rights journal
+binds this content and this provenance record while preserving the underlying decision
+in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `produktledelse`,
