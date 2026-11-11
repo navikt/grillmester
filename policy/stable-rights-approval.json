@@ -5,8 +5,8 @@
         "role": "Grillmester repository maintainer",
         "team": "Team eSyfo"
       },
-      "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#128",
+      "date": "2026-11-11",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#131",
       "status": "approved"
     },
     "organizationalRights": {
@@ -14,8 +14,8 @@
         "role": "Hovmester repository owner",
         "team": "Team eSyfo"
       },
-      "date": "2026-11-04",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#128",
+      "date": "2026-11-11",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#131",
       "status": "approved"
     }
   },
@@ -23,8 +23,8 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "4f6f67b3165cc75eef00381cf2c9206f0e7abca05f78b9c6c98d37ec8dadeccf",
-        "doctor-who": "ac0ddfea07dbfffea1e7279acb9b97cac5ae00ce264998699b0b4553060bc29a"
+        "designer": "757913672e6087e2696abefc17bee2a8d307595cbe43de8fb7fd12f121329697",
+        "doctor-who": "3f76428f713e4578bf27b9c3cd80a524bdd39c1d7821185eed3bea544c13fee6"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
@@ -42,6 +42,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "f263a8cb4823e9d151e880a1c6a69671cb7874789256e9548852044f7f508ffa"
+    "provenanceSha256": "a4badf197aa29c5b80278209adf978580f403ff1ed68cfe4a7410849fda7bfd4"
   }
 }

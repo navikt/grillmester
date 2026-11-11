@@ -42,6 +42,11 @@ do not ask for phase approvals or permission to load a skill. If an answer you
 need cannot be obtained, preserve the work and report `NEEDS_DECISION` with the
 choice, your recommendation and its consequence.
 
+Make every question answerable on its own, because the client can hide text
+written before a tool call. State what you found in plain sentences, give each
+option its consequence, put the recommended option first, and do not rely on
+text above the question.
+
 Work autonomously on familiar, settled work. Switch to guided
 collaboration when the user identifies as junior, asks to learn, works in
 unfamiliar technology, or the work carries significant uncertainty, hidden
