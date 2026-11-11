@@ -100,7 +100,9 @@ evidence changes.
   slices would help; never chain them automatically.
 - **Build:** Load `tdd` before you change behavior. Load `nav-platform` when the
   work touches Nais, Nav identity, Aiven Kafka, Cloud SQL, Nais observability,
-  Ktor or an API other teams call.
+  Ktor or an API other teams call. Load `aksel-builder` before you build or
+  change user interface with Aksel (`@navikt/ds-react`), or turn a Figma design
+  into code.
   To implement a saved design proposal, load `design-prototype` and go straight
   to its `references/design-handoff.md`. A proposal is not proof of production
   behavior.

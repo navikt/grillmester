@@ -1,9 +1,11 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 30 skills. The sources below record attribution
-and the reviewed import boundary. They are not runtime dependencies and do not
-create a synchronization relationship.
+`plugin/`: six agents and 29 skills. The sources below record attribution
+and the reviewed import boundary. None is a runtime dependency, and an adapted
+source does not follow its upstream. Only a [ported skill](#ported-skills) is
+kept identical to its owner's copy, at a pinned revision that moves through a
+reviewed change in this repository.
 
 The authoritative component-by-component bill of materials is
 [`policy/content-lock.json`](policy/content-lock.json). It records every agent
@@ -407,11 +409,24 @@ the `grilling` skill without naming rounds. It adds no third-party material. The
 journal binds this content and this provenance record while preserving the underlying
 decision in #56.
 
+PR [#135](https://github.com/navikt/grillmester/pull/135) reviews the replacement
+of the imported `aksel-design` and `figma-workflow` skills with `aksel-builder`,
+which is ported unchanged from `navikt/copilot` as described under
+[Ported skills](#ported-skills). Within the rights scope it removes those two
+skills, changes the pointers to them in `designer`, `accessibility-review`,
+`design-prototype` and `dulting`, and adds an Aksel lookup check to `doctor`.
+`aksel-builder` itself is outside the Hovmester rights scope. It is Nav's own
+material under the MIT license; the change adds no material from outside Nav. The
+rights journal binds this content, the content lock and this provenance record
+while preserving the underlying decision in #56.
+
 Imported skills:
 
-- `accessibility-review`, `aksel-design`, `figma-workflow`, `produktledelse`,
-  `dulting`; `okr`, `team-status` and `workshop-design` are consolidated into
-  `produktledelse`, and the content lock records them as its lineage
+- `accessibility-review`, `produktledelse`, `dulting`; `okr`, `team-status` and
+  `workshop-design` are consolidated into `produktledelse`, and the content lock
+  records them as its lineage
+- `aksel-design` and `figma-workflow` were imported too. They are no longer
+  shipped; the ported `aksel-builder` replaces them.
 - Hovmester's visual `prototype` workflow is imported as `design-prototype`;
   the pilot's behavior-oriented `prototype` retains its original ID.
 
@@ -429,9 +444,9 @@ reviewed source lineage, not a runtime dependency or synchronization
 relationship. See the MIT notice in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The portable adaptation keeps the design, Aksel, Figma, product, workshop,
-team-status, and visual-prototype workflows, plus the consolidated Nav context
-described above. It removes ambient
+The portable adaptation keeps the design, accessibility, Figma-design, product,
+workshop, team-status, and visual-prototype workflows, plus the consolidated Nav
+context described above. It removes ambient
 repository synchronization, fixed Team eSyfo repositories or project boards,
 template placeholders, and automatic external writes. Figma, GitHub, and
 delivery side effects require an explicit
@@ -494,6 +509,30 @@ to `navikt/aksel` revision
 license, Copyright 2025 Nav (Arbeids- og velferdsdirektoratet). Grillmester's
 snapshots are reference material, not an authoritative replacement for the
 live Aksel libraries; the complete notice is included in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ported skills
+
+A ported skill is owned and maintained by another team and is taken in unchanged,
+as [ADR 0038](docs/adr/0038-delte-skills-tas-inn-uendret.md) decides. The content
+lock records it with the disposition `ported` and binds its files with
+`contentSha256`, so validation fails when a file is edited here.
+`scripts/port_skill.py` moves the pinned revision and proves the copy against a
+checkout of the source, and it accepts only a commit on a branch fetched from the
+repository the lock names. Content checks still run on a ported skill; a finding
+that cannot be fixed here either stops the revision or is recorded as reviewed
+under `acceptedFindings` in the content lock. Nothing is fetched at runtime: a
+new revision reaches users only through a new Grillmester release.
+
+`aksel-builder` is `skills/aksel-builder` from `navikt/copilot` at
+`381a544c6ddc5a144ad55f11be84a13e060c81b4`, byte for byte and under the same
+skill ID: its `SKILL.md` and `references/`, which is every file except the
+source's catalog files `README.md` and `metadata.json`. The Aksel team maintains
+it there, and
+[Aksel's documentation](https://aksel.nav.no/grunnleggende/kode/mcp-server.md)
+recommends it together with the Aksel MCP server. The OpenCode target adapts the
+skill as it adapts every skill, so the byte identity holds for `plugin/`. The
+skill is distributed under the MIT license; see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Consumer-owned material
@@ -632,4 +671,6 @@ between alternatives, and keeps the numbered round for a user who asks for it.
 
 When imported material changes, update the content lock and this document in
 the same change. Advancing a source revision means reviewing the concrete
-upstream diff; changing only the recorded pin is insufficient.
+upstream diff; changing only the recorded pin is insufficient. For a ported
+skill, `scripts/port_skill.py` takes in the files at the new revision and updates
+the pin here; review that diff and measure the skill's references before release.

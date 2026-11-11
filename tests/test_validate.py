@@ -456,7 +456,7 @@ class PackageValidationTest(unittest.TestCase):
     def test_broken_link_in_progressive_reference_is_rejected(self) -> None:
         reference = (
             self.root
-            / "plugin/skills/aksel-design/references/patterns.md"
+            / "plugin/skills/design-prototype/references/design-handoff.md"
         )
         reference.write_text(
             reference.read_text(encoding="utf-8")
@@ -464,6 +464,135 @@ class PackageValidationTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.assert_error("linked file does not exist")
+
+    def test_ported_skill_is_valid_as_its_owner_wrote_it(self) -> None:
+        # The owner's frontmatter and long references break house rules on purpose.
+        skill = self.root / "plugin/skills/aksel-builder"
+        frontmatter, _ = VALIDATE.parse_frontmatter(skill / "SKILL.md")
+        self.assertEqual("MIT", frontmatter["license"])
+        self.assertEqual("frontend", frontmatter["metadata"]["domain"])
+        self.assertTrue(
+            any(
+                len(path.read_text(encoding="utf-8").splitlines())
+                > VALIDATE.REFERENCE_CONTENTS_LIMIT
+                for path in (skill / "references").iterdir()
+            )
+        )
+        self.assertEqual([], self.errors())
+
+    def test_local_edit_of_a_ported_skill_is_rejected(self) -> None:
+        reference = self.root / "plugin/skills/aksel-builder/references/icons.md"
+        reference.write_text(
+            reference.read_text(encoding="utf-8") + "\nA local fix.\n",
+            encoding="utf-8",
+        )
+        self.assert_error("ported skill differs from the content lock")
+
+    def test_extra_file_in_a_ported_skill_is_rejected(self) -> None:
+        extra = self.root / "plugin/skills/aksel-builder/references/local.md"
+        extra.write_text("# Local\n", encoding="utf-8")
+        self.assert_error("ported skill differs from the content lock")
+
+    def test_ported_frontmatter_fields_stay_with_ported_skills(self) -> None:
+        path = self.root / "plugin/skills/review/SKILL.md"
+        text = path.read_text(encoding="utf-8")
+        path.write_text(
+            text.replace("---\n", "---\nlicense: MIT\n", 1), encoding="utf-8"
+        )
+        self.assert_error("unsupported frontmatter keys: ['license']")
+
+    def test_long_ported_reference_needs_no_contents_list(self) -> None:
+        errors: list[str] = []
+        with tempfile.TemporaryDirectory() as temporary:
+            skill = Path(temporary)
+            (skill / "long.md").write_text(
+                "# Long\n\n## One\n\n" + "text\n" * 100, encoding="utf-8"
+            )
+            VALIDATE.validate_disclosed_references(
+                skill, "[long](long.md)", errors, ported=True
+            )
+            VALIDATE.validate_disclosed_references(skill, "No link.", errors, ported=True)
+        self.assertEqual(1, len(errors))
+        self.assertIn("reference is not linked from SKILL.md", errors[0])
+
+    def test_ported_contract_needs_one_source_and_a_digest(self) -> None:
+        original = self.load_json("policy/content-lock.json")
+        lineage = [{"source": "hovmester", "sourcePath": "x"}]
+        for label, change in (
+            ("no digest", lambda contract: contract.pop("contentSha256")),
+            ("two sources", lambda contract: contract.update(source=["nav-aksel", "pilot"])),
+            ("lineage", lambda contract: contract.update(lineage=lineage)),
+        ):
+            with self.subTest(label):
+                lock = json.loads(json.dumps(original))
+                change(lock["skills"]["aksel-builder"])
+                self.write_json("policy/content-lock.json", lock)
+                self.assert_error(
+                    "aksel-builder is ported, so it must be a skill with one source"
+                )
+
+    def test_an_agent_cannot_be_ported(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        lock["agents"]["researcher"].update(disposition="ported", contentSha256="0" * 64)
+        self.write_json("policy/content-lock.json", lock)
+        self.assert_error("agent researcher is ported, so it must be a skill")
+
+    def test_a_finding_in_a_ported_skill_must_be_accepted_in_the_lock(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        accepted = lock["skills"]["aksel-builder"]["acceptedFindings"]
+        dropped = accepted.pop()
+        self.write_json("policy/content-lock.json", lock)
+        self.assert_error(
+            f"ported skill aksel-builder has a finding nobody has accepted: {dropped}"
+        )
+
+    def test_an_accepted_finding_that_no_longer_occurs_is_rejected(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        lock["skills"]["aksel-builder"]["acceptedFindings"].append(
+            "SKILL.md: dangling skill invocation: gone"
+        )
+        self.write_json("policy/content-lock.json", lock)
+        self.assert_error(
+            "accepts a finding in aksel-builder that no longer occurs: "
+            "SKILL.md: dangling skill invocation: gone"
+        )
+
+    def test_accepted_findings_belong_to_ported_skills(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        lock["skills"]["review"]["acceptedFindings"] = ["SKILL.md: anything"]
+        self.write_json("policy/content-lock.json", lock)
+        self.assert_error("review acceptedFindings must be a list of distinct findings")
+
+    def test_nested_frontmatter_is_accepted_only_under_metadata(self) -> None:
+        path = self.root / "plugin/agents/designer.agent.md"
+        text = path.read_text(encoding="utf-8")
+        nested = text.replace("skills:\n  - design-prototype\n", "skills:\n  design-prototype: true\n")
+        self.assertNotEqual(text, nested)
+        path.write_text(nested, encoding="utf-8")
+        self.assert_error("unsupported frontmatter syntax")
+
+    def test_a_commit_sha_is_not_a_national_id_where_revisions_are_recorded(self) -> None:
+        # Eleven digits in a row, written so this file does not contain them.
+        revision = "a" + "1234567" + "8901" + "b" * 28
+        provenance = self.root / "PROVENANCE.md"
+        provenance.write_text(
+            provenance.read_text(encoding="utf-8") + f"\nMoved to `{revision}`.\n",
+            encoding="utf-8",
+        )
+        self.assertFalse(
+            [error for error in self.errors() if "looks like a national ID" in error]
+        )
+        readme = self.root / "README.md"
+        readme.write_text(
+            readme.read_text(encoding="utf-8") + f"\n{revision}\n", encoding="utf-8"
+        )
+        self.assert_error("README.md: contains an 11-digit value")
+
+    def test_only_a_ported_skill_carries_a_content_digest(self) -> None:
+        lock = self.load_json("policy/content-lock.json")
+        lock["skills"]["review"]["contentSha256"] = "0" * 64
+        self.write_json("policy/content-lock.json", lock)
+        self.assert_error("review has a contentSha256 but is not ported")
 
     def test_legacy_runtime_id_is_rejected(self) -> None:
         path = self.root / "plugin/skills/review/SKILL.md"

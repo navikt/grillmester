@@ -36,6 +36,10 @@ ble slått sammen med `issue-management`. Oppdeling og issue-forespørsler gikk 
 vurdering av en feilrapport gikk fra 2 av 3 til 0 av 3. Opus 5.5, målt utenfor Copilot
 CLI, fant skillen og leste `triage.md` og `AGENT-BRIEF.md` for den samme forespørselen.
 
+Radene for `aksel-design` og `figma-workflow` viser de to skillene slik de var
+4. november. `aksel-builder` har erstattet dem, og den nye målingen står under
+[Etter aksel-builder](#etter-aksel-builder).
+
 | Scenario | Agent | Treff | Uten skill | Lastet |
 | --- | --- | --- | --- | --- |
 | `grilling` | grillmester | 0/3 | 3 | – |
@@ -73,3 +77,23 @@ CLI, fant skillen og leste `triage.md` og `AGENT-BRIEF.md` for den samme foresp�
 | `accessibility-review` | designer | 3/3 | 0 | `accessibility-review` 3 |
 | `no-skill-typo` | grillmester | 3/3 | 3 | – |
 | `no-skill-question` | grillmester | 3/3 | 3 | – |
+
+## Etter aksel-builder
+
+Målt 11. november 2026 med samme oppsett, etter at `aksel-builder` erstattet
+`aksel-design` og `figma-workflow`
+([ADR 0038](../adr/0038-delte-skills-tas-inn-uendret.md)). De to første scenarioene
+har beholdt ID-ene og forventer nå `aksel-builder`. Det tredje er nytt: en utvikler
+ber Grillmester bygge et skjema og sier at teamet bruker Navs designsystem, uten å
+nevne Aksel eller pakkenavnet. Grillmester-prompten navngir `aksel-builder` i
+Build-fasen.
+
+| Scenario | Agent | Treff | Uten skill | Lastet |
+| --- | --- | --- | --- | --- |
+| `aksel-design` | designer | 3/3 | 0 | `aksel-builder` 3 |
+| `figma-workflow` | designer | 2/3 | 0 | `aksel-builder` 2, `design-prototype` 2 |
+| `aksel-builder` | grillmester | 3/3 | 0 | `aksel-builder` 3, `tdd` 1 |
+
+Figma til kode gikk fra 3 til 2 av 3: én økt lastet bare `design-prototype`. Det er
+innenfor det tre kjøringer kan skille, men `figma-workflow` hadde en smalere
+utløser.

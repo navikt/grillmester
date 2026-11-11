@@ -42,6 +42,7 @@ SLASH_COMPONENT_ID = re.compile(r"/((?:grillmester)-[a-z0-9-]+)\b")
 QUALIFIED_COMPONENT_ID = re.compile(r"`grillmester:([a-z][a-z0-9-]+)`")
 REALISTIC_NATIONAL_ID = re.compile(r"(?<!\d)\d{11}(?!\d)")
 FIGMA_COMPONENT_KEY = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
+COMMIT_SHA = FIGMA_COMPONENT_KEY
 FIGMA_KEY_PATHS = {
     "plugin/skills/design-prototype/references/aksel-figma-katalog.md",
     "plugin/skills/design-prototype/references/aksel-figma-katalog.json",
@@ -60,9 +61,18 @@ CONTENT_MANIFEST_PATHS = {
     *FOCUSED_MANIFEST_PATHS,
 }
 STABLE_RIGHTS_APPROVAL_PATH = "policy/stable-rights-approval.json"
+CONTENT_LOCK_PATH = "policy/content-lock.json"
+# These files record source revisions, and scripts/port_skill.py moves one of them.
+REVISION_RECORD_PATHS = {
+    CONTENT_LOCK_PATH,
+    "PROVENANCE.md",
+    "THIRD_PARTY_NOTICES.md",
+    "plugin/THIRD_PARTY_NOTICES.md",
+}
 SHA256_DIGEST_PATHS = {
     *CONTENT_MANIFEST_PATHS,
     STABLE_RIGHTS_APPROVAL_PATH,
+    CONTENT_LOCK_PATH,
 }
 RELEASE_TEST_BASELINE_PATH = "scripts/release_test_baseline.py"
 SHA256_DIGEST = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
@@ -116,6 +126,11 @@ SKILL_FRONTMATTER_KEYS = {
     "user-invocable",
     "disable-model-invocation",
 }
+# A ported skill is byte-identical to its owner's copy (ADR 0038), so it keeps
+# the optional Agent Skills fields its owner wrote.
+PORTED_SKILL_FRONTMATTER_KEYS = {"license", "metadata"}
+NESTED_FRONTMATTER_KEYS = {"metadata"}
+PORTED = "ported"
 
 LANGUAGE_FLOOR = (
     "Respond in the user's language. Keep technical and mechanical identifiers in "
@@ -770,6 +785,34 @@ def load_content_lock(
                 or sources.get("grillmester", {}).get("repository") != "navikt/grillmester"
             ):
                 errors.append(f"original {kind} {component_id} must be Grillmester-authored")
+            ported = contract.get("disposition") == PORTED
+            digest = contract.get("contentSha256")
+            if ported and (
+                kind != "skill"
+                or not isinstance(contract.get("source"), str)
+                or contract.get("lineage")
+                or not isinstance(digest, str)
+                or not SHA256_DIGEST.fullmatch(digest)
+            ):
+                errors.append(
+                    f"content lock {kind} {component_id} is ported, so it must be a skill "
+                    "with one source, no lineage and a contentSha256"
+                )
+            if not ported and digest is not None:
+                errors.append(
+                    f"content lock {kind} {component_id} has a contentSha256 but is not ported"
+                )
+            accepted = contract.get("acceptedFindings")
+            if accepted is not None and (
+                not ported
+                or not isinstance(accepted, list)
+                or not all(isinstance(item, str) and item for item in accepted)
+                or len(set(accepted)) != len(accepted)
+            ):
+                errors.append(
+                    f"content lock {kind} {component_id} acceptedFindings must be a list "
+                    "of distinct findings on a ported skill"
+                )
             if not contract.get("source"):
                 errors.append(f"content lock {kind} {component_id} needs a source")
             else:
@@ -892,9 +935,20 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, Any], str]:
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         if line.startswith("  - "):
-            if current_list is None:
+            if current_list is None or not isinstance(data[current_list], list):
                 raise FrontmatterError(f"line {number}: list item without a key")
             data[current_list].append(parse_scalar(line[4:]))
+            continue
+        nested = re.fullmatch(r"  ([a-z][a-z0-9-]*):\s*(.*)", line)
+        if nested and current_list in NESTED_FRONTMATTER_KEYS and (
+            data[current_list] == [] or isinstance(data[current_list], dict)
+        ):
+            # One level of mapping, as in the Agent Skills `metadata` field.
+            mapping = data[current_list] or {}
+            if nested.group(1) in mapping:
+                raise FrontmatterError(f"line {number}: duplicate key {nested.group(1)}")
+            mapping[nested.group(1)] = parse_scalar(nested.group(2))
+            data[current_list] = mapping
             continue
         match = re.fullmatch(r"([a-z][a-z0-9-]*):(?:\s*(.*))?", line)
         if not match:
@@ -926,7 +980,7 @@ def validate_manifests(root: Path, errors: list[str]) -> str | None:
         errors.append("package-manifest.json must contain exactly one package")
         return None
     expected_definitions = [
-        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 30},
+        {"name": "grillmester", "path": "plugin", "agents": 6, "skills": 29},
     ]
     if package_definitions != expected_definitions:
         errors.append("package-manifest.json package roster or counts have drifted")
@@ -1218,8 +1272,22 @@ def contents_entries(text: str) -> list[str]:
     return entries
 
 
+def ported_content_digest(skill_root: Path) -> str:
+    """Bind a ported skill's complete file roster, as scripts/port_skill.py does."""
+
+    manifest = {
+        path.relative_to(skill_root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(skill_root.rglob("*"))
+        if path.is_file()
+    }
+    canonical = json.dumps(
+        manifest, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
 def validate_disclosed_references(
-    skill_root: Path, body: str, errors: list[str]
+    skill_root: Path, body: str, errors: list[str], *, ported: bool = False
 ) -> None:
     """A reference nobody can reach, or scan, is hidden information."""
 
@@ -1232,7 +1300,8 @@ def validate_disclosed_references(
         if reference.resolve() not in linked:
             errors.append(f"{reference}: reference is not linked from SKILL.md")
         text = reference.read_text(encoding="utf-8")
-        if len(text.splitlines()) <= REFERENCE_CONTENTS_LIMIT:
+        if ported or len(text.splitlines()) <= REFERENCE_CONTENTS_LIMIT:
+            # A ported reference keeps its owner's layout; reads are measured instead.
             continue
         headings = second_level_headings(text)
         if not headings or headings[0] not in REFERENCE_CONTENTS_HEADINGS:
@@ -1296,10 +1365,19 @@ def validate_skills(
                 errors.append(
                     f"{path}: cloud activation evidence boundary is missing or has drifted"
                 )
-        unknown_keys = set(frontmatter) - SKILL_FRONTMATTER_KEYS
+        expected = contracts.get(skill_id)
+        ported = expected is not None and expected.get("disposition") == PORTED
+        allowed_keys = SKILL_FRONTMATTER_KEYS | (
+            PORTED_SKILL_FRONTMATTER_KEYS if ported else set()
+        )
+        unknown_keys = set(frontmatter) - allowed_keys
         if unknown_keys:
             errors.append(f"{path}: unsupported frontmatter keys: {sorted(unknown_keys)}")
-        expected = contracts.get(skill_id)
+        if ported and ported_content_digest(path.parent) != expected.get("contentSha256"):
+            errors.append(
+                f"{path.parent}: ported skill differs from the content lock; change it "
+                "at its source and take it in with scripts/port_skill.py"
+            )
         if expected is None:
             errors.append(f"unexpected skill {skill_id}; update the reviewed skill contract first")
         else:
@@ -1316,7 +1394,7 @@ def validate_skills(
                     errors.append(f"{path}: {key} must be {expected_value!r}")
         skill_root = path.parent
         validate_skill_links(path, body, skill_root, errors)
-        validate_disclosed_references(skill_root, body, errors)
+        validate_disclosed_references(skill_root, body, errors, ported=ported)
         for resource in sorted(skill_root.rglob("*.md")):
             if resource == path:
                 continue
@@ -1455,7 +1533,17 @@ def validate_content(
     agent_ids: set[str],
     skill_ids: set[str],
     errors: list[str],
+    *,
+    accepted_ported_findings: Mapping[str, Any] | None = None,
 ) -> None:
+    """Check runtime text. A ported skill's text cannot be fixed here, so each
+    finding in it must be one the content lock records as reviewed and accepted."""
+
+    accepted_ported_findings = accepted_ported_findings or {}
+    ported_findings: dict[str, list[str]] = {
+        skill_id: [] for skill_id in accepted_ported_findings
+    }
+    repository_errors = errors
     known_ids = agent_ids | skill_ids
     legacy_skill_ids = sorted(
         (LEGACY_SKILL_PREFIX + skill_id for skill_id in skill_ids),
@@ -1474,6 +1562,11 @@ def validate_content(
         text = path.read_text(encoding="utf-8")
         formatted_component_ids = set(COMPONENT_ID.findall(text))
         relative_path = path.relative_to(plugin_root).as_posix()
+        parts = relative_path.split("/")
+        ported_skill = (
+            parts[1] if parts[0] == "skills" and parts[1] in ported_findings else None
+        )
+        errors = [] if ported_skill else repository_errors
         forbidden = FORBIDDEN_RUNTIME_IDS.search(text)
         if relative_path == "skills/doctor/SKILL.md":
             # The read-only setup audit must name the retired distribution it detects.
@@ -1527,6 +1620,25 @@ def validate_content(
         for component_id in QUALIFIED_COMPONENT_ID.findall(text):
             if component_id not in known_ids:
                 errors.append(f"{path}: dangling qualified component reference: {component_id}")
+        if ported_skill:
+            within_skill = "/".join(parts[2:])
+            ported_findings[ported_skill].extend(
+                f"{within_skill}: {error.removeprefix(f'{path}: ')}" for error in errors
+            )
+    errors = repository_errors
+    for skill_id, found in sorted(ported_findings.items()):
+        accepted = accepted_ported_findings[skill_id]
+        accepted = set(accepted) if isinstance(accepted, list) else set()
+        for finding in sorted(set(found) - accepted):
+            errors.append(
+                f"ported skill {skill_id} has a finding nobody has accepted: {finding}. "
+                "Its text cannot be changed here: decline the revision, or review the "
+                "finding and record it under acceptedFindings in the content lock"
+            )
+        for finding in sorted(accepted - set(found)):
+            errors.append(
+                f"content lock accepts a finding in {skill_id} that no longer occurs: {finding}"
+            )
 
     for path in sorted(root.rglob("*")):
         if not path.is_file() or ".git" in path.parts:
@@ -1537,18 +1649,21 @@ def validate_content(
             continue
         relative_path = path.relative_to(root).as_posix()
         national_id_matches = list(REALISTIC_NATIONAL_ID.finditer(text))
-        if national_id_matches and (
-            relative_path in FIGMA_KEY_PATHS
-            or relative_path in SHA256_DIGEST_PATHS
-            or relative_path == RELEASE_TEST_BASELINE_PATH
-        ):
-            if relative_path in SHA256_DIGEST_PATHS:
-                digest_pattern = SHA256_DIGEST
-            elif relative_path == RELEASE_TEST_BASELINE_PATH:
-                digest_pattern = ARTIFACT_HEX_DIGEST
-            else:
-                digest_pattern = FIGMA_COMPONENT_KEY
-            key_spans = [match.span() for match in digest_pattern.finditer(text)]
+        digest_patterns = []
+        if relative_path in SHA256_DIGEST_PATHS:
+            digest_patterns.append(SHA256_DIGEST)
+        if relative_path == RELEASE_TEST_BASELINE_PATH:
+            digest_patterns.append(ARTIFACT_HEX_DIGEST)
+        if relative_path in FIGMA_KEY_PATHS:
+            digest_patterns.append(FIGMA_COMPONENT_KEY)
+        if relative_path in REVISION_RECORD_PATHS:
+            digest_patterns.append(COMMIT_SHA)
+        if national_id_matches and digest_patterns:
+            key_spans = [
+                match.span()
+                for digest_pattern in digest_patterns
+                for match in digest_pattern.finditer(text)
+            ]
             national_id_matches = [
                 match
                 for match in national_id_matches
@@ -1640,8 +1755,8 @@ def validate_package_rosters(
 ) -> None:
     if len(agent_ids) != 6:
         errors.append(f"plugin must contain 6 agents, found {len(agent_ids)}")
-    if len(skill_ids) != 30:
-        errors.append(f"plugin must contain 30 skills, found {len(skill_ids)}")
+    if len(skill_ids) != 29:
+        errors.append(f"plugin must contain 29 skills, found {len(skill_ids)}")
 
 
 def validate_assets(root: Path, errors: list[str]) -> None:
@@ -1813,6 +1928,11 @@ def validate_repo(root: Path) -> list[str]:
         agent_ids,
         skill_ids,
         errors,
+        accepted_ported_findings={
+            skill_id: contract.get("acceptedFindings", [])
+            for skill_id, contract in skill_contracts.items()
+            if isinstance(contract, dict) and contract.get("disposition") == PORTED
+        },
     )
     return errors
 

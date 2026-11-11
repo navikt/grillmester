@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "0b97ceb5df46efd835b93dbecb43c9abbbb1b710113e64cfaf333e5a942a59a4",
+    "payloadManifestSha256": "adcb1226d6eda917796b07c0907da4d257b8673fa8af4a788cecce471d68afa7",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -45,7 +45,7 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "8677ba9dc0eda941959223ad30fe49b6eecb4998b12d4540d536830ae978bfda",
+      "sha256": "088cad7b9331674914a93a143c9188fdf1edadf0ece40977a2bc8a4fc3543c66",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {

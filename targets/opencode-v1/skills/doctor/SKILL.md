@@ -104,6 +104,12 @@ Verify these dimensions separately:
    repository with application code, and suggest a way to stop only new code,
    such as a baseline, with limits generous enough not to push code into thin
    helpers.
+10. **Aksel lookups** — in a repository that depends on `@navikt/ds-react`, the
+    session offers the `aksel_*` tools of Nav's Aksel MCP server. Report their
+    absence as `OPTIONAL`: `aksel-builder` then reads Aksel's published
+    documentation instead, which costs more context for each lookup. Name the
+    server `io.github.navikt/aksel-mcp` in Nav's tool catalog; connecting it is
+    the user's choice in their own client.
 
 Treat the OpenCode target as generated output. Recommend changing its canonical
 plugin source, adapter policy, or overlay and regenerating it; never recommend
@@ -145,6 +151,7 @@ Coverage:
 - Permissions: OK | BLOCKER | GAP | UNVERIFIED — <evidence>
 - Shadowing: OK | BLOCKER | UNVERIFIED — <evidence>
 - Size gate: OK | GAP | UNVERIFIED — <evidence>
+- Aksel lookups: OK | OPTIONAL | UNVERIFIED — <evidence>
 
 Smallest next action:
 - <one bounded consumer- or source-owned change, or none>

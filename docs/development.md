@@ -57,6 +57,23 @@ python3 scripts/generate_context_projections.py
 python3 scripts/generate_agentpakke_manifest.py
 ```
 
+En skill som innholdslåsen fører som `ported`, eies av et annet repo og er
+byte-identisk med kilden på den låste commiten
+([ADR 0038](adr/0038-delte-skills-tas-inn-uendret.md)). Rediger den aldri her.
+Bevis at kopien er lik kilden, eller flytt låsen til en ny commit, fra en lokal
+checkout av kilden. Commiten må ligge på en gren som er hentet fra kildens remote:
+
+```bash
+python3 scripts/port_skill.py aksel-builder --source ../copilot --check
+python3 scripts/port_skill.py aksel-builder --source ../copilot --revision <full commit-SHA>
+```
+
+Etter en flytting: les diffen, regenerer targetene, mål referansene med
+`scripts/measure_reference_reads.py`, og bind rettighetsjournalen på nytt, siden
+`PROVENANCE.md` og innholdslåsen er endret. Melder valideringen et funn i den nye
+teksten, kan det ikke rettes her: la være å ta inn versjonen, eller vurder funnet
+og før det under `acceptedFindings` i innholdslåsen.
+
 Ikke håndrediger `plugin/manifest.json`, `targets/opencode-v1/`,
 `targets/opencode-v1-focused/` eller
 `targets/copilot-cli-focused-v1/`. Ikke håndrediger
@@ -114,7 +131,7 @@ prøves uten appen selv.
 privat kontroll, gjenbruk, avbrudd, utløp og opprydding av vanlige barn. Se
 [beslutningen om demolivsløp](adr/0028-eid-livslop-for-lokale-demoer.md).
 
-Plugin-smoken skal bekrefte 6 agenter, 30 skills og byte-eksakt installasjon,
+Plugin-smoken skal bekrefte 6 agenter, 29 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
 minimumsklienten Copilot CLI `1.0.100` annonserer hele flaggrosteren som local-run
 eier i `--help`, uten modell- eller nettverkskall. Den eksakte local-smoken

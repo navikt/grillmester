@@ -223,7 +223,7 @@ SCENARIOS = (
     Scenario(
         "aksel-design",
         "Velg riktige Aksel-komponenter til skjemaet for å klage på vedtak.",
-        ("aksel-design",),
+        ("aksel-builder",),
         "designer",
     ),
     Scenario(
@@ -235,7 +235,7 @@ SCENARIOS = (
     Scenario(
         "figma-workflow",
         "Vi har valgt designet i Figma. Gjør det om til Aksel-kode.",
-        ("figma-workflow",),
+        ("aksel-builder",),
         "designer",
     ),
     Scenario(
@@ -243,6 +243,12 @@ SCENARIOS = (
         "Sjekk at klageskjemaet virker med tastatur og skjermleser.",
         ("accessibility-review",),
         "designer",
+    ),
+    Scenario(
+        "aksel-builder",
+        "Bygg et skjema for å klage på vedtak i frontenden. Vi bruker Navs "
+        "designsystem.",
+        ("aksel-builder",),
     ),
     Scenario(
         "no-skill-typo",

@@ -20,13 +20,13 @@
     "agents": 6,
     "primaryAgents": 3,
     "subagents": 3,
-    "skills": 30,
-    "commands": 30
+    "skills": 29,
+    "commands": 29
   },
   "skillCapabilities": {
     "accessibility-review": "native",
     "agent-retro": "native",
-    "aksel-design": "native",
+    "aksel-builder": "native",
     "app-sandbox-setup": "native",
     "architecture-review": "native",
     "create-a-skill": "overlay",
@@ -35,7 +35,6 @@
     "doctor": "overlay",
     "domain-modeling": "native",
     "dulting": "native",
-    "figma-workflow": "native",
     "grill-me": "native",
     "grill-with-docs": "native",
     "grilling": "native",
@@ -77,7 +76,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "3753475259b10cf2269a5553de4fb4f62f86d36c8a650987df35cf930f31f4ae",
+      "sha256": "0e6788d538985b68fa3e2147c1ff8defc2ff5fae647b240b5e5942314252ee5f",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -89,11 +88,11 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "d1a4af0e0c05003197aa20e698d69c5688df5fe52a0f34721b11ef56dcca5216",
+      "sha256": "41daa9303a1fd9e266f521885d7c3618a008bc632fe0dbe5ee4a7121d3d71feb",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
-      "sha256": "9ca3e88d889c1f316a82fed9d2707b6a676de42a44442a39f356364debc4d3b1",
+      "sha256": "eb83996d1251dc4c08522bdfdf9c77db218ec86c5655f28d63ade0dec81a1e73",
       "mode": "0644"
     },
     "agents/researcher.md": {
@@ -101,15 +100,15 @@
       "mode": "0644"
     },
     "commands/accessibility-review.md": {
-      "sha256": "bb1d3450748f648a53530afe11e4e4f49f474e1a242b81f4141d668c1644fe3f",
+      "sha256": "f9c68f873c2eef4b795c35b9af4b7d8307d350b5a0025fe698adcdda0b85a583",
       "mode": "0644"
     },
     "commands/agent-retro.md": {
       "sha256": "3675b71803e8b16bd37e1ccb0622ee190af7e603202d23d905c79ce6c7a380c6",
       "mode": "0644"
     },
-    "commands/aksel-design.md": {
-      "sha256": "8d197e5e90718afe839794e971d1e0695b402b8ba744d047d4b3a9c3076ee453",
+    "commands/aksel-builder.md": {
+      "sha256": "dd42b7437e1617d61912846e4b261b2e799084b1bd30c93c991a09d0b0f26e62",
       "mode": "0644"
     },
     "commands/app-sandbox-setup.md": {
@@ -125,7 +124,7 @@
       "mode": "0644"
     },
     "commands/design-prototype.md": {
-      "sha256": "df4ecca6f614f6c3ce0938e2ef48e9e481e4e8162a2a8291b952ef43c0fbbc13",
+      "sha256": "80ac5e43a9dbcb0f9b47b3e903d53b1a0208261aae36394bf36e24aecc16ee75",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
@@ -142,10 +141,6 @@
     },
     "commands/dulting.md": {
       "sha256": "709187ca644c1ceeb912648c110501e83ac06443221776337e4397c982b00151",
-      "mode": "0644"
-    },
-    "commands/figma-workflow.md": {
-      "sha256": "9a2af17a48e60e3a0ec8872b360e3cba7c3b41c79883a8edfe1757a1743ed2b3",
       "mode": "0644"
     },
     "commands/grill-me.md": {
@@ -225,19 +220,55 @@
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
-      "sha256": "d5f74e8c475af7bf3e405dad70f413c5ec882e39367f4c8b8046ef590321ea59",
+      "sha256": "aeb9f2d07095c8af0764d72bec7950169fab93a3593ffc9cf2e20831900c9443",
       "mode": "0644"
     },
     "skills/agent-retro/SKILL.md": {
       "sha256": "a72b9f2022e7b88c025ba0582573ab79cdce4c5a689d064267d1b95fd464791f",
       "mode": "0644"
     },
-    "skills/aksel-design/SKILL.md": {
-      "sha256": "120a2cdec03e86adc3b54347d6a043f61479ec9adc9669c361e4e30e8d3fefdb",
+    "skills/aksel-builder/SKILL.md": {
+      "sha256": "2c06f83c160967a8c4381068ab61b23f8446e689c2ff5dac796a22cd31e5cbf8",
       "mode": "0644"
     },
-    "skills/aksel-design/references/patterns.md": {
-      "sha256": "86b191d0194e0664e0805349abe4e9620e4fd9b1c903e8066a76dd9f996cc85c",
+    "skills/aksel-builder/references/accessibility.md": {
+      "sha256": "bb54495b357926ab4a734a806cb6518bbce31a0e3c8fe9a032faf1017e07467b",
+      "mode": "0644"
+    },
+    "skills/aksel-builder/references/components.md": {
+      "sha256": "30d93b746c1c48135a9243cf98959d4ecabfef9de23ee49aa9ef3537f33549fb",
+      "mode": "0644"
+    },
+    "skills/aksel-builder/references/figma-to-code.md": {
+      "sha256": "f1d520d4d6b9699993d3d504c1d1a410b36b42be6e829224090dc09b5bff22a3",
+      "mode": "0644"
+    },
+    "skills/aksel-builder/references/icons.md": {
+      "sha256": "62a7d8304b9a330178bf2ae3ab5c965ab456556e6ec13b9f3b53f9ce9f133ffa",
+      "mode": "0644"
+    },
+    "skills/aksel-builder/references/mcp-workflow.md": {
+      "sha256": "4945b0630e60d1ed881a5b395ef23416983507e8f5d5184301fa64fe40161884",
+      "mode": "0644"
+    },
+    "skills/aksel-builder/references/migrations.md": {
+      "sha256": "7bbd5a0db721e37feb84c68be4f770db38ca54385e87faa1f9ca8dd4e86df9b9",
+      "mode": "0644"
+    },
+    "skills/aksel-builder/references/primitives-layout.md": {
+      "sha256": "f0b995c2d922f4b2ebb8eb951aa735c07faa178aa5a2c8a8a5b2a1a97543f610",
+      "mode": "0644"
+    },
+    "skills/aksel-builder/references/setup-and-imports.md": {
+      "sha256": "e0a46e77a1eca3facf8265dfc617b928902711fb1ba3ab53d7fc87ef92e1ec82",
+      "mode": "0644"
+    },
+    "skills/aksel-builder/references/theming.md": {
+      "sha256": "7733e39c827610e1aa30e5764aeca50cc561e37d51f6c1cba4423fed58d32b65",
+      "mode": "0644"
+    },
+    "skills/aksel-builder/references/tokens-styling.md": {
+      "sha256": "879256ad75a2d22f14826349b44807976ed267b6c71d23ec9f732e0c52aa1255",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
@@ -377,7 +408,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "59633d61657fbd996c6ae1bf29ac5fa3f78fd2b7112dba380a70fed95a30abd3",
+      "sha256": "07594a8190925e8c19531b075726ee48c6042b57b11ca28e1a03e6d651a7bca3",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -421,7 +452,7 @@
       "mode": "0755"
     },
     "skills/doctor/SKILL.md": {
-      "sha256": "155d144aaa2782491671d0e611f32f9cfbe042d7351c6e2f7badaa23d9b3af81",
+      "sha256": "1da3b59f472ce79ac97a2a1d3f1760328e829693ae3dfb09e30b4f68c35fbb34",
       "mode": "0644"
     },
     "skills/domain-modeling/ADR-FORMAT.md": {
@@ -437,7 +468,7 @@
       "mode": "0644"
     },
     "skills/dulting/SKILL.md": {
-      "sha256": "8dbb6ba00ff6265fe7ccd220fd91ede9f4cfb8a7da8c7f0e6e58da4142e32d61",
+      "sha256": "2da7a1b1c550b13fef378ac9f1c1ac4103273b9d546cee54fafc9daa7d7e15a0",
       "mode": "0644"
     },
     "skills/dulting/references/behavioral-patterns.md": {
@@ -446,10 +477,6 @@
     },
     "skills/dulting/references/ethics-and-evaluation.md": {
       "sha256": "ddc8b71269eb796c3365b701c9bf53878a3efdbf4e99ce5bc927404fd0f8e015",
-      "mode": "0644"
-    },
-    "skills/figma-workflow/SKILL.md": {
-      "sha256": "d77d486868498a7bb15980eb2a28bb71ebb0bbada30ad0fe6d2957add5f88433",
       "mode": "0644"
     },
     "skills/grill-me/SKILL.md": {
