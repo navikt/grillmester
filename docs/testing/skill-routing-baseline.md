@@ -37,8 +37,7 @@ vurdering av en feilrapport gikk fra 2 av 3 til 0 av 3. Opus 5.5, målt utenfor 
 CLI, fant skillen og leste `triage.md` og `AGENT-BRIEF.md` for den samme forespørselen.
 
 Radene for `aksel-design` og `figma-workflow` viser de to skillene slik de var
-4. november. `aksel-builder` har erstattet dem, og den nye målingen står under
-[Etter aksel-builder](#etter-aksel-builder).
+4. november. `aksel` har erstattet dem, og målingene står under [Aksel](#aksel).
 
 | Scenario | Agent | Treff | Uten skill | Lastet |
 | --- | --- | --- | --- | --- |
@@ -78,39 +77,52 @@ Radene for `aksel-design` og `figma-workflow` viser de to skillene slik de var
 | `no-skill-typo` | grillmester | 3/3 | 3 | – |
 | `no-skill-question` | grillmester | 3/3 | 3 | – |
 
-## Etter aksel-builder
+## Aksel
 
-Målt 11. november 2026 med samme oppsett, etter at `aksel-builder` erstattet
-`aksel-design` og `figma-workflow`
-([ADR 0038](../adr/0038-delte-skills-tas-inn-uendret.md)). De to første scenarioene
-har beholdt ID-ene og forventer nå `aksel-builder`. Det tredje er nytt: en utvikler
-ber Grillmester bygge et skjema og sier at teamet bruker Navs designsystem, uten å
-nevne Aksel eller pakkenavnet. Grillmester-prompten navngir `aksel-builder` i
-Build-fasen.
+`aksel-design` og `figma-workflow` er erstattet av `aksel`
+([ADR 0038](../adr/0038-en-liten-aksel-skill-malt-frem.md)). Radene over viser de
+to gamle skillene slik de var 4. november.
 
-| Scenario | Agent | Treff | Uten skill | Lastet |
-| --- | --- | --- | --- | --- |
-| `aksel-design` | designer | 3/3 | 0 | `aksel-builder` 3 |
-| `figma-workflow` | designer | 2/3 | 0 | `aksel-builder` 2, `design-prototype` 2 |
-| `aksel-builder` | grillmester | 3/3 | 0 | `aksel-builder` 3, `tdd` 1 |
+Underveis ble Aksel-teamets `aksel-builder` målt med scenarioene over, 11. november:
 
-Figma til kode gikk fra 3 til 2 av 3: én økt lastet bare `design-prototype`. Det er
-innenfor det tre kjøringer kan skille, men `figma-workflow` hadde en smalere
-utløser.
+| Scenario | Agent | Treff | Lastet |
+| --- | --- | --- | --- |
+| `aksel-design` | designer | 3/3 | `aksel-builder` 3 |
+| `figma-workflow` | designer | 2/3 | `aksel-builder` 2, `design-prototype` 2 |
+| Skjema med Navs designsystem | grillmester | 3/3 | `aksel-builder` 3, `tdd` 1 |
 
-### Designer på Opus 5.5 i en ekte app
+Disse scenarioene nevner Aksel eller designsystemet. I vanlige bestillinger som
+ikke gjør det, ble `aksel-builder` lastet i 7 av 22 økter og `aksel` i 24 av 30.
+De tallene står i [baseline for Aksel](aksel-outcomes-baseline.md). Scenarioene
+over er ikke kjørt på nytt for `aksel`.
 
-To økter 11. november med Designer på Opus 5.5 i en kopi av en ekte Nav-app, gjennom
-Copilot CLI 1.0.105 uten nettleserfane. Bestillingen var en melding om at et møte er
-flyttet, og en knapp med kalenderikon. Den ene økten hadde Aksel MCP, den andre ikke.
+### Designer i en ekte app
 
-- Ingen av øktene lastet `aksel-builder`. Designer fulgte `design-prototype`, som er
-  forhåndslastet, og appens egne mønstre.
-- Med MCP gjorde den to oppslag, `aksel_find_docs` og `aksel_get_component_info`. Uten
-  MCP slo den ikke opp noe hos Aksel.
-- Begge ga samme løsning, `LocalAlert` med `status="announcement"` og `CalendarIcon`.
-  Den er riktig for versjonen appen har installert. Prosjektet sto urørt i begge.
-- Øktene kostet 77 og 118 credits. Den dyreste brukte tid på å få demoen opp igjen.
+Designer ble prøvd gjennom Copilot CLI 1.0.105, uten nettleserfane, i en kopi av
+en ekte Nav-app som ikke bruker avviklede komponenter.
 
-To økter viser bare at flyten virker. De sier ikke hva som skjer når forslaget trenger
-en komponent appen ikke bruker fra før.
+Opus 5.5, to økter med `aksel-builder` i pluginen. Bestillingen var en melding om
+at et møte er flyttet, og en knapp med kalenderikon. Den ene økten hadde Aksel
+MCP:
+
+- Ingen av øktene lastet `aksel-builder`. Designer fulgte `design-prototype`, som
+  er forhåndslastet, og appens egne mønstre.
+- Med MCP gjorde den to oppslag. Uten MCP slo den ikke opp noe hos Aksel.
+- Begge ga `LocalAlert` med `status="announcement"` og `CalendarIcon`, som er
+  riktig for versjonen appen har installert. Prosjektet sto urørt i begge.
+- Øktene kostet 77 og 118 credits.
+
+Haiku 5.5, ti økter. Bestillingen var en advarsel om at hele tjenesten er nede:
+
+| Plugin | Økter | Komponent i forslaget |
+| --- | --- | --- |
+| Main, med `aksel-design` | 3 | avviklet `Alert` i 3 |
+| Grenen, `aksel` ikke forhåndslastet | 4 | `Alert` i 1, `LocalAlert` i 1, 2 uten forslag |
+| Grenen, `aksel` forhåndslastet i Designer | 3 | `GlobalAlert` i 3 |
+
+Designer forhåndslaster derfor `aksel` sammen med `design-prototype`. En peker
+til skillen i steget der forslaget lages, ga ingen lasting i to økter.
+
+I fire av de ti Haiku-øktene endret Designer selve prosjektet i stedet for den
+eide kopien, også med pluginen fra main. Det er ikke målt på Opus utover de to
+øktene over, der prosjektet sto urørt.

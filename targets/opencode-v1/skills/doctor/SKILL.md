@@ -106,7 +106,7 @@ Verify these dimensions separately:
    helpers.
 10. **Aksel lookups** — in a repository that depends on `@navikt/ds-react`, the
     session offers the `aksel_*` tools of Nav's Aksel MCP server. Report their
-    absence as `OPTIONAL`: `aksel-builder` then reads Aksel's published
+    absence as `OPTIONAL`: `aksel` then reads Aksel's published
     documentation instead, which costs more context for each lookup. Name the
     server `io.github.navikt/aksel-mcp` in Nav's tool catalog; connecting it is
     the user's choice in their own client.

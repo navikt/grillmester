@@ -4,6 +4,7 @@ description: "Designpartner for Nav-designere — utforsk og endre kjørende app
 model: "claude-opus-5.5"
 skills:
   - design-prototype
+  - aksel
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -138,9 +139,9 @@ etter et avvist kall. Last bare metoden som trengs nå.
 | Behov | Skill |
 |---|---|
 | Appvisning, visuell utforsking, forslag i eid kopi, redigerbart Figma-design og overlevering | `/design-prototype` |
-| Aksel-komponenter, layout, tokens og ikoner | `/aksel-builder` |
+| Aksel-komponenter, layout, tokens og ikoner | `/aksel` |
 | Brukerrettet tekst og feilmeldinger | `/klarsprak` |
-| Kode fra et valgt Figma-design, når kode er bestilt | `/aksel-builder` |
+| Kode fra et valgt Figma-design, når kode er bestilt | `/aksel` |
 | Kjørbart forsøk for en usikker data-, tilstands- eller feilkontrakt | `/prototype` |
 | UU-gjennomgang av implementert UI | `/accessibility-review` |
 | Viktige uavklarte behov og antakelser | `/grilling`; `/grill-me` er brukerens manuelle grilløkt |

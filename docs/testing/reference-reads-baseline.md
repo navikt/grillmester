@@ -37,9 +37,9 @@ migrering hentet agenten dokumentasjonen fra aksel.nav.no i alle seks.
 
 ## Måling av aksel-builder
 
-11. november erstattet `aksel-builder` både `aksel-design` og `figma-workflow`
-([ADR 0038](../adr/0038-delte-skills-tas-inn-uendret.md)). Skillen er tatt inn
-uendret fra `navikt/copilot`, så pekerne kan ikke skjerpes her. Med samme oppsett,
+11. november ble Aksel-teamets `aksel-builder` fra `navikt/copilot` målt som
+erstatning for `aksel-design` og `figma-workflow`
+([ADR 0038](../adr/0038-en-liten-aksel-skill-malt-frem.md)). Med samme oppsett,
 Copilot CLI 1.0.105 og Haiku 5.5, ble skillen lastet i 30 av 30 økter, og referansen
 ble lest i 15 av 30.
 
@@ -67,8 +67,11 @@ gjelder Haiku 5.5. Sterkere modeller er ikke målt. Tre scenarioer ble rettet et
 første kjøring og målt på nytt, og tabellen viser de rettede: `accessibility.md`
 viste til en fil som ikke finnes i engangsrepoet, `mcp-workflow.md` sa ikke at
 brukeren hadde MCP-en, og `migrations.md` ba om en oppgradering repoet alt hadde
-gjort. Summen ble 15 av 30 begge ganger. Funnene er ikke rettet her. De hører
-hjemme hos eieren av skillen.
+gjort. Summen ble 15 av 30 begge ganger.
+
+`aksel-builder` ble ikke tatt inn. `aksel`, som erstattet den, har to referanser
+bak en Les først-tabell, `figma-to-code.md` og `migration.md`. Begge ble lest i
+3 av 3 økter med samme oppsett.
 
 ## Ny måling av design-prototype
 

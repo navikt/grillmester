@@ -20,7 +20,7 @@
   "skills": [
     "accessibility-review",
     "agent-retro",
-    "aksel-builder",
+    "aksel",
     "app-sandbox-setup",
     "architecture-review",
     "create-a-skill",
@@ -54,11 +54,11 @@
       "mode": "0644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "088cad7b9331674914a93a143c9188fdf1edadf0ece40977a2bc8a4fc3543c66",
+      "sha256": "b283eb5657fc21e3546641a4629eb8e259da7288616c8a147004d67d9665bf25",
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "ed997965acc8c8038b6af56c5c3bf3ff2d9448f1f554c65c94b349074fb3ebb7",
+      "sha256": "bac9b501e23887043e14b8a7af02f5add020ac0685ef2e7eb46a0bb5b7fd1dc8",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
@@ -70,11 +70,11 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "b8b6d354169929bcd331eff9136e179ea9e9105cafe28e1449c1761f78c0133b",
+      "sha256": "7591890e018180ae35d88733410c083e419c296cd11aadcc69f01747bd0de9f9",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
-      "sha256": "0e9ba1689c7b1e1f4b640a7d5accb11ef7c8777e1a0a245e8e4feb3cb1e0326d",
+      "sha256": "da98e0a3081c58c03fd617f4d2e6c4b9aa09982fe1b89cf84dbb8ea798cdc61d",
       "mode": "0644"
     },
     "agents/researcher.agent.md": {
@@ -86,55 +86,23 @@
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
-      "sha256": "9c6c63eb54eaad9b37df6ec5c238cdb646409c827e5db91472b56e720a0c995f",
+      "sha256": "c38f5517095beab0e7deebe0b6c49b562f1b4bc0458bfdcfbab531523bf61907",
       "mode": "0644"
     },
     "skills/agent-retro/SKILL.md": {
       "sha256": "d44ad593fb990fbf3a219c4f2ba5dd7b2df8315bfd2228837522c935ebcbaf98",
       "mode": "0644"
     },
-    "skills/aksel-builder/SKILL.md": {
-      "sha256": "8727e318ed714f65ae398d12370ce34c14958f3b166b659d817021f3a17b1846",
+    "skills/aksel/SKILL.md": {
+      "sha256": "95db8a09cf0180998e8e08e3e7172d557266c26cee97623fc64e1951156fde5c",
       "mode": "0644"
     },
-    "skills/aksel-builder/references/accessibility.md": {
-      "sha256": "bb54495b357926ab4a734a806cb6518bbce31a0e3c8fe9a032faf1017e07467b",
+    "skills/aksel/references/figma-to-code.md": {
+      "sha256": "6fc7ff6d46b8e675abea9b5fe3f18456f1f2c77d761b6e9ec311ae8de299c433",
       "mode": "0644"
     },
-    "skills/aksel-builder/references/components.md": {
-      "sha256": "30d93b746c1c48135a9243cf98959d4ecabfef9de23ee49aa9ef3537f33549fb",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/figma-to-code.md": {
-      "sha256": "f1d520d4d6b9699993d3d504c1d1a410b36b42be6e829224090dc09b5bff22a3",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/icons.md": {
-      "sha256": "62a7d8304b9a330178bf2ae3ab5c965ab456556e6ec13b9f3b53f9ce9f133ffa",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/mcp-workflow.md": {
-      "sha256": "4945b0630e60d1ed881a5b395ef23416983507e8f5d5184301fa64fe40161884",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/migrations.md": {
-      "sha256": "7bbd5a0db721e37feb84c68be4f770db38ca54385e87faa1f9ca8dd4e86df9b9",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/primitives-layout.md": {
-      "sha256": "f0b995c2d922f4b2ebb8eb951aa735c07faa178aa5a2c8a8a5b2a1a97543f610",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/setup-and-imports.md": {
-      "sha256": "e0a46e77a1eca3facf8265dfc617b928902711fb1ba3ab53d7fc87ef92e1ec82",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/theming.md": {
-      "sha256": "7733e39c827610e1aa30e5764aeca50cc561e37d51f6c1cba4423fed58d32b65",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/tokens-styling.md": {
-      "sha256": "879256ad75a2d22f14826349b44807976ed267b6c71d23ec9f732e0c52aa1255",
+    "skills/aksel/references/migration.md": {
+      "sha256": "1982ecf1f1cf275ac59d89a740687ebae4e21cf9c8a7fe2ecbbd439da57b5211",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
@@ -274,7 +242,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "f3e59ef5cd815d0ea8066eec81e22fe3d63be2b315aed983e4fbe2036b7ae602",
+      "sha256": "b72e467dd24a63338f62a11d65975d1cb3d13d2dc509c333ff92b11dc86da6b5",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -322,7 +290,7 @@
       "mode": "0755"
     },
     "skills/doctor/SKILL.md": {
-      "sha256": "063b2735b0d74e94e8c25a7c5d67476c90a4b172eb9990c68ba05b11adef4325",
+      "sha256": "e126187e25a04e5ea67f2188f0b3868dba8975f1b05080e577d7c4b6df371a95",
       "mode": "0644"
     },
     "skills/domain-modeling/ADR-FORMAT.md": {
@@ -338,7 +306,7 @@
       "mode": "0644"
     },
     "skills/dulting/SKILL.md": {
-      "sha256": "1494195676bdd43630d3518e84acb51af6a9ff356f08ca15ddb86a4113011adc",
+      "sha256": "2d9b82d641f84e0f876cb86bd1460c14b2e931c7438d533abefc52a1a308b1a0",
       "mode": "0644"
     },
     "skills/dulting/references/behavioral-patterns.md": {

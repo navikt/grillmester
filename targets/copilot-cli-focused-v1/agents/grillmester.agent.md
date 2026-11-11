@@ -125,7 +125,9 @@ verification, compare the live state with that record and resolve unexpected
 `HEAD` changes or unexplained edits.
 
 For every code change, find the nearest example and follow its form, reuse
-existing helpers, and settle which module owns the change before you write.
+existing helpers, and settle which module owns the change before you write. An
+example that uses something its own types mark `@deprecated` shows the old form:
+use the replacement the comment names.
 Work in thin slices. When new behavior does not fit, restructure instead of
 adding another branch or flag, and add an abstraction only at its second use.
 If the same fix fails twice, stop and rethink the cause.

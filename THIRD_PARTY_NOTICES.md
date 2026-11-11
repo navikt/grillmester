@@ -140,9 +140,9 @@ adaptation boundary are recorded in [PROVENANCE.md](PROVENANCE.md).
 Trace representativeness guidance was also adapted from `observability-debugging`
 at revision `ce9abd567a89eb72f1b8f95447435fd16fe805d3`.
 
-The `aksel-builder` skill is an unchanged copy of `skills/aksel-builder`, without
-its catalog files `README.md` and `metadata.json`, at revision
-`381a544c6ddc5a144ad55f11be84a13e060c81b4`.
+The Aksel MCP lookup route, the order of trust for Figma design context and the
+table of version 8 codemods in the `aksel` skill were adapted from
+`skills/aksel-builder` at revision `381a544c6ddc5a144ad55f11be84a13e060c81b4`.
 
 The guidance on Texas failures, the `skip_cache` retry, per-app `client_id` checks
 and both `acr` forms was adapted from `tokenx-auth` at revision

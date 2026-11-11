@@ -26,7 +26,7 @@
   "skillCapabilities": {
     "accessibility-review": "native",
     "agent-retro": "native",
-    "aksel-builder": "native",
+    "aksel": "native",
     "app-sandbox-setup": "native",
     "architecture-review": "native",
     "create-a-skill": "overlay",
@@ -76,7 +76,7 @@
       "mode": "0644"
     },
     "agents/designer.md": {
-      "sha256": "0e6788d538985b68fa3e2147c1ff8defc2ff5fae647b240b5e5942314252ee5f",
+      "sha256": "135d483cd82038b80ef575b8716fbd2d48878f5d8d7fa4605107c300ce1fd27a",
       "mode": "0644"
     },
     "agents/doctor-who.md": {
@@ -88,11 +88,11 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "41daa9303a1fd9e266f521885d7c3618a008bc632fe0dbe5ee4a7121d3d71feb",
+      "sha256": "8f4f781dd33897b5a97761c1ea27b132b565f4c82c1006d99925eb11c43e49a8",
       "mode": "0644"
     },
     "agents/perspektiv.md": {
-      "sha256": "eb83996d1251dc4c08522bdfdf9c77db218ec86c5655f28d63ade0dec81a1e73",
+      "sha256": "b3cf0a9aa7e3a4048130879fecd6407c11be09bcfac6d3074c2b6ce3b01d7b06",
       "mode": "0644"
     },
     "agents/researcher.md": {
@@ -100,15 +100,15 @@
       "mode": "0644"
     },
     "commands/accessibility-review.md": {
-      "sha256": "f9c68f873c2eef4b795c35b9af4b7d8307d350b5a0025fe698adcdda0b85a583",
+      "sha256": "f5ef91d13c8755400652db7558df336005d061415a248c741cea982895610d6e",
       "mode": "0644"
     },
     "commands/agent-retro.md": {
       "sha256": "3675b71803e8b16bd37e1ccb0622ee190af7e603202d23d905c79ce6c7a380c6",
       "mode": "0644"
     },
-    "commands/aksel-builder.md": {
-      "sha256": "dd42b7437e1617d61912846e4b261b2e799084b1bd30c93c991a09d0b0f26e62",
+    "commands/aksel.md": {
+      "sha256": "a1a5082c74e9d55a928d837f3b7dcf85098601e75137881761995906763248f9",
       "mode": "0644"
     },
     "commands/app-sandbox-setup.md": {
@@ -124,7 +124,7 @@
       "mode": "0644"
     },
     "commands/design-prototype.md": {
-      "sha256": "80ac5e43a9dbcb0f9b47b3e903d53b1a0208261aae36394bf36e24aecc16ee75",
+      "sha256": "62038d70826a779aa2926103c144ed0f413e43644151608a0d25041a3307600a",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
@@ -220,55 +220,23 @@
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
-      "sha256": "aeb9f2d07095c8af0764d72bec7950169fab93a3593ffc9cf2e20831900c9443",
+      "sha256": "1d0ffbcda40786cc47a3d004a87b05ad750d6b8a56621e06fcafd8bb457969fd",
       "mode": "0644"
     },
     "skills/agent-retro/SKILL.md": {
       "sha256": "a72b9f2022e7b88c025ba0582573ab79cdce4c5a689d064267d1b95fd464791f",
       "mode": "0644"
     },
-    "skills/aksel-builder/SKILL.md": {
-      "sha256": "2c06f83c160967a8c4381068ab61b23f8446e689c2ff5dac796a22cd31e5cbf8",
+    "skills/aksel/SKILL.md": {
+      "sha256": "58412999b1edf2bd73350144dc42c9e9661659edd6f3ba9dd26ff15bf5052b21",
       "mode": "0644"
     },
-    "skills/aksel-builder/references/accessibility.md": {
-      "sha256": "bb54495b357926ab4a734a806cb6518bbce31a0e3c8fe9a032faf1017e07467b",
+    "skills/aksel/references/figma-to-code.md": {
+      "sha256": "6fc7ff6d46b8e675abea9b5fe3f18456f1f2c77d761b6e9ec311ae8de299c433",
       "mode": "0644"
     },
-    "skills/aksel-builder/references/components.md": {
-      "sha256": "30d93b746c1c48135a9243cf98959d4ecabfef9de23ee49aa9ef3537f33549fb",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/figma-to-code.md": {
-      "sha256": "f1d520d4d6b9699993d3d504c1d1a410b36b42be6e829224090dc09b5bff22a3",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/icons.md": {
-      "sha256": "62a7d8304b9a330178bf2ae3ab5c965ab456556e6ec13b9f3b53f9ce9f133ffa",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/mcp-workflow.md": {
-      "sha256": "4945b0630e60d1ed881a5b395ef23416983507e8f5d5184301fa64fe40161884",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/migrations.md": {
-      "sha256": "7bbd5a0db721e37feb84c68be4f770db38ca54385e87faa1f9ca8dd4e86df9b9",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/primitives-layout.md": {
-      "sha256": "f0b995c2d922f4b2ebb8eb951aa735c07faa178aa5a2c8a8a5b2a1a97543f610",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/setup-and-imports.md": {
-      "sha256": "e0a46e77a1eca3facf8265dfc617b928902711fb1ba3ab53d7fc87ef92e1ec82",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/theming.md": {
-      "sha256": "7733e39c827610e1aa30e5764aeca50cc561e37d51f6c1cba4423fed58d32b65",
-      "mode": "0644"
-    },
-    "skills/aksel-builder/references/tokens-styling.md": {
-      "sha256": "879256ad75a2d22f14826349b44807976ed267b6c71d23ec9f732e0c52aa1255",
+    "skills/aksel/references/migration.md": {
+      "sha256": "1982ecf1f1cf275ac59d89a740687ebae4e21cf9c8a7fe2ecbbd439da57b5211",
       "mode": "0644"
     },
     "skills/app-sandbox-setup/SKILL.md": {
@@ -408,7 +376,7 @@
       "mode": "0644"
     },
     "skills/design-prototype/SKILL.md": {
-      "sha256": "07594a8190925e8c19531b075726ee48c6042b57b11ca28e1a03e6d651a7bca3",
+      "sha256": "7daeceb6b335756a80bc753e1296679c649ea98b5b02054256ecd534eacd9699",
       "mode": "0644"
     },
     "skills/design-prototype/references/aksel-figma-katalog.json": {
@@ -452,7 +420,7 @@
       "mode": "0755"
     },
     "skills/doctor/SKILL.md": {
-      "sha256": "1da3b59f472ce79ac97a2a1d3f1760328e829693ae3dfb09e30b4f68c35fbb34",
+      "sha256": "ef3248d6fa38529c0713a1c655947eb6ce6f0b15c5c6fb482c60de58ef6842ab",
       "mode": "0644"
     },
     "skills/domain-modeling/ADR-FORMAT.md": {
@@ -468,7 +436,7 @@
       "mode": "0644"
     },
     "skills/dulting/SKILL.md": {
-      "sha256": "2da7a1b1c550b13fef378ac9f1c1ac4103273b9d546cee54fafc9daa7d7e15a0",
+      "sha256": "e024b3eeacf578b42bc1757281ba949b4b13910e8d0ad2b7544fc8a21e7da420",
       "mode": "0644"
     },
     "skills/dulting/references/behavioral-patterns.md": {

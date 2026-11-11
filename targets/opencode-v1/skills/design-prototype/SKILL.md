@@ -1,6 +1,6 @@
 ---
 name: design-prototype
-description: "Explore and change running local apps with real components in the client's Browser and Pick & Polish, start new ideas as small Aksel apps, and build editable Figma designs; keep results as patches and briefs. Use `prototype` for uncertain data/state/failure contracts and `aksel-builder` for a chosen Figma design to code."
+description: "Explore and change running local apps with real components in the client's Browser and Pick & Polish, start new ideas as small Aksel apps, and build editable Figma designs; keep results as patches and briefs. Use `prototype` for uncertain data/state/failure contracts and `aksel` for a chosen Figma design to code."
 ---
 # Fra designønske til forslag som kjører
 
@@ -147,7 +147,7 @@ og tilstand, og skill målt feil, designavveining og hypotese til brukertest.
 
 Skaler kontrollen til endringen: innhold, smal flate, relevant zoom, tastatur, fokus og
 berørte feil- og tomtilstander. Bruk `accessibility-review` for full review av implementert
-UI. Før du bygger nytt, bruk `aksel-builder`.
+UI. Før du bygger nytt, bruk `aksel`.
 
 ## Avslutning
 

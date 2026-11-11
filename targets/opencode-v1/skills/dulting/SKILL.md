@@ -60,7 +60,7 @@ hypothesis, show:
 - autonomy, privacy, accessibility and distributional risks;
 - the primary measure, guardrails and an explicit stopping rule.
 
-Use `aksel-builder`, `design-prototype` or
+Use `aksel`, `design-prototype` or
 `prototype` when a scoped visualisation or experiment is needed.
 Never use the prototype as evidence that the intervention works in production.
 

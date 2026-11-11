@@ -35,13 +35,6 @@ repository.
   through nav-pilot. Audit migration ownership before removing old copies.
   Preserve original source IDs in provenance and remove obsolete runtime calls.
 
-## Ported skills
-
-A skill the content lock records as `ported` belongs to another repository and
-is byte-identical to that source at the pinned revision. Never edit it here:
-change it at its source, then take it in with `scripts/port_skill.py`. Validation
-fails on a local edit. See ADR 0038.
-
 ## Reference reads
 
 Hidden information is worthless. Every disclosed reference is linked from its

@@ -98,7 +98,7 @@ SAME_PACKAGE_REMOVED_SKILLS = (
 HISTORICAL_REMOVED_SKILLS = ("grillmester-kotlin-spring",)
 CURRENT_ONLY_SKILLS = (
     "agent-retro",
-    "aksel-builder",
+    "aksel",
     "app-sandbox-setup",
     "guided-review",
     "nav-platform",

@@ -207,7 +207,7 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | **Overlevering** | Brukeren ber om å flytte pågående arbeid til en annen sesjon, klient eller kollega. | Handoff (manuell) |
 | **Implementasjon og kvalitet** | Feilsøking, teststrategi, review eller sikkerhet/personvern. | Diagnosing bugs, TDD, Review, Guided review, Security review |
 | **Kodebase og levering** | Arkitekturforbedring, PR eller skillvedlikehold. | Improve codebase architecture, Pull request, Create a skill |
-| **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel builder, Accessibility review, Design prototype |
+| **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel, Accessibility review, Design prototype |
 | **Produkt og tjeneste** | Mål, discovery, teamarbeid, workshop, klarspråk eller ansvarlig atferdsdesign. | Produktledelse, Klarspråk, Dulting |
 | **Nav backend og plattform** | Identitet, Nais, Kafka, database, observability og feilsøking i Nav/Nais. | Nav platform |
 
@@ -225,12 +225,11 @@ agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som
 faktisk er lastet og hvilken ID det native skillverktøyet godtar.
 
-`aksel-builder` er Aksel-teamets egen skill fra `navikt/copilot`, tatt inn uendret
-og med samme ID, slik [ADR 0038](adr/0038-delte-skills-tas-inn-uendret.md)
-beskriver. Den bruker Aksel MCP når økten har den, og ellers Aksels publiserte
-dokumentasjon. Har et team også installert Aksels kopi i repoet eller hos brukeren,
-er det den kopien som lastes, og `/doctor` melder skyggingen. Det er samme skill,
-men da gjelder ikke versjonen Grillmester har låst og målt.
+`aksel` er skrevet og målt i Grillmester, slik
+[ADR 0038](adr/0038-en-liten-aksel-skill-malt-frem.md) beskriver. Den sier hva som
+er avviklet, og hvordan agenten slår opp i de installerte pakkene, Aksel MCP og
+Aksels dokumentasjon. Den bygger på Aksel-teamets `aksel-builder` i
+`navikt/copilot`, som har en annen ID, så et team med begge får to Aksel-skills.
 
 Andre fagområder overlapper med `navikt/copilot`, lokale tilpasninger og eldre
 Hovmester-oppsett. Repo- og brukerkilder med samme ID kan skygge for pakken,
@@ -270,7 +269,7 @@ Disse grensene gjør overlappende metoder enklere å velge:
 | Finne hvorfor eksisterende moduler er vanskelige å endre eller teste | `improve-codebase-architecture` | Finner refaktoreringsmuligheter; `architecture-review` vurderer et konkret forslag. |
 | Vurdere tjenester, systemgrenser eller kostbare arkitekturvalg | `architecture-review` | Gir funn og beslutningskandidater; `domain-modeling` eier ADR-vurderingen. |
 | Prøve datamodell, tilstandsmaskin eller feiloppførsel | `prototype` | Kjørbart eksperiment med avgrenset spørsmål. |
-| Se layout, hierarki eller en brukerflyt | `design-prototype` | Visuell skisse; `aksel-builder` gjør et valgt Figma-design om til kode. |
+| Se layout, hierarki eller en brukerflyt | `design-prototype` | Visuell skisse; `aksel` gjør et valgt Figma-design om til kode. |
 | Bestemme hvor testene skal ligge, også integrasjons- og e2e-tester | `tdd` | Lager en kort testplan og holder testene få og plassert så høyt som det fortsatt er raskt. |
 | Kontrollere en ferdig diff eller forstå den sammen | `review` / `guided-review` | Egenkontroll versus interaktiv gjennomgang; `security-review` brukes ved relevante sikkerhets- og personvernspørsmål. |
 | Bygge på eller feilsøke Nais, Texas, TokenX, Kafka, Cloud SQL eller observability | `nav-platform` | Rutetabell til én referanse per område, med både design og feilsøking. `diagnosing-bugs` finner og retter en kodefeil; `security-review` gir en bredere sikkerhetsvurdering. |

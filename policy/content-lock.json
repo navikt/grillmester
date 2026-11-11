@@ -74,7 +74,7 @@
     "nav-aksel": {
       "repository": "navikt/copilot",
       "revision": "381a544c6ddc5a144ad55f11be84a13e060c81b4",
-      "note": "aksel-builder is ported unchanged: every file of the skill except the source's catalog files README.md and metadata.json is byte-identical at this revision and bound by contentSha256. The revision moves only through scripts/port_skill.py; this is not a runtime dependency."
+      "note": "Adapted the Aksel MCP lookup route, the Figma-to-code confidence order and the version 8 codemod table from aksel-builder into the much smaller aksel skill, whose rules and structure were chosen by measurement here; its other eight references are not imported."
     }
   },
   "agents": {
@@ -137,13 +137,14 @@
   "skills": {
     "accessibility-review": {"source": "hovmester", "sourcePath": ".github/skills/accessibility-review", "disposition": "adapted"},
     "agent-retro": {"source": "matt-additions", "sourcePath": "skills/engineering/retro", "disposition": "adapted", "disable-model-invocation": true},
-    "aksel-builder": {
-      "source": "nav-aksel", "sourcePath": "skills/aksel-builder", "disposition": "ported", "contentSha256": "dfd368ac4ec4ea19c341cd6b582131d67bbe1ba2933123a69338d3a6cd4641cd",
-      "acceptedFindings": [
-        "SKILL.md: consumer instruction path is not portable plugin content: docs/agents/",
-        "references/setup-and-imports.md: dangling skill invocation: js",
-        "references/setup-and-imports.md: dangling skill invocation: less"
-      ]
+    "aksel": {
+      "source": "nav-aksel",
+      "sourcePath": "skills/aksel-builder",
+      "lineage": [
+        {"source": "hovmester", "sourcePath": ".github/skills/aksel-design"},
+        {"source": "hovmester", "sourcePath": ".github/skills/figma-workflow"}
+      ],
+      "disposition": "consolidated"
     },
     "app-sandbox-setup": {"source": "grillmester", "sourcePath": "plugin/skills/app-sandbox-setup", "disposition": "original", "disable-model-invocation": true},
     "architecture-review": {

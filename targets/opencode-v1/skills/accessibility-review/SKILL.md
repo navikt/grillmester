@@ -1,6 +1,6 @@
 ---
 name: accessibility-review
-description: "Review a Nav frontend flow for accessibility using keyboard, screen-reader, contrast, focus, form and axe evidence. Use when checking an interface before delivery or investigating an accessibility defect; use `aksel-builder` for component selection and layout."
+description: "Review a Nav frontend flow for accessibility using keyboard, screen-reader, contrast, focus, form and axe evidence. Use when checking an interface before delivery or investigating an accessibility defect; use `aksel` for component selection and layout."
 ---
 # Tilgjengelighet-review
 
@@ -103,7 +103,7 @@ garanti for WCAG-samsvar: riktig bruk, innhold og hele sidekonteksten må fortsa
 testes. Første review-spørsmål er: *brukes Aksel-komponenter der det finnes, og
 er de brukt riktig i denne flyten?*
 
-Se `aksel-builder`-skillen for komponentvalg, tokens og layout.
+Se `aksel`-skillen for komponentvalg, tokens og layout.
 
 ## Manuell + automatisk testing
 

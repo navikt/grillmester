@@ -52,11 +52,6 @@ _Avoid_: managed repo, installasjonstarget
 Varig repo-eid kontekst som gjelder uavhengig av valgt agent eller klient.
 _Avoid_: plugininnhold, genererte instructions
 
-**Portet skill**:
-En skill et annet team eier, tatt inn byte-identisk fra kilden på en låst commit
-og ført som `ported` i innholdslåsen.
-_Avoid_: tilpasset kopi, fork, synkronisert skill
-
 ### Design
 
 **Kjørende app**:

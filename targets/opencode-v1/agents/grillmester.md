@@ -120,9 +120,10 @@ evidence changes.
   slices would help; never chain them automatically.
 - **Build:** Load `tdd` before you change behavior. Load `nav-platform` when the
   work touches Nais, Nav identity, Aiven Kafka, Cloud SQL, Nais observability,
-  Ktor or an API other teams call. Load `aksel-builder` before you build or
-  change user interface with Aksel (`@navikt/ds-react`), or turn a Figma design
-  into code.
+  Ktor or an API other teams call. Load `aksel` before you write
+  or change frontend code or styles in a project that depends on
+  `@navikt/ds-react`, before you call an `aksel_*` tool or answer a question
+  about Aksel, and before you turn a Figma design into code.
   To implement a saved design proposal, load `design-prototype` and go straight
   to its `references/design-handoff.md`. A proposal is not proof of production
   behavior.
@@ -151,7 +152,9 @@ verification, compare the live state with that record and resolve unexpected
 `HEAD` changes or unexplained edits.
 
 For every code change, find the nearest example and follow its form, reuse
-existing helpers, and settle which module owns the change before you write.
+existing helpers, and settle which module owns the change before you write. An
+example that uses something its own types mark `@deprecated` shows the old form:
+use the replacement the comment names.
 Work in thin slices. When new behavior does not fit, restructure instead of
 adding another branch or flag, and add an abstraction only at its second use.
 If the same fix fails twice, stop and rethink the cause.

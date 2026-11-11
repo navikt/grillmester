@@ -23,23 +23,24 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "ed997965acc8c8038b6af56c5c3bf3ff2d9448f1f554c65c94b349074fb3ebb7",
+        "designer": "bac9b501e23887043e14b8a7af02f5add020ac0685ef2e7eb46a0bb5b7fd1dc8",
         "doctor-who": "601c934a774053d5f7152aa99984699b018d5fc88f317d0ee6b121ecdd076af1"
       },
       "skills": {
-        "accessibility-review": "26bc6b557f73af27e2a499b552e3713ac86ed96fb648326d433545c1a4ba27d1",
+        "accessibility-review": "0e9e4057c5cbcde016fb9abba58d0fe32bd152fc0861a0e8fa3931547a9a3af2",
+        "aksel": "fffbb539a51c9dd77a57149db958d3cf8fe373fe7e0bf735e8033a304772a349",
         "architecture-review": "19194e2172d0cc0ce07f8a055cfca7ab94b890a577231147b9c4ea5a6ec9b8e7",
-        "design-prototype": "0149a51f4532f3ed9dac471510fbf08716d5c357ba8edd5ba6d4cbfdc7ad4811",
-        "doctor": "b4e6ee594d612df7800e9be6deb7b5ec684adbd9ec9938ebbf265d511cf3707d",
-        "dulting": "18c23c9a28a34f261751283054076ab2d58fd107387f2d182c08e026c55a14b9",
+        "design-prototype": "65d76a2354efd4c16e9c0b6a4e1b254d063d7ac84f993a321e9dd693b8e1efff",
+        "doctor": "4e8f2904663a65d551f957242461f8a512fd244e6daf836f76e01e47e2413019",
+        "dulting": "2211ddeeec736cffb3f2eeaa4e8f3ecf5e5950ac741699f9ccee893f89af1c42",
         "produktledelse": "2a77ac3d0cf98878e8a0df3c23d250b881fe2873e7cea0e6f833432783cbef0f"
       }
     },
-    "contentLockSha256": "cedea9647c37ffc68679336de30d7c58909ecadc5d2c960e7c528c9b882fb3a6",
+    "contentLockSha256": "80d245d938ff1a74a17e2ecf599a7ceb0354823d80b5fa63218142ded874d8c9",
     "hovmester": {
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "e173ec90f31394e6852112ab777974e4578c2b8ee4ef607a12586abe88fcb6b2"
+    "provenanceSha256": "eb27bb62217ccf05ab5a671e02d00d0bbc375f41976be95e0e40bce3f327a522"
   }
 }

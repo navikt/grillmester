@@ -68,62 +68,16 @@ class Case:
 
 CASES = (
     Case(
-        "aksel-builder",
-        "references/accessibility.md",
-        "Legg til et søkefelt og en slett-knapp med bare ikon i VedtakSide.tsx. "
-        "Begge må ha riktig ledetekst og tilgjengelig navn for skjermleser.",
-    ),
-    Case(
-        "aksel-builder",
-        "references/components.md",
-        "Bygg et klageskjema med tekstfelt, radiogruppe og en bekreftelsesdialog "
-        "i KlageSkjema.tsx.",
-    ),
-    Case(
-        "aksel-builder",
+        "aksel",
         "references/figma-to-code.md",
         "Implementer dette Figma-designet med Aksel: "
         "https://figma.com/design/abc123/Vedtak?node-id=1-2",
     ),
     Case(
-        "aksel-builder",
-        "references/icons.md",
-        "Hvilket ikon passer til en tilbake-knapp på vedtakssiden, og hvordan "
-        "importerer jeg det?",
-    ),
-    Case(
-        "aksel-builder",
-        "references/mcp-workflow.md",
-        "Jeg har koblet til Aksel MCP, men `aksel_find_docs` gir tomt svar når "
-        "jeg søker etter varsel. Hva gjør jeg feil?",
-    ),
-    Case(
-        "aksel-builder",
-        "references/migrations.md",
+        "aksel",
+        "references/migration.md",
         "Vi er på Aksel 8, men stilarkene bruker fortsatt `--a-`-variabler. "
         "Hvordan rydder vi opp?",
-    ),
-    Case(
-        "aksel-builder",
-        "references/primitives-layout.md",
-        "Lag en responsiv side med sidemeny og kort-grid i VedtakSide.tsx.",
-    ),
-    Case(
-        "aksel-builder",
-        "references/setup-and-imports.md",
-        "Sett opp Aksel i en ny Next.js-app med App Router. Hvilke pakker og "
-        "importer trenger jeg?",
-    ),
-    Case(
-        "aksel-builder",
-        "references/theming.md",
-        "Legg til mørk modus på vedtakssiden.",
-    ),
-    Case(
-        "aksel-builder",
-        "references/tokens-styling.md",
-        "Hvilken bakgrunnsfarge og luft skal et varselkort ha, og hvordan "
-        "bruker jeg de samme verdiene med Tailwind?",
     ),
     Case(
         "app-sandbox-setup",
