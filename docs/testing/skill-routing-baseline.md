@@ -97,3 +97,20 @@ Build-fasen.
 Figma til kode gikk fra 3 til 2 av 3: én økt lastet bare `design-prototype`. Det er
 innenfor det tre kjøringer kan skille, men `figma-workflow` hadde en smalere
 utløser.
+
+### Designer på Opus 5.5 i en ekte app
+
+To økter 11. november med Designer på Opus 5.5 i en kopi av en ekte Nav-app, gjennom
+Copilot CLI 1.0.105 uten nettleserfane. Bestillingen var en melding om at et møte er
+flyttet, og en knapp med kalenderikon. Den ene økten hadde Aksel MCP, den andre ikke.
+
+- Ingen av øktene lastet `aksel-builder`. Designer fulgte `design-prototype`, som er
+  forhåndslastet, og appens egne mønstre.
+- Med MCP gjorde den to oppslag, `aksel_find_docs` og `aksel_get_component_info`. Uten
+  MCP slo den ikke opp noe hos Aksel.
+- Begge ga samme løsning, `LocalAlert` med `status="announcement"` og `CalendarIcon`.
+  Den er riktig for versjonen appen har installert. Prosjektet sto urørt i begge.
+- Øktene kostet 77 og 118 credits. Den dyreste brukte tid på å få demoen opp igjen.
+
+To økter viser bare at flyten virker. De sier ikke hva som skjer når forslaget trenger
+en komponent appen ikke bruker fra før.
