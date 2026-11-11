@@ -123,6 +123,10 @@ Haiku 5.5, ti økter. Bestillingen var en advarsel om at hele tjenesten er nede:
 Designer forhåndslaster derfor `aksel` sammen med `design-prototype`. En peker
 til skillen i steget der forslaget lages, ga ingen lasting i to økter.
 
+Opus 5.5 med `aksel` forhåndslastet, én økt med samme bestilling: forslaget brukte
+`GlobalAlert` med tittel og innhold, prosjektet sto urørt, og økten kostet 47
+credits.
+
 I fire av de ti Haiku-øktene endret Designer selve prosjektet i stedet for den
 eide kopien, også med pluginen fra main. Det er ikke målt på Opus utover de to
 øktene over, der prosjektet sto urørt.

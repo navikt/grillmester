@@ -46,8 +46,12 @@ handler mest om avviklede komponenter. Med dem er tallene:
 | Uten Aksel-skill | 32 | 70/92 (76 %) | 21/32 | 5/14 |
 | `aksel` | 30 | 84/84 (100 %) | 30/30 | 12/12 |
 
-`aksel` ble lastet i 24 av de 30 øktene. Til sammen er dette 329 økter på Haiku
-5.5, medregnet versjonene underveis, for 277 credits.
+`aksel` ble lastet i 24 av de 30 øktene. Disse øktene gikk med åtte regler i
+skillen. Fire av dem hadde ingen målt effekt og ble tatt ut etterpå. En variant
+uten tre av dem besto 26 av 26 sjekker på de fem oppgavene de gjaldt, og den
+fjerde regelen, om Aksels egne klasser, trengtes ikke: uten skill var begge
+øktene riktige. Den endelige teksten med fire regler er ikke kjørt på alle
+oppgavene.
 
 ## Hva som endret tallene
 
