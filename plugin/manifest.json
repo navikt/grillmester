@@ -59,11 +59,11 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "aa053be4632a6a2d6273d45e0ffe4e3c6a25cde725b8bde975fa6fc69b4b3114",
+      "sha256": "757913672e6087e2696abefc17bee2a8d307595cbe43de8fb7fd12f121329697",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
-      "sha256": "c79fae349fa1cc50be5b28b24cb6ac69f481c8e8a3fb100877bb9a5728a2cdd2",
+      "sha256": "3f76428f713e4578bf27b9c3cd80a524bdd39c1d7821185eed3bea544c13fee6",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
@@ -71,7 +71,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "349b2267f118825cdeb11664362bdac3c94036e973fdce5c29994a9a08acc925",
+      "sha256": "8839b44c2c4cd0a2bdc6d0dbbc604684032c8b29959a529ba1ba53de2e114547",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
