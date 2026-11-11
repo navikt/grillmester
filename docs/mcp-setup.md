@@ -5,7 +5,10 @@ installer dem fra [Navs verktøykatalog](https://min-copilot.ansatt.nav.no/verkt
 som forvaltes i
 [`navikt/copilot`](https://github.com/navikt/copilot/tree/main/apps/mcp-registry).
 
-- **Aksel MCP** gir oppdatert dokumentasjon om komponenter og tokens.
+- **Aksel MCP** gir oppslag i Aksels komponenter, props, tokens, ikoner og
+  migreringer. `aksel` bruker den når den er tilkoblet, og henter ellers
+  dokumentasjonen fra [aksel.nav.no](https://aksel.nav.no/llm.md). Målingene våre
+  viser ikke at økter med MCP gir bedre resultat eller lavere kostnad.
 - **Figma MCP** brukes til å lese og lage Figma-skisser.
 - **Playwright MCP** inspiserer lokale sider i klienter uten nettleserfane.
 

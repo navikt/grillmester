@@ -1,6 +1,6 @@
 ---
 name: accessibility-review
-description: "Review a Nav frontend flow for accessibility using keyboard, screen-reader, contrast, focus, form and axe evidence. Use when checking an interface before delivery or investigating an accessibility defect; use `aksel-design` for component selection and layout."
+description: "Review a Nav frontend flow for accessibility using keyboard, screen-reader, contrast, focus, form and axe evidence. Use when checking an interface before delivery or investigating an accessibility defect; use `aksel` for component selection and layout."
 ---
 # Tilgjengelighet-review
 
@@ -45,7 +45,9 @@ eksplisitt godkjenning.
 - Alle interaktive elementer skal ha tilgjengelig navn og synlig fokus.
 - Ikonknapper skal ha et meningsfullt tilgjengelig navn via synlig tekst,
   `aria-label`, `aria-labelledby` eller komponentens dokumenterte Aksel-API.
-  `title` kan være supplerende informasjon, men er ikke tilstrekkelig alene.
+  Aksel-ikonets `title`-prop gir knappen et tilgjengelig navn og er Aksels eget
+  mønster for ikonknapper. HTML-attributtet `title` på selve knappen kan være
+  supplerende informasjon, men er ikke tilstrekkelig alene.
 - Ikke bruk `<div onClick>` uten rolle, `tabIndex`, tastaturhåndtering og fokusstil.
 - Bruk beskrivende lenketekst, ikke "Klikk her".
 
@@ -99,7 +101,7 @@ garanti for WCAG-samsvar: riktig bruk, innhold og hele sidekonteksten må fortsa
 testes. Første review-spørsmål er: *brukes Aksel-komponenter der det finnes, og
 er de brukt riktig i denne flyten?*
 
-Se `aksel-design`-skillen for komponentvalg, tokens og mønstre.
+Se `aksel`-skillen for komponentvalg, tokens og layout.
 
 ## Manuell + automatisk testing
 

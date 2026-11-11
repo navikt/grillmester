@@ -14,7 +14,7 @@ referanser. Under to av tre:
 
 | Skill | Lest |
 | --- | --- |
-| `aksel-design` | 3/3 |
+| `aksel-design` (erstattet 11. november, se under) | 3/3 |
 | `app-sandbox-setup` | 12/12 |
 | `architecture-review` | 6/6 |
 | `create-a-skill` | 9/9 |
@@ -31,9 +31,47 @@ referanser. Under to av tre:
 | `tdd` | 6/6 |
 | `wayfinder` | 3/3 |
 
-`aksel-design` har nå bare `patterns.md`. Fire referanser som kopierte Aksels egne
-dokumenter, er fjernet. I seks kjøringer med spørsmål om komponenter, tokens og
+`aksel-design` hadde da bare `patterns.md`. Fire referanser som kopierte Aksels egne
+dokumenter, var fjernet. I seks kjøringer med spørsmål om komponenter, tokens og
 migrering hentet agenten dokumentasjonen fra aksel.nav.no i alle seks.
+
+## Måling av aksel-builder
+
+11. november ble Aksel-teamets `aksel-builder` fra `navikt/copilot` målt som
+erstatning for `aksel-design` og `figma-workflow`
+([ADR 0038](../adr/0038-en-liten-aksel-skill-malt-frem.md)). Med samme oppsett,
+Copilot CLI 1.0.105 og Haiku 5.5, ble skillen lastet i 30 av 30 økter, og referansen
+ble lest i 15 av 30.
+
+| Referanse | Lest |
+| --- | --- |
+| `figma-to-code.md` | 3/3 |
+| `mcp-workflow.md` | 3/3 |
+| `setup-and-imports.md` | 3/3 |
+| `migrations.md` | 2/3 |
+| `theming.md` | 2/3 |
+| `primitives-layout.md` | 1/3 |
+| `tokens-styling.md` | 1/3 |
+| `accessibility.md` | 0/3 |
+| `components.md` | 0/3 |
+| `icons.md` | 0/3 |
+
+Tre sporede økter viser hva agenten gjorde i stedet. For ikoner og komponenter gikk
+den rett til Aksels dokumentasjon, slik reservetabellen i `SKILL.md` beskriver, og
+svarte derfra uten å åpne referansen. Én økt hentet en sti som ikke står i Aksels
+indeks. I ni økter, fordelt på komponenter, layout og tokens, nådde agenten grensen
+på tolv verktøykall mens den bygde.
+
+Måleoppsettet har ikke Aksel MCP, så tallene gjelder skillens reserveløp, og de
+gjelder Haiku 5.5. Sterkere modeller er ikke målt. Tre scenarioer ble rettet etter
+første kjøring og målt på nytt, og tabellen viser de rettede: `accessibility.md`
+viste til en fil som ikke finnes i engangsrepoet, `mcp-workflow.md` sa ikke at
+brukeren hadde MCP-en, og `migrations.md` ba om en oppgradering repoet alt hadde
+gjort. Summen ble 15 av 30 begge ganger.
+
+`aksel-builder` ble ikke tatt inn. `aksel`, som erstattet den, har to referanser
+bak en Les først-tabell, `figma-to-code.md` og `migration.md`. Begge ble lest i
+3 av 3 økter med samme oppsett, målt på den endelige teksten.
 
 ## Ny måling av design-prototype
 

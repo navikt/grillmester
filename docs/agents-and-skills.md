@@ -207,25 +207,31 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | **Overlevering** | Brukeren ber om å flytte pågående arbeid til en annen sesjon, klient eller kollega. | Handoff (manuell) |
 | **Implementasjon og kvalitet** | Feilsøking, teststrategi, review eller sikkerhet/personvern. | Diagnosing bugs, TDD, Review, Guided review, Security review |
 | **Kodebase og levering** | Arkitekturforbedring, PR eller skillvedlikehold. | Improve codebase architecture, Pull request, Create a skill |
-| **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel design, Accessibility review, Design prototype, Figma workflow |
+| **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel, Accessibility review, Design prototype |
 | **Produkt og tjeneste** | Mål, discovery, teamarbeid, workshop, klarspråk eller ansvarlig atferdsdesign. | Produktledelse, Klarspråk, Dulting |
 | **Nav backend og plattform** | Identitet, Nais, Kafka, database, observability og feilsøking i Nav/Nais. | Nav platform |
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 30 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 29 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-De 30 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
+De 29 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
 `design-prototype` og `review`. Nav-pilot eier valg og distribusjon av
 agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som
 faktisk er lastet og hvilken ID det native skillverktøyet godtar.
 
-Noen fagområder overlapper med `navikt/copilot`, lokale tilpasninger og eldre
+`aksel` er skrevet og målt i Grillmester, slik
+[ADR 0038](adr/0038-en-liten-aksel-skill-malt-frem.md) beskriver. Den sier hva som
+er avviklet, og hvordan agenten slår opp i de installerte pakkene, Aksel MCP og
+Aksels dokumentasjon. Den bygger på Aksel-teamets `aksel-builder` i
+`navikt/copilot`, som har en annen ID, så et team med begge får to Aksel-skills.
+
+Andre fagområder overlapper med `navikt/copilot`, lokale tilpasninger og eldre
 Hovmester-oppsett. Repo- og brukerkilder med samme ID kan skygge for pakken,
 og forskjellige ID-er kan fortsatt beskrive samme metode. Bruk `/doctor`
 når et team vil kartlegge aktive kilder, kollisjoner og gamle referanser før
@@ -263,7 +269,7 @@ Disse grensene gjør overlappende metoder enklere å velge:
 | Finne hvorfor eksisterende moduler er vanskelige å endre eller teste | `improve-codebase-architecture` | Finner refaktoreringsmuligheter; `architecture-review` vurderer et konkret forslag. |
 | Vurdere tjenester, systemgrenser eller kostbare arkitekturvalg | `architecture-review` | Gir funn og beslutningskandidater; `domain-modeling` eier ADR-vurderingen. |
 | Prøve datamodell, tilstandsmaskin eller feiloppførsel | `prototype` | Kjørbart eksperiment med avgrenset spørsmål. |
-| Se layout, hierarki eller en brukerflyt | `design-prototype` | Visuell skisse; `figma-workflow` bruker et eksisterende design som grunnlag. |
+| Se layout, hierarki eller en brukerflyt | `design-prototype` | Visuell skisse; `aksel` gjør et valgt Figma-design om til kode. |
 | Bestemme hvor testene skal ligge, også integrasjons- og e2e-tester | `tdd` | Lager en kort testplan og holder testene få og plassert så høyt som det fortsatt er raskt. |
 | Kontrollere en ferdig diff eller forstå den sammen | `review` / `guided-review` | Egenkontroll versus interaktiv gjennomgang; `security-review` brukes ved relevante sikkerhets- og personvernspørsmål. |
 | Bygge på eller feilsøke Nais, Texas, TokenX, Kafka, Cloud SQL eller observability | `nav-platform` | Rutetabell til én referanse per område, med både design og feilsøking. `diagnosing-bugs` finner og retter en kodefeil; `security-review` gir en bredere sikkerhetsvurdering. |

@@ -157,9 +157,9 @@ etter et avvist kall. Last bare metoden som trengs nå.
 | Behov | Skill |
 |---|---|
 | Appvisning, visuell utforsking, forslag i eid kopi, redigerbart Figma-design og overlevering | `design-prototype` |
-| Komponentvalg, layout og tokens | `aksel-design` |
+| Aksel-komponenter, layout, tokens og ikoner | `aksel` |
 | Brukerrettet tekst og feilmeldinger | `klarsprak` |
-| Valgt Figma-design til kode eller brief | `figma-workflow` |
+| Kode fra et valgt Figma-design, når kode er bestilt | `aksel` |
 | Kjørbart forsøk for en usikker data-, tilstands- eller feilkontrakt | `prototype` |
 | UU-gjennomgang av implementert UI | `accessibility-review` |
 | Viktige uavklarte behov og antakelser | `grilling`; `grill-me` er brukerens manuelle grilløkt |

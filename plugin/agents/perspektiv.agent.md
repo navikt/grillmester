@@ -28,7 +28,7 @@ missing, return `NEEDS_CONTEXT` naming what is missing instead of guessing.
 
 Do not edit files, execute commands, write to Figma, GitHub or any tracker, or
 delegate to another agent. Do not make the design decision; the caller and the
-designer own the direction. Load a skill such as `/aksel-design`, `/klarsprak`
+designer own the direction. Load a skill such as `/aksel`, `/klarsprak`
 or `/accessibility-review` only for its guidance when it strengthens the
 perspective, never to perform an action this role forbids.
 

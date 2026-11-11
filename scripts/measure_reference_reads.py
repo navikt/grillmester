@@ -68,10 +68,16 @@ class Case:
 
 CASES = (
     Case(
-        "aksel-design",
-        "references/patterns.md",
-        "Lag en responsiv side med sidemeny og kort-grid i VedtakSide.tsx.",
-        DESIGNER,
+        "aksel",
+        "references/figma-to-code.md",
+        "Implementer dette Figma-designet med Aksel: "
+        "https://figma.com/design/abc123/Vedtak?node-id=1-2",
+    ),
+    Case(
+        "aksel",
+        "references/migration.md",
+        "Vi er på Aksel 8, men stilarkene bruker fortsatt `--a-`-variabler. "
+        "Hvordan rydder vi opp?",
     ),
     Case(
         "app-sandbox-setup",

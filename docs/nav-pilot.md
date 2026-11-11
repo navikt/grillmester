@@ -26,8 +26,10 @@ sandbox i stedet. Native pluginbruk følger Copilot-klientens runtime.
 
 ## Utvalgte fellesskills
 
-Målet er å gjenbruke et eksplisitt utvalg fellesskills, for eksempel Aksel,
-Nais og security, uendret i Grillmester. Det betyr ikke å installere hele
+Målet er å gjenbruke et eksplisitt utvalg fellesskills, for eksempel Nais og
+security, uendret i Grillmester. Aksel-skillen er skrevet om og målt her, og
+forbedringene foreslås hos Aksel-teamet
+([ADR 0038](adr/0038-en-liten-aksel-skill-malt-frem.md)). Det betyr ikke å installere hele
 nav-pilots innhold hos brukerne.
 
 [Avklaringen om gjenbruk](https://github.com/navikt/copilot/issues/840)

@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 30 skills. The sources below record attribution
+`plugin/`: six agents and 29 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -407,11 +407,27 @@ the `grilling` skill without naming rounds. It adds no third-party material. The
 journal binds this content and this provenance record while preserving the underlying
 decision in #56.
 
+PR [#135](https://github.com/navikt/grillmester/pull/135) reviews the replacement
+of the imported `aksel-design` and `figma-workflow` skills with one skill, `aksel`.
+It is written in this repository from measurements and adapts three things from
+`aksel-builder` in `navikt/copilot`, as recorded under Third-party lineage. It
+carries no Hovmester content, so it is outside the rights scope. Within the rights
+scope the change removes the two imported skills. In `designer` it preloads
+`aksel` and points two rows of the skill table at it. In `accessibility-review` it
+points to `aksel` and says that `title` on an Aksel icon gives an icon-only button
+its accessible name, as Aksel's documentation does. In `design-prototype` and
+`dulting` it changes the pointers. `aksel-builder` is Nav's own material under the
+MIT license; the change adds no material from outside Nav. The rights journal
+binds this content, the content lock and this provenance record while preserving
+the underlying decision in #56.
+
 Imported skills:
 
-- `accessibility-review`, `aksel-design`, `figma-workflow`, `produktledelse`,
-  `dulting`; `okr`, `team-status` and `workshop-design` are consolidated into
-  `produktledelse`, and the content lock records them as its lineage
+- `accessibility-review`, `produktledelse`, `dulting`; `okr`, `team-status` and
+  `workshop-design` are consolidated into `produktledelse`, and the content lock
+  records them as its lineage
+- `aksel-design` and `figma-workflow` were imported too. They are no longer
+  shipped; `aksel`, written in this repository, replaces them.
 - Hovmester's visual `prototype` workflow is imported as `design-prototype`;
   the pilot's behavior-oriented `prototype` retains its original ID.
 
@@ -429,9 +445,9 @@ reviewed source lineage, not a runtime dependency or synchronization
 relationship. See the MIT notice in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The portable adaptation keeps the design, Aksel, Figma, product, workshop,
-team-status, and visual-prototype workflows, plus the consolidated Nav context
-described above. It removes ambient
+The portable adaptation keeps the design, accessibility, Figma-design, product,
+workshop, team-status, and visual-prototype workflows, plus the consolidated Nav
+context described above. It removes ambient
 repository synchronization, fixed Team eSyfo repositories or project boards,
 template placeholders, and automatic external writes. Figma, GitHub, and
 delivery side effects require an explicit
@@ -590,6 +606,16 @@ The observability review at `navikt/copilot` revision
 `nav-platform/references/observability.md`. The local adaptation
 also checks sampling and query coverage before interpreting absent signals.
 It does not import endpoint URLs, query recipes or a mandatory signal count.
+
+The Aksel review at `navikt/copilot` revision
+`381a544c6ddc5a144ad55f11be84a13e060c81b4` adapts three things from
+`skills/aksel-builder` into `aksel`: the lookup route through the Aksel MCP server
+with the published documentation as fallback, the order of trust for Figma design
+context with its translation rules, and the table of version 8 codemods. The
+rules, the structure and the size of `aksel` come from measurements in this
+repository, recorded in `docs/testing/aksel-outcomes-baseline.md`. The other eight
+references in `aksel-builder` are not imported, because the measurements showed
+that agents find those facts in the installed packages and Aksel's documentation.
 
 The Texas review at `navikt/copilot` revision
 `2145f233dd35a62b5674d5f526bcf9417e741f03` adapts four points from

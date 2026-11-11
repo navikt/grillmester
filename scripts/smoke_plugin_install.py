@@ -59,7 +59,7 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 6, 30, True),
+    PackageSpec("grillmester", "plugin", 6, 29, True),
 )
 LEGACY_CORE = PackageSpec("grillmester", "plugin", 8, 34, False)
 LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10, False)
@@ -81,7 +81,9 @@ LEGACY_ADD_ON_SKILLS = (
     "lumi-survey",
 )
 SAME_PACKAGE_REMOVED_SKILLS = (
+    "aksel-design",
     "e2e-tests",
+    "figma-workflow",
     "grillmester-nav-architecture-review",
     "integration-tests",
     "lumi-survey",
@@ -96,6 +98,7 @@ SAME_PACKAGE_REMOVED_SKILLS = (
 HISTORICAL_REMOVED_SKILLS = ("grillmester-kotlin-spring",)
 CURRENT_ONLY_SKILLS = (
     "agent-retro",
+    "aksel",
     "app-sandbox-setup",
     "guided-review",
     "nav-platform",

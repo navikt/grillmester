@@ -114,7 +114,7 @@ prøves uten appen selv.
 privat kontroll, gjenbruk, avbrudd, utløp og opprydding av vanlige barn. Se
 [beslutningen om demolivsløp](adr/0028-eid-livslop-for-lokale-demoer.md).
 
-Plugin-smoken skal bekrefte 6 agenter, 30 skills og byte-eksakt installasjon,
+Plugin-smoken skal bekrefte 6 agenter, 29 skills og byte-eksakt installasjon,
 oppgradering, rollback og avinstallering. I compatibility-jobben krever den at
 minimumsklienten Copilot CLI `1.0.100` annonserer hele flaggrosteren som local-run
 eier i `--help`, uten modell- eller nettverkskall. Den eksakte local-smoken

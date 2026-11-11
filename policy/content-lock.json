@@ -70,6 +70,11 @@
       "repository": "navikt/copilot",
       "revision": "2145f233dd35a62b5674d5f526bcf9417e741f03",
       "note": "Adapted four points from tokenx-auth: a Texas failure surfaces as 5xx, not 401; one skip_cache retry after an access-policy change; client_id checks when authorizing per calling app; and both acr forms. Code and request examples are not imported. The other Texas corrections were checked against the Nais documentation."
+    },
+    "nav-aksel": {
+      "repository": "navikt/copilot",
+      "revision": "381a544c6ddc5a144ad55f11be84a13e060c81b4",
+      "note": "Adapted the Aksel MCP lookup route, the Figma-to-code confidence order and the version 8 codemod table from aksel-builder into the much smaller aksel skill, whose rules and structure were chosen by measurement here; its other eight references are not imported."
     }
   },
   "agents": {
@@ -132,7 +137,14 @@
   "skills": {
     "accessibility-review": {"source": "hovmester", "sourcePath": ".github/skills/accessibility-review", "disposition": "adapted"},
     "agent-retro": {"source": "matt-additions", "sourcePath": "skills/engineering/retro", "disposition": "adapted", "disable-model-invocation": true},
-    "aksel-design": {"source": "hovmester", "sourcePath": ".github/skills/aksel-design", "disposition": "adapted"},
+    "aksel": {
+      "source": "grillmester",
+      "sourcePath": "plugin/skills/aksel",
+      "lineage": [
+        {"source": "nav-aksel", "sourcePath": "skills/aksel-builder"}
+      ],
+      "disposition": "original"
+    },
     "app-sandbox-setup": {"source": "grillmester", "sourcePath": "plugin/skills/app-sandbox-setup", "disposition": "original", "disable-model-invocation": true},
     "architecture-review": {
       "source": "pilot",
@@ -179,7 +191,6 @@
       "disposition": "adapted"
     },
     "dulting": {"source": "hovmester", "sourcePath": ".github/skills/dulting", "disposition": "adapted"},
-    "figma-workflow": {"source": "hovmester", "sourcePath": ".github/skills/figma-workflow", "disposition": "adapted"},
     "grill-me": {
       "source": "pilot",
       "sourcePath": ".github/skills/grill-me",
