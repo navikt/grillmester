@@ -5,7 +5,7 @@
         "role": "Grillmester repository maintainer",
         "team": "Team eSyfo"
       },
-      "date": "2026-11-10",
+      "date": "2026-11-11",
       "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#131",
       "status": "approved"
     },
@@ -14,7 +14,7 @@
         "role": "Hovmester repository owner",
         "team": "Team eSyfo"
       },
-      "date": "2026-11-10",
+      "date": "2026-11-11",
       "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#131",
       "status": "approved"
     }
@@ -23,8 +23,8 @@
   "scope": {
     "components": {
       "agents": {
-        "designer": "aa053be4632a6a2d6273d45e0ffe4e3c6a25cde725b8bde975fa6fc69b4b3114",
-        "doctor-who": "c79fae349fa1cc50be5b28b24cb6ac69f481c8e8a3fb100877bb9a5728a2cdd2"
+        "designer": "757913672e6087e2696abefc17bee2a8d307595cbe43de8fb7fd12f121329697",
+        "doctor-who": "3f76428f713e4578bf27b9c3cd80a524bdd39c1d7821185eed3bea544c13fee6"
       },
       "skills": {
         "accessibility-review": "229dc69bdc6fa6eba43748a5328bc66cb8a5b874a483bd32607a0bd6b3ee390e",
