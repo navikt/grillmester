@@ -70,7 +70,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "7591890e018180ae35d88733410c083e419c296cd11aadcc69f01747bd0de9f9",
+      "sha256": "ea4f92c588f9deac241c9da0aa2f04ed7d6eda9bc8decd284dc7d442c6ce8be3",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
@@ -94,7 +94,7 @@
       "mode": "0644"
     },
     "skills/aksel/SKILL.md": {
-      "sha256": "95db8a09cf0180998e8e08e3e7172d557266c26cee97623fc64e1951156fde5c",
+      "sha256": "434a17e5754d9945e0806fa3a57682622abef761cce5a39410725100531a89b5",
       "mode": "0644"
     },
     "skills/aksel/references/figma-to-code.md": {
@@ -290,7 +290,7 @@
       "mode": "0755"
     },
     "skills/doctor/SKILL.md": {
-      "sha256": "e126187e25a04e5ea67f2188f0b3868dba8975f1b05080e577d7c4b6df371a95",
+      "sha256": "d6c121b273a61352b220b541570438f84741a5c3ecd77952fd4b86529708f385",
       "mode": "0644"
     },
     "skills/domain-modeling/ADR-FORMAT.md": {

@@ -245,12 +245,6 @@ SCENARIOS = (
         "designer",
     ),
     Scenario(
-        "aksel",
-        "Bygg et skjema for å klage på vedtak i frontenden. Vi bruker Navs "
-        "designsystem.",
-        ("aksel",),
-    ),
-    Scenario(
         "no-skill-typo",
         "Rett skrivefeilen «Vedak» til «Vedtak» i README.md.",
         (),

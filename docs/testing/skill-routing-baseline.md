@@ -89,12 +89,12 @@ Underveis ble Aksel-teamets `aksel-builder` målt med scenarioene over, 11. nove
 | --- | --- | --- | --- |
 | `aksel-design` | designer | 3/3 | `aksel-builder` 3 |
 | `figma-workflow` | designer | 2/3 | `aksel-builder` 2, `design-prototype` 2 |
-| Skjema med Navs designsystem | grillmester | 3/3 | `aksel-builder` 3, `tdd` 1 |
 
-Disse scenarioene nevner Aksel eller designsystemet. I vanlige bestillinger som
-ikke gjør det, ble `aksel-builder` lastet i 7 av 22 økter og `aksel` i 24 av 30.
-De tallene står i [baseline for Aksel](aksel-outcomes-baseline.md). Scenarioene
-over er ikke kjørt på nytt for `aksel`.
+Disse scenarioene nevner Aksel eller designsystemet. I vanlige bestillinger til
+Grillmester som ikke gjør det, ble `aksel-builder` lastet i 7 av 22 økter og
+`aksel` i 19 av 22 på de samme oppgavene. De tallene står i
+[baseline for Aksel](aksel-outcomes-baseline.md). Scenarioene over er ikke kjørt
+på nytt for `aksel`.
 
 ### Designer i en ekte app
 
@@ -126,6 +126,10 @@ til skillen i steget der forslaget lages, ga ingen lasting i to økter.
 Opus 5.5 med `aksel` forhåndslastet, én økt med samme bestilling: forslaget brukte
 `GlobalAlert` med tittel og innhold, prosjektet sto urørt, og økten kostet 47
 credits.
+
+Designer-øktene med `aksel` gikk før skillen ble kortet ned til tre regler.
+Regelen om avviklede komponenter er den samme i den endelige teksten, men
+Designer er ikke kjørt på nytt med den.
 
 I fire av de ti Haiku-øktene endret Designer selve prosjektet i stedet for den
 eide kopien, også med pluginen fra main. Det er ikke målt på Opus utover de to

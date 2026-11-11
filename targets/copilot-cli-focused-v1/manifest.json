@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "1956f66f1563654e14225531211a055d0bf254dffe3adde63c7ccc885bde5be6",
+    "payloadManifestSha256": "4bcf5d4f772206cde1be73492b69e137d7fd7bd8900677a79ba43be3743c8f80",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -53,7 +53,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "7ea2ea98ec443a0c6e7cb52347b9f28899ca718e676247280128e473e5425af8",
+      "sha256": "f938300ba7ffe3802f6603289bd702ab4cdc447881852ec219a15daf02b58c46",
       "mode": "0644"
     },
     "plugin.json": {

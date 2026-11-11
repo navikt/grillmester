@@ -465,23 +465,6 @@ class PackageValidationTest(unittest.TestCase):
         )
         self.assert_error("linked file does not exist")
 
-    def test_a_commit_sha_is_not_a_national_id_where_revisions_are_recorded(self) -> None:
-        # Eleven digits in a row, written so this file does not contain them.
-        revision = "a" + "1234567" + "8901" + "b" * 28
-        provenance = self.root / "PROVENANCE.md"
-        provenance.write_text(
-            provenance.read_text(encoding="utf-8") + f"\nMoved to `{revision}`.\n",
-            encoding="utf-8",
-        )
-        self.assertFalse(
-            [error for error in self.errors() if "looks like a national ID" in error]
-        )
-        readme = self.root / "README.md"
-        readme.write_text(
-            readme.read_text(encoding="utf-8") + f"\n{revision}\n", encoding="utf-8"
-        )
-        self.assert_error("README.md: contains an 11-digit value")
-
     def test_legacy_runtime_id_is_rejected(self) -> None:
         path = self.root / "plugin/skills/review/SKILL.md"
         path.write_text(

@@ -409,15 +409,17 @@ decision in #56.
 
 PR [#135](https://github.com/navikt/grillmester/pull/135) reviews the replacement
 of the imported `aksel-design` and `figma-workflow` skills with one skill, `aksel`.
-It is written here from measurements and adapts three things from `aksel-builder`
-in `navikt/copilot`, as recorded under Third-party lineage. Within the rights scope
-it removes the two imported skills, changes the pointers to them in `designer`,
-`accessibility-review`, `design-prototype` and `dulting`, and adds an Aksel lookup
-check to `doctor`. The content lock records the two removed skills as lineage of
-`aksel`, so `aksel` is inside the rights scope. `aksel-builder` is Nav's own
-material under the MIT license; the change adds no material from outside Nav. The
-rights journal binds this content, the content lock and this provenance record
-while preserving the underlying decision in #56.
+It is written in this repository from measurements and adapts three things from
+`aksel-builder` in `navikt/copilot`, as recorded under Third-party lineage. It
+carries no Hovmester content, so it is outside the rights scope. Within the rights
+scope the change removes the two imported skills. In `designer` it preloads
+`aksel` and points two rows of the skill table at it. In `accessibility-review` it
+points to `aksel` and says that `title` on an Aksel icon gives an icon-only button
+its accessible name, as Aksel's documentation does. In `design-prototype` and
+`dulting` it changes the pointers. `aksel-builder` is Nav's own material under the
+MIT license; the change adds no material from outside Nav. The rights journal
+binds this content, the content lock and this provenance record while preserving
+the underlying decision in #56.
 
 Imported skills:
 
@@ -425,7 +427,7 @@ Imported skills:
   `workshop-design` are consolidated into `produktledelse`, and the content lock
   records them as its lineage
 - `aksel-design` and `figma-workflow` were imported too. They are no longer
-  shipped; `aksel` replaces them, and the content lock records them as its lineage.
+  shipped; `aksel`, written in this repository, replaces them.
 - Hovmester's visual `prototype` workflow is imported as `design-prototype`;
   the pilot's behavior-oriented `prototype` retains its original ID.
 

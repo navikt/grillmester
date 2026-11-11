@@ -138,13 +138,12 @@
     "accessibility-review": {"source": "hovmester", "sourcePath": ".github/skills/accessibility-review", "disposition": "adapted"},
     "agent-retro": {"source": "matt-additions", "sourcePath": "skills/engineering/retro", "disposition": "adapted", "disable-model-invocation": true},
     "aksel": {
-      "source": "nav-aksel",
-      "sourcePath": "skills/aksel-builder",
+      "source": "grillmester",
+      "sourcePath": "plugin/skills/aksel",
       "lineage": [
-        {"source": "hovmester", "sourcePath": ".github/skills/aksel-design"},
-        {"source": "hovmester", "sourcePath": ".github/skills/figma-workflow"}
+        {"source": "nav-aksel", "sourcePath": "skills/aksel-builder"}
       ],
-      "disposition": "consolidated"
+      "disposition": "original"
     },
     "app-sandbox-setup": {"source": "grillmester", "sourcePath": "plugin/skills/app-sandbox-setup", "disposition": "original", "disable-model-invocation": true},
     "architecture-review": {

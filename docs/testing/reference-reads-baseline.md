@@ -71,7 +71,7 @@ gjort. Summen ble 15 av 30 begge ganger.
 
 `aksel-builder` ble ikke tatt inn. `aksel`, som erstattet den, har to referanser
 bak en Les først-tabell, `figma-to-code.md` og `migration.md`. Begge ble lest i
-3 av 3 økter med samme oppsett.
+3 av 3 økter med samme oppsett, målt på den endelige teksten.
 
 ## Ny måling av design-prototype
 

@@ -42,15 +42,6 @@ SLASH_COMPONENT_ID = re.compile(r"/((?:grillmester)-[a-z0-9-]+)\b")
 QUALIFIED_COMPONENT_ID = re.compile(r"`grillmester:([a-z][a-z0-9-]+)`")
 REALISTIC_NATIONAL_ID = re.compile(r"(?<!\d)\d{11}(?!\d)")
 FIGMA_COMPONENT_KEY = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
-COMMIT_SHA = FIGMA_COMPONENT_KEY
-# These files record source revisions. A commit SHA can hold eleven digits in a
-# row, which is not a national ID.
-REVISION_RECORD_PATHS = {
-    "policy/content-lock.json",
-    "PROVENANCE.md",
-    "THIRD_PARTY_NOTICES.md",
-    "plugin/THIRD_PARTY_NOTICES.md",
-}
 FIGMA_KEY_PATHS = {
     "plugin/skills/design-prototype/references/aksel-figma-katalog.md",
     "plugin/skills/design-prototype/references/aksel-figma-katalog.json",
@@ -1546,21 +1537,18 @@ def validate_content(
             continue
         relative_path = path.relative_to(root).as_posix()
         national_id_matches = list(REALISTIC_NATIONAL_ID.finditer(text))
-        digest_patterns = []
-        if relative_path in SHA256_DIGEST_PATHS:
-            digest_patterns.append(SHA256_DIGEST)
-        if relative_path == RELEASE_TEST_BASELINE_PATH:
-            digest_patterns.append(ARTIFACT_HEX_DIGEST)
-        if relative_path in FIGMA_KEY_PATHS:
-            digest_patterns.append(FIGMA_COMPONENT_KEY)
-        if relative_path in REVISION_RECORD_PATHS:
-            digest_patterns.append(COMMIT_SHA)
-        if national_id_matches and digest_patterns:
-            key_spans = [
-                match.span()
-                for digest_pattern in digest_patterns
-                for match in digest_pattern.finditer(text)
-            ]
+        if national_id_matches and (
+            relative_path in FIGMA_KEY_PATHS
+            or relative_path in SHA256_DIGEST_PATHS
+            or relative_path == RELEASE_TEST_BASELINE_PATH
+        ):
+            if relative_path in SHA256_DIGEST_PATHS:
+                digest_pattern = SHA256_DIGEST
+            elif relative_path == RELEASE_TEST_BASELINE_PATH:
+                digest_pattern = ARTIFACT_HEX_DIGEST
+            else:
+                digest_pattern = FIGMA_COMPONENT_KEY
+            key_spans = [match.span() for match in digest_pattern.finditer(text)]
             national_id_matches = [
                 match
                 for match in national_id_matches

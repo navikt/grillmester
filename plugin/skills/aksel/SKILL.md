@@ -13,7 +13,6 @@ write from memory.
 
 1. Find every row below that the task touches.
 2. Read that reference before you edit, answer or run a command.
-3. Name the references you read when you report.
 
 | The task touches | Read |
 |---|---|
@@ -21,6 +20,7 @@ write from memory.
 | **Upgrade:** a new major version, `--a-` variables, `.navds-` classes, a codemod, or old Aksel code to clean up | [migration.md](references/migration.md) |
 | **Tailwind:** setting it up with Aksel, or an Aksel class name. A class is the utility, `ax` and the whole token name: `bg-ax-bg-accent-strong`, `text-ax-text-danger` | `https://aksel.nav.no/grunnleggende/kode/tailwind.md` |
 | **Form validation:** error messages, an error summary, or a multi-step application | `https://aksel.nav.no/monster-maler/soknadsdialog/monster-for-skjemavalidering.md` |
+| **Dark mode:** light and dark theme, a theme toggle, or another base colour for a section | `https://aksel.nav.no/grunnleggende/styling/theming.md` |
 
 A row with an address is a page in Aksel's documentation. Fetch it, or read it
 with `aksel_get_doc` when the Aksel MCP server is connected.
@@ -53,8 +53,6 @@ decide: use the names that version exports, and upgrade only when asked.
    write `LocalAlert.Content`. The named part `LocalAlertContent` exists only on
    the component's own entry point, `@navikt/ds-react/LocalAlert`, which is the
    form a Server Component needs.
-4. **Dark mode is the `Theme` component.** Wrap the content in
-   `<Theme theme="dark">`; do not set a class or an attribute of your own.
 
 ## Look it up, then write
 
@@ -73,13 +71,7 @@ decide: use the names that version exports, and upgrade only when asked.
    returns the wrong page or nothing. Leave the collection pages such as
    `komponenter.md` alone; that one is about a megabyte.
 3. The documentation describes the newest release. Where it differs from the
-   installed package, the installed package wins, and you say so.
+   installed package, the installed package wins.
 4. Answer a question about setup, or about how something is meant to be used,
    from the documentation page. The installed files show what exists, not what
    Aksel recommends.
-
-## Before you finish
-
-Run the project's type check and lint on the files you changed, and fix what
-your change introduced. Name the sources you used and anything you could not
-confirm.
