@@ -59,11 +59,11 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "02b89ef0f8fcc1d6214488245dc736813cd88a442aa46baabad5b3a2a6113b37",
+      "sha256": "27b8cc5f8e5ddd058f971b8b10dd660678ac998c30642563486cda6f01b25fc6",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
-      "sha256": "3f76428f713e4578bf27b9c3cd80a524bdd39c1d7821185eed3bea544c13fee6",
+      "sha256": "601c934a774053d5f7152aa99984699b018d5fc88f317d0ee6b121ecdd076af1",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
@@ -327,7 +327,7 @@
       "mode": "0644"
     },
     "skills/grilling/SKILL.md": {
-      "sha256": "338536ad4bb17eedc9590126f3f19d7d3a5cc104532691e802d94770279a7a7d",
+      "sha256": "135e6db0ed75984faecfd28ab41b34d624823ca92ef10fe3a81ee409bb443cee",
       "mode": "0644"
     },
     "skills/guided-review/SKILL.md": {
@@ -499,7 +499,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "c112a9232aaec8bbbf894fc5608ddcd7c4d0eba3db452b78f3e5638c282e122e",
+      "sha256": "6fc613f8392598959d6f22ee43918b91429c23fcbb77f38cd442c5765cf636d1",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {

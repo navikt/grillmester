@@ -32,7 +32,7 @@ ideal is one seam per feature.
 State the plan and continue; starting a TDD cycle needs no approval. Ask only
 when the seam or the tests to keep are an unsettled material choice, such as a
 new test harness, an end-to-end test, or a listed risk you propose to leave
-untested, and then inside an open grilling round if there is one.
+untested, and then inside an open grilling session if there is one.
 
 ## Keep only tests worth keeping
 

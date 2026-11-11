@@ -5,6 +5,9 @@ date: 2026-11-02
 
 # Grilling i runder og dokumentasjon på forespørsel
 
+> Rundene er erstattet av
+> [ADR 0039](0039-grilling-med-ett-sporsmal-om-gangen.md). Resten gjelder.
+
 Erstatter delvis ADR 0010.
 
 Agentene skrev mange lange Markdown-filer som teamene ikke klarte å
