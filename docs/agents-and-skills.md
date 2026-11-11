@@ -34,16 +34,22 @@ policy krever det.
 
 Grillmester sjekker fakta, ønsket resultat og en relevant feilcase først. Når
 retningen er avklart, fortsetter den med plan etter behov, implementering og
-verifikasjon uten et nytt intervju. Uklare mål og materielle valg undersøkes
-før arbeidet som avhenger av dem. Grillmester griller i runder: alle spørsmål
-som kan stilles nå, nummerert og med en anbefaling til hvert, slik at «ja»
-godtar anbefalingene. Begreper og beslutninger som bør skrives ned, foreslås i
-én linje og skrives først når du sier ja. Med `/grill-with-docs` ber du om at
-de skrives underveis. Når flere uløste beslutninger avhenger av hverandre og
-trenger en delt oversikt på tvers av økter, velger den `wayfinder`. Wayfinder
-organiserer beslutningene og bruker grilling, research eller prototyper inne i
-hvert spørsmål. Størrelsen på den senere implementasjonen er ikke alene grunn til
-å opprette et kart.
+verifikasjon uten et nytt intervju. Uklare mål undersøkes før arbeidet som
+avhenger av dem. Små, lokale valg tar Grillmester selv. Valg en reviewer kunne
+tatt annerledes, nevnes i sluttmeldingen. Den spør først blant annet når du har
+spurt om valget eller vil ta det selv, når valget fjerner noe som er lagt inn
+med vilje, endrer en offentlig kontrakt, et skjema eller en migrering,
+autentisering, databehandling eller utrulling, eller når alternativene gir
+merkbart ulikt resultat. Hvert spørsmål kan besvares alene: funnet, konsekvensen
+av hvert alternativ og anbefalingen først. Grillmester griller i runder: alle
+spørsmål som kan stilles nå, nummerert og med en anbefaling til hvert, slik at
+«ja» godtar anbefalingene. Begreper og beslutninger som bør skrives ned,
+foreslås i én linje og skrives først når du sier ja. Med `/grill-with-docs` ber
+du om at de skrives underveis. Når flere uløste beslutninger avhenger av
+hverandre og trenger en delt oversikt på tvers av økter, velger den `wayfinder`.
+Wayfinder organiserer beslutningene og bruker grilling, research eller
+prototyper inne i hvert spørsmål. Størrelsen på den senere implementasjonen er
+ikke alene grunn til å opprette et kart.
 
 Grillmester eier plan, implementering, tester og leveranse på alle risikonivåer
 og skriver koden selv. Høy risiko, mange filer eller lang testtid utløser ikke

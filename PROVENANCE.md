@@ -394,6 +394,12 @@ longer rewrites that tool name. It adds no third-party material. The rights jour
 binds this content and this provenance record while preserving the underlying decision
 in #56.
 
+PR [#132](https://github.com/navikt/grillmester/pull/132) reviews what `designer` does
+with a broad request: it says which direction it chose and what it left out, and says
+when a proposal removes something added on purpose. It adds no third-party material.
+The rights journal binds this content and this provenance record while preserving the
+underlying decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `produktledelse`,
