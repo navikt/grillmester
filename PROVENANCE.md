@@ -400,6 +400,13 @@ when a proposal removes something added on purpose. It adds no third-party mater
 The rights journal binds this content and this provenance record while preserving the
 underlying decision in #56.
 
+PR [#133](https://github.com/navikt/grillmester/pull/133) reviews the move from
+round-based grilling to one question at a time. Within the rights scope it removes the
+`designer` agent's sentence about grilling rounds and points the `doctor-who` agent to
+the `grilling` skill without naming rounds. It adds no third-party material. The rights
+journal binds this content and this provenance record while preserving the underlying
+decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `aksel-design`, `figma-workflow`, `produktledelse`,
@@ -620,6 +627,8 @@ recommendation, the thin `grill-me` and `grill-with-docs` entries, and the
 `CONTEXT.md` or `CONTEXT-MAP.md` in place, keeps grilling proportionate for
 settled work, and writes glossary entries or ADRs only when the user asks for
 documentation, accepts a one-line proposal, or repository policy requires it.
+Since #133 Grillmester asks one frontier question at a time, worded as a choice
+between alternatives, and keeps the numbered round for a user who asks for it.
 
 When imported material changes, update the content lock and this document in
 the same change. Advancing a source revision means reviewing the concrete
