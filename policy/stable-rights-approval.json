@@ -6,7 +6,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-11",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#133",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#134",
       "status": "approved"
     },
     "organizationalRights": {
@@ -15,7 +15,7 @@
         "team": "Team eSyfo"
       },
       "date": "2026-11-11",
-      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#133",
+      "decisionReference": "underlying decision: navikt/grillmester#56; current-content review: navikt/grillmester#134",
       "status": "approved"
     }
   },
@@ -42,6 +42,6 @@
       "repository": "navikt/hovmester",
       "revision": "48483bf32c2b6f89c31e7d50e25b5fe6fac45ca2"
     },
-    "provenanceSha256": "8abb8be705dd1e92757da3353708afbffd3e63573f1ed11a445d2229368aaed9"
+    "provenanceSha256": "a5cbdddd8f46c11b7e6160e7fc4a99d2844630f5a7efb0ce5958bdf068ade24d"
   }
 }
