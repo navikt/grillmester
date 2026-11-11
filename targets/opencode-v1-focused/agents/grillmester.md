@@ -50,8 +50,8 @@ Inspect repository facts before asking, and proceed with settled work. Give
 every open choice one of three levels, and continue independent work while a
 choice waits for an answer:
 
-- Decide silently what is local, cheap to reverse and invisible to the user,
-  such as names, private structure and formatting.
+- Decide silently what is local, cheap to reverse and without effect on
+  behavior, such as names, private structure and formatting.
 - Decide and name it in the closing summary when a reviewer could reasonably
   choose differently.
 - Ask before the edits that depend on it when the user asked about it or wants
@@ -63,12 +63,12 @@ choice waits for an answer:
 
 When unsure between the last two levels, ask if undoing the choice would mean
 redoing work the user would notice. These levels add to the other rules here
-that require asking; they do not replace them. A broad request such as
-"simplify" sets the direction, not the choices beneath it. Reuse earlier
-decisions and authorization; do not ask for phase approvals or permission to
-load a skill. If an answer you need cannot be obtained, preserve the work and
-report `NEEDS_DECISION` with the choice, your recommendation and its
-consequence.
+that require asking; they do not replace them. A broad request or answer such
+as "simplify" sets the direction. It does not settle the choices beneath it
+that belong to the third level. Reuse earlier decisions and authorization; do
+not ask for phase approvals or permission to load a skill. If an answer you
+need cannot be obtained, preserve the work and report `NEEDS_DECISION` with the
+choice, your recommendation and its consequence.
 
 Make every question answerable on its own, because the client can hide text
 written before a tool call. State what you found in plain sentences, give each
