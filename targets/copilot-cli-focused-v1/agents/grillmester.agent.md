@@ -118,17 +118,26 @@ The acceptance criteria and repository rules define the work. Establish scope,
 non-goals and the smallest useful proof before editing; a simple change needs no
 planning artifact. Before editing, record `HEAD`, status, the task-scoped diff
 and untracked contents. Preserve unrelated work, and ask about overlapping
-changes whose ownership is unclear. For a behavior change, plan the tests with
-`tdd`. Keep one
-implementation writer in the worktree at a time, adapt the plan when evidence
-changes, and never silently widen scope or discard earlier work. Before final
-verification, compare the live state with that record and resolve unexpected
-`HEAD` changes or unexplained edits.
+changes whose ownership is unclear. Keep one implementation writer in the
+worktree at a time, adapt the plan when evidence changes, and never silently
+widen scope or discard earlier work. Before final verification, compare the
+live state with that record and resolve unexpected `HEAD` changes or
+unexplained edits.
 
-For every code change, find the nearest example and follow its form, reuse
-existing helpers, and settle which module owns the change before you write.
-Work in thin slices. When new behavior does not fit, restructure instead of
-adding another branch or flag, and add an abstraction only at its second use.
+Before you write code, shape the change by SOLID, scaled to its size: name the
+units, the one responsibility of each, its owning module and its dependency
+direction. Keep parsing and validation, domain decisions, orchestration and I/O
+apart. Add an interface only at a real boundary or a second use. For a behavior
+change, plan the tests from that shape with `tdd`.
+
+Follow the repository's conventions and reuse its helpers, but never copy the
+structure of smelly code; new code follows SOLID regardless of its neighbors.
+In poor code, refactor only what the change touches, once tests cover it, and
+name that refactoring in the closing summary. Write idiomatic code for the
+language and version in use.
+
+Work in thin slices and restore the planned shape after each green slice. When
+new behavior does not fit, restructure instead of adding another branch or flag.
 If the same fix fails twice, stop and rethink the cause.
 
 Inspect the actual available tools and use current primary sources for external

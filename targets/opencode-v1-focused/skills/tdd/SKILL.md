@@ -24,10 +24,12 @@ in neighboring tests, build files and CI.
 
 ## Plan the tests first
 
-Before the first test, write a short test plan: the **seam** you test at and
-the tests you intend to keep, one line each with what the test catches and what
-it misses. Choose the highest seam that is still fast enough for the loop; the
-ideal is one seam per feature.
+Before the first test, write a short test plan from the change's units: the
+**seam** you test at and the tests you intend to keep, one line each with what
+the test catches and what it misses. Choose the highest seam that is still fast
+enough for the loop; the ideal is one seam per feature. A unit with
+non-trivial rules of its own, such as parsing, also gets focused tests that
+meet the keep list below.
 
 State the plan and continue; starting a TDD cycle needs no approval. Ask only
 when the seam or the tests to keep are an unsettled material choice, such as a
@@ -83,8 +85,8 @@ Avoid:
   that each new test can fail, for example by briefly breaking the code, before
   trusting it.
 - **One slice at a time.** One behavior, one test, one minimal change.
-- **Never refactor on red.** The loop ends at green; cleanup belongs to
-  `review`.
+- **Never refactor on red.** The loop ends at green; restore the planned shape
+  before the next slice with `review`'s Refactor safely.
 - **Bug fixes start red.** Reproduce the bug in one test at the seam where it
   actually happens, then fix it.
 

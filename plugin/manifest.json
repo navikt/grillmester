@@ -70,7 +70,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "914bab6cc622f8e533012781f3bd2d315f669ee0242863e5e2eb013b209a7651",
+      "sha256": "2ddb47bdfe02f5cbba2241019d7997a504c72dcaeebf0798430e8bef442d5335",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
@@ -482,7 +482,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "af0df4f5ef284b07d9d7aefcac59a4ca975ef9f126827f5c21be62d912583ba6",
+      "sha256": "761e13c57707c842e43946d93978dd2467794d38c064b95e008fd93a246904e0",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -498,7 +498,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "6fc613f8392598959d6f22ee43918b91429c23fcbb77f38cd442c5765cf636d1",
+      "sha256": "f76bea37e7fe2c2c0071cdbe0a5d85d58c0f4bcd49cbff201f4e1ae4c113dbd9",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
