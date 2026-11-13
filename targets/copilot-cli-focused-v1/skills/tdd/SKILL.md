@@ -23,10 +23,11 @@ in neighboring tests, build files and CI.
 
 ## Plan the tests first
 
-Before the first test, write a short test plan: the **seam** you test at and
-the tests you intend to keep, one line each with what the test catches and what
-it misses. Choose the highest seam that is still fast enough for the loop; the
-ideal is one seam per feature.
+Before the first test, write a short test plan from the change's units: the
+**seam** you test at and the tests you intend to keep, one line each with what
+the test catches and what it misses. Choose the highest seam that is still fast
+enough for the loop; the ideal is one seam per feature. A unit with
+non-trivial rules of its own, such as parsing, also gets focused tests.
 
 State the plan and continue; starting a TDD cycle needs no approval. Ask only
 when the seam or the tests to keep are an unsettled material choice, such as a

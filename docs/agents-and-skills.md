@@ -78,8 +78,11 @@ Den fokuserte profilen for lokale modeller nevner bare skillene den har med.
 | Levere | `pull-request` | Når PR er bestilt |
 
 Regler som gjelder all kode, står i prompten, så de virker uten at en skill er
-lastet. Før den sier seg ferdig, leser Grillmester diffen som en reviewer og
-retter smells i egen kode. Lange funksjoner stoppes best av en sperre i repoet;
+lastet. Grillmester former endringen etter SOLID før den skriver kode, følger
+repoets konvensjoner uten å kopiere rotete struktur, og skriver idiomatisk. Før
+den sier seg ferdig, retter den alle smells den har innført. Skal brudd på SOLID
+eller idiomer stoppe Grill-inspektør, må repoet gjøre dem obligatoriske i
+instruksjonene sine. Lange funksjoner stoppes best av en sperre i repoet;
 `/doctor` melder fra når den mangler.
 
 Dette er en anbefalt arbeidsflyt, ikke et løfte om kortere svartid eller lavere

@@ -43,8 +43,10 @@ for.
 
 Check the repository's documented rules: its instruction files, coding
 standards or contributing guide, and conventions its linters do not enforce.
-Then check the change against the smells below. Check the tests against the
-keep rule in `tdd`: flag a missing test for a real risk, and flag test bloat.
+New code follows SOLID, the idioms of its language and those conventions,
+without copying smells from its neighbors. Then check the change against the
+smells below. Check the tests against the keep rule in `tdd`: flag a missing
+test for a real risk, and flag test bloat.
 
 When the change touches personal or confidential data, authentication or
 authorization, secrets, logging, network trust, external integrations,
@@ -73,20 +75,25 @@ what was inspected.
 A fixed baseline of code smells, mostly from Martin Fowler's *Refactoring*, that
 applies even when a repository documents nothing. A smell is a judgement call, such as
 "possible feature envy", never a hard violation. A documented repository rule
-always wins, and anything a linter or formatter already enforces is out of
-scope.
+always wins: when it makes a principle mandatory, a smell that breaks it is
+`material`. Anything a linter or formatter already enforces is out of scope.
 
-Consider only smells the diff introduces or worsens, a few at most, and none
-for text-only changes. As the writer, fix them in the code you added or changed,
-and report what lies outside the task. As a read-only reviewer, report them.
+Consider only smells the diff introduces or worsens, and none for text-only
+changes. As the writer, fix all of them in code you added or changed and report
+the rest; as a read-only reviewer, report the few that matter most.
 
 - **Mysterious name:** a name that hides what the thing does or holds. Rename
   it; if no honest name comes, the design is unclear.
+- **Non-idiomatic code:** hand-rolls what the language or its standard library
+  provides, or carries over another language's patterns. Use the language's
+  own construct.
 - **Long function:** a function that does several things, or whose parts need
   comments to tell them apart. Extract the parts that deserve their own name.
   Length alone is no reason: thin helpers that only shorten it make it worse.
 - **Large class or module:** a class or file that has taken on several
   responsibilities. Split it along what changes together.
+- **Fat interface:** users depend on operations they do not use. Split it per
+  user.
 - **Long parameter list:** many parameters, or a flag that switches behavior.
   Give values that belong together a type, or split the function.
 - **Shallow module:** an interface about as complex as what it hides. Merge or
@@ -95,6 +102,9 @@ and report what lies outside the task. As a read-only reviewer, report them.
   change. Extract the shared shape and call it from both.
 - **Feature envy:** a function that uses another module's data more than its
   own. Move it next to that data.
+- **Hard-wired dependency:** domain or orchestration code creates its own I/O,
+  clock or framework objects. Inject them, behind an interface only at a real
+  boundary.
 - **Data clumps:** the same few fields or parameters that keep travelling
   together. Give them one type.
 - **Primitive obsession:** a primitive or string standing in for a domain
