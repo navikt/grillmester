@@ -55,8 +55,9 @@ Keep the existing shadowed-skill and continuing-conversation cases from the
 routing suite. A stale installation must be diagnosed from its actual source;
 a long conversation does not authorize a new session or transfer artifact.
 
-Run these three cases before and after ADR 0040 with the same client and
-model. Compare planned units, remaining smells and operator reminders.
+Run the messy-neighbor, tidy-repository and foreign-idiom cases on 717b88b and
+on the current revision with the same client and model. Compare planned units,
+remaining smells and operator reminders.
 
 ## Evidence status
 

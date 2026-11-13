@@ -43,10 +43,10 @@ for.
 
 Check the repository's documented rules: its instruction files, coding
 standards or contributing guide, and conventions its linters do not enforce.
-New code follows SOLID, the idioms of its language and those conventions,
-without copying smells from its neighbors. Then check the change against the
-smells below. Check the tests against the keep rule in `tdd`: flag a missing
-test for a real risk, and flag test bloat.
+New code follows SOLID, the idioms of its language and version and those
+conventions, without copying smells from its neighbors. Then check the change
+against the smells below. Check the tests against the keep rule in `tdd`: flag
+a missing test for a real risk, and flag test bloat.
 
 When the change touches personal or confidential data, authentication or
 authorization, secrets, logging, network trust, external integrations,
@@ -79,8 +79,9 @@ always wins: when it makes a principle mandatory, a smell that breaks it is
 `material`. Anything a linter or formatter already enforces is out of scope.
 
 Consider only smells the diff introduces or worsens, and none for text-only
-changes. As the writer, fix all of them in code you added or changed and report
-the rest; as a read-only reviewer, report the few that matter most.
+changes. As the writer, fix every one you judge real in code you added or
+changed and report the rest; as a read-only reviewer, report the few that
+matter most.
 
 - **Mysterious name:** a name that hides what the thing does or holds. Rename
   it; if no honest name comes, the design is unclear.
@@ -92,8 +93,8 @@ the rest; as a read-only reviewer, report the few that matter most.
   Length alone is no reason: thin helpers that only shorten it make it worse.
 - **Large class or module:** a class or file that has taken on several
   responsibilities. Split it along what changes together.
-- **Fat interface:** users depend on operations they do not use. Split it per
-  user.
+- **Fat interface:** clients depend on operations they do not use. Split it
+  per client.
 - **Long parameter list:** many parameters, or a flag that switches behavior.
   Give values that belong together a type, or split the function.
 - **Shallow module:** an interface about as complex as what it hides. Merge or

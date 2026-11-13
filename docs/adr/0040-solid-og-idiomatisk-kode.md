@@ -19,8 +19,12 @@ Derfor:
 - Koden skal være idiomatisk for språket.
 - Formen sjekkes etter hver grønne skive. `tdd` er fortsatt rød–grønn.
 - `review` får smellene «Non-idiomatic code», «Fat interface» og «Hard-wired
-  dependency», og den som skrev koden, retter alle smells den innførte. Gjør
-  repoet SOLID eller idiomer obligatorisk, hindrer et brudd `APPROVED`.
+  dependency», og den som skrev koden, retter alle reelle smells den
+  innførte. Gjør repoet SOLID eller idiomer obligatorisk, hindrer et brudd
+  `APPROVED`.
 
-En `doctor`-sjekk for språklinter er utsatt. Effekten er ikke målt; se
+Prisen er litt mer arbeid før koden skrives og en risiko for overstrukturering.
+Formen skaleres derfor etter endringen, og «Speculative generality» og
+«Shallow module» virker fortsatt. En `doctor`-sjekk for språklinter er utsatt
+fordi den ikke er gjennomførbar nå. Effekten er ikke målt; se
 [scenariene](../testing/copilot-workflow-validation.md).

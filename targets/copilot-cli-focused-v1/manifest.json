@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "818125f393e20c2034ff61cc49497a4a4d9a24cc165e1e40abb552d14ac0e722",
+    "payloadManifestSha256": "614d6683163b48e60b322d454987a10203ecc7671fdf38100797f887eface1f0",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -53,7 +53,7 @@
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "57468ad31e3b5f8f9ba1819e6dc9e1c76273e3ea06db606e1250b99c8d242419",
+      "sha256": "ce8a2c551799c45bf541c986c5c8ea504e8943b7b93aad1ba87e301f28e109d6",
       "mode": "0644"
     },
     "plugin.json": {
@@ -97,7 +97,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "76717f080a9a2bb663d05ef3451e505dbaac118cfcb36eaba227455abcf4d0dd",
+      "sha256": "c7d117283b79f4cbd84ed49bdb52e265a4be9e4e75dbd6c24819b0ec0ccf9f1c",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -113,7 +113,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "efccd71e70d203c8715efdc9f0ea3da5813d4de0bfe6c011306c5d7c22bb8997",
+      "sha256": "f76bea37e7fe2c2c0071cdbe0a5d85d58c0f4bcd49cbff201f4e1ae4c113dbd9",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {

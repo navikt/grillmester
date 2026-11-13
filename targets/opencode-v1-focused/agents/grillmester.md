@@ -136,17 +136,17 @@ widen scope or discard earlier work. Before final verification, compare the
 live state with that record and resolve unexpected `HEAD` changes or
 unexplained edits.
 
-Before you write code, shape the change by SOLID: name the units, the one
-responsibility of each, its owning module and its dependency direction. Keep
-parsing and validation, domain decisions, orchestration and I/O apart. Add an
-interface only at a real boundary or a second use. Plan the tests from that
-shape with `tdd`.
+Before you write code, shape the change by SOLID, scaled to its size: name the
+units, the one responsibility of each, its owning module and its dependency
+direction. Keep parsing and validation, domain decisions, orchestration and I/O
+apart. Add an interface only at a real boundary or a second use. For a behavior
+change, plan the tests from that shape with `tdd`.
 
 Follow the repository's conventions and reuse its helpers, but never copy the
-structure of smelly code: new code meets this standard regardless of its
-neighbors. In poor code, refactor only what the change touches, with tests
-green, and name the deviation in the closing summary. Write idiomatic code for
-the language and version in use.
+structure of smelly code; new code follows SOLID regardless of its neighbors.
+In poor code, refactor only what the change touches, once tests cover it, and
+name that refactoring in the closing summary. Write idiomatic code for the
+language and version in use.
 
 Work in thin slices and restore the planned shape after each green slice. When
 new behavior does not fit, restructure instead of adding another branch or flag.

@@ -80,10 +80,10 @@ Den fokuserte profilen for lokale modeller nevner bare skillene den har med.
 Regler som gjelder all kode, står i prompten, så de virker uten at en skill er
 lastet. Grillmester former endringen etter SOLID før den skriver kode, følger
 repoets konvensjoner uten å kopiere rotete struktur, og skriver idiomatisk. Før
-den sier seg ferdig, retter den alle smells den har innført. Skal brudd på SOLID
-eller idiomer stoppe Grill-inspektør, må repoet gjøre dem obligatoriske i
-instruksjonene sine. Lange funksjoner stoppes best av en sperre i repoet;
-`/doctor` melder fra når den mangler.
+den sier seg ferdig, retter den alle reelle smells den har innført. Skal brudd på SOLID
+eller idiomer hindre godkjenning fra Grill-inspektør, må repoet gjøre dem
+obligatoriske i instruksjonene sine. Lange funksjoner stoppes best av en sperre
+i repoet; `/doctor` melder fra når den mangler.
 
 Dette er en anbefalt arbeidsflyt, ikke et løfte om kortere svartid eller lavere
 modellkostnad. Den nye flyten må kvalitetsvurderes i hver klient og modellprofil.
