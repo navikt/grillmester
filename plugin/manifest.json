@@ -58,27 +58,27 @@
       "mode": "0644"
     },
     "agents/designer.agent.md": {
-      "sha256": "bac9b501e23887043e14b8a7af02f5add020ac0685ef2e7eb46a0bb5b7fd1dc8",
+      "sha256": "364fbbb105008055b6d1aba44ca3e009eb344710fac7f2a000a4ee4e7fbfd35b",
       "mode": "0644"
     },
     "agents/doctor-who.agent.md": {
-      "sha256": "601c934a774053d5f7152aa99984699b018d5fc88f317d0ee6b121ecdd076af1",
+      "sha256": "2e6e8da737084e1232532d3d628780232f667c3882e088d1be8f480a0a826f8e",
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "3f6533a2560dfd7ca03754b6f91eb86cc7c8b00f2a71568408ea6508fe2db493",
+      "sha256": "aadb77c940f2b142f86389c66134e9ddd0cbd31e60ea2424d30212a0aba1c533",
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "914bab6cc622f8e533012781f3bd2d315f669ee0242863e5e2eb013b209a7651",
+      "sha256": "b3e2b390f97d82d7b7d1d568bbe6e50edf25f1ad8d39b72bcd02c1a5e94ef478",
       "mode": "0644"
     },
     "agents/perspektiv.agent.md": {
-      "sha256": "da98e0a3081c58c03fd617f4d2e6c4b9aa09982fe1b89cf84dbb8ea798cdc61d",
+      "sha256": "6379da170d1fa83f4f711c03d003fbe82b1c625c747748c7474af07c50e4fc40",
       "mode": "0644"
     },
     "agents/researcher.agent.md": {
-      "sha256": "c403817a4c8815ec5ec12edb0e651c37ad39cb75d3dd448aa5938ef249f6920f",
+      "sha256": "7768aea9064303092f0f1d2be435f1224d0e02952ab3e98b0d7a33f7b4a5bcbc",
       "mode": "0644"
     },
     "plugin.json": {
@@ -326,7 +326,7 @@
       "mode": "0644"
     },
     "skills/grilling/SKILL.md": {
-      "sha256": "135e6db0ed75984faecfd28ab41b34d624823ca92ef10fe3a81ee409bb443cee",
+      "sha256": "e71275d75a6b1945abcea461b27aa5d055c2226931cbaa4eba2eba2b6fad43ce",
       "mode": "0644"
     },
     "skills/guided-review/SKILL.md": {
@@ -514,7 +514,7 @@
       "mode": "0644"
     },
     "skills/wait-what/SKILL.md": {
-      "sha256": "d449d4d395a0e688aa5bbe9222e7e88ac8132441092cd2b620b43035ded723fa",
+      "sha256": "b7b54ef0e15e477a45fca74cabbe0a430c86a40e2f83af03efb66c1f3e04d019",
       "mode": "0644"
     },
     "skills/wayfinder/SKILL.md": {

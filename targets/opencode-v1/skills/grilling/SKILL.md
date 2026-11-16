@@ -22,6 +22,12 @@ Make each question answerable on its own. Say in plain sentences what you
 found and what is at stake, give each real alternative its consequence, and
 put the one you recommend first. Word it as a choice between the alternatives.
 
+For English interviews, use clear-language principles inspired by ASD-STE100.
+Keep the context, the alternatives, and the question in separate sentences.
+Name the decision directly instead of using abstract labels. Use parallel
+wording for alternatives so their differences are easy to compare. Keep
+material consequences explicit, even when this requires more explanation.
+
 If the user asks for all the open questions at once, ask the whole frontier as
 one numbered message with your recommendation for each, and let them answer by
 number.
