@@ -75,12 +75,14 @@ what was inspected.
 A fixed baseline of code smells, mostly from Martin Fowler's *Refactoring*, that
 applies even when a repository documents nothing. A smell is a judgement call, such as
 "possible feature envy", never a hard violation. A documented repository rule
-always wins: when it makes a principle mandatory, a smell that breaks it is
-`material`. Anything a linter or formatter already enforces is out of scope.
+always wins: it suppresses a smell it endorses, and when it makes a principle
+mandatory, a smell that breaks it is `material`. Anything a linter or formatter
+already enforces is out of scope.
 
 Consider only smells the diff introduces or worsens, and none for text-only
-changes. As the writer, fix every one you judge real in code you added or
-changed and report the rest; as a read-only reviewer, report the few that
+changes. As the writer, fix every one you judge real in code you added, and what
+your change made worse in code you changed; report what lies outside the task.
+As a read-only reviewer, report every material one and the few minor ones that
 matter most.
 
 - **Mysterious name:** a name that hides what the thing does or holds. Rename

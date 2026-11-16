@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "4ddacc384d9f8f3dd90aebcc3293ac021288cb57c4fe11de502a284df534bf8a",
+    "targetManifestSha256": "f8d09335c55e6c261f85c99d94a5c4d5dae42919578a92a1494e2aefc60257e3",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -130,7 +130,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "7fdef2932e9b94764ddd595a01c3784c6e6716745ce0ff262e994d088c0e549b",
+      "sha256": "4cfb0a1084f5de387417ec6dab35d53552ea6eb8231784745aed4603af5cbeb7",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
