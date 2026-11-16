@@ -75,12 +75,14 @@ what was inspected.
 A fixed baseline of code smells, mostly from Martin Fowler's *Refactoring*, that
 applies even when a repository documents nothing. A smell is a judgement call, such as
 "possible feature envy", never a hard violation. A documented repository rule
-always wins: when it makes a principle mandatory, a smell that breaks it is
-`material`. Anything a linter or formatter already enforces is out of scope.
+always wins: it suppresses a smell it endorses, and when it makes a principle
+mandatory, a smell that breaks it is `material`. Anything a linter or formatter
+already enforces is out of scope.
 
 Consider only smells the diff introduces or worsens, and none for text-only
-changes. As the writer, fix every one you judge real in code you added or
-changed and report the rest; as a read-only reviewer, report the few that
+changes. As the writer, fix every one you judge real in code you added, and what
+your change made worse in code you changed; report what lies outside the task.
+As a read-only reviewer, report every material one and the few minor ones that
 matter most.
 
 - **Mysterious name:** a name that hides what the thing does or holds. Rename
@@ -93,8 +95,8 @@ matter most.
   Length alone is no reason: thin helpers that only shorten it make it worse.
 - **Large class or module:** a class or file that has taken on several
   responsibilities. Split it along what changes together.
-- **Fat interface:** clients depend on operations they do not use. Split it
-  per client.
+- **Fat interface:** clients depend on operations they do not use. Don't widen
+  a shared interface for one client; depend on a narrower one or a function.
 - **Long parameter list:** many parameters, or a flag that switches behavior.
   Give values that belong together a type, or split the function.
 - **Shallow module:** an interface about as complex as what it hides. Merge or
