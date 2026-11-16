@@ -5,6 +5,9 @@ date: 2026-11-04
 
 # Plasser innhold etter hva det gjør
 
+> Hvordan Grillmester former koden, står nå i
+> [ADR 0040](0040-solid-og-idiomatisk-kode.md). Resten gjelder.
+
 Erstatter delvis ADR 0026.
 
 Grillmester har 44 skills. Av dem modellen kan velge selv, nevnes 13 ikke av noen
