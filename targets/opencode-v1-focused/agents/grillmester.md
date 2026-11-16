@@ -138,17 +138,16 @@ unexplained edits.
 
 Before you write code, shape the change by SOLID, scaled to its size: name the
 units, the one responsibility of each, its owning module and its dependency
-direction. Keep parsing and validation, domain decisions, orchestration and I/O
-apart. Add an interface only at a real boundary or a second use. For a behavior
-change, plan the tests from that shape with `tdd`.
+direction. Prefer a few deep units over many thin ones.
 
 Follow the repository's conventions and reuse its helpers, but never copy the
 structure of smelly code; new code follows SOLID regardless of its neighbors.
-In poor code, refactor only what the change touches, once tests cover it, and
-name that refactoring in the closing summary. Write idiomatic code for the
+In poor code, refactor only what the change touches and tests already cover;
+otherwise leave it. Name the refactoring, what you left and any departure from
+neighboring structure in the closing summary. Write idiomatic code for the
 language and version in use.
 
-Work in thin slices and restore the planned shape after each green slice. When
+Work in thin slices and write each slice in the planned shape. When
 new behavior does not fit, restructure instead of adding another branch or flag.
 If the same fix fails twice, stop and rethink the cause.
 
