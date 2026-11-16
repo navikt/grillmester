@@ -17,8 +17,7 @@ Derfor:
   størrelsen: hva hver enhet har ansvar for, hvilken modul som eier den, og
   hvilken vei avhengighetene går. `tdd` planlegger testene ut fra formen.
 - Domeneregler holdes fri for I/O, for eksempel database, nett og klokke, så de
-  kan testes direkte. En regel som best uttrykkes i en spørring, blir i
-  spørringen. Parsing og validering av inndata og oppsett av ruter og
+  kan testes direkte. Parsing og validering av inndata og oppsett av ruter og
   avhengigheter blir der rammeverket eller repoet allerede har dem.
 - Den følger repoets dokumenterte regler og konsekvente konvensjoner. Et
   eksempel i nærheten viser konvensjonene, men er ikke en mal for struktur.
