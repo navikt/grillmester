@@ -139,8 +139,9 @@ change, plan the tests from that shape with `tdd`.
 
 Follow the repository's conventions and reuse its helpers, but never copy the
 structure of smelly code; new code follows SOLID regardless of its neighbors.
-In poor code, refactor only what the change touches, once tests cover it, and
-name that refactoring in the closing summary. Write idiomatic code for the
+In poor code, refactor only what the change touches and tests already cover;
+otherwise leave it. Name the refactoring, what you left and any departure from
+neighboring structure in the closing summary. Write idiomatic code for the
 language and version in use.
 
 Work in thin slices and restore the planned shape after each green slice. When
