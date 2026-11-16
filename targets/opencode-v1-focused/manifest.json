@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "9f73f474fbc285ab5fa14761cc2e46b6806b1cfd98be09efe97b3c6a4ae2b111",
+    "targetManifestSha256": "0e6a37e65b216f0095bb5570556729ebd63dc78993fa647f2f5d3a0122f38ff4",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -58,7 +58,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "de8375daf4e43890cb453051739f8770a987a768767133af19bd92a1a6e40113",
+      "sha256": "8160d7356e53d0d4b03d97e0f9709dd52c1e9523f41b153a3972e42f591752f7",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {

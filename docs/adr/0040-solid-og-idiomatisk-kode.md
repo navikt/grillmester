@@ -16,8 +16,9 @@ Derfor:
 - Grillmester former endringen etter SOLID før den skriver kode, skalert etter
   størrelsen: hva hver enhet har ansvar for, hvilken modul som eier den, og
   hvilken vei avhengighetene går. `tdd` planlegger testene ut fra formen.
-- Domenebeslutninger holdes fri for I/O, så de kan testes direkte. Parsing,
-  validering og oppkobling blir der rammeverket legger dem.
+- Domenebeslutninger holdes fri for I/O, for eksempel database, nett og klokke,
+  så de kan testes direkte. Parsing, validering og oppkobling blir der
+  rammeverket legger dem.
 - Den følger repoets dokumenterte regler og konsekvente konvensjoner. Et
   eksempel i nærheten viser konvensjonene, men er ikke en mal for struktur.
   Rotete struktur kopieres ikke, fordi kopier sprer den: ny logikk legges der

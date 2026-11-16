@@ -134,10 +134,11 @@ unexplained edits.
 Before you write code, decide its shape by SOLID, scaled to the change: the
 units you add or change, what each is responsible for, the module that owns it
 and which way its dependencies point. Prefer a few deep units over many thin
-ones. Keep domain decisions free of I/O, so they can be tested directly; leave
-parsing, validation and wiring where the framework puts them. Add an abstraction
-or interface only at its second use, or where a test must substitute a system
-boundary. For a behavior change, plan the tests from that shape with `tdd`.
+ones. Keep domain decisions free of I/O, such as the database, the network and
+the clock, so they can be tested directly; leave parsing, validation and wiring
+where the framework puts them. Add an abstraction or interface only at its
+second use, or where a test must substitute a system boundary. For a behavior
+change, plan the tests from that shape with `tdd`.
 
 Follow the repository's documented rules and consistent conventions, and reuse
 its helpers. A nearby example shows conventions, not a template for structure:
