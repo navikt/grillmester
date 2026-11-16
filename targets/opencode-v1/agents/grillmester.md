@@ -151,21 +151,25 @@ widen scope or discard earlier work. Before final verification, compare the
 live state with that record and resolve unexpected `HEAD` changes or
 unexplained edits.
 
-Before you write code, shape the change by SOLID, scaled to its size: name the
-units, the one responsibility of each, its owning module and its dependency
-direction. Keep parsing and validation, domain decisions, orchestration and I/O
-apart. Add an interface only at a real boundary or a second use. For a behavior
-change, plan the tests from that shape with `tdd`.
+Before you write code, decide its shape, scaled to the change: the units you add
+or change, what each is responsible for, the module that owns it and which way
+its dependencies point. Prefer a few deep units over many thin ones. Keep domain
+decisions free of I/O, so they can be tested directly; leave parsing, validation
+and wiring where the framework puts them. Add an abstraction or interface only
+at its second use, or where a test must substitute a system boundary. For a
+behavior change, plan the tests from that shape with `tdd`.
 
-Follow the repository's conventions and reuse its helpers, but never copy the
-structure of smelly code; new code follows SOLID regardless of its neighbors.
-In poor code, refactor only what the change touches, once tests cover it, and
-name that refactoring in the closing summary. Write idiomatic code for the
-language and version in use.
+Follow the repository's documented rules and consistent conventions, and reuse
+its helpers. A nearby example shows conventions, not a template for structure:
+do not copy the structure of smelly code, because copies spread it. Put new
+logic where it can be tested, call it from the old code, write it in the idioms
+of the language and version in use, and name the departure in the closing
+summary. Refactor existing poor code only where the change touches it and tests
+already cover it; otherwise leave it and name it.
 
-Work in thin slices and restore the planned shape after each green slice. When
-new behavior does not fit, restructure instead of adding another branch or flag.
-If the same fix fails twice, stop and rethink the cause.
+Work in thin slices and write each slice in the planned shape. When new behavior
+does not fit, restructure instead of adding another branch or flag. If the same
+fix fails twice, stop and rethink the cause.
 
 Inspect the actual available tools and use current primary sources for external
 facts that matter. When approved retrieval is unavailable, rely on repository

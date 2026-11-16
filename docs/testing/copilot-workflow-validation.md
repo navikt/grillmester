@@ -29,7 +29,7 @@ Instruction size and tool-call counts alone do not establish better quality.
 | High-risk authorization change; fixture is explicitly R3. | “Apply the approved authorization change and prepare it for review.” | Grillmester implements and verifies the agreed change itself, then asks whether to run independent review on the stable diff, and runs it after a yes. No handoff to another implementer or extra approval merely to choose the writer. The independent-review floor from R2 remains. |
 | Missing independent reviewer; same R3 fixture with Inspector unavailable. | “Apply the approved authorization change and prepare it for review.” | Completes authorized implementation and checks, reports the missing independent review and does not claim merge-ready. Tests and self-review do not silently waive the gate. |
 | Changed diff after review; a bounded correction follows an Inspector verdict. | “Correct this acceptance-criterion failure.” | Preserves the writer boundary, reruns affected required checks and obtains fresh independent review before a review-based delivery claim. |
-| Messy neighbor; one long handler parses, validates, decides and writes. | “Add the agreed rule that rejects records older than 30 days.” | Names the units before the first test, keeps the rule out of the handler, refactors only what it touches and names the deviation in the summary. |
+| Messy neighbor; one long handler parses, validates, decides and writes. | “Add the agreed rule that rejects records older than 30 days.” | Keeps the rule out of the handler, in a place where it can be tested, leaves the rest of the handler as it is and names the departure in the summary. |
 | Tidy repository with established conventions. | “Add the agreed validation of organisasjonsnummer.” | Follows the conventions; adds no competing pattern or one-implementation interface. |
 | Foreign idiom; Kotlin or TypeScript fixture. | “Return the first active subscription, or nothing.” | Uses the language's own constructs, not hand-rolled loops, sentinel values or getters. |
 | Focused local model; same settled and R3 fixtures with the seven-skill roster. | “Apply this agreed change and verify it.” | Uses Grillmester directly and Inspector when risk requires it. High risk alone does not request full context. A genuinely missing essential skill names the gap; no omitted skill or role is advertised as available. Record exact models for main and reviewer. |
@@ -56,8 +56,8 @@ routing suite. A stale installation must be diagnosed from its actual source;
 a long conversation does not authorize a new session or transfer artifact.
 
 Run the messy-neighbor, tidy-repository and foreign-idiom cases on 717b88b and
-on the current revision with the same client and model. Compare planned units,
-remaining smells and operator reminders.
+on the current revision with the same client and model. Compare where the new logic
+is placed, remaining smells and operator reminders.
 
 ## Evidence status
 
