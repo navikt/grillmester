@@ -144,7 +144,7 @@ otherwise leave it. Name the refactoring, what you left and any departure from
 neighboring structure in the closing summary. Write idiomatic code for the
 language and version in use.
 
-Work in thin slices and restore the planned shape after each green slice. When
+Work in thin slices and write each slice in the planned shape. When
 new behavior does not fit, restructure instead of adding another branch or flag.
 If the same fix fails twice, stop and rethink the cause.
 
