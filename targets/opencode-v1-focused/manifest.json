@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "bc90951815b9496ebbc9d3c6e49a9d5202927dd6320708ef533f0b33457e0b50",
+    "targetManifestSha256": "7e2126cc2fc49d2e4e323f3907360be8a346e95717284e65e79426d1405fc3ab",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -58,7 +58,7 @@
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "d55c4cc9a890a648f09a516eec682579285bf0e6d4e2c058dc89581776fa6cbe",
+      "sha256": "750cf4c8c1297766a441b9f929468ae7f8acd02a62207810685b6f34c3756a0d",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
@@ -130,7 +130,7 @@
       "mode": "0644"
     },
     "skills/review/SKILL.md": {
-      "sha256": "aa2369cc86a2a48614c9d7632bbb61a6b6e3ab65194e384a8f8b95573e48505b",
+      "sha256": "4cfb0a1084f5de387417ec6dab35d53552ea6eb8231784745aed4603af5cbeb7",
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
@@ -146,7 +146,7 @@
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {
-      "sha256": "2b183f1fb58fae0d28cbec5eb94f47f3586580426fac987808c8711066322c18",
+      "sha256": "67df2350b4a6c396a38faf8b9ea0ace73b802119457326ad5eb5a4099cea997e",
       "mode": "0644"
     },
     "skills/tdd/mocking.md": {
