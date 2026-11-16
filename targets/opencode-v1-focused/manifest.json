@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "f466ea743c14674f911da5a9aebfb23e994664778cbc47e88e83710a48b9956b",
+    "targetManifestSha256": "51ce863e94d38368d8002a07179c8380f7a9f87708eb6d8a4e022180a645dee6",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -54,11 +54,11 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.md": {
-      "sha256": "88016743fd388d79d92abb183bb997b40673d5021078a18a997c13a5307e19ef",
+      "sha256": "83a628f9126a29060e60b45b3f64a523ce14c96eef67fbe47c923df5503efda1",
       "mode": "0644"
     },
     "agents/grillmester.md": {
-      "sha256": "bc24e4d1268bdaa44788775a6d841b7594ad6878cba6b3c6425da48306c33494",
+      "sha256": "9ffd99b3749f6afa7ce2a2b2b04554c847cb43e173b6780cacec6a307e31057a",
       "mode": "0644"
     },
     "commands/diagnosing-bugs.md": {
@@ -106,7 +106,7 @@
       "mode": "0755"
     },
     "skills/grilling/SKILL.md": {
-      "sha256": "589e3d8e103b2bff87bd6938f837bbb66e88f2b1202924cf172c3c2dcc44e15e",
+      "sha256": "d5ea2ed4f106aadc073c4d3e9877983e419dd304b16e61a2961c8b1ca01cdc73",
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {

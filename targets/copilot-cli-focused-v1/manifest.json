@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "5ccef177591518cf16abb5fe571c676f524153c6b220aad72ce63fff06253c0c",
+    "payloadManifestSha256": "5df8015f957ca384650b6c1417668681465e4e1af1149768e38e9c981ed54782",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -49,11 +49,11 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "e7cf67e31ec061b20f69b44eb7a93ce466e6cc33a1911a1d96cbb4b8d171c24f",
+      "sha256": "7cda3934dc81b1bcfa8cb262a49c2a57338ed6a7c2c5c637bafa84dfb9ccae73",
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
-      "sha256": "cec70f7e89fbd5035a7477073432194b7bd0bd27839f8dbab7f7ea459a253440",
+      "sha256": "2b8cd3587deac0871d7c0021739a048e8a1b6304e12d60532b1e3636fc01366b",
       "mode": "0644"
     },
     "plugin.json": {
@@ -73,7 +73,7 @@
       "mode": "0755"
     },
     "skills/grilling/SKILL.md": {
-      "sha256": "01ad175668c6ea6b6d3af1db5a2c64e6fa0511d2445fec6a6796475115037856",
+      "sha256": "9f70edec71274da4773881e045ef2cfc99ec181fc7de8ba236fb9b0c9a4cde24",
       "mode": "0644"
     },
     "skills/issue-management/SKILL.md": {
