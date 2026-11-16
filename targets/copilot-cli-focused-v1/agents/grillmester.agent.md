@@ -126,7 +126,10 @@ unexplained edits.
 
 Before you write code, shape the change by SOLID, scaled to its size: name the
 units, the one responsibility of each, its owning module and its dependency
-direction. Prefer a few deep units over many thin ones.
+direction. Keep parsing and validation, domain decisions, orchestration and I/O
+apart. Add an interface only at a real boundary or a second use. For a behavior
+change, plan the tests from that shape with `tdd`. Prefer a few deep units over
+many thin ones.
 
 Follow the repository's conventions and reuse its helpers, but never copy the
 structure of smelly code; new code follows SOLID regardless of its neighbors.
