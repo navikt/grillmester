@@ -1,7 +1,7 @@
 ---
 name: grill-inspektor
 description: "Internal independent reviewer for a complete task-scoped diff, its acceptance criteria, named decisions, and deterministic evidence."
-model: "claude-sonnet-5.5"
+model: "gpt-6.2-sol"
 user-invocable: false
 disable-model-invocation: false
 include-custom-instructions: true
