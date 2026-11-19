@@ -100,7 +100,7 @@
       "source": "pilot",
       "sourcePath": ".github/agents/grill-inspektor.agent.md",
       "disposition": "adapted",
-      "model": "claude-sonnet-5.5",
+      "model": "gpt-6.2-sol",
       "user-invocable": false,
       "disable-model-invocation": false,
       "include-custom-instructions": true,
@@ -128,7 +128,7 @@
       "source": "pilot",
       "sourcePath": ".github/agents/researcher.agent.md",
       "disposition": "adapted",
-      "model": "gpt-6.1-sol",
+      "model": "mai-code-2",
       "user-invocable": false,
       "disable-model-invocation": false,
       "tools": ["read", "search", "web"]

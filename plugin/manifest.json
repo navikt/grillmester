@@ -66,7 +66,7 @@
       "mode": "0644"
     },
     "agents/grill-inspektor.agent.md": {
-      "sha256": "3f6533a2560dfd7ca03754b6f91eb86cc7c8b00f2a71568408ea6508fe2db493",
+      "sha256": "d7d15a5c1dbd7be1977d4217bbe983e08d6d7b271406f727aa4bbdd0bb170685",
       "mode": "0644"
     },
     "agents/grillmester.agent.md": {
@@ -78,11 +78,11 @@
       "mode": "0644"
     },
     "agents/researcher.agent.md": {
-      "sha256": "c403817a4c8815ec5ec12edb0e651c37ad39cb75d3dd448aa5938ef249f6920f",
+      "sha256": "467be472f4d6706fea1671deb3bfc11e6546ec6bb7960ca7af5d99ff1c87adc3",
       "mode": "0644"
     },
     "plugin.json": {
-      "sha256": "8e2ccb17e95c104fc42b529220d52eb5394edc67c7f6f2685bb7735f636cbc92",
+      "sha256": "62d9fcf07c152ebce50e69aece61e35c3f0c660d6ae75d6f8fc2e5a45910271d",
       "mode": "0644"
     },
     "skills/accessibility-review/SKILL.md": {
