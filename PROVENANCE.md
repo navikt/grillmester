@@ -421,6 +421,14 @@ MIT license; the change adds no material from outside Nav. The rights journal
 binds this content, the content lock and this provenance record while preserving
 the underlying decision in #56.
 
+PR [#143](https://github.com/navikt/grillmester/pull/143) reviews model-only
+changes to the two internal pilot agents: `researcher` moves from `gpt-6.1-sol`
+to `mai-code-2`, and `grill-inspektor` moves from `claude-sonnet-5.5` to
+`gpt-6.2-sol`. Their instructions, tools and writes are unchanged. Nothing in
+the Hovmester-imported rights scope changes. The rights journal binds the
+updated content lock and this provenance record while preserving the underlying
+decision in #56.
+
 Imported skills:
 
 - `accessibility-review`, `produktledelse`, `dulting`; `okr`, `team-status` and
