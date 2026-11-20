@@ -1,6 +1,6 @@
 ---
 name: security-review
-description: "Assess a design or change for security and privacy risks. Use for sensitive data, identity, authorization, trust boundaries, privileged operations or a requested security review; use `nav-platform` to implement an authentication mechanism and `architecture-review` for broader design trade-offs."
+description: "Examine whether a security control holds, investigate a single finding, or review a design or change for security and privacy risks. Use when work touches sensitive data, identity, authorization, trust boundaries or privileged operations; use `security-triage` to prioritize security work for a repository or team, and `nav-platform` to implement an authentication flow."
 ---
 
 # Review security and privacy
@@ -14,16 +14,44 @@ description: "Assess a design or change for security and privacy risks. Use for 
 
 | The task touches | Read |
 |---|---|
-| **Nav target:** it runs on Nav or Nais, handles Nav data, identities or a fødselsnummer, or uses Nav authentication, audit or network controls | [nav-security-review.md](references/nav-security-review.md), applied where repository and current authoritative evidence show that it fits |
+| **Confirmed Nav context:** the task or repository identifies Nav/Nais, Nav data or identities, a fødselsnummer, or a Nav authentication, audit or network control | [nav-security-review.md](references/nav-security-review.md) for those controls. For a generic service, stay with the evidence supplied for that service. |
 | **New attack surface:** it adds or materially alters an entry point, trust boundary, identity model, sensitive-data flow, privileged operation, external integration or deployed surface | [threat-model.md](references/threat-model.md), and perform its DFD-first STRIDE review |
 
 ## Establish facts and boundaries
 
-Read the scoped design or complete diff, relevant repository policy, deployed
-configuration, and tests. Identify protected assets, actors, data categories,
-trust boundaries, entry points, privileged operations, external flows, and
-plausible failure impact. Mark missing facts as unknown instead of filling them
-from a generic checklist.
+Read the scoped design, complete diff, control implementation or evidence for
+the reported finding, relevant repository policy, deployed configuration, and
+tests. Identify protected assets, actors, data categories, trust boundaries,
+entry points, privileged operations, external flows and plausible impact. Mark
+missing facts as unknown. If an extract omits a control, ask for its design or
+implementation before calling it absent. Reserve “undecided” for a choice
+the team actually records as open.
+
+Use `nav-platform` for authentication implementation and `architecture-review`
+for broader design trade-offs. When `security-triage` requests a control
+review, answer the specific question with the supporting evidence, limits
+and remediation. Triage owns the combined ranking.
+
+## Investigate a reported finding
+
+Pin the claim to its source, advisory or rule, revision, package version or
+artifact, and affected operation. For secret alerts use only metadata with
+values excluded at the source. Trace the actual dependency path or code and
+the controls that apply in the affected environment. Look for evidence
+that would disprove the claim, such as an unaffected resolved version,
+a build-only dependency, or an ownership check on every path to the resource.
+Assess build and delivery privileges separately from production reachability.
+
+For a single finding, review only surfaces that could change the verdict.
+If the control already covers the claim, cite it and the test or evidence
+that exercises it. Stop there unless a specific unresolved precondition
+could change the result. For a supported finding, give the smallest fix
+and its check. For a runtime finding, distinguish a source fix, deployment
+of the intended digest, and a current scan or control check on that deployment.
+For a code-scanning alert, verify that a successful analysis covered the
+correct revision, rule and configuration before calling a fix verified.
+When the evidence is inconclusive, say which observation would settle the
+claim and who can supply it.
 
 ## Review the applicable surfaces
 
@@ -66,10 +94,11 @@ non-product reviewer that expects fresh evidence but cannot execute may return
 orchestrator. This paragraph grants no command execution to a role that
 forbids it and must not be used to route commands through the user.
 
-Never install tools, contact external systems, rotate credentials, or mutate
-deployed state merely to complete a review. Return findings ordered by
+Never install tools, probe the reviewed service, rotate credentials, or mutate
+deployed state merely to complete a review. Read other systems only through
+approved, read-only sources. Return findings ordered by
 potential impact and exploitability. For each, identify the evidence, affected
 asset or boundary, credible failure mode, and smallest effective mitigation.
-Separate verified findings, inference, and unresolved questions. Escalate a
-suspected active exposure or incident through the repository's incident
-process without exposing sensitive evidence in the report.
+Separate verified findings, inference, and unresolved questions. Flag a
+suspected active exposure to the user immediately and identify the
+repository's incident route. Keep sensitive evidence in the approved system.

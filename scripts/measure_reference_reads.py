@@ -7,14 +7,23 @@ tells the model to use the skill, so the run measures the step from a loaded
 skill to its reference. `--natural` leaves that instruction out. The runs make
 real model requests, so they cost AI credits. Results hold names and counts,
 never conversation content.
+
+For offline measurement, pass --read-evidence FILE --only SKILL. Each JSON
+file covers one completed session, e.g. {"completed": true, "reads": {}}.
+Map each exact plugin-relative file path in reads to the lowercase SHA-256 of
+one stripped UTF-8 fingerprint line delivered to the agent. The exporter must
+verify session completion, a successful read of that file, and delivery of the
+line in that call's output. Keep the original evidence private for rechecks.
 """
 
 from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import hashlib
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -367,6 +376,24 @@ CASES = (
         "Vi åpner et nytt eksternt API for vedtak. Lag en trusselmodell.",
     ),
     Case(
+        "security-triage",
+        "references/github-evidence.md",
+        "Vi har et GitHub-team, en eierskapsavklaring og et utdrag av "
+        "varselkøene. Hvilke repoer skal telle og hva bør vi prioritere?",
+    ),
+    Case(
+        "security-triage",
+        "references/nav-evidence.md",
+        "Nais viser samme sårbare pakke i to produksjonsimager. Vil et nytt "
+        "Chainguard-baseimage hjelpe, og hvordan bekrefter vi det for begge?",
+    ),
+    Case(
+        "security-triage",
+        "references/manual-checks.md",
+        "Hva bør vi prioritere av sikkerhetsarbeid i tjenesten som lagrer og "
+        "sender brukerne dokumenter? Alle skanningene er grønne.",
+    ),
+    Case(
         "tdd",
         "mocking.md",
         "VedtakService skal kalle et eksternt API. Skriv testen først. Hva skal"
@@ -504,6 +531,46 @@ def read_events(
     return False
 
 
+def report_evidence(options: argparse.Namespace, cases: Sequence[Case]) -> int:
+    try:
+        with options.read_evidence.open(encoding="utf-8") as stream:
+            evidence = json.load(stream)
+        if not isinstance(evidence, dict) or evidence.get("completed") is not True:
+            raise ValueError("expected one completed session")
+        recorded = evidence.get("reads")
+        if not isinstance(recorded, dict) or any(
+            not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value)
+            for value in recorded.values()
+        ):
+            raise ValueError("expected a map of file paths to SHA-256 digests")
+        paths = {
+            f"skills/{case.skill}/{name}"
+            for case in cases
+            for name in ("SKILL.md", case.reference)
+        }
+        reads = {
+            path
+            for path in paths & recorded.keys()
+            if any(
+                hashlib.sha256(line.encode("utf-8")).hexdigest() == recorded[path]
+                for line in fingerprints(options.plugin / path)
+            )
+        }
+    except (OSError, ValueError) as error:
+        print(f"could not measure the session: {error}", file=sys.stderr)
+        return 1
+    results = [
+        {
+            "case": case.id,
+            "skill_read": f"skills/{case.skill}/SKILL.md" in reads,
+            "reference_read": f"skills/{case.id}" in reads,
+        }
+        for case in cases
+    ]
+    print(json.dumps({"source": "read-evidence", "results": results}, indent=2))
+    return 0
+
+
 def open_manual_skills(plugin: Path) -> None:
     """A manual skill cannot be reached from --prompt; open the measured copy."""
 
@@ -621,16 +688,26 @@ def render_table(cases: Sequence[Case], results: Sequence[ReadResult]) -> str:
 
 
 def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--model", required=True, help="model to run every session on")
-    parser.add_argument("--output", type=Path, required=True, help="directory for results")
+    parser = argparse.ArgumentParser(
+        description=__doc__.splitlines()[0], epilog=__doc__.split("\n\n")[-1]
+    )
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--model", help="model to run every session on")
+    mode.add_argument("--read-evidence", type=Path, help="measure exported read evidence offline")
+    parser.add_argument("--output", type=Path, help="directory for live session results")
     parser.add_argument("--plugin", type=Path, default=ROOT / "plugin")
     parser.add_argument("--runs", type=int, default=3, help="sessions per reference")
     parser.add_argument("--jobs", type=int, default=6, help="parallel sessions")
     parser.add_argument("--only", nargs="*", help="skill or skill/reference IDs to run")
     parser.add_argument("--natural", action="store_true", help="do not name the skill")
     parser.add_argument("--copilot", default="copilot")
-    return parser.parse_args(arguments)
+    options = parser.parse_args(arguments)
+    if options.read_evidence:
+        if not options.only or options.output:
+            parser.error("--read-evidence requires --only and writes to stdout")
+    elif not options.output:
+        parser.error("--model requires --output")
+    return options
 
 
 def main(arguments: Sequence[str] | None = None) -> int:
@@ -643,6 +720,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if not cases:
         print("no case matches --only", file=sys.stderr)
         return 1
+    if options.read_evidence:
+        return report_evidence(options, cases)
     copilot = shutil.which(options.copilot)
     if copilot is None:
         print(f"{options.copilot} was not found", file=sys.stderr)

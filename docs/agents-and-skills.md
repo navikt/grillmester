@@ -209,7 +209,8 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 | **Avklaring og beslutninger** | Planen må grilles, domeneord avklares eller en beslutning dokumenteres. | Grilling, Grill with docs, Domain modeling, To spec, Architecture review, Prototype |
 | **Beslutningskart og oppdeling** | Avhengige, uavklarte beslutninger trenger et varig kart, eller avklart arbeid skal deles i selvstendige leveranser. | Wayfinder, To issues, Issue management |
 | **Overlevering** | Brukeren ber om å flytte pågående arbeid til en annen sesjon, klient eller kollega. | Handoff (manuell) |
-| **Implementasjon og kvalitet** | Feilsøking, teststrategi, review eller sikkerhet/personvern. | Diagnosing bugs, TDD, Review, Guided review, Security review |
+| **Implementasjon og kvalitet** | Feilsøking, teststrategi og gjennomgang av en diff. | Diagnosing bugs, TDD, Review, Guided review |
+| **Sikkerhet og personvern** | Prioritere teamets tiltak eller undersøke risikoen i en konkret endring eller et funn. | Security triage, Security review |
 | **Kodebase og levering** | Arkitekturforbedring, PR eller skillvedlikehold. | Improve codebase architecture, Pull request, Create a skill |
 | **Design og UU** | Aksel, universell utforming, designutforsking eller Figma-to-code. | Aksel, Accessibility review, Design prototype |
 | **Produkt og tjeneste** | Mål, discovery, teamarbeid, workshop, klarspråk eller ansvarlig atferdsdesign. | Produktledelse, Klarspråk, Dulting |
@@ -217,13 +218,13 @@ Tabellen grupperer innholdet etter brukerbehov, ikke etter intern mappe:
 
 ## Én komplett plugin
 
-`grillmester@grillmester` gir hele agentteamet og alle 29 skills i én
+`grillmester@grillmester` gir hele agentteamet og alle 30 skills i én
 installasjon. Det inkluderer metode, design, produktarbeid, levering og
 Nav-nære emner som Aksel, UU, arkitektur, backend og plattform. Én plugin gjør
 agentenes ruting og kryssreferanser forutsigbare uten at brukeren må kjenne en
 pakkeinndeling.
 
-De 29 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
+De 30 skillsene har korte, kanoniske ID-er som `grill-with-docs`,
 `design-prototype` og `review`. Nav-pilot eier valg og distribusjon av
 agentpakken; pakkevalg er ikke et eget runtime-navnerom. De reviewede
 agent-ID-ene er bevart. Klientens aktive oversikt avgjør hvilke skills som
@@ -276,6 +277,8 @@ Disse grensene gjør overlappende metoder enklere å velge:
 | Se layout, hierarki eller en brukerflyt | `design-prototype` | Visuell skisse; `aksel` gjør et valgt Figma-design om til kode. |
 | Bestemme hvor testene skal ligge, også integrasjons- og e2e-tester | `tdd` | Lager en kort testplan og holder testene få og plassert så høyt som det fortsatt er raskt. |
 | Kontrollere en ferdig diff eller forstå den sammen | `review` / `guided-review` | Egenkontroll versus interaktiv gjennomgang; `security-review` brukes ved relevante sikkerhets- og personvernspørsmål. |
+| Prioritere teamets sikkerhetsarbeid | `security-triage` | Fullprofilen. Sammenholder dekningen i tilgjengelige kilder og gir en rangert tiltaksliste med berørte repoer, ansvar og ferdigkriterier. |
+| Etterprøve ett sikkerhetsvarsel eller vurdere en endring | `security-review` | Følger koden, dataflyten og driftsgrunnlaget for å vurdere faktisk eksponering og hva som kan bekrefte en rettelse. |
 | Bygge på eller feilsøke Nais, Texas, TokenX, Kafka, Cloud SQL eller observability | `nav-platform` | Rutetabell til én referanse per område, med både design og feilsøking. `diagnosing-bugs` finner og retter en kodefeil; `security-review` gir en bredere sikkerhetsvurdering. |
 | Få forrige svar forklart enklere | `/wait-what` | Kun manuelt. Ny forklaring med litt kontekst, korte setninger og repoets begreper. |
 | Forbedre agentmiljøet etter en økt som gikk tungt | `/agent-retro` | Kun manuelt. Foreslår pekere, automatiske sjekker, slankere instruksjonsfiler og bedre tilgang til logger og informasjon; endrer bare det du godtar. Team-retroer hører til `produktledelse`. |
@@ -285,6 +288,44 @@ oppdeling i tickets kan uttrykkes i vanlig språk. Det oppretter ingen
 automatisk kjede fra grilling til spec og videre til issues. Fullmakt til
 konkrete eksterne handlinger følger brukerens oppdrag og gjeldende grenser;
 et skillskifte er ikke i seg selv en ny fullmakt.
+
+### Prioriter sikkerhetsarbeidet
+
+| Omfang | Eksempel på bestilling i fullprofilen |
+| --- | --- |
+| Teamet ditt | `/security-triage` |
+| Et navngitt team | `/security-triage Vurder sikkerheten i alle repoene til <teamnavn>.` |
+| Ett repo | `/security-triage Hva bør vi prioritere i dette repoet?` |
+| Et utvalg | `/security-triage Vurder sikkerheten i <app A> og <app B>.` |
+
+Den korte bestillingen bruker teamet ditt i Nais. Er du medlem av ett team,
+velges det uten spørsmål. Er du medlem av flere, spør agenten hvilket team du
+mener, med mindre du selv har valgt et standardteam. Rapporten sier hvilket
+team som ble valgt, og hvordan. «Dette repoet» og navngitte repoer eller apper
+går foran teamvalget. At et team kan deploye fra et repo, eller at du ser
+teamet i en oversikt, gjør ikke teamet til eier av repoet.
+
+Produksjonsdekningen kommer fra Nais. Mangler Nais MCP eller tilgang, sier
+rapporten hvilke oppslag som mangler og hvilke arbeidslaster som derfor ikke
+er sjekket. Den sier også om `nais`-CLI eller et datert, maskert uttrekk fra
+noen med innsyn kan dekke hullet. Ukjent dekning står som ukjent, ikke som null
+funn.
+
+En generell gjennomgang omfatter både registrerte varsler og en selvstendig
+kontroll av kode, konfigurasjon eller tester. For en dokumenttjeneste kan
+spørsmålet være «Hvordan vet vi at en bruker bare får lest sine egne
+dokumenter?» For en delt byggeflyt kan det være «Hvilken jobb kan publisere
+et produksjonsartefakt?» Rapporten viser hva som er undersøkt i hvert repo,
+og hvilke deler som gjenstår. En bestilling avgrenset til varselkøen kan
+behandles alene. [Valg av kilde](mcp-setup.md#velg-kilde-ved-sikkerhetstriage).
+
+Les rapportens første anbefaling sammen. Velg hvem
+som tar tiltaket, når det følges opp, og hvilket bevis som skal til for å
+lukke det. Ta med den daterte rapporten neste gang for å se hva som er nytt,
+hva som er rettet, og hvor innsynet har endret seg. Bruk `security-review`
+for å etterprøve én kontroll eller ett funn. Resultatet kan gå rett inn i
+prioriteringen. Bruk `issue-management` når dere vil følge opp
+vedtatte tiltak i GitHub.
 
 ### Slash-navn som er borte
 

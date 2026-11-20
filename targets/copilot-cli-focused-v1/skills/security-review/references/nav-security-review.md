@@ -40,6 +40,13 @@ document as a universal policy.
 
 ## Logs, telemetry, audit, and secrets
 
+- When routing affects a finding, read the current [Nais logging guidance](https://docs.nais.io/observability/logging/)
+  and [Team Logs configuration](https://docs.nais.io/observability/logging/how-to/team-logs/).
+  Team Logs supports necessary sensitive logging in a private team destination.
+  Trace the event through its formatter, appenders, inheritance and any other
+  destinations in the deployed revision. Record the control when routing matches
+  the documented use. A shared copy or fields beyond the agreed purpose warrant
+  follow-up. If the purpose is unknown, report the open question.
 - Keep personal data, tokens, credentials, and sensitive case facts out of
   ordinary application logs, URLs, exception messages, metrics labels, traces,
   dashboards, and agent transcripts.
