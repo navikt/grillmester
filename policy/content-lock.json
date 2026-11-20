@@ -290,6 +290,7 @@
       "disposition": "adapted"
     },
     "security-review": {"source": "pilot", "sourcePath": ".github/skills/security-review", "disposition": "adapted"},
+    "security-triage": {"source": "grillmester", "sourcePath": "plugin/skills/security-triage", "disposition": "original"},
     "tdd": {
       "source": "pilot",
       "sourcePath": ".github/skills/tdd",

@@ -10,7 +10,7 @@
   "source": {
     "plugin": "plugin",
     "payloadManifest": "plugin/manifest.json",
-    "payloadManifestSha256": "4489b78205d217ca7c53fd013c0fe23185e8561e5f6c4ccfb470dcb55026e5ae",
+    "payloadManifestSha256": "65ffa3aa0c5d233f69e6dfb16a7641113f46f130b868f2399c4b3da65c6aada1",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -101,11 +101,11 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "1433699ae2b4e91e3a478f1d4f6364dbca51b8484e93038c01178f3c3efeb620",
+      "sha256": "b332ec6d5b7ac41d4ae661aa0a448247216fe2178ba3410e3e0900c75cb0db46",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
-      "sha256": "2466a193bb9a2553600e28fd5e696bc780f46ac63acb5e82a4289e2ad387aec8",
+      "sha256": "4f42d5dea30dbb71dbbfc4cb1166339c448c16a994a5ee72b7bf4f1584643d82",
       "mode": "0644"
     },
     "skills/security-review/references/threat-model.md": {

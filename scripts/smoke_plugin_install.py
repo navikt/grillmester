@@ -59,7 +59,7 @@ class PackageSpec(NamedTuple):
 
 
 PACKAGES = (
-    PackageSpec("grillmester", "plugin", 6, 29, True),
+    PackageSpec("grillmester", "plugin", 6, 30, True),
 )
 LEGACY_CORE = PackageSpec("grillmester", "plugin", 8, 34, False)
 LEGACY_ADD_ON = PackageSpec("grillmester-nav", "plugin-nav", 0, 10, False)
@@ -102,6 +102,7 @@ CURRENT_ONLY_SKILLS = (
     "app-sandbox-setup",
     "guided-review",
     "nav-platform",
+    "security-triage",
     "wait-what",
 )
 REMOVED_SKILLS = SAME_PACKAGE_REMOVED_SKILLS + HISTORICAL_REMOVED_SKILLS

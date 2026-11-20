@@ -8,7 +8,7 @@
   },
   "source": {
     "target": "targets/opencode-v1",
-    "targetManifestSha256": "1e99821af6f8ace4199a175602c289ba1c97a52de8754529e67529e08bd0f5b5",
+    "targetManifestSha256": "9a7bde777f40655f7f7933c1df34173abd14e1fb53602219cc00c8db883e68c9",
     "policy": "policy/focused-context-v1.json",
     "policySha256": "a87fbecb0cfdcfbd36702acfdedcd28f3e83132ebeaee44765eeb71f1a35733c"
   },
@@ -82,7 +82,7 @@
       "mode": "0644"
     },
     "commands/security-review.md": {
-      "sha256": "d0cb4339878258c8493e0202bd3770ed0bca44452309351d7a2beb1937e3e7a5",
+      "sha256": "fabe49546c52b475a5946fec11a4c44b45a3410c97f79859ef8ae9abfd1301ad",
       "mode": "0644"
     },
     "commands/tdd.md": {
@@ -134,11 +134,11 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "6e92eb65c9de0062f08cf61f3cd8cc13d685cd8654ce3b5f32062d813faed290",
+      "sha256": "cdfd606f86b94143cf1124d7240c4b057ad0c65fc0fe13df592498081be08ca7",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
-      "sha256": "2466a193bb9a2553600e28fd5e696bc780f46ac63acb5e82a4289e2ad387aec8",
+      "sha256": "4f42d5dea30dbb71dbbfc4cb1166339c448c16a994a5ee72b7bf4f1584643d82",
       "mode": "0644"
     },
     "skills/security-review/references/threat-model.md": {
