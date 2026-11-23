@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import io
 import json
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -207,6 +211,47 @@ class EventTests(unittest.TestCase):
         )
         self.assertTrue(tool.loaded)
         self.assertTrue(invoked.loaded)
+
+
+class EvidenceTests(unittest.TestCase):
+    def measure(self, evidence: object) -> tuple[int, str]:
+        case = READS.CASES[0]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "evidence.json"
+            path.write_text(json.dumps(evidence), encoding="utf-8")
+            output = io.StringIO()
+            with (
+                patch.object(READS.shutil, "which", side_effect=AssertionError),
+                redirect_stdout(output),
+                redirect_stderr(io.StringIO()),
+            ):
+                code = READS.main(["--read-evidence", str(path), "--only", case.id])
+        return code, output.getvalue()
+
+    def test_matches_only_a_fingerprint_of_the_exact_file(self) -> None:
+        case = READS.CASES[0]
+        path = f"skills/{case.id}"
+        line = READS.fingerprints(ROOT / "plugin" / path)[0]
+        digest = hashlib.sha256(line.encode("utf-8")).hexdigest()
+        for recorded, expected in (
+            ({path: digest}, True),
+            ({"other/" + path: digest}, False),
+            ({path: "0" * 64}, False),
+            ({}, False),
+        ):
+            code, output = self.measure({"completed": True, "reads": recorded})
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(output)["results"], [
+                {"case": case.id, "skill_read": False, "reference_read": expected}
+            ])
+
+    def test_rejects_incomplete_or_invalid_exports(self) -> None:
+        for evidence in (
+            {},
+            {"completed": False, "reads": {}},
+            {"completed": True, "reads": {"file": "self-report"}},
+        ):
+            self.assertEqual(self.measure(evidence), (1, ""))
 
 
 class FixtureTests(unittest.TestCase):

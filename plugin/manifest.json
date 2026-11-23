@@ -7,7 +7,7 @@
   },
   "counts": {
     "agents": 6,
-    "skills": 29
+    "skills": 30
   },
   "agents": [
     "designer",
@@ -43,6 +43,7 @@
     "pull-request",
     "review",
     "security-review",
+    "security-triage",
     "tdd",
     "to-spec",
     "wait-what",
@@ -486,15 +487,31 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "97be0618685ef55169fac8441d1aa040f0fba067554dac4a9b8b5d91f7a05c66",
+      "sha256": "31fdc0ee7e82784c45b793eab9bd24b3434200f2bdcda727c534ee018e1911eb",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
-      "sha256": "2466a193bb9a2553600e28fd5e696bc780f46ac63acb5e82a4289e2ad387aec8",
+      "sha256": "4f42d5dea30dbb71dbbfc4cb1166339c448c16a994a5ee72b7bf4f1584643d82",
       "mode": "0644"
     },
     "skills/security-review/references/threat-model.md": {
       "sha256": "00eb790e4385abc8173e0eb67b7729e626bd945c61b5789905adbc70eb43c9fb",
+      "mode": "0644"
+    },
+    "skills/security-triage/SKILL.md": {
+      "sha256": "03710f7bbdcfd586dad9816597654084c0fa726f622a571b1328d490c3335069",
+      "mode": "0644"
+    },
+    "skills/security-triage/references/github-evidence.md": {
+      "sha256": "e77c6b1a6ab4162c257ad4ca1abfa2ec812468108b0403c5a32d7f61bdfd1b91",
+      "mode": "0644"
+    },
+    "skills/security-triage/references/manual-checks.md": {
+      "sha256": "597a8e45c78ad886000fb1e9464e6517da22826f028b0249ea79af99cd7f7c56",
+      "mode": "0644"
+    },
+    "skills/security-triage/references/nav-evidence.md": {
+      "sha256": "458e1439ca2a998711c8c4d82c1e99b963ad55a7f1446dfd364713f0cf512549",
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {

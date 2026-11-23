@@ -20,8 +20,8 @@
     "agents": 6,
     "primaryAgents": 3,
     "subagents": 3,
-    "skills": 29,
-    "commands": 29
+    "skills": 30,
+    "commands": 30
   },
   "skillCapabilities": {
     "accessibility-review": "native",
@@ -49,6 +49,7 @@
     "pull-request": "native",
     "review": "native",
     "security-review": "native",
+    "security-triage": "native",
     "tdd": "native",
     "to-spec": "native",
     "wait-what": "native",
@@ -196,7 +197,11 @@
       "mode": "0644"
     },
     "commands/security-review.md": {
-      "sha256": "8af982755605443f192094ef309a7d5e38f41e7b283e441085c773f34098f142",
+      "sha256": "d5cbffddc95a9b15381fd6de245962d3d93058167717f127cc680d5ae090b26b",
+      "mode": "0644"
+    },
+    "commands/security-triage.md": {
+      "sha256": "bbb6c08d80409c1f9ee95e9bff3b9bd4ac86120e5604513e98801e1e098ee349",
       "mode": "0644"
     },
     "commands/tdd.md": {
@@ -616,15 +621,31 @@
       "mode": "0644"
     },
     "skills/security-review/SKILL.md": {
-      "sha256": "2625e458dd9d4c4dcb489c2262bd40bbad5e63e2b8163f8cdcf69ec438abec36",
+      "sha256": "db27df5af42f7732631e18fd3408711ffd651ad2b97b77841691b9aca2f7f1d0",
       "mode": "0644"
     },
     "skills/security-review/references/nav-security-review.md": {
-      "sha256": "2466a193bb9a2553600e28fd5e696bc780f46ac63acb5e82a4289e2ad387aec8",
+      "sha256": "4f42d5dea30dbb71dbbfc4cb1166339c448c16a994a5ee72b7bf4f1584643d82",
       "mode": "0644"
     },
     "skills/security-review/references/threat-model.md": {
       "sha256": "00eb790e4385abc8173e0eb67b7729e626bd945c61b5789905adbc70eb43c9fb",
+      "mode": "0644"
+    },
+    "skills/security-triage/SKILL.md": {
+      "sha256": "6fc54918542b121c4982e1fe37c4c6024100fcc7ab4c9f92aa2f1d30525423c9",
+      "mode": "0644"
+    },
+    "skills/security-triage/references/github-evidence.md": {
+      "sha256": "e77c6b1a6ab4162c257ad4ca1abfa2ec812468108b0403c5a32d7f61bdfd1b91",
+      "mode": "0644"
+    },
+    "skills/security-triage/references/manual-checks.md": {
+      "sha256": "597a8e45c78ad886000fb1e9464e6517da22826f028b0249ea79af99cd7f7c56",
+      "mode": "0644"
+    },
+    "skills/security-triage/references/nav-evidence.md": {
+      "sha256": "458e1439ca2a998711c8c4d82c1e99b963ad55a7f1446dfd364713f0cf512549",
       "mode": "0644"
     },
     "skills/tdd/SKILL.md": {

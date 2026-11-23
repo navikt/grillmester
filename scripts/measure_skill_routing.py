@@ -87,9 +87,33 @@ SCENARIOS = (
         ("review",),
     ),
     Scenario(
+        "security-triage",
+        "Vi rekker ikke å følge opp alle sikkerhetsvarslene. Hva bør teamet "
+        "ta tak i først på tvers av repoene våre?",
+        ("security-triage",),
+    ),
+    Scenario(
         "security-review",
         "Det nye endepunktet returnerer fødselsnummer og vedtaksgrunnlag. Gjør en "
         "sikkerhetsvurdering før vi går i produksjon.",
+        ("security-review",),
+    ),
+    Scenario(
+        "security-single-repo",
+        "Hva skal vi prioritere av sikkerhetsarbeid i dette repoet denne uka? "
+        "Ta med hva vi mangler innsyn i og hvordan vi bekrefter at vi er ferdige.",
+        ("security-triage",),
+    ),
+    Scenario(
+        "security-selection",
+        "Prioriter sikkerhetstiltak for bare API-et og den delte byggeflyten. "
+        "Vi tar resten av porteføljen senere.",
+        ("security-triage",),
+    ),
+    Scenario(
+        "security-control",
+        "Holder eierskapssjekken ved dokumentnedlasting i dagens løsning? "
+        "Vi trenger en konklusjon på den konkrete kontrollen.",
         ("security-review",),
     ),
     Scenario(

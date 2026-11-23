@@ -1,7 +1,7 @@
 # Provenance
 
 This repository owns the operative Grillmester package content under
-`plugin/`: six agents and 29 skills. The sources below record attribution
+`plugin/`: six agents and 30 skills. The sources below record attribution
 and the reviewed import boundary. They are not runtime dependencies and do not
 create a synchronization relationship.
 
@@ -35,6 +35,10 @@ in `navikt/grillmester`, starting from repository baseline
 baseline, not an imported copy of the new skill. The script implements the
 desktop app setup decision in ADR 0014 without copying the machine-bound
 prototype. It has no third-party payload or Hovmester lineage.
+
+`security-triage` is an original Grillmester skill for prioritizing security
+work across repositories. Its references point to the services that supply
+evidence for the assessment.
 
 ## Derived terminal artifacts
 
